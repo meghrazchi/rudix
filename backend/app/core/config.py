@@ -1,8 +1,8 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     api_name: str = "AI Document Q&A Assistant API"
     api_version: str = "0.1.0"
     api_prefix: str = "/api/v1"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["http://localhost:3000"])
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app"
     database_echo: bool = False
@@ -48,13 +48,25 @@ class Settings(BaseSettings):
     sentry_dsn: str | None = None
     max_upload_size_mb: int = 25
 
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def validate_cors_origins(cls, value: object) -> list[str]:
+        if isinstance(value, str):
+            parsed = [item.strip() for item in value.split(",") if item.strip()]
+            if not parsed:
+                raise ValueError("cors_origins must not be empty")
+            return parsed
+        if isinstance(value, list):
+            parsed = [str(item).strip() for item in value if str(item).strip()]
+            if not parsed:
+                raise ValueError("cors_origins must not be empty")
+            return parsed
+        raise ValueError("cors_origins must be a comma-separated string or list of strings")
+
     @model_validator(mode="before")
     @classmethod
     def parse_cors_origins(cls, data: object) -> object:
         if isinstance(data, dict):
-            cors_value = data.get("cors_origins")
-            if isinstance(cors_value, str):
-                data["cors_origins"] = [item.strip() for item in cors_value.split(",") if item.strip()]
             for key in ("clerk_jwks_url", "supabase_jwks_url", "qdrant_api_key", "openai_api_key", "sentry_dsn"):
                 if data.get(key) == "":
                     data[key] = None

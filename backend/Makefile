@@ -15,7 +15,7 @@ run-api:
 	uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 run-worker:
-	celery -A app.workers.celery_app.celery_app worker --loglevel=INFO
+	celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
 
 format:
 	ruff check app tests --fix

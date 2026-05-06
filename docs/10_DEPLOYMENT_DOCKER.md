@@ -56,7 +56,7 @@ services:
   worker:
     build:
       context: ./backend
-    command: celery -A app.workers.celery_app worker --loglevel=INFO
+    command: celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
     env_file:
       - .env
     depends_on:
