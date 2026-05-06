@@ -1,0 +1,32 @@
+# OS files
+.DS_Store
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.venv/
+venv/
+
+# Test and coverage artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Editor and IDE
+.idea/
+.vscode/
+

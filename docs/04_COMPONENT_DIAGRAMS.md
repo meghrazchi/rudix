@@ -98,7 +98,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph Vercel["Vercel"]
+    subgraph FrontendHost["Frontend Host (Docker / Kubernetes)"]
         FE[Next.js Frontend]
     end
 

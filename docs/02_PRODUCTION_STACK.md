@@ -17,7 +17,7 @@
 | Embeddings | OpenAI embeddings | Chunk and query embeddings |
 | LLM | Configurable OpenAI model | Answer generation |
 | Evaluation | RAGAS + custom metrics | RAG quality evaluation |
-| Deployment | Docker backend + Vercel frontend | Production deployment |
+| Deployment | Containerized frontend + backend | Production deployment |
 | Monitoring | Sentry + structured logs | Error tracking and observability |
 
 ## Frontend: Next.js + React + Tailwind CSS
@@ -230,7 +230,7 @@ Use two evaluation layers:
 Recommended:
 
 ```text
-Frontend: Vercel
+Frontend: Next.js container (self-hosted)
 Backend API: Docker container
 Workers: Docker containers
 PostgreSQL: managed or containerized

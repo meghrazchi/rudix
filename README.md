@@ -27,7 +27,7 @@ DOCX processing: python-docx
 Embeddings:      OpenAI embeddings
 LLM:             Configurable OpenAI model, for example gpt-5.4-mini
 Evaluation:      RAGAS + custom metrics
-Deployment:      Docker-based backend + Vercel frontend
+Deployment:      Containerized frontend + backend (self-hosted)
 Monitoring:      Sentry + structured logs
 ```
 
@@ -63,4 +63,4 @@ Monitoring:      Sentry + structured logs
 11. Build Next.js UI.
 12. Add evaluation pipeline.
 13. Add monitoring and production security controls.
-14. Deploy frontend to Vercel and backend stack using Docker.
+14. Deploy frontend and backend stack using Docker (Compose or Kubernetes).

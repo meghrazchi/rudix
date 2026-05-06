@@ -148,7 +148,7 @@ Never commit:
 
 Use:
 
-- Vercel env vars.
+- Container runtime environment variables.
 - Docker secrets.
 - Cloud secret manager.
 

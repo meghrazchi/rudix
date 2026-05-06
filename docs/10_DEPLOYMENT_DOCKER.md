@@ -20,7 +20,7 @@ flowchart TD
 ## Recommended services
 
 ```text
-frontend       Next.js dev server or Vercel
+frontend       Next.js dev server or containerized Next.js service
 api            FastAPI container
 worker         Celery worker container
 postgres       PostgreSQL
@@ -167,7 +167,7 @@ tiktoken
 Recommended:
 
 ```text
-Vercel
+Self-hosted Next.js container behind Nginx or Traefik
 ```
 
 Frontend env vars:
@@ -201,7 +201,7 @@ Qdrant:     Qdrant Cloud
 MinIO:      Managed S3-compatible object storage or AWS S3
 RabbitMQ:   CloudAMQP
 Redis:      Upstash / Redis Cloud
-Frontend:   Vercel
+Frontend:   Container platform (ECS / Fly.io / Render / Railway / Kubernetes)
 ```
 
 ## Production environment variables

@@ -14,6 +14,8 @@ All notable changes to this documentation set are recorded here.
 - Expanded `docs/DOCUMENTATION_STANDARDS.md` into a formal standard.
 - Updated `docs/README.md` with standards and templates links.
 - Updated `docs/CONTRIBUTING.md` to require template and checklist usage.
+- Removed platform-specific frontend deployment guidance across architecture and deployment docs.
+- Standardized deployment guidance to containerized/self-hosted frontend and backend infrastructure.
 
 ## [2026-05-07]
 
