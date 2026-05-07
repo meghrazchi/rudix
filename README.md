@@ -5,6 +5,7 @@ This documentation bundle defines the production architecture for a RAG-powered 
 ## Documentation navigation
 
 - Main docs index: [docs/README.md](docs/README.md)
+- Frontend setup and standards: [frontend/README.md](frontend/README.md)
 - Installation and configuration: [docs/INSTALL.md](docs/INSTALL.md)
 - Contribution guide: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
 - Code of conduct: [docs/CODE_OF_CONDUCT.md](docs/CODE_OF_CONDUCT.md)
