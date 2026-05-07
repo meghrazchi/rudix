@@ -32,6 +32,18 @@ docker compose up --build
 - `GET http://localhost:8000/api/v1/ready`
 - `GET http://localhost:8000/api/v1/configz` (sanitized settings snapshot, controlled by `FEATURE_EXPOSE_CONFIG_SNAPSHOT`)
 
+4. Apply database migrations:
+
+```bash
+make migrate
+```
+
+5. Optional: seed local development data:
+
+```bash
+make seed-dev
+```
+
 ## Configuration notes
 
 - The API and worker fail at startup if required configuration is missing or malformed.
@@ -48,6 +60,9 @@ make lint
 make test
 make run-api
 make run-worker
+make migrate
+make downgrade
+make seed-dev
 ```
 
 `make install` creates a local virtualenv at `backend/.venv` and installs all dependencies there.
@@ -65,6 +80,8 @@ backend/
     schemas/
     services/
     workers/
+    repositories/
   alembic/
+  scripts/
   tests/
 ```

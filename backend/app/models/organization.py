@@ -12,4 +12,9 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     users = relationship("User", back_populates="organization")
+    members = relationship("OrganizationMember", back_populates="organization", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="organization")
+    chat_sessions = relationship("ChatSession", back_populates="organization")
+    evaluation_sets = relationship("EvaluationSet", back_populates="organization")
+    usage_events = relationship("UsageEvent", back_populates="organization")
+    audit_logs = relationship("AuditLog", back_populates="organization")

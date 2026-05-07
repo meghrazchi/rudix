@@ -74,7 +74,22 @@ Notes:
 - Startup is fail-fast. API and worker stop immediately on invalid or missing required configuration.
 - `/api/v1/configz` returns a sanitized snapshot and never exposes secret values.
 
-### 3.3 Optional: run backend outside Docker
+### 3.3 Run database migrations and seed data
+
+From `backend/`:
+
+```bash
+make migrate
+make seed-dev
+```
+
+Rollback the most recent migration in local development:
+
+```bash
+make downgrade
+```
+
+### 3.4 Optional: run backend outside Docker
 
 Keep infrastructure containers up, but run API/worker from host:
 
@@ -170,6 +185,13 @@ Then verify health:
 ```bash
 curl -fsS https://api.yourdomain.com/api/v1/health
 curl -fsS https://api.yourdomain.com/api/v1/ready
+```
+
+Apply schema migrations before serving traffic:
+
+```bash
+cd backend
+make migrate
 ```
 
 ## 5. Configuration validation behavior

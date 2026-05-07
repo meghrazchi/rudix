@@ -4,6 +4,16 @@ PostgreSQL is the source of truth for application state.
 
 Qdrant stores vector embeddings, but PostgreSQL stores document and chunk metadata.
 
+## Migration baseline
+
+- Alembic baseline revision: `20260507_0001` (`backend/alembic/versions/20260507_0001_initial_schema.py`)
+- SQLAlchemy async models are defined in `backend/app/models/`.
+- Repositories for core CRUD flows are in `backend/app/repositories/`.
+- Local commands:
+  - `cd backend && make migrate`
+  - `cd backend && make downgrade`
+  - `cd backend && make seed-dev`
+
 ## Entity relationship diagram
 
 ```mermaid
