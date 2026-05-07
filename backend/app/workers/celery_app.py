@@ -1,13 +1,14 @@
 from celery import Celery
 from celery.signals import task_failure, task_postrun, task_prerun, task_retry
 
+from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger, log_task_failure
 
 celery_app = Celery(
     "rag_backend",
-    broker=str(settings.rabbitmq_url),
-    backend=str(settings.redis_url),
+    broker=rabbitmq_broker_url(),
+    backend=redis_result_backend_url(),
     include=[
         "app.workers.document_tasks",
         "app.workers.evaluation_tasks",

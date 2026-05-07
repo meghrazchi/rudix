@@ -1,29 +1,49 @@
-import boto3  # type: ignore[import-untyped]
-from botocore.config import Config  # type: ignore[import-untyped]
+from typing import Any
+
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
+from app.clients.factory import create_minio_client
 from app.core.config import settings
+from app.core.logging import get_logger
 
-minio_client = None
+minio_client: Any | None = None
+logger = get_logger("clients.minio")
 
 
 def init_minio() -> None:
     global minio_client
-    minio_client = boto3.client(
-        "s3",
-        endpoint_url=str(settings.minio_endpoint),
-        aws_access_key_id=settings.minio_access_key,
-        aws_secret_access_key=settings.minio_secret_key.get_secret_value(),
-        config=Config(
-            connect_timeout=1,
-            read_timeout=1,
-            retries={"mode": "standard", "total_max_attempts": 1},
-        ),
-    )
+    minio_client = create_minio_client(settings)
+    try:
+        if settings.minio_bootstrap_bucket:
+            ensure_minio_bucket()
+        else:
+            minio_client.head_bucket(Bucket=settings.minio_bucket)
+        logger.info(
+            "minio.init.success",
+            endpoint=str(settings.minio_endpoint),
+            bucket=settings.minio_bucket,
+            bootstrap_bucket=settings.minio_bootstrap_bucket,
+        )
+    except Exception as exc:
+        logger.error(
+            "minio.init.failed",
+            endpoint=str(settings.minio_endpoint),
+            bucket=settings.minio_bucket,
+            error=exc.__class__.__name__,
+            exc_info=exc,
+        )
+        close_minio()
+        raise
 
 
 def close_minio() -> None:
-    return
+    global minio_client
+    if minio_client is not None:
+        close_method = getattr(minio_client, "close", None)
+        if callable(close_method):
+            close_method()
+        minio_client = None
+        logger.info("minio.close")
 
 
 def check_minio_health() -> bool:
@@ -36,3 +56,27 @@ def check_minio_health() -> bool:
         return False
     except Exception:
         return False
+
+
+def ensure_minio_bucket() -> None:
+    if minio_client is None:
+        raise RuntimeError("MinIO client is not initialized")
+
+    try:
+        minio_client.head_bucket(Bucket=settings.minio_bucket)
+        logger.info("minio.bucket.exists", bucket=settings.minio_bucket)
+        return
+    except ClientError as exc:
+        error_code = str(exc.response.get("Error", {}).get("Code", ""))
+        if error_code not in {"404", "NoSuchBucket", "NotFound"}:
+            logger.error(
+                "minio.bucket.ensure.failed",
+                bucket=settings.minio_bucket,
+                error_code=error_code,
+                error=exc.__class__.__name__,
+                exc_info=exc,
+            )
+            raise
+
+    minio_client.create_bucket(Bucket=settings.minio_bucket)
+    logger.info("minio.bucket.created", bucket=settings.minio_bucket)

@@ -87,6 +87,24 @@ def test_invalid_numeric_limit_fails_fast() -> None:
         Settings(_env_file=None, **payload)
 
 
+def test_invalid_redis_timeout_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["redis_socket_connect_timeout_seconds"] = 5
+    payload["redis_socket_timeout_seconds"] = 1
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_dependency_timeout_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["dependency_connect_timeout_seconds"] = 3
+    payload["dependency_read_timeout_seconds"] = 1
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
 def test_production_requires_sentry_dsn() -> None:
     payload = valid_settings_kwargs()
     payload["environment"] = Environment.production

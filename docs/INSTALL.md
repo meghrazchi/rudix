@@ -182,14 +182,27 @@ CORS_ORIGINS=https://app.yourdomain.com
 DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:5432/<db>
 QDRANT_URL=https://<qdrant-host>
 QDRANT_API_KEY=<qdrant-api-key>
+QDRANT_COLLECTION=documents
+QDRANT_VECTOR_SIZE=1536
+QDRANT_DISTANCE=cosine
+QDRANT_TIMEOUT_SECONDS=2
+QDRANT_BOOTSTRAP_COLLECTION=true
 
 MINIO_ENDPOINT=https://<minio-or-s3-endpoint>
 MINIO_ACCESS_KEY=<access-key>
 MINIO_SECRET_KEY=<secret-key>
 MINIO_BUCKET=documents
+MINIO_BOOTSTRAP_BUCKET=true
 
 RABBITMQ_URL=amqps://<user>:<password>@<host>/<vhost>
+RABBITMQ_CONNECT_TIMEOUT_SECONDS=2
 REDIS_URL=redis://:<password>@<host>:6379/0
+REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS=2
+REDIS_SOCKET_TIMEOUT_SECONDS=2
+
+DEPENDENCY_CONNECT_TIMEOUT_SECONDS=1
+DEPENDENCY_READ_TIMEOUT_SECONDS=1
+DEPENDENCY_MAX_RETRIES=0
 
 OPENAI_API_KEY=<openai-api-key>
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
@@ -240,6 +253,13 @@ The settings layer validates on startup:
 - `SENTRY_DSN` is required in production profile.
 
 Any validation error stops startup with a clear message.
+
+Dependency initialization behavior:
+
+- Redis initializes with configured socket timeouts and an initial ping check.
+- RabbitMQ broker URL is parsed/validated during startup and readiness checks.
+- MinIO client uses shared retry/timeout settings and can auto-create bucket idempotently.
+- Qdrant client uses shared timeout settings and can auto-create collection idempotently.
 
 ## 6. Security recommendations
 

@@ -43,6 +43,13 @@ class AuthProvider(StrEnum):
     supabase = "supabase"
 
 
+class QdrantDistance(StrEnum):
+    cosine = "cosine"
+    dot = "dot"
+    euclid = "euclid"
+    manhattan = "manhattan"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILES,
@@ -70,14 +77,26 @@ class Settings(BaseSettings):
     qdrant_url: AnyHttpUrl
     qdrant_api_key: SecretStr | None = None
     qdrant_collection: str = Field(min_length=2, max_length=128)
+    qdrant_vector_size: int = Field(default=1536, ge=8, le=8192)
+    qdrant_distance: QdrantDistance = QdrantDistance.cosine
+    qdrant_timeout_seconds: float = Field(default=2.0, ge=0.1, le=60.0)
+    qdrant_bootstrap_collection: bool = True
 
     minio_endpoint: AnyHttpUrl
     minio_access_key: str = Field(min_length=3, max_length=128)
     minio_secret_key: SecretStr
     minio_bucket: str = Field(min_length=3, max_length=63)
+    minio_bootstrap_bucket: bool = True
 
     rabbitmq_url: AmqpDsn
+    rabbitmq_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     redis_url: RedisDsn
+    redis_socket_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+    redis_socket_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+
+    dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
+    dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)
+    dependency_max_retries: int = Field(default=0, ge=0, le=10)
 
     openai_api_key: SecretStr | None = None
     openai_embedding_model: str = Field(default="text-embedding-3-small", min_length=3, max_length=128)
@@ -153,6 +172,12 @@ class Settings(BaseSettings):
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
 
+        if self.redis_socket_timeout_seconds < self.redis_socket_connect_timeout_seconds:
+            raise ValueError("redis_socket_timeout_seconds must be >= redis_socket_connect_timeout_seconds")
+
+        if self.dependency_read_timeout_seconds < self.dependency_connect_timeout_seconds:
+            raise ValueError("dependency_read_timeout_seconds must be >= dependency_connect_timeout_seconds")
+
         if self.auth_provider == AuthProvider.clerk and self.clerk_jwks_url is None:
             raise ValueError("clerk_jwks_url is required when auth_provider=clerk")
 
@@ -204,13 +229,24 @@ class Settings(BaseSettings):
             "database_echo": self.database_echo,
             "qdrant_url": str(self.qdrant_url),
             "qdrant_collection": self.qdrant_collection,
+            "qdrant_vector_size": self.qdrant_vector_size,
+            "qdrant_distance": self.qdrant_distance.value,
+            "qdrant_timeout_seconds": self.qdrant_timeout_seconds,
+            "qdrant_bootstrap_collection": self.qdrant_bootstrap_collection,
             "qdrant_api_key_set": self.qdrant_api_key is not None,
             "minio_endpoint": str(self.minio_endpoint),
             "minio_access_key_set": bool(self.minio_access_key),
             "minio_bucket": self.minio_bucket,
+            "minio_bootstrap_bucket": self.minio_bootstrap_bucket,
             "minio_secret_key_set": bool(self.minio_secret_key.get_secret_value()),
             "rabbitmq_url": self._sanitize_url(str(self.rabbitmq_url)),
+            "rabbitmq_connect_timeout_seconds": self.rabbitmq_connect_timeout_seconds,
             "redis_url": self._sanitize_url(str(self.redis_url)),
+            "redis_socket_connect_timeout_seconds": self.redis_socket_connect_timeout_seconds,
+            "redis_socket_timeout_seconds": self.redis_socket_timeout_seconds,
+            "dependency_connect_timeout_seconds": self.dependency_connect_timeout_seconds,
+            "dependency_read_timeout_seconds": self.dependency_read_timeout_seconds,
+            "dependency_max_retries": self.dependency_max_retries,
             "openai_api_key_set": self.openai_api_key is not None,
             "openai_embedding_model": self.openai_embedding_model,
             "openai_llm_model": self.openai_llm_model,
