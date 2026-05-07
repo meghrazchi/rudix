@@ -5,7 +5,7 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 ## Includes
 
 - FastAPI app structure with versioned API routers.
-- Strict environment-based configuration and validation.
+- Strict environment-based configuration and fail-fast validation.
 - SQLAlchemy async database foundation and Alembic scaffold.
 - Celery worker scaffold with RabbitMQ/Redis wiring.
 - Client scaffolds for Qdrant and MinIO.
@@ -30,6 +30,13 @@ docker compose up --build
 
 - `GET http://localhost:8000/healthz`
 - `GET http://localhost:8000/readyz`
+- `GET http://localhost:8000/configz` (sanitized settings snapshot, controlled by `FEATURE_EXPOSE_CONFIG_SNAPSHOT`)
+
+## Configuration notes
+
+- The API and worker fail at startup if required configuration is missing or malformed.
+- URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth JWKS, and service base URLs).
+- Production profile requires `SENTRY_DSN`.
 
 ## Development commands
 
@@ -40,6 +47,8 @@ make test
 make run-api
 make run-worker
 ```
+
+`make install` creates a local virtualenv at `backend/.venv` and installs all dependencies there.
 
 ## Directory overview
 
@@ -57,4 +66,3 @@ backend/
   alembic/
   tests/
 ```
-

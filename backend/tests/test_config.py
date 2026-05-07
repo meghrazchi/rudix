@@ -1,9 +1,109 @@
-from app.core.config import Settings
+import pytest
+from pydantic import ValidationError
+
+from app.core.config import AuthProvider, Environment, Settings
+
+ENV_KEYS = [
+    "ENVIRONMENT",
+    "API_BASE_URL",
+    "FRONTEND_BASE_URL",
+    "DATABASE_URL",
+    "QDRANT_URL",
+    "QDRANT_COLLECTION",
+    "MINIO_ENDPOINT",
+    "MINIO_ACCESS_KEY",
+    "MINIO_SECRET_KEY",
+    "MINIO_BUCKET",
+    "RABBITMQ_URL",
+    "REDIS_URL",
+    "OPENAI_API_KEY",
+    "AUTH_PROVIDER",
+    "CLERK_JWKS_URL",
+    "SUPABASE_JWKS_URL",
+]
 
 
-def test_cors_origins_parsing() -> None:
-    settings = Settings(
-        cors_origins="http://localhost:3000,http://127.0.0.1:3000",
-    )
+@pytest.fixture(autouse=True)
+def clear_config_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in ENV_KEYS:
+        monkeypatch.delenv(key, raising=False)
 
-    assert settings.cors_origins == ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+def valid_settings_kwargs() -> dict:
+    return {
+        "environment": Environment.development,
+        "api_base_url": "http://localhost:8000",
+        "frontend_base_url": "http://localhost:3000",
+        "database_url": "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app",
+        "qdrant_url": "http://localhost:6333",
+        "qdrant_collection": "documents",
+        "minio_endpoint": "http://localhost:9000",
+        "minio_access_key": "minioadmin",
+        "minio_secret_key": "minioadmin",
+        "minio_bucket": "documents",
+        "rabbitmq_url": "amqp://guest:guest@localhost:5672//",
+        "redis_url": "redis://localhost:6379/0",
+        "openai_api_key": "sk-test",
+        "auth_provider": AuthProvider.clerk,
+        "clerk_jwks_url": "https://example.com/.well-known/jwks.json",
+        "cors_origins": "http://localhost:3000,http://127.0.0.1:3000",
+    }
+
+
+def test_valid_config_parsing() -> None:
+    settings = Settings(_env_file=None, **valid_settings_kwargs())
+
+    assert settings.environment == Environment.development
+    assert str(settings.api_base_url) == "http://localhost:8000/"
+    assert str(settings.frontend_base_url) == "http://localhost:3000/"
+    assert settings.max_upload_size_mb == 25
+    assert [str(origin) for origin in settings.cors_origins] == [
+        "http://localhost:3000/",
+        "http://127.0.0.1:3000/",
+    ]
+
+
+def test_missing_required_value_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload.pop("database_url")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_malformed_url_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["qdrant_url"] = "not-a-url"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_numeric_limit_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["max_upload_size_mb"] = 0
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_production_requires_sentry_dsn() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_snapshot_redacts_secrets_and_credentials() -> None:
+    payload = valid_settings_kwargs()
+    payload["database_url"] = "postgresql+asyncpg://user:secret@db.internal:5432/rag_app"
+    payload["rabbitmq_url"] = "amqp://guest:secret@mq.internal:5672//"
+
+    settings = Settings(_env_file=None, **payload)
+    snapshot = settings.sanitized_snapshot()
+
+    assert snapshot["openai_api_key_set"] is True
+    assert snapshot["minio_secret_key_set"] is True
+    assert "secret" not in snapshot["database_url"]
+    assert "secret" not in snapshot["rabbitmq_url"]

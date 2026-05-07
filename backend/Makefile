@@ -1,21 +1,34 @@
-.PHONY: install lint test run-api run-worker format
+.PHONY: install venv lint test run-api run-worker format
 
-install:
-	python3 -m pip install --upgrade pip
-	python3 -m pip install -e .[dev]
+PYTHON := python3
+VENV_DIR := .venv
+VENV_BIN := $(VENV_DIR)/bin
+PIP := $(VENV_BIN)/pip
+RUFF := $(VENV_BIN)/ruff
+MYPY := $(VENV_BIN)/mypy
+PYTEST := $(VENV_BIN)/pytest
+UVICORN := $(VENV_BIN)/uvicorn
+CELERY := $(VENV_BIN)/celery
+
+venv:
+	$(PYTHON) -m venv $(VENV_DIR)
+
+install: venv
+	$(PIP) install --upgrade pip
+	$(PIP) install -e .[dev]
 
 lint:
-	ruff check app tests
-	mypy app
+	$(RUFF) check app tests
+	$(MYPY) app
 
 test:
-	pytest
+	$(PYTEST)
 
 run-api:
-	uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	$(UVICORN) app.main:app --host 0.0.0.0 --port 8000 --reload
 
 run-worker:
-	celery -A app.workers.celery_app:celery_app worker --loglevel=INFO
+	$(CELERY) -A app.workers.celery_app:celery_app worker --loglevel=INFO
 
 format:
-	ruff check app tests --fix
+	$(RUFF) check app tests --fix

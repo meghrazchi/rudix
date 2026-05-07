@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import ORJSONResponse
 
 from app.clients.minio_client import check_minio_health
 from app.clients.qdrant_client import check_qdrant_health
 from app.clients.redis_client import check_redis_health
+from app.core.config import settings
 from app.db.session import check_database_health
 from app.schemas.common import HealthDependency, HealthResponse
 
@@ -42,3 +43,10 @@ async def readyz() -> ORJSONResponse:
         content=payload.model_dump(mode="json"),
         status_code=status.HTTP_200_OK if is_ready else status.HTTP_503_SERVICE_UNAVAILABLE,
     )
+
+
+@router.get("/configz")
+async def configz() -> dict:
+    if not settings.feature_expose_config_snapshot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Configuration snapshot is disabled")
+    return settings.sanitized_snapshot()

@@ -10,7 +10,7 @@ def init_minio() -> None:
     global minio_client
     minio_client = boto3.client(
         "s3",
-        endpoint_url=f"{'https' if settings.minio_secure else 'http'}://{settings.minio_endpoint}",
+        endpoint_url=str(settings.minio_endpoint),
         aws_access_key_id=settings.minio_access_key,
         aws_secret_access_key=settings.minio_secret_key.get_secret_value(),
     )

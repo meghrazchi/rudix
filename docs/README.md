@@ -17,6 +17,10 @@ This repository keeps `README.md` at the root and all other documentation under 
 11. [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md)
 12. [12_EVALUATION_AND_MONITORING.md](./12_EVALUATION_AND_MONITORING.md)
 
+## Setup and Operations
+
+- [INSTALL.md](./INSTALL.md)
+
 ## Collaboration and Governance
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md)

@@ -8,7 +8,7 @@ qdrant_client: QdrantClient | None = None
 def init_qdrant() -> None:
     global qdrant_client
     qdrant_client = QdrantClient(
-        url=settings.qdrant_url,
+        url=str(settings.qdrant_url),
         api_key=settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None,
         timeout=5,
     )
