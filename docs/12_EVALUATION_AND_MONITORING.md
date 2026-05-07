@@ -174,6 +174,35 @@ flowchart TD
 
 ## Structured logging events
 
+## Base structured log schema
+
+All API and worker logs should follow the same base schema:
+
+```json
+{
+  "event": "api.request | task.start | task.success | task.retry | task.failure | domain_event_name",
+  "timestamp": "ISO-8601 UTC",
+  "level": "debug|info|warning|error|critical",
+  "logger": "api.access | api.exception | worker.tasks | events.*",
+  "request_id": "optional request correlation id",
+  "user_id": "optional user id",
+  "organization_id": "optional organization id",
+  "document_id": "optional document id",
+  "job_id": "optional job/evaluation/task id",
+  "endpoint": "optional HTTP path",
+  "status_code": "optional HTTP or task status",
+  "latency_ms": "optional request/task duration",
+  "error": "optional short error name/message",
+  "exception": "optional stack trace for exceptions"
+}
+```
+
+Notes:
+
+- `request_id` should be echoed as `X-Request-ID` in API responses.
+- `latency_ms` is always emitted for API access logs.
+- Secret values must be redacted (API keys, tokens, passwords, secrets).
+
 ### document_uploaded
 
 ```json

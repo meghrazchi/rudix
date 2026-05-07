@@ -25,7 +25,7 @@ test:
 	$(PYTEST)
 
 run-api:
-	$(UVICORN) app.main:app --host 0.0.0.0 --port 8000 --reload
+	$(UVICORN) app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log
 
 run-worker:
 	$(CELERY) -A app.workers.celery_app:celery_app worker --loglevel=INFO

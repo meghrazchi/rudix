@@ -37,6 +37,8 @@ docker compose up --build
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth JWKS, and service base URLs).
 - Production profile requires `SENTRY_DSN`.
+- Structured logging is configured for both API and Celery worker.
+- `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
 
 ## Development commands
 

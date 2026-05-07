@@ -35,6 +35,10 @@ Update `.env` before first start:
 - Provider JWKS URL:
   - `CLERK_JWKS_URL` when `AUTH_PROVIDER=clerk`
   - `SUPABASE_JWKS_URL` when `AUTH_PROVIDER=supabase`
+- `LOG_FORMAT`:
+  - `auto` (default): console in development/test, JSON in staging/production
+  - `json`: force JSON logs
+  - `console`: force developer-readable console logs
 
 `Settings` loads `.env` from either:
 
@@ -122,6 +126,7 @@ At minimum, set these values to production endpoints/secrets:
 ```env
 ENVIRONMENT=production
 LOG_LEVEL=INFO
+LOG_FORMAT=json
 
 API_BASE_URL=https://api.yourdomain.com
 FRONTEND_BASE_URL=https://app.yourdomain.com

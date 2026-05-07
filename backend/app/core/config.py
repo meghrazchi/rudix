@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
@@ -25,14 +25,20 @@ ENV_FILES = (
 )
 
 
-class Environment(str, Enum):
+class Environment(StrEnum):
     development = "development"
     test = "test"
     staging = "staging"
     production = "production"
 
 
-class AuthProvider(str, Enum):
+class LogFormat(StrEnum):
+    auto = "auto"
+    json = "json"
+    console = "console"
+
+
+class AuthProvider(StrEnum):
     clerk = "clerk"
     supabase = "supabase"
 
@@ -49,6 +55,7 @@ class Settings(BaseSettings):
 
     environment: Environment = Environment.development
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    log_format: LogFormat = LogFormat.auto
 
     api_name: str = Field(default="AI Document Q&A Assistant API", min_length=3, max_length=120)
     api_version: str = Field(default="0.1.0", min_length=1, max_length=32)
@@ -186,6 +193,7 @@ class Settings(BaseSettings):
         return {
             "environment": self.environment.value,
             "log_level": self.log_level,
+            "log_format": self.log_format.value,
             "api_name": self.api_name,
             "api_version": self.api_version,
             "api_prefix": self.api_prefix,
@@ -228,7 +236,7 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # type: ignore[call-arg]
 
 
 settings = get_settings()
