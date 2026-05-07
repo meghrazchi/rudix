@@ -116,6 +116,33 @@ volumes:
   minio_data:
 ```
 
+## Current compose baseline in this repository
+
+The active `docker-compose.yml` in repository root includes:
+
+- Services: `api`, `worker`, `postgres`, `qdrant`, `minio`, `minio-init`, `rabbitmq`, `redis`
+- Healthchecks:
+  - `api` via `GET /api/v1/health`
+  - `postgres` via `pg_isready`
+  - `qdrant` via TCP probe on `6333`
+  - `minio` via `/minio/health/live`
+  - `rabbitmq` via `rabbitmq-diagnostics ping`
+  - `redis` via `redis-cli ping`
+- Persistent volumes:
+  - `postgres_data`
+  - `qdrant_data`
+  - `minio_data`
+
+Use repo root Make targets for lifecycle:
+
+```bash
+make up
+make up-d
+make down
+make logs
+make ps
+```
+
 ## Backend Dockerfile
 
 ```dockerfile

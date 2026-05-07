@@ -25,7 +25,7 @@ services:
       minio:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
       minio-init:
         condition: service_completed_successfully
     healthcheck:
@@ -58,7 +58,7 @@ services:
       minio:
         condition: service_healthy
       qdrant:
-        condition: service_started
+        condition: service_healthy
       minio-init:
         condition: service_completed_successfully
 
@@ -85,6 +85,15 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/6333'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   minio:
     image: minio/minio:latest

@@ -6,8 +6,8 @@ from app.core.logging import configure_logging, get_logger, log_task_failure
 
 celery_app = Celery(
     "rag_backend",
-    broker=settings.rabbitmq_url,
-    backend=settings.redis_url,
+    broker=str(settings.rabbitmq_url),
+    backend=str(settings.redis_url),
     include=[
         "app.workers.document_tasks",
         "app.workers.evaluation_tasks",

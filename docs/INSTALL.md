@@ -58,6 +58,18 @@ Connection URL strategy in this repo:
 docker compose up --build
 ```
 
+Equivalent via repo root Makefile:
+
+```bash
+make up
+```
+
+Run detached:
+
+```bash
+make up-d
+```
+
 Services:
 
 - API: `http://localhost:8000`
@@ -78,6 +90,7 @@ Notes:
 
 - Startup is fail-fast. API and worker stop immediately on invalid or missing required configuration.
 - `/api/v1/configz` returns a sanitized snapshot and never exposes secret values.
+- Docker waits for healthchecks on API dependencies: PostgreSQL, Qdrant, MinIO, RabbitMQ, and Redis.
 
 ### 3.3 Run database migrations and seed data
 
@@ -117,6 +130,22 @@ Notes:
 - `make install` creates `backend/.venv` and installs dependencies there.
 - This avoids Homebrew macOS `externally-managed-environment` errors (PEP 668).
 - You do not need to activate the virtualenv for `make run-api`, `make run-worker`, `make test`, or `make lint`.
+
+### 3.5 Stack lifecycle commands (repo root)
+
+```bash
+make up
+make up-d
+make down
+make down-v
+make ps
+make logs
+make logs-api
+make logs-worker
+make logs-infra
+make migrate
+make test
+```
 
 ## 4. Production installation
 

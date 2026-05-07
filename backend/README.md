@@ -24,6 +24,8 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 
 ```bash
 docker compose up --build
+# or:
+make up
 ```
 
 3. API health endpoints:
@@ -48,6 +50,7 @@ make seed-dev
 
 - Root `.env` is set up with `localhost` infra endpoints for host-run API/worker.
 - `docker-compose.yml` overrides API/worker connection URLs to Docker service hostnames for container runtime.
+- Compose dependency startup uses healthchecks for PostgreSQL, Qdrant, MinIO, RabbitMQ, and Redis.
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth JWKS, and service base URLs).
 - Production profile requires `SENTRY_DSN`.
