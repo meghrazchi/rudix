@@ -28,9 +28,9 @@ docker compose up --build
 
 3. API health endpoints:
 
-- `GET http://localhost:8000/healthz`
-- `GET http://localhost:8000/readyz`
-- `GET http://localhost:8000/configz` (sanitized settings snapshot, controlled by `FEATURE_EXPOSE_CONFIG_SNAPSHOT`)
+- `GET http://localhost:8000/api/v1/health`
+- `GET http://localhost:8000/api/v1/ready`
+- `GET http://localhost:8000/api/v1/configz` (sanitized settings snapshot, controlled by `FEATURE_EXPOSE_CONFIG_SNAPSHOT`)
 
 ## Configuration notes
 

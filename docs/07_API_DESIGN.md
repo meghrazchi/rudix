@@ -40,7 +40,34 @@ Response:
 ```json
 {
   "status": "ok",
-  "version": "1.0.0"
+  "timestamp": "2026-05-07T10:00:00Z",
+  "dependencies": {},
+  "failed_dependencies": []
+}
+```
+
+### GET `/ready`
+
+Checks PostgreSQL, Redis, RabbitMQ, MinIO, Qdrant, and OpenAI configuration.
+
+- Returns `200` when all checks pass.
+- Returns `503` when one or more checks fail.
+
+Response:
+
+```json
+{
+  "status": "degraded",
+  "timestamp": "2026-05-07T10:00:00Z",
+  "dependencies": {
+    "postgres": { "ok": false, "detail": "postgres_unreachable", "metadata": { "dsn": "postgresql+asyncpg://db:5432/rag_app" } },
+    "redis": { "ok": true, "detail": null, "metadata": { "url": "redis://redis:6379/0" } },
+    "rabbitmq": { "ok": true, "detail": null, "metadata": { "url": "amqp://rabbitmq:5672//" } },
+    "minio": { "ok": true, "detail": null, "metadata": { "endpoint": "http://minio:9000", "bucket": "documents" } },
+    "qdrant": { "ok": true, "detail": null, "metadata": { "url": "http://qdrant:6333", "collection": "documents" } },
+    "openai_config": { "ok": true, "detail": null, "metadata": { "api_key_set": true, "embedding_model": "text-embedding-3-small", "llm_model": "gpt-5.4-mini" } }
+  },
+  "failed_dependencies": ["postgres"]
 }
 ```
 

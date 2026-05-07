@@ -64,15 +64,15 @@ Services:
 ### 3.2 Validate startup
 
 ```bash
-curl -fsS http://localhost:8000/healthz
-curl -fsS http://localhost:8000/readyz
-curl -fsS http://localhost:8000/configz
+curl -fsS http://localhost:8000/api/v1/health
+curl -fsS http://localhost:8000/api/v1/ready
+curl -fsS http://localhost:8000/api/v1/configz
 ```
 
 Notes:
 
 - Startup is fail-fast. API and worker stop immediately on invalid or missing required configuration.
-- `/configz` returns a sanitized snapshot and never exposes secret values.
+- `/api/v1/configz` returns a sanitized snapshot and never exposes secret values.
 
 ### 3.3 Optional: run backend outside Docker
 
@@ -168,8 +168,8 @@ docker compose up -d --build
 Then verify health:
 
 ```bash
-curl -fsS https://api.yourdomain.com/healthz
-curl -fsS https://api.yourdomain.com/readyz
+curl -fsS https://api.yourdomain.com/api/v1/health
+curl -fsS https://api.yourdomain.com/api/v1/ready
 ```
 
 ## 5. Configuration validation behavior

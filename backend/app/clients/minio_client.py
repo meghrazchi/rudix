@@ -1,5 +1,6 @@
-from botocore.exceptions import ClientError
-import boto3
+import boto3  # type: ignore[import-untyped]
+from botocore.config import Config  # type: ignore[import-untyped]
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from app.core.config import settings
 
@@ -13,6 +14,11 @@ def init_minio() -> None:
         endpoint_url=str(settings.minio_endpoint),
         aws_access_key_id=settings.minio_access_key,
         aws_secret_access_key=settings.minio_secret_key.get_secret_value(),
+        config=Config(
+            connect_timeout=1,
+            read_timeout=1,
+            retries={"mode": "standard", "total_max_attempts": 1},
+        ),
     )
 
 
@@ -27,4 +33,6 @@ def check_minio_health() -> bool:
         minio_client.head_bucket(Bucket=settings.minio_bucket)
         return True
     except ClientError:
+        return False
+    except Exception:
         return False
