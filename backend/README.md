@@ -46,6 +46,8 @@ make seed-dev
 
 ## Configuration notes
 
+- Root `.env` is set up with `localhost` infra endpoints for host-run API/worker.
+- `docker-compose.yml` overrides API/worker connection URLs to Docker service hostnames for container runtime.
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth JWKS, and service base URLs).
 - Production profile requires `SENTRY_DSN`.

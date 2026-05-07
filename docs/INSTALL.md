@@ -45,6 +45,11 @@ Update `.env` before first start:
 - `backend/.env`
 - repository root `.env`
 
+Connection URL strategy in this repo:
+
+- `.env` uses `localhost` endpoints so host-run API/worker works out of the box.
+- `docker-compose.yml` overrides API/worker connection URLs to Docker service hostnames (`postgres`, `redis`, `rabbitmq`, `minio`, `qdrant`).
+
 ## 3. Development installation
 
 ### 3.1 Start full stack (recommended)
@@ -106,8 +111,6 @@ In another terminal:
 cd backend
 make run-worker
 ```
-
-If running API/worker from host, adjust connection URLs in `.env` to `localhost` endpoints.
 
 Notes:
 
