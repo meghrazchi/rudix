@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -116,7 +117,7 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
         status_calls.append((document_id, status.value))
         return True
 
-    async def _extract_and_store(_: str) -> tuple[int, int, object]:
+    async def _extract_and_store(_: str) -> tuple[int, int, object, object]:
         class _Stats:
             pages_modified = 2
 
@@ -133,7 +134,15 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
                     "cleaning_chars_after": 110,
                 }
 
-        return 4, 9, _Stats()
+        class _EmbeddingResult:
+            batch_count = 2
+            retry_count = 1
+            input_tokens = 400
+            total_tokens = 400
+            latency_ms = 150
+            approximate_cost_usd = Decimal("0.000008")
+
+        return 4, 9, _Stats(), _EmbeddingResult()
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
     monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
@@ -142,6 +151,8 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
     assert result["status"] == DocumentStatus.indexed.value
     assert result["page_count"] == 4
     assert result["chunk_count"] == 9
+    assert result["embedding_batch_count"] == 2
+    assert result["embedding_retry_count"] == 1
     assert result["cleaning_pages_modified"] == 2
     assert status_calls == [("doc-1", DocumentStatus.processing.value)]
 

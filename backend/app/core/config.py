@@ -147,6 +147,12 @@ class Settings(BaseSettings):
     chunk_size_tokens: int = Field(default=700, ge=100, le=4000)
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
     document_index_version: str = Field(default="v1", min_length=1, max_length=64)
+    embedding_batch_max_items: int = Field(default=96, ge=1, le=2048)
+    embedding_batch_max_tokens: int = Field(default=100000, ge=100, le=300000)
+    embedding_retry_max_attempts: int = Field(default=3, ge=1, le=10)
+    embedding_retry_base_seconds: float = Field(default=0.5, ge=0.1, le=30.0)
+    embedding_retry_max_seconds: float = Field(default=8.0, ge=0.1, le=120.0)
+    openai_embedding_cost_per_million_tokens_usd: float = Field(default=0.02, ge=0.0, le=1000.0)
     request_timeout_seconds: int = Field(default=30, ge=1, le=300)
 
     feature_enable_embeddings: bool = True
@@ -231,6 +237,12 @@ class Settings(BaseSettings):
 
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
+
+        if self.embedding_retry_max_seconds < self.embedding_retry_base_seconds:
+            raise ValueError("embedding_retry_max_seconds must be >= embedding_retry_base_seconds")
+
+        if self.embedding_batch_max_tokens < self.chunk_size_tokens:
+            raise ValueError("embedding_batch_max_tokens must be >= chunk_size_tokens")
 
         if self.redis_socket_timeout_seconds < self.redis_socket_connect_timeout_seconds:
             raise ValueError("redis_socket_timeout_seconds must be >= redis_socket_connect_timeout_seconds")
@@ -360,6 +372,12 @@ class Settings(BaseSettings):
             "chunk_size_tokens": self.chunk_size_tokens,
             "chunk_overlap_tokens": self.chunk_overlap_tokens,
             "document_index_version": self.document_index_version,
+            "embedding_batch_max_items": self.embedding_batch_max_items,
+            "embedding_batch_max_tokens": self.embedding_batch_max_tokens,
+            "embedding_retry_max_attempts": self.embedding_retry_max_attempts,
+            "embedding_retry_base_seconds": self.embedding_retry_base_seconds,
+            "embedding_retry_max_seconds": self.embedding_retry_max_seconds,
+            "openai_embedding_cost_per_million_tokens_usd": self.openai_embedding_cost_per_million_tokens_usd,
             "request_timeout_seconds": self.request_timeout_seconds,
             "features": {
                 "embeddings": self.feature_enable_embeddings,

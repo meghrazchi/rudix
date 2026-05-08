@@ -180,6 +180,9 @@ docker compose logs --tail=200 worker | rg "cleaning_pages_total|cleaning_chars_
 # Inspect chunking stats emitted by worker on completion
 docker compose logs --tail=200 worker | rg "chunk_count|index_version"
 
+# Inspect embedding stats emitted by worker on completion
+docker compose logs --tail=200 worker | rg "embedding_batch_count|embedding_total_tokens|embedding_cost_usd"
+
 # Inspect extracted pages (page_number, text, char_count)
 DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
@@ -188,6 +191,10 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Inspect persisted chunks (chunk_index, page_number, token_count, index_version)
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select chunk_index, page_number, token_count, index_version, left(text, 120) as preview from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"
+
+# Inspect embedding usage events (for billing/observability integration)
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select event_type, model_name, input_tokens, cost_usd, metadata from usage_events where event_type='document.embedding' order by created_at desc limit 10;"
 
 # Cross-org/missing-document-safe behavior
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
@@ -218,6 +225,7 @@ Notes:
 - Worker extraction currently supports PDF (page-by-page via PyMuPDF), TXT (UTF-8 with fallback), and DOCX (paragraphs + tables).
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and records `cleaning_*` stats in processing logs.
 - Worker chunking stores `document_chunks` with deterministic `chunk_index`, `token_count`, `embedding_model`, and `index_version`; current-version chunks are replaced idempotently on reprocessing.
+- Worker embedding generation batches chunk texts, retries transient provider failures with backoff, validates vector dimension, and records `document.embedding` usage events with token/cost metadata.
 
 ## Directory overview
 

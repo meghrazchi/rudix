@@ -13,7 +13,9 @@ from app.core.logging import log_document_event
 from app.db.session import SessionLocal
 from app.models.enums import DocumentStatus
 from app.repositories.documents import DocumentRepository
+from app.repositories.usage import UsageRepository
 from app.services.chunking_service import ChunkingService
+from app.services.embedding_service import EmbeddingResult, EmbeddingService
 from app.services.text_extraction import extract_text_sections
 from app.services.text_normalization import TextCleaningStats, clean_extracted_sections
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -21,7 +23,9 @@ from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
 
 _document_repository = DocumentRepository()
+_usage_repository = UsageRepository()
 _chunking_service = ChunkingService()
+_embedding_service = EmbeddingService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -73,7 +77,9 @@ def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
     return data
 
 
-async def _extract_and_store_document_pages_async(document_id: str) -> tuple[int, int, TextCleaningStats]:
+async def _extract_and_store_document_pages_async(
+    document_id: str,
+) -> tuple[int, int, TextCleaningStats, EmbeddingResult]:
     try:
         parsed_document_id = _parse_uuid(document_id)
     except ValueError as exc:
@@ -111,17 +117,50 @@ async def _extract_and_store_document_pages_async(document_id: str) -> tuple[int
                 document_id=parsed_document_id,
                 index_version=settings.document_index_version,
             )
+            created_chunks = []
             for chunk in chunks:
-                await _document_repository.create_document_chunk(
-                    session,
-                    document_id=chunk.document_id,
-                    page_number=chunk.page_number,
-                    chunk_index=chunk.chunk_index,
-                    text=chunk.text,
-                    token_count=chunk.token_count,
-                    embedding_model=chunk.embedding_model,
-                    index_version=chunk.index_version,
+                created_chunks.append(
+                    await _document_repository.create_document_chunk(
+                        session,
+                        document_id=chunk.document_id,
+                        page_number=chunk.page_number,
+                        chunk_index=chunk.chunk_index,
+                        text=chunk.text,
+                        token_count=chunk.token_count,
+                        embedding_model=chunk.embedding_model,
+                        index_version=chunk.index_version,
+                    )
                 )
+
+            embedding_result = await _embedding_service.embed_chunks(chunks=created_chunks)
+            if len(embedding_result.vectors_by_chunk_id) != len(created_chunks):
+                raise PermanentTaskError("embedding generation did not cover all chunks")
+            for chunk_id, vector in embedding_result.vectors_by_chunk_id.items():
+                if len(vector) != settings.qdrant_vector_size:
+                    raise PermanentTaskError(
+                        f"embedding dimension mismatch for chunk {chunk_id}: "
+                        f"expected {settings.qdrant_vector_size}, got {len(vector)}"
+                    )
+
+            await _usage_repository.create_usage_event(
+                session,
+                organization_id=document.organization_id,
+                user_id=document.uploaded_by_user_id,
+                event_type="document.embedding",
+                model_name=embedding_result.model_name,
+                input_tokens=embedding_result.input_tokens,
+                output_tokens=None,
+                cost_usd=embedding_result.approximate_cost_usd,
+                metadata={
+                    "document_id": str(document.id),
+                    "chunk_count": len(created_chunks),
+                    "batch_count": embedding_result.batch_count,
+                    "retry_count": embedding_result.retry_count,
+                    "index_version": embedding_result.index_version,
+                    "latency_ms": embedding_result.latency_ms,
+                    "total_tokens": embedding_result.total_tokens,
+                },
+            )
             updated = await _document_repository.update_document_status(
                 session,
                 document_id=parsed_document_id,
@@ -135,7 +174,7 @@ async def _extract_and_store_document_pages_async(document_id: str) -> tuple[int
             raise
         if updated is None:
             raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
-        return len(cleaned_sections), len(chunks), cleaning_stats
+        return len(cleaned_sections), len(chunks), cleaning_stats, embedding_result
 
 
 class DocumentTask(RudixTask):
@@ -181,7 +220,7 @@ def process_document(
     organization_id: str | None = None,
     user_id: str | None = None,
     force: bool = False,
-) -> dict[str, str | int]:
+) -> dict[str, str | int | float]:
     """Extract text and persist document_pages before marking a document as indexed."""
     try:
         status = get_document_status(document_id)
@@ -221,7 +260,9 @@ def process_document(
         status_code=DocumentStatus.processing.value,
     )
 
-    page_count, chunk_count, cleaning_stats = _run(_extract_and_store_document_pages_async(document_id))
+    page_count, chunk_count, cleaning_stats, embedding_result = _run(
+        _extract_and_store_document_pages_async(document_id)
+    )
 
     log_document_event(
         event="document.processing.completed",
@@ -233,6 +274,12 @@ def process_document(
         page_count=page_count,
         chunk_count=chunk_count,
         index_version=settings.document_index_version,
+        embedding_batch_count=embedding_result.batch_count,
+        embedding_retry_count=embedding_result.retry_count,
+        embedding_input_tokens=embedding_result.input_tokens,
+        embedding_total_tokens=embedding_result.total_tokens,
+        embedding_latency_ms=embedding_result.latency_ms,
+        embedding_cost_usd=float(embedding_result.approximate_cost_usd),
         **cleaning_stats.as_log_fields(),
     )
     return {
@@ -241,6 +288,12 @@ def process_document(
         "page_count": page_count,
         "chunk_count": chunk_count,
         "index_version": settings.document_index_version,
+        "embedding_batch_count": embedding_result.batch_count,
+        "embedding_retry_count": embedding_result.retry_count,
+        "embedding_input_tokens": embedding_result.input_tokens,
+        "embedding_total_tokens": embedding_result.total_tokens,
+        "embedding_latency_ms": embedding_result.latency_ms,
+        "embedding_cost_usd": float(embedding_result.approximate_cost_usd),
         "cleaning_pages_modified": cleaning_stats.pages_modified,
     }
 

@@ -49,6 +49,13 @@ Update `.env` before first start:
   - `CHUNK_SIZE_TOKENS`
   - `CHUNK_OVERLAP_TOKENS`
   - `DOCUMENT_INDEX_VERSION`
+- Embedding settings (optional):
+  - `EMBEDDING_BATCH_MAX_ITEMS`
+  - `EMBEDDING_BATCH_MAX_TOKENS`
+  - `EMBEDDING_RETRY_MAX_ATTEMPTS`
+  - `EMBEDDING_RETRY_BASE_SECONDS`
+  - `EMBEDDING_RETRY_MAX_SECONDS`
+  - `OPENAI_EMBEDDING_COST_PER_MILLION_TOKENS_USD`
 
 `Settings` loads `.env` from either:
 
@@ -323,6 +330,8 @@ The settings layer validates on startup:
   - `RETRIEVAL_FINAL_TOP_K <= RETRIEVAL_INITIAL_TOP_K`
   - `CHUNK_OVERLAP_TOKENS < CHUNK_SIZE_TOKENS`
 - `DOCUMENT_INDEX_VERSION` must use only letters/numbers and `.`/`-`/`_`.
+- `EMBEDDING_RETRY_MAX_SECONDS >= EMBEDDING_RETRY_BASE_SECONDS`.
+- `EMBEDDING_BATCH_MAX_TOKENS >= CHUNK_SIZE_TOKENS`.
 - `APP_AUTH_SECRET` is required for `AUTH_PROVIDER=app`.
 - `CLERK_JWKS_URL` is required for `AUTH_PROVIDER=clerk`.
 - `SUPABASE_JWKS_URL` is required for `AUTH_PROVIDER=supabase`.
@@ -443,6 +452,9 @@ docker compose logs --tail=200 worker | rg "cleaning_pages_total|cleaning_chars_
 # Confirm chunking stats are emitted (count + active index version)
 docker compose logs --tail=200 worker | rg "chunk_count|index_version"
 
+# Confirm embedding stats are emitted (batching, retries, token usage, approximate cost)
+docker compose logs --tail=200 worker | rg "embedding_batch_count|embedding_retry_count|embedding_total_tokens|embedding_cost_usd"
+
 # Inspect extracted pages for latest document
 DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
@@ -451,6 +463,10 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Inspect persisted chunks for latest document
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select chunk_index, page_number, token_count, index_version, left(text, 120) as preview from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"
+
+# Inspect embedding usage events
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select event_type, model_name, input_tokens, cost_usd, metadata from usage_events where event_type='document.embedding' order by created_at desc limit 10;"
 
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
@@ -465,6 +481,7 @@ Upload behavior note:
 - Worker extraction supports PDF (page-by-page), TXT (UTF-8 with replacement fallback), and DOCX (paragraphs and tables).
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and emits `cleaning_*` stats in worker logs.
 - Worker chunking persists deterministic chunks with `chunk_index`, `token_count`, `embedding_model`, and `index_version`, replacing current-version chunks idempotently on reprocessing.
+- Worker embeddings are generated in configurable batches, transient provider failures are retried with backoff, and `document.embedding` usage events capture token/cost telemetry for later billing/reporting integrations.
 
 ## 7. Security recommendations
 

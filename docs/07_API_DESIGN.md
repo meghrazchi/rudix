@@ -112,8 +112,11 @@ Backend actions:
 11. Worker stores `document_pages(page_number, text, char_count)` with page boundaries preserved.
 12. Worker chunks cleaned pages with configured token size/overlap and stores `document_chunks` metadata (`page_number`, `chunk_index`, `token_count`, `embedding_model`, `index_version`).
 13. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
-14. On successful extraction/chunking, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
-15. Worker logs cleaning/chunking stats (`cleaning_*`, `chunk_count`, `index_version`) for pipeline observability.
+14. Worker generates embeddings for all chunks in provider-safe batches using the configured embedding model.
+15. Transient embedding provider failures are retried with backoff; permanent embedding failures mark document `failed`.
+16. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
+17. On successful extraction/chunking/embedding, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
+18. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
 
 Queue publish failure behavior:
 

@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Organization, OrganizationMember, User
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
-from app.repositories import ChatRepository, DocumentRepository, EvaluationRepository
+from app.repositories import (
+    ChatRepository,
+    DocumentRepository,
+    EvaluationRepository,
+    UsageRepository,
+)
 
 
 @pytest.fixture
@@ -23,6 +28,11 @@ def chat_repository() -> ChatRepository:
 @pytest.fixture
 def evaluation_repository() -> EvaluationRepository:
     return EvaluationRepository()
+
+
+@pytest.fixture
+def usage_repository() -> UsageRepository:
+    return UsageRepository()
 
 
 @pytest_asyncio.fixture
@@ -259,3 +269,27 @@ async def test_evaluation_repository_crud(
         details={"passed": True},
     )
     assert result.generated_answer == "A1"
+
+
+@pytest.mark.asyncio
+async def test_usage_repository_create_event(
+    db_session: AsyncSession,
+    usage_repository: UsageRepository,
+    organization_user_ids,
+) -> None:
+    organization_id, user_id = organization_user_ids
+    event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        event_type="document.embedding",
+        model_name="text-embedding-3-small",
+        input_tokens=321,
+        output_tokens=None,
+        cost_usd=Decimal("0.000006"),
+        metadata={"document_id": "doc-1", "batch_count": 3},
+    )
+    assert event.event_type == "document.embedding"
+    assert event.model_name == "text-embedding-3-small"
+    assert event.input_tokens == 321
+    assert event.metadata_json["batch_count"] == 3

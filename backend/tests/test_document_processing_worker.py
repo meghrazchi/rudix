@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -32,6 +33,7 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import UsageEvent
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.workers import document_tasks
@@ -58,6 +60,31 @@ class FakeMinioReader:
     def get_object(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append(kwargs)
         return {"Body": _Body(self.data)}
+
+
+class FakeEmbeddingService:
+    def __init__(self, *, dimension: int = 1536) -> None:
+        self.dimension = dimension
+        self.calls: list[list[Any]] = []
+
+    async def embed_chunks(self, *, chunks: list[Any]) -> Any:
+        self.calls.append(chunks)
+        input_tokens = sum(int(getattr(chunk, "token_count", 0)) for chunk in chunks)
+        return type(
+            "FakeEmbeddingResult",
+            (),
+            {
+                "model_name": settings.openai_embedding_model,
+                "index_version": settings.document_index_version,
+                "batch_count": 1,
+                "retry_count": 0,
+                "input_tokens": input_tokens,
+                "total_tokens": input_tokens,
+                "latency_ms": 5,
+                "approximate_cost_usd": Decimal("0.000001"),
+                "vectors_by_chunk_id": {chunk.id: [0.001] * self.dimension for chunk in chunks},
+            },
+        )()
 
 
 @pytest_asyncio.fixture
@@ -104,11 +131,15 @@ async def test_worker_extracts_text_and_persists_document_pages(
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     fake_minio = FakeMinioReader(b"line one\nline two")
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
+    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
     document_id = seeded_txt_document.id
 
-    page_count, chunk_count, cleaning_stats = await document_tasks._extract_and_store_document_pages_async(str(document_id))
+    page_count, chunk_count, cleaning_stats, embedding_result = await document_tasks._extract_and_store_document_pages_async(
+        str(document_id)
+    )
     assert page_count == 1
     assert chunk_count >= 1
+    assert embedding_result.batch_count == 1
     assert cleaning_stats.pages_total == 1
     assert cleaning_stats.chars_after == len("line one\nline two")
     assert len(fake_minio.calls) == 1
@@ -131,6 +162,10 @@ async def test_worker_extracts_text_and_persists_document_pages(
     assert all(chunk.token_count > 0 for chunk in chunks)
     assert all(chunk.embedding_model == settings.openai_embedding_model for chunk in chunks)
     assert all(chunk.index_version == settings.document_index_version for chunk in chunks)
+    usage_events = list((await db_session.execute(select(UsageEvent))).scalars().all())
+    assert len(usage_events) == 1
+    assert usage_events[0].event_type == "document.embedding"
+    assert usage_events[0].model_name == settings.openai_embedding_model
 
     db_session.expire_all()
     result = await db_session.execute(select(Document).where(Document.id == UUID(str(document_id))))
@@ -148,6 +183,7 @@ async def test_worker_fails_on_empty_extraction(
     session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b" \n\t "))
+    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
 
     with pytest.raises(PermanentTaskError, match="extracted document contains no text"):
         await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
@@ -162,6 +198,7 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
     session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two\nline three"))
+    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
 
     document_id = seeded_txt_document.id
     repository = DocumentRepository()
@@ -204,3 +241,22 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
 
     assert first_snapshot
     assert second_snapshot == first_snapshot
+
+
+@pytest.mark.asyncio
+async def test_worker_fails_when_embedding_dimension_is_invalid(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two"))
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size + 1),
+    )
+
+    with pytest.raises(PermanentTaskError, match="embedding dimension mismatch"):
+        await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
