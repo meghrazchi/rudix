@@ -91,18 +91,20 @@ Response:
   "document_id": "uuid",
   "filename": "policy.pdf",
   "status": "uploaded",
-  "message": "Document uploaded and queued for processing."
+  "checksum": "<sha256-hex>",
+  "message": "Document uploaded successfully."
 }
 ```
 
 Backend actions:
 
 1. Verify token.
-2. Validate file type.
-3. Validate file size.
-4. Upload to MinIO.
-5. Insert `documents` row.
-6. Enqueue Celery processing task.
+2. Enforce role check and upload rate limit.
+3. Validate file extension and MIME type.
+4. Validate file size and reject empty payloads.
+5. Compute SHA-256 checksum.
+6. Upload to MinIO.
+7. Insert `documents` row.
 
 ### GET `/documents`
 

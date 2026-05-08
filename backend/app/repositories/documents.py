@@ -18,6 +18,7 @@ class DocumentRepository:
         file_type: str,
         storage_bucket: str,
         storage_object_key: str,
+        checksum: str | None = None,
         status: str = DocumentStatus.uploaded.value,
     ) -> Document:
         document = Document(
@@ -27,6 +28,7 @@ class DocumentRepository:
             file_type=file_type,
             storage_bucket=storage_bucket,
             storage_object_key=storage_object_key,
+            checksum=checksum,
             status=status,
         )
         session.add(document)

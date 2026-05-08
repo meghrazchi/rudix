@@ -379,7 +379,7 @@ Common auth responses:
 Current role checks:
 
 - `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
-- `documents/upload-url`: `owner|admin|member`
+- `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 
@@ -412,6 +412,12 @@ ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "sel
 curl -i http://localhost:8000/api/v1/pipeline/steps \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Organization-ID: $ORG_ID"
+
+# Valid document upload (PDF/TXT/DOCX only)
+curl -i http://localhost:8000/api/v1/documents/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" \
+  -F "file=@/absolute/path/to/sample.pdf;type=application/pdf"
 
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \

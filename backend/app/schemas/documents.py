@@ -27,6 +27,14 @@ class CreateUploadUrlResponse(BaseModel):
     expires_in_seconds: int = 900
 
 
+class UploadDocumentResponse(BaseModel):
+    document_id: str
+    filename: str
+    status: Literal["uploaded"]
+    checksum: str
+    message: str
+
+
 class DocumentStatusResponse(BaseModel):
     document_id: str
     status: Literal["pending", "processing", "indexed", "failed"]

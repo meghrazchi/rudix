@@ -29,6 +29,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.token_codec import create_app_access_token
+from app.clients import minio_client as minio_module
 from app.clients import redis_client as redis_module
 from app.core.config import AuthProvider, RateLimitRedisFailureMode, settings
 from app.db.session import get_db_session
@@ -75,6 +76,11 @@ class BrokenRedis:
         raise RuntimeError("redis unavailable")
 
 
+class FakeMinio:
+    def put_object(self, **kwargs: object) -> None:
+        del kwargs
+
+
 @pytest_asyncio.fixture
 async def rate_limit_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -92,6 +98,7 @@ async def rate_limit_client(
     monkeypatch.setattr(settings, "rate_limit_evaluation_requests", 1)
     monkeypatch.setattr(settings, "rate_limit_admin_requests", 1)
     monkeypatch.setattr(settings, "rate_limit_redis_failure_mode", RateLimitRedisFailureMode.open)
+    monkeypatch.setattr(minio_module, "minio_client", FakeMinio())
     get_auth_provider.cache_clear()
 
     async def _override_get_db_session() -> AsyncSession:
@@ -230,17 +237,13 @@ async def test_rate_limit_redis_failure_open_mode_degrades(
     )
 
     response = await rate_limit_client.post(
-        "/api/v1/documents/upload-url",
+        "/api/v1/documents/upload",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
-        json={
-            "filename": "sample.pdf",
-            "file_type": "pdf",
-            "file_size_bytes": 1024,
-        },
+        files={"file": ("sample.pdf", b"%PDF-1.7\nsample", "application/pdf")},
     )
 
-    # Request reaches scaffold handler when limiter is degraded-open.
-    assert response.status_code == 501
+    # Request proceeds when limiter is degraded-open.
+    assert response.status_code == 201
 
 
 @pytest.mark.asyncio
@@ -260,13 +263,9 @@ async def test_rate_limit_redis_failure_closed_mode_blocks(
     )
 
     response = await rate_limit_client.post(
-        "/api/v1/documents/upload-url",
+        "/api/v1/documents/upload",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
-        json={
-            "filename": "sample.pdf",
-            "file_type": "pdf",
-            "file_size_bytes": 1024,
-        },
+        files={"file": ("sample.pdf", b"%PDF-1.7\nsample", "application/pdf")},
     )
 
     assert response.status_code == 503
