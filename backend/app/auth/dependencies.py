@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,10 @@ from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
+from app.models.document import Document
+from app.repositories.documents import DocumentRepository
+
+_document_repository = DocumentRepository()
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -18,6 +23,29 @@ def _unauthorized(detail: str) -> HTTPException:
         detail=detail,
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def _active_organization_id(principal: AuthenticatedPrincipal) -> UUID:
+    if principal.organization_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No active organization context for principal",
+        )
+
+    try:
+        return UUID(principal.organization_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Principal organization context is invalid",
+        ) from exc
+
+
+def _parse_document_id(document_id: str) -> UUID:
+    try:
+        return UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found") from exc
 
 
 async def get_current_principal(
@@ -52,3 +80,51 @@ def require_roles(*allowed_roles: str) -> Callable[[AuthenticatedPrincipal], Awa
         )
 
     return dependency
+
+
+async def ensure_document_ids_access(
+    *,
+    document_ids: Iterable[str],
+    principal: AuthenticatedPrincipal,
+    db_session: AsyncSession,
+) -> list[UUID]:
+    parsed_ids: list[UUID] = []
+    seen: set[UUID] = set()
+    for document_id in document_ids:
+        parsed_id = _parse_document_id(document_id)
+        if parsed_id in seen:
+            continue
+        seen.add(parsed_id)
+        parsed_ids.append(parsed_id)
+
+    if not parsed_ids:
+        return []
+
+    organization_id = _active_organization_id(principal)
+    for parsed_id in parsed_ids:
+        document = await _document_repository.get_document(
+            db_session,
+            document_id=parsed_id,
+            organization_id=organization_id,
+        )
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    return parsed_ids
+
+
+async def require_document_access(
+    document_id: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Document:
+    organization_id = _active_organization_id(principal)
+    parsed_document_id = _parse_document_id(document_id)
+    document = await _document_repository.get_document(
+        db_session,
+        document_id=parsed_document_id,
+        organization_id=organization_id,
+    )
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return document

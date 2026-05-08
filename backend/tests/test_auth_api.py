@@ -29,6 +29,7 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.main import app
+from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -86,6 +87,54 @@ async def _seed_principal(
     )
     await db_session.commit()
     return user, primary_org, secondary_org
+
+
+async def _seed_user_for_org(
+    db_session: AsyncSession,
+    *,
+    organization: Organization,
+    role: OrganizationRole = OrganizationRole.member,
+) -> User:
+    user = User(
+        organization_id=organization.id,
+        external_auth_id=f"user-{uuid4().hex[:8]}",
+        email=f"user-{uuid4().hex[:8]}@example.com",
+        display_name="Org User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    db_session.add(
+        OrganizationMember(
+            organization_id=organization.id,
+            user_id=user.id,
+            role=role.value,
+        )
+    )
+    await db_session.commit()
+    return user
+
+
+async def _seed_document(
+    db_session: AsyncSession,
+    *,
+    organization: Organization,
+    uploader: User,
+    filename: str,
+) -> Document:
+    document = Document(
+        organization_id=organization.id,
+        uploaded_by_user_id=uploader.id,
+        filename=filename,
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"seed/{filename}",
+        status="uploaded",
+    )
+    db_session.add(document)
+    await db_session.commit()
+    await db_session.refresh(document)
+    return document
 
 
 def _auth_headers(*, token: str, organization_id: str | None = None) -> dict[str, str]:
@@ -227,3 +276,147 @@ async def test_authorization_allows_same_organization_with_valid_role(
 
     # Handler is scaffold-only; successful authz reaches route and returns 501.
     assert response.status_code == 501
+
+
+@pytest.mark.asyncio
+async def test_document_guard_hides_cross_organization_document(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.member)
+    secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
+    foreign_document = await _seed_document(
+        db_session,
+        organization=secondary_org,
+        uploader=secondary_user,
+        filename="foreign.pdf",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(primary_org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await auth_client.get(
+        f"/api/v1/documents/{foreign_document.id}",
+        headers=_auth_headers(token=token, organization_id=str(primary_org.id)),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
+
+
+@pytest.mark.asyncio
+async def test_document_guard_allows_same_organization_document(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    document = await _seed_document(db_session, organization=org, uploader=user, filename="same-org.pdf")
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await auth_client.get(
+        f"/api/v1/documents/{document.id}",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+
+    # Handler is scaffold-only; successful authz reaches route and returns 501.
+    assert response.status_code == 501
+
+
+@pytest.mark.asyncio
+async def test_chat_document_guard_rejects_cross_organization_document_ids(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.member)
+    secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
+    foreign_document = await _seed_document(
+        db_session,
+        organization=secondary_org,
+        uploader=secondary_user,
+        filename="chat-foreign.pdf",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(primary_org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await auth_client.post(
+        "/api/v1/chat/sessions/session-1/messages",
+        headers=_auth_headers(token=token, organization_id=str(primary_org.id)),
+        json={
+            "message": "hello",
+            "document_ids": [str(foreign_document.id)],
+            "stream": False,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
+
+
+@pytest.mark.asyncio
+async def test_evaluation_document_guard_rejects_cross_organization_document_id(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.admin)
+    secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
+    foreign_document = await _seed_document(
+        db_session,
+        organization=secondary_org,
+        uploader=secondary_user,
+        filename="eval-foreign.pdf",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(primary_org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await auth_client.post(
+        "/api/v1/evaluations",
+        headers=_auth_headers(token=token, organization_id=str(primary_org.id)),
+        json={
+            "document_id": str(foreign_document.id),
+            "dataset_name": "smoke",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Document not found"
+
+
+@pytest.mark.asyncio
+async def test_evaluation_admin_only_rejects_member_role(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    document = await _seed_document(db_session, organization=org, uploader=user, filename="eval-local.pdf")
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+
+    response = await auth_client.post(
+        "/api/v1/evaluations",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        json={
+            "document_id": str(document.id),
+            "dataset_name": "smoke",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role for requested operation"

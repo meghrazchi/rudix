@@ -2,9 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.dependencies import get_current_principal, require_document_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_document_event
+from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.schemas.documents import (
     CreateUploadUrlRequest,
@@ -45,10 +46,11 @@ async def create_upload_url(
 async def get_document_status(
     document_id: str,
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    document: Annotated[Document, Depends(require_document_access)],
 ) -> DocumentStatusResponse:
     log_document_event(
         event="document.status.requested",
-        document_id=document_id,
+        document_id=str(document.id),
         organization_id=principal.organization_id,
         user_id=principal.user_id,
         status_code=status.HTTP_501_NOT_IMPLEMENTED,

@@ -1,10 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.dependencies import ensure_document_ids_access, get_current_principal, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_evaluation_event
+from app.db.session import get_db_session
 from app.models.enums import OrganizationRole
 from app.schemas.evaluations import (
     EvaluationStatusResponse,
@@ -17,12 +19,19 @@ router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 
 @router.post("", response_model=TriggerEvaluationResponse)
 async def trigger_evaluation(
-    _: TriggerEvaluationRequest,
+    payload: TriggerEvaluationRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
         Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TriggerEvaluationResponse:
+    await ensure_document_ids_access(
+        document_ids=[payload.document_id],
+        principal=principal,
+        db_session=db_session,
+    )
+
     log_evaluation_event(
         event="evaluation.requested",
         organization_id=principal.organization_id,

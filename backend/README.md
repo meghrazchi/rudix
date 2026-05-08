@@ -97,6 +97,8 @@ Current endpoint authorization:
 - `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
 - `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
+- `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
+- Retrieval-side qdrant filters must include `organization_id` (see `app/services/qdrant_filters.py`).
 
 ## Development commands
 
@@ -125,6 +127,33 @@ From `backend/`:
 .venv/bin/celery -A app.workers.celery_app:celery_app inspect active
 .venv/bin/celery -A app.workers.celery_app:celery_app inspect reserved
 .venv/bin/celery -A app.workers.celery_app:celery_app inspect scheduled
+```
+
+Auth/authorization guard checks:
+
+```bash
+# Run targeted auth + qdrant filter tests
+.venv/bin/pytest tests/test_auth_provider.py tests/test_auth_api.py tests/test_qdrant_filters.py -q
+
+# Build an app token for manual API checks
+TOKEN=$(.venv/bin/python - <<'PY'
+from app.auth.token_codec import create_app_access_token
+print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
+PY
+)
+
+# Resolve seeded organization id (requires `make seed-dev`)
+ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")
+
+# Authenticated access succeeds
+curl -i http://localhost:8000/api/v1/pipeline/steps \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID"
+
+# Cross-org/missing-document-safe behavior
+curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID"
 ```
 
 Dispatch a `documents.process` task with a real UUID:
