@@ -116,8 +116,24 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
         status_calls.append((document_id, status.value))
         return True
 
-    async def _extract_and_store(_: str) -> int:
-        return 4
+    async def _extract_and_store(_: str) -> tuple[int, int, object]:
+        class _Stats:
+            pages_modified = 2
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 4,
+                    "cleaning_pages_modified": 2,
+                    "cleaning_null_bytes_removed": 1,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 3,
+                    "cleaning_blank_lines_collapsed": 1,
+                    "cleaning_chars_before": 120,
+                    "cleaning_chars_after": 110,
+                }
+
+        return 4, 9, _Stats()
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
     monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
@@ -125,6 +141,8 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
     result = document_tasks.process_document.run("doc-1")
     assert result["status"] == DocumentStatus.indexed.value
     assert result["page_count"] == 4
+    assert result["chunk_count"] == 9
+    assert result["cleaning_pages_modified"] == 2
     assert status_calls == [("doc-1", DocumentStatus.processing.value)]
 
 

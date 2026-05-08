@@ -8,16 +8,20 @@ from uuid import UUID
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from app.clients import minio_client as minio_module
+from app.core.config import settings
 from app.core.logging import log_document_event
 from app.db.session import SessionLocal
 from app.models.enums import DocumentStatus
 from app.repositories.documents import DocumentRepository
+from app.services.chunking_service import ChunkingService
 from app.services.text_extraction import extract_text_sections
+from app.services.text_normalization import TextCleaningStats, clean_extracted_sections
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
 
 _document_repository = DocumentRepository()
+_chunking_service = ChunkingService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -69,7 +73,7 @@ def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
     return data
 
 
-async def _extract_and_store_document_pages_async(document_id: str) -> int:
+async def _extract_and_store_document_pages_async(document_id: str) -> tuple[int, int, TextCleaningStats]:
     try:
         parsed_document_id = _parse_uuid(document_id)
     except ValueError as exc:
@@ -85,10 +89,13 @@ async def _extract_and_store_document_pages_async(document_id: str) -> int:
             sections = extract_text_sections(file_type=document.file_type, content=content)
         except ValueError as exc:
             raise PermanentTaskError(str(exc)) from exc
+        cleaned_sections, cleaning_stats = clean_extracted_sections(sections)
+        if not any(section.text for section in cleaned_sections):
+            raise PermanentTaskError("extracted document contains no text after cleaning")
 
         try:
             await _document_repository.delete_document_pages(session, document_id=parsed_document_id)
-            for section in sections:
+            for section in cleaned_sections:
                 await _document_repository.create_document_page(
                     session,
                     document_id=parsed_document_id,
@@ -96,12 +103,31 @@ async def _extract_and_store_document_pages_async(document_id: str) -> int:
                     text=section.text,
                     char_count=section.char_count,
                 )
+            chunks = await _chunking_service.chunk(document_id=parsed_document_id, pages=cleaned_sections)
+            if not chunks:
+                raise PermanentTaskError("cleaned document produced no chunks")
+            await _document_repository.delete_document_chunks(
+                session,
+                document_id=parsed_document_id,
+                index_version=settings.document_index_version,
+            )
+            for chunk in chunks:
+                await _document_repository.create_document_chunk(
+                    session,
+                    document_id=chunk.document_id,
+                    page_number=chunk.page_number,
+                    chunk_index=chunk.chunk_index,
+                    text=chunk.text,
+                    token_count=chunk.token_count,
+                    embedding_model=chunk.embedding_model,
+                    index_version=chunk.index_version,
+                )
             updated = await _document_repository.update_document_status(
                 session,
                 document_id=parsed_document_id,
                 status=DocumentStatus.indexed.value,
                 error_message=None,
-                page_count=len(sections),
+                page_count=len(cleaned_sections),
             )
             await session.commit()
         except Exception:
@@ -109,7 +135,7 @@ async def _extract_and_store_document_pages_async(document_id: str) -> int:
             raise
         if updated is None:
             raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
-        return len(sections)
+        return len(cleaned_sections), len(chunks), cleaning_stats
 
 
 class DocumentTask(RudixTask):
@@ -195,7 +221,7 @@ def process_document(
         status_code=DocumentStatus.processing.value,
     )
 
-    page_count = _run(_extract_and_store_document_pages_async(document_id))
+    page_count, chunk_count, cleaning_stats = _run(_extract_and_store_document_pages_async(document_id))
 
     log_document_event(
         event="document.processing.completed",
@@ -205,8 +231,18 @@ def process_document(
         user_id=user_id,
         status_code=DocumentStatus.indexed.value,
         page_count=page_count,
+        chunk_count=chunk_count,
+        index_version=settings.document_index_version,
+        **cleaning_stats.as_log_fields(),
     )
-    return {"document_id": document_id, "status": DocumentStatus.indexed.value, "page_count": page_count}
+    return {
+        "document_id": document_id,
+        "status": DocumentStatus.indexed.value,
+        "page_count": page_count,
+        "chunk_count": chunk_count,
+        "index_version": settings.document_index_version,
+        "cleaning_pages_modified": cleaning_stats.pages_modified,
+    }
 
 
 @celery_app.task(name="documents.delete", bind=True, base=DocumentTask)

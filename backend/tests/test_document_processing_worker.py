@@ -27,6 +27,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.clients import minio_client as minio_module
+from app.core.config import settings
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
@@ -105,8 +106,11 @@ async def test_worker_extracts_text_and_persists_document_pages(
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
     document_id = seeded_txt_document.id
 
-    page_count = await document_tasks._extract_and_store_document_pages_async(str(document_id))
+    page_count, chunk_count, cleaning_stats = await document_tasks._extract_and_store_document_pages_async(str(document_id))
     assert page_count == 1
+    assert chunk_count >= 1
+    assert cleaning_stats.pages_total == 1
+    assert cleaning_stats.chars_after == len("line one\nline two")
     assert len(fake_minio.calls) == 1
     assert fake_minio.calls[0]["Bucket"] == seeded_txt_document.storage_bucket
     assert fake_minio.calls[0]["Key"] == seeded_txt_document.storage_object_key
@@ -117,6 +121,16 @@ async def test_worker_extracts_text_and_persists_document_pages(
     assert pages[0].page_number == 1
     assert pages[0].text == "line one\nline two"
     assert pages[0].char_count == len("line one\nline two")
+    chunks = await repository.list_document_chunks(
+        db_session,
+        document_id=document_id,
+        index_version=settings.document_index_version,
+    )
+    assert len(chunks) == chunk_count
+    assert [chunk.chunk_index for chunk in chunks] == list(range(len(chunks)))
+    assert all(chunk.token_count > 0 for chunk in chunks)
+    assert all(chunk.embedding_model == settings.openai_embedding_model for chunk in chunks)
+    assert all(chunk.index_version == settings.document_index_version for chunk in chunks)
 
     db_session.expire_all()
     result = await db_session.execute(select(Document).where(Document.id == UUID(str(document_id))))
@@ -137,3 +151,56 @@ async def test_worker_fails_on_empty_extraction(
 
     with pytest.raises(PermanentTaskError, match="extracted document contains no text"):
         await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
+
+
+@pytest.mark.asyncio
+async def test_worker_replaces_chunks_idempotently_for_same_index_version(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two\nline three"))
+
+    document_id = seeded_txt_document.id
+    repository = DocumentRepository()
+
+    await document_tasks._extract_and_store_document_pages_async(str(document_id))
+    first_chunks = await repository.list_document_chunks(
+        db_session,
+        document_id=document_id,
+        index_version=settings.document_index_version,
+    )
+    first_snapshot = [
+        (
+            chunk.chunk_index,
+            chunk.page_number,
+            chunk.text,
+            chunk.token_count,
+            chunk.embedding_model,
+            chunk.index_version,
+        )
+        for chunk in first_chunks
+    ]
+
+    await document_tasks._extract_and_store_document_pages_async(str(document_id))
+    second_chunks = await repository.list_document_chunks(
+        db_session,
+        document_id=document_id,
+        index_version=settings.document_index_version,
+    )
+    second_snapshot = [
+        (
+            chunk.chunk_index,
+            chunk.page_number,
+            chunk.text,
+            chunk.token_count,
+            chunk.embedding_model,
+            chunk.index_version,
+        )
+        for chunk in second_chunks
+    ]
+
+    assert first_snapshot
+    assert second_snapshot == first_snapshot

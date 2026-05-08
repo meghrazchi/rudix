@@ -108,8 +108,12 @@ Backend actions:
 7. Upload to MinIO.
 8. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
 9. Publish `documents.process` task with `document_id`, `organization_id`, `user_id`, and `request_id`.
-10. Worker extracts text by file type and stores `document_pages(page_number, text, char_count)`.
-11. On successful extraction, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
+10. Worker extracts text by file type and normalizes page text (null-byte/control-char cleanup and whitespace normalization).
+11. Worker stores `document_pages(page_number, text, char_count)` with page boundaries preserved.
+12. Worker chunks cleaned pages with configured token size/overlap and stores `document_chunks` metadata (`page_number`, `chunk_index`, `token_count`, `embedding_model`, `index_version`).
+13. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
+14. On successful extraction/chunking, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
+15. Worker logs cleaning/chunking stats (`cleaning_*`, `chunk_count`, `index_version`) for pipeline observability.
 
 Queue publish failure behavior:
 
@@ -181,7 +185,9 @@ Response:
       "page_number": 4,
       "chunk_index": 12,
       "text_preview": "Employees are entitled to...",
-      "token_count": 690
+      "token_count": 690,
+      "embedding_model": "text-embedding-3-small",
+      "index_version": "v1"
     }
   ]
 }
@@ -462,7 +468,8 @@ Response:
   },
   "config": {
     "chunk_size_tokens": 700,
-    "overlap_tokens": 120
+    "chunk_overlap_tokens": 120,
+    "index_version": "v1"
   },
   "logs": [
     "Created 92 chunks from 24 pages."

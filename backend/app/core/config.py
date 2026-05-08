@@ -146,6 +146,7 @@ class Settings(BaseSettings):
     retrieval_final_top_k: int = Field(default=5, ge=1, le=50)
     chunk_size_tokens: int = Field(default=700, ge=100, le=4000)
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
+    document_index_version: str = Field(default="v1", min_length=1, max_length=64)
     request_timeout_seconds: int = Field(default=30, ge=1, le=300)
 
     feature_enable_embeddings: bool = True
@@ -192,6 +193,16 @@ class Settings(BaseSettings):
         cleaned = value.strip()
         if " " in cleaned:
             raise ValueError("model names must not contain whitespace")
+        return cleaned
+
+    @field_validator("document_index_version")
+    @classmethod
+    def validate_document_index_version(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("document_index_version must not be empty")
+        if not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
+            raise ValueError("document_index_version may contain only letters, numbers, '.', '-', and '_'")
         return cleaned
 
     @field_validator(
@@ -348,6 +359,7 @@ class Settings(BaseSettings):
             "retrieval_final_top_k": self.retrieval_final_top_k,
             "chunk_size_tokens": self.chunk_size_tokens,
             "chunk_overlap_tokens": self.chunk_overlap_tokens,
+            "document_index_version": self.document_index_version,
             "request_timeout_seconds": self.request_timeout_seconds,
             "features": {
                 "embeddings": self.feature_enable_embeddings,

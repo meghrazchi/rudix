@@ -135,10 +135,28 @@ class DocumentRepository:
         await session.refresh(chunk)
         return chunk
 
-    async def list_document_chunks(self, session: AsyncSession, *, document_id: UUID) -> list[DocumentChunk]:
-        result = await session.execute(
-            select(DocumentChunk)
-            .where(DocumentChunk.document_id == document_id)
-            .order_by(DocumentChunk.chunk_index.asc())
-        )
+    async def delete_document_chunks(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        index_version: str | None = None,
+    ) -> int:
+        statement = delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        result = await session.execute(statement)
+        return int(result.rowcount or 0)
+
+    async def list_document_chunks(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        index_version: str | None = None,
+    ) -> list[DocumentChunk]:
+        statement = select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        result = await session.execute(statement.order_by(DocumentChunk.chunk_index.asc()))
         return list(result.scalars().all())

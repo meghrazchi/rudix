@@ -62,6 +62,7 @@ make seed-dev
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
+- Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`).
 - Production profile requires `SENTRY_DSN`.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
@@ -173,10 +174,20 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Verify background processing task was queued/consumed
 docker compose logs --tail=100 worker | rg "document.processing.(started|completed|failed|skipped)"
 
+# Inspect cleaning stats emitted by worker on completion
+docker compose logs --tail=200 worker | rg "cleaning_pages_total|cleaning_chars_before|cleaning_chars_after"
+
+# Inspect chunking stats emitted by worker on completion
+docker compose logs --tail=200 worker | rg "chunk_count|index_version"
+
 # Inspect extracted pages (page_number, text, char_count)
 DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select page_number, char_count, left(text, 120) as preview from document_pages where document_id='${DOC_ID}'::uuid order by page_number;"
+
+# Inspect persisted chunks (chunk_index, page_number, token_count, index_version)
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select chunk_index, page_number, token_count, index_version, left(text, 120) as preview from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"
 
 # Cross-org/missing-document-safe behavior
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
@@ -205,6 +216,8 @@ Notes:
 - Duplicate file uploads are currently accepted and stored as separate document records (each with a unique `document_id` and object key).
 - Each successful upload immediately enqueues `documents.process`; if enqueue fails, API returns `503` and the document remains in `uploaded` state.
 - Worker extraction currently supports PDF (page-by-page via PyMuPDF), TXT (UTF-8 with fallback), and DOCX (paragraphs + tables).
+- Worker normalization removes null/control characters, normalizes whitespace/blank lines, and records `cleaning_*` stats in processing logs.
+- Worker chunking stores `document_chunks` with deterministic `chunk_index`, `token_count`, `embedding_model`, and `index_version`; current-version chunks are replaced idempotently on reprocessing.
 
 ## Directory overview
 

@@ -45,6 +45,10 @@ Update `.env` before first start:
   - `RATE_LIMIT_DISABLE_IN_TEST`
   - `RATE_LIMIT_REDIS_FAILURE_MODE` (`open` or `closed`)
   - endpoint-specific limits (`RATE_LIMIT_*_REQUESTS`)
+- Chunking/index settings (optional):
+  - `CHUNK_SIZE_TOKENS`
+  - `CHUNK_OVERLAP_TOKENS`
+  - `DOCUMENT_INDEX_VERSION`
 
 `Settings` loads `.env` from either:
 
@@ -318,6 +322,7 @@ The settings layer validates on startup:
 - Cross-field constraints are enforced:
   - `RETRIEVAL_FINAL_TOP_K <= RETRIEVAL_INITIAL_TOP_K`
   - `CHUNK_OVERLAP_TOKENS < CHUNK_SIZE_TOKENS`
+- `DOCUMENT_INDEX_VERSION` must use only letters/numbers and `.`/`-`/`_`.
 - `APP_AUTH_SECRET` is required for `AUTH_PROVIDER=app`.
 - `CLERK_JWKS_URL` is required for `AUTH_PROVIDER=clerk`.
 - `SUPABASE_JWKS_URL` is required for `AUTH_PROVIDER=supabase`.
@@ -432,10 +437,20 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Confirm worker consumed process task
 docker compose logs --tail=100 worker | rg "document.processing.(started|completed|failed|skipped)"
 
+# Confirm cleaning stats are emitted for pipeline observability
+docker compose logs --tail=200 worker | rg "cleaning_pages_total|cleaning_chars_before|cleaning_chars_after"
+
+# Confirm chunking stats are emitted (count + active index version)
+docker compose logs --tail=200 worker | rg "chunk_count|index_version"
+
 # Inspect extracted pages for latest document
 DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select page_number, char_count, left(text, 120) as preview from document_pages where document_id='${DOC_ID}'::uuid order by page_number;"
+
+# Inspect persisted chunks for latest document
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select chunk_index, page_number, token_count, index_version, left(text, 120) as preview from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"
 
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
@@ -448,6 +463,8 @@ Upload behavior note:
 - Duplicate file uploads are accepted and stored as separate documents. Each upload gets a new `document_id` and a new MinIO object key.
 - Each successful upload enqueues `documents.process`; if publish fails, API returns `503` and leaves the document in `uploaded` for retry/recovery.
 - Worker extraction supports PDF (page-by-page), TXT (UTF-8 with replacement fallback), and DOCX (paragraphs and tables).
+- Worker normalization removes null/control characters, normalizes whitespace/blank lines, and emits `cleaning_*` stats in worker logs.
+- Worker chunking persists deterministic chunks with `chunk_index`, `token_count`, `embedding_model`, and `index_version`, replacing current-version chunks idempotently on reprocessing.
 
 ## 7. Security recommendations
 

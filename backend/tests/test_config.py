@@ -26,6 +26,7 @@ ENV_KEYS = [
     "RATE_LIMIT_EVALUATION_REQUESTS",
     "RATE_LIMIT_DELETE_REQUESTS",
     "RATE_LIMIT_ADMIN_REQUESTS",
+    "DOCUMENT_INDEX_VERSION",
     "OPENAI_API_KEY",
     "AUTH_PROVIDER",
     "APP_AUTH_SECRET",
@@ -124,6 +125,14 @@ def test_invalid_dependency_timeout_relationship_fails_fast() -> None:
 def test_invalid_celery_queue_name_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["celery_queue_documents_processing"] = "documents processing"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_document_index_version_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["document_index_version"] = "v1 release"
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

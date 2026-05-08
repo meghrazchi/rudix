@@ -92,10 +92,34 @@ async def test_document_repository_crud(
         token_count=1,
         embedding_model="text-embedding-3-small",
     )
+    await document_repository.create_document_chunk(
+        db_session,
+        document_id=document.id,
+        chunk_index=0,
+        text="chunk-v2",
+        token_count=2,
+        embedding_model="text-embedding-3-small",
+        index_version="v2",
+    )
     assert chunk.chunk_index == 0
 
-    chunks = await document_repository.list_document_chunks(db_session, document_id=document.id)
+    chunks = await document_repository.list_document_chunks(
+        db_session,
+        document_id=document.id,
+        index_version="v1",
+    )
     assert len(chunks) == 1
+    assert chunks[0].index_version == "v1"
+
+    removed = await document_repository.delete_document_chunks(
+        db_session,
+        document_id=document.id,
+        index_version="v1",
+    )
+    assert removed == 1
+    chunks_after_delete = await document_repository.list_document_chunks(db_session, document_id=document.id)
+    assert len(chunks_after_delete) == 1
+    assert chunks_after_delete[0].index_version == "v2"
 
     updated = await document_repository.update_document_status(
         db_session,
