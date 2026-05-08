@@ -41,8 +41,14 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
         ) from exc
 
 
-def _object_key(*, organization_id: UUID, extension: str) -> str:
-    return f"uploads/{organization_id}/{uuid4()}.{extension}"
+def _object_key(
+    *,
+    organization_id: UUID,
+    user_id: UUID,
+    document_id: UUID,
+    extension: str,
+) -> str:
+    return f"uploads/{organization_id}/{user_id}/{document_id}.{extension}"
 
 
 @router.post("/upload", response_model=UploadDocumentResponse, status_code=status.HTTP_201_CREATED)
@@ -87,7 +93,13 @@ async def upload_document(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
 
     user_id, organization_id = _principal_user_and_org(principal)
-    object_key = _object_key(organization_id=organization_id, extension=validated.extension)
+    document_id = uuid4()
+    object_key = _object_key(
+        organization_id=organization_id,
+        user_id=user_id,
+        document_id=document_id,
+        extension=validated.extension,
+    )
 
     minio = minio_module.minio_client
     if minio is None:
@@ -120,6 +132,7 @@ async def upload_document(
     try:
         document = await document_repository.create_document(
             db_session,
+            document_id=document_id,
             organization_id=organization_id,
             uploaded_by_user_id=user_id,
             filename=validated.normalized_filename,

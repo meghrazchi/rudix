@@ -12,6 +12,7 @@ class DocumentRepository:
         self,
         session: AsyncSession,
         *,
+        document_id: UUID | None = None,
         organization_id: UUID,
         uploaded_by_user_id: UUID,
         filename: str,
@@ -21,16 +22,20 @@ class DocumentRepository:
         checksum: str | None = None,
         status: str = DocumentStatus.uploaded.value,
     ) -> Document:
-        document = Document(
-            organization_id=organization_id,
-            uploaded_by_user_id=uploaded_by_user_id,
-            filename=filename,
-            file_type=file_type,
-            storage_bucket=storage_bucket,
-            storage_object_key=storage_object_key,
-            checksum=checksum,
-            status=status,
-        )
+        document_kwargs: dict[str, object] = {
+            "organization_id": organization_id,
+            "uploaded_by_user_id": uploaded_by_user_id,
+            "filename": filename,
+            "file_type": file_type,
+            "storage_bucket": storage_bucket,
+            "storage_object_key": storage_object_key,
+            "checksum": checksum,
+            "status": status,
+        }
+        if document_id is not None:
+            document_kwargs["id"] = document_id
+
+        document = Document(**document_kwargs)
         session.add(document)
         await session.flush()
         await session.refresh(document)

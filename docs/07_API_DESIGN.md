@@ -103,8 +103,13 @@ Backend actions:
 3. Validate file extension and MIME type.
 4. Validate file size and reject empty payloads.
 5. Compute SHA-256 checksum.
-6. Upload to MinIO.
-7. Insert `documents` row.
+6. Generate a `document_id` and MinIO object key: `uploads/{organization_id}/{user_id}/{document_id}.{ext}`.
+7. Upload to MinIO.
+8. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
+
+Duplicate policy:
+
+- Duplicate uploads are currently accepted as separate documents. Each upload gets a new `document_id` and object key even when checksum matches a previous upload.
 
 ### GET `/documents`
 

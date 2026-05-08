@@ -160,6 +160,14 @@ curl -i http://localhost:8000/api/v1/documents/upload \
   -H "X-Organization-ID: $ORG_ID" \
   -F "file=@/absolute/path/to/sample.pdf;type=application/pdf"
 
+# Verify uploaded object exists in MinIO
+docker compose run --rm minio-init /bin/sh -lc \
+  'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'
+
+# Verify uploaded row lifecycle metadata in PostgreSQL
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select id, organization_id, uploaded_by_user_id, status, file_type, storage_bucket, storage_object_key, checksum from documents order by created_at desc limit 5;"
+
 # Cross-org/missing-document-safe behavior
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \
@@ -184,6 +192,7 @@ Notes:
 - Never enqueue placeholder values like `PUT_DOC_UUID_HERE` or `<DOC_UUID>`.
 - `force=true` does not bypass UUID validation.
 - If local and Docker workers run together, either worker may consume tasks.
+- Duplicate file uploads are currently accepted and stored as separate document records (each with a unique `document_id` and object key).
 
 ## Directory overview
 

@@ -419,11 +419,23 @@ curl -i http://localhost:8000/api/v1/documents/upload \
   -H "X-Organization-ID: $ORG_ID" \
   -F "file=@/absolute/path/to/sample.pdf;type=application/pdf"
 
+# Confirm uploaded object is present in MinIO
+docker compose run --rm minio-init /bin/sh -lc \
+  'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'
+
+# Confirm lifecycle row exists in PostgreSQL
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select id, organization_id, uploaded_by_user_id, status, file_type, storage_bucket, storage_object_key, checksum from documents order by created_at desc limit 5;"
+
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Organization-ID: $ORG_ID"
 ```
+
+Upload behavior note:
+
+- Duplicate file uploads are accepted and stored as separate documents. Each upload gets a new `document_id` and a new MinIO object key.
 
 ## 7. Security recommendations
 
