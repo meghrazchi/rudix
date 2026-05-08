@@ -1,12 +1,115 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Coroutine
 from typing import Any
+from uuid import UUID
 
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+
+from app.clients import minio_client as minio_module
 from app.core.logging import log_document_event
+from app.db.session import SessionLocal
 from app.models.enums import DocumentStatus
+from app.repositories.documents import DocumentRepository
+from app.services.text_extraction import extract_text_sections
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
+
+_document_repository = DocumentRepository()
+_worker_loop: asyncio.AbstractEventLoop | None = None
+
+
+def _parse_uuid(value: str) -> UUID:
+    return UUID(value)
+
+
+def _get_worker_loop() -> asyncio.AbstractEventLoop:
+    global _worker_loop
+    if _worker_loop is None or _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(_worker_loop)
+    return _worker_loop
+
+
+def _run[T](coro: Coroutine[Any, Any, T]) -> T:
+    loop = _get_worker_loop()
+    return loop.run_until_complete(coro)
+
+
+def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
+    minio = minio_module.minio_client
+    if minio is None:
+        raise TransientTaskError("Object storage is unavailable")
+
+    try:
+        response = minio.get_object(Bucket=bucket, Key=object_key)
+    except ClientError as exc:
+        error_code = str(exc.response.get("Error", {}).get("Code", ""))
+        if error_code in {"NoSuchKey", "404", "NotFound"}:
+            raise PermanentTaskError("Stored file was not found in object storage") from exc
+        raise TransientTaskError("Object storage read failed") from exc
+    except Exception as exc:
+        raise TransientTaskError("Object storage read failed") from exc
+
+    body = response.get("Body")
+    if body is None:
+        raise TransientTaskError("Object storage response body is missing")
+    try:
+        data = body.read()
+    except Exception as exc:
+        raise TransientTaskError("Object storage read failed") from exc
+    finally:
+        close_method = getattr(body, "close", None)
+        if callable(close_method):
+            close_method()
+    if not isinstance(data, bytes):
+        raise TransientTaskError("Object storage returned invalid payload")
+    return data
+
+
+async def _extract_and_store_document_pages_async(document_id: str) -> int:
+    try:
+        parsed_document_id = _parse_uuid(document_id)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
+
+    async with SessionLocal() as session:
+        document = await _document_repository.get_document_by_id(session, document_id=parsed_document_id)
+        if document is None:
+            raise PermanentTaskError(f"Document not found: {document_id}")
+
+        content = _read_object_bytes(bucket=document.storage_bucket, object_key=document.storage_object_key)
+        try:
+            sections = extract_text_sections(file_type=document.file_type, content=content)
+        except ValueError as exc:
+            raise PermanentTaskError(str(exc)) from exc
+
+        try:
+            await _document_repository.delete_document_pages(session, document_id=parsed_document_id)
+            for section in sections:
+                await _document_repository.create_document_page(
+                    session,
+                    document_id=parsed_document_id,
+                    page_number=section.page_number,
+                    text=section.text,
+                    char_count=section.char_count,
+                )
+            updated = await _document_repository.update_document_status(
+                session,
+                document_id=parsed_document_id,
+                status=DocumentStatus.indexed.value,
+                error_message=None,
+                page_count=len(sections),
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        if updated is None:
+            raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
+        return len(sections)
 
 
 class DocumentTask(RudixTask):
@@ -52,8 +155,8 @@ def process_document(
     organization_id: str | None = None,
     user_id: str | None = None,
     force: bool = False,
-) -> dict[str, str]:
-    """Scaffold task for extract/chunk/embed/index lifecycle orchestration."""
+) -> dict[str, str | int]:
+    """Extract text and persist document_pages before marking a document as indexed."""
     try:
         status = get_document_status(document_id)
     except ValueError as exc:
@@ -92,9 +195,7 @@ def process_document(
         status_code=DocumentStatus.processing.value,
     )
 
-    indexed_updated = set_document_status(document_id, status=DocumentStatus.indexed)
-    if not indexed_updated:
-        raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
+    page_count = _run(_extract_and_store_document_pages_async(document_id))
 
     log_document_event(
         event="document.processing.completed",
@@ -103,8 +204,9 @@ def process_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.indexed.value,
+        page_count=page_count,
     )
-    return {"document_id": document_id, "status": DocumentStatus.indexed.value}
+    return {"document_id": document_id, "status": DocumentStatus.indexed.value, "page_count": page_count}
 
 
 @celery_app.task(name="documents.delete", bind=True, base=DocumentTask)

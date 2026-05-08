@@ -102,6 +102,32 @@ def test_process_document_is_idempotent_when_already_processing(monkeypatch: pyt
     assert result["status"] == "skipped"
 
 
+def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    status_calls: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.uploaded.value,
+    )
+
+    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+        del error_message
+        status_calls.append((document_id, status.value))
+        return True
+
+    async def _extract_and_store(_: str) -> int:
+        return 4
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+
+    result = document_tasks.process_document.run("doc-1")
+    assert result["status"] == DocumentStatus.indexed.value
+    assert result["page_count"] == 4
+    assert status_calls == [("doc-1", DocumentStatus.processing.value)]
+
+
 def test_document_task_terminal_failure_marks_document_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, str] = {}
 

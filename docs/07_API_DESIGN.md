@@ -108,6 +108,8 @@ Backend actions:
 7. Upload to MinIO.
 8. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
 9. Publish `documents.process` task with `document_id`, `organization_id`, `user_id`, and `request_id`.
+10. Worker extracts text by file type and stores `document_pages(page_number, text, char_count)`.
+11. On successful extraction, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
 
 Queue publish failure behavior:
 

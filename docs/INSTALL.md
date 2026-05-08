@@ -432,6 +432,11 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Confirm worker consumed process task
 docker compose logs --tail=100 worker | rg "document.processing.(started|completed|failed|skipped)"
 
+# Inspect extracted pages for latest document
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select page_number, char_count, left(text, 120) as preview from document_pages where document_id='${DOC_ID}'::uuid order by page_number;"
+
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \
@@ -442,6 +447,7 @@ Upload behavior note:
 
 - Duplicate file uploads are accepted and stored as separate documents. Each upload gets a new `document_id` and a new MinIO object key.
 - Each successful upload enqueues `documents.process`; if publish fails, API returns `503` and leaves the document in `uploaded` for retry/recovery.
+- Worker extraction supports PDF (page-by-page), TXT (UTF-8 with replacement fallback), and DOCX (paragraphs and tables).
 
 ## 7. Security recommendations
 

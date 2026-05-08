@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -94,6 +94,18 @@ class DocumentRepository:
         await session.flush()
         await session.refresh(page)
         return page
+
+    async def delete_document_pages(self, session: AsyncSession, *, document_id: UUID) -> int:
+        result = await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
+        return int(result.rowcount or 0)
+
+    async def list_document_pages(self, session: AsyncSession, *, document_id: UUID) -> list[DocumentPage]:
+        result = await session.execute(
+            select(DocumentPage)
+            .where(DocumentPage.document_id == document_id)
+            .order_by(DocumentPage.page_number.asc())
+        )
+        return list(result.scalars().all())
 
     async def create_document_chunk(
         self,

@@ -173,6 +173,11 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 # Verify background processing task was queued/consumed
 docker compose logs --tail=100 worker | rg "document.processing.(started|completed|failed|skipped)"
 
+# Inspect extracted pages (page_number, text, char_count)
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select page_number, char_count, left(text, 120) as preview from document_pages where document_id='${DOC_ID}'::uuid order by page_number;"
+
 # Cross-org/missing-document-safe behavior
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \
@@ -199,6 +204,7 @@ Notes:
 - If local and Docker workers run together, either worker may consume tasks.
 - Duplicate file uploads are currently accepted and stored as separate document records (each with a unique `document_id` and object key).
 - Each successful upload immediately enqueues `documents.process`; if enqueue fails, API returns `503` and the document remains in `uploaded` state.
+- Worker extraction currently supports PDF (page-by-page via PyMuPDF), TXT (UTF-8 with fallback), and DOCX (paragraphs + tables).
 
 ## Directory overview
 

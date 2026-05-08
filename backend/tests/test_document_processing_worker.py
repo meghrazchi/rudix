@@ -1,0 +1,139 @@
+from __future__ import annotations
+
+import os
+from typing import Any
+from uuid import UUID, uuid4
+
+import pytest
+import pytest_asyncio
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+# Ensure strict settings can be loaded when importing modules in tests.
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
+os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+os.environ.setdefault("QDRANT_COLLECTION", "documents")
+os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
+os.environ.setdefault("MINIO_ACCESS_KEY", "minioadmin")
+os.environ.setdefault("MINIO_SECRET_KEY", "minioadmin")
+os.environ.setdefault("MINIO_BUCKET", "documents")
+os.environ.setdefault("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672//")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("OPENAI_API_KEY", "sk-test")
+os.environ.setdefault("AUTH_PROVIDER", "app")
+os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
+
+from app.clients import minio_client as minio_module
+from app.models.document import Document
+from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember
+from app.models.user import User
+from app.repositories.documents import DocumentRepository
+from app.workers import document_tasks
+from app.workers.base_task import PermanentTaskError
+
+
+class _Body:
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self.closed = False
+
+    def read(self) -> bytes:
+        return self._data
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeMinioReader:
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+        self.calls: list[dict[str, Any]] = []
+
+    def get_object(self, **kwargs: Any) -> dict[str, Any]:
+        self.calls.append(kwargs)
+        return {"Body": _Body(self.data)}
+
+
+@pytest_asyncio.fixture
+async def seeded_txt_document(db_session: AsyncSession) -> Document:
+    org = Organization(name="Extraction Org", slug=f"extract-org-{uuid4().hex[:8]}")
+    db_session.add(org)
+    await db_session.flush()
+
+    user = User(
+        organization_id=org.id,
+        external_auth_id=f"extract-user-{uuid4().hex[:8]}",
+        email=f"extract-{uuid4().hex[:8]}@example.com",
+        display_name="Extraction User",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value))
+    await db_session.flush()
+
+    repository = DocumentRepository()
+    document = await repository.create_document(
+        db_session,
+        organization_id=org.id,
+        uploaded_by_user_id=user.id,
+        filename="worker.txt",
+        file_type="txt",
+        storage_bucket="documents",
+        storage_object_key=f"uploads/{org.id}/{user.id}/{uuid4()}.txt",
+        status=DocumentStatus.processing.value,
+    )
+    await db_session.commit()
+    await db_session.refresh(document)
+    return document
+
+
+@pytest.mark.asyncio
+async def test_worker_extracts_text_and_persists_document_pages(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+    fake_minio = FakeMinioReader(b"line one\nline two")
+    monkeypatch.setattr(minio_module, "minio_client", fake_minio)
+    document_id = seeded_txt_document.id
+
+    page_count = await document_tasks._extract_and_store_document_pages_async(str(document_id))
+    assert page_count == 1
+    assert len(fake_minio.calls) == 1
+    assert fake_minio.calls[0]["Bucket"] == seeded_txt_document.storage_bucket
+    assert fake_minio.calls[0]["Key"] == seeded_txt_document.storage_object_key
+
+    repository = DocumentRepository()
+    pages = await repository.list_document_pages(db_session, document_id=document_id)
+    assert len(pages) == 1
+    assert pages[0].page_number == 1
+    assert pages[0].text == "line one\nline two"
+    assert pages[0].char_count == len("line one\nline two")
+
+    db_session.expire_all()
+    result = await db_session.execute(select(Document).where(Document.id == UUID(str(document_id))))
+    updated = result.scalar_one()
+    assert updated.status == DocumentStatus.indexed.value
+    assert updated.page_count == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_fails_on_empty_extraction(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b" \n\t "))
+
+    with pytest.raises(PermanentTaskError, match="extracted document contains no text"):
+        await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
