@@ -16,6 +16,7 @@ from app.repositories.documents import DocumentRepository
 from app.repositories.usage import UsageRepository
 from app.services.chunking_service import ChunkingService
 from app.services.embedding_service import EmbeddingResult, EmbeddingService
+from app.services.qdrant_service import QdrantService
 from app.services.text_extraction import extract_text_sections
 from app.services.text_normalization import TextCleaningStats, clean_extracted_sections
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -26,6 +27,7 @@ _document_repository = DocumentRepository()
 _usage_repository = UsageRepository()
 _chunking_service = ChunkingService()
 _embedding_service = EmbeddingService()
+_qdrant_service = QdrantService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
 
 
@@ -119,6 +121,11 @@ async def _extract_and_store_document_pages_async(
             )
             created_chunks = []
             for chunk in chunks:
+                qdrant_point_id = _qdrant_service.build_point_id(
+                    document_id=chunk.document_id,
+                    chunk_index=chunk.chunk_index,
+                    index_version=chunk.index_version,
+                )
                 created_chunks.append(
                     await _document_repository.create_document_chunk(
                         session,
@@ -127,6 +134,7 @@ async def _extract_and_store_document_pages_async(
                         chunk_index=chunk.chunk_index,
                         text=chunk.text,
                         token_count=chunk.token_count,
+                        qdrant_point_id=qdrant_point_id,
                         embedding_model=chunk.embedding_model,
                         index_version=chunk.index_version,
                     )
@@ -141,6 +149,20 @@ async def _extract_and_store_document_pages_async(
                         f"embedding dimension mismatch for chunk {chunk_id}: "
                         f"expected {settings.qdrant_vector_size}, got {len(vector)}"
                     )
+            try:
+                qdrant_result = await _qdrant_service.upsert_chunks(
+                    organization_id=document.organization_id,
+                    user_id=document.uploaded_by_user_id,
+                    document_id=document.id,
+                    filename=document.filename,
+                    file_type=document.file_type,
+                    chunks=created_chunks,
+                    vectors_by_chunk_id=embedding_result.vectors_by_chunk_id,
+                )
+            except ValueError as exc:
+                raise PermanentTaskError(str(exc)) from exc
+            except Exception as exc:
+                raise TransientTaskError("qdrant upsert failed") from exc
 
             await _usage_repository.create_usage_event(
                 session,
@@ -159,6 +181,8 @@ async def _extract_and_store_document_pages_async(
                     "index_version": embedding_result.index_version,
                     "latency_ms": embedding_result.latency_ms,
                     "total_tokens": embedding_result.total_tokens,
+                    "qdrant_upserted_count": qdrant_result.upserted_count,
+                    "qdrant_batch_count": qdrant_result.batch_count,
                 },
             )
             updated = await _document_repository.update_document_status(
@@ -280,6 +304,7 @@ def process_document(
         embedding_total_tokens=embedding_result.total_tokens,
         embedding_latency_ms=embedding_result.latency_ms,
         embedding_cost_usd=float(embedding_result.approximate_cost_usd),
+        qdrant_collection=settings.qdrant_collection,
         **cleaning_stats.as_log_fields(),
     )
     return {

@@ -114,9 +114,11 @@ Backend actions:
 13. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
 14. Worker generates embeddings for all chunks in provider-safe batches using the configured embedding model.
 15. Transient embedding provider failures are retried with backoff; permanent embedding failures mark document `failed`.
-16. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
-17. On successful extraction/chunking/embedding, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
-18. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
+16. Worker upserts embeddings to Qdrant in batches using deterministic point IDs (`{document_id}:{index_version}:{chunk_index}`).
+17. Qdrant payload includes filter/citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
+18. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
+19. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
+20. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
 
 Queue publish failure behavior:
 

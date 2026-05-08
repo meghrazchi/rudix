@@ -195,6 +195,16 @@ DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "sel
 
 # From backend/, enqueue task
 DOC_ID="$DOC_ID" .venv/bin/python -c "import os; from app.workers.document_tasks import process_document; doc=os.environ['DOC_ID'].strip(); r=process_document.delay(doc, force=True); print('doc_id=', doc); print('task_id=', r.id)"
+
+# Verify qdrant point ids are persisted on chunk rows
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select chunk_index, qdrant_point_id from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"
+
+# Verify qdrant payload filter fields for organization/document scope
+ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select organization_id from documents where id='${DOC_ID}'::uuid;")
+docker compose exec -T qdrant sh -lc "curl -sS -X POST 'http://localhost:6333/collections/documents/points/scroll' \
+  -H 'Content-Type: application/json' \
+  -d '{\"limit\":3,\"with_payload\":true,\"with_vector\":false,\"filter\":{\"must\":[{\"key\":\"organization_id\",\"match\":{\"value\":\"'\"${ORG_ID}\"'\"}},{\"key\":\"document_id\",\"match\":{\"value\":\"'\"${DOC_ID}\"'\"}}]}}'"
 ```
 
 Important:
@@ -202,6 +212,7 @@ Important:
 - Do not send placeholder IDs like `PUT_DOC_UUID_HERE` or `<DOC_UUID>`.
 - `force=true` bypasses idempotency skip checks, but does not bypass UUID validation.
 - If you run both local and Docker workers, tasks can be consumed by either worker.
+- Qdrant point IDs are deterministic per chunk (`{document_id}:{index_version}:{chunk_index}`), so repeated indexing upserts overwrite safely.
 
 Docker-specific worker operations from repo root:
 
