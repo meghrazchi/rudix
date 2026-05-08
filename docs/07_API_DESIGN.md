@@ -91,8 +91,9 @@ Response:
   "document_id": "uuid",
   "filename": "policy.pdf",
   "status": "uploaded",
+  "queue_status": "queued",
   "checksum": "<sha256-hex>",
-  "message": "Document uploaded successfully."
+  "message": "Document uploaded and queued for processing."
 }
 ```
 
@@ -106,6 +107,12 @@ Backend actions:
 6. Generate a `document_id` and MinIO object key: `uploads/{organization_id}/{user_id}/{document_id}.{ext}`.
 7. Upload to MinIO.
 8. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
+9. Publish `documents.process` task with `document_id`, `organization_id`, `user_id`, and `request_id`.
+
+Queue publish failure behavior:
+
+- Upload remains persisted with document status `uploaded` so processing can be retried.
+- API returns `503` with a safe enqueue-failure message.
 
 Duplicate policy:
 

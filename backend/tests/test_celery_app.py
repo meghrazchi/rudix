@@ -86,6 +86,22 @@ def test_process_document_is_idempotent_when_already_indexed(monkeypatch: pytest
     assert result["status"] == "skipped"
 
 
+def test_process_document_is_idempotent_when_already_processing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.processing.value,
+    )
+    monkeypatch.setattr(
+        document_tasks,
+        "set_document_status",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not update status")),
+    )
+
+    result = document_tasks.process_document.run("doc-1")
+    assert result["status"] == "skipped"
+
+
 def test_document_task_terminal_failure_marks_document_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, str] = {}
 

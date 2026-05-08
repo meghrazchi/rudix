@@ -55,6 +55,23 @@ class FakeMinio:
         self.delete_calls.append(kwargs)
 
 
+class FakeTaskResult:
+    def __init__(self, task_id: str) -> None:
+        self.id = task_id
+
+
+class FakeProcessDocumentTask:
+    def __init__(self) -> None:
+        self.delay_calls: list[dict[str, Any]] = []
+        self.fail_delay = False
+
+    def delay(self, document_id: str, **kwargs: Any) -> FakeTaskResult:
+        if self.fail_delay:
+            raise RuntimeError("enqueue failure")
+        self.delay_calls.append({"document_id": document_id, **kwargs})
+        return FakeTaskResult(task_id=f"task-{len(self.delay_calls)}")
+
+
 @pytest_asyncio.fixture
 async def upload_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -83,6 +100,13 @@ async def upload_client(
 def fake_minio(monkeypatch: pytest.MonkeyPatch) -> FakeMinio:
     fake = FakeMinio()
     monkeypatch.setattr(minio_module, "minio_client", fake)
+    return fake
+
+
+@pytest.fixture
+def fake_process_document_task(monkeypatch: pytest.MonkeyPatch) -> FakeProcessDocumentTask:
+    fake = FakeProcessDocumentTask()
+    monkeypatch.setattr(documents_api, "process_document", fake)
     return fake
 
 
@@ -145,6 +169,7 @@ async def test_upload_accepts_supported_document_types(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
     filename: str,
     content_type: str,
     content: bytes,
@@ -162,6 +187,7 @@ async def test_upload_accepts_supported_document_types(
     payload = response.json()
     assert payload["filename"] == filename
     assert payload["status"] == "uploaded"
+    assert payload["queue_status"] == "queued"
     assert payload["checksum"]
     assert len(fake_minio.put_calls) == 1
     put_call = fake_minio.put_calls[0]
@@ -184,6 +210,11 @@ async def test_upload_accepts_supported_document_types(
     assert document.storage_bucket == settings.minio_bucket
     assert document.storage_object_key == expected_key
     assert document.checksum == payload["checksum"]
+    assert len(fake_process_document_task.delay_calls) == 1
+    delay_call = fake_process_document_task.delay_calls[0]
+    assert delay_call["document_id"] == payload["document_id"]
+    assert delay_call["organization_id"] == str(org.id)
+    assert delay_call["user_id"] == str(user.id)
     assert await _document_count(db_session) == 1
 
 
@@ -192,6 +223,7 @@ async def test_upload_rejects_unsupported_extension(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
     token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
@@ -205,6 +237,7 @@ async def test_upload_rejects_unsupported_extension(
     assert response.status_code == 415
     assert response.json()["detail"] == "unsupported file extension"
     assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
 
 
@@ -213,6 +246,7 @@ async def test_upload_rejects_unsupported_mime_type(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
     token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
@@ -226,6 +260,7 @@ async def test_upload_rejects_unsupported_mime_type(
     assert response.status_code == 415
     assert response.json()["detail"] == "unsupported mime type"
     assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
 
 
@@ -234,6 +269,7 @@ async def test_upload_rejects_oversized_file(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(settings, "max_upload_size_mb", 1)
@@ -248,6 +284,7 @@ async def test_upload_rejects_oversized_file(
 
     assert response.status_code == 413
     assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
 
 
@@ -256,6 +293,7 @@ async def test_upload_rejects_empty_file(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
     token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
@@ -269,6 +307,7 @@ async def test_upload_rejects_empty_file(
     assert response.status_code == 400
     assert response.json()["detail"] == "empty file"
     assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
 
 
@@ -277,6 +316,7 @@ async def test_upload_allows_duplicate_files_as_distinct_documents(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
     token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
@@ -302,6 +342,8 @@ async def test_upload_allows_duplicate_files_as_distinct_documents(
     assert first_payload["checksum"] == second_payload["checksum"]
     assert len(fake_minio.put_calls) == 2
     assert fake_minio.put_calls[0]["Key"] != fake_minio.put_calls[1]["Key"]
+    assert len(fake_process_document_task.delay_calls) == 2
+    assert fake_process_document_task.delay_calls[0]["document_id"] != fake_process_document_task.delay_calls[1]["document_id"]
     assert await _document_count(db_session) == 2
 
 
@@ -310,6 +352,7 @@ async def test_upload_returns_503_when_storage_upload_fails(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     fake_minio.fail_put = True
     user, org = await _seed_principal(db_session)
@@ -325,6 +368,7 @@ async def test_upload_returns_503_when_storage_upload_fails(
     assert response.json()["detail"] == "Upload storage operation failed"
     assert len(fake_minio.put_calls) == 0
     assert len(fake_minio.delete_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
 
 
@@ -333,6 +377,7 @@ async def test_upload_deletes_uploaded_object_when_metadata_persist_fails(
     upload_client: AsyncClient,
     db_session: AsyncSession,
     fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     async def _raise_create_document(*_: Any, **__: Any) -> None:
@@ -355,4 +400,34 @@ async def test_upload_deletes_uploaded_object_when_metadata_persist_fails(
     assert len(fake_minio.delete_calls) == 1
     assert fake_minio.delete_calls[0]["Bucket"] == settings.minio_bucket
     assert fake_minio.delete_calls[0]["Key"] == fake_minio.put_calls[0]["Key"]
+    assert len(fake_process_document_task.delay_calls) == 0
     assert await _document_count(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_upload_returns_503_when_enqueue_fails_and_document_stays_uploaded(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    fake_process_document_task.fail_delay = True
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Document uploaded but could not be queued for processing"
+    assert len(fake_minio.put_calls) == 1
+    assert len(fake_minio.delete_calls) == 0
+    assert await _document_count(db_session) == 1
+
+    result = await db_session.execute(select(Document))
+    document = result.scalar_one()
+    assert document.status == "uploaded"
+    assert await _document_count(db_session) == 1

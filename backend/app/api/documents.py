@@ -21,6 +21,7 @@ from app.schemas.documents import (
     UploadDocumentResponse,
 )
 from app.services.upload_validation import validate_upload
+from app.workers.document_tasks import process_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
@@ -174,12 +175,47 @@ async def upload_document(
         file_type=validated.extension,
         file_size_bytes=validated.file_size_bytes,
     )
+
+    request_id = request.headers.get("x-request-id")
+    try:
+        task_result = process_document.delay(
+            str(document.id),
+            request_id=request_id,
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+        )
+    except Exception as exc:
+        log_document_event(
+            event="document.processing.enqueue_failed",
+            document_id=str(document.id),
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            request_id=request_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error=exc.__class__.__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document uploaded but could not be queued for processing",
+        ) from exc
+
+    log_document_event(
+        event="document.processing.queued",
+        document_id=str(document.id),
+        organization_id=str(organization_id),
+        user_id=str(user_id),
+        request_id=request_id,
+        task_id=str(task_result.id),
+        status_code=status.HTTP_201_CREATED,
+    )
+
     return UploadDocumentResponse(
         document_id=str(document.id),
         filename=document.filename,
         status=DocumentStatus.uploaded.value,
+        queue_status="queued",
         checksum=validated.checksum_sha256,
-        message="Document uploaded successfully.",
+        message="Document uploaded and queued for processing.",
     )
 
 

@@ -160,6 +160,8 @@ curl -i http://localhost:8000/api/v1/documents/upload \
   -H "X-Organization-ID: $ORG_ID" \
   -F "file=@/absolute/path/to/sample.pdf;type=application/pdf"
 
+# Upload response should include: "status":"uploaded","queue_status":"queued"
+
 # Verify uploaded object exists in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
   'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'
@@ -167,6 +169,9 @@ docker compose run --rm minio-init /bin/sh -lc \
 # Verify uploaded row lifecycle metadata in PostgreSQL
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select id, organization_id, uploaded_by_user_id, status, file_type, storage_bucket, storage_object_key, checksum from documents order by created_at desc limit 5;"
+
+# Verify background processing task was queued/consumed
+docker compose logs --tail=100 worker | rg "document.processing.(started|completed|failed|skipped)"
 
 # Cross-org/missing-document-safe behavior
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
@@ -193,6 +198,7 @@ Notes:
 - `force=true` does not bypass UUID validation.
 - If local and Docker workers run together, either worker may consume tasks.
 - Duplicate file uploads are currently accepted and stored as separate document records (each with a unique `document_id` and object key).
+- Each successful upload immediately enqueues `documents.process`; if enqueue fails, API returns `503` and the document remains in `uploaded` state.
 
 ## Directory overview
 

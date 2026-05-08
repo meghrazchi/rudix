@@ -31,6 +31,7 @@ class UploadDocumentResponse(BaseModel):
     document_id: str
     filename: str
     status: Literal["uploaded"]
+    queue_status: Literal["queued"]
     checksum: str
     message: str
 

@@ -61,7 +61,11 @@ def process_document(
     if status is None:
         raise PermanentTaskError(f"Document not found: {document_id}")
 
-    if not force and status in {DocumentStatus.indexed.value, DocumentStatus.deleted.value}:
+    if not force and status in {
+        DocumentStatus.processing.value,
+        DocumentStatus.indexed.value,
+        DocumentStatus.deleted.value,
+    }:
         log_document_event(
             event="document.processing.skipped",
             document_id=document_id,
