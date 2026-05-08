@@ -39,6 +39,12 @@ Update `.env` before first start:
   - `auto` (default): console in development/test, JSON in staging/production
   - `json`: force JSON logs
   - `console`: force developer-readable console logs
+- Rate-limit settings (optional):
+  - `RATE_LIMIT_ENABLED`
+  - `RATE_LIMIT_DISABLE_IN_DEVELOPMENT`
+  - `RATE_LIMIT_DISABLE_IN_TEST`
+  - `RATE_LIMIT_REDIS_FAILURE_MODE` (`open` or `closed`)
+  - endpoint-specific limits (`RATE_LIMIT_*_REQUESTS`)
 
 `Settings` loads `.env` from either:
 
@@ -329,6 +335,8 @@ Dependency initialization behavior:
 - Qdrant client uses shared timeout settings and can auto-create collection idempotently.
 - Celery queues/routes are explicit for `documents.process`, `documents.delete`, `documents.reindex`, and `evaluations.run`.
 - Celery retries transient task failures with backoff/jitter and logs terminal failures with task/job identifiers.
+- Redis-backed endpoint rate limiting returns `429` with `Retry-After` metadata when enabled and limits are exceeded.
+- Redis limiter failures are either degraded-open or fail-closed based on `RATE_LIMIT_REDIS_FAILURE_MODE`.
 
 ## 6. Protected API authentication (app-managed)
 
@@ -386,6 +394,9 @@ cd backend
 
 # Targeted authorization regression tests
 .venv/bin/pytest tests/test_auth_provider.py tests/test_auth_api.py tests/test_qdrant_filters.py -q
+
+# Rate-limit tests (unit + API)
+.venv/bin/pytest tests/test_rate_limit.py -q
 
 # Generate app token from seeded user
 TOKEN=$(.venv/bin/python - <<'PY'

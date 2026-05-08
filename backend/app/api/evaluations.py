@@ -8,6 +8,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_evaluation_event
 from app.db.session import get_db_session
 from app.models.enums import OrganizationRole
+from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.schemas.evaluations import (
     EvaluationStatusResponse,
     TriggerEvaluationRequest,
@@ -24,6 +25,8 @@ async def trigger_evaluation(
         AuthenticatedPrincipal,
         Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.evaluation))],
+    __: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TriggerEvaluationResponse:
     await ensure_document_ids_access(

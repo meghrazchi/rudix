@@ -61,6 +61,7 @@ make seed-dev
 - Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
+- Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Production profile requires `SENTRY_DSN`.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
@@ -134,6 +135,9 @@ Auth/authorization guard checks:
 ```bash
 # Run targeted auth + qdrant filter tests
 .venv/bin/pytest tests/test_auth_provider.py tests/test_auth_api.py tests/test_qdrant_filters.py -q
+
+# Run rate-limit tests (unit + API behavior)
+.venv/bin/pytest tests/test_rate_limit.py -q
 
 # Build an app token for manual API checks
 TOKEN=$(.venv/bin/python - <<'PY'

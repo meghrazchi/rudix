@@ -16,6 +16,16 @@ ENV_KEYS = [
     "MINIO_BUCKET",
     "RABBITMQ_URL",
     "REDIS_URL",
+    "RATE_LIMIT_ENABLED",
+    "RATE_LIMIT_DISABLE_IN_DEVELOPMENT",
+    "RATE_LIMIT_DISABLE_IN_TEST",
+    "RATE_LIMIT_REDIS_FAILURE_MODE",
+    "RATE_LIMIT_WINDOW_SECONDS",
+    "RATE_LIMIT_UPLOAD_REQUESTS",
+    "RATE_LIMIT_CHAT_REQUESTS",
+    "RATE_LIMIT_EVALUATION_REQUESTS",
+    "RATE_LIMIT_DELETE_REQUESTS",
+    "RATE_LIMIT_ADMIN_REQUESTS",
     "OPENAI_API_KEY",
     "AUTH_PROVIDER",
     "APP_AUTH_SECRET",
@@ -158,3 +168,29 @@ def test_snapshot_redacts_secrets_and_credentials() -> None:
     assert snapshot["minio_secret_key_set"] is True
     assert "secret" not in snapshot["database_url"]
     assert "secret" not in snapshot["rabbitmq_url"]
+
+
+def test_rate_limit_disabled_by_default_in_development() -> None:
+    settings = Settings(_env_file=None, **valid_settings_kwargs())
+
+    assert settings.environment == Environment.development
+    assert settings.is_rate_limit_active is False
+
+
+def test_rate_limit_disabled_by_default_in_test_environment() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.test
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.is_rate_limit_active is False
+
+
+def test_rate_limit_can_be_enabled_in_test_environment() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.test
+    payload["rate_limit_disable_in_test"] = False
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.is_rate_limit_active is True

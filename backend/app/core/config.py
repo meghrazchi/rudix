@@ -46,6 +46,11 @@ class AuthProvider(StrEnum):
     api_key = "api_key"
 
 
+class RateLimitRedisFailureMode(StrEnum):
+    open = "open"
+    closed = "closed"
+
+
 class QdrantDistance(StrEnum):
     cosine = "cosine"
     dot = "dot"
@@ -107,6 +112,16 @@ class Settings(BaseSettings):
     redis_url: RedisDsn
     redis_socket_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     redis_socket_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+    rate_limit_enabled: bool = True
+    rate_limit_disable_in_development: bool = True
+    rate_limit_disable_in_test: bool = True
+    rate_limit_redis_failure_mode: RateLimitRedisFailureMode = RateLimitRedisFailureMode.open
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    rate_limit_upload_requests: int = Field(default=20, ge=1, le=10000)
+    rate_limit_chat_requests: int = Field(default=30, ge=1, le=10000)
+    rate_limit_evaluation_requests: int = Field(default=10, ge=1, le=10000)
+    rate_limit_delete_requests: int = Field(default=20, ge=1, le=10000)
+    rate_limit_admin_requests: int = Field(default=15, ge=1, le=10000)
 
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
     dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)
@@ -241,6 +256,16 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment == Environment.production
 
+    @property
+    def is_rate_limit_active(self) -> bool:
+        if not self.rate_limit_enabled:
+            return False
+        if self.environment == Environment.development and self.rate_limit_disable_in_development:
+            return False
+        if self.environment == Environment.test and self.rate_limit_disable_in_test:
+            return False
+        return True
+
     @staticmethod
     def _sanitize_url(url_value: str) -> str:
         parsed = urlsplit(url_value)
@@ -294,6 +319,16 @@ class Settings(BaseSettings):
             "redis_url": self._sanitize_url(str(self.redis_url)),
             "redis_socket_connect_timeout_seconds": self.redis_socket_connect_timeout_seconds,
             "redis_socket_timeout_seconds": self.redis_socket_timeout_seconds,
+            "rate_limit_enabled": self.rate_limit_enabled,
+            "rate_limit_disable_in_development": self.rate_limit_disable_in_development,
+            "rate_limit_disable_in_test": self.rate_limit_disable_in_test,
+            "rate_limit_redis_failure_mode": self.rate_limit_redis_failure_mode.value,
+            "rate_limit_window_seconds": self.rate_limit_window_seconds,
+            "rate_limit_upload_requests": self.rate_limit_upload_requests,
+            "rate_limit_chat_requests": self.rate_limit_chat_requests,
+            "rate_limit_evaluation_requests": self.rate_limit_evaluation_requests,
+            "rate_limit_delete_requests": self.rate_limit_delete_requests,
+            "rate_limit_admin_requests": self.rate_limit_admin_requests,
             "dependency_connect_timeout_seconds": self.dependency_connect_timeout_seconds,
             "dependency_read_timeout_seconds": self.dependency_read_timeout_seconds,
             "dependency_max_retries": self.dependency_max_retries,

@@ -8,6 +8,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_query_event
 from app.db.session import get_db_session
 from app.models.enums import OrganizationRole
+from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.schemas.chat import ChatMessageRequest, ChatMessageResponse
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -28,6 +29,7 @@ async def create_chat_message(
             )
         ),
     ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatMessageResponse:
     await ensure_document_ids_access(

@@ -7,6 +7,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_document_event
 from app.models.document import Document
 from app.models.enums import OrganizationRole
+from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.schemas.documents import (
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
@@ -18,7 +19,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.post("/upload-url", response_model=CreateUploadUrlResponse)
 async def create_upload_url(
-    _: CreateUploadUrlRequest,
+    payload: CreateUploadUrlRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
         Depends(
@@ -29,7 +30,9 @@ async def create_upload_url(
             )
         ),
     ],
+    rate_limit: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.upload))],
 ) -> CreateUploadUrlResponse:
+    del payload, rate_limit
     log_document_event(
         event="document.upload_url.requested",
         organization_id=principal.organization_id,
