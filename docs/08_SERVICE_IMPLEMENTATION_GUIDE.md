@@ -80,7 +80,7 @@ MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=documents
 MINIO_SECURE=false
 
-RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
+RABBITMQ_URL=amqp://<user>:<password>@rabbitmq:5672//
 REDIS_URL=redis://redis:6379/0
 
 OPENAI_API_KEY=
