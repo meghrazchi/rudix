@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -53,6 +53,47 @@ class DocumentRepository:
     async def get_document_by_id(self, session: AsyncSession, *, document_id: UUID) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         return result.scalar_one_or_none()
+
+    async def list_documents(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        status: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+    ) -> list[Document]:
+        statement = select(Document).where(Document.organization_id == organization_id)
+        if status is not None:
+            statement = statement.where(Document.status == status)
+
+        sort_columns = {
+            "created_at": Document.created_at,
+            "updated_at": Document.updated_at,
+            "filename": Document.filename,
+            "status": Document.status,
+        }
+        sort_column = sort_columns.get(sort_by, Document.created_at)
+        ordered = sort_column.asc() if sort_order == "asc" else sort_column.desc()
+        statement = statement.order_by(ordered, Document.id.desc()).offset(offset).limit(limit)
+
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count_documents(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        status: str | None = None,
+    ) -> int:
+        statement = select(func.count(Document.id)).where(Document.organization_id == organization_id)
+        if status is not None:
+            statement = statement.where(Document.status == status)
+        result = await session.execute(statement)
+        return int(result.scalar_one())
 
     async def update_document_status(
         self,
@@ -160,3 +201,32 @@ class DocumentRepository:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement.order_by(DocumentChunk.chunk_index.asc()))
         return list(result.scalars().all())
+
+    async def list_document_chunks_paginated(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+        index_version: str | None = None,
+    ) -> list[DocumentChunk]:
+        statement = select(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        statement = statement.order_by(DocumentChunk.chunk_index.asc()).offset(offset).limit(limit)
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count_document_chunks(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        index_version: str | None = None,
+    ) -> int:
+        statement = select(func.count(DocumentChunk.id)).where(DocumentChunk.document_id == document_id)
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+        result = await session.execute(statement)
+        return int(result.scalar_one())

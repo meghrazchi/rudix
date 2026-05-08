@@ -141,19 +141,30 @@ Query params:
 status=indexed
 limit=50
 offset=0
+sort_by=created_at|updated_at|filename|status
+sort_order=asc|desc
 ```
 
 Response:
 
 ```json
 {
+  "limit": 50,
+  "offset": 0,
+  "status": "indexed",
+  "sort_by": "filename",
+  "sort_order": "asc",
   "items": [
     {
-      "id": "uuid",
+      "document_id": "uuid",
       "filename": "policy.pdf",
       "file_type": "pdf",
       "status": "indexed",
       "page_count": 24,
+      "chunk_count": 92,
+      "error_message": null,
+      "error_details": null,
+      "updated_at": "2026-05-07T10:05:00Z",
       "created_at": "2026-05-07T10:00:00Z"
     }
   ],
@@ -163,16 +174,22 @@ Response:
 
 ### GET `/documents/{document_id}`
 
-Returns document processing status for frontend polling.
+Returns document metadata and current lifecycle state.
 
 Response:
 
 ```json
 {
   "document_id": "uuid",
+  "filename": "policy.pdf",
+  "file_type": "pdf",
   "status": "processing",
+  "page_count": 24,
+  "chunk_count": 92,
+  "checksum": "sha256:...",
   "error_message": null,
   "error_details": null,
+  "created_at": "2026-05-07T10:00:00Z",
   "updated_at": "2026-05-07T10:04:00Z"
 }
 ```
@@ -191,30 +208,61 @@ Failed response example:
     "retryable": true,
     "message": "qdrant upsert failed"
   },
+  "created_at": "2026-05-07T10:00:00Z",
   "updated_at": "2026-05-07T10:05:10Z"
 }
 ```
 
-### GET `/documents/{document_id}/chunks`
+### GET `/documents/{document_id}/status`
 
-Returns chunk previews.
+Returns a compact status payload for polling-only clients.
 
 Response:
 
 ```json
 {
   "document_id": "uuid",
-  "chunks": [
+  "status": "processing",
+  "error_message": null,
+  "error_details": null,
+  "updated_at": "2026-05-07T10:04:00Z"
+}
+```
+
+### GET `/documents/{document_id}/chunks`
+
+Returns paginated chunk previews.
+
+Query params:
+
+```text
+limit=20
+offset=0
+include_full_text=false
+```
+
+Response:
+
+```json
+{
+  "document_id": "uuid",
+  "limit": 20,
+  "offset": 0,
+  "include_full_text": false,
+  "items": [
     {
-      "id": "uuid",
+      "chunk_id": "uuid",
       "page_number": 4,
       "chunk_index": 12,
+      "created_at": "2026-05-07T10:02:30Z",
       "text_preview": "Employees are entitled to...",
+      "text": null,
       "token_count": 690,
       "embedding_model": "text-embedding-3-small",
       "index_version": "v1"
     }
-  ]
+  ],
+  "total": 92
 }
 ```
 

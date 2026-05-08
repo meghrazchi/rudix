@@ -325,8 +325,8 @@ async def test_document_guard_allows_same_organization_document(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
     )
 
-    # Handler is scaffold-only; successful authz reaches route and returns 501.
-    assert response.status_code == 501
+    assert response.status_code == 200
+    assert response.json()["document_id"] == str(document.id)
 
 
 @pytest.mark.asyncio

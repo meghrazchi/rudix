@@ -163,9 +163,29 @@ curl -i http://localhost:8000/api/v1/documents/upload \
 
 # Upload response should include: "status":"uploaded","queue_status":"queued"
 
-# Poll document status (processing/indexed/failed + safe error payload)
+# Fetch document detail (includes processing/indexed/failed status + safe error payload)
 DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 curl -sS http://localhost:8000/api/v1/documents/$DOC_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# List documents for active org (pagination + filter + sort)
+curl -sS "http://localhost:8000/api/v1/documents?status=indexed&limit=10&offset=0&sort_by=created_at&sort_order=desc" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Fetch compact status payload for polling clients
+curl -sS http://localhost:8000/api/v1/documents/$DOC_ID/status \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Fetch paginated chunk previews (safe by default)
+curl -sS "http://localhost:8000/api/v1/documents/$DOC_ID/chunks?limit=5&offset=0" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Fetch chunks with full text explicitly enabled
+curl -sS "http://localhost:8000/api/v1/documents/$DOC_ID/chunks?limit=2&offset=0&include_full_text=true" \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Organization-ID: $ORG_ID" | jq
 

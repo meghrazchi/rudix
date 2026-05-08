@@ -129,7 +129,7 @@ async def test_get_document_status_returns_uploaded_state(
     )
 
     response = await status_client.get(
-        f"/api/v1/documents/{document.id}",
+        f"/api/v1/documents/{document.id}/status",
         headers=_headers(token=token, organization_id=str(organization.id)),
     )
 
@@ -167,7 +167,7 @@ async def test_get_document_status_decodes_structured_error_details(
     )
 
     response = await status_client.get(
-        f"/api/v1/documents/{document.id}",
+        f"/api/v1/documents/{document.id}/status",
         headers=_headers(token=token, organization_id=str(organization.id)),
     )
 

@@ -453,6 +453,34 @@ curl -i http://localhost:8000/api/v1/documents/upload \
 
 # Upload response should include: "status":"uploaded","queue_status":"queued"
 
+# Resolve latest document id for read APIs
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+
+# List documents (org scoped) with pagination + filters
+curl -sS "http://localhost:8000/api/v1/documents?status=indexed&limit=10&offset=0&sort_by=created_at&sort_order=desc" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Document detail (metadata + status + safe error fields)
+curl -sS http://localhost:8000/api/v1/documents/$DOC_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Compact status endpoint for polling clients
+curl -sS http://localhost:8000/api/v1/documents/$DOC_ID/status \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Chunk previews (paginated, full text hidden by default)
+curl -sS "http://localhost:8000/api/v1/documents/$DOC_ID/chunks?limit=5&offset=0" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Chunk response with full text explicitly enabled
+curl -sS "http://localhost:8000/api/v1/documents/$DOC_ID/chunks?limit=2&offset=0&include_full_text=true" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
 # Confirm uploaded object is present in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
   'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'
@@ -474,7 +502,6 @@ docker compose logs --tail=200 worker | rg "chunk_count|index_version"
 docker compose logs --tail=200 worker | rg "embedding_batch_count|embedding_retry_count|embedding_total_tokens|embedding_cost_usd"
 
 # Inspect extracted pages for latest document
-DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select page_number, char_count, left(text, 120) as preview from document_pages where document_id='${DOC_ID}'::uuid order by page_number;"
 
