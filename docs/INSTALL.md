@@ -11,9 +11,7 @@ This guide covers development and production installation for the current stack:
 - Docker Engine 24+ and Docker Compose v2
 - Git
 - OpenAI API key
-- One auth provider setup:
-  - Clerk JWKS URL, or
-  - Supabase JWKS URL
+- App auth secret (`APP_AUTH_SECRET`) for the default app-managed provider
 
 Optional for local non-container backend runtime:
 
@@ -31,8 +29,10 @@ cp .env.example .env
 Update `.env` before first start:
 
 - `OPENAI_API_KEY`
-- `AUTH_PROVIDER`
-- Provider JWKS URL:
+- `AUTH_PROVIDER` (default: `app`)
+- `APP_AUTH_SECRET` when `AUTH_PROVIDER=app`
+- `APP_AUTH_ACCESS_TOKEN_TTL_SECONDS`, `APP_AUTH_ISSUER`, `APP_AUTH_AUDIENCE` (optional overrides)
+- Provider JWKS URL (future providers):
   - `CLERK_JWKS_URL` when `AUTH_PROVIDER=clerk`
   - `SUPABASE_JWKS_URL` when `AUTH_PROVIDER=supabase`
 - `LOG_FORMAT`:
@@ -267,9 +267,14 @@ OPENAI_API_KEY=<openai-api-key>
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 OPENAI_LLM_MODEL=gpt-5.4-mini
 
-AUTH_PROVIDER=clerk
-CLERK_JWKS_URL=https://<clerk-domain>/.well-known/jwks.json
-# or:
+AUTH_PROVIDER=app
+APP_AUTH_SECRET=<strong-random-secret>
+APP_AUTH_ACCESS_TOKEN_TTL_SECONDS=3600
+APP_AUTH_ISSUER=rudix-app
+APP_AUTH_AUDIENCE=rudix-api
+# Future external providers (currently scaffold placeholders):
+# AUTH_PROVIDER=clerk
+# CLERK_JWKS_URL=https://<clerk-domain>/.well-known/jwks.json
 # AUTH_PROVIDER=supabase
 # SUPABASE_JWKS_URL=https://<project>.supabase.co/auth/v1/keys
 
@@ -307,7 +312,10 @@ The settings layer validates on startup:
 - Cross-field constraints are enforced:
   - `RETRIEVAL_FINAL_TOP_K <= RETRIEVAL_INITIAL_TOP_K`
   - `CHUNK_OVERLAP_TOKENS < CHUNK_SIZE_TOKENS`
-- Auth-provider-specific JWKS URL is required.
+- `APP_AUTH_SECRET` is required for `AUTH_PROVIDER=app`.
+- `CLERK_JWKS_URL` is required for `AUTH_PROVIDER=clerk`.
+- `SUPABASE_JWKS_URL` is required for `AUTH_PROVIDER=supabase`.
+- In production with `AUTH_PROVIDER=app`, `APP_AUTH_SECRET` must not be `dev-insecure-change-me`.
 - OpenAI API key is required when related features are enabled.
 - `SENTRY_DSN` is required in production profile.
 
@@ -322,7 +330,51 @@ Dependency initialization behavior:
 - Celery queues/routes are explicit for `documents.process`, `documents.delete`, `documents.reindex`, and `evaluations.run`.
 - Celery retries transient task failures with backoff/jitter and logs terminal failures with task/job identifiers.
 
-## 6. Security recommendations
+## 6. Protected API authentication (app-managed)
+
+The currently implemented auth provider is app-managed (`AUTH_PROVIDER=app`).
+
+- Protected routes use one dependency (`get_current_principal`).
+- Auth provider is selected via `AUTH_PROVIDER`.
+- Authorization is enforced from PostgreSQL user/organization membership data.
+- `clerk` and `supabase` providers are scaffold placeholders and will return `401` until implemented.
+
+Generate a local app token for testing:
+
+```bash
+cd backend
+.venv/bin/python - <<'PY'
+from app.auth.token_codec import create_app_access_token
+token = create_app_access_token(
+    subject="seed-user-001",  # matches seed_dev.py external_auth_id
+    expires_in_seconds=3600,
+)
+print(token)
+PY
+```
+
+Call a protected endpoint:
+
+```bash
+TOKEN="<paste_token>"
+ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")
+curl -i http://localhost:8000/api/v1/pipeline/steps \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: ${ORG_ID:-<org_uuid>}"
+```
+
+Common auth responses:
+
+- `401`: missing/invalid/expired token.
+- `403`: authenticated, but cross-organization access or insufficient role.
+
+Current role checks:
+
+- `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
+- `documents/upload-url`: `owner|admin|member`
+- `evaluations` (POST): `owner|admin`
+
+## 7. Security recommendations
 
 - Do not commit `.env`.
 - Store secrets in a secret manager in production.

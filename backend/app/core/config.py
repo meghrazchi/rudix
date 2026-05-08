@@ -39,8 +39,11 @@ class LogFormat(StrEnum):
 
 
 class AuthProvider(StrEnum):
+    app = "app"
     clerk = "clerk"
     supabase = "supabase"
+    internal_jwt = "internal_jwt"
+    api_key = "api_key"
 
 
 class QdrantDistance(StrEnum):
@@ -113,7 +116,11 @@ class Settings(BaseSettings):
     openai_embedding_model: str = Field(default="text-embedding-3-small", min_length=3, max_length=128)
     openai_llm_model: str = Field(default="gpt-5.4-mini", min_length=3, max_length=128)
 
-    auth_provider: AuthProvider = AuthProvider.clerk
+    auth_provider: AuthProvider = AuthProvider.app
+    app_auth_secret: SecretStr = SecretStr("dev-insecure-change-me")
+    app_auth_access_token_ttl_seconds: int = Field(default=3600, ge=60, le=604800)
+    app_auth_issuer: str = Field(default="rudix-app", min_length=3, max_length=120)
+    app_auth_audience: str = Field(default="rudix-api", min_length=3, max_length=120)
     clerk_jwks_url: AnyHttpUrl | None = None
     supabase_jwks_url: AnyHttpUrl | None = None
 
@@ -205,6 +212,9 @@ class Settings(BaseSettings):
         if self.dependency_read_timeout_seconds < self.dependency_connect_timeout_seconds:
             raise ValueError("dependency_read_timeout_seconds must be >= dependency_connect_timeout_seconds")
 
+        if self.auth_provider == AuthProvider.app and not self.app_auth_secret.get_secret_value().strip():
+            raise ValueError("app_auth_secret is required when auth_provider=app")
+
         if self.auth_provider == AuthProvider.clerk and self.clerk_jwks_url is None:
             raise ValueError("clerk_jwks_url is required when auth_provider=clerk")
 
@@ -220,6 +230,8 @@ class Settings(BaseSettings):
         if self.environment == Environment.production:
             if self.sentry_dsn is None:
                 raise ValueError("sentry_dsn is required in production")
+            if self.auth_provider == AuthProvider.app and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me":
+                raise ValueError("app_auth_secret must be overridden in production")
         elif self.environment == Environment.test:
             self.feature_expose_config_snapshot = True
 
@@ -289,6 +301,10 @@ class Settings(BaseSettings):
             "openai_embedding_model": self.openai_embedding_model,
             "openai_llm_model": self.openai_llm_model,
             "auth_provider": self.auth_provider.value,
+            "app_auth_secret_set": bool(self.app_auth_secret.get_secret_value()),
+            "app_auth_access_token_ttl_seconds": self.app_auth_access_token_ttl_seconds,
+            "app_auth_issuer": self.app_auth_issuer,
+            "app_auth_audience": self.app_auth_audience,
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
             "supabase_jwks_url": str(self.supabase_jwks_url) if self.supabase_jwks_url else None,
             "sentry_dsn_set": self.sentry_dsn is not None,

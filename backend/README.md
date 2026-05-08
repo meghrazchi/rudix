@@ -52,7 +52,9 @@ make seed-dev
 - `docker-compose.yml` overrides API/worker connection URLs to Docker service hostnames for container runtime.
 - Compose dependency startup uses healthchecks for PostgreSQL, Qdrant, MinIO, RabbitMQ, and Redis.
 - The API and worker fail at startup if required configuration is missing or malformed.
-- URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth JWKS, and service base URLs).
+- URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth provider URLs when applicable, and service base URLs).
+- App-managed auth is enabled by default (`AUTH_PROVIDER=app`) and uses a signed bearer token.
+- `clerk` and `supabase` auth providers are scaffold placeholders and are not implemented yet.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
 - Startup bootstraps MinIO bucket and Qdrant collection idempotently when enabled (`MINIO_BOOTSTRAP_BUCKET`, `QDRANT_BOOTSTRAP_COLLECTION`).
 - Qdrant collection bootstrap validates vector schema (`QDRANT_VECTOR_SIZE`, `QDRANT_DISTANCE`) and fails fast on mismatch.
@@ -62,6 +64,39 @@ make seed-dev
 - Production profile requires `SENTRY_DSN`.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
+
+## Authentication quick check
+
+Generate a local app token:
+
+```bash
+cd backend
+.venv/bin/python - <<'PY'
+from app.auth.token_codec import create_app_access_token
+print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
+PY
+```
+
+Optional: fetch seeded organization UUID (`make seed-dev`):
+
+```bash
+ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")
+```
+
+Call a protected endpoint:
+
+```bash
+TOKEN="<paste_token>"
+curl -i http://localhost:8000/api/v1/pipeline/steps \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: ${ORG_ID:-<org_uuid>}"
+```
+
+Current endpoint authorization:
+
+- `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
+- `documents/upload-url`: `owner|admin|member`
+- `evaluations` (POST): `owner|admin`
 
 ## Development commands
 

@@ -18,6 +18,10 @@ ENV_KEYS = [
     "REDIS_URL",
     "OPENAI_API_KEY",
     "AUTH_PROVIDER",
+    "APP_AUTH_SECRET",
+    "APP_AUTH_ACCESS_TOKEN_TTL_SECONDS",
+    "APP_AUTH_ISSUER",
+    "APP_AUTH_AUDIENCE",
     "CLERK_JWKS_URL",
     "SUPABASE_JWKS_URL",
 ]
@@ -44,8 +48,10 @@ def valid_settings_kwargs() -> dict:
         "rabbitmq_url": "amqp://guest:guest@localhost:5672//",
         "redis_url": "redis://localhost:6379/0",
         "openai_api_key": "sk-test",
-        "auth_provider": AuthProvider.clerk,
-        "clerk_jwks_url": "https://example.com/.well-known/jwks.json",
+        "auth_provider": AuthProvider.app,
+        "app_auth_secret": "test-secret",
+        "app_auth_issuer": "rudix-test",
+        "app_auth_audience": "rudix-test-audience",
         "cors_origins": "http://localhost:3000,http://127.0.0.1:3000",
     }
 
@@ -116,6 +122,25 @@ def test_invalid_celery_queue_name_fails_fast() -> None:
 def test_production_requires_sentry_dsn() -> None:
     payload = valid_settings_kwargs()
     payload["environment"] = Environment.production
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_production_rejects_default_app_auth_secret() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["app_auth_secret"] = "dev-insecure-change-me"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_clerk_provider_requires_jwks() -> None:
+    payload = valid_settings_kwargs()
+    payload["auth_provider"] = AuthProvider.clerk
+    payload.pop("clerk_jwks_url", None)
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)
