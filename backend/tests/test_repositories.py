@@ -214,6 +214,18 @@ async def test_evaluation_repository_crud(
     assert fetched_run is not None
     assert fetched_run.status == EvaluationRunStatus.running.value
 
+    updated_run = await evaluation_repository.update_evaluation_run_status(
+        db_session,
+        evaluation_run_id=run.id,
+        status=EvaluationRunStatus.completed.value,
+        mark_started=True,
+        mark_completed=True,
+    )
+    assert updated_run is not None
+    assert updated_run.status == EvaluationRunStatus.completed.value
+    assert updated_run.started_at is not None
+    assert updated_run.completed_at is not None
+
     result = await evaluation_repository.create_evaluation_result(
         db_session,
         evaluation_run_id=run.id,

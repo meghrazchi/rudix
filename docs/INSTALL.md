@@ -147,6 +147,54 @@ make migrate
 make test
 ```
 
+### 3.6 Useful Celery and task commands
+
+Common worker/task operations from `backend/`:
+
+```bash
+# Start API and worker locally (infra still in Docker)
+make run-api
+make run-worker
+
+# Check workers and queues
+.venv/bin/celery -A app.workers.celery_app:celery_app status
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect active_queues
+
+# Inspect tasks
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect registered
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect active
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect reserved
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect scheduled
+
+# Purge queued tasks (destructive for queued messages)
+.venv/bin/celery -A app.workers.celery_app:celery_app purge -f
+```
+
+Dispatch a document processing task with a real UUID:
+
+```bash
+# From repo root, fetch a real document UUID
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+
+# From backend/, enqueue task
+DOC_ID="$DOC_ID" .venv/bin/python -c "import os; from app.workers.document_tasks import process_document; doc=os.environ['DOC_ID'].strip(); r=process_document.delay(doc, force=True); print('doc_id=', doc); print('task_id=', r.id)"
+```
+
+Important:
+
+- Do not send placeholder IDs like `PUT_DOC_UUID_HERE` or `<DOC_UUID>`.
+- `force=true` bypasses idempotency skip checks, but does not bypass UUID validation.
+- If you run both local and Docker workers, tasks can be consumed by either worker.
+
+Docker-specific worker operations from repo root:
+
+```bash
+docker compose logs -f worker
+docker compose exec -T worker celery -A app.workers.celery_app:celery_app inspect active
+docker compose exec -T worker celery -A app.workers.celery_app:celery_app inspect reserved
+docker compose exec -T worker celery -A app.workers.celery_app:celery_app inspect scheduled
+```
+
 ## 4. Production installation
 
 ### 4.1 Environment profile
@@ -196,6 +244,17 @@ MINIO_BOOTSTRAP_BUCKET=true
 
 RABBITMQ_URL=amqps://<user>:<password>@<host>/<vhost>
 RABBITMQ_CONNECT_TIMEOUT_SECONDS=2
+CELERY_RESULT_BACKEND_ENABLED=true
+CELERY_TASK_DEFAULT_QUEUE=default
+CELERY_QUEUE_DOCUMENTS_PROCESSING=documents.processing
+CELERY_QUEUE_DOCUMENTS_DELETION=documents.deletion
+CELERY_QUEUE_DOCUMENTS_REINDEX=documents.reindex
+CELERY_QUEUE_EVALUATIONS=evaluations
+CELERY_TASK_MAX_RETRIES=5
+CELERY_RETRY_BACKOFF_SECONDS=2
+CELERY_RETRY_BACKOFF_MAX_SECONDS=60
+CELERY_RETRY_JITTER=true
+CELERY_WORKER_PREFETCH_MULTIPLIER=1
 REDIS_URL=redis://:<password>@<host>:6379/0
 REDIS_SOCKET_CONNECT_TIMEOUT_SECONDS=2
 REDIS_SOCKET_TIMEOUT_SECONDS=2
@@ -260,6 +319,8 @@ Dependency initialization behavior:
 - RabbitMQ broker URL is parsed/validated during startup and readiness checks.
 - MinIO client uses shared retry/timeout settings and can auto-create bucket idempotently.
 - Qdrant client uses shared timeout settings and can auto-create collection idempotently.
+- Celery queues/routes are explicit for `documents.process`, `documents.delete`, `documents.reindex`, and `evaluations.run`.
+- Celery retries transient task failures with backoff/jitter and logs terminal failures with task/job identifiers.
 
 ## 6. Security recommendations
 

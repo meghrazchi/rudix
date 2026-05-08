@@ -43,6 +43,10 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_document_by_id(self, session: AsyncSession, *, document_id: UUID) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        return result.scalar_one_or_none()
+
     async def update_document_status(
         self,
         session: AsyncSession,

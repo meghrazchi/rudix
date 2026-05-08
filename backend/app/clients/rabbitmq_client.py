@@ -48,8 +48,10 @@ def rabbitmq_broker_url() -> str:
     return str(settings.rabbitmq_url)
 
 
-def redis_result_backend_url() -> str:
-    return str(settings.redis_url)
+def redis_result_backend_url() -> str | None:
+    if settings.celery_result_backend_enabled:
+        return str(settings.redis_url)
+    return None
 
 
 def _rabbitmq_host_port() -> tuple[str, int]:

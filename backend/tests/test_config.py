@@ -105,6 +105,14 @@ def test_invalid_dependency_timeout_relationship_fails_fast() -> None:
         Settings(_env_file=None, **payload)
 
 
+def test_invalid_celery_queue_name_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["celery_queue_documents_processing"] = "documents processing"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
 def test_production_requires_sentry_dsn() -> None:
     payload = valid_settings_kwargs()
     payload["environment"] = Environment.production

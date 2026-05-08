@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -81,6 +81,30 @@ class EvaluationRepository:
     ) -> EvaluationRun | None:
         result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
         return result.scalar_one_or_none()
+
+    async def update_evaluation_run_status(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+        status: str,
+        mark_started: bool = False,
+        mark_completed: bool = False,
+    ) -> EvaluationRun | None:
+        result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
+        evaluation_run = result.scalar_one_or_none()
+        if evaluation_run is None:
+            return None
+
+        evaluation_run.status = status
+        if mark_started and evaluation_run.started_at is None:
+            evaluation_run.started_at = datetime.now(UTC)
+        if mark_completed:
+            evaluation_run.completed_at = datetime.now(UTC)
+
+        await session.flush()
+        await session.refresh(evaluation_run)
+        return evaluation_run
 
     async def create_evaluation_result(
         self,

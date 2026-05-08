@@ -90,6 +90,17 @@ class Settings(BaseSettings):
 
     rabbitmq_url: AmqpDsn
     rabbitmq_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
+    celery_result_backend_enabled: bool = True
+    celery_task_default_queue: str = Field(default="default", min_length=1, max_length=64)
+    celery_queue_documents_processing: str = Field(default="documents.processing", min_length=1, max_length=64)
+    celery_queue_documents_deletion: str = Field(default="documents.deletion", min_length=1, max_length=64)
+    celery_queue_documents_reindex: str = Field(default="documents.reindex", min_length=1, max_length=64)
+    celery_queue_evaluations: str = Field(default="evaluations", min_length=1, max_length=64)
+    celery_task_max_retries: int = Field(default=5, ge=0, le=20)
+    celery_retry_backoff_seconds: int = Field(default=2, ge=1, le=300)
+    celery_retry_backoff_max_seconds: int = Field(default=60, ge=1, le=3600)
+    celery_retry_jitter: bool = True
+    celery_worker_prefetch_multiplier: int = Field(default=1, ge=1, le=20)
     redis_url: RedisDsn
     redis_socket_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     redis_socket_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
@@ -159,6 +170,22 @@ class Settings(BaseSettings):
         cleaned = value.strip()
         if " " in cleaned:
             raise ValueError("model names must not contain whitespace")
+        return cleaned
+
+    @field_validator(
+        "celery_task_default_queue",
+        "celery_queue_documents_processing",
+        "celery_queue_documents_deletion",
+        "celery_queue_documents_reindex",
+        "celery_queue_evaluations",
+    )
+    @classmethod
+    def validate_celery_queue_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("celery queue names must not be empty")
+        if not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
+            raise ValueError("celery queue names may contain only letters, numbers, '.', '-', and '_'")
         return cleaned
 
     @model_validator(mode="after")
@@ -241,6 +268,17 @@ class Settings(BaseSettings):
             "minio_secret_key_set": bool(self.minio_secret_key.get_secret_value()),
             "rabbitmq_url": self._sanitize_url(str(self.rabbitmq_url)),
             "rabbitmq_connect_timeout_seconds": self.rabbitmq_connect_timeout_seconds,
+            "celery_result_backend_enabled": self.celery_result_backend_enabled,
+            "celery_task_default_queue": self.celery_task_default_queue,
+            "celery_queue_documents_processing": self.celery_queue_documents_processing,
+            "celery_queue_documents_deletion": self.celery_queue_documents_deletion,
+            "celery_queue_documents_reindex": self.celery_queue_documents_reindex,
+            "celery_queue_evaluations": self.celery_queue_evaluations,
+            "celery_task_max_retries": self.celery_task_max_retries,
+            "celery_retry_backoff_seconds": self.celery_retry_backoff_seconds,
+            "celery_retry_backoff_max_seconds": self.celery_retry_backoff_max_seconds,
+            "celery_retry_jitter": self.celery_retry_jitter,
+            "celery_worker_prefetch_multiplier": self.celery_worker_prefetch_multiplier,
             "redis_url": self._sanitize_url(str(self.redis_url)),
             "redis_socket_connect_timeout_seconds": self.redis_socket_connect_timeout_seconds,
             "redis_socket_timeout_seconds": self.redis_socket_timeout_seconds,

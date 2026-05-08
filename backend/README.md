@@ -56,6 +56,9 @@ make seed-dev
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
 - Startup bootstraps MinIO bucket and Qdrant collection idempotently when enabled (`MINIO_BOOTSTRAP_BUCKET`, `QDRANT_BOOTSTRAP_COLLECTION`).
 - Qdrant collection bootstrap validates vector schema (`QDRANT_VECTOR_SIZE`, `QDRANT_DISTANCE`) and fails fast on mismatch.
+- Celery uses explicit queues/routes for document processing, deletion, re-indexing, and evaluations.
+- Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
+- Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Production profile requires `SENTRY_DSN`.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
@@ -74,6 +77,39 @@ make seed-dev
 ```
 
 `make install` creates a local virtualenv at `backend/.venv` and installs all dependencies there.
+
+## Useful task commands
+
+From `backend/`:
+
+```bash
+# Worker visibility
+.venv/bin/celery -A app.workers.celery_app:celery_app status
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect active_queues
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect registered
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect active
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect reserved
+.venv/bin/celery -A app.workers.celery_app:celery_app inspect scheduled
+```
+
+Dispatch a `documents.process` task with a real UUID:
+
+```bash
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+DOC_ID="$DOC_ID" .venv/bin/python -c "import os; from app.workers.document_tasks import process_document; doc=os.environ['DOC_ID'].strip(); r=process_document.delay(doc, force=True); print('doc_id=', doc); print('task_id=', r.id)"
+```
+
+Queue cleanup (purges queued, not-started messages):
+
+```bash
+.venv/bin/celery -A app.workers.celery_app:celery_app purge -f
+```
+
+Notes:
+
+- Never enqueue placeholder values like `PUT_DOC_UUID_HERE` or `<DOC_UUID>`.
+- `force=true` does not bypass UUID validation.
+- If local and Docker workers run together, either worker may consume tasks.
 
 ## Directory overview
 

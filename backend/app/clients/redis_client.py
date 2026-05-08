@@ -1,3 +1,4 @@
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 
 from redis.asyncio import Redis
@@ -36,7 +37,8 @@ async def init_redis() -> None:
             error=exc.__class__.__name__,
             exc_info=exc,
         )
-        await redis_client.aclose()
+        redis_any = cast(Any, redis_client)
+        await redis_any.aclose()
         redis_client = None
         raise
 
@@ -44,7 +46,8 @@ async def init_redis() -> None:
 async def close_redis() -> None:
     if redis_client is not None:
         logger.info("redis.close")
-        await redis_client.aclose()
+        redis_any = cast(Any, redis_client)
+        await redis_any.aclose()
 
 
 async def check_redis_health() -> bool:

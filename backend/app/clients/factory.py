@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from urllib.parse import urlsplit
 
 import boto3  # type: ignore[import-untyped]
@@ -33,7 +34,7 @@ def get_rabbitmq_host_port(config: Settings) -> tuple[str, int]:
     return host, port
 
 
-def create_minio_client(config: Settings) -> object:
+def create_minio_client(config: Settings) -> Any:
     return boto3.client(
         "s3",
         endpoint_url=str(config.minio_endpoint),
@@ -52,10 +53,11 @@ def create_minio_client(config: Settings) -> object:
 
 
 def create_qdrant_client(config: Settings) -> QdrantClient:
+    timeout_seconds = max(1, round(config.qdrant_timeout_seconds))
     return QdrantClient(
         url=str(config.qdrant_url),
         api_key=config.qdrant_api_key.get_secret_value() if config.qdrant_api_key else None,
-        timeout=config.qdrant_timeout_seconds,
+        timeout=timeout_seconds,
     )
 
 
