@@ -119,6 +119,8 @@ Backend actions:
 18. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
 19. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
 20. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
+21. Worker emits stage events (`document.pipeline.stage`) for `extract`, `chunk`, `embed`, and `index` with `started/completed` markers.
+22. Terminal failures persist a safe `error_message` and structured `error_details` for frontend status polling.
 
 Queue publish failure behavior:
 
@@ -161,17 +163,35 @@ Response:
 
 ### GET `/documents/{document_id}`
 
+Returns document processing status for frontend polling.
+
 Response:
 
 ```json
 {
-  "id": "uuid",
-  "filename": "policy.pdf",
-  "status": "indexed",
-  "page_count": 24,
-  "chunk_count": 92,
-  "created_at": "2026-05-07T10:00:00Z",
+  "document_id": "uuid",
+  "status": "processing",
+  "error_message": null,
+  "error_details": null,
   "updated_at": "2026-05-07T10:04:00Z"
+}
+```
+
+Failed response example:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "failed",
+  "error_message": "qdrant upsert failed",
+  "error_details": {
+    "stage": "index",
+    "code": "QDRANT_UPSERT_FAILED",
+    "category": "infrastructure",
+    "retryable": true,
+    "message": "qdrant upsert failed"
+  },
+  "updated_at": "2026-05-07T10:05:10Z"
 }
 ```
 

@@ -163,6 +163,12 @@ curl -i http://localhost:8000/api/v1/documents/upload \
 
 # Upload response should include: "status":"uploaded","queue_status":"queued"
 
+# Poll document status (processing/indexed/failed + safe error payload)
+DOC_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from documents order by created_at desc limit 1;")
+curl -sS http://localhost:8000/api/v1/documents/$DOC_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
 # Verify uploaded object exists in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
   'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'
@@ -241,6 +247,8 @@ Notes:
 - Worker embedding generation batches chunk texts, retries transient provider failures with backoff, validates vector dimension, and records `document.embedding` usage events with token/cost metadata.
 - Worker qdrant indexing upserts chunk vectors in batches with deterministic point IDs (`{document_id}:{index_version}:{chunk_index}`).
 - Qdrant payloads include security and citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
+- Worker marks status transitions `uploaded -> processing -> indexed` and terminal failures as `failed`.
+- Failure rows store a safe `error_message` plus structured `error_details` (stage/code/category/retryable/message) for frontend polling.
 
 ## Directory overview
 

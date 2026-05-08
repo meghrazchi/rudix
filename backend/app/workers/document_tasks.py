@@ -9,13 +9,23 @@ from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from app.clients import minio_client as minio_module
 from app.core.config import settings
+from app.core.document_errors import (
+    build_document_error_details,
+    details_from_exception,
+    encode_document_error,
+)
 from app.core.logging import log_document_event
 from app.db.session import SessionLocal
 from app.models.enums import DocumentStatus
 from app.repositories.documents import DocumentRepository
 from app.repositories.usage import UsageRepository
 from app.services.chunking_service import ChunkingService
-from app.services.embedding_service import EmbeddingResult, EmbeddingService
+from app.services.embedding_service import (
+    EmbeddingResult,
+    EmbeddingService,
+    PermanentEmbeddingError,
+    TransientEmbeddingError,
+)
 from app.services.qdrant_service import QdrantService
 from app.services.text_extraction import extract_text_sections
 from app.services.text_normalization import TextCleaningStats, clean_extracted_sections
@@ -29,6 +39,30 @@ _chunking_service = ChunkingService()
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
+
+
+class DocumentPipelinePermanentError(PermanentTaskError):
+    def __init__(self, *, stage: str, code: str, category: str, message: str) -> None:
+        super().__init__(message)
+        self.error_details = build_document_error_details(
+            stage=stage,
+            code=code,
+            category=category,
+            retryable=False,
+            message=message,
+        )
+
+
+class DocumentPipelineTransientError(TransientTaskError):
+    def __init__(self, *, stage: str, code: str, category: str, message: str) -> None:
+        super().__init__(message)
+        self.error_details = build_document_error_details(
+            stage=stage,
+            code=code,
+            category=category,
+            retryable=True,
+            message=message,
+        )
 
 
 def _parse_uuid(value: str) -> UUID:
@@ -81,27 +115,95 @@ def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
 
 async def _extract_and_store_document_pages_async(
     document_id: str,
+    *,
+    request_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
 ) -> tuple[int, int, TextCleaningStats, EmbeddingResult]:
     try:
         parsed_document_id = _parse_uuid(document_id)
     except ValueError as exc:
-        raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
+        raise DocumentPipelinePermanentError(
+            stage="resolve_document",
+            code="INVALID_DOCUMENT_ID",
+            category="validation",
+            message=f"Invalid document_id: {document_id}",
+        ) from exc
 
     async with SessionLocal() as session:
         document = await _document_repository.get_document_by_id(session, document_id=parsed_document_id)
         if document is None:
-            raise PermanentTaskError(f"Document not found: {document_id}")
+            raise DocumentPipelinePermanentError(
+                stage="resolve_document",
+                code="DOCUMENT_NOT_FOUND",
+                category="validation",
+                message=f"Document not found: {document_id}",
+            )
 
-        content = _read_object_bytes(bucket=document.storage_bucket, object_key=document.storage_object_key)
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="extract",
+            stage_status="started",
+        )
+        try:
+            content = _read_object_bytes(bucket=document.storage_bucket, object_key=document.storage_object_key)
+        except PermanentTaskError as exc:
+            raise DocumentPipelinePermanentError(
+                stage="extract",
+                code="SOURCE_OBJECT_MISSING",
+                category="validation",
+                message=str(exc),
+            ) from exc
+        except TransientTaskError as exc:
+            raise DocumentPipelineTransientError(
+                stage="extract",
+                code="SOURCE_OBJECT_READ_FAILED",
+                category="infrastructure",
+                message=str(exc),
+            ) from exc
         try:
             sections = extract_text_sections(file_type=document.file_type, content=content)
         except ValueError as exc:
-            raise PermanentTaskError(str(exc)) from exc
+            raise DocumentPipelinePermanentError(
+                stage="extract",
+                code="TEXT_EXTRACTION_FAILED",
+                category="validation",
+                message=str(exc),
+            ) from exc
         cleaned_sections, cleaning_stats = clean_extracted_sections(sections)
         if not any(section.text for section in cleaned_sections):
-            raise PermanentTaskError("extracted document contains no text after cleaning")
+            raise DocumentPipelinePermanentError(
+                stage="clean",
+                code="EMPTY_AFTER_CLEANING",
+                category="validation",
+                message="extracted document contains no text after cleaning",
+            )
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="extract",
+            stage_status="completed",
+            page_count=len(cleaned_sections),
+            **cleaning_stats.as_log_fields(),
+        )
 
         try:
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="chunk",
+                stage_status="started",
+            )
             await _document_repository.delete_document_pages(session, document_id=parsed_document_id)
             for section in cleaned_sections:
                 await _document_repository.create_document_page(
@@ -113,7 +215,22 @@ async def _extract_and_store_document_pages_async(
                 )
             chunks = await _chunking_service.chunk(document_id=parsed_document_id, pages=cleaned_sections)
             if not chunks:
-                raise PermanentTaskError("cleaned document produced no chunks")
+                raise DocumentPipelinePermanentError(
+                    stage="chunk",
+                    code="EMPTY_CHUNK_SET",
+                    category="validation",
+                    message="cleaned document produced no chunks",
+                )
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="chunk",
+                stage_status="completed",
+                chunk_count=len(chunks),
+            )
             await _document_repository.delete_document_chunks(
                 session,
                 document_id=parsed_document_id,
@@ -140,15 +257,69 @@ async def _extract_and_store_document_pages_async(
                     )
                 )
 
-            embedding_result = await _embedding_service.embed_chunks(chunks=created_chunks)
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="embed",
+                stage_status="started",
+            )
+            try:
+                embedding_result = await _embedding_service.embed_chunks(chunks=created_chunks)
+            except PermanentEmbeddingError as exc:
+                raise DocumentPipelinePermanentError(
+                    stage="embed",
+                    code="EMBEDDING_FAILED_PERMANENT",
+                    category="validation",
+                    message=str(exc),
+                ) from exc
+            except TransientEmbeddingError as exc:
+                raise DocumentPipelineTransientError(
+                    stage="embed",
+                    code="EMBEDDING_FAILED_TRANSIENT",
+                    category="infrastructure",
+                    message=str(exc),
+                ) from exc
             if len(embedding_result.vectors_by_chunk_id) != len(created_chunks):
-                raise PermanentTaskError("embedding generation did not cover all chunks")
+                raise DocumentPipelinePermanentError(
+                    stage="embed",
+                    code="EMBEDDING_INCOMPLETE",
+                    category="validation",
+                    message="embedding generation did not cover all chunks",
+                )
             for chunk_id, vector in embedding_result.vectors_by_chunk_id.items():
                 if len(vector) != settings.qdrant_vector_size:
-                    raise PermanentTaskError(
-                        f"embedding dimension mismatch for chunk {chunk_id}: "
-                        f"expected {settings.qdrant_vector_size}, got {len(vector)}"
+                    raise DocumentPipelinePermanentError(
+                        stage="embed",
+                        code="EMBEDDING_DIMENSION_MISMATCH",
+                        category="validation",
+                        message=(
+                            f"embedding dimension mismatch for chunk {chunk_id}: "
+                            f"expected {settings.qdrant_vector_size}, got {len(vector)}"
+                        ),
                     )
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="embed",
+                stage_status="completed",
+                embedding_batch_count=embedding_result.batch_count,
+                embedding_retry_count=embedding_result.retry_count,
+            )
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="index",
+                stage_status="started",
+            )
             try:
                 qdrant_result = await _qdrant_service.upsert_chunks(
                     organization_id=document.organization_id,
@@ -160,9 +331,30 @@ async def _extract_and_store_document_pages_async(
                     vectors_by_chunk_id=embedding_result.vectors_by_chunk_id,
                 )
             except ValueError as exc:
-                raise PermanentTaskError(str(exc)) from exc
+                raise DocumentPipelinePermanentError(
+                    stage="index",
+                    code="QDRANT_PAYLOAD_INVALID",
+                    category="validation",
+                    message=str(exc),
+                ) from exc
             except Exception as exc:
-                raise TransientTaskError("qdrant upsert failed") from exc
+                raise DocumentPipelineTransientError(
+                    stage="index",
+                    code="QDRANT_UPSERT_FAILED",
+                    category="infrastructure",
+                    message="qdrant upsert failed",
+                ) from exc
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=organization_id or str(document.organization_id),
+                user_id=user_id or str(document.uploaded_by_user_id),
+                stage="index",
+                stage_status="completed",
+                qdrant_upserted_count=qdrant_result.upserted_count,
+                qdrant_batch_count=qdrant_result.batch_count,
+            )
 
             await _usage_repository.create_usage_event(
                 session,
@@ -197,7 +389,12 @@ async def _extract_and_store_document_pages_async(
             await session.rollback()
             raise
         if updated is None:
-            raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
+            raise DocumentPipelineTransientError(
+                stage="status",
+                code="STATUS_INDEXED_UPDATE_FAILED",
+                category="infrastructure",
+                message=f"Unable to move document to indexed state: {document_id}",
+            )
         return len(cleaned_sections), len(chunks), cleaning_stats, embedding_result
 
 
@@ -217,10 +414,11 @@ class DocumentTask(RudixTask):
         if not isinstance(document_id, str):
             return
         try:
+            error_details = details_from_exception(exc)
             set_document_status(
                 document_id,
                 status=DocumentStatus.failed,
-                error_message=str(exc),
+                error_message=encode_document_error(error_details),
             )
             log_document_event(
                 event="document.processing.failed",
@@ -230,6 +428,10 @@ class DocumentTask(RudixTask):
                 user_id=kwargs.get("user_id"),
                 status_code=DocumentStatus.failed.value,
                 error=str(exc),
+                error_stage=error_details["stage"],
+                error_code=error_details["code"],
+                error_category=error_details["category"],
+                retryable=error_details["retryable"],
             )
         except Exception:
             return
@@ -285,7 +487,12 @@ def process_document(
     )
 
     page_count, chunk_count, cleaning_stats, embedding_result = _run(
-        _extract_and_store_document_pages_async(document_id)
+        _extract_and_store_document_pages_async(
+            document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
     )
 
     log_document_event(

@@ -132,6 +132,11 @@ class FailingQdrantService(FakeQdrantService):
         raise RuntimeError("qdrant is unavailable")
 
 
+class EmptyChunkingService:
+    async def chunk(self, **_: Any) -> list[Any]:
+        return []
+
+
 @pytest_asyncio.fixture
 async def seeded_txt_document(db_session: AsyncSession) -> Document:
     org = Organization(name="Extraction Org", slug=f"extract-org-{uuid4().hex[:8]}")
@@ -337,4 +342,21 @@ async def test_worker_fails_when_qdrant_upsert_fails(
     monkeypatch.setattr(document_tasks, "_qdrant_service", FailingQdrantService())
 
     with pytest.raises(TransientTaskError, match="qdrant upsert failed"):
+        await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
+
+
+@pytest.mark.asyncio
+async def test_worker_fails_when_chunking_produces_no_chunks(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two"))
+    monkeypatch.setattr(document_tasks, "_chunking_service", EmptyChunkingService())
+    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
+
+    with pytest.raises(PermanentTaskError, match="cleaned document produced no chunks"):
         await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))

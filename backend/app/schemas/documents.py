@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.enums import DocumentStatus
+
 AllowedFileType = Literal["pdf", "txt", "docx"]
 
 
@@ -36,8 +38,17 @@ class UploadDocumentResponse(BaseModel):
     message: str
 
 
+class DocumentErrorDetails(BaseModel):
+    stage: str
+    code: str
+    category: str
+    retryable: bool
+    message: str
+
+
 class DocumentStatusResponse(BaseModel):
     document_id: str
-    status: Literal["pending", "processing", "indexed", "failed"]
+    status: DocumentStatus
     error_message: str | None = None
+    error_details: DocumentErrorDetails | None = None
     updated_at: datetime | None = None

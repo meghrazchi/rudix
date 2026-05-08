@@ -8,6 +8,7 @@ from app.auth.dependencies import get_current_principal, require_document_access
 from app.auth.models import AuthenticatedPrincipal
 from app.clients import minio_client as minio_module
 from app.core.config import settings
+from app.core.document_errors import decode_document_error
 from app.core.logging import log_document_event
 from app.db.session import get_db_session
 from app.models.document import Document
@@ -253,14 +254,20 @@ async def get_document_status(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     document: Annotated[Document, Depends(require_document_access)],
 ) -> DocumentStatusResponse:
+    del document_id
+    error_message, error_details = decode_document_error(document.error_message)
     log_document_event(
         event="document.status.requested",
         document_id=str(document.id),
         organization_id=principal.organization_id,
         user_id=principal.user_id,
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        status_code=status.HTTP_200_OK,
+        document_status=document.status,
     )
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"Document status retrieval for {document_id} is not implemented in scaffold.",
+    return DocumentStatusResponse(
+        document_id=str(document.id),
+        status=document.status,
+        error_message=error_message,
+        error_details=error_details,
+        updated_at=document.updated_at,
     )

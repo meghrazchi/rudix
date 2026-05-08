@@ -205,6 +205,12 @@ ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "sel
 docker compose exec -T qdrant sh -lc "curl -sS -X POST 'http://localhost:6333/collections/documents/points/scroll' \
   -H 'Content-Type: application/json' \
   -d '{\"limit\":3,\"with_payload\":true,\"with_vector\":false,\"filter\":{\"must\":[{\"key\":\"organization_id\",\"match\":{\"value\":\"'\"${ORG_ID}\"'\"}},{\"key\":\"document_id\",\"match\":{\"value\":\"'\"${DOC_ID}\"'\"}}]}}'"
+
+# Poll frontend-safe processing status (includes error_details on failed)
+TOKEN="<org-member-token>"
+curl -sS "http://localhost:8000/api/v1/documents/${DOC_ID}" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "X-Organization-ID: ${ORG_ID}" | jq
 ```
 
 Important:
@@ -213,6 +219,7 @@ Important:
 - `force=true` bypasses idempotency skip checks, but does not bypass UUID validation.
 - If you run both local and Docker workers, tasks can be consumed by either worker.
 - Qdrant point IDs are deterministic per chunk (`{document_id}:{index_version}:{chunk_index}`), so repeated indexing upserts overwrite safely.
+- Status transitions are idempotent (`uploaded|failed -> processing -> indexed`), and stale failure errors are cleared when processing restarts.
 
 Docker-specific worker operations from repo root:
 

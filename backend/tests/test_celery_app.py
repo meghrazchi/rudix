@@ -22,6 +22,7 @@ os.environ.setdefault("AUTH_PROVIDER", "clerk")
 os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.json")
 
 from app.core.config import settings
+from app.core.document_errors import decode_document_error
 from app.models.enums import DocumentStatus, EvaluationRunStatus
 from app.workers import document_tasks, evaluation_tasks
 from app.workers.base_task import RudixTask, TransientTaskError
@@ -117,7 +118,7 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
         status_calls.append((document_id, status.value))
         return True
 
-    async def _extract_and_store(_: str) -> tuple[int, int, object, object]:
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
         class _Stats:
             pages_modified = 2
 
@@ -175,7 +176,74 @@ def test_document_task_terminal_failure_marks_document_failed(monkeypatch: pytes
 
     assert captured["document_id"] == "doc-1"
     assert captured["status"] == DocumentStatus.failed.value
-    assert "boom" in captured["error_message"]
+    message, details = decode_document_error(captured["error_message"])
+    assert message == "boom"
+    assert details is not None
+    assert details["code"] == "UNEXPECTED_ERROR"
+    assert details["retryable"] is False
+
+
+def test_process_document_retries_transient_failures_without_failing_status(
+    eager_celery: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    attempts = {"count": 0}
+    status_calls: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.uploaded.value,
+    )
+
+    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+        del error_message
+        status_calls.append((document_id, status.value))
+        return True
+
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            raise document_tasks.DocumentPipelineTransientError(
+                stage="embed",
+                code="EMBEDDING_FAILED_TRANSIENT",
+                category="infrastructure",
+                message="embedding timeout",
+            )
+
+        class _Stats:
+            pages_modified = 0
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 1,
+                    "cleaning_pages_modified": 0,
+                    "cleaning_null_bytes_removed": 0,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 0,
+                    "cleaning_blank_lines_collapsed": 0,
+                    "cleaning_chars_before": 10,
+                    "cleaning_chars_after": 10,
+                }
+
+        class _EmbeddingResult:
+            batch_count = 1
+            retry_count = 0
+            input_tokens = 10
+            total_tokens = 10
+            latency_ms = 5
+            approximate_cost_usd = Decimal("0.000001")
+
+        return 1, 1, _Stats(), _EmbeddingResult()
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+
+    result = document_tasks.process_document.delay("doc-1").get(timeout=5)
+    assert result["status"] == DocumentStatus.indexed.value
+    assert attempts["count"] == 2
+    assert status_calls == [("doc-1", DocumentStatus.processing.value), ("doc-1", DocumentStatus.processing.value)]
 
 
 def test_evaluation_run_transitions_status(monkeypatch: pytest.MonkeyPatch) -> None:

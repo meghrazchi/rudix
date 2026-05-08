@@ -48,6 +48,14 @@ async def _set_document_status_async(
     parsed_id = _parse_uuid(document_id)
     async with SessionLocal() as session:
         async with session.begin():
+            document = await _document_repository.get_document_by_id(session, document_id=parsed_id)
+            if document is None:
+                return False
+
+            # Idempotent transition: avoid touching updated_at when nothing changes.
+            if document.status == status.value and document.error_message == error_message:
+                return True
+
             updated = await _document_repository.update_document_status(
                 session,
                 document_id=parsed_id,
