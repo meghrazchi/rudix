@@ -57,7 +57,7 @@ Supported document types include:
 
 ### Pipeline Explorer (`/rag-pipeline`)
 
-![Rudix Pipeline Explorer](designs/pipeline_with_details_rudix/screen.png)
+![Rudix Pipeline Explorer](docs/screenshots/pipeline_explorer.png)
 
 The Pipeline Explorer page gives users a live view of the RAG execution flow and node-level diagnostics:
 
