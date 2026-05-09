@@ -152,6 +152,16 @@ class Settings(BaseSettings):
     rerank_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
     rerank_mmr_candidate_count: int = Field(default=20, ge=1, le=200)
     rerank_mmr_duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
+    confidence_weight_top_similarity: float = Field(default=0.35, ge=0.0, le=1.0)
+    confidence_weight_average_similarity: float = Field(default=0.20, ge=0.0, le=1.0)
+    confidence_weight_rerank_score: float = Field(default=0.20, ge=0.0, le=1.0)
+    confidence_weight_citation_support: float = Field(default=0.15, ge=0.0, le=1.0)
+    confidence_weight_agreement: float = Field(default=0.10, ge=0.0, le=1.0)
+    confidence_medium_threshold: float = Field(default=0.50, ge=0.0, le=1.0)
+    confidence_high_threshold: float = Field(default=0.80, ge=0.0, le=1.0)
+    confidence_not_found_threshold: float = Field(default=0.20, ge=0.0, le=1.0)
+    confidence_not_found_penalty_multiplier: float = Field(default=0.35, ge=0.0, le=1.0)
+    confidence_citation_coverage_target: int = Field(default=2, ge=1, le=20)
     chunk_size_tokens: int = Field(default=700, ge=100, le=4000)
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
     document_index_version: str = Field(default="v1", min_length=1, max_length=64)
@@ -245,6 +255,22 @@ class Settings(BaseSettings):
 
         if self.rerank_mmr_candidate_count < self.retrieval_final_top_k:
             raise ValueError("rerank_mmr_candidate_count must be >= retrieval_final_top_k")
+
+        if self.confidence_high_threshold < self.confidence_medium_threshold:
+            raise ValueError("confidence_high_threshold must be >= confidence_medium_threshold")
+
+        if self.confidence_not_found_threshold > self.confidence_medium_threshold:
+            raise ValueError("confidence_not_found_threshold must be <= confidence_medium_threshold")
+
+        confidence_weight_sum = (
+            self.confidence_weight_top_similarity
+            + self.confidence_weight_average_similarity
+            + self.confidence_weight_rerank_score
+            + self.confidence_weight_citation_support
+            + self.confidence_weight_agreement
+        )
+        if confidence_weight_sum <= 0:
+            raise ValueError("confidence weights sum must be > 0")
 
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
@@ -391,6 +417,16 @@ class Settings(BaseSettings):
             "rerank_mmr_lambda": self.rerank_mmr_lambda,
             "rerank_mmr_candidate_count": self.rerank_mmr_candidate_count,
             "rerank_mmr_duplicate_similarity_threshold": self.rerank_mmr_duplicate_similarity_threshold,
+            "confidence_weight_top_similarity": self.confidence_weight_top_similarity,
+            "confidence_weight_average_similarity": self.confidence_weight_average_similarity,
+            "confidence_weight_rerank_score": self.confidence_weight_rerank_score,
+            "confidence_weight_citation_support": self.confidence_weight_citation_support,
+            "confidence_weight_agreement": self.confidence_weight_agreement,
+            "confidence_medium_threshold": self.confidence_medium_threshold,
+            "confidence_high_threshold": self.confidence_high_threshold,
+            "confidence_not_found_threshold": self.confidence_not_found_threshold,
+            "confidence_not_found_penalty_multiplier": self.confidence_not_found_penalty_multiplier,
+            "confidence_citation_coverage_target": self.confidence_citation_coverage_target,
             "chunk_size_tokens": self.chunk_size_tokens,
             "chunk_overlap_tokens": self.chunk_overlap_tokens,
             "document_index_version": self.document_index_version,

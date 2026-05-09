@@ -92,11 +92,30 @@ class ChatDebugResponse(BaseModel):
     llm_model: str | None = None
 
 
+class ChatConfidenceExplanationResponse(BaseModel):
+    top_similarity: float = Field(ge=0.0, le=1.0)
+    average_similarity: float = Field(ge=0.0, le=1.0)
+    top_rerank_score: float = Field(ge=0.0, le=1.0)
+    citation_support_score: float = Field(ge=0.0, le=1.0)
+    citation_validation_score: float = Field(ge=0.0, le=1.0)
+    citation_coverage_score: float = Field(ge=0.0, le=1.0)
+    retrieval_agreement_score: float = Field(ge=0.0, le=1.0)
+    raw_score: float = Field(ge=0.0, le=1.0)
+    citation_validation_multiplier: float = Field(ge=0.0, le=1.0)
+    not_found_penalty_multiplier: float = Field(ge=0.0, le=1.0)
+    no_context: bool
+    not_found_signal: bool
+    weights: dict[str, float]
+    thresholds: dict[str, float]
+
+
 class ChatQueryResponse(BaseModel):
     chat_session_id: str
     message_id: str
     answer: str
     confidence_score: float = Field(ge=0.0, le=1.0)
+    confidence_category: Literal["low", "medium", "high"]
+    confidence_explanation: ChatConfidenceExplanationResponse
     not_found: bool
     citations: list[ChatCitationResponse] = Field(default_factory=list)
     debug: ChatDebugResponse

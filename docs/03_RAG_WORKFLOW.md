@@ -289,25 +289,33 @@ Each citation should include:
 
 ## Confidence score
 
-Confidence should combine:
+Confidence combines:
 
 - Top similarity score.
 - Average similarity score.
 - Reranker score.
-- Number of supporting chunks.
-- Citation validation result.
-- Whether the LLM returned `not_found`.
+- Citation support (coverage + validation).
+- Retrieval agreement signal.
+- Not-found penalty when the answer is refused or below threshold.
 
-Example:
+Default weighted formula:
 
 ```text
 confidence = 
-  0.40 * top_similarity +
+  0.35 * top_similarity +
   0.20 * avg_top_similarity +
   0.20 * rerank_score +
-  0.10 * citation_support +
+  0.15 * citation_support +
   0.10 * multi_source_agreement
 ```
+
+Runtime behavior:
+
+- If no context chunks exist, confidence is `0.0` (`low`).
+- If `not_found=true`, score is multiplied by `CONFIDENCE_NOT_FOUND_PENALTY_MULTIPLIER`.
+- Category thresholds are configurable with:
+  - `CONFIDENCE_MEDIUM_THRESHOLD`
+  - `CONFIDENCE_HIGH_THRESHOLD`
 
 ## Evaluation pipeline
 

@@ -29,6 +29,16 @@ ENV_KEYS = [
     "RERANK_MMR_LAMBDA",
     "RERANK_MMR_CANDIDATE_COUNT",
     "RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD",
+    "CONFIDENCE_WEIGHT_TOP_SIMILARITY",
+    "CONFIDENCE_WEIGHT_AVERAGE_SIMILARITY",
+    "CONFIDENCE_WEIGHT_RERANK_SCORE",
+    "CONFIDENCE_WEIGHT_CITATION_SUPPORT",
+    "CONFIDENCE_WEIGHT_AGREEMENT",
+    "CONFIDENCE_MEDIUM_THRESHOLD",
+    "CONFIDENCE_HIGH_THRESHOLD",
+    "CONFIDENCE_NOT_FOUND_THRESHOLD",
+    "CONFIDENCE_NOT_FOUND_PENALTY_MULTIPLIER",
+    "CONFIDENCE_CITATION_COVERAGE_TARGET",
     "DOCUMENT_INDEX_VERSION",
     "EMBEDDING_BATCH_MAX_ITEMS",
     "EMBEDDING_BATCH_MAX_TOKENS",
@@ -174,6 +184,36 @@ def test_invalid_rerank_candidate_count_relationship_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["retrieval_final_top_k"] = 10
     payload["rerank_mmr_candidate_count"] = 5
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_confidence_threshold_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["confidence_medium_threshold"] = 0.7
+    payload["confidence_high_threshold"] = 0.6
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_confidence_not_found_threshold_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["confidence_medium_threshold"] = 0.5
+    payload["confidence_not_found_threshold"] = 0.6
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_confidence_weight_sum_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["confidence_weight_top_similarity"] = 0.0
+    payload["confidence_weight_average_similarity"] = 0.0
+    payload["confidence_weight_rerank_score"] = 0.0
+    payload["confidence_weight_citation_support"] = 0.0
+    payload["confidence_weight_agreement"] = 0.0
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

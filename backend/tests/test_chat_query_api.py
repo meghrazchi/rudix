@@ -278,6 +278,10 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert payload["answer"] == "Employees receive twenty days of annual leave."
     assert payload["not_found"] is False
     assert payload["confidence_score"] > 0.0
+    assert payload["confidence_category"] in {"medium", "high"}
+    assert payload["confidence_explanation"]["top_similarity"] == pytest.approx(0.92)
+    assert payload["confidence_explanation"]["citation_validation_multiplier"] >= 0.9
+    assert payload["confidence_explanation"]["not_found_signal"] is False
     assert len(payload["citations"]) == 1
     assert payload["citations"][0]["document_id"] == str(document.id)
     assert payload["citations"][0]["filename"] == "policy.pdf"
@@ -581,6 +585,8 @@ async def test_post_chat_returns_not_found_when_no_chunks(
     assert payload["answer"] == "I could not find this information in the uploaded documents."
     assert payload["citations"] == []
     assert payload["confidence_score"] == 0.0
+    assert payload["confidence_category"] == "low"
+    assert payload["confidence_explanation"]["no_context"] is True
     assert fake_openai.chat.completions.calls == []
 
 
@@ -639,6 +645,8 @@ async def test_post_chat_low_confidence_falls_back_to_not_found(
     assert payload["answer"] == "I could not find this information in the uploaded documents."
     assert payload["citations"] == []
     assert payload["confidence_score"] < 0.2
+    assert payload["confidence_category"] == "low"
+    assert payload["confidence_explanation"]["not_found_signal"] is True
     assert fake_openai.chat.completions.calls == []
 
 
@@ -707,6 +715,8 @@ async def test_post_chat_rejects_fake_llm_citation_chunk_ids_and_falls_back(
     assert len(payload["citations"]) == 1
     assert payload["citations"][0]["chunk_id"] == str(chunk.id)
     assert payload["confidence_score"] < 0.92
+    assert payload["confidence_category"] in {"low", "medium"}
+    assert payload["confidence_explanation"]["citation_validation_multiplier"] < 0.5
 
 
 @pytest.mark.asyncio

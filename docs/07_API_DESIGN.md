@@ -390,6 +390,32 @@ Response:
   "message_id": "uuid",
   "answer": "Employees receive 20 paid leave days per year.",
   "confidence_score": 0.89,
+  "confidence_category": "high",
+  "confidence_explanation": {
+    "top_similarity": 0.89,
+    "average_similarity": 0.84,
+    "top_rerank_score": 0.91,
+    "citation_support_score": 1.0,
+    "citation_validation_score": 1.0,
+    "citation_coverage_score": 1.0,
+    "retrieval_agreement_score": 0.96,
+    "raw_score": 0.89,
+    "citation_validation_multiplier": 1.0,
+    "not_found_penalty_multiplier": 1.0,
+    "no_context": false,
+    "not_found_signal": false,
+    "weights": {
+      "top_similarity": 0.35,
+      "average_similarity": 0.2,
+      "rerank_score": 0.2,
+      "citation_support": 0.15,
+      "agreement": 0.1
+    },
+    "thresholds": {
+      "medium": 0.5,
+      "high": 0.8
+    }
+  },
   "not_found": false,
   "citations": [
     {

@@ -18,6 +18,7 @@ from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.repositories.chat import ChatRepository
 from app.schemas.chat import (
     ChatCitationResponse,
+    ChatConfidenceExplanationResponse,
     ChatDebugResponse,
     ChatMessageRequest,
     ChatMessageResponse,
@@ -28,6 +29,7 @@ from app.schemas.chat import (
     CreateChatSessionRequest,
 )
 from app.services.citation_service import CitationContextChunk, CitationService
+from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
 from app.services.prompt_service import PromptContextChunk, PromptService
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
@@ -40,9 +42,9 @@ _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
 _citation_service = CitationService()
+_confidence_service = ConfidenceService()
 _llm_service = LLMService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
-_LOW_CONFIDENCE_THRESHOLD = 0.20
 
 
 @dataclass(frozen=True)
@@ -183,29 +185,14 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
     )
 
 
-def _score_confidence(
-    *,
-    chunks: list[RetrievedChunk],
-    rerank_applied: bool,
-    citation_validation_score: float | None = None,
-) -> float:
-    if not chunks:
-        return 0.0
-
-    top_similarity = max(0.0, min(1.0, chunks[0].similarity_score))
-    base_score: float
-    if not rerank_applied:
-        base_score = top_similarity
-    else:
-        top_rerank = max(0.0, min(1.0, chunks[0].rerank_score or 0.0))
-        base_score = (0.6 * top_similarity) + (0.4 * top_rerank)
-
-    if citation_validation_score is None:
-        return round(max(0.0, min(1.0, base_score)), 4)
-
-    citation_factor = 0.5 + (0.5 * max(0.0, min(1.0, citation_validation_score)))
-    combined = base_score * citation_factor
-    return round(max(0.0, min(1.0, combined)), 4)
+def _to_confidence_signals(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> list[ConfidenceChunkSignal]:
+    return [
+        ConfidenceChunkSignal(
+            similarity_score=chunk.similarity_score,
+            rerank_score=chunk.rerank_score if rerank_applied else None,
+        )
+        for chunk in chunks
+    ]
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -522,8 +509,28 @@ async def query_chat(
     llm_model: str | None = None
     llm_cost_usd = None
 
-    confidence_score = _score_confidence(chunks=selected_chunks, rerank_applied=payload.rerank)
-    not_found = len(selected_chunks) == 0 or confidence_score < _LOW_CONFIDENCE_THRESHOLD
+    confidence_signals = _to_confidence_signals(chunks=selected_chunks, rerank_applied=payload.rerank)
+    confidence_result = _confidence_service.score(
+        chunks=confidence_signals,
+        citation_count=0,
+        citation_validation_score=1.0,
+        not_found_signal=False,
+    )
+    confidence_score = confidence_result.score
+    confidence_category = confidence_result.category
+    confidence_explanation = confidence_result.explanation
+    not_found = len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+
+    if not_found:
+        confidence_result = _confidence_service.score(
+            chunks=confidence_signals,
+            citation_count=0,
+            citation_validation_score=1.0,
+            not_found_signal=True,
+        )
+        confidence_score = confidence_result.score
+        confidence_category = confidence_result.category
+        confidence_explanation = confidence_result.explanation
 
     prompt_started = perf_counter()
     prompt = _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
@@ -587,11 +594,15 @@ async def query_chat(
                 model_citations=llm_result.citations,
             )
             citations = citation_result.citations
-            confidence_score = _score_confidence(
-                chunks=selected_chunks,
-                rerank_applied=payload.rerank,
+            confidence_result = _confidence_service.score(
+                chunks=confidence_signals,
+                citation_count=len(citations),
                 citation_validation_score=citation_result.validation_score,
+                not_found_signal=False,
             )
+            confidence_score = confidence_result.score
+            confidence_category = confidence_result.category
+            confidence_explanation = confidence_result.explanation
             log_query_event(
                 event="query.citations.validated",
                 organization_id=principal.organization_id,
@@ -605,6 +616,17 @@ async def query_chat(
                 metadata_mismatch_count=citation_result.metadata_mismatch_count,
                 snippet_mismatch_count=citation_result.snippet_mismatch_count,
             )
+
+        if not_found:
+            confidence_result = _confidence_service.score(
+                chunks=confidence_signals,
+                citation_count=0,
+                citation_validation_score=1.0,
+                not_found_signal=True,
+            )
+            confidence_score = confidence_result.score
+            confidence_category = confidence_result.category
+            confidence_explanation = confidence_result.explanation
     latencies_ms["llm"] = llm_latency_ms
 
     persist_started = perf_counter()
@@ -667,6 +689,7 @@ async def query_chat(
         status_code=status.HTTP_200_OK,
         not_found=not_found,
         confidence_score=confidence_score,
+        confidence_category=confidence_category,
         retrieval_count=len(retrieved_chunks),
         selected_count=len(selected_chunks),
     )
@@ -675,6 +698,23 @@ async def query_chat(
         message_id=str(assistant_message.id),
         answer=answer,
         confidence_score=confidence_score,
+        confidence_category=confidence_category,
+        confidence_explanation=ChatConfidenceExplanationResponse(
+            top_similarity=confidence_explanation.top_similarity,
+            average_similarity=confidence_explanation.average_similarity,
+            top_rerank_score=confidence_explanation.top_rerank_score,
+            citation_support_score=confidence_explanation.citation_support_score,
+            citation_validation_score=confidence_explanation.citation_validation_score,
+            citation_coverage_score=confidence_explanation.citation_coverage_score,
+            retrieval_agreement_score=confidence_explanation.retrieval_agreement_score,
+            raw_score=confidence_explanation.raw_score,
+            citation_validation_multiplier=confidence_explanation.citation_validation_multiplier,
+            not_found_penalty_multiplier=confidence_explanation.not_found_penalty_multiplier,
+            no_context=confidence_explanation.no_context,
+            not_found_signal=confidence_explanation.not_found_signal,
+            weights=confidence_explanation.weights,
+            thresholds=confidence_explanation.thresholds,
+        ),
         not_found=not_found,
         citations=[] if not_found else citations,
         debug=ChatDebugResponse(
