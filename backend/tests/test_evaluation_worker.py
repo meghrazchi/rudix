@@ -27,7 +27,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.core.config import settings
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
-from app.models.evaluation import EvaluationResult
+from app.models.evaluation import EvaluationResult, EvaluationRun
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
@@ -229,7 +229,13 @@ async def test_evaluation_worker_persists_results_and_continues_on_question_fail
     assert result["question_failure_count"] == 1
     assert result["all_questions_failed"] is False
 
-    rows = list((await db_session.execute(select(EvaluationResult))).scalars().all())
+    rows = list(
+        (
+            await db_session.execute(
+                select(EvaluationResult).where(EvaluationResult.evaluation_run_id == UUID(run_id))
+            )
+        ).scalars().all()
+    )
     assert len(rows) == 2
     completed = next(row for row in rows if row.details.get("status") == "completed")
     failed = next(row for row in rows if row.details.get("status") == "failed")
@@ -240,11 +246,26 @@ async def test_evaluation_worker_persists_results_and_continues_on_question_fail
     assert completed.details["embedding_model"] == settings.openai_embedding_model
     assert completed.details["citations"]
     assert completed.details["retrieved_chunks"][0]["document_id"] == str(document_id)
+    assert completed.details["metrics"]["retrieval_hit_rate"] == 1.0
+    assert completed.details["metrics"]["context_precision"] == 1.0
+    assert completed.details["metrics"]["context_recall"] == 1.0
 
     assert failed.generated_answer is None
     assert failed.details["error_type"] == "RuntimeError"
     assert failed.details["error"] == "qdrant timeout"
     assert failed.details["question"] == "Question failure"
+    assert failed.details["metrics"]["judge_error"] == "RuntimeError"
+
+    run_row = (
+        await db_session.execute(select(EvaluationRun).where(EvaluationRun.id == UUID(run_id)))
+    ).scalar_one()
+    summary = run_row.config["metrics_summary"]
+    assert summary["question_total_count"] == 2
+    assert summary["question_success_count"] == 1
+    assert summary["question_failure_count"] == 1
+    assert summary["retrieval_hit_rate"] == 1.0
+    assert summary["context_precision"] == 1.0
+    assert summary["context_recall"] == 1.0
 
 
 @pytest.mark.asyncio
@@ -272,8 +293,25 @@ async def test_evaluation_worker_marks_failed_when_all_questions_fail(
     assert result["question_success_count"] == 0
     assert result["question_failure_count"] == 1
     assert result["all_questions_failed"] is True
+    assert result["metrics_summary"]["question_success_count"] == 0
+    assert result["metrics_summary"]["question_failure_count"] == 1
 
-    rows = list((await db_session.execute(select(EvaluationResult))).scalars().all())
+    rows = list(
+        (
+            await db_session.execute(
+                select(EvaluationResult).where(EvaluationResult.evaluation_run_id == UUID(run_id))
+            )
+        ).scalars().all()
+    )
     assert len(rows) == 1
     assert rows[0].details["status"] == "failed"
     assert rows[0].details["error"] == "retrieval unavailable"
+
+    run_row = (
+        await db_session.execute(select(EvaluationRun).where(EvaluationRun.id == UUID(run_id)))
+    ).scalar_one()
+    summary = run_row.config["metrics_summary"]
+    assert summary["question_total_count"] == 1
+    assert summary["question_success_count"] == 0
+    assert summary["question_failure_count"] == 1
+    assert summary["retrieval_hit_rate"] is None

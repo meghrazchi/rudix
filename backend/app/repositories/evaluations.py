@@ -215,6 +215,26 @@ class EvaluationRepository:
         await session.refresh(evaluation_run)
         return evaluation_run
 
+    async def update_evaluation_run_config(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+        config_patch: dict[str, object],
+    ) -> EvaluationRun | None:
+        result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
+        evaluation_run = result.scalar_one_or_none()
+        if evaluation_run is None:
+            return None
+
+        current_config = evaluation_run.config if isinstance(evaluation_run.config, dict) else {}
+        merged_config = dict(current_config)
+        merged_config.update(config_patch)
+        evaluation_run.config = merged_config
+        await session.flush()
+        await session.refresh(evaluation_run)
+        return evaluation_run
+
     async def create_evaluation_result(
         self,
         session: AsyncSession,

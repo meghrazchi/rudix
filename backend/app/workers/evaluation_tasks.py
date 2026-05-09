@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Coroutine
 from dataclasses import asdict, dataclass
 from decimal import Decimal
@@ -17,6 +18,13 @@ from app.models.enums import EvaluationRunStatus
 from app.repositories.evaluations import EvaluationRepository
 from app.services.citation_service import CitationContextChunk, CitationService
 from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.services.evaluation_metrics_service import (
+    EvaluationJudgeScores,
+    EvaluationMetricOptions,
+    EvaluationMetricsService,
+    EvaluationQuestionMetrics,
+    RetrievedMetricChunk,
+)
 from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
 from app.services.prompt_service import PromptContextChunk, PromptService
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
@@ -31,6 +39,7 @@ _rerank_service = RerankService()
 _prompt_service = PromptService()
 _citation_service = CitationService()
 _confidence_service = ConfidenceService()
+_evaluation_metrics_service = EvaluationMetricsService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
 _openai_client: AsyncOpenAI | None = None
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
@@ -54,15 +63,17 @@ class EvaluationRunConfig:
     rerank: bool
     model_name: str
     selected_document_ids: list[UUID]
-    metric_options: dict[str, object]
+    metric_options: EvaluationMetricOptions
 
 
 @dataclass(frozen=True)
 class EvaluationQuestionComputation:
     generated_answer: str
     retrieval_score: float | None
+    faithfulness_score: float | None
     citation_accuracy_score: float | None
     answer_relevance_score: float | None
+    metrics: EvaluationQuestionMetrics
     latency_ms: int
     details: dict[str, Any]
 
@@ -99,6 +110,87 @@ def _get_openai_client() -> AsyncOpenAI:
             max_retries=0,
         )
     return _openai_client
+
+
+def _extract_message_text(content: object) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for item in content:
+            text = getattr(item, "text", None)
+            if isinstance(text, str) and text.strip():
+                text_parts.append(text.strip())
+        return "\n".join(text_parts).strip()
+    return ""
+
+
+def _coerce_score(value: object) -> float | None:
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+    elif isinstance(value, str):
+        try:
+            numeric = float(value.strip())
+        except ValueError:
+            return None
+    else:
+        return None
+    return max(0.0, min(1.0, numeric))
+
+
+async def _evaluate_with_llm_judge_async(
+    *,
+    model_name: str,
+    question: str,
+    expected_answer: str | None,
+    generated_answer: str,
+    retrieved_chunks: list[RetrievedChunk],
+) -> EvaluationJudgeScores:
+    context_lines: list[str] = []
+    for index, chunk in enumerate(retrieved_chunks[:6], start=1):
+        context_lines.append(
+            f"[{index}] document_id={chunk.document_id} "
+            f"chunk_id={chunk.chunk_id} filename={chunk.filename} page={chunk.page_number}\n"
+            f"{chunk.text[:1200]}"
+        )
+    context_block = "\n\n".join(context_lines) if context_lines else "(no context)"
+    expected_block = expected_answer.strip() if isinstance(expected_answer, str) and expected_answer.strip() else "(none)"
+    prompt = (
+        "Score the assistant answer for a RAG evaluation.\n"
+        "Return strict JSON with keys: faithfulness_score, answer_relevance_score.\n"
+        "Scores must be floats between 0 and 1.\n\n"
+        f"Question:\n{question}\n\n"
+        f"Expected answer (optional):\n{expected_block}\n\n"
+        f"Assistant answer:\n{generated_answer}\n\n"
+        f"Retrieved context:\n{context_block}\n"
+    )
+    response = await _get_openai_client().chat.completions.create(
+        model=model_name,
+        temperature=0,
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an evaluation judge. Score only groundedness and relevance. "
+                    "Do not return any keys except faithfulness_score and answer_relevance_score."
+                ),
+            },
+            {"role": "user", "content": prompt},
+        ],
+    )
+    choices = getattr(response, "choices", None) or []
+    if not choices:
+        raise RuntimeError("Judge response did not include choices")
+    raw_content = _extract_message_text(choices[0].message.content)
+    payload = json.loads(raw_content)
+    faithfulness_score = _coerce_score(payload.get("faithfulness_score"))
+    answer_relevance_score = _coerce_score(payload.get("answer_relevance_score"))
+    return EvaluationJudgeScores(
+        faithfulness_score=faithfulness_score,
+        answer_relevance_score=answer_relevance_score,
+        provider="llm_judge",
+    )
 
 
 def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
@@ -250,7 +342,9 @@ def _parse_run_config(raw_config: dict[str, Any]) -> EvaluationRunConfig:
         rerank=rerank,
         model_name=model_name,
         selected_document_ids=selected_document_ids,
-        metric_options=dict(raw_metric_options),
+        metric_options=_evaluation_metrics_service.parse_metric_options(
+            dict(raw_metric_options)
+        ),
     )
 
 
@@ -301,6 +395,10 @@ async def _evaluate_question_pipeline_async(
     llm_completion_tokens = 0
     llm_model: str | None = None
     llm_cost_usd: Decimal | None = None
+    embedding_cost_usd = (
+        (Decimal(embedding_prompt_tokens) / Decimal(1_000_000))
+        * Decimal(str(settings.openai_embedding_cost_per_million_tokens_usd))
+    )
     citation_validation_score = 1.0
 
     confidence_signals = _to_confidence_signals(chunks=selected_chunks, rerank_applied=config.rerank)
@@ -331,6 +429,8 @@ async def _evaluate_question_pipeline_async(
 
     answer = _NOT_FOUND_ANSWER
     citations: list[dict[str, Any]] = []
+    judge_scores: EvaluationJudgeScores | None = None
+    judge_error: str | None = None
     llm_latency_ms = 0
     if not not_found:
         try:
@@ -382,6 +482,22 @@ async def _evaluate_question_pipeline_async(
             confidence_category = confidence_result.category
             confidence_explanation = confidence_result.explanation
 
+        if (
+            not not_found
+            and (config.metric_options.faithfulness_enabled or config.metric_options.answer_relevance_enabled)
+        ):
+            judge_model_name = config.metric_options.judge_model_name or config.model_name
+            try:
+                judge_scores = await _evaluate_with_llm_judge_async(
+                    model_name=judge_model_name,
+                    question=question_text,
+                    expected_answer=expected_answer,
+                    generated_answer=answer,
+                    retrieved_chunks=selected_chunks,
+                )
+            except Exception as exc:
+                judge_error = exc.__class__.__name__
+
         if not_found:
             confidence_result = _confidence_service.score(
                 chunks=confidence_signals,
@@ -397,7 +513,35 @@ async def _evaluate_question_pipeline_async(
 
     total_latency_ms = int((perf_counter() - total_started) * 1000)
     latencies_ms["total"] = total_latency_ms
-    retrieval_score = retrieved_chunks[0].similarity_score if retrieved_chunks else None
+    citation_accuracy_score = citation_validation_score if citations else None
+    total_cost_usd = (llm_cost_usd or Decimal("0")) + embedding_cost_usd
+    question_metrics = _evaluation_metrics_service.score_question(
+        expected_document_id=expected_document_id,
+        expected_page_number=expected_page_number,
+        expected_answer=expected_answer,
+        generated_answer=answer,
+        not_found=not_found,
+        retrieved_chunks=[
+            RetrievedMetricChunk(
+                document_id=chunk.document_id,
+                page_number=chunk.page_number,
+            )
+            for chunk in retrieved_chunks
+        ],
+        selected_chunk_count=len(selected_chunks),
+        citation_count=len(citations),
+        citation_accuracy_score=citation_accuracy_score,
+        latency_ms=total_latency_ms,
+        cost_usd=total_cost_usd,
+        token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
+        token_output_count=llm_completion_tokens,
+        options=config.metric_options,
+        judge_scores=judge_scores,
+        judge_error=judge_error,
+    )
+    retrieval_score = question_metrics.retrieval_hit_rate
+    if retrieval_score is None:
+        retrieval_score = retrieved_chunks[0].similarity_score if retrieved_chunks else None
 
     details: dict[str, Any] = {
         "status": "completed",
@@ -418,17 +562,22 @@ async def _evaluate_question_pipeline_async(
         "llm_model": llm_model,
         "token_input_count": embedding_prompt_tokens + llm_prompt_tokens,
         "token_output_count": llm_completion_tokens,
-        "cost_usd": float(llm_cost_usd) if llm_cost_usd is not None else None,
+        "cost_usd": float(total_cost_usd),
+        "embedding_cost_usd": float(embedding_cost_usd),
+        "llm_cost_usd": float(llm_cost_usd) if llm_cost_usd is not None else 0.0,
         "citations": citations,
         "retrieved_chunks": [_serialize_chunk(chunk) for chunk in retrieved_chunks],
         "selected_chunks": [_serialize_chunk(chunk) for chunk in selected_chunks],
-        "metric_options": config.metric_options,
+        "metric_options": config.metric_options.as_dict(),
+        "metrics": question_metrics.as_dict(),
     }
     return EvaluationQuestionComputation(
         generated_answer=answer,
         retrieval_score=retrieval_score,
-        citation_accuracy_score=citation_validation_score if citations else None,
-        answer_relevance_score=confidence_score,
+        faithfulness_score=question_metrics.faithfulness_score,
+        citation_accuracy_score=question_metrics.citation_accuracy_score,
+        answer_relevance_score=question_metrics.answer_relevance_score,
+        metrics=question_metrics,
         latency_ms=total_latency_ms,
         details=details,
     )
@@ -485,6 +634,7 @@ async def _run_evaluation_async(
 
         question_success_count = 0
         question_failure_count = 0
+        successful_metrics: list[EvaluationQuestionMetrics] = []
         for question in questions:
             question_started = perf_counter()
             try:
@@ -499,12 +649,32 @@ async def _run_evaluation_async(
                 )
             except Exception as exc:
                 question_failure_count += 1
+                failed_metrics = _evaluation_metrics_service.score_question(
+                    expected_document_id=question.expected_document_id,
+                    expected_page_number=question.expected_page_number,
+                    expected_answer=question.expected_answer,
+                    generated_answer="",
+                    not_found=True,
+                    retrieved_chunks=[],
+                    selected_chunk_count=0,
+                    citation_count=0,
+                    citation_accuracy_score=None,
+                    latency_ms=int((perf_counter() - question_started) * 1000),
+                    cost_usd=0.0,
+                    token_input_count=0,
+                    token_output_count=0,
+                    options=run_config.metric_options,
+                    judge_scores=None,
+                    judge_error=exc.__class__.__name__,
+                )
                 computed = EvaluationQuestionComputation(
                     generated_answer="",
                     retrieval_score=None,
+                    faithfulness_score=None,
                     citation_accuracy_score=None,
                     answer_relevance_score=None,
-                    latency_ms=int((perf_counter() - question_started) * 1000),
+                    metrics=failed_metrics,
+                    latency_ms=failed_metrics.latency_ms,
                     details={
                         "status": "failed",
                         "question": question.question,
@@ -515,6 +685,7 @@ async def _run_evaluation_async(
                             else None
                         ),
                         "expected_page_number": question.expected_page_number,
+                        "metrics": failed_metrics.as_dict(),
                         "error": str(exc),
                         "error_type": exc.__class__.__name__,
                     },
@@ -530,6 +701,7 @@ async def _run_evaluation_async(
                 )
             else:
                 question_success_count += 1
+                successful_metrics.append(computed.metrics)
                 log_evaluation_event(
                     event="evaluation.question.completed",
                     organization_id=organization_id or str(evaluation_set.organization_id),
@@ -548,6 +720,7 @@ async def _run_evaluation_async(
                     evaluation_question_id=question.id,
                     generated_answer=computed.generated_answer or None,
                     retrieval_score=computed.retrieval_score,
+                    faithfulness_score=computed.faithfulness_score,
                     citation_accuracy_score=computed.citation_accuracy_score,
                     answer_relevance_score=computed.answer_relevance_score,
                     latency_ms=computed.latency_ms,
@@ -561,12 +734,45 @@ async def _run_evaluation_async(
                 ) from exc
 
         total_questions = len(questions)
+        metrics_summary = _evaluation_metrics_service.summarize_run(
+            metrics=successful_metrics,
+            total_questions=total_questions,
+            success_count=question_success_count,
+            failure_count=question_failure_count,
+        )
+        try:
+            updated_run = await _evaluation_repository.update_evaluation_run_config(
+                session,
+                evaluation_run_id=parsed_run_id,
+                config_patch={
+                    "metrics_summary": metrics_summary,
+                    "metric_options_effective": run_config.metric_options.as_dict(),
+                },
+            )
+            if updated_run is None:
+                raise RuntimeError("evaluation run not found while updating summary")
+            await session.commit()
+        except Exception as exc:
+            await session.rollback()
+            raise TransientTaskError(
+                f"Unable to persist evaluation summary for run: {evaluation_run_id}"
+            ) from exc
+
+        log_evaluation_event(
+            event="evaluation.run.metrics_computed",
+            organization_id=organization_id or str(evaluation_set.organization_id),
+            user_id=user_id,
+            job_id=evaluation_run_id,
+            request_id=request_id,
+            metrics_summary=metrics_summary,
+        )
         return {
             "evaluation_run_id": evaluation_run_id,
             "question_total_count": total_questions,
             "question_success_count": question_success_count,
             "question_failure_count": question_failure_count,
             "all_questions_failed": total_questions > 0 and question_success_count == 0,
+            "metrics_summary": metrics_summary,
         }
 
 
@@ -689,4 +895,5 @@ def run_evaluation(
         "question_total_count": summary["question_total_count"],
         "question_success_count": summary["question_success_count"],
         "question_failure_count": summary["question_failure_count"],
+        "metrics_summary": summary.get("metrics_summary"),
     }

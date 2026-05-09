@@ -550,6 +550,15 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select event_type, model_name, input_tokens, output_tokens, cost_usd, metadata from usage_events where event_type='chat.completion' order by created_at desc limit 10;"
 
+# Inspect latest evaluation run summary metrics
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select id, status, config->'metrics_summary' as metrics_summary from evaluation_runs order by created_at desc limit 5;"
+
+# Inspect per-question evaluation metrics
+RUN_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from evaluation_runs order by created_at desc limit 1;")
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select evaluation_question_id, retrieval_score, faithfulness_score, citation_accuracy_score, answer_relevance_score, latency_ms, details->'metrics' as metrics from evaluation_results where evaluation_run_id='${RUN_ID}'::uuid order by created_at;"
+
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \

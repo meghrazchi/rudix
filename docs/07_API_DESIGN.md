@@ -740,6 +740,9 @@ Notes:
 - `evaluation_set_id` must belong to the active organization.
 - `config.selected_document_ids` are org-scoped and validated before enqueue.
 - If duplicate active-run prevention is enabled, concurrent queued/running runs for the same set return `409`.
+- Worker computes per-question metrics (`retrieval_hit_rate`, `context_precision`, `context_recall`, `faithfulness_score`, `answer_relevance_score`, `citation_accuracy_score`, `refusal_accuracy`, latency, and cost) and stores them in `evaluation_results.details.metrics`.
+- Worker also writes a run summary to `evaluation_runs.config.metrics_summary` with aggregated means/rates and latency/cost/token totals.
+- `config.metric_options.faithfulness` and `config.metric_options.answer_relevance` toggle judge-based scoring; when enabled, `config.metric_options.judge_model_name` can override the judge model.
 
 ### GET `/evaluations/runs/{evaluation_run_id}`
 
