@@ -498,6 +498,13 @@ curl -sS http://localhost:8000/api/v1/chat/sessions/$CHAT_SESSION_ID \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Organization-ID: $ORG_ID" | jq
 
+# Run chat pipeline query (POST /chat)
+curl -sS http://localhost:8000/api/v1/chat \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" \
+  -H "Content-Type: application/json" \
+  -d "{\"question\":\"What does this document say?\",\"chat_session_id\":\"$CHAT_SESSION_ID\",\"document_ids\":[\"$DOC_ID\"],\"top_k\":5,\"rerank\":true}" | jq
+
 # Confirm uploaded object is present in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
   'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'

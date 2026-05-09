@@ -1,26 +1,61 @@
+import re
+from dataclasses import dataclass
+from time import perf_counter
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.clients import qdrant_client as qdrant_module
+from app.core.config import settings
 from app.core.logging import log_query_event
 from app.db.session import get_db_session
-from app.models.enums import OrganizationRole
+from app.models.enums import ChatRole, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.repositories.chat import ChatRepository
 from app.schemas.chat import (
+    ChatCitationResponse,
+    ChatDebugResponse,
     ChatMessageRequest,
     ChatMessageResponse,
+    ChatQueryRequest,
+    ChatQueryResponse,
     ChatSessionListResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
+from app.services.qdrant_filters import build_organization_filter
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
+_openai_client: AsyncOpenAI | None = None
+_NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
+_LOW_CONFIDENCE_THRESHOLD = 0.20
+_WORD_PATTERN = re.compile(r"[a-z0-9]+")
+
+
+@dataclass(frozen=True)
+class RetrievedChunk:
+    document_id: UUID
+    chunk_id: UUID
+    page_number: int | None
+    text: str
+    score: float
+    rerank_score: float | None = None
+
+
+def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={
+            "code": code,
+            "message": message,
+        },
+    )
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -36,6 +71,227 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Principal identity context is invalid",
         ) from exc
+
+
+def _get_openai_client() -> AsyncOpenAI:
+    global _openai_client
+    if _openai_client is None:
+        if settings.openai_api_key is None:
+            raise RuntimeError("OpenAI API key is not configured")
+        timeout_seconds = max(
+            settings.dependency_connect_timeout_seconds,
+            settings.dependency_read_timeout_seconds,
+        )
+        _openai_client = AsyncOpenAI(
+            api_key=settings.openai_api_key.get_secret_value(),
+            timeout=timeout_seconds,
+            max_retries=0,
+        )
+    return _openai_client
+
+
+async def _embed_query(question: str) -> tuple[list[float], int]:
+    if not settings.feature_enable_embeddings:
+        raise RuntimeError("Embeddings feature is disabled")
+
+    response = await _get_openai_client().embeddings.create(
+        model=settings.openai_embedding_model,
+        input=[question],
+    )
+    if not response.data:
+        raise RuntimeError("Embedding response did not include vectors")
+
+    vector = [float(value) for value in response.data[0].embedding]
+    if len(vector) != settings.qdrant_vector_size:
+        raise RuntimeError(
+            f"Embedding dimension mismatch: expected {settings.qdrant_vector_size}, got {len(vector)}"
+        )
+
+    usage = getattr(response, "usage", None)
+    prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
+    return vector, prompt_tokens
+
+
+def _get_qdrant_client():
+    if qdrant_module.qdrant_client is None:
+        qdrant_module.init_qdrant()
+    if qdrant_module.qdrant_client is None:
+        raise RuntimeError("Qdrant client is not initialized")
+    return qdrant_module.qdrant_client
+
+
+def _retrieve_chunks(
+    *,
+    query_vector: list[float],
+    organization_id: UUID,
+    document_ids: list[UUID],
+    limit: int,
+) -> list[RetrievedChunk]:
+    query_filter = build_organization_filter(
+        organization_id=str(organization_id),
+        document_ids=[str(document_id) for document_id in document_ids],
+    )
+    results = _get_qdrant_client().search(
+        collection_name=settings.qdrant_collection,
+        query_vector=query_vector,
+        query_filter=query_filter,
+        limit=limit,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    chunks: list[RetrievedChunk] = []
+    for result in results:
+        payload = getattr(result, "payload", None) or {}
+        try:
+            document_id = UUID(str(payload["document_id"]))
+            chunk_id = UUID(str(payload["chunk_id"]))
+        except (KeyError, ValueError, TypeError):
+            continue
+
+        text = str(payload.get("text", "")).strip()
+        if not text:
+            continue
+
+        raw_page_number = payload.get("page_number")
+        page_number = int(raw_page_number) if isinstance(raw_page_number, int) else None
+        score = float(getattr(result, "score", 0.0) or 0.0)
+        chunks.append(
+            RetrievedChunk(
+                document_id=document_id,
+                chunk_id=chunk_id,
+                page_number=page_number,
+                text=text,
+                score=score,
+            )
+        )
+
+    return sorted(chunks, key=lambda chunk: chunk.score, reverse=True)
+
+
+def _tokenize(text: str) -> set[str]:
+    return {token for token in _WORD_PATTERN.findall(text.lower()) if token}
+
+
+def _rerank_chunks(
+    *,
+    question: str,
+    chunks: list[RetrievedChunk],
+    enabled: bool,
+    final_top_k: int,
+) -> list[RetrievedChunk]:
+    if not chunks:
+        return []
+
+    if not enabled:
+        return chunks[:final_top_k]
+
+    query_terms = _tokenize(question)
+    reranked: list[RetrievedChunk] = []
+    for chunk in chunks:
+        chunk_terms = _tokenize(chunk.text)
+        if not query_terms:
+            rerank_score = 0.0
+        else:
+            rerank_score = len(query_terms.intersection(chunk_terms)) / len(query_terms)
+        reranked.append(
+            RetrievedChunk(
+                document_id=chunk.document_id,
+                chunk_id=chunk.chunk_id,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                score=chunk.score,
+                rerank_score=rerank_score,
+            )
+        )
+
+    reranked.sort(
+        key=lambda chunk: (chunk.rerank_score or 0.0, chunk.score),
+        reverse=True,
+    )
+    return reranked[:final_top_k]
+
+
+def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
+    context_lines: list[str] = []
+    for index, chunk in enumerate(chunks, start=1):
+        context_lines.append(
+            f"[{index}] document_id={chunk.document_id} "
+            f"chunk_id={chunk.chunk_id} page={chunk.page_number}\n"
+            f"{chunk.text}"
+        )
+
+    context_block = "\n\n".join(context_lines)
+    return (
+        "You are a document-grounded assistant.\n"
+        "Answer using only the provided context snippets.\n"
+        f"If the answer is not present, reply exactly with: {_NOT_FOUND_ANSWER}\n\n"
+        f"Question:\n{question}\n\n"
+        f"Context:\n{context_block}"
+    )
+
+
+def _extract_answer_content(content: object) -> str:
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for item in content:
+            text = getattr(item, "text", None)
+            if isinstance(text, str) and text.strip():
+                text_parts.append(text.strip())
+        return "\n".join(text_parts).strip()
+    return ""
+
+
+async def _generate_answer(prompt: str) -> tuple[str, str, int, int]:
+    if not settings.feature_enable_llm:
+        raise RuntimeError("LLM feature is disabled")
+
+    response = await _get_openai_client().chat.completions.create(
+        model=settings.openai_llm_model,
+        messages=[
+            {"role": "system", "content": "Answer questions only from retrieved document context."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0,
+    )
+
+    if not response.choices:
+        raise RuntimeError("LLM response contained no choices")
+
+    answer = _extract_answer_content(response.choices[0].message.content)
+    usage = getattr(response, "usage", None)
+    prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
+    completion_tokens = int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
+    model_name = str(getattr(response, "model", settings.openai_llm_model))
+    return answer, model_name, prompt_tokens, completion_tokens
+
+
+def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]:
+    return [
+        ChatCitationResponse(
+            document_id=str(chunk.document_id),
+            chunk_id=str(chunk.chunk_id),
+            page_number=chunk.page_number,
+            score=chunk.rerank_score if chunk.rerank_score is not None else chunk.score,
+            text_snippet=chunk.text[:400],
+        )
+        for chunk in chunks
+    ]
+
+
+def _score_confidence(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> float:
+    if not chunks:
+        return 0.0
+
+    top_similarity = max(0.0, min(1.0, chunks[0].score))
+    if not rerank_applied:
+        return round(top_similarity, 4)
+
+    top_rerank = max(0.0, min(1.0, chunks[0].rerank_score or 0.0))
+    combined = (0.6 * top_similarity) + (0.4 * top_rerank)
+    return round(max(0.0, min(1.0, combined)), 4)
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -195,6 +451,265 @@ async def get_chat_session(
         message_count=message_counts.get(chat_session.id, 0),
         created_at=chat_session.created_at,
         updated_at=chat_session.updated_at,
+    )
+
+
+@router.post("", response_model=ChatQueryResponse)
+async def query_chat(
+    payload: ChatQueryRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatQueryResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        document_ids = await ensure_document_ids_access(
+            document_ids=payload.document_ids,
+            principal=principal,
+            db_session=db_session,
+        )
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_404_NOT_FOUND:
+            log_query_event(
+                event="query.rejected.document_not_found",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+            raise _safe_http_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="document_not_found",
+                message="Document not found",
+            ) from exc
+        raise
+
+    if payload.chat_session_id is not None:
+        try:
+            chat_session_id = UUID(payload.chat_session_id)
+        except ValueError as exc:
+            log_query_event(
+                event="query.rejected.chat_session_not_found",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+            raise _safe_http_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="chat_session_not_found",
+                message="Chat session not found",
+            ) from exc
+        chat_session = await chat_repository.get_chat_session(
+            db_session,
+            chat_session_id=chat_session_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+        if chat_session is None:
+            log_query_event(
+                event="query.rejected.chat_session_not_found",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+            raise _safe_http_error(
+                status_code=status.HTTP_404_NOT_FOUND,
+                code="chat_session_not_found",
+                message="Chat session not found",
+            )
+    else:
+        default_title = payload.question[:120]
+        chat_session = await chat_repository.create_chat_session(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            title=default_title,
+        )
+
+    final_top_k = payload.top_k or settings.retrieval_final_top_k
+    retrieval_top_k = max(final_top_k, settings.retrieval_initial_top_k if payload.rerank else final_top_k)
+
+    latencies_ms: dict[str, int] = {}
+    total_started = perf_counter()
+
+    embed_started = perf_counter()
+    try:
+        query_vector, embedding_prompt_tokens = await _embed_query(payload.question)
+    except Exception as exc:
+        log_query_event(
+            event="query.failed.embed",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            job_id=str(chat_session.id),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error=exc.__class__.__name__,
+        )
+        raise _safe_http_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="query_embedding_failed",
+            message="Query embedding is unavailable",
+        ) from exc
+    latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
+
+    retrieve_started = perf_counter()
+    try:
+        retrieved_chunks = _retrieve_chunks(
+            query_vector=query_vector,
+            organization_id=organization_id,
+            document_ids=document_ids,
+            limit=retrieval_top_k,
+        )
+    except Exception as exc:
+        log_query_event(
+            event="query.failed.retrieve",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            job_id=str(chat_session.id),
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error=exc.__class__.__name__,
+        )
+        raise _safe_http_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="retrieval_failed",
+            message="Retrieval is unavailable",
+        ) from exc
+    latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
+
+    rerank_started = perf_counter()
+    selected_chunks = _rerank_chunks(
+        question=payload.question,
+        chunks=retrieved_chunks,
+        enabled=payload.rerank,
+        final_top_k=final_top_k,
+    )
+    latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
+
+    llm_prompt_tokens = 0
+    llm_completion_tokens = 0
+    llm_model: str | None = None
+
+    confidence_score = _score_confidence(chunks=selected_chunks, rerank_applied=payload.rerank)
+    not_found = len(selected_chunks) == 0 or confidence_score < _LOW_CONFIDENCE_THRESHOLD
+
+    prompt_started = perf_counter()
+    prompt = _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
+    latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
+
+    answer = _NOT_FOUND_ANSWER
+    citations: list[ChatCitationResponse] = []
+
+    llm_started = perf_counter()
+    if not not_found:
+        try:
+            answer, llm_model, llm_prompt_tokens, llm_completion_tokens = await _generate_answer(prompt)
+        except Exception as exc:
+            log_query_event(
+                event="query.failed.generate",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                job_id=str(chat_session.id),
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                error=exc.__class__.__name__,
+            )
+            raise _safe_http_error(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                code="generation_failed",
+                message="Answer generation is unavailable",
+            ) from exc
+
+        if not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+            answer = _NOT_FOUND_ANSWER
+            not_found = True
+        else:
+            citations = _build_citations(selected_chunks)
+    latencies_ms["llm"] = int((perf_counter() - llm_started) * 1000)
+
+    persist_started = perf_counter()
+    try:
+        _ = await chat_repository.create_chat_message(
+            db_session,
+            chat_session_id=chat_session.id,
+            role=ChatRole.user.value,
+            content=payload.question,
+        )
+        assistant_message = await chat_repository.create_chat_message(
+            db_session,
+            chat_session_id=chat_session.id,
+            role=ChatRole.assistant.value,
+            content=answer,
+            confidence_score=confidence_score,
+            model_name=llm_model,
+            token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
+            token_output_count=llm_completion_tokens,
+        )
+
+        for citation in citations:
+            await chat_repository.create_citation(
+                db_session,
+                chat_message_id=assistant_message.id,
+                document_id=UUID(citation.document_id),
+                chunk_id=UUID(citation.chunk_id),
+                text_snippet=citation.text_snippet or "",
+                page_number=citation.page_number,
+                similarity_score=citation.score,
+                rerank_score=citation.score if payload.rerank else None,
+            )
+
+        await db_session.commit()
+    except Exception as exc:
+        await db_session.rollback()
+        log_query_event(
+            event="query.failed.persist",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            job_id=str(chat_session.id),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error=exc.__class__.__name__,
+        )
+        raise _safe_http_error(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="chat_persistence_failed",
+            message="Failed to persist chat response",
+        ) from exc
+    latencies_ms["persist"] = int((perf_counter() - persist_started) * 1000)
+
+    latencies_ms["total"] = int((perf_counter() - total_started) * 1000)
+
+    log_query_event(
+        event="query.completed",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=str(chat_session.id),
+        status_code=status.HTTP_200_OK,
+        not_found=not_found,
+        confidence_score=confidence_score,
+        retrieval_count=len(retrieved_chunks),
+        selected_count=len(selected_chunks),
+    )
+    return ChatQueryResponse(
+        chat_session_id=str(chat_session.id),
+        message_id=str(assistant_message.id),
+        answer=answer,
+        confidence_score=confidence_score,
+        not_found=not_found,
+        citations=[] if not_found else citations,
+        debug=ChatDebugResponse(
+            latencies_ms=latencies_ms,
+            retrieval_count=len(retrieved_chunks),
+            selected_count=len(selected_chunks),
+            rerank_applied=payload.rerank,
+            llm_model=llm_model,
+        ),
+        created_at=assistant_message.created_at,
     )
 
 

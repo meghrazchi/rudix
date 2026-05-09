@@ -351,6 +351,64 @@ Response:
 }
 ```
 
+### POST `/chat`
+
+Main real-time RAG query endpoint.
+
+Request:
+
+```json
+{
+  "question": "What is the leave policy?",
+  "chat_session_id": "uuid-optional",
+  "document_ids": ["uuid"],
+  "top_k": 5,
+  "rerank": true
+}
+```
+
+Response:
+
+```json
+{
+  "chat_session_id": "uuid",
+  "message_id": "uuid",
+  "answer": "Employees receive 20 paid leave days per year.",
+  "confidence_score": 0.89,
+  "not_found": false,
+  "citations": [
+    {
+      "document_id": "uuid",
+      "chunk_id": "uuid",
+      "page_number": 4,
+      "score": 0.91,
+      "text_snippet": "Employees receive 20 paid leave days..."
+    }
+  ],
+  "debug": {
+    "latencies_ms": {
+      "embed": 34,
+      "retrieve": 18,
+      "rerank": 1,
+      "prompt": 0,
+      "llm": 620,
+      "persist": 5,
+      "total": 678
+    },
+    "retrieval_count": 10,
+    "selected_count": 5,
+    "rerank_applied": true,
+    "llm_model": "gpt-5.4-mini"
+  },
+  "created_at": "2026-05-09T10:01:10Z"
+}
+```
+
+Not-found behavior:
+
+- When no relevant chunks are retrieved (or confidence is below threshold), response returns `not_found=true`, no citations, and answer:
+- `"I could not find this information in the uploaded documents."`
+
 ### POST `/chat/sessions/{session_id}/messages`
 
 Ask a question.
