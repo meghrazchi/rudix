@@ -1,0 +1,279 @@
+from __future__ import annotations
+
+import os
+from decimal import Decimal
+from uuid import UUID, uuid4
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+# Ensure strict settings can be loaded when importing modules in tests.
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
+os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
+os.environ.setdefault("QDRANT_COLLECTION", "documents")
+os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
+os.environ.setdefault("MINIO_ACCESS_KEY", "minioadmin")
+os.environ.setdefault("MINIO_SECRET_KEY", "minioadmin")
+os.environ.setdefault("MINIO_BUCKET", "documents")
+os.environ.setdefault("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672//")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("OPENAI_API_KEY", "sk-test")
+os.environ.setdefault("AUTH_PROVIDER", "app")
+os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
+
+from app.core.config import settings
+from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
+from app.models.evaluation import EvaluationResult
+from app.models.organization import Organization
+from app.models.organization_member import OrganizationMember
+from app.models.user import User
+from app.repositories.documents import DocumentRepository
+from app.repositories.evaluations import EvaluationRepository
+from app.services.llm_service import ParsedCitation
+from app.services.query_retrieval_service import RetrievedCandidate
+from app.workers import evaluation_tasks
+
+
+class FakeQueryRetrievalService:
+    def __init__(self, outcomes: list[list[RetrievedCandidate] | Exception]) -> None:
+        self.embedding_model = settings.openai_embedding_model
+        self._outcomes = outcomes
+        self._retrieve_calls = 0
+
+    async def embed_query(
+        self,
+        *,
+        question: str,
+        openai_client: object | None = None,
+    ) -> tuple[list[float], int]:
+        del question, openai_client
+        return [0.01] * settings.qdrant_vector_size, 9
+
+    def retrieve_candidates(
+        self,
+        *,
+        query_vector: list[float],
+        organization_id: UUID,
+        document_ids: list[UUID],
+        initial_top_k: int,
+        qdrant_client: object | None = None,
+    ) -> list[RetrievedCandidate]:
+        del query_vector, organization_id, document_ids, initial_top_k, qdrant_client
+        if self._retrieve_calls >= len(self._outcomes):
+            return []
+        outcome = self._outcomes[self._retrieve_calls]
+        self._retrieve_calls += 1
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+class FakeLLMService:
+    def __init__(self, *, model_name: str | None = None) -> None:
+        self.model_name = model_name or settings.openai_llm_model
+
+    async def generate_answer(
+        self,
+        *,
+        prompt: str,
+        openai_client: object,
+    ) -> object:
+        del prompt, openai_client
+        return type(
+            "FakeLLMAnswerResult",
+            (),
+            {
+                "answer": "Employees receive twenty days of annual leave.",
+                "not_found": False,
+                "citations": [
+                    ParsedCitation(
+                        document_id="00000000-0000-0000-0000-000000000000",
+                        chunk_id="00000000-0000-0000-0000-000000000000",
+                    )
+                ],
+                "model_name": self.model_name,
+                "prompt_tokens": 31,
+                "completion_tokens": 14,
+                "total_tokens": 45,
+                "approximate_cost_usd": Decimal("0.000012"),
+                "latency_ms": 11,
+                "retry_count": 0,
+                "used_fallback_parser": False,
+            },
+        )()
+
+
+async def _seed_evaluation_run(
+    db_session: AsyncSession,
+    *,
+    question_texts: list[str],
+    selected_document_ids: list[str],
+) -> tuple[str, UUID, UUID, UUID]:
+    organization = Organization(name="Eval Worker Org", slug=f"eval-worker-{uuid4().hex[:8]}")
+    db_session.add(organization)
+    await db_session.flush()
+
+    user = User(
+        organization_id=organization.id,
+        external_auth_id=f"eval-worker-user-{uuid4().hex[:8]}",
+        email=f"eval-worker-{uuid4().hex[:8]}@example.com",
+    )
+    db_session.add(user)
+    await db_session.flush()
+
+    db_session.add(
+        OrganizationMember(
+            organization_id=organization.id,
+            user_id=user.id,
+            role=OrganizationRole.admin.value,
+        )
+    )
+    await db_session.flush()
+
+    document_repository = DocumentRepository()
+    document = await document_repository.create_document(
+        db_session,
+        organization_id=organization.id,
+        uploaded_by_user_id=user.id,
+        filename="policy.pdf",
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"seed/{uuid4().hex}.pdf",
+        status=DocumentStatus.indexed.value,
+    )
+    chunk = await document_repository.create_document_chunk(
+        db_session,
+        document_id=document.id,
+        page_number=1,
+        chunk_index=0,
+        text="Employees receive twenty days of annual leave.",
+        token_count=60,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document.id}:{settings.document_index_version}:0",
+    )
+
+    evaluation_repository = EvaluationRepository()
+    evaluation_set = await evaluation_repository.create_evaluation_set(
+        db_session,
+        organization_id=organization.id,
+        name="Worker Eval Set",
+    )
+    for question_text in question_texts:
+        await evaluation_repository.create_evaluation_question(
+            db_session,
+            evaluation_set_id=evaluation_set.id,
+            question=question_text,
+            expected_answer="Employees receive twenty days of annual leave.",
+            expected_document_id=document.id,
+            expected_page_number=1,
+        )
+
+    evaluation_run = await evaluation_repository.create_evaluation_run(
+        db_session,
+        evaluation_set_id=evaluation_set.id,
+        status=EvaluationRunStatus.queued.value,
+        config={
+            "top_k": 3,
+            "rerank": True,
+            "model_name": settings.openai_llm_model,
+            "selected_document_ids": selected_document_ids,
+            "metric_options": {"faithfulness": True},
+        },
+    )
+    await db_session.commit()
+    return str(evaluation_run.id), organization.id, document.id, chunk.id
+
+
+@pytest.mark.asyncio
+async def test_evaluation_worker_persists_results_and_continues_on_question_failure(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, _, document_id, chunk_id = await _seed_evaluation_run(
+        db_session,
+        question_texts=["Question success", "Question failure"],
+        selected_document_ids=[],
+    )
+
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(evaluation_tasks, "LLMService", FakeLLMService)
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_query_retrieval_service",
+        FakeQueryRetrievalService(
+            outcomes=[
+                [
+                    RetrievedCandidate(
+                        document_id=document_id,
+                        chunk_id=chunk_id,
+                        filename="policy.pdf",
+                        page_number=1,
+                        text="Employees receive twenty days of annual leave.",
+                        similarity_score=0.93,
+                    )
+                ],
+                RuntimeError("qdrant timeout"),
+            ]
+        ),
+    )
+
+    result = await evaluation_tasks._run_evaluation_async(run_id)
+    assert result["question_total_count"] == 2
+    assert result["question_success_count"] == 1
+    assert result["question_failure_count"] == 1
+    assert result["all_questions_failed"] is False
+
+    rows = list((await db_session.execute(select(EvaluationResult))).scalars().all())
+    assert len(rows) == 2
+    completed = next(row for row in rows if row.details.get("status") == "completed")
+    failed = next(row for row in rows if row.details.get("status") == "failed")
+
+    assert completed.generated_answer == "Employees receive twenty days of annual leave."
+    assert completed.details["retrieval_count"] == 1
+    assert completed.details["selected_count"] == 1
+    assert completed.details["embedding_model"] == settings.openai_embedding_model
+    assert completed.details["citations"]
+    assert completed.details["retrieved_chunks"][0]["document_id"] == str(document_id)
+
+    assert failed.generated_answer is None
+    assert failed.details["error_type"] == "RuntimeError"
+    assert failed.details["error"] == "qdrant timeout"
+    assert failed.details["question"] == "Question failure"
+
+
+@pytest.mark.asyncio
+async def test_evaluation_worker_marks_failed_when_all_questions_fail(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, _, _, _ = await _seed_evaluation_run(
+        db_session,
+        question_texts=["Question failure"],
+        selected_document_ids=[],
+    )
+
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(evaluation_tasks, "LLMService", FakeLLMService)
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_query_retrieval_service",
+        FakeQueryRetrievalService(outcomes=[RuntimeError("retrieval unavailable")]),
+    )
+
+    result = await evaluation_tasks._run_evaluation_async(run_id)
+    assert result["question_total_count"] == 1
+    assert result["question_success_count"] == 0
+    assert result["question_failure_count"] == 1
+    assert result["all_questions_failed"] is True
+
+    rows = list((await db_session.execute(select(EvaluationResult))).scalars().all())
+    assert len(rows) == 1
+    assert rows[0].details["status"] == "failed"
+    assert rows[0].details["error"] == "retrieval unavailable"

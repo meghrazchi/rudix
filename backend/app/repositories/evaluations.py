@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import EvaluationRunStatus
@@ -40,6 +40,15 @@ class EvaluationRepository:
                 EvaluationSet.organization_id == organization_id,
             )
         )
+        return result.scalar_one_or_none()
+
+    async def get_evaluation_set_by_id(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+    ) -> EvaluationSet | None:
+        result = await session.execute(select(EvaluationSet).where(EvaluationSet.id == evaluation_set_id))
         return result.scalar_one_or_none()
 
     async def list_evaluation_sets(
@@ -108,6 +117,19 @@ class EvaluationRepository:
             .order_by(EvaluationQuestion.created_at.asc(), EvaluationQuestion.id.asc())
             .offset(offset)
             .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def list_all_evaluation_questions(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+    ) -> list[EvaluationQuestion]:
+        result = await session.execute(
+            select(EvaluationQuestion)
+            .where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+            .order_by(EvaluationQuestion.created_at.asc(), EvaluationQuestion.id.asc())
         )
         return list(result.scalars().all())
 
@@ -222,3 +244,14 @@ class EvaluationRepository:
         await session.flush()
         await session.refresh(evaluation_result)
         return evaluation_result
+
+    async def delete_evaluation_results_for_run(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            delete(EvaluationResult).where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+        )
+        return int(result.rowcount or 0)

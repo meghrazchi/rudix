@@ -372,11 +372,66 @@ def test_evaluation_run_transitions_status(monkeypatch: pytest.MonkeyPatch) -> N
         mark_started: bool = False,
         mark_completed: bool = False,
     ) -> bool:
+        del evaluation_run_id, mark_started, mark_completed
         transitions.append(status.value)
         return True
 
     monkeypatch.setattr(evaluation_tasks, "set_evaluation_status", _set_eval_status)
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_run_evaluation_async",
+        lambda *_args, **_kwargs: _completed_summary(),
+    )
+
+    async def _completed_summary() -> dict[str, object]:
+        return {
+            "evaluation_run_id": "eval-1",
+            "question_total_count": 3,
+            "question_success_count": 3,
+            "question_failure_count": 0,
+            "all_questions_failed": False,
+        }
 
     result = evaluation_tasks.run_evaluation.run("eval-1")
     assert result["status"] == EvaluationRunStatus.completed.value
     assert transitions == [EvaluationRunStatus.running.value, EvaluationRunStatus.completed.value]
+
+
+def test_evaluation_run_marks_failed_when_all_questions_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+    transitions: list[str] = []
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "get_evaluation_status",
+        lambda _: EvaluationRunStatus.queued.value,
+    )
+
+    def _set_eval_status(
+        evaluation_run_id: str,
+        *,
+        status: EvaluationRunStatus,
+        mark_started: bool = False,
+        mark_completed: bool = False,
+    ) -> bool:
+        del evaluation_run_id, mark_started, mark_completed
+        transitions.append(status.value)
+        return True
+
+    monkeypatch.setattr(evaluation_tasks, "set_evaluation_status", _set_eval_status)
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_run_evaluation_async",
+        lambda *_args, **_kwargs: _failed_summary(),
+    )
+
+    async def _failed_summary() -> dict[str, object]:
+        return {
+            "evaluation_run_id": "eval-1",
+            "question_total_count": 2,
+            "question_success_count": 0,
+            "question_failure_count": 2,
+            "all_questions_failed": True,
+        }
+
+    result = evaluation_tasks.run_evaluation.run("eval-1")
+    assert result["status"] == EvaluationRunStatus.failed.value
+    assert transitions == [EvaluationRunStatus.running.value, EvaluationRunStatus.failed.value]
