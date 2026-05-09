@@ -130,6 +130,11 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_embedding_model: str = Field(default="text-embedding-3-small", min_length=3, max_length=128)
     openai_llm_model: str = Field(default="gpt-5.4-mini", min_length=3, max_length=128)
+    llm_retry_max_attempts: int = Field(default=2, ge=1, le=10)
+    llm_retry_base_seconds: float = Field(default=0.4, ge=0.1, le=30.0)
+    llm_retry_max_seconds: float = Field(default=3.0, ge=0.1, le=120.0)
+    openai_llm_input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
+    openai_llm_output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
 
     auth_provider: AuthProvider = AuthProvider.app
     app_auth_secret: SecretStr = SecretStr("dev-insecure-change-me")
@@ -246,6 +251,9 @@ class Settings(BaseSettings):
 
         if self.embedding_retry_max_seconds < self.embedding_retry_base_seconds:
             raise ValueError("embedding_retry_max_seconds must be >= embedding_retry_base_seconds")
+
+        if self.llm_retry_max_seconds < self.llm_retry_base_seconds:
+            raise ValueError("llm_retry_max_seconds must be >= llm_retry_base_seconds")
 
         if self.embedding_batch_max_tokens < self.chunk_size_tokens:
             raise ValueError("embedding_batch_max_tokens must be >= chunk_size_tokens")
@@ -364,6 +372,11 @@ class Settings(BaseSettings):
             "openai_api_key_set": self.openai_api_key is not None,
             "openai_embedding_model": self.openai_embedding_model,
             "openai_llm_model": self.openai_llm_model,
+            "llm_retry_max_attempts": self.llm_retry_max_attempts,
+            "llm_retry_base_seconds": self.llm_retry_base_seconds,
+            "llm_retry_max_seconds": self.llm_retry_max_seconds,
+            "openai_llm_input_cost_per_million_tokens_usd": self.openai_llm_input_cost_per_million_tokens_usd,
+            "openai_llm_output_cost_per_million_tokens_usd": self.openai_llm_output_cost_per_million_tokens_usd,
             "auth_provider": self.auth_provider.value,
             "app_auth_secret_set": bool(self.app_auth_secret.get_secret_value()),
             "app_auth_access_token_ttl_seconds": self.app_auth_access_token_ttl_seconds,

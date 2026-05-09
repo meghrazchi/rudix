@@ -36,6 +36,11 @@ ENV_KEYS = [
     "EMBEDDING_RETRY_BASE_SECONDS",
     "EMBEDDING_RETRY_MAX_SECONDS",
     "OPENAI_EMBEDDING_COST_PER_MILLION_TOKENS_USD",
+    "LLM_RETRY_MAX_ATTEMPTS",
+    "LLM_RETRY_BASE_SECONDS",
+    "LLM_RETRY_MAX_SECONDS",
+    "OPENAI_LLM_INPUT_COST_PER_MILLION_TOKENS_USD",
+    "OPENAI_LLM_OUTPUT_COST_PER_MILLION_TOKENS_USD",
     "OPENAI_API_KEY",
     "AUTH_PROVIDER",
     "APP_AUTH_SECRET",
@@ -151,6 +156,15 @@ def test_invalid_embedding_retry_window_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["embedding_retry_base_seconds"] = 2.0
     payload["embedding_retry_max_seconds"] = 1.0
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_llm_retry_window_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["llm_retry_base_seconds"] = 2.0
+    payload["llm_retry_max_seconds"] = 1.0
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

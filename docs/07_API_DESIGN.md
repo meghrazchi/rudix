@@ -375,7 +375,9 @@ Notes:
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
 - Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `rerank_score`, `rerank_rank`) and an explicit allowed chunk ID list for citation validation.
 - LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
-- If model output is not valid structured JSON, backend fails closed to a safe not-found response (no citations).
+- Backend requests JSON mode when supported by the selected model/provider and transparently retries without JSON mode for providers that do not support `response_format`.
+- If model output is still not valid structured JSON after retries, backend falls back to a safe not-found response (no citations).
+- LLM stage metrics include latency, token counts, model name, and approximate cost telemetry for orchestration persistence.
 
 Response:
 

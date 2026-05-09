@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Annotated
@@ -28,6 +27,7 @@ from app.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
+from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
 from app.services.prompt_service import PromptContextChunk, PromptService
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
 from app.services.rerank_service import RerankCandidate, RerankService
@@ -38,9 +38,9 @@ _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
+_llm_service = LLMService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _LOW_CONFIDENCE_THRESHOLD = 0.20
-_MAX_GENERATED_ANSWER_CHARS = 8000
 
 
 @dataclass(frozen=True)
@@ -179,66 +179,6 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
             for chunk in chunks
         ],
     )
-
-
-def _extract_grounded_output(raw_content: str) -> tuple[str, bool]:
-    try:
-        payload = json.loads(raw_content)
-    except json.JSONDecodeError:
-        return "", True
-
-    if not isinstance(payload, dict):
-        return "", True
-
-    answer = payload.get("answer")
-    not_found = payload.get("not_found")
-    if not isinstance(answer, str):
-        return "", True
-
-    return answer.strip(), bool(not_found) if isinstance(not_found, bool) else False
-
-
-def _extract_answer_content(content: object) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
-        text_parts: list[str] = []
-        for item in content:
-            text = getattr(item, "text", None)
-            if isinstance(text, str) and text.strip():
-                text_parts.append(text.strip())
-        return "\n".join(text_parts).strip()
-    return ""
-
-
-async def _generate_answer(prompt: str) -> tuple[str, bool, str, int, int]:
-    if not settings.feature_enable_llm:
-        raise RuntimeError("LLM feature is disabled")
-
-    response = await _get_openai_client().chat.completions.create(
-        model=settings.openai_llm_model,
-        messages=[
-            {"role": "system", "content": "Answer questions only from retrieved document context."},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0,
-    )
-
-    if not response.choices:
-        raise RuntimeError("LLM response contained no choices")
-
-    raw_answer = _extract_answer_content(response.choices[0].message.content)
-    answer, model_not_found = _extract_grounded_output(raw_answer)
-    if "\x00" in answer:
-        answer = answer.replace("\x00", "")
-    answer = answer.strip()
-    if len(answer) > _MAX_GENERATED_ANSWER_CHARS:
-        answer = answer[:_MAX_GENERATED_ANSWER_CHARS].strip()
-    usage = getattr(response, "usage", None)
-    prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-    completion_tokens = int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
-    model_name = str(getattr(response, "model", settings.openai_llm_model))
-    return answer, model_not_found, model_name, prompt_tokens, completion_tokens
 
 
 def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]:
@@ -583,6 +523,7 @@ async def query_chat(
     llm_prompt_tokens = 0
     llm_completion_tokens = 0
     llm_model: str | None = None
+    llm_cost_usd = None
 
     confidence_score = _score_confidence(chunks=selected_chunks, rerank_applied=payload.rerank)
     not_found = len(selected_chunks) == 0 or confidence_score < _LOW_CONFIDENCE_THRESHOLD
@@ -594,13 +535,14 @@ async def query_chat(
     answer = _NOT_FOUND_ANSWER
     citations: list[ChatCitationResponse] = []
 
-    llm_started = perf_counter()
+    llm_latency_ms = 0
     if not not_found:
         try:
-            answer, model_not_found, llm_model, llm_prompt_tokens, llm_completion_tokens = await _generate_answer(
-                prompt
+            llm_result = await _llm_service.generate_answer(
+                prompt=prompt,
+                openai_client=_get_openai_client(),
             )
-        except Exception as exc:
+        except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             log_query_event(
                 event="query.failed.generate",
                 organization_id=principal.organization_id,
@@ -615,7 +557,14 @@ async def query_chat(
                 message="Answer generation is unavailable",
             ) from exc
 
-        if model_not_found:
+        llm_latency_ms = llm_result.latency_ms
+        llm_model = llm_result.model_name
+        llm_prompt_tokens = llm_result.prompt_tokens
+        llm_completion_tokens = llm_result.completion_tokens
+        llm_cost_usd = llm_result.approximate_cost_usd
+        answer = llm_result.answer
+
+        if llm_result.not_found:
             answer = _NOT_FOUND_ANSWER
             not_found = True
         elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
@@ -623,7 +572,7 @@ async def query_chat(
             not_found = True
         else:
             citations = _build_citations(selected_chunks)
-    latencies_ms["llm"] = int((perf_counter() - llm_started) * 1000)
+    latencies_ms["llm"] = llm_latency_ms
 
     persist_started = perf_counter()
     try:
@@ -642,6 +591,7 @@ async def query_chat(
             model_name=llm_model,
             token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
             token_output_count=llm_completion_tokens,
+            cost_usd=llm_cost_usd,
         )
 
         for citation in citations:
