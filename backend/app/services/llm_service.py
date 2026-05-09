@@ -42,6 +42,7 @@ class ParsedCitation(BaseModel):
     chunk_id: str
     filename: str | None = None
     page_number: int | None = None
+    text_snippet: str | None = None
 
 
 class ParsedLLMOutput(BaseModel):

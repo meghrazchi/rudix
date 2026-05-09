@@ -377,6 +377,9 @@ Notes:
 - LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
 - Backend requests JSON mode when supported by the selected model/provider and transparently retries without JSON mode for providers that do not support `response_format`.
 - If model output is still not valid structured JSON after retries, backend falls back to a safe not-found response (no citations).
+- Model citations are validated against retrieved final context: chunk IDs must exist, filename/page are repaired from authoritative chunk metadata, and quote snippets must match chunk text (exact/fuzzy) or are replaced with safe chunk snippets.
+- When model citations are missing or invalid, backend falls back to top retrieved chunks as citations (unless `not_found=true`).
+- Citation validation quality contributes to final confidence scoring.
 - LLM stage metrics include latency, token counts, model name, and approximate cost telemetry for orchestration persistence.
 
 Response:

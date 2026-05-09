@@ -27,6 +27,7 @@ from app.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
+from app.services.citation_service import CitationContextChunk, CitationService
 from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
 from app.services.prompt_service import PromptContextChunk, PromptService
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
@@ -38,6 +39,7 @@ _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
+_citation_service = CitationService()
 _llm_service = LLMService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _LOW_CONFIDENCE_THRESHOLD = 0.20
@@ -181,33 +183,28 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
     )
 
 
-def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]:
-    return [
-        ChatCitationResponse(
-            document_id=str(chunk.document_id),
-            chunk_id=str(chunk.chunk_id),
-            filename=chunk.filename,
-            page_number=chunk.page_number,
-            score=chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score,
-            similarity_score=chunk.similarity_score,
-            rerank_score=chunk.rerank_score,
-            rerank_rank=chunk.rerank_rank,
-            text_snippet=chunk.text[:400],
-        )
-        for chunk in chunks
-    ]
-
-
-def _score_confidence(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> float:
+def _score_confidence(
+    *,
+    chunks: list[RetrievedChunk],
+    rerank_applied: bool,
+    citation_validation_score: float | None = None,
+) -> float:
     if not chunks:
         return 0.0
 
     top_similarity = max(0.0, min(1.0, chunks[0].similarity_score))
+    base_score: float
     if not rerank_applied:
-        return round(top_similarity, 4)
+        base_score = top_similarity
+    else:
+        top_rerank = max(0.0, min(1.0, chunks[0].rerank_score or 0.0))
+        base_score = (0.6 * top_similarity) + (0.4 * top_rerank)
 
-    top_rerank = max(0.0, min(1.0, chunks[0].rerank_score or 0.0))
-    combined = (0.6 * top_similarity) + (0.4 * top_rerank)
+    if citation_validation_score is None:
+        return round(max(0.0, min(1.0, base_score)), 4)
+
+    citation_factor = 0.5 + (0.5 * max(0.0, min(1.0, citation_validation_score)))
+    combined = base_score * citation_factor
     return round(max(0.0, min(1.0, combined)), 4)
 
 
@@ -571,7 +568,43 @@ async def query_chat(
             answer = _NOT_FOUND_ANSWER
             not_found = True
         else:
-            citations = _build_citations(selected_chunks)
+            citation_result = _citation_service.build_citations(
+                not_found=False,
+                answer=answer,
+                retrieved_chunks=[
+                    CitationContextChunk(
+                        document_id=chunk.document_id,
+                        chunk_id=chunk.chunk_id,
+                        filename=chunk.filename,
+                        page_number=chunk.page_number,
+                        text=chunk.text,
+                        similarity_score=chunk.similarity_score,
+                        rerank_score=chunk.rerank_score,
+                        rerank_rank=chunk.rerank_rank,
+                    )
+                    for chunk in selected_chunks
+                ],
+                model_citations=llm_result.citations,
+            )
+            citations = citation_result.citations
+            confidence_score = _score_confidence(
+                chunks=selected_chunks,
+                rerank_applied=payload.rerank,
+                citation_validation_score=citation_result.validation_score,
+            )
+            log_query_event(
+                event="query.citations.validated",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                job_id=str(chat_session.id),
+                validation_score=citation_result.validation_score,
+                model_citation_count=citation_result.model_citation_count,
+                accepted_model_citation_count=citation_result.accepted_model_citation_count,
+                used_fallback=citation_result.used_fallback,
+                invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
+                metadata_mismatch_count=citation_result.metadata_mismatch_count,
+                snippet_mismatch_count=citation_result.snippet_mismatch_count,
+            )
     latencies_ms["llm"] = llm_latency_ms
 
     persist_started = perf_counter()

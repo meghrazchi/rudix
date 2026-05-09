@@ -640,3 +640,201 @@ async def test_post_chat_low_confidence_falls_back_to_not_found(
     assert payload["citations"] == []
     assert payload["confidence_score"] < 0.2
     assert fake_openai.chat.completions.calls == []
+
+
+@pytest.mark.asyncio
+async def test_post_chat_rejects_fake_llm_citation_chunk_ids_and_falls_back(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer=(
+            '{"answer":"Employees receive twenty days of annual leave.","not_found":false,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(uuid4())
+            + '","filename":"policy.pdf","page_number":1,"text_snippet":"twenty days of annual leave"}]}'
+        )
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert len(payload["citations"]) == 1
+    assert payload["citations"][0]["chunk_id"] == str(chunk.id)
+    assert payload["confidence_score"] < 0.92
+
+
+@pytest.mark.asyncio
+async def test_post_chat_repairs_invalid_llm_snippet_with_context_snippet(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer=(
+            '{"answer":"Employees receive twenty days of annual leave.","not_found":false,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(chunk.id)
+            + '","filename":"policy.pdf","page_number":1,'
+            '"text_snippet":"totally unrelated snippet"}]}'
+        )
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert payload["citations"][0]["text_snippet"] == "Employees receive twenty days of annual leave."
+
+
+@pytest.mark.asyncio
+async def test_post_chat_not_found_response_omits_citations_even_if_model_includes_them(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer=(
+            '{"answer":"I could not find this information in the uploaded documents.","not_found":true,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(chunk.id)
+            + '","filename":"policy.pdf","page_number":1}]}'
+        )
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is True
+    assert payload["citations"] == []
