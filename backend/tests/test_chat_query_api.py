@@ -42,6 +42,7 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
+from app.services.rerank_service import RerankService
 
 
 @dataclass
@@ -279,6 +280,8 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert payload["citations"][0]["document_id"] == str(document.id)
     assert payload["citations"][0]["filename"] == "policy.pdf"
     assert payload["citations"][0]["similarity_score"] == pytest.approx(0.92)
+    assert payload["citations"][0]["rerank_score"] == pytest.approx(0.92)
+    assert payload["citations"][0]["rerank_rank"] == 1
     assert payload["debug"]["retrieval_count"] == 1
     assert payload["debug"]["selected_count"] == 1
     assert payload["debug"]["rerank_applied"] is True
@@ -298,6 +301,73 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert len(citations) == 1
     assert citations[0].document_id == document.id
     assert citations[0].chunk_id == chunk.id
+    assert float(citations[0].similarity_score or 0.0) == pytest.approx(0.92)
+    assert float(citations[0].rerank_score or 0.0) == pytest.approx(0.92)
+
+
+@pytest.mark.asyncio
+async def test_post_chat_rerank_toggle_disables_rerank_metadata_and_uses_top_k_limit(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(answer="Employees receive twenty days of annual leave.")
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+    monkeypatch.setattr(
+        chat_api,
+        "_rerank_service",
+        RerankService(mmr_lambda=0.7, candidate_count=25, duplicate_similarity_threshold=0.9),
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 1,
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["debug"]["rerank_applied"] is False
+    assert payload["debug"]["selected_count"] == 1
+    assert payload["citations"][0]["similarity_score"] == pytest.approx(0.92)
+    assert payload["citations"][0]["rerank_score"] is None
+    assert payload["citations"][0]["rerank_rank"] is None
+    assert qdrant_module.qdrant_client.calls[-1]["limit"] == 1
 
 
 @pytest.mark.asyncio

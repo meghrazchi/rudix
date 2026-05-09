@@ -367,6 +367,12 @@ Request:
 }
 ```
 
+Notes:
+
+- `rerank=true` applies MMR reranking on retrieved candidates before prompt construction.
+- MMR behavior is configured through `RERANK_MMR_LAMBDA`, `RERANK_MMR_CANDIDATE_COUNT`, and `RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD`.
+- `rerank=false` returns raw retrieval ordering (similarity-only) up to `top_k`.
+
 Response:
 
 ```json
@@ -384,6 +390,8 @@ Response:
       "page_number": 4,
       "score": 0.91,
       "similarity_score": 0.89,
+      "rerank_score": 0.91,
+      "rerank_rank": 1,
       "text_snippet": "Employees receive 20 paid leave days..."
     }
   ],

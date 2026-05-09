@@ -1,4 +1,3 @@
-import re
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Annotated
@@ -29,14 +28,15 @@ from app.schemas.chat import (
     CreateChatSessionRequest,
 )
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
+from app.services.rerank_service import RerankCandidate, RerankService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
+_rerank_service = RerankService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _LOW_CONFIDENCE_THRESHOLD = 0.20
-_WORD_PATTERN = re.compile(r"[a-z0-9]+")
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,7 @@ class RetrievedChunk:
     text: str
     similarity_score: float
     rerank_score: float | None = None
+    rerank_rank: int | None = None
 
 
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
@@ -111,48 +112,49 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
     )
 
 
-def _tokenize(text: str) -> set[str]:
-    return {token for token in _WORD_PATTERN.findall(text.lower()) if token}
-
-
 def _rerank_chunks(
     *,
-    question: str,
     chunks: list[RetrievedChunk],
     enabled: bool,
     final_top_k: int,
 ) -> list[RetrievedChunk]:
-    if not chunks:
+    if final_top_k < 1 or not chunks:
         return []
 
-    if not enabled:
-        return chunks[:final_top_k]
+    chunk_by_key = {str(chunk.chunk_id): chunk for chunk in chunks}
+    rerank_inputs = [
+        RerankCandidate(
+            key=str(chunk.chunk_id),
+            text=chunk.text,
+            similarity_score=chunk.similarity_score,
+        )
+        for chunk in chunks
+    ]
 
-    query_terms = _tokenize(question)
-    reranked: list[RetrievedChunk] = []
-    for chunk in chunks:
-        chunk_terms = _tokenize(chunk.text)
-        if not query_terms:
-            rerank_score = 0.0
-        else:
-            rerank_score = len(query_terms.intersection(chunk_terms)) / len(query_terms)
-        reranked.append(
+    rerank_results = _rerank_service.rerank(
+        candidates=rerank_inputs,
+        enabled=enabled,
+        final_top_k=final_top_k,
+    )
+
+    selected_chunks: list[RetrievedChunk] = []
+    for reranked in rerank_results:
+        source_chunk = chunk_by_key.get(reranked.key)
+        if source_chunk is None:
+            continue
+        selected_chunks.append(
             RetrievedChunk(
-                document_id=chunk.document_id,
-                chunk_id=chunk.chunk_id,
-                filename=chunk.filename,
-                page_number=chunk.page_number,
-                text=chunk.text,
-                similarity_score=chunk.similarity_score,
-                rerank_score=rerank_score,
+                document_id=source_chunk.document_id,
+                chunk_id=source_chunk.chunk_id,
+                filename=source_chunk.filename,
+                page_number=source_chunk.page_number,
+                text=source_chunk.text,
+                similarity_score=source_chunk.similarity_score,
+                rerank_score=reranked.rerank_score,
+                rerank_rank=reranked.rerank_rank,
             )
         )
-
-    reranked.sort(
-        key=lambda chunk: (chunk.rerank_score or 0.0, chunk.similarity_score),
-        reverse=True,
-    )
-    return reranked[:final_top_k]
+    return selected_chunks
 
 
 def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
@@ -220,6 +222,8 @@ def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]
             page_number=chunk.page_number,
             score=chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score,
             similarity_score=chunk.similarity_score,
+            rerank_score=chunk.rerank_score,
+            rerank_rank=chunk.rerank_rank,
             text_snippet=chunk.text[:400],
         )
         for chunk in chunks
@@ -481,7 +485,10 @@ async def query_chat(
         )
 
     final_top_k = payload.top_k or settings.retrieval_final_top_k
-    retrieval_top_k = max(final_top_k, settings.retrieval_initial_top_k if payload.rerank else final_top_k)
+    retrieval_top_k = max(
+        final_top_k,
+        _rerank_service.candidate_count if payload.rerank else final_top_k,
+    )
 
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
@@ -539,7 +546,6 @@ async def query_chat(
 
     rerank_started = perf_counter()
     selected_chunks = _rerank_chunks(
-        question=payload.question,
         chunks=retrieved_chunks,
         enabled=payload.rerank,
         final_top_k=final_top_k,
@@ -613,8 +619,8 @@ async def query_chat(
                 chunk_id=UUID(citation.chunk_id),
                 text_snippet=citation.text_snippet or "",
                 page_number=citation.page_number,
-                similarity_score=citation.score,
-                rerank_score=citation.score if payload.rerank else None,
+                similarity_score=citation.similarity_score,
+                rerank_score=citation.rerank_score if payload.rerank else None,
             )
 
         await db_session.commit()

@@ -78,6 +78,8 @@ class ChatCitationResponse(BaseModel):
     page_number: int | None = None
     score: float | None = None
     similarity_score: float | None = None
+    rerank_score: float | None = None
+    rerank_rank: int | None = None
     text_snippet: str | None = None
 
 

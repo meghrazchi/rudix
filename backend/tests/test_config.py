@@ -26,6 +26,9 @@ ENV_KEYS = [
     "RATE_LIMIT_EVALUATION_REQUESTS",
     "RATE_LIMIT_DELETE_REQUESTS",
     "RATE_LIMIT_ADMIN_REQUESTS",
+    "RERANK_MMR_LAMBDA",
+    "RERANK_MMR_CANDIDATE_COUNT",
+    "RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD",
     "DOCUMENT_INDEX_VERSION",
     "EMBEDDING_BATCH_MAX_ITEMS",
     "EMBEDDING_BATCH_MAX_TOKENS",
@@ -148,6 +151,15 @@ def test_invalid_embedding_retry_window_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["embedding_retry_base_seconds"] = 2.0
     payload["embedding_retry_max_seconds"] = 1.0
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_rerank_candidate_count_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["retrieval_final_top_k"] = 10
+    payload["rerank_mmr_candidate_count"] = 5
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

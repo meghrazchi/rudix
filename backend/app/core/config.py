@@ -144,6 +144,9 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=25, ge=1, le=512)
     retrieval_initial_top_k: int = Field(default=20, ge=1, le=200)
     retrieval_final_top_k: int = Field(default=5, ge=1, le=50)
+    rerank_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
+    rerank_mmr_candidate_count: int = Field(default=20, ge=1, le=200)
+    rerank_mmr_duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
     chunk_size_tokens: int = Field(default=700, ge=100, le=4000)
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
     document_index_version: str = Field(default="v1", min_length=1, max_length=64)
@@ -234,6 +237,9 @@ class Settings(BaseSettings):
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError("retrieval_final_top_k must be less than or equal to retrieval_initial_top_k")
+
+        if self.rerank_mmr_candidate_count < self.retrieval_final_top_k:
+            raise ValueError("rerank_mmr_candidate_count must be >= retrieval_final_top_k")
 
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
@@ -369,6 +375,9 @@ class Settings(BaseSettings):
             "max_upload_size_mb": self.max_upload_size_mb,
             "retrieval_initial_top_k": self.retrieval_initial_top_k,
             "retrieval_final_top_k": self.retrieval_final_top_k,
+            "rerank_mmr_lambda": self.rerank_mmr_lambda,
+            "rerank_mmr_candidate_count": self.rerank_mmr_candidate_count,
+            "rerank_mmr_duplicate_similarity_threshold": self.rerank_mmr_duplicate_similarity_threshold,
             "chunk_size_tokens": self.chunk_size_tokens,
             "chunk_overlap_tokens": self.chunk_overlap_tokens,
             "document_index_version": self.document_index_version,
