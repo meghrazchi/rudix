@@ -28,11 +28,12 @@ from app.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
-from app.services.qdrant_filters import build_organization_filter
+from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
 _openai_client: AsyncOpenAI | None = None
+_query_retrieval_service = QueryRetrievalService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _LOW_CONFIDENCE_THRESHOLD = 0.20
 _WORD_PATTERN = re.compile(r"[a-z0-9]+")
@@ -42,9 +43,10 @@ _WORD_PATTERN = re.compile(r"[a-z0-9]+")
 class RetrievedChunk:
     document_id: UUID
     chunk_id: UUID
+    filename: str
     page_number: int | None
     text: str
-    score: float
+    similarity_score: float
     rerank_score: float | None = None
 
 
@@ -90,28 +92,6 @@ def _get_openai_client() -> AsyncOpenAI:
     return _openai_client
 
 
-async def _embed_query(question: str) -> tuple[list[float], int]:
-    if not settings.feature_enable_embeddings:
-        raise RuntimeError("Embeddings feature is disabled")
-
-    response = await _get_openai_client().embeddings.create(
-        model=settings.openai_embedding_model,
-        input=[question],
-    )
-    if not response.data:
-        raise RuntimeError("Embedding response did not include vectors")
-
-    vector = [float(value) for value in response.data[0].embedding]
-    if len(vector) != settings.qdrant_vector_size:
-        raise RuntimeError(
-            f"Embedding dimension mismatch: expected {settings.qdrant_vector_size}, got {len(vector)}"
-        )
-
-    usage = getattr(response, "usage", None)
-    prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-    return vector, prompt_tokens
-
-
 def _get_qdrant_client():
     if qdrant_module.qdrant_client is None:
         qdrant_module.init_qdrant()
@@ -120,53 +100,15 @@ def _get_qdrant_client():
     return qdrant_module.qdrant_client
 
 
-def _retrieve_chunks(
-    *,
-    query_vector: list[float],
-    organization_id: UUID,
-    document_ids: list[UUID],
-    limit: int,
-) -> list[RetrievedChunk]:
-    query_filter = build_organization_filter(
-        organization_id=str(organization_id),
-        document_ids=[str(document_id) for document_id in document_ids],
+def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
+    return RetrievedChunk(
+        document_id=candidate.document_id,
+        chunk_id=candidate.chunk_id,
+        filename=candidate.filename,
+        page_number=candidate.page_number,
+        text=candidate.text,
+        similarity_score=candidate.similarity_score,
     )
-    results = _get_qdrant_client().search(
-        collection_name=settings.qdrant_collection,
-        query_vector=query_vector,
-        query_filter=query_filter,
-        limit=limit,
-        with_payload=True,
-        with_vectors=False,
-    )
-
-    chunks: list[RetrievedChunk] = []
-    for result in results:
-        payload = getattr(result, "payload", None) or {}
-        try:
-            document_id = UUID(str(payload["document_id"]))
-            chunk_id = UUID(str(payload["chunk_id"]))
-        except (KeyError, ValueError, TypeError):
-            continue
-
-        text = str(payload.get("text", "")).strip()
-        if not text:
-            continue
-
-        raw_page_number = payload.get("page_number")
-        page_number = int(raw_page_number) if isinstance(raw_page_number, int) else None
-        score = float(getattr(result, "score", 0.0) or 0.0)
-        chunks.append(
-            RetrievedChunk(
-                document_id=document_id,
-                chunk_id=chunk_id,
-                page_number=page_number,
-                text=text,
-                score=score,
-            )
-        )
-
-    return sorted(chunks, key=lambda chunk: chunk.score, reverse=True)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -198,15 +140,16 @@ def _rerank_chunks(
             RetrievedChunk(
                 document_id=chunk.document_id,
                 chunk_id=chunk.chunk_id,
+                filename=chunk.filename,
                 page_number=chunk.page_number,
                 text=chunk.text,
-                score=chunk.score,
+                similarity_score=chunk.similarity_score,
                 rerank_score=rerank_score,
             )
         )
 
     reranked.sort(
-        key=lambda chunk: (chunk.rerank_score or 0.0, chunk.score),
+        key=lambda chunk: (chunk.rerank_score or 0.0, chunk.similarity_score),
         reverse=True,
     )
     return reranked[:final_top_k]
@@ -217,7 +160,7 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
     for index, chunk in enumerate(chunks, start=1):
         context_lines.append(
             f"[{index}] document_id={chunk.document_id} "
-            f"chunk_id={chunk.chunk_id} page={chunk.page_number}\n"
+            f"chunk_id={chunk.chunk_id} filename={chunk.filename} page={chunk.page_number}\n"
             f"{chunk.text}"
         )
 
@@ -273,8 +216,10 @@ def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]
         ChatCitationResponse(
             document_id=str(chunk.document_id),
             chunk_id=str(chunk.chunk_id),
+            filename=chunk.filename,
             page_number=chunk.page_number,
-            score=chunk.rerank_score if chunk.rerank_score is not None else chunk.score,
+            score=chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score,
+            similarity_score=chunk.similarity_score,
             text_snippet=chunk.text[:400],
         )
         for chunk in chunks
@@ -285,7 +230,7 @@ def _score_confidence(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> 
     if not chunks:
         return 0.0
 
-    top_similarity = max(0.0, min(1.0, chunks[0].score))
+    top_similarity = max(0.0, min(1.0, chunks[0].similarity_score))
     if not rerank_applied:
         return round(top_similarity, 4)
 
@@ -540,10 +485,14 @@ async def query_chat(
 
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
+    embedding_model = _query_retrieval_service.embedding_model
 
     embed_started = perf_counter()
     try:
-        query_vector, embedding_prompt_tokens = await _embed_query(payload.question)
+        query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
+            question=payload.question,
+            openai_client=_get_openai_client(),
+        )
     except Exception as exc:
         log_query_event(
             event="query.failed.embed",
@@ -552,6 +501,7 @@ async def query_chat(
             job_id=str(chat_session.id),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             error=exc.__class__.__name__,
+            embedding_model=embedding_model,
         )
         raise _safe_http_error(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -562,12 +512,14 @@ async def query_chat(
 
     retrieve_started = perf_counter()
     try:
-        retrieved_chunks = _retrieve_chunks(
+        retrieved_candidates = _query_retrieval_service.retrieve_candidates(
             query_vector=query_vector,
             organization_id=organization_id,
             document_ids=document_ids,
-            limit=retrieval_top_k,
+            initial_top_k=retrieval_top_k,
+            qdrant_client=_get_qdrant_client(),
         )
+        retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieved_candidates]
     except Exception as exc:
         log_query_event(
             event="query.failed.retrieve",
@@ -576,6 +528,7 @@ async def query_chat(
             job_id=str(chat_session.id),
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             error=exc.__class__.__name__,
+            initial_top_k=retrieval_top_k,
         )
         raise _safe_http_error(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -707,6 +660,7 @@ async def query_chat(
             retrieval_count=len(retrieved_chunks),
             selected_count=len(selected_chunks),
             rerank_applied=payload.rerank,
+            embedding_model=embedding_model,
             llm_model=llm_model,
         ),
         created_at=assistant_message.created_at,

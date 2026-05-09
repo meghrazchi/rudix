@@ -380,8 +380,10 @@ Response:
     {
       "document_id": "uuid",
       "chunk_id": "uuid",
+      "filename": "policy.pdf",
       "page_number": 4,
       "score": 0.91,
+      "similarity_score": 0.89,
       "text_snippet": "Employees receive 20 paid leave days..."
     }
   ],
@@ -398,6 +400,7 @@ Response:
     "retrieval_count": 10,
     "selected_count": 5,
     "rerank_applied": true,
+    "embedding_model": "text-embedding-3-small",
     "llm_model": "gpt-5.4-mini"
   },
   "created_at": "2026-05-09T10:01:10Z"

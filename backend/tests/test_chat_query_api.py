@@ -244,8 +244,10 @@ async def test_post_chat_orchestrates_and_persists_messages(
             FakeQdrantResult(
                 score=0.92,
                 payload={
+                    "organization_id": str(organization.id),
                     "document_id": str(document.id),
                     "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
                     "page_number": 1,
                     "text": "Employees receive twenty days of annual leave.",
                 },
@@ -275,9 +277,12 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert payload["confidence_score"] > 0.0
     assert len(payload["citations"]) == 1
     assert payload["citations"][0]["document_id"] == str(document.id)
+    assert payload["citations"][0]["filename"] == "policy.pdf"
+    assert payload["citations"][0]["similarity_score"] == pytest.approx(0.92)
     assert payload["debug"]["retrieval_count"] == 1
     assert payload["debug"]["selected_count"] == 1
     assert payload["debug"]["rerank_applied"] is True
+    assert payload["debug"]["embedding_model"] == settings.openai_embedding_model
     assert "total" in payload["debug"]["latencies_ms"]
 
     session_rows = list((await db_session.execute(select(ChatSession))).scalars().all())
@@ -414,8 +419,10 @@ async def test_post_chat_low_confidence_falls_back_to_not_found(
             FakeQdrantResult(
                 score=0.01,
                 payload={
+                    "organization_id": str(organization.id),
                     "document_id": str(document.id),
                     "chunk_id": str(chunk.id),
+                    "filename": "benefits.pdf",
                     "page_number": 1,
                     "text": "Coverage details are documented separately.",
                 },

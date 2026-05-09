@@ -74,8 +74,10 @@ class ChatMessageResponse(BaseModel):
 class ChatCitationResponse(BaseModel):
     document_id: str
     chunk_id: str
+    filename: str | None = None
     page_number: int | None = None
     score: float | None = None
+    similarity_score: float | None = None
     text_snippet: str | None = None
 
 
@@ -84,6 +86,7 @@ class ChatDebugResponse(BaseModel):
     retrieval_count: int
     selected_count: int
     rerank_applied: bool
+    embedding_model: str | None = None
     llm_model: str | None = None
 
 
