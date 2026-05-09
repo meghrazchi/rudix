@@ -42,6 +42,7 @@ class ChunkStub:
 class FakeQdrantClient:
     def __init__(self) -> None:
         self.upsert_calls: list[dict[str, object]] = []
+        self.delete_calls: list[dict[str, object]] = []
         self.storage: dict[str, dict[str, object]] = {}
 
     def upsert(self, *, collection_name: str, points: list[object], wait: bool) -> None:
@@ -58,6 +59,15 @@ class FakeQdrantClient:
                 "vector": list(point.vector),
                 "payload": dict(point.payload or {}),
             }
+
+    def delete(self, *, collection_name: str, points_selector: object, wait: bool) -> None:
+        self.delete_calls.append(
+            {
+                "collection_name": collection_name,
+                "points_selector": points_selector,
+                "wait": wait,
+            }
+        )
 
 
 @pytest.mark.asyncio
@@ -206,3 +216,42 @@ def test_build_point_id_is_deterministic() -> None:
     assert first == second
     assert different != first
     assert first == f"{document_id}:v2:4"
+
+
+@pytest.mark.asyncio
+async def test_delete_document_points_uses_org_and_document_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = FakeQdrantClient()
+    ensure_calls = {"count": 0}
+
+    monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
+    monkeypatch.setattr(
+        qdrant_module,
+        "ensure_qdrant_collection",
+        lambda: ensure_calls.__setitem__("count", ensure_calls["count"] + 1),
+    )
+
+    service = QdrantService()
+    organization_id = uuid4()
+    document_id = uuid4()
+    result = await service.delete_document_points(
+        organization_id=organization_id,
+        document_id=document_id,
+    )
+
+    assert result.deleted is True
+    assert ensure_calls["count"] == 1
+    assert len(fake_client.delete_calls) == 1
+
+    delete_call = fake_client.delete_calls[0]
+    assert delete_call["collection_name"] == settings.qdrant_collection
+    assert delete_call["wait"] is True
+    selector = delete_call["points_selector"]
+    must_conditions = getattr(selector, "must", None)
+    assert isinstance(must_conditions, list)
+    assert len(must_conditions) == 2
+    condition_map = {
+        condition.key: condition.match.value
+        for condition in must_conditions
+    }
+    assert condition_map["organization_id"] == str(organization_id)
+    assert condition_map["document_id"] == str(document_id)

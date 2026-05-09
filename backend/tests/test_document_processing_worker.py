@@ -127,6 +127,26 @@ class FakeQdrantService:
         )()
 
 
+class FakeQdrantDeleteService(FakeQdrantService):
+    def __init__(self) -> None:
+        super().__init__()
+        self.delete_calls: list[dict[str, UUID]] = []
+
+    async def delete_document_points(
+        self,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+    ) -> Any:
+        self.delete_calls.append(
+            {
+                "organization_id": organization_id,
+                "document_id": document_id,
+            }
+        )
+        return type("FakeQdrantDeleteResult", (), {"deleted": True})()
+
+
 class FailingQdrantService(FakeQdrantService):
     async def upsert_chunks(self, **_: Any) -> Any:
         raise RuntimeError("qdrant is unavailable")
@@ -135,6 +155,25 @@ class FailingQdrantService(FakeQdrantService):
 class EmptyChunkingService:
     async def chunk(self, **_: Any) -> list[Any]:
         return []
+
+
+class FakeMinioDeleter:
+    def __init__(self, keys: list[str]) -> None:
+        self._keys = keys
+        self.list_calls: list[dict[str, Any]] = []
+        self.delete_calls: list[dict[str, Any]] = []
+
+    def list_objects_v2(self, **kwargs: Any) -> dict[str, Any]:
+        self.list_calls.append(kwargs)
+        prefix = str(kwargs.get("Prefix", ""))
+        contents = [{"Key": key} for key in self._keys if key.startswith(prefix)]
+        return {
+            "IsTruncated": False,
+            "Contents": contents,
+        }
+
+    def delete_object(self, **kwargs: Any) -> None:
+        self.delete_calls.append(kwargs)
 
 
 @pytest_asyncio.fixture
@@ -360,3 +399,110 @@ async def test_worker_fails_when_chunking_produces_no_chunks(
 
     with pytest.raises(PermanentTaskError, match="cleaned document produced no chunks"):
         await document_tasks._extract_and_store_document_pages_async(str(seeded_txt_document.id))
+
+
+@pytest.mark.asyncio
+async def test_delete_worker_removes_vectors_storage_and_local_metadata(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document_id = seeded_txt_document.id
+    organization_id = seeded_txt_document.organization_id
+    uploaded_by_user_id = seeded_txt_document.uploaded_by_user_id
+    storage_bucket = seeded_txt_document.storage_bucket
+    storage_object_key = seeded_txt_document.storage_object_key
+
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+
+    repository = DocumentRepository()
+    _ = await repository.update_document_status(
+        db_session,
+        document_id=document_id,
+        status=DocumentStatus.indexed.value,
+        page_count=1,
+    )
+    await repository.create_document_page(
+        db_session,
+        document_id=document_id,
+        page_number=1,
+        text="hello world",
+        char_count=11,
+    )
+    await repository.create_document_chunk(
+        db_session,
+        document_id=document_id,
+        page_number=1,
+        chunk_index=0,
+        text="hello world",
+        token_count=2,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document_id}:{settings.document_index_version}:0",
+    )
+    await db_session.commit()
+
+    object_prefix = storage_object_key.rsplit(".", maxsplit=1)[0]
+    fake_minio = FakeMinioDeleter(
+        keys=[
+            storage_object_key,
+            f"{object_prefix}.meta.json",
+        ]
+    )
+    fake_qdrant = FakeQdrantDeleteService()
+    monkeypatch.setattr(minio_module, "minio_client", fake_minio)
+    monkeypatch.setattr(document_tasks, "_qdrant_service", fake_qdrant)
+
+    deleted_chunks, deleted_pages = await document_tasks._delete_document_assets_async(
+        str(document_id),
+        request_id="req-delete-worker-1",
+        organization_id=str(organization_id),
+        user_id=str(uploaded_by_user_id),
+    )
+    assert deleted_chunks == 1
+    assert deleted_pages == 1
+    assert len(fake_qdrant.delete_calls) == 1
+    assert fake_qdrant.delete_calls[0]["organization_id"] == organization_id
+    assert fake_qdrant.delete_calls[0]["document_id"] == document_id
+    assert len(fake_minio.list_calls) == 1
+    assert fake_minio.list_calls[0]["Bucket"] == storage_bucket
+    assert fake_minio.list_calls[0]["Prefix"] == object_prefix
+    deleted_keys = [call["Key"] for call in fake_minio.delete_calls]
+    assert storage_object_key in deleted_keys
+    assert f"{object_prefix}.meta.json" in deleted_keys
+
+    db_session.expire_all()
+    document = await repository.get_document_by_id(db_session, document_id=document_id)
+    assert document is not None
+    assert document.status == DocumentStatus.deleted.value
+    pages = await repository.list_document_pages(db_session, document_id=document_id)
+    chunks = await repository.list_document_chunks(
+        db_session,
+        document_id=document_id,
+        index_version=None,
+    )
+    assert pages == []
+    assert chunks == []
+
+
+@pytest.mark.asyncio
+async def test_delete_worker_is_idempotent_when_document_is_already_deleted(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.deleted.value,
+    )
+    monkeypatch.setattr(
+        document_tasks,
+        "_run",
+        lambda *_: (_ for _ in ()).throw(AssertionError("delete flow should be skipped")),
+    )
+
+    result = document_tasks.delete_document.run(str(seeded_txt_document.id))
+    assert result["document_id"] == str(seeded_txt_document.id)
+    assert result["status"] == "skipped"

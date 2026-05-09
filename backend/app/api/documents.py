@@ -18,6 +18,7 @@ from app.repositories.documents import DocumentRepository
 from app.schemas.documents import (
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
+    DeleteDocumentResponse,
     DocumentChunkPreviewResponse,
     DocumentChunksResponse,
     DocumentDetailResponse,
@@ -29,6 +30,7 @@ from app.schemas.documents import (
     UploadDocumentResponse,
 )
 from app.services.upload_validation import validate_upload
+from app.workers.document_tasks import delete_document as delete_document_task
 from app.workers.document_tasks import process_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -441,6 +443,100 @@ async def get_document(
         error_details=safe_error_details,
         created_at=document.created_at,
         updated_at=document.updated_at,
+    )
+
+
+@router.delete("/{document_id}", response_model=DeleteDocumentResponse, status_code=status.HTTP_202_ACCEPTED)
+async def delete_document_endpoint(
+    request: Request,
+    document_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.delete))],
+    document: Annotated[Document, Depends(require_document_access)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> DeleteDocumentResponse:
+    del document_id
+
+    if document.status == DocumentStatus.deleted.value:
+        log_document_event(
+            event="document.deletion.already_deleted",
+            document_id=str(document.id),
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            request_id=request.headers.get("x-request-id"),
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleted.value)
+
+    if document.status == DocumentStatus.deleting.value:
+        log_document_event(
+            event="document.deletion.already_queued",
+            document_id=str(document.id),
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            request_id=request.headers.get("x-request-id"),
+            status_code=status.HTTP_202_ACCEPTED,
+        )
+        return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleting.value)
+
+    updated = await document_repository.update_document_status(
+        db_session,
+        document_id=document.id,
+        status=DocumentStatus.deleting.value,
+        error_message=None,
+    )
+    if updated is None:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+    await db_session.commit()
+
+    request_id = request.headers.get("x-request-id")
+    try:
+        task_result = delete_document_task.delay(
+            str(document.id),
+            request_id=request_id,
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+        )
+    except Exception as exc:
+        log_document_event(
+            event="document.deletion.enqueue_failed",
+            document_id=str(document.id),
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            request_id=request_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error=exc.__class__.__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document marked for deletion but could not be queued",
+        ) from exc
+
+    log_document_event(
+        event="document.deletion.queued",
+        document_id=str(document.id),
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        request_id=request_id,
+        task_id=str(task_result.id),
+        status_code=status.HTTP_202_ACCEPTED,
+    )
+    return DeleteDocumentResponse(
+        document_id=str(document.id),
+        status=DocumentStatus.deleting.value,
     )
 
 

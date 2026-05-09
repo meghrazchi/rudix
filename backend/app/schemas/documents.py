@@ -38,6 +38,11 @@ class UploadDocumentResponse(BaseModel):
     message: str
 
 
+class DeleteDocumentResponse(BaseModel):
+    document_id: str
+    status: Literal["deleting", "deleted"]
+
+
 class DocumentErrorDetails(BaseModel):
     stage: str
     code: str

@@ -9,6 +9,7 @@ from qdrant_client.http.models import PointStruct
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.services.qdrant_filters import build_organization_filter
 
 
 class ChunkLike(Protocol):
@@ -28,6 +29,11 @@ class QdrantUpsertResult:
     point_ids_by_chunk_id: dict[UUID, str]
     upserted_count: int
     batch_count: int
+
+
+@dataclass(frozen=True)
+class QdrantDeleteResult:
+    deleted: bool
 
 
 class QdrantService:
@@ -133,3 +139,22 @@ class QdrantService:
             upserted_count=len(points),
             batch_count=batch_count,
         )
+
+    async def delete_document_points(
+        self,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+    ) -> QdrantDeleteResult:
+        client = self._client()
+        qdrant_module.ensure_qdrant_collection()
+        filter_selector = build_organization_filter(
+            organization_id=str(organization_id),
+            document_ids=[str(document_id)],
+        )
+        client.delete(
+            collection_name=settings.qdrant_collection,
+            points_selector=filter_selector,
+            wait=True,
+        )
+        return QdrantDeleteResult(deleted=True)

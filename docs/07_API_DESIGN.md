@@ -270,12 +270,23 @@ Response:
 
 Soft-delete a document and enqueue deletion of MinIO and Qdrant assets.
 
+Response status: `202 Accepted`
+
 Response:
 
 ```json
 {
   "document_id": "uuid",
   "status": "deleting"
+}
+```
+
+If the record is already deleted, the endpoint is idempotent and may return:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "deleted"
 }
 ```
 

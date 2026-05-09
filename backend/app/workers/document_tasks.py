@@ -113,6 +113,58 @@ def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
     return data
 
 
+def _object_key_prefix(object_key: str) -> str:
+    normalized = object_key.strip()
+    if not normalized:
+        return normalized
+    stem, separator, suffix = normalized.rpartition(".")
+    if separator and suffix and "/" not in suffix:
+        return stem
+    return normalized
+
+
+def _delete_objects_by_prefix(*, bucket: str, prefix: str) -> int:
+    minio = minio_module.minio_client
+    if minio is None:
+        raise TransientTaskError("Object storage is unavailable")
+
+    deleted_count = 0
+    continuation_token: str | None = None
+    while True:
+        list_kwargs: dict[str, Any] = {"Bucket": bucket, "Prefix": prefix}
+        if continuation_token:
+            list_kwargs["ContinuationToken"] = continuation_token
+        try:
+            response = minio.list_objects_v2(**list_kwargs)
+        except Exception as exc:
+            raise TransientTaskError("Object storage listing failed") from exc
+
+        contents = response.get("Contents", [])
+        for item in contents:
+            key = item.get("Key")
+            if not isinstance(key, str) or not key:
+                continue
+            try:
+                minio.delete_object(Bucket=bucket, Key=key)
+            except ClientError as exc:
+                error_code = str(exc.response.get("Error", {}).get("Code", ""))
+                if error_code in {"NoSuchKey", "404", "NotFound"}:
+                    continue
+                raise TransientTaskError("Object storage delete failed") from exc
+            except Exception as exc:
+                raise TransientTaskError("Object storage delete failed") from exc
+            deleted_count += 1
+
+        if not response.get("IsTruncated"):
+            break
+        next_token = response.get("NextContinuationToken")
+        if not isinstance(next_token, str) or not next_token:
+            break
+        continuation_token = next_token
+
+    return deleted_count
+
+
 async def _extract_and_store_document_pages_async(
     document_id: str,
     *,
@@ -398,6 +450,161 @@ async def _extract_and_store_document_pages_async(
         return len(cleaned_sections), len(chunks), cleaning_stats, embedding_result
 
 
+async def _delete_document_assets_async(
+    document_id: str,
+    *,
+    request_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+) -> tuple[int, int]:
+    try:
+        parsed_document_id = _parse_uuid(document_id)
+    except ValueError as exc:
+        raise DocumentPipelinePermanentError(
+            stage="resolve_document",
+            code="INVALID_DOCUMENT_ID",
+            category="validation",
+            message=f"Invalid document_id: {document_id}",
+        ) from exc
+
+    async with SessionLocal() as session:
+        document = await _document_repository.get_document_by_id(session, document_id=parsed_document_id)
+        if document is None:
+            raise DocumentPipelinePermanentError(
+                stage="resolve_document",
+                code="DOCUMENT_NOT_FOUND",
+                category="validation",
+                message=f"Document not found: {document_id}",
+            )
+
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_index",
+            stage_status="started",
+        )
+        try:
+            await _qdrant_service.delete_document_points(
+                organization_id=document.organization_id,
+                document_id=document.id,
+            )
+        except ValueError as exc:
+            raise DocumentPipelinePermanentError(
+                stage="delete_index",
+                code="QDRANT_DELETE_FILTER_INVALID",
+                category="validation",
+                message=str(exc),
+            ) from exc
+        except Exception as exc:
+            raise DocumentPipelineTransientError(
+                stage="delete_index",
+                code="QDRANT_DELETE_FAILED",
+                category="infrastructure",
+                message="qdrant delete failed",
+            ) from exc
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_index",
+            stage_status="completed",
+        )
+
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_storage",
+            stage_status="started",
+        )
+        object_prefix = _object_key_prefix(document.storage_object_key)
+        if not object_prefix:
+            raise DocumentPipelinePermanentError(
+                stage="delete_storage",
+                code="SOURCE_OBJECT_KEY_INVALID",
+                category="validation",
+                message="document storage object key is empty",
+            )
+        try:
+            deleted_object_count = _delete_objects_by_prefix(
+                bucket=document.storage_bucket,
+                prefix=object_prefix,
+            )
+        except TransientTaskError as exc:
+            raise DocumentPipelineTransientError(
+                stage="delete_storage",
+                code="SOURCE_OBJECT_DELETE_FAILED",
+                category="infrastructure",
+                message=str(exc),
+            ) from exc
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_storage",
+            stage_status="completed",
+            deleted_object_count=deleted_object_count,
+        )
+
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_metadata",
+            stage_status="started",
+        )
+        try:
+            deleted_chunks = await _document_repository.delete_document_chunks(
+                session,
+                document_id=parsed_document_id,
+                index_version=None,
+            )
+            deleted_pages = await _document_repository.delete_document_pages(
+                session,
+                document_id=parsed_document_id,
+            )
+            updated = await _document_repository.update_document_status(
+                session,
+                document_id=parsed_document_id,
+                status=DocumentStatus.deleted.value,
+                error_message=None,
+            )
+            if updated is None:
+                raise DocumentPipelineTransientError(
+                    stage="delete_metadata",
+                    code="STATUS_DELETED_UPDATE_FAILED",
+                    category="infrastructure",
+                    message=f"Unable to move document to deleted state: {document_id}",
+                )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="delete_metadata",
+            stage_status="completed",
+            deleted_chunk_count=deleted_chunks,
+            deleted_page_count=deleted_pages,
+        )
+        return deleted_chunks, deleted_pages
+
+
 class DocumentTask(RudixTask):
     abstract = True
 
@@ -539,13 +746,22 @@ def delete_document(
     organization_id: str | None = None,
     user_id: str | None = None,
 ) -> dict[str, str]:
-    """Scaffold task for idempotent document deletion orchestration."""
+    """Delete document vectors/storage assets and mark metadata as deleted."""
     try:
         status = get_document_status(document_id)
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
     if status is None:
-        raise PermanentTaskError(f"Document not found: {document_id}")
+        # Idempotent for hard-delete policies where row may already be removed.
+        log_document_event(
+            event="document.deletion.skipped",
+            document_id=document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            status_code="not_found",
+        )
+        return {"document_id": document_id, "status": "skipped"}
 
     if status == DocumentStatus.deleted.value:
         log_document_event(
@@ -558,13 +774,19 @@ def delete_document(
         )
         return {"document_id": document_id, "status": "skipped"}
 
-    deleting_updated = set_document_status(document_id, status=DocumentStatus.deleting)
-    if not deleting_updated:
-        raise TransientTaskError(f"Unable to move document to deleting state: {document_id}")
-    deleted_updated = set_document_status(document_id, status=DocumentStatus.deleted)
-    if not deleted_updated:
-        raise TransientTaskError(f"Unable to move document to deleted state: {document_id}")
+    if status != DocumentStatus.deleting.value:
+        deleting_updated = set_document_status(document_id, status=DocumentStatus.deleting)
+        if not deleting_updated:
+            raise TransientTaskError(f"Unable to move document to deleting state: {document_id}")
 
+    deleted_chunks, deleted_pages = _run(
+        _delete_document_assets_async(
+            document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+    )
     log_document_event(
         event="document.deletion.completed",
         document_id=document_id,
@@ -572,6 +794,8 @@ def delete_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.deleted.value,
+        deleted_chunk_count=deleted_chunks,
+        deleted_page_count=deleted_pages,
     )
     return {"document_id": document_id, "status": DocumentStatus.deleted.value}
 
