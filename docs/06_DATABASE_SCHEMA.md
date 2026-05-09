@@ -28,10 +28,14 @@ erDiagram
     USERS ||--o{ CHAT_SESSIONS : starts
     CHAT_SESSIONS ||--o{ CHAT_MESSAGES : contains
     CHAT_MESSAGES ||--o{ CITATIONS : has
+    CHAT_MESSAGES ||--o{ PIPELINE_RUNS : links
     ORGANIZATIONS ||--o{ EVALUATION_SETS : owns
     EVALUATION_SETS ||--o{ EVALUATION_QUESTIONS : contains
     EVALUATION_SETS ||--o{ EVALUATION_RUNS : has
     EVALUATION_RUNS ||--o{ EVALUATION_RESULTS : produces
+    EVALUATION_RUNS ||--o{ PIPELINE_RUNS : links
+    DOCUMENTS ||--o{ PIPELINE_RUNS : links
+    PIPELINE_RUNS ||--o{ PIPELINE_EVENTS : contains
 
     USERS {
         uuid id PK
@@ -161,6 +165,44 @@ erDiagram
         float answer_relevance_score
         int latency_ms
         jsonb details
+        timestamptz created_at
+    }
+
+    PIPELINE_RUNS {
+        uuid id PK
+        uuid organization_id FK
+        string pipeline_type
+        string status
+        timestamptz started_at
+        timestamptz completed_at
+        int duration_ms
+        jsonb inputs
+        jsonb outputs
+        jsonb config
+        jsonb logs
+        text error_message
+        jsonb error_details
+        uuid document_id FK
+        uuid chat_message_id FK
+        uuid evaluation_run_id FK
+        timestamptz created_at
+    }
+
+    PIPELINE_EVENTS {
+        uuid id PK
+        uuid pipeline_run_id FK
+        int sequence
+        string node_name
+        string status
+        timestamptz started_at
+        timestamptz completed_at
+        int duration_ms
+        jsonb inputs
+        jsonb outputs
+        jsonb config
+        jsonb logs
+        text error_message
+        jsonb error_details
         timestamptz created_at
     }
 ```
@@ -365,6 +407,57 @@ CREATE TABLE evaluation_results (
 );
 ```
 
+## Pipeline observability tables
+
+### pipeline_runs
+
+```sql
+CREATE TABLE pipeline_runs (
+    id UUID PRIMARY KEY,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    pipeline_type TEXT NOT NULL CHECK (
+        pipeline_type IN ('document.process', 'document.reindex', 'document.delete', 'chat.query', 'evaluation.run')
+    ),
+    status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'completed', 'failed')),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    duration_ms INTEGER CHECK (duration_ms >= 0),
+    inputs JSONB NOT NULL DEFAULT '{}',
+    outputs JSONB NOT NULL DEFAULT '{}',
+    config JSONB NOT NULL DEFAULT '{}',
+    logs JSONB NOT NULL DEFAULT '[]',
+    error_message TEXT,
+    error_details JSONB NOT NULL DEFAULT '{}',
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    chat_message_id UUID REFERENCES chat_messages(id) ON DELETE SET NULL,
+    evaluation_run_id UUID REFERENCES evaluation_runs(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+### pipeline_events
+
+```sql
+CREATE TABLE pipeline_events (
+    id UUID PRIMARY KEY,
+    pipeline_run_id UUID NOT NULL REFERENCES pipeline_runs(id) ON DELETE CASCADE,
+    sequence INTEGER NOT NULL CHECK (sequence >= 0),
+    node_name TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('started', 'completed', 'failed', 'skipped')),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    duration_ms INTEGER CHECK (duration_ms >= 0),
+    inputs JSONB NOT NULL DEFAULT '{}',
+    outputs JSONB NOT NULL DEFAULT '{}',
+    config JSONB NOT NULL DEFAULT '{}',
+    logs JSONB NOT NULL DEFAULT '[]',
+    error_message TEXT,
+    error_details JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (pipeline_run_id, sequence)
+);
+```
+
 ## Additional production tables
 
 ### usage_events
@@ -412,6 +505,8 @@ CREATE INDEX idx_chat_sessions_user ON chat_sessions(user_id, created_at DESC);
 CREATE INDEX idx_chat_messages_session ON chat_messages(chat_session_id, created_at);
 CREATE INDEX idx_citations_message ON citations(chat_message_id);
 CREATE INDEX idx_eval_runs_set ON evaluation_runs(evaluation_set_id, created_at DESC);
+CREATE INDEX idx_pipeline_runs_org_created ON pipeline_runs(organization_id, created_at DESC);
+CREATE INDEX idx_pipeline_events_run_sequence ON pipeline_events(pipeline_run_id, sequence);
 CREATE INDEX idx_usage_org_created ON usage_events(organization_id, created_at DESC);
 ```
 

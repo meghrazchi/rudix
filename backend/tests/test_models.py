@@ -18,6 +18,8 @@ from app.models import (
     EvaluationSet,
     Organization,
     OrganizationMember,
+    PipelineEvent,
+    PipelineRun,
     UsageEvent,
     User,
 )
@@ -144,6 +146,27 @@ async def test_model_creation_roundtrip(db_session: AsyncSession) -> None:
     db_session.add(result)
     await db_session.flush()
 
+    pipeline_run = PipelineRun(
+        organization_id=organization.id,
+        pipeline_type="document.process",
+        status="completed",
+        inputs_json={"document_id": str(document.id)},
+        outputs_json={"chunk_count": 1},
+        document_id=document.id,
+    )
+    db_session.add(pipeline_run)
+    await db_session.flush()
+
+    pipeline_event = PipelineEvent(
+        pipeline_run_id=pipeline_run.id,
+        sequence=0,
+        node_name="extract",
+        status="completed",
+        outputs_json={"page_count": 1},
+    )
+    db_session.add(pipeline_event)
+    await db_session.flush()
+
     usage = UsageEvent(
         organization_id=organization.id,
         user_id=user.id,
@@ -169,5 +192,7 @@ async def test_model_creation_roundtrip(db_session: AsyncSession) -> None:
 
     document_count = await db_session.scalar(select(func.count(Document.id)))
     message_count = await db_session.scalar(select(func.count(ChatMessage.id)))
+    pipeline_event_count = await db_session.scalar(select(func.count(PipelineEvent.id)))
     assert document_count == 1
     assert message_count == 1
+    assert pipeline_event_count == 1

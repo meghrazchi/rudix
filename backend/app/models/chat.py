@@ -62,3 +62,4 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     session = relationship("ChatSession", back_populates="messages")
     citations = relationship("Citation", back_populates="chat_message", cascade="all, delete-orphan")
+    pipeline_runs = relationship("PipelineRun", back_populates="chat_message")

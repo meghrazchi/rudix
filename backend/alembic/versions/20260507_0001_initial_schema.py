@@ -220,6 +220,80 @@ def upgrade() -> None:
     op.create_index("idx_eval_runs_set", "evaluation_runs", ["evaluation_set_id", "created_at"], unique=False)
 
     op.create_table(
+        "pipeline_runs",
+        sa.Column("organization_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("pipeline_type", sa.String(length=64), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("duration_ms", sa.Integer(), nullable=True),
+        sa.Column("inputs", sa.JSON(), nullable=False),
+        sa.Column("outputs", sa.JSON(), nullable=False),
+        sa.Column("config", sa.JSON(), nullable=False),
+        sa.Column("logs", sa.JSON(), nullable=False),
+        sa.Column("error_message", sa.Text(), nullable=True),
+        sa.Column("error_details", sa.JSON(), nullable=False),
+        sa.Column("document_id", sa.Uuid(as_uuid=True), nullable=True),
+        sa.Column("chat_message_id", sa.Uuid(as_uuid=True), nullable=True),
+        sa.Column("evaluation_run_id", sa.Uuid(as_uuid=True), nullable=True),
+        sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.CheckConstraint(
+            "duration_ms IS NULL OR duration_ms >= 0",
+            name=op.f("ck_pipeline_runs_pipeline_runs_duration_non_negative"),
+        ),
+        sa.CheckConstraint(
+            "pipeline_type IN ('document.process', 'document.reindex', 'document.delete', 'chat.query', 'evaluation.run')",
+            name=op.f("ck_pipeline_runs_pipeline_runs_pipeline_type_allowed"),
+        ),
+        sa.CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'failed')",
+            name=op.f("ck_pipeline_runs_pipeline_runs_status_allowed"),
+        ),
+        sa.ForeignKeyConstraint(["chat_message_id"], ["chat_messages.id"], name=op.f("fk_pipeline_runs_chat_message_id_chat_messages"), ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["document_id"], ["documents.id"], name=op.f("fk_pipeline_runs_document_id_documents"), ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["evaluation_run_id"], ["evaluation_runs.id"], name=op.f("fk_pipeline_runs_evaluation_run_id_evaluation_runs"), ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"], name=op.f("fk_pipeline_runs_organization_id_organizations"), ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_pipeline_runs")),
+    )
+    op.create_index("idx_pipeline_runs_chat_message_id", "pipeline_runs", ["chat_message_id"], unique=False)
+    op.create_index("idx_pipeline_runs_document_id", "pipeline_runs", ["document_id"], unique=False)
+    op.create_index("idx_pipeline_runs_evaluation_run_id", "pipeline_runs", ["evaluation_run_id"], unique=False)
+    op.create_index("idx_pipeline_runs_org_created", "pipeline_runs", ["organization_id", "created_at"], unique=False)
+
+    op.create_table(
+        "pipeline_events",
+        sa.Column("pipeline_run_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("sequence", sa.Integer(), nullable=False),
+        sa.Column("node_name", sa.String(length=64), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("duration_ms", sa.Integer(), nullable=True),
+        sa.Column("inputs", sa.JSON(), nullable=False),
+        sa.Column("outputs", sa.JSON(), nullable=False),
+        sa.Column("config", sa.JSON(), nullable=False),
+        sa.Column("logs", sa.JSON(), nullable=False),
+        sa.Column("error_message", sa.Text(), nullable=True),
+        sa.Column("error_details", sa.JSON(), nullable=False),
+        sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.CheckConstraint("duration_ms IS NULL OR duration_ms >= 0", name=op.f("ck_pipeline_events_pipeline_events_duration_non_negative")),
+        sa.CheckConstraint("sequence >= 0", name=op.f("ck_pipeline_events_pipeline_events_sequence_non_negative")),
+        sa.CheckConstraint(
+            "status IN ('started', 'completed', 'failed', 'skipped')",
+            name=op.f("ck_pipeline_events_pipeline_events_status_allowed"),
+        ),
+        sa.ForeignKeyConstraint(["pipeline_run_id"], ["pipeline_runs.id"], name=op.f("fk_pipeline_events_pipeline_run_id_pipeline_runs"), ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_pipeline_events")),
+        sa.UniqueConstraint("pipeline_run_id", "sequence", name=op.f("uq_pipeline_events_pipeline_run_id")),
+    )
+    op.create_index("idx_pipeline_events_node_status", "pipeline_events", ["node_name", "status"], unique=False)
+    op.create_index("idx_pipeline_events_run_sequence", "pipeline_events", ["pipeline_run_id", "sequence"], unique=False)
+
+    op.create_table(
         "usage_events",
         sa.Column("organization_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("user_id", sa.Uuid(as_uuid=True), nullable=True),
@@ -301,6 +375,16 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("idx_citations_message", table_name="citations")
     op.drop_table("citations")
+
+    op.drop_index("idx_pipeline_events_run_sequence", table_name="pipeline_events")
+    op.drop_index("idx_pipeline_events_node_status", table_name="pipeline_events")
+    op.drop_table("pipeline_events")
+
+    op.drop_index("idx_pipeline_runs_org_created", table_name="pipeline_runs")
+    op.drop_index("idx_pipeline_runs_evaluation_run_id", table_name="pipeline_runs")
+    op.drop_index("idx_pipeline_runs_document_id", table_name="pipeline_runs")
+    op.drop_index("idx_pipeline_runs_chat_message_id", table_name="pipeline_runs")
+    op.drop_table("pipeline_runs")
 
     op.drop_index("idx_evaluation_results_run_id", table_name="evaluation_results")
     op.drop_table("evaluation_results")

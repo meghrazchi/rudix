@@ -33,6 +33,7 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.usage import UsageEvent
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
@@ -290,6 +291,26 @@ async def test_worker_extracts_text_and_persists_document_pages(
     assert len(usage_events) == 1
     assert usage_events[0].event_type == "document.embedding"
     assert usage_events[0].model_name == settings.openai_embedding_model
+    pipeline_runs = list((await db_session.execute(select(PipelineRun))).scalars().all())
+    assert len(pipeline_runs) == 1
+    pipeline_run = pipeline_runs[0]
+    assert pipeline_run.pipeline_type == "document.process"
+    assert pipeline_run.status == "completed"
+    assert pipeline_run.document_id == document_id
+    assert pipeline_run.organization_id == seeded_txt_document.organization_id
+    pipeline_events = list(
+        (
+            await db_session.execute(
+                select(PipelineEvent)
+                .where(PipelineEvent.pipeline_run_id == pipeline_run.id)
+                .order_by(PipelineEvent.sequence.asc())
+            )
+        ).scalars().all()
+    )
+    assert len(pipeline_events) >= 8
+    assert pipeline_events[0].node_name == "extract"
+    assert pipeline_events[0].status == "started"
+    assert any(event.node_name == "index" and event.status == "completed" for event in pipeline_events)
 
     db_session.expire_all()
     result = await db_session.execute(select(Document).where(Document.id == UUID(str(document_id))))

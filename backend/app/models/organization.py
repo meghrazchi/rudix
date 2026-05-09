@@ -18,3 +18,4 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     evaluation_sets = relationship("EvaluationSet", back_populates="organization")
     usage_events = relationship("UsageEvent", back_populates="organization")
     audit_logs = relationship("AuditLog", back_populates="organization")
+    pipeline_runs = relationship("PipelineRun", back_populates="organization")

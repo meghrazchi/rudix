@@ -11,6 +11,7 @@ from app.repositories import (
     ChatRepository,
     DocumentRepository,
     EvaluationRepository,
+    PipelineRepository,
     UsageRepository,
 )
 
@@ -33,6 +34,11 @@ def evaluation_repository() -> EvaluationRepository:
 @pytest.fixture
 def usage_repository() -> UsageRepository:
     return UsageRepository()
+
+
+@pytest.fixture
+def pipeline_repository() -> PipelineRepository:
+    return PipelineRepository()
 
 
 @pytest_asyncio.fixture
@@ -325,3 +331,52 @@ async def test_usage_repository_create_event(
     assert event.model_name == "text-embedding-3-small"
     assert event.input_tokens == 321
     assert event.metadata_json["batch_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_pipeline_repository_create_and_update(
+    db_session: AsyncSession,
+    pipeline_repository: PipelineRepository,
+    organization_user_ids,
+) -> None:
+    organization_id, user_id = organization_user_ids
+    document_repository = DocumentRepository()
+    document = await document_repository.create_document(
+        db_session,
+        organization_id=organization_id,
+        uploaded_by_user_id=user_id,
+        filename="pipeline.pdf",
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key="repo/pipeline.pdf",
+    )
+
+    run = await pipeline_repository.create_pipeline_run(
+        db_session,
+        organization_id=organization_id,
+        document_id=document.id,
+        pipeline_type="document.process",
+        status="running",
+        inputs={"document_id": str(document.id)},
+    )
+    event = await pipeline_repository.create_pipeline_event(
+        db_session,
+        pipeline_run_id=run.id,
+        sequence=0,
+        node_name="extract",
+        status="started",
+    )
+    assert event.node_name == "extract"
+    assert event.sequence == 0
+
+    updated = await pipeline_repository.update_pipeline_run(
+        db_session,
+        pipeline_run_id=run.id,
+        status="completed",
+        duration_ms=1200,
+        outputs={"page_count": 1},
+    )
+    assert updated is not None
+    assert updated.status == "completed"
+    assert updated.duration_ms == 1200
+    assert updated.outputs_json["page_count"] == 1

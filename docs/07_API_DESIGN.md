@@ -119,8 +119,9 @@ Backend actions:
 18. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
 19. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
 20. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
-21. Worker emits stage events (`document.pipeline.stage`) for `extract`, `chunk`, `embed`, and `index` with `started/completed` markers.
-22. Terminal failures persist a safe `error_message` and structured `error_details` for frontend status polling.
+21. Worker persists `pipeline_runs` + `pipeline_events` rows for node-level lifecycle visibility (`extract`, `index_cleanup`, `chunk`, `embed`, `index`).
+22. Event payloads store sanitized previews (`inputs`, `outputs`, `config`, `logs`, `error_details`) and redact secret-like fields.
+23. Terminal failures persist a safe `error_message` and structured `error_details` for frontend status polling.
 
 Queue publish failure behavior:
 
@@ -826,6 +827,12 @@ Notes:
 - Failed runs expose safe failure details (`failure_reason`, `failure_type`) when available.
 
 ## Pipeline explorer
+
+Storage model:
+
+- `pipeline_runs` stores run-level metadata and links to `document_id`, `chat_message_id`, or `evaluation_run_id`.
+- `pipeline_events` stores ordered node events (`started|completed|failed|skipped`) with timing and sanitized payload previews.
+- Current implementation emits ingestion events; chat/evaluation pipeline emission is planned for F39 using the same schema.
 
 ### GET `/pipeline/runs/{document_id}`
 

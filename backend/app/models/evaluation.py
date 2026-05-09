@@ -85,6 +85,7 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     evaluation_set = relationship("EvaluationSet", back_populates="runs")
     results = relationship("EvaluationResult", back_populates="evaluation_run", cascade="all, delete-orphan")
+    pipeline_runs = relationship("PipelineRun", back_populates="evaluation_run")
 
 
 class EvaluationResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):

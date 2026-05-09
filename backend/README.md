@@ -249,6 +249,15 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select event_type, model_name, input_tokens, cost_usd, metadata from usage_events where event_type='document.embedding' order by created_at desc limit 10;"
 
+# Inspect latest pipeline runs for document ingestion
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select id, pipeline_type, status, document_id, duration_ms, started_at, completed_at from pipeline_runs order by created_at desc limit 10;"
+
+# Inspect node-level pipeline events for latest run
+RUN_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from pipeline_runs order by created_at desc limit 1;")
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select sequence, node_name, status, duration_ms, error_message, outputs from pipeline_events where pipeline_run_id='${RUN_ID}'::uuid order by sequence;"
+
 # Inspect persisted qdrant point ids on chunk rows
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select chunk_index, qdrant_point_id from document_chunks where document_id='${DOC_ID}'::uuid order by chunk_index;"

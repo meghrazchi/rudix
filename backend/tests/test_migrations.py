@@ -47,6 +47,8 @@ def test_initial_migration_upgrade_and_downgrade_smoke() -> None:
                 "evaluation_questions",
                 "evaluation_runs",
                 "evaluation_results",
+                "pipeline_runs",
+                "pipeline_events",
                 "usage_events",
                 "audit_logs",
             }.issubset(table_names)
@@ -57,6 +59,12 @@ def test_initial_migration_upgrade_and_downgrade_smoke() -> None:
             chunk_indexes = {index["name"] for index in inspector.get_indexes("document_chunks")}
             assert "idx_chunks_document_id" in chunk_indexes
             assert "idx_chunks_qdrant_point_id" in chunk_indexes
+
+            pipeline_run_indexes = {index["name"] for index in inspector.get_indexes("pipeline_runs")}
+            assert "idx_pipeline_runs_org_created" in pipeline_run_indexes
+
+            pipeline_event_indexes = {index["name"] for index in inspector.get_indexes("pipeline_events")}
+            assert "idx_pipeline_events_run_sequence" in pipeline_event_indexes
 
             migration_module.downgrade()
             assert sa.inspect(connection).get_table_names() == []
