@@ -587,26 +587,62 @@ Response:
 
 ```json
 {
-  "evaluation_set_id": "uuid"
+  "evaluation_set_id": "uuid",
+  "name": "HR Policy Evaluation",
+  "description": "Questions for HR policy documents.",
+  "question_count": 0,
+  "created_at": "2026-05-07T10:00:00Z",
+  "updated_at": "2026-05-07T10:00:00Z"
+}
+```
+
+### GET `/evaluation-sets`
+
+List evaluation sets for the active organization.
+
+Query params:
+
+```text
+limit=20
+offset=0
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "evaluation_set_id": "uuid",
+      "name": "HR Policy Evaluation",
+      "description": "Questions for HR policy documents.",
+      "question_count": 12,
+      "created_at": "2026-05-07T10:00:00Z",
+      "updated_at": "2026-05-07T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
 }
 ```
 
 ### POST `/evaluation-sets/{evaluation_set_id}/questions`
 
-Add test questions.
+Add one test question to an evaluation set.
 
 Request:
 
 ```json
 {
-  "questions": [
-    {
-      "question": "How many paid leave days are available?",
-      "expected_answer": "20 paid leave days",
-      "expected_document_id": "uuid",
-      "expected_page_number": 4
-    }
-  ]
+  "question": "How many paid leave days are available?",
+  "expected_answer": "20 paid leave days",
+  "expected_document_id": "uuid",
+  "expected_page_number": 4,
+  "tags": ["hr", "leave-policy"],
+  "metadata": {
+    "difficulty": "easy"
+  }
 }
 ```
 
@@ -614,7 +650,56 @@ Response:
 
 ```json
 {
-  "inserted": 1
+  "evaluation_question_id": "uuid",
+  "evaluation_set_id": "uuid",
+  "question": "How many paid leave days are available?",
+  "expected_answer": "20 paid leave days",
+  "expected_document_id": "uuid",
+  "expected_page_number": 4,
+  "tags": ["hr", "leave-policy"],
+  "metadata": {
+    "difficulty": "easy"
+  },
+  "created_at": "2026-05-07T10:00:00Z",
+  "updated_at": "2026-05-07T10:00:00Z"
+}
+```
+
+### GET `/evaluation-sets/{evaluation_set_id}/questions`
+
+List questions for one evaluation set.
+
+Query params:
+
+```text
+limit=20
+offset=0
+```
+
+Response:
+
+```json
+{
+  "evaluation_set_id": "uuid",
+  "items": [
+    {
+      "evaluation_question_id": "uuid",
+      "evaluation_set_id": "uuid",
+      "question": "How many paid leave days are available?",
+      "expected_answer": "20 paid leave days",
+      "expected_document_id": "uuid",
+      "expected_page_number": 4,
+      "tags": ["hr", "leave-policy"],
+      "metadata": {
+        "difficulty": "easy"
+      },
+      "created_at": "2026-05-07T10:00:00Z",
+      "updated_at": "2026-05-07T10:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
 }
 ```
 

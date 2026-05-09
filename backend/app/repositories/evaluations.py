@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import EvaluationRunStatus
@@ -27,6 +27,49 @@ class EvaluationRepository:
         await session.refresh(evaluation_set)
         return evaluation_set
 
+    async def get_evaluation_set(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+        organization_id: UUID,
+    ) -> EvaluationSet | None:
+        result = await session.execute(
+            select(EvaluationSet).where(
+                EvaluationSet.id == evaluation_set_id,
+                EvaluationSet.organization_id == organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_evaluation_sets(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[EvaluationSet]:
+        result = await session.execute(
+            select(EvaluationSet)
+            .where(EvaluationSet.organization_id == organization_id)
+            .order_by(EvaluationSet.created_at.desc(), EvaluationSet.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_evaluation_sets(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(EvaluationSet.id)).where(EvaluationSet.organization_id == organization_id)
+        )
+        return int(result.scalar_one())
+
     async def create_evaluation_question(
         self,
         session: AsyncSession,
@@ -50,6 +93,34 @@ class EvaluationRepository:
         await session.flush()
         await session.refresh(evaluation_question)
         return evaluation_question
+
+    async def list_evaluation_questions(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[EvaluationQuestion]:
+        result = await session.execute(
+            select(EvaluationQuestion)
+            .where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+            .order_by(EvaluationQuestion.created_at.asc(), EvaluationQuestion.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_evaluation_questions(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(EvaluationQuestion.id)).where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+        )
+        return int(result.scalar_one())
 
     async def create_evaluation_run(
         self,

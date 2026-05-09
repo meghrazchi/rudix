@@ -417,6 +417,8 @@ Current role checks:
 
 - `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
+- `evaluation-sets` (POST) and `evaluation-sets/{id}/questions` (POST): `owner|admin|member`
+- `evaluation-sets` (GET) and `evaluation-sets/{id}/questions` (GET): `owner|admin|member|viewer`
 - `evaluations` (POST): `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 
