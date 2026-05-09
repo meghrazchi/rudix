@@ -1,68 +1,309 @@
-# AI Document Q&A Assistant — Production Architecture Docs
+# Rudix
 
-This documentation bundle defines the production architecture for a RAG-powered AI Document Q&A Assistant.
+Rudix is a full-stack **AI Document Q&A Assistant** built with Retrieval-Augmented Generation, also known as RAG. It allows users to upload documents, process them into searchable knowledge, and ask natural-language questions against those documents.
 
-## Documentation navigation
+The goal of Rudix is to provide reliable, source-grounded answers from uploaded files. Instead of generating responses from general model knowledge alone, Rudix retrieves relevant document chunks, sends them to an LLM, and returns answers with supporting context, citations, confidence signals, and usage metrics.
 
-- Main docs index: [docs/README.md](docs/README.md)
-- Frontend setup and standards: [frontend/README.md](frontend/README.md)
-- Installation and configuration: [docs/INSTALL.md](docs/INSTALL.md)
-- Contribution guide: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)
-- Code of conduct: [docs/CODE_OF_CONDUCT.md](docs/CODE_OF_CONDUCT.md)
-- Security policy: [docs/SECURITY.md](docs/SECURITY.md)
-- Changelog: [docs/CHANGELOG.md](docs/CHANGELOG.md)
-- Documentation standards: [docs/DOCUMENTATION_STANDARDS.md](docs/DOCUMENTATION_STANDARDS.md)
+This repository contains the backend API, frontend application, background workers, infrastructure setup, and documentation needed to understand, run, and extend the system.
 
-## Base stack
+---
+
+## What Rudix Does
+
+Rudix is designed for document-based AI workflows.
+
+A typical flow looks like this:
 
 ```text
-Frontend:        Next.js + React + Tailwind CSS
-Backend:         FastAPI
-Database:        PostgreSQL
-Vector search:   Qdrant
-File storage:    MinIO
-Auth:            Auth0 or Clerk
-Queue:           Celery + RabbitMQ
-Cache:           Redis
-PDF processing:  PyMuPDF
-DOCX processing: python-docx
-Embeddings:      OpenAI embeddings
-LLM:             Configurable OpenAI model, for example gpt-5.4-mini
-Evaluation:      RAGAS + custom metrics
-Deployment:      Containerized frontend + backend (self-hosted)
-Monitoring:      Sentry + structured logs
+Upload document
+→ Extract text
+→ Clean and chunk content
+→ Generate embeddings
+→ Store vectors
+→ Ask questions
+→ Retrieve relevant chunks
+→ Generate grounded answers
+→ Return citations and metadata
 ```
 
-## Documents included
+Supported document types include:
 
-| File | Purpose |
+- PDF
+- TXT
+- DOCX
+
+---
+
+## Main Features
+
+- Document upload and storage
+- Text extraction and cleaning
+- Chunking and embedding generation
+- Vector search with Qdrant
+- Question answering with OpenAI models
+- Source-grounded responses
+- Citations and confidence scoring
+- Background processing with Celery
+- PostgreSQL metadata storage
+- MinIO object storage
+- Redis caching and rate-limit support
+- RabbitMQ task queue
+- Docker-based local development
+- Production-focused architecture documentation
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Radix UI
+- TanStack Query
+- Zustand
+- React Hook Form
+- Zod
+- Vitest
+- Playwright
+
+### Backend
+
+- FastAPI
+- Python 3.12+
+- Pydantic
+- SQLAlchemy Async
+- Alembic
+- Celery
+- OpenAI API
+- PyMuPDF
+- python-docx
+- RAGAS
+- Ruff
+- mypy
+- pytest
+
+### Infrastructure
+
+- PostgreSQL
+- Qdrant
+- MinIO
+- RabbitMQ
+- Redis
+- Docker Compose
+- Sentry
+- Structured logging
+
+---
+
+## Repository Structure
+
+```text
+.
+├── backend/              # FastAPI API, services, models, workers, migrations, tests
+├── frontend/             # Next.js frontend application
+├── docs/                 # Architecture, API, deployment, security, and workflow docs
+├── docker-compose.yml    # Local infrastructure and backend runtime
+├── .env.example          # Example environment configuration
+├── Makefile              # Common development commands
+└── README.md             # Project overview
+```
+
+---
+
+## Getting Started
+
+### 1. Clone the Repository
+
+```bash
+git clone https://gitlab.com/benza-group/rudix.git
+cd rudix
+```
+
+### 2. Create Environment File
+
+```bash
+cp .env.example .env
+```
+
+Update the required values in `.env`, especially:
+
+```env
+OPENAI_API_KEY=
+APP_AUTH_SECRET=
+```
+
+### 3. Start Backend and Infrastructure
+
+```bash
+docker compose up --build
+```
+
+Or:
+
+```bash
+make up
+```
+
+This starts the API, worker, PostgreSQL, Qdrant, MinIO, RabbitMQ, and Redis.
+
+### 4. Run Database Migrations
+
+```bash
+make migrate
+```
+
+### 5. Start the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend:
+
+```text
+http://localhost:3000
+```
+
+Backend API:
+
+```text
+http://localhost:8000
+```
+
+---
+
+## Useful Commands
+
+### Root Commands
+
+```bash
+make up          # Start services
+make up-d        # Start services in detached mode
+make down        # Stop services
+make logs        # View logs
+make migrate     # Run database migrations
+make test        # Run backend tests
+make lint        # Run backend lint checks
+```
+
+### Frontend Commands
+
+```bash
+cd frontend
+npm run dev          # Start frontend dev server
+npm run build        # Build frontend
+npm run lint         # Run ESLint
+npm run typecheck    # Run TypeScript checks
+npm run test         # Run frontend tests
+npm run test:e2e     # Run Playwright tests
+```
+
+### Backend Commands
+
+```bash
+cd backend
+make install      # Install backend dependencies
+make run-api      # Run FastAPI locally
+make run-worker   # Run Celery worker locally
+make migrate      # Apply migrations
+make test         # Run tests
+make lint         # Run lint and type checks
+```
+
+---
+
+## Local Service URLs
+
+| Service | URL |
 |---|---|
-| `docs/01_ARCHITECTURE_OVERVIEW.md` | Full system architecture and design principles |
-| `docs/02_PRODUCTION_STACK.md` | Final stack choices and why each tool is used |
-| `docs/03_RAG_WORKFLOW.md` | RAG ingestion, query, generation, and evaluation workflows |
-| `docs/04_COMPONENT_DIAGRAMS.md` | Mermaid component, deployment, and data-flow diagrams |
-| `docs/05_SEQUENCE_DIAGRAMS.md` | Upload, indexing, query, evaluation, and deletion sequence diagrams |
-| `docs/06_DATABASE_SCHEMA.md` | PostgreSQL schema, ERD, and table explanations |
-| `docs/07_API_DESIGN.md` | FastAPI endpoints, request/response contracts, errors |
-| `docs/08_SERVICE_IMPLEMENTATION_GUIDE.md` | Backend service modules and implementation details |
-| `docs/09_FRONTEND_UI_DESIGN.md` | Next.js page structure, UI components, RAG pipeline explorer |
-| `docs/10_DEPLOYMENT_DOCKER.md` | Docker Compose, service layout, env vars, deployment notes |
-| `docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md` | Security, auth, permission checks, prompt-injection controls |
-| `docs/12_EVALUATION_AND_MONITORING.md` | RAGAS, custom metrics, logs, Sentry, latency/cost tracking |
+| Frontend | `http://localhost:3000` |
+| Backend API | `http://localhost:8000` |
+| API Health | `http://localhost:8000/api/v1/health` |
+| MinIO Console | `http://localhost:9001` |
+| RabbitMQ UI | `http://localhost:15672` |
+| Qdrant | `http://localhost:6333` |
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
 
-## Recommended implementation order
+---
 
-1. Create backend project structure.
-2. Add PostgreSQL models and migrations.
-3. Add MinIO upload flow.
-4. Add Celery + RabbitMQ worker setup.
-5. Add PDF/TXT/DOCX text extraction.
-6. Add chunking and metadata persistence.
-7. Add OpenAI embeddings.
-8. Add Qdrant indexing and retrieval.
-9. Add query pipeline and answer generation.
-10. Add citations and confidence scoring.
-11. Build Next.js UI.
-12. Add evaluation pipeline.
-13. Add monitoring and production security controls.
-14. Deploy frontend and backend stack using Docker (Compose or Kubernetes).
+## Documentation
+
+Detailed documentation is available in the `docs/` directory.
+
+Start here:
+
+- [`docs/README.md`](docs/README.md) — Documentation index
+- [`docs/INSTALL.md`](docs/INSTALL.md) — Installation and configuration
+- [`docs/01_ARCHITECTURE_OVERVIEW.md`](docs/01_ARCHITECTURE_OVERVIEW.md) — System architecture
+- [`docs/02_PRODUCTION_STACK.md`](docs/02_PRODUCTION_STACK.md) — Stack details
+- [`docs/03_RAG_WORKFLOW.md`](docs/03_RAG_WORKFLOW.md) — RAG workflow
+- [`docs/07_API_DESIGN.md`](docs/07_API_DESIGN.md) — API design
+- [`docs/10_DEPLOYMENT_DOCKER.md`](docs/10_DEPLOYMENT_DOCKER.md) — Docker and deployment
+- [`docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`](docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md) — Security checklist
+- [`docs/12_EVALUATION_AND_MONITORING.md`](docs/12_EVALUATION_AND_MONITORING.md) — Evaluation and monitoring
+
+Frontend-specific details are available in:
+
+- [`frontend/README.md`](frontend/README.md)
+
+---
+
+## Security Notes
+
+Rudix is built with organization-scoped document access in mind. Protected API routes should verify authentication, organization membership, and document ownership before returning data.
+
+Uploaded document content should be treated as untrusted input. Generated answers should be grounded only in retrieved document context, and production deployments should use strong secrets, secure environment variables, rate limits, structured logs, and monitoring.
+
+See [`docs/SECURITY.md`](docs/SECURITY.md) and [`docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md`](docs/11_SECURITY_AND_PRODUCTION_CHECKLIST.md) for more details.
+
+---
+
+## Project Status
+
+Rudix currently includes a production-oriented architecture, backend scaffold, frontend application setup, Docker Compose infrastructure, worker setup, and detailed implementation documentation.
+
+Some features may still be under active development. Check the docs, issues, and changelog for the latest project status.
+
+---
+
+## Contributing
+
+Contributions are welcome.
+
+Before opening a merge request, run the relevant checks:
+
+```bash
+cd backend
+make lint
+make test
+```
+
+```bash
+cd frontend
+npm run typecheck
+npm run lint
+npm run test
+```
+
+For contribution guidelines, see:
+
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md)
+- [`docs/CODE_OF_CONDUCT.md`](docs/CODE_OF_CONDUCT.md)
+
+---
+
+## License
+
+License information should be added here.
+
+---
+
+## Maintainers
+
+Maintained by **Benza Group**.
