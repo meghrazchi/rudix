@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Annotated
@@ -27,6 +28,7 @@ from app.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
+from app.services.prompt_service import PromptContextChunk, PromptService
 from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
 from app.services.rerank_service import RerankCandidate, RerankService
 
@@ -35,8 +37,10 @@ chat_repository = ChatRepository()
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
+_prompt_service = PromptService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 _LOW_CONFIDENCE_THRESHOLD = 0.20
+_MAX_GENERATED_ANSWER_CHARS = 8000
 
 
 @dataclass(frozen=True)
@@ -158,22 +162,40 @@ def _rerank_chunks(
 
 
 def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
-    context_lines: list[str] = []
-    for index, chunk in enumerate(chunks, start=1):
-        context_lines.append(
-            f"[{index}] document_id={chunk.document_id} "
-            f"chunk_id={chunk.chunk_id} filename={chunk.filename} page={chunk.page_number}\n"
-            f"{chunk.text}"
-        )
-
-    context_block = "\n\n".join(context_lines)
-    return (
-        "You are a document-grounded assistant.\n"
-        "Answer using only the provided context snippets.\n"
-        f"If the answer is not present, reply exactly with: {_NOT_FOUND_ANSWER}\n\n"
-        f"Question:\n{question}\n\n"
-        f"Context:\n{context_block}"
+    return _prompt_service.build_prompt(
+        question=question,
+        not_found_answer=_NOT_FOUND_ANSWER,
+        chunks=[
+            PromptContextChunk(
+                document_id=str(chunk.document_id),
+                chunk_id=str(chunk.chunk_id),
+                filename=chunk.filename,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                similarity_score=chunk.similarity_score,
+                rerank_score=chunk.rerank_score,
+                rerank_rank=chunk.rerank_rank,
+            )
+            for chunk in chunks
+        ],
     )
+
+
+def _extract_grounded_output(raw_content: str) -> tuple[str, bool]:
+    try:
+        payload = json.loads(raw_content)
+    except json.JSONDecodeError:
+        return "", True
+
+    if not isinstance(payload, dict):
+        return "", True
+
+    answer = payload.get("answer")
+    not_found = payload.get("not_found")
+    if not isinstance(answer, str):
+        return "", True
+
+    return answer.strip(), bool(not_found) if isinstance(not_found, bool) else False
 
 
 def _extract_answer_content(content: object) -> str:
@@ -189,7 +211,7 @@ def _extract_answer_content(content: object) -> str:
     return ""
 
 
-async def _generate_answer(prompt: str) -> tuple[str, str, int, int]:
+async def _generate_answer(prompt: str) -> tuple[str, bool, str, int, int]:
     if not settings.feature_enable_llm:
         raise RuntimeError("LLM feature is disabled")
 
@@ -205,12 +227,18 @@ async def _generate_answer(prompt: str) -> tuple[str, str, int, int]:
     if not response.choices:
         raise RuntimeError("LLM response contained no choices")
 
-    answer = _extract_answer_content(response.choices[0].message.content)
+    raw_answer = _extract_answer_content(response.choices[0].message.content)
+    answer, model_not_found = _extract_grounded_output(raw_answer)
+    if "\x00" in answer:
+        answer = answer.replace("\x00", "")
+    answer = answer.strip()
+    if len(answer) > _MAX_GENERATED_ANSWER_CHARS:
+        answer = answer[:_MAX_GENERATED_ANSWER_CHARS].strip()
     usage = getattr(response, "usage", None)
     prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
     completion_tokens = int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
     model_name = str(getattr(response, "model", settings.openai_llm_model))
-    return answer, model_name, prompt_tokens, completion_tokens
+    return answer, model_not_found, model_name, prompt_tokens, completion_tokens
 
 
 def _build_citations(chunks: list[RetrievedChunk]) -> list[ChatCitationResponse]:
@@ -569,7 +597,9 @@ async def query_chat(
     llm_started = perf_counter()
     if not not_found:
         try:
-            answer, llm_model, llm_prompt_tokens, llm_completion_tokens = await _generate_answer(prompt)
+            answer, model_not_found, llm_model, llm_prompt_tokens, llm_completion_tokens = await _generate_answer(
+                prompt
+            )
         except Exception as exc:
             log_query_event(
                 event="query.failed.generate",
@@ -585,7 +615,10 @@ async def query_chat(
                 message="Answer generation is unavailable",
             ) from exc
 
-        if not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+        if model_not_found:
+            answer = _NOT_FOUND_ANSWER
+            not_found = True
+        elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
             answer = _NOT_FOUND_ANSWER
             not_found = True
         else:

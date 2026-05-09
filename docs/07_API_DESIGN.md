@@ -372,6 +372,10 @@ Notes:
 - `rerank=true` applies MMR reranking on retrieved candidates before prompt construction.
 - MMR behavior is configured through `RERANK_MMR_LAMBDA`, `RERANK_MMR_CANDIDATE_COUNT`, and `RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD`.
 - `rerank=false` returns raw retrieval ordering (similarity-only) up to `top_k`.
+- Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
+- Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `rerank_score`, `rerank_rank`) and an explicit allowed chunk ID list for citation validation.
+- LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
+- If model output is not valid structured JSON, backend fails closed to a safe not-found response (no citations).
 
 Response:
 
