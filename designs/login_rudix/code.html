@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "surface-dim": "#dcd8e5",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#4d44e3",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-primary-fixed": "#0f0069",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-secondary-fixed": "#0b1c30",
+                        "primary": "#3525cd",
+                        "on-tertiary-fixed": "#351000",
+                        "tertiary": "#7e3000",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-background": "#1b1b24",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-variant": "#e4e1ee",
+                        "on-secondary-container": "#54647a",
+                        "primary-fixed": "#e2dfff",
+                        "surface-bright": "#fcf8ff",
+                        "surface-container": "#f0ecf9",
+                        "primary-container": "#4f46e5",
+                        "on-surface-variant": "#464555",
+                        "surface": "#fcf8ff",
+                        "on-tertiary-container": "#ffd2be",
+                        "background": "#fcf8ff",
+                        "on-surface": "#1b1b24",
+                        "inverse-primary": "#c3c0ff",
+                        "secondary-fixed": "#d3e4fe",
+                        "outline-variant": "#c7c4d8",
+                        "on-primary-container": "#dad7ff",
+                        "secondary-container": "#d0e1fb",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary": "#505f76",
+                        "outline": "#777587",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "tertiary-container": "#a44100",
+                        "surface-container-highest": "#e4e1ee",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "inverse-on-surface": "#f3effc",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-high": "#eae6f4",
+                        "surface-container-low": "#f5f2ff",
+                        "inverse-surface": "#302f39"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "margin-page": "32px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "md": "16px"
+                    },
+                    "fontFamily": {
+                        "mono-data": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "h1": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h3": ["Inter"],
+                        "h2": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fcf8ff;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md flex items-center justify-center min-h-screen p-md">
+<!-- The Shell is suppressed for Transactional Login Screen as per "Shell Visibility & Relevance" rule -->
+<main class="w-full max-w-md">
+<!-- Brand Identity Section -->
+<div class="flex flex-col items-center mb-xl">
+<div class="mb-lg">
+<div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-on-primary text-[32px]" data-icon="account_tree">account_tree</span>
+</div>
+</div>
+<h1 class="font-h1 text-h1 text-on-surface mb-xs">Sign in to Rudix</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Access your Enterprise RAG dashboard</p>
+</div>
+<!-- Login Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-xl shadow-sm">
+<form class="space-y-lg">
+<!-- Email Field -->
+<div class="space-y-xs">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase" for="email">Email Address</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="mail">mail</span>
+<input class="w-full pl-11 pr-md py-md bg-surface-container-lowest border border-outline-variant rounded-lg font-body-md text-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all duration-200" id="email" name="email" placeholder="name@company.com" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-xs">
+<div class="flex justify-between items-center">
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase" for="password">Password</label>
+<a class="font-body-sm text-body-sm text-primary hover:underline font-semibold transition-colors" href="#">Forgot password?</a>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="lock">lock</span>
+<input class="w-full pl-11 pr-md py-md bg-surface-container-lowest border border-outline-variant rounded-lg font-body-md text-body-md focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all duration-200" id="password" name="password" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full py-md px-lg bg-primary text-on-primary font-h3 text-h3 rounded-lg hover:bg-primary/90 active:scale-[0.98] transition-all duration-150 shadow-md flex items-center justify-center gap-sm" type="submit">
+                    Sign in
+                    <span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+<div class="relative my-xl">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-outline-variant"></div>
+</div>
+<div class="relative flex justify-center text-label-caps">
+<span class="px-md bg-surface-container-lowest text-on-surface-variant uppercase">or continue with</span>
+</div>
+</div>
+<!-- SSO Options -->
+<div class="grid grid-cols-1 gap-md">
+<button class="flex items-center justify-center gap-md py-md px-lg bg-surface-container-low border border-outline-variant rounded-lg font-body-md text-body-md text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="key">key</span>
+                    Sign in with SSO
+                </button>
+</div>
+</div>
+<!-- Footer Link -->
+<p class="mt-xl text-center font-body-md text-body-md text-on-surface-variant">
+            Don't have an account? 
+            <a class="text-primary font-semibold hover:underline transition-colors" href="#">Sign up</a>
+</p>
+</main>
+<!-- Background Decorative Element -->
+<div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+<div class="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl"></div>
+<div class="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-secondary/5 rounded-full blur-3xl"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] border border-primary/5 rounded-full opacity-50"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] border border-primary/5 rounded-full opacity-30"></div>
+<!-- Abstract Brand Image -->
+<img class="absolute inset-0 w-full h-full object-cover opacity-[0.03] mix-blend-multiply" data-alt="A highly sophisticated and minimalist background for an enterprise software login. It features delicate, crystalline digital patterns reminiscent of a complex data neural network. The lighting is ethereal and soft, emphasizing a professional light-mode aesthetic with a palette of whites, pale indigos, and subtle slate grays. The overall atmosphere conveys a sense of high-performance intelligence, reliability, and modern technological precision within a vast, clean workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7G3WBYS7m1gP5QFQ1fXhrEbkUZ6fOeqcB9yuAvMdVQy6-IuoggnctcU8A9AmpMy7mHGftjxphyWUbhuVo4ShiWbE4D3aklN_g5ZfFmtYSd1S7D6U41_zP5AnViOOhgE1NcxAkGFKeAKjxW5Gf5Mk9Ve4JPFa3kaalOJYaY0nKF3e85TVCDQa9Qv9Zn1mY4LRj9GwtTb8enuZRAIrxWmE0Syuylrh-9TFxljPAj0vkqjh8lJVKT82Xrf612JQ0sYEyA5r4K79Rt6g"/>
+</div>
+</body></html>

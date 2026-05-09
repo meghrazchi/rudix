@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rudix | System Health</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "inverse-surface": "#302f39",
+                        "secondary-fixed": "#d3e4fe",
+                        "tertiary": "#7e3000",
+                        "outline": "#777587",
+                        "surface-container": "#f0ecf9",
+                        "primary-container": "#4f46e5",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-secondary": "#ffffff",
+                        "inverse-primary": "#c3c0ff",
+                        "surface-container-high": "#eae6f4",
+                        "error": "#ba1a1a",
+                        "surface-dim": "#dcd8e5",
+                        "outline-variant": "#c7c4d8",
+                        "primary": "#3525cd",
+                        "surface-variant": "#e4e1ee",
+                        "on-secondary-fixed": "#0b1c30",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "surface-bright": "#fcf8ff",
+                        "on-background": "#1b1b24",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#d0e1fb",
+                        "surface": "#fcf8ff",
+                        "surface-container-highest": "#e4e1ee",
+                        "primary-fixed": "#e2dfff",
+                        "on-primary-container": "#dad7ff",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "on-primary-fixed": "#0f0069",
+                        "inverse-on-surface": "#f3effc",
+                        "background": "#fcf8ff",
+                        "surface-tint": "#4d44e3",
+                        "on-surface-variant": "#464555",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#1b1b24",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f5f2ff",
+                        "tertiary-container": "#a44100",
+                        "on-tertiary-fixed": "#351000",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "secondary": "#505f76",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-container": "#54647a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "margin-page": "32px",
+                        "gutter": "16px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "mono-data": ["JetBrains Mono"],
+                        "h2": ["Inter"],
+                        "h1": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                        "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fcf8ff;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- SideNavBar Anchor -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low border-r border-outline-variant flex flex-col h-full py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-h2 text-h2 font-black text-primary">Rudix</h1>
+<p class="font-label-caps text-on-surface-variant">Enterprise RAG</p>
+</div>
+<nav class="flex-1 space-y-xs">
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Documents</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span>Chat</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span>Evaluations</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span>Pipeline Explorer</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-semibold text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<!-- Admin Active State -->
+<a class="flex items-center gap-md p-sm font-body-md text-body-md font-bold text-primary bg-primary-container/10 border-r-4 border-primary rounded-lg transition-transform duration-150 active:scale-95" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span>Admin</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-lg space-y-xs">
+<a class="flex items-center gap-md p-sm font-body-md text-on-surface-variant hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">corporate_fare</span>
+<span>Organization</span>
+</a>
+<a class="flex items-center gap-md p-sm font-body-md text-on-surface-variant hover:bg-surface-container-high transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span>Profile</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar Anchor -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-xl ml-64">
+<h2 class="font-h3 text-h3 font-semibold text-primary">System Health</h2>
+<div class="flex items-center gap-lg">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-md py-xs text-body-sm focus:ring-2 focus:ring-primary/20 w-64 transition-all" placeholder="Search systems..." type="text"/>
+</div>
+<div class="flex items-center gap-md">
+<button class="p-xs text-on-surface-variant hover:bg-surface-container rounded-full transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:bg-surface-container rounded-full transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-secondary-container overflow-hidden">
+<img alt="User Avatar" data-alt="A professional headshot of a software engineer with a clean, modern aesthetic. The lighting is soft and corporate, set against a blurred office background. The composition is focused and high-quality, fitting a premium enterprise software interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_rww3Ru5gxxNGnOmKgsbRlgRsanxvfgfHSMRFUEHl-VsqP1h8NCzcUC-Itdlf7NpUkj-sd01WnM53e90gQ9lboLu2_cCMTCUjAYViNFUz05j1NGRkwFgI4XHkSAvIdPnQV7PNGpjqpn9H6jKmO0rvjef283R7B_d8z6gNyUvp-cA9fk6wnfVBGpdvAHryu0uRSAzJeX7FdaB6b_Q_aTeW1EySHKKVE54-EKDnjJ6H-LMHZGInBdVaNAcSR2aG4-ltPsvuT6M_YCE"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-xl pb-xl min-h-screen">
+<!-- Summary Section -->
+<section class="mb-xl">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col gap-xs border-t-4 border-t-emerald-500">
+<span class="font-label-caps text-on-surface-variant">Global Uptime</span>
+<span class="font-h1 text-h1 text-on-surface">99.98%</span>
+<span class="text-xs text-emerald-600 flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> Above target (99.9%)
+                    </span>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col gap-xs border-t-4 border-t-primary">
+<span class="font-label-caps text-on-surface-variant">Avg Latency</span>
+<span class="font-h1 text-h1 text-on-surface">42ms</span>
+<span class="text-xs text-on-surface-variant">System wide average</span>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col gap-xs border-t-4 border-t-emerald-500">
+<span class="font-label-caps text-on-surface-variant">Active Nodes</span>
+<span class="font-h1 text-h1 text-on-surface">24/24</span>
+<span class="text-xs text-emerald-600">All systems operational</span>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col gap-xs border-t-4 border-t-tertiary">
+<span class="font-label-caps text-on-surface-variant">Open Alerts</span>
+<span class="font-h1 text-h1 text-on-surface">0</span>
+<span class="text-xs text-on-surface-variant">No critical issues detected</span>
+</div>
+</div>
+</section>
+<!-- System Cards Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter">
+<!-- API -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">api</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">API</h3>
+<p class="text-xs text-on-surface-variant">Core Services</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.99%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">12ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[60%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[65%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[70%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[68%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[75%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[80%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[72%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[60%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- PostgreSQL -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">database</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">PostgreSQL</h3>
+<p class="text-xs text-on-surface-variant">Primary Data Store</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">100%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">5ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[35%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[38%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[42%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[39%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[41%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- Redis -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">Redis</h3>
+<p class="text-xs text-on-surface-variant">Caching Layer</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.98%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">0.8ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[20%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[22%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[21%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[20%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[19%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[20%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[22%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[20%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- RabbitMQ -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">alt_route</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">RabbitMQ</h3>
+<p class="text-xs text-on-surface-variant">Message Broker</p>
+</div>
+</div>
+<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Degraded</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">98.42%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">142ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[60%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[55%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-amber-500 h-[90%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-amber-500 h-[95%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-amber-500 h-[88%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-amber-500 h-[85%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[50%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[55%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- MinIO -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">folder_open</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">MinIO</h3>
+<p class="text-xs text-on-surface-variant">Object Storage</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.95%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">28ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[45%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[42%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[46%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[42%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[44%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[45%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- Qdrant -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">hub</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">Qdrant</h3>
+<p class="text-xs text-on-surface-variant">Vector Database</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.91%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">84ms</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[70%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[75%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[72%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[70%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[80%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[75%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[72%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[70%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- OpenAI -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">OpenAI</h3>
+<p class="text-xs text-on-surface-variant">LLM Provider</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.78%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Latency</span>
+<span class="font-mono-data text-on-surface">1.2s</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[30%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[35%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[40%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[85%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[95%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[60%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[35%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[30%] rounded-sm opacity-80"></div>
+</div>
+</div>
+<!-- Workers -->
+<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-lg shadow-sm hover:border-primary/50 transition-all flex flex-col gap-md">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-sm">
+<div class="bg-primary-container/10 p-sm rounded-lg text-primary">
+<span class="material-symbols-outlined">settings_suggest</span>
+</div>
+<div>
+<h3 class="font-h3 text-body-md font-bold">Workers</h3>
+<p class="text-xs text-on-surface-variant">Data Processing</p>
+</div>
+</div>
+<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Healthy</span>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Uptime</span>
+<span class="font-mono-data text-on-surface">99.99%</span>
+</div>
+<div class="flex justify-between text-body-sm">
+<span class="text-on-surface-variant">Queue Depth</span>
+<span class="font-mono-data text-on-surface">42 items</span>
+</div>
+</div>
+<div class="h-12 w-full flex items-end gap-0.5 mt-xs">
+<div class="flex-1 bg-emerald-500 h-[50%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[52%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[51%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[50%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[49%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[50%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[52%] rounded-sm opacity-80"></div>
+<div class="flex-1 bg-emerald-500 h-[50%] rounded-sm opacity-80"></div>
+</div>
+</div>
+</section>
+<!-- Incidents Table -->
+<section class="mt-xl">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="px-lg py-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h3 class="font-h3 text-body-md font-bold">Recent Incident Log</h3>
+<button class="text-primary text-body-sm font-semibold hover:underline">View Historical Data</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-dim/30">
+<tr>
+<th class="px-lg py-sm font-label-caps text-on-surface-variant">System</th>
+<th class="px-lg py-sm font-label-caps text-on-surface-variant">Event</th>
+<th class="px-lg py-sm font-label-caps text-on-surface-variant">Status</th>
+<th class="px-lg py-sm font-label-caps text-on-surface-variant">Time</th>
+<th class="px-lg py-sm font-label-caps text-on-surface-variant text-right">Duration</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md font-body-sm font-semibold">RabbitMQ</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Connection pooling latency spike detected in US-EAST-1</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase">Investigating</span>
+</td>
+<td class="px-lg py-md font-mono-data text-xs text-on-surface-variant">14:22:10 UTC</td>
+<td class="px-lg py-md font-mono-data text-xs text-right">Ongoing</td>
+</tr>
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md font-body-sm font-semibold">OpenAI</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">API Timeout increased for GPT-4-Turbo models</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">Resolved</span>
+</td>
+<td class="px-lg py-md font-mono-data text-xs text-on-surface-variant">09:12:44 UTC</td>
+<td class="px-lg py-md font-mono-data text-xs text-right">14m 2s</td>
+</tr>
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md font-body-sm font-semibold">MinIO</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Storage bucket read-only transition for maintenance</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">Resolved</span>
+</td>
+<td class="px-lg py-md font-mono-data text-xs text-on-surface-variant">02:00:00 UTC</td>
+<td class="px-lg py-md font-mono-data text-xs text-right">60m 0s</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+</body></html>

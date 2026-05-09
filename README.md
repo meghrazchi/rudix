@@ -61,7 +61,7 @@ Supported document types include:
 - React
 - TypeScript
 - Tailwind CSS
-- Radix UI
+- React Flow
 - TanStack Query
 - Zustand
 - React Hook Form

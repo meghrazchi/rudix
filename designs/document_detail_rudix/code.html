@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#ffffff",
+                      "surface-dim": "#dcd8e5",
+                      "error": "#ba1a1a",
+                      "surface-tint": "#4d44e3",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "on-primary-fixed": "#0f0069",
+                      "secondary-fixed-dim": "#b7c8e1",
+                      "on-secondary-fixed": "#0b1c30",
+                      "primary": "#3525cd",
+                      "on-tertiary-fixed": "#351000",
+                      "tertiary": "#7e3000",
+                      "on-secondary-fixed-variant": "#38485d",
+                      "on-background": "#1b1b24",
+                      "on-error": "#ffffff",
+                      "on-primary": "#ffffff",
+                      "surface-variant": "#e4e1ee",
+                      "on-secondary-container": "#54647a",
+                      "primary-fixed": "#e2dfff",
+                      "surface-bright": "#ffffff",
+                      "surface-container": "#f8f7fb",
+                      "primary-container": "#4f46e5",
+                      "on-surface-variant": "#464555",
+                      "surface": "#ffffff",
+                      "on-tertiary-container": "#ffd2be",
+                      "background": "#ffffff",
+                      "on-surface": "#1b1b24",
+                      "inverse-primary": "#c3c0ff",
+                      "secondary-fixed": "#d3e4fe",
+                      "outline-variant": "#e1e0eb",
+                      "on-primary-container": "#dad7ff",
+                      "secondary-container": "#d0e1fb",
+                      "on-error-container": "#93000a",
+                      "surface-container-lowest": "#ffffff",
+                      "tertiary-fixed": "#ffdbcc",
+                      "secondary": "#505f76",
+                      "outline": "#777587",
+                      "primary-fixed-dim": "#c3c0ff",
+                      "tertiary-container": "#a44100",
+                      "surface-container-highest": "#f0eff6",
+                      "on-primary-fixed-variant": "#3323cc",
+                      "inverse-on-surface": "#f3effc",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-high": "#f0ecf9",
+                      "surface-container-low": "#f5f2ff",
+                      "inverse-surface": "#302f39"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "margin-page": "32px",
+                      "xs": "4px",
+                      "lg": "24px",
+                      "gutter": "16px",
+                      "xl": "32px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "mono-data": ["JetBrains Mono"],
+                      "body-sm": ["Inter"],
+                      "h1": ["Inter"],
+                      "body-md": ["Inter"],
+                      "h3": ["Inter"],
+                      "h2": ["Inter"],
+                      "label-caps": ["Inter"]
+              },
+              "fontSize": {
+                      "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #ffffff;
+            color: #1b1b24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-h2 text-h2 font-black text-primary dark:text-primary-fixed">Rudix</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant font-medium">Enterprise RAG</p>
+</div>
+<nav class="flex-grow space-y-1">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md font-semibold">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary dark:text-primary-fixed font-bold bg-primary-container/10 dark:bg-primary-container/20 border-r-4 border-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-body-md text-body-md font-semibold">Documents</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+<span class="font-body-md text-body-md font-semibold">Chat</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-body-md text-body-md font-semibold">Evaluations</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-body-md text-body-md font-semibold">Pipeline Explorer</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md font-semibold">Settings</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="font-body-md text-body-md font-semibold">Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-lg border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="corporate_fare">corporate_fare</span>
+<span class="font-body-md text-body-md font-semibold">Organization</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-body-md text-body-md font-semibold">Profile</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 pt-16 min-h-screen bg-white">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-white dark:bg-background border-b border-outline-variant dark:border-outline flex justify-between items-center px-xl z-40">
+<div class="flex items-center gap-md">
+<a class="p-xs hover:bg-surface-container rounded-full transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-on-surface" data-icon="arrow_back">arrow_back</span>
+</a>
+<h2 class="font-h3 text-h3 font-semibold text-on-surface">Document Details</h2>
+</div>
+<div class="flex items-center gap-lg">
+<div class="relative">
+<input class="bg-surface-container border-none h-10 w-64 rounded-full pl-10 pr-md font-body-sm text-body-sm focus:ring-2 focus:ring-primary/20 transition-all" placeholder="Search pipeline..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[18px]" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-xs hover:bg-surface-container dark:hover:bg-surface-variant rounded-full transition-all">
+<span class="material-symbols-outlined text-on-surface" data-icon="notifications">notifications</span>
+</button>
+<button class="p-xs hover:bg-surface-container dark:hover:bg-surface-variant rounded-full transition-all">
+<span class="material-symbols-outlined text-on-surface" data-icon="help_outline">help_outline</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant ml-sm">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDf-96gLlp76f57NJOusa7oTPVWZHwqmx5_tVaGmTH81rV-WfhmGShDpV6wMImDUHz6bBDHTgmRaYph_bj4Zs2qFDetA--EPI2cdpHpE_Ou0iDWJG3zbYQYDyxQkXM4eajCmFdwzhtUGZk7xH6uy_GNDdy15KDUMwxN1FEemgws1oas6HplFXdpSCh1R2TulqSYphFe7fayahvzkYzyeVllMYPXyt_cfWZa0TWYeITaqnh0_OIPmrW7aV2-KQ0e_dPkqx_lxZdqfBY"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="p-xl space-y-lg">
+<!-- Hero Header Section -->
+<div class="flex justify-between items-start">
+<div class="space-y-xs">
+<div class="flex items-center gap-md">
+<h1 class="font-h1 text-h1 text-on-surface">Q3_Financial_Report.pdf</h1>
+<span class="px-md py-xs bg-primary/10 text-primary rounded-full font-label-caps text-label-caps">INDEXED</span>
+</div>
+<p class="text-on-surface-variant font-body-sm">Document ID: doc_77492-fina-2023-q3</p>
+</div>
+<button class="flex items-center gap-sm px-lg h-12 bg-primary text-on-primary rounded-xl font-body-md font-semibold hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-[20px]" data-icon="forum">forum</span>
+                    Ask in Chat
+                </button>
+</div>
+<!-- Bento Metadata Grid -->
+<div class="bento-grid">
+<!-- Metadata Stats -->
+<div class="col-span-8 grid grid-cols-4 gap-md">
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-sm">PAGE COUNT</span>
+<span class="font-h2 text-h2 text-on-surface">42</span>
+</div>
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-sm">CHUNK COUNT</span>
+<span class="font-h2 text-h2 text-on-surface">156</span>
+</div>
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-sm">FILE SIZE</span>
+<span class="font-h2 text-h2 text-on-surface">2.4MB</span>
+</div>
+<div class="bg-white border border-outline-variant p-lg rounded-xl flex flex-col justify-between shadow-sm">
+<span class="font-label-caps text-label-caps text-on-surface-variant mb-sm">INDEX VERSION</span>
+<span class="font-h2 text-h2 text-on-surface">v2.1</span>
+</div>
+</div>
+<!-- Process Progress Timeline -->
+<div class="col-span-4 bg-white border border-outline-variant p-lg rounded-xl shadow-sm">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-lg">PROCESSING TIMELINE</h3>
+<div class="relative space-y-md">
+<div class="absolute left-[11px] top-1 bottom-1 w-[2px] bg-outline-variant"></div>
+<div class="flex items-center gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm font-semibold">Uploaded</span>
+</div>
+<div class="flex items-center gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm font-semibold">Processing</span>
+</div>
+<div class="flex items-center gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm font-semibold">Chunked</span>
+</div>
+<div class="flex items-center gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm font-semibold">Embedded</span>
+</div>
+<div class="flex items-center gap-md relative z-10">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[14px]" data-icon="check">check</span>
+</div>
+<span class="font-body-sm text-body-sm font-semibold">Indexed</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Content Tabs -->
+<div class="space-y-md">
+<div class="flex items-center border-b border-outline-variant">
+<button class="px-lg py-md font-body-md font-semibold text-on-surface-variant hover:text-on-surface transition-colors">Overview</button>
+<button class="px-lg py-md font-body-md font-bold text-primary border-b-2 border-primary">Chunks</button>
+<button class="px-lg py-md font-body-md font-semibold text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-xs">
+                        Errors 
+                        <span class="bg-error/10 text-error px-xs py-[1px] rounded text-[10px] font-bold">0</span>
+</button>
+</div>
+<!-- Chunks Tab Content -->
+<div class="space-y-md">
+<div class="flex justify-between items-center">
+<h4 class="font-h3 text-h3">Semantic Fragments</h4>
+<div class="flex items-center gap-md">
+<span class="text-on-surface-variant font-body-sm">Showing 1-5 of 156 chunks</span>
+<div class="flex gap-xs">
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors disabled:opacity-50 bg-white" disabled="">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded border border-outline-variant flex items-center justify-center hover:bg-surface-container transition-colors bg-white">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Chunk Cards -->
+<div class="grid grid-cols-1 gap-md">
+<div class="bg-white border border-outline-variant rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+<div class="px-lg py-sm bg-surface-container flex justify-between items-center">
+<div class="flex gap-md">
+<span class="font-label-caps text-label-caps text-on-surface-variant">CHUNK #001</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">PAGE 1</span>
+</div>
+<span class="font-mono-data text-mono-data bg-secondary-container/30 text-on-secondary-container px-sm py-[2px] rounded">512 Tokens</span>
+</div>
+<div class="p-lg">
+<p class="font-body-md text-on-surface leading-relaxed italic">
+                                    "This quarterly report summarizes the financial health and operational performance of Rudix Global for the fiscal period ending September 30, 2023. We have seen a substantial 24% increase in ARR, driven primarily by our Enterprise RAG solution expansion in North America..."
+                                </p>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+<div class="px-lg py-sm bg-surface-container flex justify-between items-center">
+<div class="flex gap-md">
+<span class="font-label-caps text-label-caps text-on-surface-variant">CHUNK #002</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">PAGE 1</span>
+</div>
+<span class="font-mono-data text-mono-data bg-secondary-container/30 text-on-secondary-container px-sm py-[2px] rounded">480 Tokens</span>
+</div>
+<div class="p-lg">
+<p class="font-body-md text-on-surface leading-relaxed italic">
+                                    "...Cost of revenue increased by 12% year-over-year, largely attributed to increased GPU utilization for our real-time inference clusters. Net income for the quarter reached $12.4M, representing a strong margin of 18.5% across all SaaS products."
+                                </p>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+<div class="px-lg py-sm bg-surface-container flex justify-between items-center">
+<div class="flex gap-md">
+<span class="font-label-caps text-label-caps text-on-surface-variant">CHUNK #003</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">PAGE 2</span>
+</div>
+<span class="font-mono-data text-mono-data bg-secondary-container/30 text-on-secondary-container px-sm py-[2px] rounded">504 Tokens</span>
+</div>
+<div class="p-lg">
+<p class="font-body-md text-on-surface leading-relaxed italic">
+                                    "Regarding liquidity and capital resources, the company maintains a cash position of $84M, ensuring robust runway for upcoming R&amp;D investments in autonomous agent architectures. We anticipate capital expenditures to stabilize in Q4 as our localized data centers go online."
+                                </p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Document Preview Card (Decorative) -->
+<div class="bg-white p-xl rounded-2xl flex flex-col items-center justify-center border border-dashed border-outline gap-md group shadow-sm">
+<div class="w-24 h-32 bg-white border border-outline-variant rounded-lg shadow-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-primary text-[48px]" data-icon="picture_as_pdf">picture_as_pdf</span>
+</div>
+<div class="text-center">
+<p class="font-body-md font-semibold text-on-surface">View Original PDF</p>
+<p class="text-body-sm text-on-surface-variant">Source: storage://documents/fina-q3-2023.pdf</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-lg right-lg w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-[28px]" data-icon="add">add</span>
+</button>
+</body></html>

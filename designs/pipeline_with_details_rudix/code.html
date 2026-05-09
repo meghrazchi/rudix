@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rudix | Pipeline Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .node-connector {
+            background-image: radial-gradient(circle, #c7c4d8 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#1b1b24",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#e4e1ee",
+                        "on-surface-variant": "#464555",
+                        "error-container": "#ffdad6",
+                        "surface-tint": "#4d44e3",
+                        "background": "#ffffff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "inverse-surface": "#302f39",
+                        "primary-fixed": "#e2dfff",
+                        "on-error-container": "#93000a",
+                        "surface": "#ffffff",
+                        "surface-bright": "#ffffff",
+                        "primary-container": "#4f46e5",
+                        "on-tertiary": "#ffffff",
+                        "surface-dim": "#f0f0f5",
+                        "outline": "#777587",
+                        "secondary-container": "#d0e1fb",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "surface-container-low": "#f5f2ff",
+                        "on-surface": "#1b1b24",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#dad7ff",
+                        "on-tertiary-container": "#ffd2be",
+                        "surface-container-high": "#f0effa",
+                        "secondary": "#505f76",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "outline-variant": "#c7c4d8",
+                        "inverse-primary": "#c3c0ff",
+                        "surface-container": "#f8f7ff",
+                        "tertiary-container": "#a44100",
+                        "tertiary": "#7e3000",
+                        "on-secondary-fixed": "#0b1c30",
+                        "secondary-fixed": "#d3e4fe",
+                        "on-primary-fixed": "#0f0069",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed": "#351000",
+                        "primary": "#3525cd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#54647a",
+                        "inverse-on-surface": "#f3effc",
+                        "surface-variant": "#e4e1ee"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "8px",
+                        "lg": "24px",
+                        "xl": "32px",
+                        "margin-page": "32px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "mono-data": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h2": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "h1": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-white text-on-background font-body-md">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low border-r border-outline-variant flex flex-col py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-h2 text-h2 font-black text-primary">Rudix</h1>
+<p class="text-body-sm text-on-surface-variant font-semibold">Enterprise RAG</p>
+</div>
+<nav class="flex-1 space-y-sm">
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md font-semibold">Dashboard</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+<span class="font-body-md font-semibold">Documents</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="forum">forum</span>
+<span class="font-body-md font-semibold">Chat</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="fact_check">fact_check</span>
+<span class="font-body-md font-semibold">Evaluations</span>
+</div>
+<!-- Active Navigation -->
+<div class="flex items-center gap-md p-md rounded-lg text-primary font-bold bg-primary-container/10 border-r-4 border-primary transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-body-md font-semibold">Pipeline Explorer</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md font-semibold">Settings</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="font-body-md font-semibold">Admin</span>
+</div>
+</nav>
+<footer class="mt-auto pt-lg border-t border-outline-variant space-y-sm">
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="corporate_fare">corporate_fare</span>
+<span class="font-body-md font-semibold">Organization</span>
+</div>
+<div class="flex items-center gap-md p-md rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-body-md font-semibold">Profile</span>
+</div>
+</footer>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-white border-b border-outline-variant flex justify-between items-center px-xl z-40">
+<div class="flex items-center gap-md">
+<h2 class="font-h3 text-h3 font-semibold text-primary">Pipeline Explorer</h2>
+<span class="px-sm py-xs bg-secondary-container text-on-secondary-container text-label-caps rounded">v2.4-PROD</span>
+</div>
+<div class="flex items-center gap-lg">
+<div class="relative group">
+<input class="pl-xl pr-md py-xs bg-surface-container-low border border-outline-variant rounded-full text-body-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all w-64" placeholder="Search pipeline traces..." type="text"/>
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-md text-on-surface-variant">
+<button class="p-xs hover:bg-surface-container rounded-full transition-all"><span class="material-symbols-outlined" data-icon="notifications">notifications</span></button>
+<button class="p-xs hover:bg-surface-container rounded-full transition-all"><span class="material-symbols-outlined" data-icon="help_outline">help_outline</span></button>
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center overflow-hidden border border-outline-variant">
+<img alt="User Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAS-lFahL4rTY8CZkjST_UiJqiV6V9DeazQ2jj0GnxBPorNaxpFYkuDu45wiUmJMTg65rF-q3QQ7o6ht_RU5oaQxIBJt_5g3ZJo39XwVXDWoXd8uGCM2iucwYiuKJthuzla0jJ2zza8AA-vGfPzMTgyQlPkShPjvi1mhgXPyMY64kkK8Cf0v2oIjh5h5I7wvgxumLFbNVqpRFh8XJTQ8M7pnZirTYXzDjH1l2wkMeiCGlLZkl0WDtcjPZW9VEHnokYB1uq_0A8k8yE"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-16 h-screen flex overflow-hidden">
+<!-- React Flow Style Canvas Area -->
+<section class="flex-1 relative node-connector bg-white overflow-hidden">
+<!-- Toolbar -->
+<div class="absolute top-md left-md z-30 flex gap-sm p-xs bg-white border border-outline-variant rounded-xl shadow-md">
+<button class="p-sm hover:bg-surface-container-high rounded transition-all text-on-surface-variant" title="Zoom In"><span class="material-symbols-outlined">zoom_in</span></button>
+<button class="p-sm hover:bg-surface-container-high rounded transition-all text-on-surface-variant" title="Zoom Out"><span class="material-symbols-outlined">zoom_out</span></button>
+<div class="w-[1px] bg-outline-variant mx-xs"></div>
+<button class="p-sm hover:bg-surface-container-high rounded transition-all text-on-surface-variant" title="Auto Layout"><span class="material-symbols-outlined">auto_fix_high</span></button>
+<button class="p-sm hover:bg-surface-container-high rounded transition-all text-primary font-bold flex items-center gap-xs" title="Live Sync"><span class="material-symbols-outlined">sync</span><span class="text-label-caps">LIVE</span></button>
+</div>
+<!-- Canvas Visualization -->
+<div class="w-full h-full p-xl relative flex flex-col gap-xl overflow-auto">
+<!-- Ingestion Row -->
+<div class="flex items-center gap-xl">
+<div class="flex flex-col gap-sm">
+<span class="text-label-caps text-on-surface-variant px-sm font-semibold">Ingestion Pipeline</span>
+<div class="flex items-center">
+<!-- Node: Upload -->
+<div class="w-48 bg-white border-2 border-primary rounded-xl p-md shadow-sm relative group cursor-pointer hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-primary" data-icon="cloud_upload">cloud_upload</span>
+<span class="px-xs py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">SUCCESS</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Upload</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">3.4 MB/s • S3 Hook</p>
+</div>
+<!-- Connection Line -->
+<div class="w-12 h-[2px] bg-primary relative">
+<div class="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+<!-- Node: Extract -->
+<div class="w-48 bg-white border border-outline-variant rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="description">description</span>
+<span class="px-xs py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">SUCCESS</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Extract</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">OCR Engine • PDF</p>
+</div>
+<!-- Connection Line -->
+<div class="w-12 h-[2px] bg-primary"></div>
+<!-- Node: Chunk -->
+<div class="w-48 bg-white border border-outline-variant rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="splitscreen">splitscreen</span>
+<span class="px-xs py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded">PROCESSING</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Chunk</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">Size: 512 • Overlap: 10%</p>
+</div>
+<!-- Connection Line (Dashed for pending) -->
+<div class="w-12 h-[2px] border-t-2 border-dashed border-outline-variant"></div>
+<!-- Node: Embed -->
+<div class="w-48 bg-white border border-outline-variant opacity-60 rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="memory">memory</span>
+<span class="px-xs py-0.5 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold rounded">QUEUED</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Embed</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">Ada-002 • 1536 dim</p>
+</div>
+<!-- Connection Line -->
+<div class="w-12 h-[2px] border-t-2 border-dashed border-outline-variant"></div>
+<!-- Node: Upsert -->
+<div class="w-48 bg-white border border-outline-variant opacity-60 rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="database">database</span>
+<span class="px-xs py-0.5 bg-surface-container-highest text-on-surface-variant text-[10px] font-bold rounded">QUEUED</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Upsert</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">Pinecone • Index: Main</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Query Path Connector -->
+<div class="flex ml-24 items-center gap-xl h-24">
+<div class="w-1 h-full border-l-2 border-dashed border-outline-variant rounded-bl-xl border-b-2"></div>
+<div class="flex-1 border-t-2 border-dashed border-outline-variant mt-24"></div>
+</div>
+<!-- Query Row -->
+<div class="flex items-center gap-xl">
+<div class="flex flex-col gap-sm">
+<span class="text-label-caps text-on-surface-variant px-sm font-semibold">Query Pipeline</span>
+<div class="flex items-center">
+<!-- Node: Retrieve -->
+<div class="w-48 bg-white border border-outline-variant rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="search">search</span>
+<span class="px-xs py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">READY</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Retrieve</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">Hybrid Search • Top-K: 10</p>
+</div>
+<!-- Connection Line -->
+<div class="w-12 h-[2px] bg-outline-variant"></div>
+<!-- Node: Rerank -->
+<div class="w-48 bg-white border border-outline-variant rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="sort">sort</span>
+<span class="px-xs py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">READY</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">Rerank</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">Cohere v3 • Reciprocal</p>
+</div>
+<!-- Connection Line -->
+<div class="w-12 h-[2px] bg-outline-variant"></div>
+<!-- Node: LLM -->
+<div class="w-48 bg-white border border-outline-variant rounded-xl p-md shadow-sm relative cursor-pointer hover:border-primary hover:shadow-md transition-all">
+<div class="flex justify-between items-start mb-sm">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="psychology">psychology</span>
+<span class="px-xs py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">READY</span>
+</div>
+<h4 class="font-body-md font-bold mb-xs">LLM</h4>
+<p class="text-[11px] text-on-surface-variant font-mono-data">GPT-4o • Temperature: 0.1</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Node Details Side Panel -->
+<aside class="w-96 bg-white border-l border-outline-variant flex flex-col shadow-xl z-30">
+<!-- Panel Header -->
+<div class="p-lg border-b border-outline-variant bg-white">
+<div class="flex justify-between items-center mb-md">
+<span class="text-label-caps text-primary bg-primary-container/10 px-sm py-xs rounded font-bold">NODE SELECTED</span>
+<button class="p-xs hover:bg-surface-container rounded-full text-on-surface-variant"><span class="material-symbols-outlined">close</span></button>
+</div>
+<h3 class="font-h3 text-h3 flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="cloud_upload">cloud_upload</span>
+                    Upload
+                </h3>
+<p class="text-body-sm text-on-surface-variant mt-xs">Initial file ingestion from S3 compatible storage buckets.</p>
+</div>
+<!-- Panel Content -->
+<div class="flex-1 overflow-auto p-lg space-y-xl bg-white">
+<!-- Metrics Grid -->
+<div class="grid grid-cols-2 gap-md">
+<div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-xl">
+<p class="text-label-caps text-on-surface-variant mb-xs">Status</p>
+<p class="font-body-md font-bold text-emerald-700 flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Successful
+                        </p>
+</div>
+<div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-xl">
+<p class="text-label-caps text-on-surface-variant mb-xs">Duration</p>
+<p class="font-body-md font-bold">1,240 ms</p>
+</div>
+<div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-xl">
+<p class="text-label-caps text-on-surface-variant mb-xs">Throughput</p>
+<p class="font-body-md font-bold">3.4 MB/s</p>
+</div>
+<div class="p-md bg-surface-container-low border border-outline-variant/30 rounded-xl">
+<p class="text-label-caps text-on-surface-variant mb-xs">Workers</p>
+<p class="font-body-md font-bold">12 Active</p>
+</div>
+</div>
+<!-- Metadata Section -->
+<section>
+<h4 class="text-label-caps text-on-surface-variant mb-md font-bold">METADATA</h4>
+<div class="bg-white border border-outline-variant rounded-xl divide-y divide-outline-variant overflow-hidden">
+<div class="px-md py-sm flex justify-between items-center">
+<span class="text-body-sm text-on-surface-variant">Provider</span>
+<span class="font-mono-data text-body-sm font-semibold">AWS_S3</span>
+</div>
+<div class="px-md py-sm flex justify-between items-center">
+<span class="text-body-sm text-on-surface-variant">Bucket Name</span>
+<span class="font-mono-data text-body-sm font-semibold">rudix-docs-prod</span>
+</div>
+<div class="px-md py-sm flex justify-between items-center">
+<span class="text-body-sm text-on-surface-variant">Region</span>
+<span class="font-mono-data text-body-sm font-semibold">us-east-1</span>
+</div>
+<div class="px-md py-sm flex justify-between items-center">
+<span class="text-body-sm text-on-surface-variant">Auth Method</span>
+<span class="font-mono-data text-body-sm font-semibold">IAM_ROLE</span>
+</div>
+</div>
+</section>
+<!-- Trace Log -->
+<section>
+<div class="flex justify-between items-center mb-md">
+<h4 class="text-label-caps text-on-surface-variant font-bold">RECENT TRACES</h4>
+<button class="text-primary text-label-caps font-bold">VIEW ALL</button>
+</div>
+<div class="space-y-sm">
+<div class="p-md bg-inverse-surface rounded-xl text-white font-mono-data text-[12px] space-y-1 shadow-inner">
+<p class="text-emerald-400">[14:22:01] - Connection Established</p>
+<p class="text-surface-variant">[14:22:02] - Pulling: invoice_q4_final.pdf</p>
+<p class="text-surface-variant">[14:22:03] - Checksum verified: 0x8a32...</p>
+<p class="text-emerald-400">[14:22:03] - Transfer complete (342KB)</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Panel Actions -->
+<div class="p-lg border-t border-outline-variant bg-white flex gap-md">
+<button class="flex-1 bg-primary text-on-primary py-md px-lg rounded-lg font-bold hover:bg-primary-container transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined" style="font-size: 20px;">play_arrow</span>
+                    Re-run Node
+                </button>
+<button class="p-md border border-outline-variant rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-all">
+<span class="material-symbols-outlined">settings_input_component</span>
+</button>
+</div>
+</aside>
+</main>
+<!-- Contextual FAB (Hidden on detail-heavy views but kept for structure) -->
+<button class="hidden fixed bottom-xl right-xl w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<div class="fixed bottom-lg right-lg z-[60] flex flex-col gap-md">
+<div class="flex items-center gap-md bg-inverse-surface text-inverse-on-surface px-lg py-md rounded-xl shadow-xl border border-outline/20 animate-in fade-in slide-in-from-right-4 duration-300">
+<span class="material-symbols-outlined text-emerald-400">check_circle</span>
+<span class="font-body-sm font-semibold">Document indexed successfully</span>
+<button class="ml-xl text-outline hover:text-white">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+<div class="flex items-center gap-md bg-inverse-surface text-inverse-on-surface px-lg py-md rounded-xl shadow-xl border border-outline/20 animate-in fade-in slide-in-from-right-4 duration-500">
+<span class="material-symbols-outlined text-primary-fixed-dim">rocket_launch</span>
+<span class="font-body-sm font-semibold">Evaluation run started</span>
+<button class="ml-xl text-outline hover:text-white">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+</div></body></html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rudix - Document Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;family=JetBrains+Mono:wght@450&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "surface-dim": "#dcd8e5",
+                    "error": "#ba1a1a",
+                    "surface-tint": "#4d44e3",
+                    "error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#7b2f00",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "on-primary-fixed": "#0f0069",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "on-secondary-fixed": "#0b1c30",
+                    "primary": "#3525cd",
+                    "on-tertiary-fixed": "#351000",
+                    "tertiary": "#7e3000",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "on-background": "#1b1b24",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "surface-variant": "#e4e1ee",
+                    "on-secondary-container": "#54647a",
+                    "primary-fixed": "#e2dfff",
+                    "surface-bright": "#ffffff",
+                    "surface-container": "#f8f7ff",
+                    "primary-container": "#4f46e5",
+                    "on-surface-variant": "#464555",
+                    "surface": "#ffffff",
+                    "on-tertiary-container": "#ffd2be",
+                    "background": "#ffffff",
+                    "on-surface": "#1b1b24",
+                    "inverse-primary": "#c3c0ff",
+                    "secondary-fixed": "#d3e4fe",
+                    "outline-variant": "#e5e3f1",
+                    "on-primary-container": "#dad7ff",
+                    "secondary-container": "#d0e1fb",
+                    "on-error-container": "#93000a",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-fixed": "#ffdbcc",
+                    "secondary": "#505f76",
+                    "outline": "#777587",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "tertiary-container": "#a44100",
+                    "surface-container-highest": "#f0edfa",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "inverse-on-surface": "#f3effc",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-high": "#f1eff9",
+                    "surface-container-low": "#f9f8ff",
+                    "inverse-surface": "#302f39"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "sm": "8px",
+                    "margin-page": "32px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "gutter": "16px",
+                    "xl": "32px",
+                    "md": "16px"
+            },
+            "fontFamily": {
+                    "mono-data": ["JetBrains Mono"],
+                    "body-sm": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-md": ["Inter"],
+                    "h3": ["Inter"],
+                    "h2": ["Inter"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "mono-data": ["13px", {"lineHeight": "20px", "fontWeight": "450"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "h1": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #ffffff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface bg-white">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface-container-low dark:bg-inverse-surface border-r border-outline-variant dark:border-outline flex flex-col h-full py-lg px-md z-50">
+<div class="mb-xl px-sm">
+<h1 class="font-h2 text-h2 font-black text-primary dark:text-primary-fixed">Rudix</h1>
+<p class="text-on-surface-variant font-label-caps opacity-70">Enterprise RAG</p>
+</div>
+<nav class="flex-1 space-y-xs">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md font-semibold">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-primary dark:text-primary-fixed font-bold bg-primary-container/10 dark:bg-primary-container/20 border-r-4 border-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-body-md text-body-md font-semibold">Documents</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">forum</span>
+<span class="font-body-md text-body-md font-semibold">Chat</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span class="font-body-md text-body-md font-semibold">Evaluations</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-body-md text-body-md font-semibold">Pipeline Explorer</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md font-semibold">Settings</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-body-md text-body-md font-semibold">Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-lg border-t border-outline-variant/30 space-y-xs">
+<a class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200" href="#">
+<span class="material-symbols-outlined">corporate_fare</span>
+<span class="font-body-md text-body-md font-semibold">Organization</span>
+</a>
+<div class="flex items-center gap-md px-md py-sm rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-variant transition-all duration-200">
+<img alt="User Avatar" class="w-6 h-6 rounded-full bg-primary-container/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdTEFhRJZ_3J027YE44c5zVqRwC82uKhAvlAv8axnDveGpZIf4Z3JWFl1L2ErEe_s32_0zQppD27OP5q3FdzGQ9oOeeZcgEaoY3JxO8lnSFiItO_zoymGl62-jr5eKSn76XR_SEoJZi-U595IdjcgrM13l8fEWM7okdQ3qIz4gPDciOIW_IlvvEca3w5XZtgBzwpJH16Oa5s2uNitlqOdqcJkEHGmFnjVuFKqpW_XtwGkn-izdVO9yHr7Dpag9K4qBmDn0jAP2_Ic"/>
+<span class="font-body-md text-body-md font-semibold">Profile</span>
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 bg-white border-b border-outline-variant flex justify-between items-center px-xl z-40">
+<div class="flex items-center gap-md">
+<h2 class="font-h3 text-h3 font-semibold text-primary">Documents</h2>
+</div>
+<div class="flex items-center gap-lg">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-[20px]">search</span>
+<input class="pl-10 pr-md py-sm bg-surface-container-low border border-outline-variant rounded-xl w-64 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-body-sm text-body-sm outline-none" placeholder="Search knowledge base..." type="text"/>
+</div>
+<div class="flex items-center gap-sm">
+<button class="p-sm hover:bg-surface-container dark:hover:bg-surface-variant rounded-full transition-all">
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</button>
+<button class="p-sm hover:bg-surface-container dark:hover:bg-surface-variant rounded-full transition-all">
+<span class="material-symbols-outlined text-on-surface-variant">help_outline</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-md">
+<div class="text-right hidden xl:block">
+<p class="font-body-sm text-body-sm font-semibold">Alex Rivera</p>
+<p class="font-label-caps text-on-surface-variant text-[10px]">Admin</p>
+</div>
+<img alt="User Avatar" class="w-8 h-8 rounded-full border border-outline-variant object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWWUKrqo8utDfTuiXwlXzvGSlEyC1qHPOe9mXuDQPKz5ogzcLCbpbO20RNXBEqKEC6XBdeN1jAJJUQXCVitQqmxH4uskr1XO1YT1lchmwis4NZuX1yIP0EkY-21qEdMzNJZPGxEdT0by5cG19UG_t1_2Maep8YN_IL0z3gD0POfUQ7CnvyepbKyT-UF3GT4jZVj6GU9E5wzCvtIRA7mmOTQr1X3Im1FMmxiSQsBzCJoIY8y4gtiFWoVuDPQod1WEVb5UPqiXE0xao"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-64 mt-16 p-xl min-h-[calc(100vh-64px)] bg-white">
+<div class="max-w-7xl mx-auto space-y-lg">
+<!-- Upload Dropzone Section -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-lg items-stretch">
+<div class="md:col-span-2 bg-white border-2 border-dashed border-primary/20 rounded-xl p-xl flex flex-col items-center justify-center text-center group hover:border-primary hover:bg-primary/[0.02] transition-all duration-300">
+<div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[32px] text-primary">cloud_upload</span>
+</div>
+<h3 class="font-h3 text-h3 font-semibold mb-xs text-on-surface">Upload Documents</h3>
+<p class="text-on-surface-variant font-body-sm max-w-md mb-lg">Drag and drop your files here, or click to browse. We support PDF, TXT, and DOCX for high-precision retrieval.</p>
+<div class="flex gap-sm">
+<span class="px-md py-xs bg-surface-container-low border border-outline-variant rounded-full font-label-caps text-[10px] text-on-surface-variant">PDF</span>
+<span class="px-md py-xs bg-surface-container-low border border-outline-variant rounded-full font-label-caps text-[10px] text-on-surface-variant">DOCX</span>
+<span class="px-md py-xs bg-surface-container-low border border-outline-variant rounded-full font-label-caps text-[10px] text-on-surface-variant">TXT</span>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl p-lg flex flex-col justify-between overflow-hidden relative shadow-sm">
+<div class="relative z-10">
+<h4 class="font-label-caps text-primary mb-md">INDEXING STATUS</h4>
+<div class="space-y-md">
+<div class="flex justify-between items-end">
+<span class="font-body-sm text-on-surface-variant">Total Vectorized</span>
+<span class="font-h2 text-h2 font-bold text-on-surface">1,248</span>
+</div>
+<div class="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-3/4"></div>
+</div>
+<p class="font-body-sm text-on-surface-variant text-[12px]">85% of your storage capacity used.</p>
+</div>
+</div>
+<div class="mt-lg">
+<button class="w-full py-md bg-primary text-on-primary font-body-md font-semibold rounded-lg hover:shadow-lg hover:brightness-110 transition-all active:scale-95">
+                            Re-index All
+                        </button>
+</div>
+<!-- Abstract Background Pattern -->
+<div class="absolute -right-8 -bottom-8 opacity-[0.03] pointer-events-none">
+<span class="material-symbols-outlined text-[120px] text-on-surface">layers</span>
+</div>
+</div>
+</section>
+<!-- Table Controls -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-md bg-surface-container-lowest p-md rounded-xl border border-outline-variant">
+<div class="flex items-center gap-sm">
+<span class="font-body-sm font-semibold px-sm text-on-surface">Filter by:</span>
+<select class="bg-white border border-outline-variant rounded-lg px-md py-sm font-body-sm outline-none focus:ring-2 focus:ring-primary/20">
+<option>All Statuses</option>
+<option>Indexed</option>
+<option>Processing</option>
+<option>Failed</option>
+</select>
+<select class="bg-white border border-outline-variant rounded-lg px-md py-sm font-body-sm outline-none focus:ring-2 focus:ring-primary/20">
+<option>Most Recent</option>
+<option>Largest Size</option>
+<option>Filename A-Z</option>
+</select>
+</div>
+<div class="text-on-surface-variant font-body-sm">
+                    Showing <span class="font-semibold text-on-surface">12</span> of 48 documents
+                </div>
+</div>
+<!-- Document Table -->
+<div class="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px]">FILENAME</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px]">TYPE</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px]">STATUS</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px] text-center">PAGES</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px] text-center">CHUNKS</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px]">CREATED DATE</th>
+<th class="px-lg py-md font-label-caps text-on-surface-variant text-[11px] text-right">ACTIONS</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1: Indexed -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<span class="font-body-md font-semibold text-on-surface">Quarterly_Report_Q3.pdf</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">PDF</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-xs px-md py-xs bg-emerald-100/50 text-emerald-700 rounded-full font-label-caps text-[10px]">
+<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                                    Indexed
+                                </span>
+</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">42</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">156</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Oct 24, 2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="View"><span class="material-symbols-outlined text-[18px]">visibility</span></button>
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="Re-index"><span class="material-symbols-outlined text-[18px]">refresh</span></button>
+<button class="p-xs hover:bg-error-container/10 rounded text-error" title="Delete"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Processing -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-secondary">description</span>
+<span class="font-body-md font-semibold text-on-surface">Technical_Specs_v2.docx</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">DOCX</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-xs px-md py-xs bg-blue-100/50 text-blue-700 rounded-full font-label-caps text-[10px]">
+<span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+                                    Processing
+                                </span>
+</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">12</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">-</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Nov 02, 2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="View"><span class="material-symbols-outlined text-[18px]">visibility</span></button>
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="Re-index"><span class="material-symbols-outlined text-[18px]">refresh</span></button>
+<button class="p-xs hover:bg-error-container/10 rounded text-error" title="Delete"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Failed -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-error">error</span>
+<span class="font-body-md font-semibold text-on-surface">Customer_Feedback_Sept.txt</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">TXT</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-xs px-md py-xs bg-error-container/50 text-error rounded-full font-label-caps text-[10px]">
+<span class="w-1.5 h-1.5 bg-error rounded-full"></span>
+                                    Failed
+                                </span>
+</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">1</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">0</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Nov 01, 2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="View"><span class="material-symbols-outlined text-[18px]">visibility</span></button>
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="Re-index"><span class="material-symbols-outlined text-[18px]">refresh</span></button>
+<button class="p-xs hover:bg-error-container/10 rounded text-error" title="Delete"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Indexed -->
+<tr class="hover:bg-surface-container-low transition-colors group">
+<td class="px-lg py-md">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<span class="font-body-md font-semibold text-on-surface">User_Onboarding_Guide.pdf</span>
+</div>
+</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">PDF</td>
+<td class="px-lg py-md">
+<span class="inline-flex items-center gap-xs px-md py-xs bg-emerald-100/50 text-emerald-700 rounded-full font-label-caps text-[10px]">
+<span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                                    Indexed
+                                </span>
+</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">8</td>
+<td class="px-lg py-md font-mono-data text-center text-on-surface">24</td>
+<td class="px-lg py-md font-body-sm text-on-surface-variant">Oct 28, 2023</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-xs opacity-40 group-hover:opacity-100 transition-opacity">
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="View"><span class="material-symbols-outlined text-[18px]">visibility</span></button>
+<button class="p-xs hover:bg-primary-container/10 rounded text-primary" title="Re-index"><span class="material-symbols-outlined text-[18px]">refresh</span></button>
+<button class="p-xs hover:bg-error-container/10 rounded text-error" title="Delete"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="p-lg bg-surface-container-lowest flex justify-between items-center border-t border-outline-variant">
+<button class="px-md py-sm border border-outline-variant rounded-lg font-body-sm hover:bg-surface-container-low transition-all flex items-center gap-xs text-on-surface">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span> Previous
+                    </button>
+<div class="flex items-center gap-sm font-body-sm">
+<span class="px-sm py-xs bg-primary text-on-primary rounded">1</span>
+<span class="px-sm py-xs hover:bg-surface-container-low rounded cursor-pointer text-on-surface">2</span>
+<span class="px-sm py-xs hover:bg-surface-container-low rounded cursor-pointer text-on-surface">3</span>
+<span class="text-on-surface-variant">...</span>
+<span class="px-sm py-xs hover:bg-surface-container-low rounded cursor-pointer text-on-surface">8</span>
+</div>
+<button class="px-md py-sm border border-outline-variant rounded-lg font-body-sm hover:bg-surface-container-low transition-all flex items-center gap-xs text-on-surface">
+                        Next <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Contextual Insight (Bento-style element) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-lg">
+<div class="md:col-span-3 p-xl bg-gradient-to-br from-primary to-primary-container text-on-primary rounded-xl overflow-hidden relative group shadow-lg">
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-lg">
+<div class="max-w-xl">
+<h2 class="font-h2 text-h2 font-bold mb-sm">Maximize Retrieval Accuracy</h2>
+<p class="font-body-md opacity-90 leading-relaxed">Our AI suggests breaking down large PDFs into smaller 512-token chunks with 10% overlap for the best RAG performance. Would you like to optimize your current indexing settings?</p>
+</div>
+<button class="px-lg py-md bg-white text-primary font-body-md font-bold rounded-lg shadow-xl hover:scale-105 transition-transform whitespace-nowrap">
+                            Optimize Settings
+                        </button>
+</div>
+<div class="absolute right-0 top-0 opacity-20 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform duration-700">
+<span class="material-symbols-outlined text-[240px]">architecture</span>
+</div>
+</div>
+<div class="bg-white border border-outline-variant rounded-xl p-lg flex flex-col justify-center items-center text-center shadow-sm">
+<div class="w-12 h-12 bg-primary/5 rounded-xl flex items-center justify-center mb-md">
+<span class="material-symbols-outlined text-primary text-[28px]">history</span>
+</div>
+<h4 class="font-label-caps text-on-surface-variant mb-xs">LAST ACTIVITY</h4>
+<p class="font-body-sm font-semibold text-on-surface">Technical_Specs_v2.docx</p>
+<p class="text-[12px] opacity-60 text-on-surface-variant">Uploaded 4 minutes ago</p>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for quick upload -->
+<button class="fixed bottom-lg right-lg w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-[32px]">add</span>
+</button>
+</body></html>
