@@ -746,20 +746,84 @@ Notes:
 
 ### GET `/evaluations/runs/{evaluation_run_id}`
 
+Get evaluation run status/details with paginated question results.
+
+Query params:
+
+- `limit` (default `20`, max `200`)
+- `offset` (default `0`)
+
 Response:
 
 ```json
 {
-  "id": "uuid",
+  "evaluation_run_id": "uuid",
+  "evaluation_set_id": "uuid",
   "status": "completed",
+  "config": {
+    "top_k": 5,
+    "rerank": true,
+    "model_name": "gpt-5.4-mini",
+    "selected_document_ids": ["uuid"],
+    "metric_options": {
+      "faithfulness": true,
+      "answer_relevance": true
+    }
+  },
   "summary": {
+    "question_total_count": 20,
+    "question_success_count": 19,
+    "question_failure_count": 1,
     "retrieval_hit_rate": 0.86,
-    "faithfulness": 0.81,
-    "citation_accuracy": 0.78,
-    "average_latency_ms": 1450
-  }
+    "context_precision": 0.71,
+    "context_recall": 0.80,
+    "faithfulness_score": 0.81,
+    "answer_relevance_score": 0.84,
+    "citation_accuracy_score": 0.78,
+    "refusal_accuracy": 1.0,
+    "latency_ms_total": 29000,
+    "latency_ms_average": 1450.0,
+    "cost_usd_total": 0.043,
+    "cost_usd_average": 0.0023
+  },
+  "failure_reason": null,
+  "failure_type": null,
+  "results": {
+    "total": 20,
+    "limit": 20,
+    "offset": 0,
+    "items": [
+      {
+        "evaluation_result_id": "uuid",
+        "evaluation_question_id": "uuid",
+        "question": "What is the leave policy?",
+        "status": "completed",
+        "generated_answer": "Employees receive 20 paid leave days per year.",
+        "retrieval_score": 1.0,
+        "faithfulness_score": 0.88,
+        "citation_accuracy_score": 0.9,
+        "answer_relevance_score": 0.86,
+        "latency_ms": 1480,
+        "metrics": {
+          "retrieval_hit_rate": 1.0,
+          "context_precision": 0.8,
+          "context_recall": 1.0
+        },
+        "failure_reason": null,
+        "failure_type": null
+      }
+    ]
+  },
+  "created_at": "2026-05-09T10:01:10Z",
+  "updated_at": "2026-05-09T10:05:00Z"
 }
 ```
+
+Notes:
+
+- Cross-organization run access returns `404`.
+- Queued/running runs return current status with empty `results.items` until worker results are persisted.
+- Failed runs expose safe failure details (`failure_reason`, `failure_type`) when available.
 
 ## Pipeline explorer
 

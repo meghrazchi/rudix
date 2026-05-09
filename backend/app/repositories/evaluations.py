@@ -191,6 +191,23 @@ class EvaluationRepository:
         result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
         return result.scalar_one_or_none()
 
+    async def get_evaluation_run_for_organization(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+        organization_id: UUID,
+    ) -> EvaluationRun | None:
+        result = await session.execute(
+            select(EvaluationRun)
+            .join(EvaluationSet, EvaluationSet.id == EvaluationRun.evaluation_set_id)
+            .where(
+                EvaluationRun.id == evaluation_run_id,
+                EvaluationSet.organization_id == organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def update_evaluation_run_status(
         self,
         session: AsyncSession,
@@ -264,6 +281,35 @@ class EvaluationRepository:
         await session.flush()
         await session.refresh(evaluation_result)
         return evaluation_result
+
+    async def list_evaluation_results_for_run(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[tuple[EvaluationResult, EvaluationQuestion]]:
+        result = await session.execute(
+            select(EvaluationResult, EvaluationQuestion)
+            .join(EvaluationQuestion, EvaluationQuestion.id == EvaluationResult.evaluation_question_id)
+            .where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+            .order_by(EvaluationResult.created_at.asc(), EvaluationResult.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def count_evaluation_results_for_run(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(EvaluationResult.id)).where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+        )
+        return int(result.scalar_one())
 
     async def delete_evaluation_results_for_run(
         self,

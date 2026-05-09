@@ -154,3 +154,44 @@ class EvaluationStatusResponse(BaseModel):
     status: Literal["queued", "running", "completed", "failed"]
     score: float | None = None
     updated_at: datetime | None = None
+
+
+class EvaluationRunResultResponse(BaseModel):
+    evaluation_result_id: str
+    evaluation_question_id: str
+    question: str
+    status: str
+    generated_answer: str | None = None
+    retrieval_score: float | None = None
+    faithfulness_score: float | None = None
+    citation_accuracy_score: float | None = None
+    answer_relevance_score: float | None = None
+    latency_ms: int | None = None
+    metrics: dict[str, object] = Field(default_factory=dict)
+    failure_reason: str | None = None
+    failure_type: str | None = None
+    details: dict[str, object] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class EvaluationRunResultListResponse(BaseModel):
+    items: list[EvaluationRunResultResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class EvaluationRunDetailResponse(BaseModel):
+    evaluation_run_id: str
+    evaluation_set_id: str
+    status: Literal["queued", "running", "completed", "failed"]
+    config: dict[str, object] = Field(default_factory=dict)
+    summary: dict[str, object] | None = None
+    failure_reason: str | None = None
+    failure_type: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    results: EvaluationRunResultListResponse
