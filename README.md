@@ -53,6 +53,24 @@ Supported document types include:
 
 ---
 
+## Frontend Example Page
+
+### Pipeline Explorer (`/rag-pipeline`)
+
+![Rudix Pipeline Explorer](designs/pipeline_with_details_rudix/screen.png)
+
+The Pipeline Explorer page gives users a live view of the RAG execution flow and node-level diagnostics:
+
+- Visual graph of ingestion and query stages (`Upload`, `Extract`, `Chunk`, `Embed`, `Upsert`, `Retrieve`, `Rerank`, `LLM`)
+- Distinct node statuses (`queued`, `processing`, `success`, `failed`) for fast operational triage
+- Run controls for loading a specific pipeline run with optional run/document/organization context
+- Right-side details panel for the selected node: inputs, outputs, config, metrics, and logs
+- Permission-aware and error-safe behavior for protected run data
+
+This page is designed for debugging pipeline behavior, validating processing progress, and inspecting failures without querying raw backend logs directly.
+
+---
+
 ## Tech Stack
 
 ### Frontend

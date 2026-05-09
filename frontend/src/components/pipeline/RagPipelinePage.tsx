@@ -366,17 +366,23 @@ export function RagPipelinePage() {
           />
 
           <div className="relative z-10 flex h-full flex-col">
-            <div className="grid grid-cols-1 gap-2 border-b border-[#dad7ea] bg-white/95 px-4 py-3 lg:grid-cols-6">
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadGraph();
+              }}
+              className="flex flex-wrap items-center gap-2 border-b border-[#dad7ea] bg-white/95 px-4 py-3 lg:flex-nowrap"
+            >
               <input
                 value={runId}
                 onChange={(event) => setRunId(event.target.value)}
                 placeholder="Pipeline run id"
-                className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 min-w-[180px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
               />
               <select
                 value={runTypeFilter}
                 onChange={(event) => setRunTypeFilter(event.target.value as RunTypeFilter)}
-                className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 min-w-[142px] rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
               >
                 <option value="all">All run types</option>
                 <option value="document.process">document.process</option>
@@ -387,40 +393,39 @@ export function RagPipelinePage() {
                 value={documentFilter}
                 onChange={(event) => setDocumentFilter(event.target.value)}
                 placeholder="Document filter"
-                className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 min-w-[150px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
               />
               <input
                 value={organizationId}
                 onChange={(event) => setOrganizationId(event.target.value)}
                 placeholder="Organization id (optional)"
-                className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
               />
               <input
                 value={token}
                 onChange={(event) => setToken(event.target.value)}
                 placeholder="Bearer token (optional)"
                 type="password"
-                className="h-10 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
               />
-              <div className="flex gap-2">
+              <div className="ml-auto flex shrink-0 gap-2">
                 <button
-                  onClick={() => {
-                    void loadGraph();
-                  }}
+                  type="submit"
                   disabled={loadingGraph}
-                  className="h-10 flex-1 rounded-lg bg-[#3525cd] px-4 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
+                  className="h-10 whitespace-nowrap rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
                 >
                   {loadingGraph ? "Loading..." : "Load Run"}
                 </button>
                 <button
+                  type="button"
                   onClick={refreshGraph}
                   disabled={loadingGraph}
-                  className="h-10 rounded-lg border border-[#d2cee6] bg-white px-4 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:opacity-60"
+                  className="h-10 whitespace-nowrap rounded-lg border border-[#d2cee6] bg-white px-4 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:opacity-60"
                 >
                   Refresh
                 </button>
               </div>
-            </div>
+            </form>
 
             <div className="flex flex-wrap items-center gap-3 border-b border-[#e8e4f5] bg-[#f8f6ff] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#5f5b72]">
               <span>Run: {runLabel}</span>

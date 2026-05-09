@@ -24,6 +24,28 @@ Next.js frontend for Rudix. The current implementation includes the Pipeline Exp
   - node detail side panel
   - loading/error and permission-aware states
 
+## Dashboard Design Sample (Page 2 Target)
+
+![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
+
+This image is the reference layout for the upcoming `/dashboard` page.
+
+Target dashboard behavior and structure:
+
+- Left navigation shell shared with all authenticated pages.
+- Top bar with global search, alerts/help icons, and user profile access.
+- System performance summary with primary CTAs (`Upload Document`, `New Chat`).
+- KPI cards for total documents, indexed documents, total chunks, and questions asked.
+- Performance panel showing confidence, latency, and index success trends.
+- Billing/usage card with quota progress and billing action.
+- Operational tables for recent activity and latest documents with status badges.
+
+Implementation notes for this page:
+
+- Keep the same visual language as `/rag-pipeline` (spacing, color scale, card treatment).
+- Use typed API clients and show explicit loading, empty, and error states.
+- Preserve permission-aware behavior for organization-scoped data.
+
 ## Setup
 
 ### 1. Install dependencies
