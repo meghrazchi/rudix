@@ -40,6 +40,7 @@ from app.models.document import DocumentChunk
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import UsageEvent
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.services.rerank_service import RerankService
@@ -302,6 +303,12 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert len(messages) == 2
     roles = sorted(message.role for message in messages)
     assert roles == ["assistant", "user"]
+    assistant_message = next(message for message in messages if message.role == "assistant")
+    assert assistant_message.latency_ms is not None
+    assert assistant_message.model_name == settings.openai_llm_model
+    assert assistant_message.token_input_count == 38
+    assert assistant_message.token_output_count == 17
+    assert assistant_message.cost_usd is not None
 
     citations = list((await db_session.execute(select(Citation))).scalars().all())
     assert len(citations) == 1
@@ -309,6 +316,98 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert citations[0].chunk_id == chunk.id
     assert float(citations[0].similarity_score or 0.0) == pytest.approx(0.92)
     assert float(citations[0].rerank_score or 0.0) == pytest.approx(0.92)
+
+    usage_events = list((await db_session.execute(select(UsageEvent))).scalars().all())
+    assert len(usage_events) == 1
+    assert usage_events[0].event_type == "chat.completion"
+    assert usage_events[0].model_name == settings.openai_llm_model
+    assert usage_events[0].input_tokens == 38
+    assert usage_events[0].output_tokens == 17
+    assert usage_events[0].metadata_json["assistant_message_id"] == payload["message_id"]
+    assert usage_events[0].metadata_json["chat_session_id"] == payload["chat_session_id"]
+    assert usage_events[0].metadata_json["citation_count"] == 1
+    assert usage_events[0].metadata_json["confidence_category"] in {"medium", "high"}
+
+
+@pytest.mark.asyncio
+async def test_post_chat_persistence_failure_rolls_back_messages_citations_and_usage_event(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer=(
+            '{"answer":"Employees receive twenty days of annual leave.","not_found":false,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(chunk.id)
+            + '","filename":"policy.pdf","page_number":1,"text_snippet":"twenty days of annual leave"}]}'
+        )
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    async def _raise_on_create_citation(*_: object, **__: object) -> object:
+        raise RuntimeError("forced citation write failure")
+
+    monkeypatch.setattr(chat_api.chat_repository, "create_citation", _raise_on_create_citation)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 500
+    assert response.json()["detail"] == {
+        "code": "chat_persistence_failed",
+        "message": "Failed to persist chat response",
+    }
+
+    sessions = list((await db_session.execute(select(ChatSession))).scalars().all())
+    messages = list((await db_session.execute(select(ChatMessage))).scalars().all())
+    citations = list((await db_session.execute(select(Citation))).scalars().all())
+    usage_events = list((await db_session.execute(select(UsageEvent))).scalars().all())
+
+    assert sessions == []
+    assert messages == []
+    assert citations == []
+    assert usage_events == []
 
 
 @pytest.mark.asyncio

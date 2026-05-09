@@ -542,6 +542,10 @@ docker compose exec -T postgres psql -U postgres -d rag_app -c \
 docker compose exec -T postgres psql -U postgres -d rag_app -c \
   "select event_type, model_name, input_tokens, cost_usd, metadata from usage_events where event_type='document.embedding' order by created_at desc limit 10;"
 
+# Inspect chat usage events (answer/citation/latency telemetry)
+docker compose exec -T postgres psql -U postgres -d rag_app -c \
+  "select event_type, model_name, input_tokens, output_tokens, cost_usd, metadata from usage_events where event_type='chat.completion' order by created_at desc limit 10;"
+
 # Document-safe not-found behavior for inaccessible/non-existent ids
 curl -i http://localhost:8000/api/v1/documents/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN" \
@@ -556,6 +560,7 @@ Upload behavior note:
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and emits `cleaning_*` stats in worker logs.
 - Worker chunking persists deterministic chunks with `chunk_index`, `token_count`, `embedding_model`, and `index_version`, replacing current-version chunks idempotently on reprocessing.
 - Worker embeddings are generated in configurable batches, transient provider failures are retried with backoff, and `document.embedding` usage events capture token/cost telemetry for later billing/reporting integrations.
+- Successful chat responses persist question/answer/citations transactionally and emit `chat.completion` usage events with token/cost/latency metadata.
 
 ## 7. Security recommendations
 

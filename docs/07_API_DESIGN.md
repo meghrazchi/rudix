@@ -380,6 +380,8 @@ Notes:
 - Model citations are validated against retrieved final context: chunk IDs must exist, filename/page are repaired from authoritative chunk metadata, and quote snippets must match chunk text (exact/fuzzy) or are replaced with safe chunk snippets.
 - When model citations are missing or invalid, backend falls back to top retrieved chunks as citations (unless `not_found=true`).
 - Citation validation quality contributes to final confidence scoring.
+- On success, question/answer/citations and assistant telemetry (`latency_ms`, `model_name`, token counts, `cost_usd`) are persisted transactionally to `chat_messages`/`citations`.
+- A `usage_events` row (`event_type=chat.completion`) is recorded transactionally for billing/admin analytics with latency, confidence, and retrieval metadata.
 - LLM stage metrics include latency, token counts, model name, and approximate cost telemetry for orchestration persistence.
 
 Response:

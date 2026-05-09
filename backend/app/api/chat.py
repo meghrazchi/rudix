@@ -16,6 +16,7 @@ from app.db.session import get_db_session
 from app.models.enums import ChatRole, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.repositories.chat import ChatRepository
+from app.repositories.usage import UsageRepository
 from app.schemas.chat import (
     ChatCitationResponse,
     ChatConfidenceExplanationResponse,
@@ -37,6 +38,7 @@ from app.services.rerank_service import RerankCandidate, RerankService
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
+usage_repository = UsageRepository()
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
@@ -628,6 +630,7 @@ async def query_chat(
             confidence_category = confidence_result.category
             confidence_explanation = confidence_result.explanation
     latencies_ms["llm"] = llm_latency_ms
+    answer_latency_ms = int((perf_counter() - total_started) * 1000)
 
     persist_started = perf_counter()
     try:
@@ -643,6 +646,7 @@ async def query_chat(
             role=ChatRole.assistant.value,
             content=answer,
             confidence_score=confidence_score,
+            latency_ms=answer_latency_ms,
             model_name=llm_model,
             token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
             token_output_count=llm_completion_tokens,
@@ -660,6 +664,33 @@ async def query_chat(
                 similarity_score=citation.similarity_score,
                 rerank_score=citation.rerank_score if payload.rerank else None,
             )
+
+        await usage_repository.create_usage_event(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            event_type="chat.completion",
+            model_name=llm_model,
+            input_tokens=embedding_prompt_tokens + llm_prompt_tokens,
+            output_tokens=llm_completion_tokens,
+            cost_usd=llm_cost_usd,
+            metadata={
+                "chat_session_id": str(chat_session.id),
+                "assistant_message_id": str(assistant_message.id),
+                "document_ids": [str(document_id) for document_id in document_ids],
+                "confidence_score": confidence_score,
+                "confidence_category": confidence_category,
+                "not_found": not_found,
+                "citation_count": len(citations),
+                "latencies_ms": latencies_ms,
+                "answer_latency_ms": answer_latency_ms,
+                "retrieval_count": len(retrieved_chunks),
+                "selected_count": len(selected_chunks),
+                "rerank_applied": payload.rerank,
+                "embedding_model": embedding_model,
+                "llm_model": llm_model,
+            },
+        )
 
         await db_session.commit()
     except Exception as exc:
