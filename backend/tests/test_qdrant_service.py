@@ -255,3 +255,32 @@ async def test_delete_document_points_uses_org_and_document_filter(monkeypatch: 
     }
     assert condition_map["organization_id"] == str(organization_id)
     assert condition_map["document_id"] == str(document_id)
+
+
+@pytest.mark.asyncio
+async def test_delete_document_points_can_scope_to_index_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = FakeQdrantClient()
+    monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
+    monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
+
+    service = QdrantService()
+    organization_id = uuid4()
+    document_id = uuid4()
+    await service.delete_document_points(
+        organization_id=organization_id,
+        document_id=document_id,
+        index_version="v-next",
+    )
+
+    assert len(fake_client.delete_calls) == 1
+    selector = fake_client.delete_calls[0]["points_selector"]
+    must_conditions = getattr(selector, "must", None)
+    assert isinstance(must_conditions, list)
+    assert len(must_conditions) == 3
+    condition_map = {
+        condition.key: condition.match.value
+        for condition in must_conditions
+    }
+    assert condition_map["organization_id"] == str(organization_id)
+    assert condition_map["document_id"] == str(document_id)
+    assert condition_map["index_version"] == "v-next"

@@ -145,12 +145,14 @@ class QdrantService:
         *,
         organization_id: UUID,
         document_id: UUID,
+        index_version: str | None = None,
     ) -> QdrantDeleteResult:
         client = self._client()
         qdrant_module.ensure_qdrant_collection()
         filter_selector = build_organization_filter(
             organization_id=str(organization_id),
             document_ids=[str(document_id)],
+            index_version=index_version,
         )
         client.delete(
             collection_name=settings.qdrant_collection,

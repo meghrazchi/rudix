@@ -90,6 +90,7 @@ class FakeEmbeddingService:
 class FakeQdrantService:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
+        self.delete_calls: list[dict[str, Any]] = []
 
     @staticmethod
     def build_point_id(*, document_id: UUID, chunk_index: int, index_version: str) -> str:
@@ -126,22 +127,40 @@ class FakeQdrantService:
             },
         )()
 
+    async def delete_document_points(
+        self,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+        index_version: str | None = None,
+    ) -> Any:
+        self.delete_calls.append(
+            {
+                "organization_id": organization_id,
+                "document_id": document_id,
+                "index_version": index_version,
+            }
+        )
+        return type("FakeQdrantDeleteResult", (), {"deleted": True})()
+
 
 class FakeQdrantDeleteService(FakeQdrantService):
     def __init__(self) -> None:
         super().__init__()
-        self.delete_calls: list[dict[str, UUID]] = []
+        self.delete_calls: list[dict[str, Any]] = []
 
     async def delete_document_points(
         self,
         *,
         organization_id: UUID,
         document_id: UUID,
+        index_version: str | None = None,
     ) -> Any:
         self.delete_calls.append(
             {
                 "organization_id": organization_id,
                 "document_id": document_id,
+                "index_version": index_version,
             }
         )
         return type("FakeQdrantDeleteResult", (), {"deleted": True})()
@@ -258,6 +277,10 @@ async def test_worker_extracts_text_and_persists_document_pages(
         f"{document_id}:{settings.document_index_version}:{index}" for index in range(len(chunks))
     ]
     assert len(fake_qdrant.calls) == 1
+    assert len(fake_qdrant.delete_calls) == 1
+    assert fake_qdrant.delete_calls[0]["document_id"] == document_id
+    assert fake_qdrant.delete_calls[0]["organization_id"] == seeded_txt_document.organization_id
+    assert fake_qdrant.delete_calls[0]["index_version"] == settings.document_index_version
     qdrant_call = fake_qdrant.calls[0]
     assert qdrant_call["document_id"] == document_id
     assert qdrant_call["filename"] == seeded_txt_document.filename
@@ -301,7 +324,8 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two\nline three"))
     monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
-    monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
+    fake_qdrant = FakeQdrantService()
+    monkeypatch.setattr(document_tasks, "_qdrant_service", fake_qdrant)
 
     document_id = seeded_txt_document.id
     repository = DocumentRepository()
@@ -346,6 +370,8 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
 
     assert first_snapshot
     assert second_snapshot == first_snapshot
+    assert len(fake_qdrant.delete_calls) == 2
+    assert all(call["index_version"] == settings.document_index_version for call in fake_qdrant.delete_calls)
 
 
 @pytest.mark.asyncio

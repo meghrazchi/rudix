@@ -43,6 +43,12 @@ class DeleteDocumentResponse(BaseModel):
     status: Literal["deleting", "deleted"]
 
 
+class ReindexDocumentResponse(BaseModel):
+    document_id: str
+    status: Literal["processing"]
+    queue_status: Literal["queued"]
+
+
 class DocumentErrorDetails(BaseModel):
     stage: str
     code: str

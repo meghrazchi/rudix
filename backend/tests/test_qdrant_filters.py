@@ -49,3 +49,27 @@ def test_build_organization_filter_uses_match_any_for_multiple_documents() -> No
     assert document_condition.key == "document_id"
     assert isinstance(document_condition.match, MatchAny)
     assert document_condition.match.any == ["doc-1", "doc-2"]
+
+
+def test_build_organization_filter_includes_index_version_when_provided() -> None:
+    payload_filter = build_organization_filter(
+        organization_id="org-1",
+        document_ids=["doc-1"],
+        index_version="v2",
+    )
+
+    assert payload_filter.must is not None
+    assert len(payload_filter.must) == 3
+
+    index_condition = payload_filter.must[2]
+    assert index_condition.key == "index_version"
+    assert isinstance(index_condition.match, MatchValue)
+    assert index_condition.match.value == "v2"
+
+
+def test_build_organization_filter_rejects_blank_index_version() -> None:
+    with pytest.raises(ValueError):
+        build_organization_filter(
+            organization_id="org-1",
+            index_version=" ",
+        )

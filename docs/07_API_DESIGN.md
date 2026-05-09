@@ -290,6 +290,36 @@ If the record is already deleted, the endpoint is idempotent and may return:
 }
 ```
 
+### POST `/documents/{document_id}/reindex`
+
+Queue a re-index run for an existing document.
+
+Response status: `202 Accepted`
+
+Response:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "processing",
+  "queue_status": "queued"
+}
+```
+
+Conflict cases (`409 Conflict`):
+
+- Document is already `processing`.
+- Document is `deleting`.
+- Document is `deleted`.
+
+Notes:
+
+- Access is restricted to `owner` and `admin` roles.
+- Enqueue failure returns `503` and restores the previous document status/error fields.
+- Re-index worker uses index-version scoped cleanup before upsert to keep retries idempotent:
+  - Deletes prior Qdrant points for `{organization_id, document_id, index_version}`.
+  - Rebuilds chunks/vectors for the active `index_version`.
+
 ## Chat
 
 ### POST `/chat/sessions`

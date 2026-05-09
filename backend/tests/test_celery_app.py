@@ -25,7 +25,7 @@ from app.core.config import settings
 from app.core.document_errors import decode_document_error
 from app.models.enums import DocumentStatus, EvaluationRunStatus
 from app.workers import document_tasks, evaluation_tasks
-from app.workers.base_task import RudixTask, TransientTaskError
+from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 
 
@@ -244,6 +244,116 @@ def test_process_document_retries_transient_failures_without_failing_status(
     assert result["status"] == DocumentStatus.indexed.value
     assert attempts["count"] == 2
     assert status_calls == [("doc-1", DocumentStatus.processing.value), ("doc-1", DocumentStatus.processing.value)]
+
+
+def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
+    status_calls: list[tuple[str, str]] = []
+
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.indexed.value,
+    )
+
+    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+        del error_message
+        status_calls.append((document_id, status.value))
+        return True
+
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
+        class _Stats:
+            pages_modified = 1
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 2,
+                    "cleaning_pages_modified": 1,
+                    "cleaning_null_bytes_removed": 0,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 1,
+                    "cleaning_blank_lines_collapsed": 0,
+                    "cleaning_chars_before": 42,
+                    "cleaning_chars_after": 40,
+                }
+
+        class _EmbeddingResult:
+            batch_count = 1
+            retry_count = 0
+            input_tokens = 60
+            total_tokens = 60
+            latency_ms = 11
+            approximate_cost_usd = Decimal("0.000002")
+
+        return 2, 3, _Stats(), _EmbeddingResult()
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+
+    result = document_tasks.reindex_document.run("doc-1")
+    assert result["status"] == DocumentStatus.indexed.value
+    assert result["page_count"] == 2
+    assert result["chunk_count"] == 3
+    assert result["index_version"] == settings.document_index_version
+    assert status_calls == [("doc-1", DocumentStatus.processing.value)]
+
+
+def test_reindex_document_continues_when_already_processing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.processing.value,
+    )
+    monkeypatch.setattr(
+        document_tasks,
+        "set_document_status",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not set status again")),
+    )
+
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
+        class _Stats:
+            pages_modified = 0
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 1,
+                    "cleaning_pages_modified": 0,
+                    "cleaning_null_bytes_removed": 0,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 0,
+                    "cleaning_blank_lines_collapsed": 0,
+                    "cleaning_chars_before": 10,
+                    "cleaning_chars_after": 10,
+                }
+
+        class _EmbeddingResult:
+            batch_count = 1
+            retry_count = 0
+            input_tokens = 10
+            total_tokens = 10
+            latency_ms = 5
+            approximate_cost_usd = Decimal("0.000001")
+
+        return 1, 1, _Stats(), _EmbeddingResult()
+
+    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+
+    result = document_tasks.reindex_document.run("doc-1")
+    assert result["status"] == DocumentStatus.indexed.value
+    assert result["page_count"] == 1
+    assert result["chunk_count"] == 1
+
+
+def test_reindex_document_rejects_deleting_document(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.deleting.value,
+    )
+
+    with pytest.raises(PermanentTaskError, match="Cannot reindex deleting document"):
+        document_tasks.reindex_document.run("doc-1")
 
 
 def test_evaluation_run_transitions_status(monkeypatch: pytest.MonkeyPatch) -> None:

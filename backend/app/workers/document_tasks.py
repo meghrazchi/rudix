@@ -246,6 +246,47 @@ async def _extract_and_store_document_pages_async(
             **cleaning_stats.as_log_fields(),
         )
 
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="index_cleanup",
+            stage_status="started",
+            index_version=settings.document_index_version,
+        )
+        try:
+            await _qdrant_service.delete_document_points(
+                organization_id=document.organization_id,
+                document_id=document.id,
+                index_version=settings.document_index_version,
+            )
+        except ValueError as exc:
+            raise DocumentPipelinePermanentError(
+                stage="index_cleanup",
+                code="QDRANT_CLEANUP_FILTER_INVALID",
+                category="validation",
+                message=str(exc),
+            ) from exc
+        except Exception as exc:
+            raise DocumentPipelineTransientError(
+                stage="index_cleanup",
+                code="QDRANT_CLEANUP_FAILED",
+                category="infrastructure",
+                message="qdrant cleanup failed",
+            ) from exc
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=organization_id or str(document.organization_id),
+            user_id=user_id or str(document.uploaded_by_user_id),
+            stage="index_cleanup",
+            stage_status="completed",
+            index_version=settings.document_index_version,
+        )
+
         try:
             log_document_event(
                 event="document.pipeline.stage",
@@ -808,8 +849,8 @@ def reindex_document(
     request_id: str | None = None,
     organization_id: str | None = None,
     user_id: str | None = None,
-) -> dict[str, str]:
-    """Scaffold task for idempotent document re-index orchestration."""
+) -> dict[str, str | int | float]:
+    """Re-index a document idempotently for the active index/model version."""
     try:
         status = get_document_status(document_id)
     except ValueError as exc:
@@ -818,13 +859,31 @@ def reindex_document(
         raise PermanentTaskError(f"Document not found: {document_id}")
     if status == DocumentStatus.deleted.value:
         raise PermanentTaskError(f"Cannot reindex deleted document: {document_id}")
+    if status == DocumentStatus.deleting.value:
+        raise PermanentTaskError(f"Cannot reindex deleting document: {document_id}")
 
-    processing_updated = set_document_status(document_id, status=DocumentStatus.processing)
-    if not processing_updated:
-        raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
-    indexed_updated = set_document_status(document_id, status=DocumentStatus.indexed)
-    if not indexed_updated:
-        raise TransientTaskError(f"Unable to move document to indexed state: {document_id}")
+    if status != DocumentStatus.processing.value:
+        processing_updated = set_document_status(document_id, status=DocumentStatus.processing)
+        if not processing_updated:
+            raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
+
+    log_document_event(
+        event="document.reindex.started",
+        document_id=document_id,
+        request_id=request_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        status_code=DocumentStatus.processing.value,
+    )
+
+    page_count, chunk_count, cleaning_stats, embedding_result = _run(
+        _extract_and_store_document_pages_async(
+            document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+    )
 
     log_document_event(
         event="document.reindex.completed",
@@ -833,5 +892,29 @@ def reindex_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.indexed.value,
+        page_count=page_count,
+        chunk_count=chunk_count,
+        index_version=settings.document_index_version,
+        embedding_batch_count=embedding_result.batch_count,
+        embedding_retry_count=embedding_result.retry_count,
+        embedding_input_tokens=embedding_result.input_tokens,
+        embedding_total_tokens=embedding_result.total_tokens,
+        embedding_latency_ms=embedding_result.latency_ms,
+        embedding_cost_usd=float(embedding_result.approximate_cost_usd),
+        qdrant_collection=settings.qdrant_collection,
+        **cleaning_stats.as_log_fields(),
     )
-    return {"document_id": document_id, "status": DocumentStatus.indexed.value}
+    return {
+        "document_id": document_id,
+        "status": DocumentStatus.indexed.value,
+        "page_count": page_count,
+        "chunk_count": chunk_count,
+        "index_version": settings.document_index_version,
+        "embedding_batch_count": embedding_result.batch_count,
+        "embedding_retry_count": embedding_result.retry_count,
+        "embedding_input_tokens": embedding_result.input_tokens,
+        "embedding_total_tokens": embedding_result.total_tokens,
+        "embedding_latency_ms": embedding_result.latency_ms,
+        "embedding_cost_usd": float(embedding_result.approximate_cost_usd),
+        "cleaning_pages_modified": cleaning_stats.pages_modified,
+    }

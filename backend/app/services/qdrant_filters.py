@@ -9,6 +9,7 @@ def build_organization_filter(
     *,
     organization_id: str,
     document_ids: Iterable[str] | None = None,
+    index_version: str | None = None,
 ) -> Filter:
     normalized_organization_id = organization_id.strip()
     if not normalized_organization_id:
@@ -42,6 +43,17 @@ def build_organization_filter(
             FieldCondition(
                 key="document_id",
                 match=MatchAny(any=normalized_document_ids),
+            )
+        )
+
+    if index_version is not None:
+        normalized_index_version = index_version.strip()
+        if not normalized_index_version:
+            raise ValueError("index_version must not be empty when provided")
+        conditions.append(
+            FieldCondition(
+                key="index_version",
+                match=MatchValue(value=normalized_index_version),
             )
         )
 
