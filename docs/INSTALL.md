@@ -45,6 +45,8 @@ Update `.env` before first start:
   - `RATE_LIMIT_DISABLE_IN_TEST`
   - `RATE_LIMIT_REDIS_FAILURE_MODE` (`open` or `closed`)
   - endpoint-specific limits (`RATE_LIMIT_*_REQUESTS`)
+- Evaluation run settings (optional):
+  - `EVALUATION_PREVENT_DUPLICATE_ACTIVE_RUNS`
 - Chunking/index settings (optional):
   - `CHUNK_SIZE_TOKENS`
   - `CHUNK_OVERLAP_TOKENS`
@@ -419,7 +421,7 @@ Current role checks:
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluation-sets` (POST) and `evaluation-sets/{id}/questions` (POST): `owner|admin|member`
 - `evaluation-sets` (GET) and `evaluation-sets/{id}/questions` (GET): `owner|admin|member|viewer`
-- `evaluations` (POST): `owner|admin`
+- `evaluations/run` (POST): `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 
 Retrieval note:

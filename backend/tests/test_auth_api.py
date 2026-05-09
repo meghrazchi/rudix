@@ -34,6 +34,7 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+from app.repositories.evaluations import EvaluationRepository
 
 
 @pytest_asyncio.fixture
@@ -368,6 +369,7 @@ async def test_evaluation_document_guard_rejects_cross_organization_document_id(
     auth_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    evaluation_repository = EvaluationRepository()
     user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.admin)
     secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
     foreign_document = await _seed_document(
@@ -376,6 +378,12 @@ async def test_evaluation_document_guard_rejects_cross_organization_document_id(
         uploader=secondary_user,
         filename="eval-foreign.pdf",
     )
+    evaluation_set = await evaluation_repository.create_evaluation_set(
+        db_session,
+        organization_id=primary_org.id,
+        name="Auth Guard Set",
+    )
+    await db_session.commit()
 
     token = create_app_access_token(
         subject=user.external_auth_id,
@@ -384,11 +392,13 @@ async def test_evaluation_document_guard_rejects_cross_organization_document_id(
     )
 
     response = await auth_client.post(
-        "/api/v1/evaluations",
+        "/api/v1/evaluations/run",
         headers=_auth_headers(token=token, organization_id=str(primary_org.id)),
         json={
-            "document_id": str(foreign_document.id),
-            "dataset_name": "smoke",
+            "evaluation_set_id": str(evaluation_set.id),
+            "config": {
+                "selected_document_ids": [str(foreign_document.id)],
+            },
         },
     )
 
@@ -401,8 +411,15 @@ async def test_evaluation_admin_only_rejects_member_role(
     auth_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    evaluation_repository = EvaluationRepository()
     user, org, _ = await _seed_principal(db_session, role=OrganizationRole.member)
-    document = await _seed_document(db_session, organization=org, uploader=user, filename="eval-local.pdf")
+    _ = await _seed_document(db_session, organization=org, uploader=user, filename="eval-local.pdf")
+    evaluation_set = await evaluation_repository.create_evaluation_set(
+        db_session,
+        organization_id=org.id,
+        name="Member Guard Set",
+    )
+    await db_session.commit()
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),
@@ -410,11 +427,10 @@ async def test_evaluation_admin_only_rejects_member_role(
     )
 
     response = await auth_client.post(
-        "/api/v1/evaluations",
+        "/api/v1/evaluations/run",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
-            "document_id": str(document.id),
-            "dataset_name": "smoke",
+            "evaluation_set_id": str(evaluation_set.id),
         },
     )
 

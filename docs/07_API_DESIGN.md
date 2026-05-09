@@ -715,7 +715,12 @@ Request:
   "config": {
     "top_k": 5,
     "rerank": true,
-    "model_name": "gpt-5.4-mini"
+    "model_name": "gpt-5.4-mini",
+    "selected_document_ids": ["uuid"],
+    "metric_options": {
+      "faithfulness": true,
+      "citation_accuracy": true
+    }
   }
 }
 ```
@@ -728,6 +733,13 @@ Response:
   "status": "queued"
 }
 ```
+
+Notes:
+
+- Endpoint is role-protected (`owner|admin`).
+- `evaluation_set_id` must belong to the active organization.
+- `config.selected_document_ids` are org-scoped and validated before enqueue.
+- If duplicate active-run prevention is enabled, concurrent queued/running runs for the same set return `409`.
 
 ### GET `/evaluations/runs/{evaluation_run_id}`
 

@@ -144,6 +144,22 @@ class EvaluationRepository:
         await session.refresh(evaluation_run)
         return evaluation_run
 
+    async def count_active_runs_for_set(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(EvaluationRun.id)).where(
+                EvaluationRun.evaluation_set_id == evaluation_set_id,
+                EvaluationRun.status.in_(
+                    [EvaluationRunStatus.queued.value, EvaluationRunStatus.running.value]
+                ),
+            )
+        )
+        return int(result.scalar_one())
+
     async def get_evaluation_run(
         self,
         session: AsyncSession,

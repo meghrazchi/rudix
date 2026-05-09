@@ -102,12 +102,49 @@ class EvaluationQuestionListResponse(BaseModel):
     offset: int
 
 
-class TriggerEvaluationRequest(BaseModel):
-    document_id: str = Field(min_length=3)
-    dataset_name: str = Field(min_length=2, max_length=255)
+class EvaluationRunConfig(BaseModel):
+    top_k: int | None = Field(default=None, ge=1, le=200)
+    rerank: bool = True
+    model_name: str | None = Field(default=None, min_length=3, max_length=128)
+    selected_document_ids: list[str] = Field(default_factory=list, max_length=50)
+    metric_options: dict[str, bool | int | float | str] = Field(default_factory=dict)
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("model_name must not be blank")
+        return trimmed
+
+    @field_validator("selected_document_ids")
+    @classmethod
+    def validate_selected_document_ids(cls, value: list[str]) -> list[str]:
+        normalized_ids: list[str] = []
+        for document_id in value:
+            trimmed = document_id.strip()
+            if not trimmed:
+                raise ValueError("selected_document_ids must not contain blank values")
+            normalized_ids.append(trimmed)
+        return normalized_ids
 
 
-class TriggerEvaluationResponse(BaseModel):
+class RunEvaluationRequest(BaseModel):
+    evaluation_set_id: str = Field(min_length=3, max_length=64)
+    config: EvaluationRunConfig = Field(default_factory=EvaluationRunConfig)
+
+    @field_validator("evaluation_set_id")
+    @classmethod
+    def validate_evaluation_set_id(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("evaluation_set_id must not be blank")
+        return trimmed
+
+
+class RunEvaluationResponse(BaseModel):
     evaluation_run_id: str
     status: Literal["queued"] = "queued"
 
