@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chat import ChatMessage, ChatSession
@@ -27,6 +27,75 @@ class ChatRepository:
         await session.flush()
         await session.refresh(chat_session)
         return chat_session
+
+    async def get_chat_session(
+        self,
+        session: AsyncSession,
+        *,
+        chat_session_id: UUID,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> ChatSession | None:
+        result = await session.execute(
+            select(ChatSession).where(
+                ChatSession.id == chat_session_id,
+                ChatSession.organization_id == organization_id,
+                ChatSession.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_chat_sessions(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[ChatSession]:
+        result = await session.execute(
+            select(ChatSession)
+            .where(
+                ChatSession.organization_id == organization_id,
+                ChatSession.user_id == user_id,
+            )
+            .order_by(ChatSession.created_at.desc(), ChatSession.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_chat_sessions(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(ChatSession.id)).where(
+                ChatSession.organization_id == organization_id,
+                ChatSession.user_id == user_id,
+            )
+        )
+        return int(result.scalar_one())
+
+    async def count_messages_by_session_ids(
+        self,
+        session: AsyncSession,
+        *,
+        session_ids: list[UUID],
+    ) -> dict[UUID, int]:
+        if not session_ids:
+            return {}
+
+        result = await session.execute(
+            select(ChatMessage.chat_session_id, func.count(ChatMessage.id))
+            .where(ChatMessage.chat_session_id.in_(session_ids))
+            .group_by(ChatMessage.chat_session_id)
+        )
+        return {row[0]: int(row[1]) for row in result.all()}
 
     async def create_chat_message(
         self,

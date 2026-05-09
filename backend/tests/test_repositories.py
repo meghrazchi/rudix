@@ -201,6 +201,38 @@ async def test_chat_repository_crud(
     )
     assert len(citations) == 1
 
+    fetched_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session.id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    assert fetched_session is not None
+    assert fetched_session.title == "Chat"
+
+    listed_sessions = await chat_repository.list_chat_sessions(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        limit=10,
+        offset=0,
+    )
+    assert len(listed_sessions) == 1
+    assert listed_sessions[0].id == chat_session.id
+
+    total_sessions = await chat_repository.count_chat_sessions(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    assert total_sessions == 1
+
+    message_counts = await chat_repository.count_messages_by_session_ids(
+        db_session,
+        session_ids=[chat_session.id],
+    )
+    assert message_counts[chat_session.id] == 1
+
 
 @pytest.mark.asyncio
 async def test_evaluation_repository_crud(

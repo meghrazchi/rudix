@@ -189,6 +189,23 @@ curl -sS "http://localhost:8000/api/v1/documents/$DOC_ID/chunks?limit=2&offset=0
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Organization-ID: $ORG_ID" | jq
 
+# Create a chat session
+CHAT_SESSION_ID=$(curl -sS http://localhost:8000/api/v1/chat/sessions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Policy Q&A"}' | jq -r '.session_id')
+
+# List scoped chat sessions
+curl -sS "http://localhost:8000/api/v1/chat/sessions?limit=10&offset=0" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
+# Get one chat session
+curl -sS http://localhost:8000/api/v1/chat/sessions/$CHAT_SESSION_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
+
 # Verify uploaded object exists in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
   'mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls --recursive "local/$MINIO_BUCKET"'

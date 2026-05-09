@@ -297,31 +297,61 @@ Response:
 
 ```json
 {
-  "chat_session_id": "uuid",
+  "session_id": "uuid",
   "title": "Policy questions",
-  "created_at": "2026-05-07T10:00:00Z"
+  "message_count": 0,
+  "created_at": "2026-05-07T10:00:00Z",
+  "updated_at": "2026-05-07T10:00:00Z"
 }
 ```
 
 ### GET `/chat/sessions`
 
-List chat sessions.
+List chat sessions for the active principal (organization + user scoped).
+
+Query params:
+
+```text
+limit=20
+offset=0
+```
 
 Response:
 
 ```json
 {
+  "limit": 20,
+  "offset": 0,
+  "total": 1,
   "items": [
     {
-      "id": "uuid",
+      "session_id": "uuid",
       "title": "Policy questions",
-      "created_at": "2026-05-07T10:00:00Z"
+      "message_count": 2,
+      "created_at": "2026-05-07T10:00:00Z",
+      "updated_at": "2026-05-07T10:01:10Z"
     }
   ]
 }
 ```
 
-### POST `/chat`
+### GET `/chat/sessions/{session_id}`
+
+Get a single chat session for the active principal.
+
+Response:
+
+```json
+{
+  "session_id": "uuid",
+  "title": "Policy questions",
+  "message_count": 2,
+  "created_at": "2026-05-07T10:00:00Z",
+  "updated_at": "2026-05-07T10:01:10Z"
+}
+```
+
+### POST `/chat/sessions/{session_id}/messages`
 
 Ask a question.
 
@@ -329,11 +359,9 @@ Request:
 
 ```json
 {
-  "chat_session_id": "uuid",
-  "question": "What is the leave policy?",
+  "message": "What is the leave policy?",
   "document_ids": ["uuid"],
-  "top_k": 5,
-  "rerank": true
+  "stream": false
 }
 ```
 
@@ -341,28 +369,25 @@ Response:
 
 ```json
 {
+  "session_id": "uuid",
   "message_id": "uuid",
+  "role": "assistant",
   "answer": "Employees receive 20 paid leave days per year.",
-  "confidence_score": 0.87,
-  "not_found": false,
   "citations": [
     {
       "document_id": "uuid",
       "chunk_id": "uuid",
-      "filename": "employee_policy.pdf",
       "page_number": 4,
-      "text_snippet": "Employees are entitled to 20 paid leave days...",
-      "similarity_score": 0.89,
-      "rerank_score": 0.94
+      "score": 0.89
     }
   ],
-  "debug": {
-    "retrieval_latency_ms": 180,
-    "llm_latency_ms": 1200,
-    "model_name": "gpt-5.4-mini"
-  }
+  "created_at": "2026-05-07T10:01:10Z"
 }
 ```
+
+Current scaffold behavior:
+
+- Endpoint validates authz and document access, then returns `501` until retrieval/generation pipeline implementation is completed.
 
 ## Search/debug endpoints
 
