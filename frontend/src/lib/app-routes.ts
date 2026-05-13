@@ -168,9 +168,9 @@ export function resolveProtectedRouteRedirect(pathname: string, state: SessionSt
     return null;
   }
 
-  const encodedPath = encodeURIComponent(normalizePathname(pathname));
   if (access.reason === "unauthenticated") {
+    const encodedPath = encodeURIComponent(normalizePathname(pathname));
     return `/login?next=${encodedPath}`;
   }
-  return `/forbidden?from=${encodedPath}`;
+  return "/forbidden";
 }

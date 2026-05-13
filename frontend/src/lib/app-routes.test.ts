@@ -27,7 +27,7 @@ describe("app route protection", () => {
       organizationName: "Org 1",
     });
 
-    expect(resolveProtectedRouteRedirect("/admin", state)).toBe("/forbidden?from=%2Fadmin");
+    expect(resolveProtectedRouteRedirect("/admin", state)).toBe("/forbidden");
   });
 
   it("matches metadata for all required product pages", () => {

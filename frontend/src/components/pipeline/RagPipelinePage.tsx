@@ -17,6 +17,8 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 
+import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import {
   PipelineApiError,
   fallbackNodeDetail,
@@ -242,6 +244,10 @@ export function RagPipelinePage() {
   const [loadingGraph, setLoadingGraph] = useState(false);
   const [loadingNode, setLoadingNode] = useState(false);
   const [errorText, setErrorText] = useState<string | null>("Showing sample graph. Enter a run id to load backend data.");
+  const [forbiddenState, setForbiddenState] = useState<{
+    description: string;
+    requestId: string | null;
+  } | null>(null);
 
   const nodeLookup = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph.nodes]);
   const runTypeMismatch = runTypeFilter !== "all" && graph.pipeline_type !== runTypeFilter;
@@ -284,11 +290,13 @@ export function RagPipelinePage() {
         setSelectedNodeId(firstNode.id);
         setNodeDetail(deriveNodeDetail(firstNode));
       }
+      setForbiddenState(null);
       setErrorText("Showing sample graph. Enter a run id to load backend data.");
       return;
     }
 
     setLoadingGraph(true);
+    setForbiddenState(null);
     setErrorText(null);
     try {
       const loaded = await fetchPipelineRunGraph(runId.trim(), {
@@ -309,7 +317,13 @@ export function RagPipelinePage() {
         setNodeDetail(deriveNodeDetail(firstNode));
       }
 
-      if (error instanceof PipelineApiError && (error.status === 401 || error.status === 403)) {
+      if (isForbiddenError(error)) {
+        setForbiddenState({
+          description:
+            "You do not have permission to view this pipeline run. Check your role or organization scope.",
+          requestId: extractRequestIdFromError(error),
+        });
+      } else if (error instanceof PipelineApiError && error.status === 401) {
         setErrorText("You do not have permission to view this pipeline run. Check your token or organization scope.");
       } else {
         setErrorText("Could not load backend run graph. Fallback sample data is displayed.");
@@ -334,10 +348,16 @@ export function RagPipelinePage() {
         organizationId,
       });
       setNodeDetail(detail);
+      setForbiddenState(null);
       setErrorText(null);
     } catch (error) {
       setNodeDetail(deriveNodeDetail(node));
-      if (error instanceof PipelineApiError && (error.status === 401 || error.status === 403)) {
+      if (isForbiddenError(error)) {
+        setForbiddenState({
+          description: "You do not have permission to inspect this node detail.",
+          requestId: extractRequestIdFromError(error),
+        });
+      } else if (error instanceof PipelineApiError && error.status === 401) {
         setErrorText("You do not have permission to inspect this node detail.");
       } else {
         setErrorText("Node detail endpoint not available for this run. Showing best-effort preview.");
@@ -429,6 +449,17 @@ export function RagPipelinePage() {
             <span>Type: {graph.pipeline_type}</span>
             <span>Status: {graph.status}</span>
           </div>
+
+          {forbiddenState ? (
+            <div className="border-b border-[#e8e4f5] bg-[#f5f3ff] p-3">
+              <ForbiddenState
+                compact
+                title="Action blocked"
+                description={forbiddenState.description}
+                requestId={forbiddenState.requestId}
+              />
+            </div>
+          ) : null}
 
           {errorText ? (
             <div className="border-b border-[#e8e4f5] bg-[#f2efff] px-4 py-2 text-sm text-[#4f46a7]">{errorText}</div>

@@ -26,12 +26,14 @@ export type PipelineApiOptions = {
 export class PipelineApiError extends Error {
   status: number;
   code: string;
+  requestId: string | null;
 
-  constructor(status: number, message: string, code = "pipeline_error") {
+  constructor(status: number, message: string, code = "pipeline_error", requestId: string | null = null) {
     super(message);
     this.name = "PipelineApiError";
     this.status = status;
     this.code = code;
+    this.requestId = requestId;
   }
 }
 
@@ -41,7 +43,7 @@ function toPipelineError(error: unknown): PipelineApiError {
   }
 
   if (isApiClientError(error)) {
-    return new PipelineApiError(error.status, error.message, error.code);
+    return new PipelineApiError(error.status, error.message, error.code, error.requestId);
   }
 
   if (error instanceof Error) {

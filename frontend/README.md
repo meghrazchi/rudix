@@ -22,6 +22,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
 - `/onboarding` compatibility redirect to `/organization-onboarding`
 - `/forbidden` unauthorized route destination
+- `/403` alias route for forbidden destination
 - Protected product pages inside the shared shell:
   - `/dashboard`
   - `/documents`
@@ -40,7 +41,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Route metadata and role-aware navigation actions for all product routes.
 - Protected-route behavior:
   - unauthenticated users are redirected to `/login?next=...`
-  - unauthorized users are redirected to `/forbidden?from=...`
+  - unauthorized users are redirected to `/forbidden`
+- Forbidden state behavior:
+  - reusable `ForbiddenState` component for inline and full-page authorization failures
+  - includes optional support action via environment configuration
+  - displays safe trace/request ID values when available from backend responses
 - Login behavior:
   - validates credentials using React Hook Form + Zod
   - redirects already authenticated users away from `/login`
@@ -123,6 +128,8 @@ NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK=true
+NEXT_PUBLIC_SUPPORT_URL=
+NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
 ### 3. Start dev server

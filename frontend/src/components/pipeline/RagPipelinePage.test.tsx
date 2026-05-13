@@ -122,9 +122,12 @@ describe("RagPipelinePage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("You do not have permission to view this pipeline run. Check your token or organization scope."),
+        screen.getByText(
+          "You do not have permission to view this pipeline run. Check your role or organization scope.",
+        ),
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole("heading", { name: "Action blocked" })).toBeInTheDocument();
   });
 
   it("applies run type filter and shows mismatch state", async () => {
