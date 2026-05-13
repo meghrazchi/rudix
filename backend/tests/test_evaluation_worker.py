@@ -30,6 +30,7 @@ from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRo
 from app.models.evaluation import EvaluationResult, EvaluationRun
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.repositories.evaluations import EvaluationRepository
@@ -315,3 +316,39 @@ async def test_evaluation_worker_marks_failed_when_all_questions_fail(
     assert summary["question_success_count"] == 0
     assert summary["question_failure_count"] == 1
     assert summary["retrieval_hit_rate"] is None
+
+
+@pytest.mark.asyncio
+async def test_evaluation_worker_audit_helper_writes_log(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, organization_id, _, _ = await _seed_evaluation_run(
+        db_session,
+        question_texts=["Question success"],
+        selected_document_ids=[],
+    )
+
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
+
+    await evaluation_tasks._record_worker_audit_async(
+        action="evaluation.run.completed",
+        resource_type="evaluation_run",
+        resource_id=run_id,
+        organization_id=str(organization_id),
+        user_id=None,
+        request_id="req-eval-task-audit",
+        metadata={
+            "status": EvaluationRunStatus.completed.value,
+            "question_total_count": 1,
+            "question_success_count": 1,
+            "question_failure_count": 0,
+        },
+    )
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "evaluation.run.completed"
+    assert audit_logs[0].resource_id == UUID(run_id)
+    assert audit_logs[0].metadata_json["question_total_count"] == 1
+    assert audit_logs[0].metadata_json["request_id"] == "req-eval-task-audit"

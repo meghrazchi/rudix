@@ -37,6 +37,7 @@ from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRo
 from app.models.evaluation import EvaluationRun
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.repositories.evaluations import EvaluationRepository
@@ -203,6 +204,10 @@ async def test_run_evaluation_queues_run_and_persists_config(
     assert created_run.config["model_name"] == "gpt-5.4-mini"
     assert created_run.config["selected_document_ids"] == [str(document.id)]
     assert created_run.config["metric_options"] == {"faithfulness": True}
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"evaluation.run.requested", "evaluation.run.queued"}
 
 
 @pytest.mark.asyncio
@@ -341,3 +346,7 @@ async def test_run_evaluation_enqueue_failure_marks_run_failed(
     created_runs = list(created_runs_result.scalars().all())
     assert len(created_runs) == 1
     assert created_runs[0].status == EvaluationRunStatus.failed.value
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"evaluation.run.requested", "evaluation.run.enqueue_failed"}

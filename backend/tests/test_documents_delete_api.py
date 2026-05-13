@@ -36,6 +36,7 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 
@@ -186,6 +187,10 @@ async def test_delete_document_marks_deleting_and_enqueues_task(
     updated = await _get_document(db_session, document_id=document.id)
     assert updated is not None
     assert updated.status == DocumentStatus.deleting.value
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.delete.requested", "document.delete.queued"}
 
 
 @pytest.mark.asyncio

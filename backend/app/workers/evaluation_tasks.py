@@ -16,6 +16,7 @@ from app.core.logging import log_evaluation_event
 from app.db.session import SessionLocal
 from app.models.enums import EvaluationRunStatus
 from app.repositories.evaluations import EvaluationRepository
+from app.services.audit_service import AuditLogService
 from app.services.citation_service import CitationContextChunk, CitationService
 from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.services.evaluation_metrics_service import (
@@ -40,6 +41,7 @@ _prompt_service = PromptService()
 _citation_service = CitationService()
 _confidence_service = ConfidenceService()
 _evaluation_metrics_service = EvaluationMetricsService()
+_audit_log_service = AuditLogService()
 _worker_loop: asyncio.AbstractEventLoop | None = None
 _openai_client: AsyncOpenAI | None = None
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
@@ -93,6 +95,71 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
     loop = _get_worker_loop()
     return loop.run_until_complete(coro)
+
+
+def _parse_optional_uuid(value: str | None) -> UUID | None:
+    if value is None:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+async def _record_worker_audit_async(
+    *,
+    action: str,
+    resource_type: str,
+    resource_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    request_id: str | None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    organization_uuid = _parse_optional_uuid(organization_id)
+    if organization_uuid is None:
+        return
+    user_uuid = _parse_optional_uuid(user_id)
+    parsed_resource_id = _parse_optional_uuid(resource_id)
+    try:
+        async with SessionLocal() as audit_session:
+            wrote_audit = await _audit_log_service.record(
+                audit_session,
+                organization_id=organization_uuid,
+                user_id=user_uuid,
+                action=action,
+                resource_type=resource_type,
+                resource_id=parsed_resource_id,
+                request_id=request_id,
+                metadata=metadata or {},
+            )
+            if wrote_audit:
+                await audit_session.commit()
+    except Exception:
+        return
+
+
+def _record_worker_audit(
+    *,
+    action: str,
+    resource_type: str,
+    resource_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    request_id: str | None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    _run(
+        _record_worker_audit_async(
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            request_id=request_id,
+            metadata=metadata,
+        )
+    )
 
 
 def _get_openai_client() -> AsyncOpenAI:
@@ -806,6 +873,19 @@ class EvaluationTask(RudixTask):
                 status_code=EvaluationRunStatus.failed.value,
                 error=str(exc),
             )
+            _record_worker_audit(
+                action="evaluation.run.failed",
+                resource_type="evaluation_run",
+                resource_id=evaluation_run_id,
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                request_id=kwargs.get("request_id"),
+                metadata={
+                    "status": EvaluationRunStatus.failed.value,
+                    "task_name": self.name,
+                    "error_type": exc.__class__.__name__,
+                },
+            )
         except Exception:
             return
 
@@ -888,6 +968,20 @@ def run_evaluation(
         question_total_count=summary["question_total_count"],
         question_success_count=summary["question_success_count"],
         question_failure_count=summary["question_failure_count"],
+    )
+    _record_worker_audit(
+        action="evaluation.run.completed",
+        resource_type="evaluation_run",
+        resource_id=evaluation_run_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        metadata={
+            "status": final_status.value,
+            "question_total_count": summary["question_total_count"],
+            "question_success_count": summary["question_success_count"],
+            "question_failure_count": summary["question_failure_count"],
+        },
     )
     return {
         "evaluation_run_id": evaluation_run_id,

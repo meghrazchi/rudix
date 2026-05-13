@@ -36,6 +36,7 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 
@@ -213,6 +214,10 @@ async def test_reindex_queues_task_and_sets_processing_status(
     assert updated is not None
     assert updated.status == DocumentStatus.processing.value
     assert updated.error_message is None
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.reindex.requested", "document.reindex.queued"}
 
 
 @pytest.mark.asyncio
@@ -264,3 +269,7 @@ async def test_reindex_enqueue_failure_restores_previous_status_and_error(
     assert updated is not None
     assert updated.status == DocumentStatus.failed.value
     assert updated.error_message == "legacy-error"
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.reindex.requested", "document.reindex.enqueue_failed"}

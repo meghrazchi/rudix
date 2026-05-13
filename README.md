@@ -43,6 +43,7 @@ Supported document types include:
 - Question answering with OpenAI models
 - Source-grounded responses
 - Citations and confidence scoring
+- Audit logs for upload/delete/query/evaluation/admin actions (with sensitive metadata redaction)
 - Background processing with Celery
 - PostgreSQL metadata storage
 - MinIO object storage

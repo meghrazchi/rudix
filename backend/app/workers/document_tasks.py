@@ -21,6 +21,7 @@ from app.models.enums import DocumentStatus
 from app.repositories.documents import DocumentRepository
 from app.repositories.pipeline import PipelineRepository
 from app.repositories.usage import UsageRepository
+from app.services.audit_service import AuditLogService
 from app.services.chunking_service import ChunkingService
 from app.services.embedding_service import (
     EmbeddingResult,
@@ -39,6 +40,7 @@ from app.workers.status_tracking import get_document_status, set_document_status
 _document_repository = DocumentRepository()
 _pipeline_repository = PipelineRepository()
 _usage_repository = UsageRepository()
+_audit_log_service = AuditLogService()
 _chunking_service = ChunkingService()
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
@@ -271,6 +273,71 @@ def _get_worker_loop() -> asyncio.AbstractEventLoop:
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
     loop = _get_worker_loop()
     return loop.run_until_complete(coro)
+
+
+def _parse_optional_uuid(value: str | None) -> UUID | None:
+    if value is None:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+async def _record_worker_audit_async(
+    *,
+    action: str,
+    resource_type: str,
+    resource_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    request_id: str | None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    organization_uuid = _parse_optional_uuid(organization_id)
+    if organization_uuid is None:
+        return
+    user_uuid = _parse_optional_uuid(user_id)
+    parsed_resource_id = _parse_optional_uuid(resource_id)
+    try:
+        async with SessionLocal() as audit_session:
+            wrote_audit = await _audit_log_service.record(
+                audit_session,
+                organization_id=organization_uuid,
+                user_id=user_uuid,
+                action=action,
+                resource_type=resource_type,
+                resource_id=parsed_resource_id,
+                request_id=request_id,
+                metadata=metadata or {},
+            )
+            if wrote_audit:
+                await audit_session.commit()
+    except Exception:
+        return
+
+
+def _record_worker_audit(
+    *,
+    action: str,
+    resource_type: str,
+    resource_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    request_id: str | None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    _run(
+        _record_worker_audit_async(
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            request_id=request_id,
+            metadata=metadata,
+        )
+    )
 
 
 def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
@@ -1075,6 +1142,22 @@ class DocumentTask(RudixTask):
                 error_category=error_details["category"],
                 retryable=error_details["retryable"],
             )
+            _record_worker_audit(
+                action="document.task.failed",
+                resource_type="document",
+                resource_id=document_id,
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                request_id=kwargs.get("request_id"),
+                metadata={
+                    "task_name": self.name,
+                    "status": DocumentStatus.failed.value,
+                    "error_type": exc.__class__.__name__,
+                    "error_code": error_details["code"],
+                    "error_category": error_details["category"],
+                    "retryable": error_details["retryable"],
+                },
+            )
         except Exception:
             return
 
@@ -1157,6 +1240,19 @@ def process_document(
         qdrant_collection=settings.qdrant_collection,
         **cleaning_stats.as_log_fields(),
     )
+    _record_worker_audit(
+        action="document.process.completed",
+        resource_type="document",
+        resource_id=document_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        metadata={
+            "status": DocumentStatus.indexed.value,
+            "page_count": page_count,
+            "chunk_count": chunk_count,
+        },
+    )
     return {
         "document_id": document_id,
         "status": DocumentStatus.indexed.value,
@@ -1234,6 +1330,19 @@ def delete_document(
         deleted_chunk_count=deleted_chunks,
         deleted_page_count=deleted_pages,
     )
+    _record_worker_audit(
+        action="document.delete.completed",
+        resource_type="document",
+        resource_id=document_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        metadata={
+            "status": DocumentStatus.deleted.value,
+            "deleted_chunk_count": deleted_chunks,
+            "deleted_page_count": deleted_pages,
+        },
+    )
     return {"document_id": document_id, "status": DocumentStatus.deleted.value}
 
 
@@ -1300,6 +1409,19 @@ def reindex_document(
         embedding_cost_usd=float(embedding_result.approximate_cost_usd),
         qdrant_collection=settings.qdrant_collection,
         **cleaning_stats.as_log_fields(),
+    )
+    _record_worker_audit(
+        action="document.reindex.completed",
+        resource_type="document",
+        resource_id=document_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        metadata={
+            "status": DocumentStatus.indexed.value,
+            "page_count": page_count,
+            "chunk_count": chunk_count,
+        },
     )
     return {
         "document_id": document_id,

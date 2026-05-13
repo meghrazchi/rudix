@@ -34,7 +34,7 @@ from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
-from app.models.usage import UsageEvent
+from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.workers import document_tasks
@@ -553,3 +553,34 @@ async def test_delete_worker_is_idempotent_when_document_is_already_deleted(
     result = document_tasks.delete_document.run(str(seeded_txt_document.id))
     assert result["document_id"] == str(seeded_txt_document.id)
     assert result["status"] == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_document_worker_audit_helper_writes_log(
+    db_session: AsyncSession,
+    seeded_txt_document: Document,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
+
+    await document_tasks._record_worker_audit_async(
+        action="document.delete.completed",
+        resource_type="document",
+        resource_id=str(seeded_txt_document.id),
+        organization_id=str(seeded_txt_document.organization_id),
+        user_id=None,
+        request_id="req-delete-task-audit",
+        metadata={
+            "deleted_chunk_count": 2,
+            "deleted_page_count": 1,
+            "status": DocumentStatus.deleted.value,
+        },
+    )
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "document.delete.completed"
+    assert audit_logs[0].resource_id == seeded_txt_document.id
+    assert audit_logs[0].metadata_json["deleted_chunk_count"] == 2
+    assert audit_logs[0].metadata_json["deleted_page_count"] == 1
+    assert audit_logs[0].metadata_json["request_id"] == "req-delete-task-audit"

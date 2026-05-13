@@ -30,6 +30,7 @@ from app.schemas.documents import (
     SortOrder,
     UploadDocumentResponse,
 )
+from app.services.audit_service import AuditLogService
 from app.services.upload_validation import validate_upload
 from app.workers.document_tasks import delete_document as delete_document_task
 from app.workers.document_tasks import process_document
@@ -37,6 +38,7 @@ from app.workers.document_tasks import reindex_document as reindex_document_task
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
+audit_log_service = AuditLogService()
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -81,6 +83,22 @@ def _chunk_preview_text(text: str, *, max_length: int = 240) -> str:
     return f"{normalized[: max_length - 1].rstrip()}…"
 
 
+def _request_id_from_request(request: Request) -> str | None:
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id.strip():
+        return request_id
+    return request.headers.get("x-request-id")
+
+
+async def _safe_commit_audit_only(db_session: AsyncSession, *, wrote_audit: bool) -> None:
+    if not wrote_audit:
+        return
+    try:
+        await db_session.commit()
+    except Exception:
+        await db_session.rollback()
+
+
 @router.post("/upload", response_model=UploadDocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
@@ -98,6 +116,7 @@ async def upload_document(
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.upload))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> UploadDocumentResponse:
+    request_id = _request_id_from_request(request)
     max_size_bytes = settings.max_upload_size_mb * 1024 * 1024
     try:
         content = await file.read(max_size_bytes + 1)
@@ -172,6 +191,21 @@ async def upload_document(
             checksum=validated.checksum_sha256,
             status=DocumentStatus.uploaded.value,
         )
+        await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="document.upload.accepted",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={
+                "filename": validated.normalized_filename,
+                "file_type": validated.extension,
+                "file_size_bytes": validated.file_size_bytes,
+                "status": DocumentStatus.uploaded.value,
+            },
+        )
         await db_session.commit()
         await db_session.refresh(document)
     except Exception as exc:
@@ -199,13 +233,12 @@ async def upload_document(
         document_id=str(document.id),
         organization_id=str(organization_id),
         user_id=str(user_id),
-        request_id=request.headers.get("x-request-id"),
+        request_id=request_id,
         status_code=status.HTTP_201_CREATED,
         file_type=validated.extension,
         file_size_bytes=validated.file_size_bytes,
     )
 
-    request_id = request.headers.get("x-request-id")
     try:
         task_result = process_document.delay(
             str(document.id),
@@ -214,6 +247,20 @@ async def upload_document(
             user_id=str(user_id),
         )
     except Exception as exc:
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="document.upload.enqueue_failed",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "error_type": exc.__class__.__name__,
+            },
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
         log_document_event(
             event="document.processing.enqueue_failed",
             document_id=str(document.id),
@@ -467,25 +514,49 @@ async def delete_document_endpoint(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DeleteDocumentResponse:
     del document_id
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
 
     if document.status == DocumentStatus.deleted.value:
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            action="document.delete.skipped",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={"reason": "already_deleted", "status": document.status},
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
         log_document_event(
             event="document.deletion.already_deleted",
             document_id=str(document.id),
             organization_id=principal.organization_id,
             user_id=principal.user_id,
-            request_id=request.headers.get("x-request-id"),
+            request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
         return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleted.value)
 
     if document.status == DocumentStatus.deleting.value:
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            action="document.delete.skipped",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={"reason": "already_deleting", "status": document.status},
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
         log_document_event(
             event="document.deletion.already_queued",
             document_id=str(document.id),
             organization_id=principal.organization_id,
             user_id=principal.user_id,
-            request_id=request.headers.get("x-request-id"),
+            request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
         return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleting.value)
@@ -502,17 +573,43 @@ async def delete_document_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.delete.requested",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={
+            "previous_status": document.status,
+            "next_status": DocumentStatus.deleting.value,
+        },
+    )
     await db_session.commit()
 
-    request_id = request.headers.get("x-request-id")
     try:
         task_result = delete_document_task.delay(
             str(document.id),
             request_id=request_id,
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
+            organization_id=str(actor_organization_id),
+            user_id=str(actor_user_id),
         )
     except Exception as exc:
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            action="document.delete.enqueue_failed",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "error_type": exc.__class__.__name__,
+            },
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
         log_document_event(
             event="document.deletion.enqueue_failed",
             document_id=str(document.id),
@@ -526,6 +623,21 @@ async def delete_document_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Document marked for deletion but could not be queued",
         ) from exc
+
+    wrote_audit = await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.delete.queued",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={
+            "task_id": str(task_result.id),
+            "status_code": status.HTTP_202_ACCEPTED,
+        },
+    )
+    await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
 
     log_document_event(
         event="document.deletion.queued",
@@ -560,6 +672,8 @@ async def reindex_document_endpoint(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ReindexDocumentResponse:
     del document_id
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
 
     if document.status == DocumentStatus.deleted.value:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Deleted documents cannot be re-indexed")
@@ -579,17 +693,43 @@ async def reindex_document_endpoint(
     if updated is None:
         await db_session.rollback()
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.reindex.requested",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={
+            "previous_status": previous_status,
+            "next_status": DocumentStatus.processing.value,
+        },
+    )
     await db_session.commit()
 
-    request_id = request.headers.get("x-request-id")
     try:
         task_result = reindex_document_task.delay(
             str(document.id),
             request_id=request_id,
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
+            organization_id=str(actor_organization_id),
+            user_id=str(actor_user_id),
         )
     except Exception as exc:
+        await audit_log_service.record(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            action="document.reindex.enqueue_failed",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "error_type": exc.__class__.__name__,
+                "restored_status": previous_status,
+            },
+        )
         log_document_event(
             event="document.reindex.enqueue_failed",
             document_id=str(document.id),
@@ -613,6 +753,22 @@ async def reindex_document_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Document re-index request could not be queued",
         ) from exc
+
+    wrote_audit = await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.reindex.queued",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={
+            "task_id": str(task_result.id),
+            "status_code": status.HTTP_202_ACCEPTED,
+            "previous_status": previous_status,
+        },
+    )
+    await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
 
     log_document_event(
         event="document.reindex.queued",

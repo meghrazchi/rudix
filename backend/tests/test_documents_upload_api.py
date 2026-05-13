@@ -26,9 +26,9 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.api import documents as documents_api
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
-from app.api import documents as documents_api
 from app.clients import minio_client as minio_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
@@ -37,6 +37,7 @@ from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 
 
@@ -216,6 +217,14 @@ async def test_upload_accepts_supported_document_types(
     assert delay_call["organization_id"] == str(org.id)
     assert delay_call["user_id"] == str(user.id)
     assert await _document_count(db_session) == 1
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "document.upload.accepted"
+    assert audit_logs[0].resource_type == "document"
+    assert audit_logs[0].resource_id == document.id
+    assert audit_logs[0].metadata_json["file_type"] == expected_extension
+    assert audit_logs[0].metadata_json["file_size_bytes"] == len(content)
+    assert audit_logs[0].metadata_json["request_id"]
 
 
 @pytest.mark.asyncio
@@ -431,3 +440,7 @@ async def test_upload_returns_503_when_enqueue_fails_and_document_stays_uploaded
     document = result.scalar_one()
     assert document.status == "uploaded"
     assert await _document_count(db_session) == 1
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.upload.accepted", "document.upload.enqueue_failed"}

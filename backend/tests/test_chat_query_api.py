@@ -40,7 +40,7 @@ from app.models.document import DocumentChunk
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
-from app.models.usage import UsageEvent
+from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 from app.repositories.documents import DocumentRepository
 from app.services.rerank_service import RerankService
@@ -327,6 +327,14 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert usage_events[0].metadata_json["chat_session_id"] == payload["chat_session_id"]
     assert usage_events[0].metadata_json["citation_count"] == 1
     assert usage_events[0].metadata_json["confidence_category"] in {"medium", "high"}
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "chat.query.completed"
+    assert audit_logs[0].resource_type == "chat_session"
+    assert audit_logs[0].resource_id == session_rows[0].id
+    assert audit_logs[0].metadata_json["assistant_message_id"] == payload["message_id"]
+    assert "question" not in audit_logs[0].metadata_json
+    assert "answer" not in audit_logs[0].metadata_json
 
 
 @pytest.mark.asyncio

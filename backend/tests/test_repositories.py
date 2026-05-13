@@ -334,6 +334,27 @@ async def test_usage_repository_create_event(
 
 
 @pytest.mark.asyncio
+async def test_usage_repository_create_audit_log(
+    db_session: AsyncSession,
+    usage_repository: UsageRepository,
+    organization_user_ids,
+) -> None:
+    organization_id, user_id = organization_user_ids
+    audit_log = await usage_repository.create_audit_log(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="document.upload.accepted",
+        resource_type="document",
+        metadata={"request_id": "req-1", "status_code": 201},
+    )
+    assert audit_log.action == "document.upload.accepted"
+    assert audit_log.resource_type == "document"
+    assert audit_log.metadata_json["request_id"] == "req-1"
+    assert audit_log.metadata_json["status_code"] == 201
+
+
+@pytest.mark.asyncio
 async def test_pipeline_repository_create_and_update(
     db_session: AsyncSession,
     pipeline_repository: PipelineRepository,

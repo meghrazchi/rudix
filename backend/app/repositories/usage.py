@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.usage import UsageEvent
+from app.models.usage import AuditLog, UsageEvent
 
 
 class UsageRepository:
@@ -36,3 +36,27 @@ class UsageRepository:
         await session.flush()
         await session.refresh(usage_event)
         return usage_event
+
+    async def create_audit_log(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID | None,
+        action: str,
+        resource_type: str,
+        resource_id: UUID | None = None,
+        metadata: dict | None = None,
+    ) -> AuditLog:
+        audit_log = AuditLog(
+            organization_id=organization_id,
+            user_id=user_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            metadata_json=metadata or {},
+        )
+        session.add(audit_log)
+        await session.flush()
+        await session.refresh(audit_log)
+        return audit_log

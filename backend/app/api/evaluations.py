@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
@@ -19,10 +19,12 @@ from app.schemas.evaluations import (
     RunEvaluationRequest,
     RunEvaluationResponse,
 )
+from app.services.audit_service import AuditLogService
 from app.workers.evaluation_tasks import run_evaluation as run_evaluation_task
 
 router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 evaluation_repository = EvaluationRepository()
+audit_log_service = AuditLogService()
 
 
 def _organization_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
@@ -37,6 +39,16 @@ def _organization_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Principal organization context is invalid",
+        ) from exc
+
+
+def _user_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
+    try:
+        return UUID(principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Principal user context is invalid",
         ) from exc
 
 
@@ -68,8 +80,25 @@ def _extract_failure_fields(details: dict[str, object]) -> tuple[str | None, str
     return reason, failure_type
 
 
+def _request_id_from_request(request: Request) -> str | None:
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id.strip():
+        return request_id
+    return request.headers.get("x-request-id")
+
+
+async def _safe_commit_audit_only(db_session: AsyncSession, *, wrote_audit: bool) -> None:
+    if not wrote_audit:
+        return
+    try:
+        await db_session.commit()
+    except Exception:
+        await db_session.rollback()
+
+
 @router.post("/run", response_model=RunEvaluationResponse, status_code=status.HTTP_202_ACCEPTED)
 async def trigger_evaluation(
+    request: Request,
     payload: RunEvaluationRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
@@ -79,7 +108,9 @@ async def trigger_evaluation(
     __: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> RunEvaluationResponse:
+    request_id = _request_id_from_request(request)
     organization_id = _organization_id_from_principal(principal)
+    user_id = _user_id_from_principal(principal)
     evaluation_set_id = _parse_evaluation_set_id(payload.evaluation_set_id)
 
     evaluation_set = await evaluation_repository.get_evaluation_set(
@@ -121,15 +152,31 @@ async def trigger_evaluation(
         evaluation_set_id=evaluation_set_id,
         config=config_payload,
     )
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="evaluation.run.requested",
+        resource_type="evaluation_run",
+        resource_id=evaluation_run.id,
+        request_id=request_id,
+        metadata={
+            "evaluation_set_id": str(evaluation_set_id),
+            "top_k": config_payload["top_k"],
+            "rerank": config_payload["rerank"],
+            "selected_document_count": len(selected_document_ids_as_strings),
+            "status_code": status.HTTP_202_ACCEPTED,
+        },
+    )
     await db_session.commit()
     await db_session.refresh(evaluation_run)
 
     try:
         task_result = run_evaluation_task.delay(
             str(evaluation_run.id),
-            request_id=None,
+            request_id=request_id,
             organization_id=str(organization_id),
-            user_id=principal.user_id,
+            user_id=str(user_id),
         )
     except Exception as exc:
         _ = await evaluation_repository.update_evaluation_run_status(
@@ -137,6 +184,19 @@ async def trigger_evaluation(
             evaluation_run_id=evaluation_run.id,
             status="failed",
             mark_completed=True,
+        )
+        await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="evaluation.run.enqueue_failed",
+            resource_type="evaluation_run",
+            resource_id=evaluation_run.id,
+            request_id=request_id,
+            metadata={
+                "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
+                "error_type": exc.__class__.__name__,
+            },
         )
         await db_session.commit()
 
@@ -152,6 +212,21 @@ async def trigger_evaluation(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Evaluation run could not be queued",
         ) from exc
+
+    wrote_audit = await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="evaluation.run.queued",
+        resource_type="evaluation_run",
+        resource_id=evaluation_run.id,
+        request_id=request_id,
+        metadata={
+            "task_id": str(task_result.id),
+            "status_code": status.HTTP_202_ACCEPTED,
+        },
+    )
+    await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
 
     log_evaluation_event(
         event="evaluation.run.queued",

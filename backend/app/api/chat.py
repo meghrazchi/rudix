@@ -3,7 +3,7 @@ from time import perf_counter
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,7 @@ from app.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
+from app.services.audit_service import AuditLogService
 from app.services.citation_service import CitationContextChunk, CitationService
 from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
@@ -39,6 +40,7 @@ from app.services.rerank_service import RerankCandidate, RerankService
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
 usage_repository = UsageRepository()
+audit_log_service = AuditLogService()
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
@@ -109,6 +111,13 @@ def _get_qdrant_client():
     if qdrant_module.qdrant_client is None:
         raise RuntimeError("Qdrant client is not initialized")
     return qdrant_module.qdrant_client
+
+
+def _request_id_from_request(request: Request) -> str | None:
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id.strip():
+        return request_id
+    return request.headers.get("x-request-id")
 
 
 def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
@@ -359,6 +368,7 @@ async def get_chat_session(
 
 @router.post("", response_model=ChatQueryResponse)
 async def query_chat(
+    request: Request,
     payload: ChatQueryRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
@@ -374,6 +384,7 @@ async def query_chat(
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatQueryResponse:
+    request_id = _request_id_from_request(request)
     user_id, organization_id = _principal_user_and_org(principal)
     try:
         document_ids = await ensure_document_ids_access(
@@ -689,6 +700,25 @@ async def query_chat(
                 "rerank_applied": payload.rerank,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
+            },
+        )
+        await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="chat.query.completed",
+            resource_type="chat_session",
+            resource_id=chat_session.id,
+            request_id=request_id,
+            metadata={
+                "assistant_message_id": str(assistant_message.id),
+                "not_found": not_found,
+                "confidence_category": confidence_category,
+                "citation_count": len(citations),
+                "retrieval_count": len(retrieved_chunks),
+                "selected_count": len(selected_chunks),
+                "rerank_applied": payload.rerank,
+                "status_code": status.HTTP_200_OK,
             },
         )
 

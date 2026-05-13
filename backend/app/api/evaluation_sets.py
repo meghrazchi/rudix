@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
@@ -19,9 +19,11 @@ from app.schemas.evaluations import (
     EvaluationSetListResponse,
     EvaluationSetResponse,
 )
+from app.services.audit_service import AuditLogService
 
 router = APIRouter(prefix="/evaluation-sets", tags=["evaluation-sets"])
 evaluation_repository = EvaluationRepository()
+audit_log_service = AuditLogService()
 
 
 def _organization_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
@@ -36,6 +38,16 @@ def _organization_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Principal organization context is invalid",
+        ) from exc
+
+
+def _user_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
+    try:
+        return UUID(principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Principal user context is invalid",
         ) from exc
 
 
@@ -94,6 +106,13 @@ def _to_question_response(question: EvaluationQuestion) -> EvaluationQuestionRes
     )
 
 
+def _request_id_from_request(request: Request) -> str | None:
+    request_id = getattr(request.state, "request_id", None)
+    if isinstance(request_id, str) and request_id.strip():
+        return request_id
+    return request.headers.get("x-request-id")
+
+
 async def _get_evaluation_set_or_404(
     *,
     evaluation_set_id: str,
@@ -113,6 +132,7 @@ async def _get_evaluation_set_or_404(
 
 @router.post("", response_model=EvaluationSetResponse, status_code=status.HTTP_201_CREATED)
 async def create_evaluation_set(
+    request: Request,
     payload: CreateEvaluationSetRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
@@ -127,11 +147,26 @@ async def create_evaluation_set(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> EvaluationSetResponse:
     organization_id = _organization_id_from_principal(principal)
+    user_id = _user_id_from_principal(principal)
+    request_id = _request_id_from_request(request)
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=organization_id,
         name=payload.name,
         description=payload.description,
+    )
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="evaluation.set.created",
+        resource_type="evaluation_set",
+        resource_id=evaluation_set.id,
+        request_id=request_id,
+        metadata={
+            "name": payload.name,
+            "status_code": status.HTTP_201_CREATED,
+        },
     )
     await db_session.commit()
     await db_session.refresh(evaluation_set)
@@ -203,6 +238,7 @@ async def list_evaluation_sets(
 
 @router.post("/{evaluation_set_id}/questions", response_model=EvaluationQuestionResponse, status_code=status.HTTP_201_CREATED)
 async def create_evaluation_question(
+    request: Request,
     evaluation_set_id: str,
     payload: CreateEvaluationQuestionRequest,
     principal: Annotated[
@@ -218,6 +254,8 @@ async def create_evaluation_question(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> EvaluationQuestionResponse:
     organization_id = _organization_id_from_principal(principal)
+    user_id = _user_id_from_principal(principal)
+    request_id = _request_id_from_request(request)
     evaluation_set = await _get_evaluation_set_or_404(
         evaluation_set_id=evaluation_set_id,
         organization_id=organization_id,
@@ -245,6 +283,23 @@ async def create_evaluation_question(
         expected_document_id=expected_document_id,
         expected_page_number=payload.expected_page_number,
         metadata=metadata_payload,
+    )
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="evaluation.question.created",
+        resource_type="evaluation_question",
+        resource_id=question.id,
+        request_id=request_id,
+        metadata={
+            "evaluation_set_id": str(evaluation_set.id),
+            "expected_document_id": str(expected_document_id) if expected_document_id is not None else None,
+            "expected_page_number": payload.expected_page_number,
+            "tag_count": len(payload.tags),
+            "has_expected_answer": bool(payload.expected_answer),
+            "status_code": status.HTTP_201_CREATED,
+        },
     )
     await db_session.commit()
     await db_session.refresh(question)

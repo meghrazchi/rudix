@@ -156,6 +156,7 @@ def attach_access_log_middleware(app: FastAPI) -> None:
         context = _pick_context_from_request(request)
         request_id = context["request_id"] or str(uuid4())
         context["request_id"] = request_id
+        request.state.request_id = request_id
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(**context)
