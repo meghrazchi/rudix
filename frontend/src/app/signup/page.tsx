@@ -29,7 +29,7 @@ function safeErrorMessage(error: unknown): string {
 
 function resolvePostSignupTarget(nextPath: string, nextStep: "onboarding" | "dashboard"): string {
   if (nextStep === "onboarding") {
-    return "/onboarding";
+    return "/organization-onboarding";
   }
 
   if (!nextPath || nextPath === "/login" || nextPath === "/signup") {

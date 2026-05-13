@@ -66,7 +66,7 @@ describe("SignupPage", () => {
     expect(startSpy).not.toHaveBeenCalled();
   });
 
-  it("redirects to onboarding after successful signup when backend requires onboarding", async () => {
+  it("redirects to organization onboarding after successful signup when backend requires onboarding", async () => {
     vi.spyOn(authSignup, "startSignupSession").mockResolvedValueOnce({
       session: {
         userId: "user-1",
@@ -101,7 +101,7 @@ describe("SignupPage", () => {
     });
 
     expect(mockState.setAuthenticatedSession).toHaveBeenCalled();
-    expect(mockState.replace).toHaveBeenCalledWith("/onboarding");
+    expect(mockState.replace).toHaveBeenCalledWith("/organization-onboarding");
   });
 
   it("shows safe duplicate-email error", async () => {

@@ -19,7 +19,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - `/` public landing page with entry points to login and protected routes
 - `/login` credential-based sign-in form with auth-provider entry points
 - `/signup` account creation form with workspace create/join entry points
-- `/onboarding` post-signup onboarding handoff page
+- `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
+- `/onboarding` compatibility redirect to `/organization-onboarding`
 - `/forbidden` unauthorized route destination
 - Protected product pages inside the shared shell:
   - `/dashboard`
@@ -49,7 +50,13 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - validates name, email, password, workspace mode, and terms acceptance using React Hook Form + Zod
   - supports create-workspace and join-workspace entry points
   - maps duplicate email, weak password, invite-only, and provider/network errors to safe messages
-  - redirects successful signup to `/onboarding` or `/dashboard` based on signup result state
+  - redirects successful signup to `/organization-onboarding` or `/dashboard` based on signup result state
+- Organization onboarding behavior:
+  - requires authenticated session and redirects unauthenticated users to `/login?next=/organization-onboarding`
+  - redirects already-onboarded sessions to `/dashboard`
+  - validates workspace name, optional domain allowlist, default access settings, and invite emails/roles
+  - supports draft save/resume through backend endpoints when configured, with local fallback
+  - completes onboarding by creating/updating organization context and routing to `/dashboard`
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
@@ -112,6 +119,10 @@ NEXT_PUBLIC_AUTH_SIGNUP_URL=
 NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL=
 NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_INVITE_ONLY=false
+NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
+NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
+NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
+NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK=true
 ```
 
 ### 3. Start dev server
