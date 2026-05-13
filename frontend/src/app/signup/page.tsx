@@ -14,6 +14,8 @@ import {
   type SignupFlowError,
   type SignupFormValues,
 } from "@/lib/auth-signup";
+import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
+import type { AuthenticatedSession } from "@/lib/auth-session";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 function safeErrorMessage(error: unknown): string {
@@ -27,16 +29,20 @@ function safeErrorMessage(error: unknown): string {
   return "Signup failed. Please try again.";
 }
 
-function resolvePostSignupTarget(nextPath: string, nextStep: "onboarding" | "dashboard"): string {
+function resolvePostSignupTarget(
+  nextPath: string,
+  nextStep: "onboarding" | "dashboard",
+  session: AuthenticatedSession,
+): string {
   if (nextStep === "onboarding") {
     return "/organization-onboarding";
   }
 
-  if (!nextPath || nextPath === "/login" || nextPath === "/signup") {
-    return "/dashboard";
+  if (!nextPath || nextPath === "/login" || nextPath === "/signup" || nextPath === "/organization-onboarding") {
+    return resolveAuthenticatedNavigationTarget("/dashboard", session);
   }
 
-  return nextPath;
+  return resolveAuthenticatedNavigationTarget(nextPath, session);
 }
 
 export default function SignupPage() {
@@ -69,10 +75,10 @@ export default function SignupPage() {
   const providerLabel = getSignupProviderLabel();
 
   useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace(nextPath);
+    if (state.status === "authenticated" && state.session) {
+      router.replace(resolveAuthenticatedNavigationTarget(nextPath, state.session));
     }
-  }, [nextPath, router, state.status]);
+  }, [nextPath, router, state]);
 
   async function onSubmit(values: SignupFormValues) {
     setSubmissionError(null);
@@ -80,7 +86,7 @@ export default function SignupPage() {
     try {
       const result = await startSignupSession(values);
       setAuthenticatedSession(result.session);
-      router.replace(resolvePostSignupTarget(nextPath, result.nextStep));
+      router.replace(resolvePostSignupTarget(nextPath, result.nextStep, result.session));
     } catch (error) {
       setSubmissionError(safeErrorMessage(error));
     }

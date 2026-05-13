@@ -142,4 +142,24 @@ describe("SignupPage", () => {
       expect(mockState.replace).toHaveBeenCalledWith("/documents");
     });
   });
+
+  it("redirects authenticated users without organization to onboarding", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-2",
+        email: "new@example.com",
+        role: "member",
+        organizationId: null,
+        organizationName: null,
+        accessToken: "token-2",
+      },
+    };
+
+    render(<SignupPage />);
+
+    await waitFor(() => {
+      expect(mockState.replace).toHaveBeenCalledWith("/organization-onboarding");
+    });
+  });
 });

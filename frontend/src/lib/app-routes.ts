@@ -172,5 +172,35 @@ export function resolveProtectedRouteRedirect(pathname: string, state: SessionSt
     const encodedPath = encodeURIComponent(normalizePathname(pathname));
     return `/login?next=${encodedPath}`;
   }
+  if (access.reason === "organization_required") {
+    return "/organization-onboarding";
+  }
   return "/forbidden";
+}
+
+export function resolveAuthenticatedNavigationTarget(
+  pathname: string,
+  session: AuthenticatedSession,
+): string {
+  const normalizedPath = normalizePathname(pathname);
+  const route = findRouteMeta(normalizedPath);
+  if (!route) {
+    return normalizedPath;
+  }
+
+  const access = evaluateRouteAccess(route, session);
+  if (access.allowed) {
+    return normalizedPath;
+  }
+
+  if (access.reason === "organization_required") {
+    return "/organization-onboarding";
+  }
+
+  if (access.reason === "insufficient_role") {
+    return "/forbidden";
+  }
+
+  const encodedPath = encodeURIComponent(normalizedPath);
+  return `/login?next=${encodedPath}`;
 }

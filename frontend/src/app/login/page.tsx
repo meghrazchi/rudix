@@ -16,6 +16,7 @@ import {
   type LoginFormValues,
   type LoginFlowError,
 } from "@/lib/auth-login";
+import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 function safeErrorMessage(error: unknown): string {
@@ -53,10 +54,10 @@ export default function LoginPage() {
   const providerLabel = getLoginProviderLabel();
 
   useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace(nextPath);
+    if (state.status === "authenticated" && state.session) {
+      router.replace(resolveAuthenticatedNavigationTarget(nextPath, state.session));
     }
-  }, [nextPath, router, state.status]);
+  }, [nextPath, router, state]);
 
   async function onSubmit(values: LoginFormValues) {
     setSubmissionError(null);
@@ -65,7 +66,7 @@ export default function LoginPage() {
     try {
       const session = await startLoginSession(values);
       setAuthenticatedSession(session);
-      router.replace(nextPath);
+      router.replace(resolveAuthenticatedNavigationTarget(nextPath, session));
     } catch (error) {
       setSubmissionError(safeErrorMessage(error));
     }

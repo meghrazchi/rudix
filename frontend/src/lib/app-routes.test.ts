@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildNavigationItems,
   findRouteMeta,
+  resolveAuthenticatedNavigationTarget,
   resolveProtectedRouteRedirect,
 } from "@/lib/app-routes";
 import type { AuthenticatedSession, SessionState } from "@/lib/auth-session";
@@ -28,6 +29,18 @@ describe("app route protection", () => {
     });
 
     expect(resolveProtectedRouteRedirect("/admin", state)).toBe("/forbidden");
+  });
+
+  it("redirects users without organization context to onboarding", () => {
+    const state = authenticatedState({
+      userId: "u-1",
+      email: "new@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+    });
+
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/organization-onboarding");
   });
 
   it("matches metadata for all required product pages", () => {
@@ -76,5 +89,17 @@ describe("permission-aware navigation", () => {
     expect(adminItem).toBeDefined();
     expect(adminItem?.disabled).toBe(false);
     expect(adminItem?.hidden).toBe(false);
+  });
+
+  it("routes authenticated navigation target to onboarding when organization is missing", () => {
+    const target = resolveAuthenticatedNavigationTarget("/dashboard", {
+      userId: "u-3",
+      email: "member@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+    });
+
+    expect(target).toBe("/organization-onboarding");
   });
 });
