@@ -60,6 +60,11 @@ ENV_KEYS = [
     "APP_AUTH_AUDIENCE",
     "CLERK_JWKS_URL",
     "SUPABASE_JWKS_URL",
+    "SENTRY_RELEASE",
+    "SENTRY_ERROR_SAMPLE_RATE",
+    "SENTRY_TRACES_SAMPLE_RATE",
+    "SENTRY_PROFILES_SAMPLE_RATE",
+    "SENTRY_TEST_EVENT_ENABLED",
 ]
 
 
@@ -236,6 +241,25 @@ def test_production_rejects_default_app_auth_secret() -> None:
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)
+
+
+def test_production_rejects_sentry_test_endpoint_flag() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["sentry_test_event_enabled"] = True
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_sentry_test_event_enabled_defaults_to_true_in_test() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.test
+
+    settings = Settings(_env_file=None, **payload)
+
+    assert settings.is_sentry_test_event_enabled is True
 
 
 def test_clerk_provider_requires_jwks() -> None:

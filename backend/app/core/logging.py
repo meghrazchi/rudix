@@ -11,6 +11,8 @@ import structlog
 from fastapi import FastAPI, Request
 from structlog.types import EventDict
 
+from app.core.sentry import bind_sentry_context, capture_sentry_exception
+
 LOG_FORMAT_AUTO = "auto"
 LOG_FORMAT_JSON = "json"
 LOG_FORMAT_CONSOLE = "console"
@@ -132,10 +134,13 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 def _pick_context_from_request(request: Request) -> dict[str, str | None]:
     path_params = request.path_params or {}
     headers = request.headers
+    principal = getattr(request.state, "auth_principal", None)
+    principal_user_id = getattr(principal, "user_id", None)
+    principal_organization_id = getattr(principal, "organization_id", None)
     return {
         "request_id": headers.get("x-request-id"),
-        "user_id": headers.get("x-user-id"),
-        "organization_id": headers.get("x-organization-id"),
+        "user_id": principal_user_id or headers.get("x-user-id"),
+        "organization_id": principal_organization_id or headers.get("x-organization-id"),
         "document_id": path_params.get("document_id") or headers.get("x-document-id"),
         "job_id": path_params.get("evaluation_run_id") or headers.get("x-job-id"),
     }
@@ -154,6 +159,12 @@ def attach_access_log_middleware(app: FastAPI) -> None:
 
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(**context)
+        bind_sentry_context(
+            runtime="api",
+            request_id=request_id,
+            user_id=context["user_id"],
+            organization_id=context["organization_id"],
+        )
 
         response = None
         status_code = 500
@@ -171,11 +182,24 @@ def attach_access_log_middleware(app: FastAPI) -> None:
                 method=request.method,
                 error=error_message,
             )
+            capture_sentry_exception(
+                exc,
+                runtime="api",
+                request_id=request_id,
+                user_id=context["user_id"],
+                organization_id=context["organization_id"],
+            )
             raise
         finally:
             latency_ms = round((perf_counter() - started_at) * 1000, 2)
             log_context = _pick_context_from_request(request)
             log_context["request_id"] = request_id
+            bind_sentry_context(
+                runtime="api",
+                request_id=request_id,
+                user_id=log_context["user_id"],
+                organization_id=log_context["organization_id"],
+            )
             access_logger.info(
                 "api.request",
                 request_id=log_context["request_id"],

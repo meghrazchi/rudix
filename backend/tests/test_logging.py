@@ -93,3 +93,27 @@ def test_exception_log_contains_traceback_and_masks_secrets(caplog: pytest.LogCa
     assert payload["event"] == "api.exception.unhandled"
     assert "Traceback" in payload["exception"]
     assert "supersecret" not in payload["exception"]
+
+
+def test_exception_capture_smoke_calls_sentry_hook(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_logging("INFO", environment="test", log_format="json")
+
+    app = FastAPI()
+    attach_access_log_middleware(app)
+
+    captured: list[tuple[str, str]] = []
+
+    def _capture(exc: Exception, **kwargs: object) -> None:
+        captured.append((exc.__class__.__name__, str(kwargs.get("runtime"))))
+
+    monkeypatch.setattr("app.core.logging.capture_sentry_exception", _capture)
+
+    @app.get("/boom")
+    async def boom() -> dict[str, str]:
+        raise RuntimeError("failure")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get("/boom", headers={"x-request-id": "req_999"})
+
+    assert response.status_code == 500
+    assert captured == [("RuntimeError", "api")]

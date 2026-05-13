@@ -64,6 +64,8 @@ make seed-dev
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`).
 - Production profile requires `SENTRY_DSN`.
+- Sentry runtime settings are environment-driven (`SENTRY_*`), including optional per-env sampling controls.
+- Non-production test event endpoint is available at `POST /api/v1/sentry-test` when enabled.
 - Structured logging is configured for both API and Celery worker.
 - `LOG_FORMAT=auto` emits readable console logs in development and JSON logs in staging/production.
 

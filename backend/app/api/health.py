@@ -10,6 +10,7 @@ from app.clients.qdrant_client import check_qdrant_health
 from app.clients.rabbitmq_client import check_rabbitmq_health
 from app.clients.redis_client import check_redis_health
 from app.core.config import settings
+from app.core.sentry import capture_sentry_test_event
 from app.db.session import check_database_health
 from app.schemas.common import HealthDependency, HealthMetadataValue, HealthResponse
 
@@ -179,3 +180,15 @@ async def configz() -> dict:
     if not settings.feature_expose_config_snapshot:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Configuration snapshot is disabled")
     return settings.sanitized_snapshot()
+
+
+@router.post("/sentry-test", include_in_schema=False)
+async def sentry_test_event() -> dict[str, str | bool | None]:
+    if not settings.is_sentry_test_event_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sentry test endpoint is disabled")
+
+    event_id = capture_sentry_test_event(runtime="api")
+    if event_id is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sentry is not configured")
+
+    return {"status": "accepted", "event_id": event_id, "sentry_enabled": True}

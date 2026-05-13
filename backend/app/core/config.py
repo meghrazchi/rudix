@@ -146,6 +146,11 @@ class Settings(BaseSettings):
     supabase_jwks_url: AnyHttpUrl | None = None
 
     sentry_dsn: AnyUrl | None = None
+    sentry_release: str | None = Field(default=None, max_length=128)
+    sentry_error_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentry_traces_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentry_profiles_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentry_test_event_enabled: bool | None = None
 
     max_upload_size_mb: int = Field(default=25, ge=1, le=512)
     retrieval_initial_top_k: int = Field(default=20, ge=1, le=200)
@@ -230,6 +235,16 @@ class Settings(BaseSettings):
             raise ValueError("document_index_version may contain only letters, numbers, '.', '-', and '_'")
         return cleaned
 
+    @field_validator("sentry_release")
+    @classmethod
+    def validate_sentry_release(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        return cleaned
+
     @field_validator(
         "celery_task_default_queue",
         "celery_queue_documents_processing",
@@ -309,6 +324,8 @@ class Settings(BaseSettings):
         if self.environment == Environment.production:
             if self.sentry_dsn is None:
                 raise ValueError("sentry_dsn is required in production")
+            if self.sentry_test_event_enabled:
+                raise ValueError("sentry_test_event_enabled must be false in production")
             if self.auth_provider == AuthProvider.app and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me":
                 raise ValueError("app_auth_secret must be overridden in production")
         elif self.environment == Environment.test:
@@ -329,6 +346,14 @@ class Settings(BaseSettings):
         if self.environment == Environment.test and self.rate_limit_disable_in_test:
             return False
         return True
+
+    @property
+    def is_sentry_test_event_enabled(self) -> bool:
+        if self.environment == Environment.production:
+            return False
+        if self.sentry_test_event_enabled is not None:
+            return self.sentry_test_event_enabled
+        return self.environment in {Environment.development, Environment.test}
 
     @staticmethod
     def _sanitize_url(url_value: str) -> str:
@@ -413,6 +438,11 @@ class Settings(BaseSettings):
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
             "supabase_jwks_url": str(self.supabase_jwks_url) if self.supabase_jwks_url else None,
             "sentry_dsn_set": self.sentry_dsn is not None,
+            "sentry_release": self.sentry_release,
+            "sentry_error_sample_rate": self.sentry_error_sample_rate,
+            "sentry_traces_sample_rate": self.sentry_traces_sample_rate,
+            "sentry_profiles_sample_rate": self.sentry_profiles_sample_rate,
+            "sentry_test_event_enabled": self.is_sentry_test_event_enabled,
             "max_upload_size_mb": self.max_upload_size_mb,
             "retrieval_initial_top_k": self.retrieval_initial_top_k,
             "retrieval_final_top_k": self.retrieval_final_top_k,

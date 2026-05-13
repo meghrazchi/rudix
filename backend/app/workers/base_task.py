@@ -6,6 +6,7 @@ from celery import Task  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.core.logging import get_logger, log_task_failure
+from app.core.sentry import bind_sentry_context, capture_sentry_exception
 
 
 class TransientTaskError(Exception):
@@ -47,6 +48,14 @@ class RudixTask(Task):
 
     def before_start(self, task_id: str, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
         ctx = self._context(args, kwargs)
+        bind_sentry_context(
+            runtime="worker",
+            task_name=self.name,
+            task_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            user_id=ctx["user_id"],
+        )
         self._logger.info(
             "task.start",
             task_name=self.name,
@@ -65,6 +74,14 @@ class RudixTask(Task):
         kwargs: dict[str, Any],
     ) -> None:
         ctx = self._context(args, kwargs)
+        bind_sentry_context(
+            runtime="worker",
+            task_name=self.name,
+            task_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            user_id=ctx["user_id"],
+        )
         self._logger.info(
             "task.success",
             task_name=self.name,
@@ -86,6 +103,14 @@ class RudixTask(Task):
         einfo: Any,
     ) -> None:
         ctx = self._context(args, kwargs)
+        bind_sentry_context(
+            runtime="worker",
+            task_name=self.name,
+            task_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            user_id=ctx["user_id"],
+        )
         retries = getattr(self.request, "retries", 0)
         self._logger.warning(
             "task.retry",
@@ -109,6 +134,14 @@ class RudixTask(Task):
         einfo: Any,
     ) -> None:
         ctx = self._context(args, kwargs)
+        bind_sentry_context(
+            runtime="worker",
+            task_name=self.name,
+            task_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            user_id=ctx["user_id"],
+        )
         log_task_failure(
             task_name=self.name or "<unknown>",
             job_id=ctx["job_id"] or task_id,
@@ -118,6 +151,15 @@ class RudixTask(Task):
             error=str(exc),
             request_id=ctx["request_id"],
             exc_info=einfo is not None,
+        )
+        capture_sentry_exception(
+            exc,
+            runtime="worker",
+            task_name=self.name,
+            task_id=ctx["job_id"] or task_id,
+            request_id=ctx["request_id"],
+            organization_id=ctx["organization_id"],
+            user_id=ctx["user_id"],
         )
         self.on_terminal_failure(exc=exc, args=args, kwargs=kwargs)
         super().on_failure(exc, task_id, args, kwargs, einfo)

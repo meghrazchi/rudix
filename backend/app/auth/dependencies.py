@@ -54,7 +54,9 @@ async def get_current_principal(
 ) -> AuthenticatedPrincipal:
     provider = get_auth_provider()
     try:
-        return await provider.authenticate(request, db_session)
+        principal = await provider.authenticate(request, db_session)
+        request.state.auth_principal = principal
+        return principal
     except AuthenticationError as exc:
         raise _unauthorized(str(exc)) from exc
     except AuthorizationError as exc:

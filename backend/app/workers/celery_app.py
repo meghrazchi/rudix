@@ -1,9 +1,11 @@
 from celery import Celery  # type: ignore[import-untyped]
+from celery.signals import worker_process_init  # type: ignore[import-untyped]
 from kombu import Queue  # type: ignore[import-untyped]
 
 from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.core.sentry import init_sentry
 
 celery_app = Celery(
     "rag_backend",
@@ -82,3 +84,11 @@ configure_logging(
     environment=settings.environment.value,
     log_format=settings.log_format.value,
 )
+
+
+@worker_process_init.connect
+def _initialize_worker_sentry(*_: object, **__: object) -> None:
+    init_sentry(runtime="worker")
+
+
+init_sentry(runtime="worker")
