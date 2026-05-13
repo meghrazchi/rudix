@@ -29,8 +29,6 @@ import {
   type PipelineRunGraphResponse,
 } from "@/lib/pipeline";
 
-import { AppShell } from "@/components/layout/AppShell";
-
 type RunTypeFilter = "all" | "document.process" | "chat.answer" | "evaluation.run";
 
 type StatusMeta = {
@@ -354,157 +352,156 @@ export function RagPipelinePage() {
   }
 
   return (
-    <AppShell title="Pipeline Explorer" badge="v2.4-prod" activeHref="/rag-pipeline">
-      <div className="flex h-[calc(100vh-73px)] min-h-[700px] flex-col lg:flex-row">
-        <section className="relative flex-1 overflow-hidden border-b border-[#d8d5e8] bg-white lg:border-b-0 lg:border-r">
-          <div
-            className="absolute inset-0 opacity-25"
-            style={{
-              backgroundImage: "radial-gradient(circle, #cbc8dd 1px, transparent 1px)",
-              backgroundSize: "26px 26px",
+    <div className="flex h-[calc(100vh-85px)] min-h-[700px] flex-col lg:flex-row">
+      <section className="relative flex-1 overflow-hidden border-b border-[#d8d5e8] bg-white lg:border-b-0 lg:border-r">
+        <div
+          className="absolute inset-0 opacity-25"
+          style={{
+            backgroundImage: "radial-gradient(circle, #cbc8dd 1px, transparent 1px)",
+            backgroundSize: "26px 26px",
+          }}
+        />
+
+        <div className="relative z-10 flex h-full flex-col">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              void loadGraph();
             }}
-          />
-
-          <div className="relative z-10 flex h-full flex-col">
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void loadGraph();
-              }}
-              className="flex flex-wrap items-center gap-2 border-b border-[#dad7ea] bg-white/95 px-4 py-3 lg:flex-nowrap"
+            className="flex flex-wrap items-center gap-2 border-b border-[#dad7ea] bg-white/95 px-4 py-3 lg:flex-nowrap"
+          >
+            <input
+              value={runId}
+              onChange={(event) => setRunId(event.target.value)}
+              placeholder="Pipeline run id"
+              className="h-10 min-w-[180px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+            />
+            <select
+              value={runTypeFilter}
+              onChange={(event) => setRunTypeFilter(event.target.value as RunTypeFilter)}
+              className="h-10 min-w-[142px] rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             >
-              <input
-                value={runId}
-                onChange={(event) => setRunId(event.target.value)}
-                placeholder="Pipeline run id"
-                className="h-10 min-w-[180px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              />
-              <select
-                value={runTypeFilter}
-                onChange={(event) => setRunTypeFilter(event.target.value as RunTypeFilter)}
-                className="h-10 min-w-[142px] rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+              <option value="all">All run types</option>
+              <option value="document.process">document.process</option>
+              <option value="chat.answer">chat.answer</option>
+              <option value="evaluation.run">evaluation.run</option>
+            </select>
+            <input
+              value={documentFilter}
+              onChange={(event) => setDocumentFilter(event.target.value)}
+              placeholder="Document filter"
+              className="h-10 min-w-[150px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+            />
+            <input
+              value={organizationId}
+              onChange={(event) => setOrganizationId(event.target.value)}
+              placeholder="Organization id (optional)"
+              className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+            />
+            <input
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              placeholder="Bearer token (optional)"
+              type="password"
+              className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+            />
+            <div className="ml-auto flex shrink-0 gap-2">
+              <button
+                type="submit"
+                disabled={loadingGraph}
+                className="h-10 whitespace-nowrap rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
               >
-                <option value="all">All run types</option>
-                <option value="document.process">document.process</option>
-                <option value="chat.answer">chat.answer</option>
-                <option value="evaluation.run">evaluation.run</option>
-              </select>
-              <input
-                value={documentFilter}
-                onChange={(event) => setDocumentFilter(event.target.value)}
-                placeholder="Document filter"
-                className="h-10 min-w-[150px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              />
-              <input
-                value={organizationId}
-                onChange={(event) => setOrganizationId(event.target.value)}
-                placeholder="Organization id (optional)"
-                className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              />
-              <input
-                value={token}
-                onChange={(event) => setToken(event.target.value)}
-                placeholder="Bearer token (optional)"
-                type="password"
-                className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              />
-              <div className="ml-auto flex shrink-0 gap-2">
-                <button
-                  type="submit"
-                  disabled={loadingGraph}
-                  className="h-10 whitespace-nowrap rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
-                >
-                  {loadingGraph ? "Loading..." : "Load Run"}
-                </button>
-                <button
-                  type="button"
-                  onClick={refreshGraph}
-                  disabled={loadingGraph}
-                  className="h-10 whitespace-nowrap rounded-lg border border-[#d2cee6] bg-white px-4 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:opacity-60"
-                >
-                  Refresh
-                </button>
+                {loadingGraph ? "Loading..." : "Load Run"}
+              </button>
+              <button
+                type="button"
+                onClick={refreshGraph}
+                disabled={loadingGraph}
+                className="h-10 whitespace-nowrap rounded-lg border border-[#d2cee6] bg-white px-4 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff] disabled:opacity-60"
+              >
+                Refresh
+              </button>
+            </div>
+          </form>
+
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#e8e4f5] bg-[#f8f6ff] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#5f5b72]">
+            <span>Run: {runLabel}</span>
+            <span>Type: {graph.pipeline_type}</span>
+            <span>Status: {graph.status}</span>
+          </div>
+
+          {errorText ? (
+            <div className="border-b border-[#e8e4f5] bg-[#f2efff] px-4 py-2 text-sm text-[#4f46a7]">{errorText}</div>
+          ) : null}
+
+          <div className="relative min-h-0 flex-1">
+            {runTypeMismatch ? (
+              <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
+                Current run type ({graph.pipeline_type}) is filtered out. Update the run type filter to view this graph.
               </div>
-            </form>
-
-            <div className="flex flex-wrap items-center gap-3 border-b border-[#e8e4f5] bg-[#f8f6ff] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#5f5b72]">
-              <span>Run: {runLabel}</span>
-              <span>Type: {graph.pipeline_type}</span>
-              <span>Status: {graph.status}</span>
-            </div>
-
-            {errorText ? (
-              <div className="border-b border-[#e8e4f5] bg-[#f2efff] px-4 py-2 text-sm text-[#4f46a7]">{errorText}</div>
-            ) : null}
-
-            <div className="relative min-h-0 flex-1">
-              {runTypeMismatch ? (
-                <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
-                  Current run type ({graph.pipeline_type}) is filtered out. Update the run type filter to view this graph.
-                </div>
-              ) : flowNodes.length === 0 ? (
-                <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
-                  No nodes match the current document filter.
-                </div>
-              ) : (
-                <ReactFlowProvider>
-                  <ReactFlow
-                    nodes={flowNodes}
-                    edges={flowEdges}
-                    nodeTypes={nodeTypes}
-                    fitView
-                    fitViewOptions={{ padding: 0.2 }}
-                    minZoom={0.5}
-                    maxZoom={1.6}
-                    nodesDraggable={false}
-                    nodesConnectable={false}
-                    elementsSelectable
-                    onNodeClick={(_, flowNode) => {
-                      const original = nodeLookup.get(flowNode.id);
-                      if (original) {
-                        void selectNode(original);
-                      }
-                    }}
-                    className="h-full w-full bg-transparent"
-                    proOptions={{ hideAttribution: true }}
-                  >
-                    <Background color="#dfdbee" gap={24} size={1} />
-                    <MiniMap
-                      pannable
-                      zoomable
-                      nodeColor={(flowNode) => {
+            ) : flowNodes.length === 0 ? (
+              <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
+                No nodes match the current document filter.
+              </div>
+            ) : (
+              <ReactFlowProvider>
+                <ReactFlow
+                  nodes={flowNodes}
+                  edges={flowEdges}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  fitViewOptions={{ padding: 0.2 }}
+                  minZoom={0.5}
+                  maxZoom={1.6}
+                  nodesDraggable={false}
+                  nodesConnectable={false}
+                  elementsSelectable
+                  onNodeClick={(_, flowNode) => {
+                    const original = nodeLookup.get(flowNode.id);
+                    if (original) {
+                      void selectNode(original);
+                    }
+                  }}
+                  className="h-full w-full bg-transparent"
+                  proOptions={{ hideAttribution: true }}
+                >
+                  <Background color="#dfdbee" gap={24} size={1} />
+                  <MiniMap
+                    pannable
+                    zoomable
+                    nodeColor={(flowNode) => {
                       const status = (flowNode.data as FlowNodeData).status;
-                        if (status === "completed") {
-                          return "#10b981";
-                        }
-                        if (status === "running") {
-                          return "#3b82f6";
-                        }
-                        if (status === "failed") {
-                          return "#f43f5e";
-                        }
-                        if (status === "skipped") {
-                          return "#f59e0b";
-                        }
-                        return "#9ca3af";
-                      }}
-                    />
-                    <Controls showInteractive={false} />
-                  </ReactFlow>
-                </ReactFlowProvider>
-              )}
-            </div>
+                      if (status === "completed") {
+                        return "#10b981";
+                      }
+                      if (status === "running") {
+                        return "#3b82f6";
+                      }
+                      if (status === "failed") {
+                        return "#f43f5e";
+                      }
+                      if (status === "skipped") {
+                        return "#f59e0b";
+                      }
+                      return "#9ca3af";
+                    }}
+                  />
+                  <Controls showInteractive={false} />
+                </ReactFlow>
+              </ReactFlowProvider>
+            )}
           </div>
-        </section>
+        </div>
+      </section>
 
-        <aside className="w-full max-w-full border-t border-[#d8d5e8] bg-white lg:w-[420px] lg:border-t-0">
-          <div className="border-b border-[#d8d5e8] px-5 py-4">
-            <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#3525cd]">Node Selected</div>
-            <h3 className="text-xl font-bold text-[#2d2a3f]">{displayedNodeDetail.title}</h3>
-            <p className="mt-1 text-sm text-[#626074]">{displayedNodeDetail.description}</p>
-          </div>
+      <aside className="w-full max-w-full border-t border-[#d8d5e8] bg-white lg:w-[420px] lg:border-t-0">
+        <div className="border-b border-[#d8d5e8] px-5 py-4">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#3525cd]">Node Selected</div>
+          <h3 className="text-xl font-bold text-[#2d2a3f]">{displayedNodeDetail.title}</h3>
+          <p className="mt-1 text-sm text-[#626074]">{displayedNodeDetail.description}</p>
+        </div>
 
-          <div className="max-h-[calc(100vh-280px)] space-y-5 overflow-auto px-5 py-5">
+        <div className="max-h-[calc(100vh-280px)] space-y-5 overflow-auto px-5 py-5">
             <div className="grid grid-cols-2 gap-3">
               <MetricCard label="Status" value={statusMeta[displayedNodeDetail.status].label} />
               <MetricCard label="Duration" value={formatDuration(displayedNodeDetail.duration_ms)} />
@@ -538,9 +535,8 @@ export function RagPipelinePage() {
               </section>
             ) : null}
           </div>
-        </aside>
-      </div>
-    </AppShell>
+      </aside>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes the Pipeline Explorer page at `/rag-pipeline` with a React Flow graph and node detail panel.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell with protected routes and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -16,8 +16,29 @@ Next.js frontend for Rudix. The current implementation includes the Pipeline Exp
 
 ## Implemented Pages
 
-- `/` rollout home page with planned frontend pages
-- `/rag-pipeline` Pipeline Explorer
+- `/` public landing page with entry points to login and protected routes
+- `/login` local session bootstrap for protected route testing
+- `/forbidden` unauthorized route destination
+- Protected product pages inside the shared shell:
+  - `/dashboard`
+  - `/documents`
+  - `/chat`
+  - `/evaluations`
+  - `/rag-pipeline` Pipeline Explorer
+  - `/settings`
+  - `/admin` (owner/admin roles only)
+
+### Shared Shell and Protection
+
+- Reusable authenticated shell with:
+  - responsive sidebar and mobile drawer navigation
+  - top bar with route context and sign-out action
+  - content container shared by all product pages
+- Route metadata and role-aware navigation actions for all product routes.
+- Protected-route behavior:
+  - unauthenticated users are redirected to `/login?next=...`
+  - unauthorized users are redirected to `/forbidden?from=...`
+- Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
   - node status visualization
