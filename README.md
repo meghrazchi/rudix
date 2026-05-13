@@ -207,6 +207,16 @@ make logs        # View logs
 make migrate     # Run database migrations
 make test        # Run backend tests
 make lint        # Run backend lint checks
+make check-backend   # Run backend lint + tests
+make check-frontend  # Run frontend lint + typecheck + tests
+make check-all       # Run backend checks, then frontend checks
+make frontend-dev    # Start frontend dev server from repo root
+make frontend-build  # Build frontend from repo root
+make frontend-lint   # Run frontend ESLint from repo root
+make frontend-typecheck # Run frontend TypeScript checks from repo root
+make frontend-test   # Run frontend unit tests from repo root
+make frontend-e2e    # Run frontend Playwright tests from repo root
+make frontend-format # Run frontend Prettier check from repo root
 ```
 
 ### Frontend Commands
