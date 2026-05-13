@@ -1,13 +1,32 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import type { AppRole } from "@/lib/auth-session";
+import {
+  getAuthClientConfig,
+  getForgotPasswordHref,
+  getLoginProviderLabel,
+  getSsoStartHref,
+  loginFormSchema,
+  startLoginSession,
+  type LoginFormValues,
+  type LoginFlowError,
+} from "@/lib/auth-login";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-const roleOptions: AppRole[] = ["owner", "admin", "member", "viewer"];
+function safeErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error !== null && "safeMessage" in error) {
+    const candidate = error as Partial<LoginFlowError> & { safeMessage?: unknown };
+    if (typeof candidate.safeMessage === "string" && candidate.safeMessage.trim()) {
+      return candidate.safeMessage;
+    }
+  }
+  return "Sign-in failed. Please try again.";
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,12 +34,23 @@ export default function LoginPage() {
   const nextPath = searchParams.get("next") || "/dashboard";
   const { state, setAuthenticatedSession } = useAuthSession();
 
-  const [userId, setUserId] = useState("demo-user-001");
-  const [email, setEmail] = useState("demo@rudix.local");
-  const [organizationId, setOrganizationId] = useState("demo-org-001");
-  const [organizationName, setOrganizationName] = useState("Demo Organization");
-  const [accessToken, setAccessToken] = useState("");
-  const [role, setRole] = useState<AppRole>("member");
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [forgotPlaceholderMessage, setForgotPlaceholderMessage] = useState<string | null>(null);
+
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onSubmit",
+  });
+
+  const authConfig = useMemo(() => getAuthClientConfig(), []);
+  const hasSsoEntry = Boolean(authConfig.ssoUrl || authConfig.providerName);
+  const ssoStartHref = getSsoStartHref(nextPath);
+  const forgotPasswordHref = getForgotPasswordHref();
+  const providerLabel = getLoginProviderLabel();
 
   useEffect(() => {
     if (state.status === "authenticated") {
@@ -28,17 +58,37 @@ export default function LoginPage() {
     }
   }, [nextPath, router, state.status]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAuthenticatedSession({
-      userId: userId.trim(),
-      email: email.trim() || null,
-      role,
-      organizationId: organizationId.trim() || null,
-      organizationName: organizationName.trim() || null,
-      accessToken: accessToken.trim() || null,
-    });
-    router.replace(nextPath);
+  async function onSubmit(values: LoginFormValues) {
+    setSubmissionError(null);
+    setForgotPlaceholderMessage(null);
+
+    try {
+      const session = await startLoginSession(values);
+      setAuthenticatedSession(session);
+      router.replace(nextPath);
+    } catch (error) {
+      setSubmissionError(safeErrorMessage(error));
+    }
+  }
+
+  function handleStartSso() {
+    if (!ssoStartHref) {
+      setSubmissionError("Single sign-on is configured but no start URL is available.");
+      return;
+    }
+
+    if (ssoStartHref.startsWith("http://") || ssoStartHref.startsWith("https://")) {
+      window.location.assign(ssoStartHref);
+      return;
+    }
+
+    router.push(ssoStartHref);
+  }
+
+  function handleForgotPasswordPlaceholder() {
+    setForgotPlaceholderMessage(
+      "Password reset is not configured yet. Contact your administrator for account recovery.",
+    );
   }
 
   return (
@@ -50,92 +100,96 @@ export default function LoginPage() {
         <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Access</p>
         <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">Sign in</h1>
         <p className="mb-6 text-sm text-[#68647b]">
-          Session bootstrap for local product pages. Protected routes will redirect here when authentication is missing.
+          Enter your credentials to start your Rudix session. Protected routes will return you here when authentication is required.
         </p>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">User ID</span>
-            <input
-              value={userId}
-              onChange={(event) => setUserId(event.target.value)}
-              required
-              className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-            />
-          </label>
-
-          <label className="block">
+        <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+          <label className="block" htmlFor="email">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Email</span>
             <input
+              id="email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              {...form.register("email")}
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             />
           </label>
+          {form.formState.errors.email?.message ? (
+            <p role="alert" className="text-xs text-rose-700">
+              {form.formState.errors.email.message}
+            </p>
+          ) : null}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Role</span>
-              <select
-                value={role}
-                onChange={(event) => setRole(event.target.value as AppRole)}
-                className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-                Organization ID
-              </span>
-              <input
-                value={organizationId}
-                onChange={(event) => setOrganizationId(event.target.value)}
-                className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-              Organization Name
-            </span>
+          <label className="block" htmlFor="password">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Password</span>
             <input
-              value={organizationName}
-              onChange={(event) => setOrganizationName(event.target.value)}
-              className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-              Access Token (optional)
-            </span>
-            <input
-              value={accessToken}
-              onChange={(event) => setAccessToken(event.target.value)}
+              id="password"
               type="password"
+              autoComplete="current-password"
+              {...form.register("password")}
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             />
           </label>
+          {form.formState.errors.password?.message ? (
+            <p role="alert" className="text-xs text-rose-700">
+              {form.formState.errors.password.message}
+            </p>
+          ) : null}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <button
-              type="submit"
-              className="h-10 rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
-            >
-              Continue
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {forgotPasswordHref ? (
+              <a
+                href={forgotPasswordHref}
+                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+              >
+                Forgot password?
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleForgotPasswordPlaceholder}
+                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+              >
+                Forgot password?
+              </button>
+            )}
             <Link href="/" className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]">
               Back to public home
             </Link>
           </div>
+
+          {forgotPlaceholderMessage ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {forgotPlaceholderMessage}
+            </p>
+          ) : null}
+
+          {submissionError ? (
+            <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {submissionError}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={form.formState.isSubmitting || state.status === "loading"}
+            className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
+          </button>
         </form>
+
+        {hasSsoEntry ? (
+          <div className="mt-5 border-t border-[#e4e1f2] pt-5">
+            <button
+              type="button"
+              onClick={handleStartSso}
+              className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
+            >
+              Continue with {providerLabel}
+            </button>
+          </div>
+        ) : null}
       </main>
     </div>
   );

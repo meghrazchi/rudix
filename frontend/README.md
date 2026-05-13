@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell with protected routes and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/session-start flow, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -17,7 +17,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 ## Implemented Pages
 
 - `/` public landing page with entry points to login and protected routes
-- `/login` local session bootstrap for protected route testing
+- `/login` credential-based sign-in form with auth-provider entry points
 - `/forbidden` unauthorized route destination
 - Protected product pages inside the shared shell:
   - `/dashboard`
@@ -38,6 +38,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Protected-route behavior:
   - unauthenticated users are redirected to `/login?next=...`
   - unauthorized users are redirected to `/forbidden?from=...`
+- Login behavior:
+  - validates credentials using React Hook Form + Zod
+  - redirects already authenticated users away from `/login`
+  - redirects successful sign-in to requested protected route (`next`) or `/dashboard`
+  - supports environment-driven SSO and forgot-password links when configured
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
@@ -91,6 +96,11 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_QUERY_STALE_TIME_MS=10000
 NEXT_PUBLIC_QUERY_RETRY_COUNT=1
+NEXT_PUBLIC_AUTH_PROVIDER=app
+NEXT_PUBLIC_AUTH_LOGIN_URL=
+NEXT_PUBLIC_AUTH_SSO_URL=
+NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=
+NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
 ```
 
 ### 3. Start dev server
