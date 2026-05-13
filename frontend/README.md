@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/session-start flow, and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -18,6 +18,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 
 - `/` public landing page with entry points to login and protected routes
 - `/login` credential-based sign-in form with auth-provider entry points
+- `/signup` account creation form with workspace create/join entry points
+- `/onboarding` post-signup onboarding handoff page
 - `/forbidden` unauthorized route destination
 - Protected product pages inside the shared shell:
   - `/dashboard`
@@ -43,6 +45,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - redirects already authenticated users away from `/login`
   - redirects successful sign-in to requested protected route (`next`) or `/dashboard`
   - supports environment-driven SSO and forgot-password links when configured
+- Signup behavior:
+  - validates name, email, password, workspace mode, and terms acceptance using React Hook Form + Zod
+  - supports create-workspace and join-workspace entry points
+  - maps duplicate email, weak password, invite-only, and provider/network errors to safe messages
+  - redirects successful signup to `/onboarding` or `/dashboard` based on signup result state
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
@@ -101,6 +108,10 @@ NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
 NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=
 NEXT_PUBLIC_AUTH_LOCAL_FALLBACK=true
+NEXT_PUBLIC_AUTH_SIGNUP_URL=
+NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL=
+NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
+NEXT_PUBLIC_AUTH_INVITE_ONLY=false
 ```
 
 ### 3. Start dev server

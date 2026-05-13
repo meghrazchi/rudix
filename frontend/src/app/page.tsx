@@ -31,6 +31,12 @@ export default function Home() {
             Login
           </Link>
           <Link
+            href="/signup"
+            className="rounded-lg border border-[#3525cd] px-4 py-2 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
+          >
+            Sign up
+          </Link>
+          <Link
             href="/dashboard"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
           >

@@ -153,9 +153,14 @@ export default function LoginPage() {
                 Forgot password?
               </button>
             )}
-            <Link href="/" className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]">
-              Back to public home
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/signup" className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]">
+                Create account
+              </Link>
+              <Link href="/" className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]">
+                Back to public home
+              </Link>
+            </div>
           </div>
 
           {forgotPlaceholderMessage ? (
