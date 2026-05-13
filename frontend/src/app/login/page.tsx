@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("demo@rudix.local");
   const [organizationId, setOrganizationId] = useState("demo-org-001");
   const [organizationName, setOrganizationName] = useState("Demo Organization");
+  const [accessToken, setAccessToken] = useState("");
   const [role, setRole] = useState<AppRole>("member");
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function LoginPage() {
       role,
       organizationId: organizationId.trim() || null,
       organizationName: organizationName.trim() || null,
+      accessToken: accessToken.trim() || null,
     });
     router.replace(nextPath);
   }
@@ -106,6 +108,18 @@ export default function LoginPage() {
             <input
               value={organizationName}
               onChange={(event) => setOrganizationName(event.target.value)}
+              className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+              Access Token (optional)
+            </span>
+            <input
+              value={accessToken}
+              onChange={(event) => setAccessToken(event.target.value)}
+              type="password"
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             />
           </label>

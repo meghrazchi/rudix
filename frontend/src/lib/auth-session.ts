@@ -6,6 +6,7 @@ export type AuthenticatedSession = {
   role: AppRole;
   organizationId: string | null;
   organizationName: string | null;
+  accessToken?: string | null;
 };
 
 export type SessionStatus = "loading" | "authenticated" | "unauthenticated";
@@ -33,7 +34,10 @@ function isValidSession(value: unknown): value is AuthenticatedSession {
     isRole(candidate.role) &&
     (candidate.email === null || typeof candidate.email === "string") &&
     (candidate.organizationId === null || typeof candidate.organizationId === "string") &&
-    (candidate.organizationName === null || typeof candidate.organizationName === "string")
+    (candidate.organizationName === null || typeof candidate.organizationName === "string") &&
+    (candidate.accessToken === undefined ||
+      candidate.accessToken === null ||
+      typeof candidate.accessToken === "string")
   );
 }
 

@@ -1,126 +1,65 @@
-export type PipelineNodeStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped";
+import {
+  fetchPipelineNodeDetail as fetchPipelineNodeDetailRequest,
+  fetchPipelineRunGraph as fetchPipelineRunGraphRequest,
+  type PipelineEdge,
+  type PipelineNode,
+  type PipelineNodeDetailResponse,
+  type PipelineNodeStatus,
+  type PipelineRunGraphResponse,
+} from "@/lib/api/pipeline";
+import { isApiClientError } from "@/lib/api/errors";
 
-export type PipelineNode = {
-  id: string;
-  label: string;
-  section: "ingestion" | "query" | "evaluation";
-  description?: string;
-  status: PipelineNodeStatus;
-  started_at?: string | null;
-  completed_at?: string | null;
-  duration_ms?: number | null;
-  metrics?: Record<string, unknown>;
+export type {
+  PipelineEdge,
+  PipelineNode,
+  PipelineNodeDetailResponse,
+  PipelineNodeStatus,
+  PipelineRunGraphResponse,
 };
 
-export type PipelineEdge = {
-  id: string;
-  source: string;
-  target: string;
-};
-
-export type PipelineRunGraphResponse = {
-  pipeline_run_id: string;
-  pipeline_type: string;
-  status: string;
-  nodes: PipelineNode[];
-  edges: PipelineEdge[];
-};
-
-export type PipelineNodeDetailResponse = {
-  node_id: string;
-  title: string;
-  description: string;
-  status: PipelineNodeStatus;
-  inputs: Record<string, unknown>;
-  outputs: Record<string, unknown>;
-  config: Record<string, unknown>;
-  logs: string[];
-  error_message: string | null;
-  error_details: Record<string, unknown>;
-  metrics: Record<string, unknown>;
-  started_at: string | null;
-  completed_at: string | null;
-  duration_ms: number | null;
-};
-
-type PipelineApiOptions = {
+export type PipelineApiOptions = {
   apiBaseUrl?: string;
   token?: string;
   organizationId?: string;
 };
 
-const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
-
 export class PipelineApiError extends Error {
   status: number;
+  code: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code = "pipeline_error") {
     super(message);
     this.name = "PipelineApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
-function resolveApiBaseUrl(apiBaseUrl?: string): string {
-  const resolved = apiBaseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_BASE;
-  return resolved.replace(/\/$/, "");
-}
-
-function buildHeaders(options: PipelineApiOptions): HeadersInit {
-  const headers: Record<string, string> = {};
-  if (options.token?.trim()) {
-    headers.Authorization = `Bearer ${options.token.trim()}`;
-  }
-  if (options.organizationId?.trim()) {
-    headers["X-Organization-ID"] = options.organizationId.trim();
-  }
-  return headers;
-}
-
-async function fetchJson<T>(url: string, options: PipelineApiOptions): Promise<T> {
-  const response = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(options),
-    cache: "no-store",
-  });
-
-  const rawBody = await response.text();
-
-  if (!response.ok) {
-    let message = `Request failed (${response.status})`;
-    if (rawBody) {
-      try {
-        const parsed = JSON.parse(rawBody) as { detail?: string; message?: string };
-        if (typeof parsed.detail === "string" && parsed.detail.trim()) {
-          message = parsed.detail;
-        } else if (typeof parsed.message === "string" && parsed.message.trim()) {
-          message = parsed.message;
-        }
-      } catch {
-        message = rawBody;
-      }
-    }
-    throw new PipelineApiError(response.status, message);
+function toPipelineError(error: unknown): PipelineApiError {
+  if (error instanceof PipelineApiError) {
+    return error;
   }
 
-  if (!rawBody) {
-    return {} as T;
+  if (isApiClientError(error)) {
+    return new PipelineApiError(error.status, error.message, error.code);
   }
 
-  return JSON.parse(rawBody) as T;
+  if (error instanceof Error) {
+    return new PipelineApiError(500, error.message);
+  }
+
+  return new PipelineApiError(500, "Pipeline request failed");
 }
 
 export async function fetchPipelineRunGraph(
   runId: string,
   options: PipelineApiOptions = {},
 ): Promise<PipelineRunGraphResponse> {
-  const base = resolveApiBaseUrl(options.apiBaseUrl);
-  return fetchJson<PipelineRunGraphResponse>(`${base}/pipeline/runs/${runId}`, options);
+  try {
+    return await fetchPipelineRunGraphRequest(runId, options);
+  } catch (error) {
+    throw toPipelineError(error);
+  }
 }
 
 export async function fetchPipelineNodeDetail(
@@ -128,8 +67,11 @@ export async function fetchPipelineNodeDetail(
   nodeId: string,
   options: PipelineApiOptions = {},
 ): Promise<PipelineNodeDetailResponse> {
-  const base = resolveApiBaseUrl(options.apiBaseUrl);
-  return fetchJson<PipelineNodeDetailResponse>(`${base}/pipeline/runs/${runId}/nodes/${nodeId}`, options);
+  try {
+    return await fetchPipelineNodeDetailRequest(runId, nodeId, options);
+  } catch (error) {
+    throw toPipelineError(error);
+  }
 }
 
 export const fallbackPipelineGraph: PipelineRunGraphResponse = {
@@ -220,11 +162,7 @@ export const fallbackNodeDetail: PipelineNodeDetailResponse = {
     provider: "minio",
     max_upload_size_mb: 25,
   },
-  logs: [
-    "Connection established",
-    "Checksum verified",
-    "Transfer completed",
-  ],
+  logs: ["Connection established", "Checksum verified", "Transfer completed"],
   error_message: null,
   error_details: {},
   metrics: {

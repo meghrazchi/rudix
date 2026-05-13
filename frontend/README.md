@@ -89,6 +89,8 @@ Required values:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_QUERY_STALE_TIME_MS=10000
+NEXT_PUBLIC_QUERY_RETRY_COUNT=1
 ```
 
 ### 3. Start dev server
@@ -125,4 +127,7 @@ npm run test
 ## Notes
 
 - `@radix-ui/react-dialog` and `@radix-ui/react-slot` were removed because they are not used in the current code.
-- Pipeline API client and fallback graph/data are in `src/lib/pipeline.ts`.
+- Typed frontend API clients are in `src/lib/api/*`.
+- Shared request handling includes bearer token and organization header injection from local session (when available), normalized API errors, and safe retry behavior for transient query failures.
+- TanStack Query defaults and mutation invalidation helpers are in `src/lib/api/query.ts`.
+- Pipeline fallback graph/data remain in `src/lib/pipeline.ts`.
