@@ -152,7 +152,7 @@ function buildHeaders(options: ApiRequestOptions): Headers {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  if (shouldAttachOrganizationHeader(organizationId)) {
+  if (organizationId && shouldAttachOrganizationHeader(organizationId)) {
     headers.set("X-Organization-ID", organizationId);
   }
 
