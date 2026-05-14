@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, the Documents workspace at `/documents`, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -62,6 +62,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - validates workspace name, optional domain allowlist, default access settings, and invite emails/roles
   - supports draft save/resume through backend endpoints when configured, with local fallback
   - completes onboarding by creating/updating organization context and routing to `/dashboard`
+- Documents page behavior:
+  - upload dropzone for `pdf`, `txt`, and `docx` files with permission-aware controls
+  - status-aware document table (filename, type, status, page count, chunk count, created timestamp)
+  - async delete and re-index actions with role-based enablement
+  - polling while documents are in transitional states (`uploaded`, `processing`, `deleting`)
+  - detail and chunk preview inspector with loading/empty/error states
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
