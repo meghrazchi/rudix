@@ -71,7 +71,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Dashboard page behavior:
   - KPI cards for total documents, indexed documents, total chunks, questions asked, average confidence, average latency, indexing success, and estimated cost (admin/owner only)
   - data sourced from typed document, chat, and admin usage clients with fallback handling where backend metrics are unavailable
-  - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation
+  - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
 - Pipeline Explorer remains fully functional within the shared shell:
@@ -129,6 +129,7 @@ NEXT_PUBLIC_QUERY_STALE_TIME_MS=10000
 NEXT_PUBLIC_QUERY_RETRY_COUNT=1
 NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS=1000
 NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS=1000
+NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE=false
 NEXT_PUBLIC_AUTH_PROVIDER=app
 NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
@@ -145,6 +146,8 @@ NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK=true
 NEXT_PUBLIC_SUPPORT_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
+
+If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` to a valid backend app token. Without it, sign-in will succeed locally but API requests will return `401`.
 
 ### 3. Start dev server
 

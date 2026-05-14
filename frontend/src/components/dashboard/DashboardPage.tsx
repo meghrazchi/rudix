@@ -42,6 +42,14 @@ function parsePositiveIntegerEnv(value: string | undefined, fallback: number): n
   return parsed;
 }
 
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 type DashboardDocumentSummary = {
   totalDocuments: number;
   indexedDocuments: number;
@@ -190,7 +198,8 @@ function KpiCard({ title, value, caption, loading = false, error = null, onRetry
 export function DashboardPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
-  const showAdminUsage = canViewAdminUsage(role);
+  const adminUsageEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE);
+  const showAdminUsage = canViewAdminUsage(role) && adminUsageEnabled;
 
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
   const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);

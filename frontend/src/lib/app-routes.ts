@@ -107,6 +107,20 @@ function normalizePathname(pathname: string): string {
   return withoutQuery.replace(/\/+$/, "") || "/";
 }
 
+function hasOrganizationContext(session: AuthenticatedSession): boolean {
+  if (session.organizationId?.trim()) {
+    return true;
+  }
+
+  const provider = process.env.NEXT_PUBLIC_AUTH_PROVIDER?.trim().toLowerCase() ?? "";
+  if (provider === "app" && session.accessToken?.trim()) {
+    // App auth can resolve the active organization server-side from token principal memberships.
+    return true;
+  }
+
+  return false;
+}
+
 export function findRouteMeta(pathname: string): AppRouteMeta | null {
   const normalizedPathname = normalizePathname(pathname);
   return (
@@ -123,7 +137,7 @@ export function evaluateRouteAccess(
   if (!session) {
     return { allowed: false, reason: "unauthenticated" };
   }
-  if (route.requiresOrganization && !session.organizationId?.trim()) {
+  if (route.requiresOrganization && !hasOrganizationContext(session)) {
     return { allowed: false, reason: "organization_required" };
   }
   if (!route.allowedRoles.includes(session.role)) {

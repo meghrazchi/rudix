@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import type { UsageSummaryResponse } from "@/lib/api/admin-usage";
@@ -63,7 +63,11 @@ function expectKpiValue(title: string, value: string) {
 }
 
 describe("DashboardPage", () => {
+  const originalEnv = { ...process.env };
+
   beforeEach(() => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE: "true" };
+
     mockApi.listDocuments.mockReset();
     mockApi.listChatSessions.mockReset();
     mockApi.getUsageSummary.mockReset();
@@ -145,6 +149,10 @@ describe("DashboardPage", () => {
       series: [],
     };
     mockApi.getUsageSummary.mockResolvedValue(usage);
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
   });
 
   it("renders formatted KPI values for admin role", async () => {

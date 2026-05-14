@@ -88,6 +88,10 @@ function toRole(value: string | null | undefined, fallback: AppRole): AppRole {
   return fallback;
 }
 
+function normalizeProviderName(value: string | null): string {
+  return (value ?? "app").trim().toLowerCase();
+}
+
 function deriveUserIdFromEmail(email: string): string {
   const local = email.split("@")[0]?.trim().toLowerCase() ?? "user";
   const sanitized = local.replace(/[^a-z0-9._-]/g, "-").replace(/-+/g, "-");
@@ -155,6 +159,22 @@ function buildLocalSession(email: string, config: AuthClientConfig): Authenticat
   };
 }
 
+function ensureSessionHasAccessToken(session: AuthenticatedSession, config: AuthClientConfig): void {
+  const provider = normalizeProviderName(config.providerName);
+  if (provider !== "app") {
+    return;
+  }
+
+  if (trimToNull(session.accessToken ?? null)) {
+    return;
+  }
+
+  throw new LoginFlowError(
+    "not_configured",
+    "Sign-in is configured but no API access token is available. Set NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN or configure NEXT_PUBLIC_AUTH_LOGIN_URL to return access_token.",
+  );
+}
+
 function toLoginFlowError(error: unknown): LoginFlowError {
   if (error instanceof LoginFlowError) {
     return error;
@@ -200,7 +220,9 @@ export async function startLoginSession(values: LoginFormValues): Promise<Authen
         retry: false,
       });
 
-      return responseToSession(response, parsed.email, config);
+      const session = responseToSession(response, parsed.email, config);
+      ensureSessionHasAccessToken(session, config);
+      return session;
     } catch (error) {
       throw toLoginFlowError(error);
     }
@@ -222,7 +244,9 @@ export async function startLoginSession(values: LoginFormValues): Promise<Authen
     );
   }
 
-  return buildLocalSession(parsed.email, config);
+  const session = buildLocalSession(parsed.email, config);
+  ensureSessionHasAccessToken(session, config);
+  return session;
 }
 
 export function getSsoStartHref(nextPath: string): string | null {

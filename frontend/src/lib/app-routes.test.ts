@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   buildNavigationItems,
@@ -12,7 +12,31 @@ function authenticatedState(session: AuthenticatedSession): SessionState {
   return { status: "authenticated", session };
 }
 
+const originalEnv = { ...process.env };
+
+beforeEach(() => {
+  process.env = { ...originalEnv };
+});
+
+afterEach(() => {
+  process.env = { ...originalEnv };
+});
+
 describe("app route protection", () => {
+  it("redirects app sessions without org id and without token to onboarding", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "app" };
+    const state = authenticatedState({
+      userId: "u-1",
+      email: "new@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+      accessToken: null,
+    });
+
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/organization-onboarding");
+  });
+
   it("redirects unauthenticated users to login with next path", () => {
     const state: SessionState = { status: "unauthenticated", session: null };
 
@@ -32,15 +56,31 @@ describe("app route protection", () => {
   });
 
   it("redirects users without organization context to onboarding", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "clerk" };
     const state = authenticatedState({
       userId: "u-1",
       email: "new@rudix.local",
       role: "member",
       organizationId: null,
       organizationName: null,
+      accessToken: null,
     });
 
     expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/organization-onboarding");
+  });
+
+  it("allows app sessions with token even when organization id is missing", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "app" };
+    const state = authenticatedState({
+      userId: "u-1",
+      email: "new@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+      accessToken: "token-123",
+    });
+
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBeNull();
   });
 
   it("matches metadata for all required product pages", () => {
@@ -92,14 +132,30 @@ describe("permission-aware navigation", () => {
   });
 
   it("routes authenticated navigation target to onboarding when organization is missing", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "clerk" };
     const target = resolveAuthenticatedNavigationTarget("/dashboard", {
       userId: "u-3",
       email: "member@rudix.local",
       role: "member",
       organizationId: null,
       organizationName: null,
+      accessToken: null,
     });
 
     expect(target).toBe("/organization-onboarding");
+  });
+
+  it("keeps authenticated navigation target on requested route for app token sessions", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "app" };
+    const target = resolveAuthenticatedNavigationTarget("/dashboard", {
+      userId: "u-3",
+      email: "member@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+      accessToken: "token-xyz",
+    });
+
+    expect(target).toBe("/dashboard");
   });
 });

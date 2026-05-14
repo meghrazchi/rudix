@@ -8,6 +8,7 @@ describe("startLoginSession", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
     process.env = { ...originalEnv };
+    process.env.NEXT_PUBLIC_AUTH_PROVIDER = "app";
     delete process.env.NEXT_PUBLIC_AUTH_LOGIN_URL;
     delete process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD;
     delete process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID;
@@ -26,6 +27,7 @@ describe("startLoginSession", () => {
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID = "dev-user";
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID = "dev-org";
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME = "Dev Org";
+    process.env.NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN = "dev-token";
 
     const session = await startLoginSession({
       email: "user@example.com",
@@ -36,6 +38,23 @@ describe("startLoginSession", () => {
     expect(session.organizationId).toBe("dev-org");
     expect(session.organizationName).toBe("Dev Org");
     expect(session.email).toBe("user@example.com");
+    expect(session.accessToken).toBe("dev-token");
+  });
+
+  it("returns not-configured error when app auth fallback has no access token", async () => {
+    process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
+    process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID = "dev-user";
+
+    await expect(
+      startLoginSession({
+        email: "user@example.com",
+        password: "password123",
+      }),
+    ).rejects.toMatchObject({
+      kind: "not_configured",
+      safeMessage:
+        "Sign-in is configured but no API access token is available. Set NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN or configure NEXT_PUBLIC_AUTH_LOGIN_URL to return access_token.",
+    } satisfies Partial<LoginFlowError>);
   });
 
   it("returns safe invalid-credentials error for local fallback password mismatch", async () => {

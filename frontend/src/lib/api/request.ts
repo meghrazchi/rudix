@@ -10,6 +10,7 @@ import {
 const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
 const DEFAULT_RETRYABLE_STATUS_CODES = new Set([429, 503]);
 const DEFAULT_RETRY_DELAY_MS = 250;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type PrimitiveQueryValue = string | number | boolean | null | undefined;
 export type ApiQueryValue = PrimitiveQueryValue | PrimitiveQueryValue[];
@@ -52,6 +53,24 @@ function trimToNull(value: string | null | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeAuthProvider(value: string | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function shouldAttachOrganizationHeader(organizationId: string | null): boolean {
+  if (!organizationId) {
+    return false;
+  }
+
+  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  if (provider !== "app") {
+    return true;
+  }
+
+  // App auth resolves organization from token memberships; avoid sending local slug placeholders.
+  return UUID_PATTERN.test(organizationId);
 }
 
 function isSafeMethod(method: string): boolean {
@@ -133,7 +152,7 @@ function buildHeaders(options: ApiRequestOptions): Headers {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  if (organizationId) {
+  if (shouldAttachOrganizationHeader(organizationId)) {
     headers.set("X-Organization-ID", organizationId);
   }
 
