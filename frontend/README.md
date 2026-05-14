@@ -68,6 +68,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - async delete and re-index actions with role-based enablement
   - polling while documents are in transitional states (`uploaded`, `processing`, `deleting`)
   - detail and chunk preview inspector with loading/empty/error states
+- Dashboard page behavior:
+  - KPI cards for total documents, indexed documents, total chunks, questions asked, average confidence, average latency, indexing success, and estimated cost (admin/owner only)
+  - data sourced from typed document, chat, and admin usage clients with fallback handling where backend metrics are unavailable
+  - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation
+  - explicit loading/error states with retry actions for each KPI card
+  - empty state with document/chat call-to-actions when no activity exists
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
@@ -75,13 +81,13 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - node detail side panel
   - loading/error and permission-aware states
 
-## Dashboard Design Sample (Page 2 Target)
+## Dashboard Design Sample
 
 ![Rudix Dashboard Sample](../docs/screenshots/dashboard_overview.png)
 
-This image is the reference layout for the upcoming `/dashboard` page.
+This image remains the visual reference for `/dashboard`.
 
-Target dashboard behavior and structure:
+Dashboard behavior and structure:
 
 - Left navigation shell shared with all authenticated pages.
 - Top bar with global search, alerts/help icons, and user profile access.
@@ -91,7 +97,7 @@ Target dashboard behavior and structure:
 - Billing/usage card with quota progress and billing action.
 - Operational tables for recent activity and latest documents with status badges.
 
-Implementation notes for this page:
+Implementation notes:
 
 - Keep the same visual language as `/rag-pipeline` (spacing, color scale, card treatment).
 - Use typed API clients and show explicit loading, empty, and error states.
@@ -121,6 +127,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_QUERY_STALE_TIME_MS=10000
 NEXT_PUBLIC_QUERY_RETRY_COUNT=1
+NEXT_PUBLIC_DASHBOARD_MAX_DOCUMENT_ROWS=1000
+NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS=1000
 NEXT_PUBLIC_AUTH_PROVIDER=app
 NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
