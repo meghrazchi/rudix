@@ -43,4 +43,20 @@ describe("ForbiddenState", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("renders configured support action", () => {
+    const originalEnv = { ...process.env };
+    try {
+      process.env = { ...originalEnv, NEXT_PUBLIC_SUPPORT_URL: "https://support.rudix.local" };
+
+      render(<ForbiddenState />);
+
+      expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
+        "href",
+        "https://support.rudix.local",
+      );
+    } finally {
+      process.env = originalEnv;
+    }
+  });
 });

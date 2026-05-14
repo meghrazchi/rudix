@@ -103,6 +103,28 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function extractRequestIdFromPayload(payload: unknown): string | null {
+  const envelope = asRecord(payload);
+  if (!envelope) {
+    return null;
+  }
+
+  const detail = envelope.detail;
+  const detailRecord = asRecord(detail);
+
+  return (
+    asNonEmptyString(envelope.request_id) ??
+    asNonEmptyString(envelope.requestId) ??
+    asNonEmptyString(envelope.trace_id) ??
+    asNonEmptyString(envelope.traceId) ??
+    asNonEmptyString(detailRecord?.request_id) ??
+    asNonEmptyString(detailRecord?.requestId) ??
+    asNonEmptyString(detailRecord?.trace_id) ??
+    asNonEmptyString(detailRecord?.traceId) ??
+    null
+  );
+}
+
 export function normalizeBackendError(payload: unknown): NormalizedBackendError {
   const envelope = asRecord(payload);
   if (!envelope) {
@@ -186,7 +208,7 @@ export function normalizeApiError(params: {
     code: normalized.code ?? meta.defaultCode,
     message: normalized.message ?? params.fallbackMessage ?? `Request failed (${params.status})`,
     details: normalized.details,
-    requestId: params.requestId ?? null,
+    requestId: params.requestId ?? extractRequestIdFromPayload(params.payload),
     userMessage: meta.userMessage,
     actionMessage: meta.actionMessage,
     retryable: meta.retryable,

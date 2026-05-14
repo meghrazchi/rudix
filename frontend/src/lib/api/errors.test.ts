@@ -40,4 +40,18 @@ describe("normalizeApiError", () => {
     expect(error.requestId).toBe("req-409");
     expect(error.retryable).toBe(false);
   });
+
+  it("extracts request id from payload when header request id is unavailable", () => {
+    const error = normalizeApiError({
+      status: 403,
+      payload: {
+        detail: {
+          message: "Insufficient role",
+          request_id: "req-403-body",
+        },
+      },
+    });
+
+    expect(error.requestId).toBe("req-403-body");
+  });
 });
