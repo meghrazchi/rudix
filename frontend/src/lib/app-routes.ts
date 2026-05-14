@@ -113,7 +113,7 @@ function hasOrganizationContext(session: AuthenticatedSession): boolean {
   }
 
   const provider = process.env.NEXT_PUBLIC_AUTH_PROVIDER?.trim().toLowerCase() ?? "";
-  if (provider === "app" && session.accessToken?.trim()) {
+  if (provider === "app" && (session.accessToken?.trim() || session.refreshToken?.trim())) {
     // App auth can resolve the active organization server-side from token principal memberships.
     return true;
   }

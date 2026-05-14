@@ -83,6 +83,21 @@ describe("app route protection", () => {
     expect(resolveProtectedRouteRedirect("/dashboard", state)).toBeNull();
   });
 
+  it("allows app sessions with refresh token even when organization id is missing", () => {
+    process.env = { ...originalEnv, NEXT_PUBLIC_AUTH_PROVIDER: "app" };
+    const state = authenticatedState({
+      userId: "u-1",
+      email: "new@rudix.local",
+      role: "member",
+      organizationId: null,
+      organizationName: null,
+      accessToken: null,
+      refreshToken: "refresh-token-123",
+    });
+
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBeNull();
+  });
+
   it("matches metadata for all required product pages", () => {
     const expectedPaths = [
       "/dashboard",

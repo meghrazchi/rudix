@@ -7,6 +7,7 @@ export type AuthenticatedSession = {
   organizationId: string | null;
   organizationName: string | null;
   accessToken?: string | null;
+  refreshToken?: string | null;
 };
 
 export type SessionStatus = "loading" | "authenticated" | "unauthenticated";
@@ -37,7 +38,10 @@ function isValidSession(value: unknown): value is AuthenticatedSession {
     (candidate.organizationName === null || typeof candidate.organizationName === "string") &&
     (candidate.accessToken === undefined ||
       candidate.accessToken === null ||
-      typeof candidate.accessToken === "string")
+      typeof candidate.accessToken === "string") &&
+    (candidate.refreshToken === undefined ||
+      candidate.refreshToken === null ||
+      typeof candidate.refreshToken === "string")
   );
 }
 

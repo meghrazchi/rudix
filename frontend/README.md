@@ -74,6 +74,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
+- Settings page behavior:
+  - profile and organization context sections for authenticated users
+  - security section shows safe auth diagnostics only (provider and token availability flags)
+  - preferences form validates and supports save/discard flow for default `top_k`, rerank, developer mode, and notification choices
+  - optional backend persistence for preferences (`NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL`, `NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL`) with local fallback
+  - admin-only controls section is permission-aware for non-admin users
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters
@@ -144,6 +150,12 @@ NEXT_PUBLIC_AUTH_SIGNUP_URL=
 NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL=
 NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_INVITE_ONLY=false
+NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
+NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
+NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL=
+NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL=
+NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true
+NEXT_PUBLIC_SETTINGS_BILLING_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
@@ -152,7 +164,7 @@ NEXT_PUBLIC_SUPPORT_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
-If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` to a valid backend app token. Without it, sign-in will succeed locally but API requests will return `401`.
+If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` (and optionally `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN`) to valid backend app tokens. The API client retries once after `401` by calling `/auth/token/refresh` when a refresh token is available.
 
 ### 3. Start dev server
 
