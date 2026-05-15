@@ -36,7 +36,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 
 - Reusable authenticated shell with:
   - responsive sidebar and mobile drawer navigation
-  - top bar with route context and sign-out action
+  - top bar with route context, notifications, help, and profile menus
   - content container shared by all product pages
 - Route metadata and role-aware navigation actions for all product routes.
 - Protected-route behavior:
@@ -46,6 +46,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - reusable `ForbiddenState` component for inline and full-page authorization failures
   - includes optional support action via environment configuration
   - displays safe trace/request ID values when available from backend responses
+- Top bar behavior:
+  - profile menu shows safe user and organization context with settings + sign-out actions
+  - help menu links to configured docs/support/shortcuts/README resources
+  - notifications menu consumes optional backend feed and shows loading, empty, and unavailable states
+  - menu actions are permission-aware (e.g., admin links only for owner/admin roles)
 - Login behavior:
   - validates credentials using React Hook Form + Zod
   - redirects already authenticated users away from `/login`
@@ -162,6 +167,11 @@ NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true
 NEXT_PUBLIC_SETTINGS_BILLING_URL=
+NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL=
+NEXT_PUBLIC_HELP_DOCS_URL=
+NEXT_PUBLIC_HELP_SUPPORT_URL=
+NEXT_PUBLIC_HELP_SHORTCUTS_URL=
+NEXT_PUBLIC_HELP_README_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=

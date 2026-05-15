@@ -4,6 +4,7 @@ export * from "@/lib/api/documents";
 export * from "@/lib/api/errors";
 export * from "@/lib/api/evaluations";
 export * from "@/lib/api/health";
+export * from "@/lib/api/notifications";
 export * from "@/lib/api/pipeline";
 export * from "@/lib/api/query";
 export * from "@/lib/api/request";

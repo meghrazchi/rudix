@@ -86,6 +86,9 @@ export const queryKeys = {
     usage: (params?: Record<string, unknown>) => ["admin", "usage", params ?? {}] as const,
     auditLogs: (params?: Record<string, unknown>) => ["admin", "audit-logs", params ?? {}] as const,
   },
+  topBar: {
+    notifications: (endpoint: string) => ["top-bar", "notifications", endpoint] as const,
+  },
 };
 
 export type FrontendMutationKind =
