@@ -163,6 +163,9 @@ NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK=true
 NEXT_PUBLIC_AUTH_INVITE_ONLY=false
 NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN=
 NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
+NEXT_PUBLIC_AUTH_REFRESH_URL=
+NEXT_PUBLIC_AUTH_LOGOUT_URL=
+NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS=60
 NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true
@@ -180,7 +183,8 @@ NEXT_PUBLIC_SUPPORT_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
-If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` (and optionally `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN`) to valid backend app tokens. The API client retries once after `401` by calling `/auth/token/refresh` when a refresh token is available.
+If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` (and optionally `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN`) to valid backend app tokens.  
+If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` and `NEXT_PUBLIC_AUTH_LOGOUT_URL`; otherwise refresh can still use `/auth/token/refresh` when a refresh token is present.
 
 ### 3. Start dev server
 
@@ -192,16 +196,16 @@ Open `http://localhost:3000`.
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start dev server |
-| `npm run build` | Build production bundle |
-| `npm run start` | Run production server |
-| `npm run typecheck` | TypeScript checks |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest tests |
-| `npm run test:watch` | Vitest watch mode |
-| `npm run test:e2e` | Playwright tests |
+| Command              | Description             |
+| -------------------- | ----------------------- |
+| `npm run dev`        | Start dev server        |
+| `npm run build`      | Build production bundle |
+| `npm run start`      | Run production server   |
+| `npm run typecheck`  | TypeScript checks       |
+| `npm run lint`       | ESLint                  |
+| `npm run test`       | Vitest tests            |
+| `npm run test:watch` | Vitest watch mode       |
+| `npm run test:e2e`   | Playwright tests        |
 
 ## Testing
 

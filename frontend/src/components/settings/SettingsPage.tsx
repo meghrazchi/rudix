@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
@@ -57,13 +58,17 @@ function saveStateClassName(saveState: SaveState): string {
 }
 
 export function SettingsPage() {
-  const { state } = useAuthSession();
+  const router = useRouter();
+  const { state, signOut } = useAuthSession();
   const session = state.session;
   const role = session?.role ?? null;
   const isAdmin = isAdminLikeRole(role);
   const [saveState, setSaveState] = useState<SaveState>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const lastSavedPreferencesRef = useRef<SettingsPreferences>(createDefaultSettingsPreferences());
+  const lastSavedPreferencesRef = useRef<SettingsPreferences>(
+    createDefaultSettingsPreferences(),
+  );
 
   const form = useForm<SettingsPreferences>({
     resolver: zodResolver(settingsPreferencesSchema),
@@ -85,7 +90,8 @@ export function SettingsPage() {
   }, [form, preferencesQuery.data]);
 
   const saveMutation = useMutation({
-    mutationFn: async (values: SettingsPreferences) => persistSettingsPreferences(values),
+    mutationFn: async (values: SettingsPreferences) =>
+      persistSettingsPreferences(values),
     onSuccess: (result: PersistedSettingsPreferences) => {
       lastSavedPreferencesRef.current = result.preferences;
       form.reset(result.preferences);
@@ -105,7 +111,8 @@ export function SettingsPage() {
     },
   });
 
-  const billingHref = process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL?.trim() || "/admin";
+  const billingHref =
+    process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL?.trim() || "/admin";
 
   const securityFacts = useMemo(
     () => [
@@ -138,30 +145,54 @@ export function SettingsPage() {
     await saveMutation.mutateAsync(values);
   }
 
+  async function handleSignOut(): Promise<void> {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace("/login?reason=signed_out");
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   const hasUnsavedChanges = form.formState.isDirty;
   const isSubmitting = saveMutation.isPending;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Settings</p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Profile, organization, and preferences</h1>
+        <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          Rudix Settings
+        </p>
+        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+          Profile, organization, and preferences
+        </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Manage safe account context details and retrieval defaults used by the chat experience.
+          Manage safe account context details and retrieval defaults used by the
+          chat experience.
         </p>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Profile section">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Profile</h2>
+        <section
+          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+          aria-label="Profile section"
+        >
+          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+            Profile
+          </h2>
           <dl className="space-y-3 text-sm">
             <div className="flex flex-col gap-1">
               <dt className="font-semibold text-[#5c5871]">Email</dt>
-              <dd className="text-[#2f2a46]">{session?.email ?? "Not available"}</dd>
+              <dd className="text-[#2f2a46]">
+                {session?.email ?? "Not available"}
+              </dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-semibold text-[#5c5871]">User ID</dt>
-              <dd className="text-[#2f2a46]">{session?.userId ?? "Not available"}</dd>
+              <dd className="text-[#2f2a46]">
+                {session?.userId ?? "Not available"}
+              </dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-semibold text-[#5c5871]">Role</dt>
@@ -170,21 +201,34 @@ export function SettingsPage() {
           </dl>
         </section>
 
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Organization section">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Organization context</h2>
+        <section
+          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+          aria-label="Organization section"
+        >
+          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+            Organization context
+          </h2>
           <dl className="space-y-3 text-sm">
             <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">Organization name</dt>
-              <dd className="text-[#2f2a46]">{session?.organizationName ?? "Not assigned"}</dd>
+              <dt className="font-semibold text-[#5c5871]">
+                Organization name
+              </dt>
+              <dd className="text-[#2f2a46]">
+                {session?.organizationName ?? "Not assigned"}
+              </dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-semibold text-[#5c5871]">Organization ID</dt>
-              <dd className="text-[#2f2a46]">{session?.organizationId ?? "Not assigned"}</dd>
+              <dd className="text-[#2f2a46]">
+                {session?.organizationId ?? "Not assigned"}
+              </dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-semibold text-[#5c5871]">Permission scope</dt>
               <dd className="text-[#2f2a46]">
-                {isAdmin ? "Administrator controls are enabled." : "Standard member/viewer permissions."}
+                {isAdmin
+                  ? "Administrator controls are enabled."
+                  : "Standard member/viewer permissions."}
               </dd>
             </div>
           </dl>
@@ -192,23 +236,53 @@ export function SettingsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Security section">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Security</h2>
+        <section
+          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+          aria-label="Security section"
+        >
+          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+            Security
+          </h2>
           <dl className="space-y-3 text-sm">
             {securityFacts.map((fact) => (
-              <div key={fact.label} className="flex items-center justify-between gap-4 rounded-lg border border-[#ebe8f7] px-3 py-2">
+              <div
+                key={fact.label}
+                className="flex items-center justify-between gap-4 rounded-lg border border-[#ebe8f7] px-3 py-2"
+              >
                 <dt className="font-semibold text-[#5c5871]">{fact.label}</dt>
-                <dd className={statusPill(fact.value === "Yes")}>{fact.value}</dd>
+                <dd className={statusPill(fact.value === "Yes")}>
+                  {fact.value}
+                </dd>
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-xs text-[#6a6780]">Sensitive token values are never displayed in the UI.</p>
+          <p className="mt-3 text-xs text-[#6a6780]">
+            Sensitive token values are never displayed in the UI.
+          </p>
+          <div className="mt-4 border-t border-[#ebe8f7] pt-3">
+            <button
+              type="button"
+              onClick={() => {
+                void handleSignOut();
+              }}
+              disabled={isSigningOut}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </button>
+          </div>
         </section>
 
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Billing and usage section">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Billing and usage</h2>
+        <section
+          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+          aria-label="Billing and usage section"
+        >
+          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+            Billing and usage
+          </h2>
           <p className="text-sm text-[#4d4963]">
-            Review usage trends and billing-relevant activity from the administrative usage surface.
+            Review usage trends and billing-relevant activity from the
+            administrative usage surface.
           </p>
           <div className="mt-4">
             <Link
@@ -221,14 +295,21 @@ export function SettingsPage() {
         </section>
       </div>
 
-      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Preferences section">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Preferences</h2>
+      <section
+        className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+        aria-label="Preferences section"
+      >
+        <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+          Preferences
+        </h2>
 
         {preferencesQuery.isLoading ? (
           <p className="text-sm text-[#68647b]">Loading preferences...</p>
         ) : preferencesQuery.isError ? (
           <div className="space-y-3">
-            <p className="text-sm text-rose-700">{getApiErrorMessage(preferencesQuery.error)}</p>
+            <p className="text-sm text-rose-700">
+              {getApiErrorMessage(preferencesQuery.error)}
+            </p>
             <button
               type="button"
               onClick={() => {
@@ -240,9 +321,13 @@ export function SettingsPage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4" noValidate>
+          <form
+            onSubmit={form.handleSubmit(handleSave)}
+            className="space-y-4"
+            noValidate
+          >
             <label className="block" htmlFor="defaultTopK">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                 Default top-k
               </span>
               <input
@@ -252,10 +337,11 @@ export function SettingsPage() {
                 max={settingsTopKBounds.max}
                 step={1}
                 {...form.register("defaultTopK", { valueAsNumber: true })}
-                className="h-10 w-full max-w-[220px] rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
+                className="h-10 w-full max-w-[220px] rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
               />
               <p className="mt-1 text-xs text-[#6a6780]">
-                Allowed range: {settingsTopKBounds.min} to {settingsTopKBounds.max}
+                Allowed range: {settingsTopKBounds.min} to{" "}
+                {settingsTopKBounds.max}
               </p>
               {form.formState.errors.defaultTopK?.message ? (
                 <p role="alert" className="mt-1 text-xs text-rose-700">
@@ -265,32 +351,57 @@ export function SettingsPage() {
             </label>
 
             <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-              <input type="checkbox" {...form.register("rerankEnabled")} className="mt-0.5" />
+              <input
+                type="checkbox"
+                {...form.register("rerankEnabled")}
+                className="mt-0.5"
+              />
               <span>Enable rerank by default for new chat queries</span>
             </label>
 
             <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-              <input type="checkbox" {...form.register("developerMode")} className="mt-0.5" />
-              <span>Enable developer/debug diagnostics in settings surfaces</span>
+              <input
+                type="checkbox"
+                {...form.register("developerMode")}
+                className="mt-0.5"
+              />
+              <span>
+                Enable developer/debug diagnostics in settings surfaces
+              </span>
             </label>
 
             <fieldset className="space-y-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-3">
-              <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Notifications</legend>
+              <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                Notifications
+              </legend>
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input type="checkbox" {...form.register("notifications.productUpdates")} />
+                <input
+                  type="checkbox"
+                  {...form.register("notifications.productUpdates")}
+                />
                 Product updates
               </label>
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input type="checkbox" {...form.register("notifications.securityAlerts")} />
+                <input
+                  type="checkbox"
+                  {...form.register("notifications.securityAlerts")}
+                />
                 Security alerts
               </label>
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input type="checkbox" {...form.register("notifications.documentProcessing")} />
+                <input
+                  type="checkbox"
+                  {...form.register("notifications.documentProcessing")}
+                />
                 Document processing updates
               </label>
             </fieldset>
 
-            {saveState ? <p className={saveStateClassName(saveState)}>{saveState.message}</p> : null}
+            {saveState ? (
+              <p className={saveStateClassName(saveState)}>
+                {saveState.message}
+              </p>
+            ) : null}
 
             {hasUnsavedChanges ? (
               <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -319,12 +430,18 @@ export function SettingsPage() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm" aria-label="Admin controls section">
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Admin-only controls</h2>
+      <section
+        className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+        aria-label="Admin controls section"
+      >
+        <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+          Admin-only controls
+        </h2>
         {isAdmin ? (
           <div className="space-y-3">
             <p className="text-sm text-[#4d4963]">
-              Administrative security and organization controls are available to owner/admin roles.
+              Administrative security and organization controls are available to
+              owner/admin roles.
             </p>
             <Link
               href="/admin"

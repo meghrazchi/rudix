@@ -51,11 +51,14 @@ export type AuthClientConfig = {
   defaultRole: AppRole;
   defaultUserId: string | null;
   defaultAccessToken: string | null;
+  defaultRefreshToken: string | null;
 };
 
 type AuthLoginResponse = {
   access_token?: string | null;
   token?: string | null;
+  refresh_token?: string | null;
+  refreshToken?: string | null;
   user_id?: string | null;
   userId?: string | null;
   sub?: string | null;
@@ -102,26 +105,47 @@ function deriveUserIdFromEmail(email: string): string {
 }
 
 export function getAuthClientConfig(): AuthClientConfig {
-  const defaultRole = toRole(process.env.NEXT_PUBLIC_AUTH_DEFAULT_ROLE, "member");
+  const defaultRole = toRole(
+    process.env.NEXT_PUBLIC_AUTH_DEFAULT_ROLE,
+    "member",
+  );
 
   return {
     providerName: trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER),
     loginUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL),
     ssoUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL),
-    forgotPasswordUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL),
+    forgotPasswordUrl: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL,
+    ),
     localFallbackEnabled:
       trimToNull(process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK) === "true" ||
-      (trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL) === null && process.env.NODE_ENV !== "production"),
-    localFallbackPassword: trimToNull(process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD),
-    defaultOrganizationId: trimToNull(process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID),
-    defaultOrganizationName: trimToNull(process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME),
+      (trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL) === null &&
+        process.env.NODE_ENV !== "production"),
+    localFallbackPassword: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
+    ),
+    defaultOrganizationId: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID,
+    ),
+    defaultOrganizationName: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME,
+    ),
     defaultRole,
     defaultUserId: trimToNull(process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID),
-    defaultAccessToken: trimToNull(process.env.NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN),
+    defaultAccessToken: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN,
+    ),
+    defaultRefreshToken: trimToNull(
+      process.env.NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN,
+    ),
   };
 }
 
-function responseToSession(response: AuthLoginResponse, email: string, config: AuthClientConfig): AuthenticatedSession {
+function responseToSession(
+  response: AuthLoginResponse,
+  email: string,
+  config: AuthClientConfig,
+): AuthenticatedSession {
   const organizationId =
     trimToNull(response.organization_id) ??
     trimToNull(response.organizationId) ??
@@ -141,11 +165,21 @@ function responseToSession(response: AuthLoginResponse, email: string, config: A
       trimToNull(response.organization_name) ??
       trimToNull(response.organizationName) ??
       (organizationId ? config.defaultOrganizationName : null),
-    accessToken: trimToNull(response.access_token) ?? trimToNull(response.token) ?? config.defaultAccessToken,
+    accessToken:
+      trimToNull(response.access_token) ??
+      trimToNull(response.token) ??
+      config.defaultAccessToken,
+    refreshToken:
+      trimToNull(response.refresh_token) ??
+      trimToNull(response.refreshToken) ??
+      config.defaultRefreshToken,
   };
 }
 
-function buildLocalSession(email: string, config: AuthClientConfig): AuthenticatedSession {
+function buildLocalSession(
+  email: string,
+  config: AuthClientConfig,
+): AuthenticatedSession {
   const userId = config.defaultUserId ?? deriveUserIdFromEmail(email);
   const organizationId = config.defaultOrganizationId;
 
@@ -156,10 +190,14 @@ function buildLocalSession(email: string, config: AuthClientConfig): Authenticat
     organizationId,
     organizationName: organizationId ? config.defaultOrganizationName : null,
     accessToken: config.defaultAccessToken,
+    refreshToken: config.defaultRefreshToken,
   };
 }
 
-function ensureSessionHasAccessToken(session: AuthenticatedSession, config: AuthClientConfig): void {
+function ensureSessionHasAccessToken(
+  session: AuthenticatedSession,
+  config: AuthClientConfig,
+): void {
   const provider = normalizeProviderName(config.providerName);
   if (provider !== "app") {
     return;
@@ -182,10 +220,17 @@ function toLoginFlowError(error: unknown): LoginFlowError {
 
   if (isApiClientError(error)) {
     if (error.status === 401) {
-      return new LoginFlowError("invalid_credentials", "Invalid email or password.");
+      return new LoginFlowError(
+        "invalid_credentials",
+        "Invalid email or password.",
+      );
     }
 
-    if (error.status === 423 || error.status === 429 || error.code === "account_locked") {
+    if (
+      error.status === 423 ||
+      error.status === 429 ||
+      error.code === "account_locked"
+    ) {
       return new LoginFlowError(
         "locked_account",
         "Your account is temporarily locked. Please try again later or contact support.",
@@ -203,7 +248,9 @@ function toLoginFlowError(error: unknown): LoginFlowError {
   return new LoginFlowError("unknown", "Sign-in failed. Please try again.");
 }
 
-export async function startLoginSession(values: LoginFormValues): Promise<AuthenticatedSession> {
+export async function startLoginSession(
+  values: LoginFormValues,
+): Promise<AuthenticatedSession> {
   const parsed = loginFormSchema.parse(values);
   const config = getAuthClientConfig();
 
@@ -229,12 +276,18 @@ export async function startLoginSession(values: LoginFormValues): Promise<Authen
   }
 
   if (!config.localFallbackEnabled) {
-    throw new LoginFlowError("not_configured", "Sign-in is not configured for this environment.");
+    throw new LoginFlowError(
+      "not_configured",
+      "Sign-in is not configured for this environment.",
+    );
   }
 
   const expectedPassword = config.localFallbackPassword;
   if (expectedPassword && parsed.password !== expectedPassword) {
-    throw new LoginFlowError("invalid_credentials", "Invalid email or password.");
+    throw new LoginFlowError(
+      "invalid_credentials",
+      "Invalid email or password.",
+    );
   }
 
   if (parsed.email.toLowerCase().startsWith("locked@")) {
@@ -256,7 +309,10 @@ export function getSsoStartHref(nextPath: string): string | null {
   }
 
   try {
-    const baseOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const baseOrigin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
     const parsed = new URL(ssoUrl, baseOrigin);
     if (!parsed.searchParams.has("next")) {
       parsed.searchParams.set("next", nextPath);

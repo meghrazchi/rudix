@@ -34,9 +34,14 @@ function FullScreenStatus({ title, subtitle }: { title: string; subtitle: string
 export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { state, signOut } = useAuthSession();
+  const { state, signOut, boundaryEvent } = useAuthSession();
 
-  const redirectTarget = useMemo(() => resolveProtectedRouteRedirect(pathname, state), [pathname, state]);
+  const redirectTarget = useMemo(() => {
+    if (state.status !== "loading" && !state.session && boundaryEvent?.redirectTo) {
+      return boundaryEvent.redirectTo;
+    }
+    return resolveProtectedRouteRedirect(pathname, state);
+  }, [boundaryEvent?.redirectTo, pathname, state]);
 
   useEffect(() => {
     if (!redirectTarget) {
@@ -81,8 +86,9 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
       navItems={navItems}
       session={state.session}
       onSignOut={() => {
-        signOut();
-        router.replace("/login");
+        void signOut().finally(() => {
+          router.replace("/login?reason=signed_out");
+        });
       }}
     >
       {children}

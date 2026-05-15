@@ -10,8 +10,11 @@ const mockState = vi.hoisted(() => ({
   replace: vi.fn(),
   push: vi.fn(),
   nextPath: "/documents",
+  reason: null as string | null,
+  boundaryMessage: null as string | null,
   authState: { status: "unauthenticated", session: null } as SessionState,
   setAuthenticatedSession: vi.fn(),
+  clearBoundaryEvent: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -24,6 +27,9 @@ vi.mock("next/navigation", () => ({
       if (key === "next") {
         return mockState.nextPath;
       }
+      if (key === "reason") {
+        return mockState.reason;
+      }
       return null;
     },
   }),
@@ -34,6 +40,8 @@ vi.mock("@/lib/use-auth-session", () => ({
     state: mockState.authState,
     setAuthenticatedSession: mockState.setAuthenticatedSession,
     signOut: vi.fn(),
+    boundaryMessage: mockState.boundaryMessage,
+    clearBoundaryEvent: mockState.clearBoundaryEvent,
   }),
 }));
 
@@ -42,7 +50,10 @@ describe("LoginPage", () => {
     mockState.replace.mockReset();
     mockState.push.mockReset();
     mockState.setAuthenticatedSession.mockReset();
+    mockState.clearBoundaryEvent.mockReset();
     mockState.nextPath = "/documents";
+    mockState.reason = null;
+    mockState.boundaryMessage = null;
     mockState.authState = { status: "unauthenticated", session: null };
 
     vi.spyOn(authLogin, "getAuthClientConfig").mockReturnValue({
@@ -57,6 +68,7 @@ describe("LoginPage", () => {
       defaultRole: "member",
       defaultUserId: "demo-user-001",
       defaultAccessToken: null,
+      defaultRefreshToken: null,
     });
     vi.spyOn(authLogin, "getSsoStartHref").mockReturnValue(null);
     vi.spyOn(authLogin, "getForgotPasswordHref").mockReturnValue(null);
@@ -71,8 +83,12 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText("Password"), "short");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByText("Enter a valid email address")).toBeInTheDocument();
-    expect(screen.getByText("Password must be at least 8 characters")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Enter a valid email address"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Password must be at least 8 characters"),
+    ).toBeInTheDocument();
     expect(startSpy).not.toHaveBeenCalled();
   });
 
@@ -106,7 +122,10 @@ describe("LoginPage", () => {
 
   it("shows safe error message for failed sign-in", async () => {
     vi.spyOn(authLogin, "startLoginSession").mockRejectedValueOnce(
-      new authLogin.LoginFlowError("invalid_credentials", "Invalid email or password."),
+      new authLogin.LoginFlowError(
+        "invalid_credentials",
+        "Invalid email or password.",
+      ),
     );
 
     render(<LoginPage />);
@@ -115,7 +134,9 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText("Password"), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid email or password.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Invalid email or password.",
+    );
   });
 
   it("redirects authenticated users away from login", async () => {
@@ -154,7 +175,9 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await waitFor(() => {
-      expect(mockState.replace).toHaveBeenCalledWith("/organization-onboarding");
+      expect(mockState.replace).toHaveBeenCalledWith(
+        "/organization-onboarding",
+      );
     });
   });
 
@@ -175,9 +198,25 @@ describe("LoginPage", () => {
     await userEvent.tab();
     expect(passwordInput).toHaveFocus();
 
-    for (let attempts = 0; attempts < 10 && document.activeElement !== submitButton; attempts += 1) {
+    for (
+      let attempts = 0;
+      attempts < 10 && document.activeElement !== submitButton;
+      attempts += 1
+    ) {
       await userEvent.tab();
     }
     expect(submitButton).toHaveFocus();
+  });
+
+  it("shows session-expired notice from login reason query", async () => {
+    mockState.reason = "session_expired";
+    render(<LoginPage />);
+
+    expect(
+      await screen.findByText("Your session expired. Sign in again."),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockState.clearBoundaryEvent).toHaveBeenCalled();
+    });
   });
 });

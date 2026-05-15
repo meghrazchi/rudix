@@ -16,12 +16,18 @@ function parseIntegerEnv(value: string | undefined, fallback: number): number {
 
 function parseRetryCountFromEnv(): number {
   const defaultValue = process.env.NODE_ENV === "production" ? 2 : 1;
-  return parseIntegerEnv(process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT, defaultValue);
+  return parseIntegerEnv(
+    process.env.NEXT_PUBLIC_QUERY_RETRY_COUNT,
+    defaultValue,
+  );
 }
 
 function parseStaleTimeFromEnv(): number {
   const defaultMs = process.env.NODE_ENV === "production" ? 30_000 : 10_000;
-  return parseIntegerEnv(process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS, defaultMs);
+  return parseIntegerEnv(
+    process.env.NEXT_PUBLIC_QUERY_STALE_TIME_MS,
+    defaultMs,
+  );
 }
 
 function shouldRetryQuery(failureCount: number, error: unknown): boolean {
@@ -52,12 +58,36 @@ export function createAppQueryClient(): QueryClient {
   });
 }
 
+let activeAppQueryClient: QueryClient | null = null;
+
+export function registerAppQueryClient(queryClient: QueryClient): () => void {
+  activeAppQueryClient = queryClient;
+
+  return () => {
+    if (activeAppQueryClient === queryClient) {
+      activeAppQueryClient = null;
+    }
+  };
+}
+
+export async function clearAuthSensitiveQueryState(): Promise<void> {
+  if (!activeAppQueryClient) {
+    return;
+  }
+
+  await activeAppQueryClient.cancelQueries();
+  activeAppQueryClient.clear();
+}
+
 export const queryKeys = {
   documents: {
     all: ["documents"] as const,
-    list: (params?: Record<string, unknown>) => ["documents", "list", params ?? {}] as const,
-    detail: (documentId: string) => ["documents", "detail", documentId] as const,
-    status: (documentId: string) => ["documents", "status", documentId] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["documents", "list", params ?? {}] as const,
+    detail: (documentId: string) =>
+      ["documents", "detail", documentId] as const,
+    status: (documentId: string) =>
+      ["documents", "status", documentId] as const,
     chunks: (documentId: string, params?: Record<string, unknown>) =>
       ["documents", "chunks", documentId, params ?? {}] as const,
   },
@@ -76,18 +106,22 @@ export const queryKeys = {
     all: ["pipeline"] as const,
     steps: ["pipeline", "steps"] as const,
     run: (runId: string) => ["pipeline", "run", runId] as const,
-    node: (runId: string, nodeId: string) => ["pipeline", "node", runId, nodeId] as const,
+    node: (runId: string, nodeId: string) =>
+      ["pipeline", "node", runId, nodeId] as const,
   },
   health: {
     status: ["health", "status"] as const,
     readiness: ["health", "readiness"] as const,
   },
   admin: {
-    usage: (params?: Record<string, unknown>) => ["admin", "usage", params ?? {}] as const,
-    auditLogs: (params?: Record<string, unknown>) => ["admin", "audit-logs", params ?? {}] as const,
+    usage: (params?: Record<string, unknown>) =>
+      ["admin", "usage", params ?? {}] as const,
+    auditLogs: (params?: Record<string, unknown>) =>
+      ["admin", "audit-logs", params ?? {}] as const,
   },
   topBar: {
-    notifications: (endpoint: string) => ["top-bar", "notifications", endpoint] as const,
+    notifications: (endpoint: string) =>
+      ["top-bar", "notifications", endpoint] as const,
   },
 };
 
@@ -102,7 +136,11 @@ export async function invalidateAfterMutation(
   queryClient: QueryClient,
   kind: FrontendMutationKind,
 ): Promise<void> {
-  if (kind === "document.upload" || kind === "document.delete" || kind === "document.reindex") {
+  if (
+    kind === "document.upload" ||
+    kind === "document.delete" ||
+    kind === "document.reindex"
+  ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     await queryClient.invalidateQueries({ queryKey: queryKeys.pipeline.all });
     return;
@@ -114,7 +152,9 @@ export async function invalidateAfterMutation(
   }
 
   if (kind === "evaluation.run") {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.evaluations.sets,
+    });
     return;
   }
 }

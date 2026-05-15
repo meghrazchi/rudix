@@ -9,6 +9,8 @@ import type { SettingsPreferences } from "@/lib/settings-preferences";
 
 const mockState = vi.hoisted(() => ({
   authState: { status: "authenticated", session: null } as SessionState,
+  signOut: vi.fn(),
+  replace: vi.fn(),
 }));
 
 const mockPreferencesApi = vi.hoisted(() => ({
@@ -20,14 +22,20 @@ vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
     state: mockState.authState,
     setAuthenticatedSession: vi.fn(),
-    signOut: vi.fn(),
+    signOut: mockState.signOut,
+  }),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    replace: mockState.replace,
   }),
 }));
 
 vi.mock("@/lib/settings-preferences", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/settings-preferences")>(
-    "@/lib/settings-preferences",
-  );
+  const actual = await vi.importActual<
+    typeof import("@/lib/settings-preferences")
+  >("@/lib/settings-preferences");
 
   return {
     ...actual,
@@ -55,6 +63,7 @@ function renderPage() {
 describe("SettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockState.signOut.mockResolvedValue(undefined);
 
     mockState.authState = {
       status: "authenticated",
@@ -98,11 +107,21 @@ describe("SettingsPage", () => {
   it("renders profile, organization, security, and preferences sections", async () => {
     renderPage();
 
-    expect(await screen.findByText("Profile, organization, and preferences")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Profile section" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Organization section" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Security section" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Preferences section" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Profile, organization, and preferences"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Profile section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Organization section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Security section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Preferences section" }),
+    ).toBeInTheDocument();
   });
 
   it("validates preference values and blocks save on invalid top-k", async () => {
@@ -111,10 +130,14 @@ describe("SettingsPage", () => {
 
     await userEvent.clear(input);
     await userEvent.type(input, "9999");
-    await userEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save preferences" }),
+    );
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(mockPreferencesApi.persistSettingsPreferences).not.toHaveBeenCalled();
+    expect(
+      mockPreferencesApi.persistSettingsPreferences,
+    ).not.toHaveBeenCalled();
   });
 
   it("supports save and discard flow for unsaved preferences", async () => {
@@ -123,20 +146,34 @@ describe("SettingsPage", () => {
 
     await userEvent.clear(input);
     await userEvent.type(input, "7");
-    await userEvent.click(screen.getByLabelText("Enable rerank by default for new chat queries"));
-    await userEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+    await userEvent.click(
+      screen.getByLabelText("Enable rerank by default for new chat queries"),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save preferences" }),
+    );
 
     await waitFor(() => {
-      expect(mockPreferencesApi.persistSettingsPreferences).toHaveBeenCalledTimes(1);
+      expect(
+        mockPreferencesApi.persistSettingsPreferences,
+      ).toHaveBeenCalledTimes(1);
     });
-    expect(await screen.findByText("Preferences saved successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Preferences saved successfully."),
+    ).toBeInTheDocument();
 
     await userEvent.clear(input);
     await userEvent.type(input, "6");
-    await userEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Discard changes" }),
+    );
 
-    expect(await screen.findByText("Unsaved changes were discarded.")).toBeInTheDocument();
-    expect((screen.getByLabelText(/default top-k/i) as HTMLInputElement).value).toBe("7");
+    expect(
+      await screen.findByText("Unsaved changes were discarded."),
+    ).toBeInTheDocument();
+    expect(
+      (screen.getByLabelText(/default top-k/i) as HTMLInputElement).value,
+    ).toBe("7");
   });
 
   it("renders permission-aware admin-only section for non-admin users", async () => {
@@ -144,7 +181,9 @@ describe("SettingsPage", () => {
     await screen.findByText("Admin-only controls");
 
     expect(screen.getByText("Admin controls restricted")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Open admin surface" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Open admin surface" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows admin controls for admin role", async () => {
@@ -164,7 +203,25 @@ describe("SettingsPage", () => {
     renderPage();
 
     await screen.findByText("Admin-only controls");
-    expect(screen.getByRole("link", { name: "Open admin surface" })).toBeInTheDocument();
-    expect(screen.queryByText("Admin controls restricted")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open admin surface" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Admin controls restricted"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses the shared logout flow from settings security area", async () => {
+    renderPage();
+    await screen.findByRole("region", { name: "Security section" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => {
+      expect(mockState.signOut).toHaveBeenCalledTimes(1);
+      expect(mockState.replace).toHaveBeenCalledWith(
+        "/login?reason=signed_out",
+      );
+    });
   });
 });

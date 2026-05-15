@@ -29,7 +29,10 @@ export const signupFormSchema = z
     acceptTerms: z.boolean(),
   })
   .superRefine((value, context) => {
-    if (value.workspaceMode === "create" && !(value.workspaceName && value.workspaceName.length >= 2)) {
+    if (
+      value.workspaceMode === "create" &&
+      !(value.workspaceName && value.workspaceName.length >= 2)
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["workspaceName"],
@@ -37,7 +40,10 @@ export const signupFormSchema = z
       });
     }
 
-    if (value.workspaceMode === "join" && !(value.inviteCode && value.inviteCode.length >= 4)) {
+    if (
+      value.workspaceMode === "join" &&
+      !(value.inviteCode && value.inviteCode.length >= 4)
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["inviteCode"],
@@ -94,12 +100,15 @@ type SignupClientConfig = {
   defaultOrganizationName: string | null;
   defaultRole: AppRole;
   defaultAccessToken: string | null;
+  defaultRefreshToken: string | null;
   defaultUserId: string | null;
 };
 
 type AuthSignupResponse = {
   access_token?: string | null;
   token?: string | null;
+  refresh_token?: string | null;
+  refreshToken?: string | null;
   user_id?: string | null;
   userId?: string | null;
   sub?: string | null;
@@ -145,29 +154,33 @@ function toSignupConfig(): SignupClientConfig {
 
   return {
     signupUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_URL),
-    signupSsoUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL) ?? baseConfig.ssoUrl,
+    signupSsoUrl:
+      trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_SSO_URL) ??
+      baseConfig.ssoUrl,
     inviteOnly: trimToNull(process.env.NEXT_PUBLIC_AUTH_INVITE_ONLY) === "true",
     localFallbackEnabled:
-      trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK) === "true" ||
-      (trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_URL) === null && baseConfig.localFallbackEnabled),
+      trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_FALLBACK) ===
+        "true" ||
+      (trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_URL) === null &&
+        baseConfig.localFallbackEnabled),
     localFallbackPassword:
-      trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD) ?? baseConfig.localFallbackPassword,
+      trimToNull(process.env.NEXT_PUBLIC_AUTH_SIGNUP_LOCAL_PASSWORD) ??
+      baseConfig.localFallbackPassword,
     defaultOrganizationId: baseConfig.defaultOrganizationId,
     defaultOrganizationName: baseConfig.defaultOrganizationName,
     defaultRole: baseConfig.defaultRole,
     defaultAccessToken: baseConfig.defaultAccessToken,
+    defaultRefreshToken: baseConfig.defaultRefreshToken,
     defaultUserId: baseConfig.defaultUserId,
   };
 }
 
-function decideNextStep(
-  payload: {
-    nextStepRaw?: string | null;
-    onboardingRequired?: boolean | null;
-    hasOrganizationId: boolean;
-    workspaceMode: SignupFormValues["workspaceMode"];
-  },
-): SignupNextStep {
+function decideNextStep(payload: {
+  nextStepRaw?: string | null;
+  onboardingRequired?: boolean | null;
+  hasOrganizationId: boolean;
+  workspaceMode: SignupFormValues["workspaceMode"];
+}): SignupNextStep {
   const normalizedNextStep = trimToNull(payload.nextStepRaw)?.toLowerCase();
   if (normalizedNextStep === "onboarding") {
     return "onboarding";
@@ -191,7 +204,11 @@ function decideNextStep(
   return "dashboard";
 }
 
-function responseToSignupResult(response: AuthSignupResponse, values: SignupFormValues, config: SignupClientConfig): SignupResult {
+function responseToSignupResult(
+  response: AuthSignupResponse,
+  values: SignupFormValues,
+  config: SignupClientConfig,
+): SignupResult {
   const organizationId =
     trimToNull(response.organization_id) ??
     trimToNull(response.organizationId) ??
@@ -211,7 +228,14 @@ function responseToSignupResult(response: AuthSignupResponse, values: SignupForm
       trimToNull(response.organization_name) ??
       trimToNull(response.organizationName) ??
       (organizationId ? config.defaultOrganizationName : null),
-    accessToken: trimToNull(response.access_token) ?? trimToNull(response.token) ?? config.defaultAccessToken,
+    accessToken:
+      trimToNull(response.access_token) ??
+      trimToNull(response.token) ??
+      config.defaultAccessToken,
+    refreshToken:
+      trimToNull(response.refresh_token) ??
+      trimToNull(response.refreshToken) ??
+      config.defaultRefreshToken,
   };
 
   return {
@@ -225,8 +249,12 @@ function responseToSignupResult(response: AuthSignupResponse, values: SignupForm
   };
 }
 
-function buildLocalSignupResult(values: SignupFormValues, config: SignupClientConfig): SignupResult {
-  const organizationId = values.workspaceMode === "join" ? config.defaultOrganizationId : null;
+function buildLocalSignupResult(
+  values: SignupFormValues,
+  config: SignupClientConfig,
+): SignupResult {
+  const organizationId =
+    values.workspaceMode === "join" ? config.defaultOrganizationId : null;
 
   return {
     session: {
@@ -236,6 +264,7 @@ function buildLocalSignupResult(values: SignupFormValues, config: SignupClientCo
       organizationId,
       organizationName: organizationId ? config.defaultOrganizationName : null,
       accessToken: config.defaultAccessToken,
+      refreshToken: config.defaultRefreshToken,
     },
     nextStep: decideNextStep({
       onboardingRequired: null,
@@ -253,10 +282,17 @@ function toSignupFlowError(error: unknown): SignupFlowError {
 
   if (isApiClientError(error)) {
     if (error.status === 409 || error.code === "email_already_exists") {
-      return new SignupFlowError("duplicate_email", "An account with this email already exists.");
+      return new SignupFlowError(
+        "duplicate_email",
+        "An account with this email already exists.",
+      );
     }
 
-    if (error.status === 400 || error.status === 422 || error.code === "weak_password") {
+    if (
+      error.status === 400 ||
+      error.status === 422 ||
+      error.code === "weak_password"
+    ) {
       return new SignupFlowError(
         "weak_password",
         "Choose a stronger password with at least 8 characters.",
@@ -293,7 +329,9 @@ function toSignupFlowError(error: unknown): SignupFlowError {
   return new SignupFlowError("unknown", "Signup failed. Please try again.");
 }
 
-export async function startSignupSession(values: SignupFormValues): Promise<SignupResult> {
+export async function startSignupSession(
+  values: SignupFormValues,
+): Promise<SignupResult> {
   const parsed = signupFormSchema.parse(values);
   const config = toSignupConfig();
 
@@ -306,8 +344,10 @@ export async function startSignupSession(values: SignupFormValues): Promise<Sign
           email: parsed.email,
           password: parsed.password,
           workspace_mode: parsed.workspaceMode,
-          workspace_name: parsed.workspaceMode === "create" ? parsed.workspaceName : null,
-          invite_code: parsed.workspaceMode === "join" ? parsed.inviteCode : null,
+          workspace_name:
+            parsed.workspaceMode === "create" ? parsed.workspaceName : null,
+          invite_code:
+            parsed.workspaceMode === "join" ? parsed.inviteCode : null,
           accept_terms: parsed.acceptTerms,
         },
         attachAuth: false,
@@ -322,7 +362,10 @@ export async function startSignupSession(values: SignupFormValues): Promise<Sign
   }
 
   if (!config.localFallbackEnabled) {
-    throw new SignupFlowError("not_configured", "Signup is not configured for this environment.");
+    throw new SignupFlowError(
+      "not_configured",
+      "Signup is not configured for this environment.",
+    );
   }
 
   if (config.inviteOnly) {
@@ -332,8 +375,14 @@ export async function startSignupSession(values: SignupFormValues): Promise<Sign
     );
   }
 
-  if (parsed.email.toLowerCase().startsWith("existing@") || parsed.email.toLowerCase().startsWith("duplicate@")) {
-    throw new SignupFlowError("duplicate_email", "An account with this email already exists.");
+  if (
+    parsed.email.toLowerCase().startsWith("existing@") ||
+    parsed.email.toLowerCase().startsWith("duplicate@")
+  ) {
+    throw new SignupFlowError(
+      "duplicate_email",
+      "An account with this email already exists.",
+    );
   }
 
   if (parsed.password.toLowerCase().includes("weak")) {
@@ -350,7 +399,10 @@ export async function startSignupSession(values: SignupFormValues): Promise<Sign
     );
   }
 
-  if (config.localFallbackPassword && parsed.password !== config.localFallbackPassword) {
+  if (
+    config.localFallbackPassword &&
+    parsed.password !== config.localFallbackPassword
+  ) {
     throw new SignupFlowError(
       "weak_password",
       "Choose a stronger password with at least 8 characters.",
@@ -371,13 +423,19 @@ export function getSignupSsoStartHref(nextPath: string): string | null {
   }
 
   try {
-    const baseOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const baseOrigin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
     const parsed = new URL(signupSsoUrl, baseOrigin);
     if (!parsed.searchParams.has("next")) {
       parsed.searchParams.set("next", nextPath);
     }
 
-    if (signupSsoUrl.startsWith("http://") || signupSsoUrl.startsWith("https://")) {
+    if (
+      signupSsoUrl.startsWith("http://") ||
+      signupSsoUrl.startsWith("https://")
+    ) {
       return parsed.toString();
     }
 
