@@ -145,8 +145,13 @@ class Settings(BaseSettings):
     app_auth_audience: str = Field(default="rudix-api", min_length=3, max_length=120)
     app_auth_login_password: SecretStr | None = None
     app_auth_auto_provision_users: bool = True
+    auth_jwks_cache_ttl_seconds: int = Field(default=300, ge=30, le=86400)
     clerk_jwks_url: AnyHttpUrl | None = None
+    clerk_jwt_issuer: AnyHttpUrl | None = None
+    clerk_jwt_audience: str | None = Field(default=None, min_length=1, max_length=255)
     supabase_jwks_url: AnyHttpUrl | None = None
+    supabase_jwt_issuer: AnyHttpUrl | None = None
+    supabase_jwt_audience: str | None = Field(default=None, min_length=1, max_length=255)
 
     sentry_dsn: AnyUrl | None = None
     sentry_release: str | None = Field(default=None, max_length=128)
@@ -314,9 +319,17 @@ class Settings(BaseSettings):
 
         if self.auth_provider == AuthProvider.clerk and self.clerk_jwks_url is None:
             raise ValueError("clerk_jwks_url is required when auth_provider=clerk")
+        if self.auth_provider == AuthProvider.clerk and self.clerk_jwt_issuer is None:
+            raise ValueError("clerk_jwt_issuer is required when auth_provider=clerk")
+        if self.auth_provider == AuthProvider.clerk and self.clerk_jwt_audience is None:
+            raise ValueError("clerk_jwt_audience is required when auth_provider=clerk")
 
         if self.auth_provider == AuthProvider.supabase and self.supabase_jwks_url is None:
             raise ValueError("supabase_jwks_url is required when auth_provider=supabase")
+        if self.auth_provider == AuthProvider.supabase and self.supabase_jwt_issuer is None:
+            raise ValueError("supabase_jwt_issuer is required when auth_provider=supabase")
+        if self.auth_provider == AuthProvider.supabase and self.supabase_jwt_audience is None:
+            raise ValueError("supabase_jwt_audience is required when auth_provider=supabase")
 
         needs_openai = self.feature_enable_embeddings or self.feature_enable_llm or self.feature_enable_evaluations
         if needs_openai and self.openai_api_key is None:
@@ -443,8 +456,13 @@ class Settings(BaseSettings):
             "app_auth_audience": self.app_auth_audience,
             "app_auth_login_password_set": bool(self.app_auth_login_password and self.app_auth_login_password.get_secret_value()),
             "app_auth_auto_provision_users": self.app_auth_auto_provision_users,
+            "auth_jwks_cache_ttl_seconds": self.auth_jwks_cache_ttl_seconds,
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
+            "clerk_jwt_issuer": str(self.clerk_jwt_issuer) if self.clerk_jwt_issuer else None,
+            "clerk_jwt_audience": self.clerk_jwt_audience,
             "supabase_jwks_url": str(self.supabase_jwks_url) if self.supabase_jwks_url else None,
+            "supabase_jwt_issuer": str(self.supabase_jwt_issuer) if self.supabase_jwt_issuer else None,
+            "supabase_jwt_audience": self.supabase_jwt_audience,
             "sentry_dsn_set": self.sentry_dsn is not None,
             "sentry_release": self.sentry_release,
             "sentry_error_sample_rate": self.sentry_error_sample_rate,

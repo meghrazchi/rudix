@@ -54,7 +54,8 @@ make seed-dev
 - The API and worker fail at startup if required configuration is missing or malformed.
 - URL-like settings are strictly validated (database, Qdrant, MinIO, RabbitMQ, Redis, auth provider URLs when applicable, and service base URLs).
 - App-managed auth is enabled by default (`AUTH_PROVIDER=app`) and uses a signed bearer token.
-- `clerk` and `supabase` auth providers are scaffold placeholders and are not implemented yet.
+- `clerk` auth provider is implemented with JWKS-based JWT verification (signature, issuer, audience, expiry, subject).
+- `supabase` provider wiring exists and uses the same JWKS verifier contract, but requires provider-specific JWT settings and full integration validation.
 - Dependency clients are initialized through centralized factories (`app/clients/factory.py`) for consistent timeout/retry handling.
 - Startup bootstraps MinIO bucket and Qdrant collection idempotently when enabled (`MINIO_BOOTSTRAP_BUCKET`, `QDRANT_BOOTSTRAP_COLLECTION`).
 - Qdrant collection bootstrap validates vector schema (`QDRANT_VECTOR_SIZE`, `QDRANT_DISTANCE`) and fails fast on mismatch.

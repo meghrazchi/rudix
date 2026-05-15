@@ -22,6 +22,8 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "clerk")
 os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.json")
+os.environ.setdefault("CLERK_JWT_ISSUER", "https://clerk.example.com")
+os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.clients import factory, minio_client, qdrant_client
 from app.core.config import AuthProvider, QdrantDistance, Settings
@@ -43,6 +45,8 @@ def _settings(**overrides: Any) -> Settings:
         "openai_api_key": "sk-test",
         "auth_provider": AuthProvider.clerk,
         "clerk_jwks_url": "https://example.com/.well-known/jwks.json",
+        "clerk_jwt_issuer": "https://clerk.example.com",
+        "clerk_jwt_audience": "rudix-api",
     }
     payload.update(overrides)
     return Settings(_env_file=None, **payload)

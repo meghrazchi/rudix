@@ -61,8 +61,13 @@ ENV_KEYS = [
     "APP_AUTH_AUDIENCE",
     "APP_AUTH_LOGIN_PASSWORD",
     "APP_AUTH_AUTO_PROVISION_USERS",
+    "AUTH_JWKS_CACHE_TTL_SECONDS",
     "CLERK_JWKS_URL",
+    "CLERK_JWT_ISSUER",
+    "CLERK_JWT_AUDIENCE",
     "SUPABASE_JWKS_URL",
+    "SUPABASE_JWT_ISSUER",
+    "SUPABASE_JWT_AUDIENCE",
     "SENTRY_RELEASE",
     "SENTRY_ERROR_SAMPLE_RATE",
     "SENTRY_TRACES_SAMPLE_RATE",
@@ -269,6 +274,25 @@ def test_clerk_provider_requires_jwks() -> None:
     payload = valid_settings_kwargs()
     payload["auth_provider"] = AuthProvider.clerk
     payload.pop("clerk_jwks_url", None)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_clerk_provider_requires_issuer_and_audience() -> None:
+    payload = valid_settings_kwargs()
+    payload["auth_provider"] = AuthProvider.clerk
+    payload["clerk_jwks_url"] = "https://example.com/.well-known/jwks.json"
+    payload.pop("clerk_jwt_issuer", None)
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+    payload = valid_settings_kwargs()
+    payload["auth_provider"] = AuthProvider.clerk
+    payload["clerk_jwks_url"] = "https://example.com/.well-known/jwks.json"
+    payload["clerk_jwt_issuer"] = "https://clerk.example.com"
+    payload.pop("clerk_jwt_audience", None)
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

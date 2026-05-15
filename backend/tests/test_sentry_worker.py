@@ -18,6 +18,8 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "clerk")
 os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.json")
+os.environ.setdefault("CLERK_JWT_ISSUER", "https://clerk.example.com")
+os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.workers import base_task
 from app.workers.base_task import RudixTask

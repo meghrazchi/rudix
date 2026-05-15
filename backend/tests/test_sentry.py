@@ -20,6 +20,8 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "clerk")
 os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.json")
+os.environ.setdefault("CLERK_JWT_ISSUER", "https://clerk.example.com")
+os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.core import sentry as sentry_module
 from app.core.config import Environment
