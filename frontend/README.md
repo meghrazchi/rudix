@@ -80,6 +80,12 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - preferences form validates and supports save/discard flow for default `top_k`, rerank, developer mode, and notification choices
   - optional backend persistence for preferences (`NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL`, `NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL`) with local fallback
   - admin-only controls section is permission-aware for non-admin users
+- Admin page behavior:
+  - usage summary cards for events, tokens, cost, confidence, and latency
+  - usage trend table sourced from `/admin/usage` with date-range filters
+  - recent activity feed sourced from `/admin/audit-logs` with optional user/action filters
+  - owner/admin-only access with forbidden-state fallback when authorization changes
+  - quick links to documents, chat, evaluations, and pipeline explorer
 - Pipeline Explorer remains fully functional within the shared shell:
   - run loading from backend API
   - run type and document filters

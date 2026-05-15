@@ -101,6 +101,7 @@ Current endpoint authorization:
 - `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
+- `admin/usage` and `admin/audit-logs`: `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 - Retrieval-side qdrant filters must include `organization_id` (see `app/services/qdrant_filters.py`).
 

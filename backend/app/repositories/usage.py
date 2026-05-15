@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.usage import AuditLog, UsageEvent
@@ -60,3 +62,82 @@ class UsageRepository:
         await session.flush()
         await session.refresh(audit_log)
         return audit_log
+
+    async def list_usage_events(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+    ) -> list[UsageEvent]:
+        statement = select(UsageEvent).where(UsageEvent.organization_id == organization_id)
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        if user_id is not None:
+            statement = statement.where(UsageEvent.user_id == user_id)
+
+        result = await session.execute(statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc()))
+        return list(result.scalars().all())
+
+    async def list_audit_logs(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        limit: int = 50,
+        offset: int = 0,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+        action: str | None = None,
+        resource_type: str | None = None,
+    ) -> list[AuditLog]:
+        statement = select(AuditLog).where(AuditLog.organization_id == organization_id)
+        if from_created_at is not None:
+            statement = statement.where(AuditLog.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(AuditLog.created_at <= to_created_at)
+        if user_id is not None:
+            statement = statement.where(AuditLog.user_id == user_id)
+        if action is not None:
+            statement = statement.where(AuditLog.action == action)
+        if resource_type is not None:
+            statement = statement.where(AuditLog.resource_type == resource_type)
+
+        statement = (
+            statement.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await session.execute(statement)
+        return list(result.scalars().all())
+
+    async def count_audit_logs(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+        action: str | None = None,
+        resource_type: str | None = None,
+    ) -> int:
+        statement = select(func.count(AuditLog.id)).where(AuditLog.organization_id == organization_id)
+        if from_created_at is not None:
+            statement = statement.where(AuditLog.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(AuditLog.created_at <= to_created_at)
+        if user_id is not None:
+            statement = statement.where(AuditLog.user_id == user_id)
+        if action is not None:
+            statement = statement.where(AuditLog.action == action)
+        if resource_type is not None:
+            statement = statement.where(AuditLog.resource_type == resource_type)
+
+        result = await session.execute(statement)
+        return int(result.scalar_one())

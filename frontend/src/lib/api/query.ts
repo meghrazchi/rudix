@@ -84,6 +84,7 @@ export const queryKeys = {
   },
   admin: {
     usage: (params?: Record<string, unknown>) => ["admin", "usage", params ?? {}] as const,
+    auditLogs: (params?: Record<string, unknown>) => ["admin", "audit-logs", params ?? {}] as const,
   },
 };
 
