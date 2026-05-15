@@ -109,17 +109,21 @@ export function getAuthClientConfig(): AuthClientConfig {
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_ROLE,
     "member",
   );
+  const providerName = trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  const normalizedProvider = normalizeProviderName(providerName);
+  const configuredLoginUrl = trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL);
 
   return {
-    providerName: trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER),
-    loginUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL),
+    providerName,
+    loginUrl:
+      configuredLoginUrl ?? (normalizedProvider === "app" ? "/auth/login" : null),
     ssoUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL),
     forgotPasswordUrl: trimToNull(
       process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL,
     ),
     localFallbackEnabled:
       trimToNull(process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK) === "true" ||
-      (trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL) === null &&
+      (configuredLoginUrl === null &&
         process.env.NODE_ENV !== "production"),
     localFallbackPassword: trimToNull(
       process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,

@@ -23,6 +23,7 @@ describe("startLoginSession", () => {
   });
 
   it("creates local fallback session when remote login is not configured", async () => {
+    process.env.NEXT_PUBLIC_AUTH_PROVIDER = "clerk";
     process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID = "dev-user";
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID = "dev-org";
@@ -41,9 +42,19 @@ describe("startLoginSession", () => {
     expect(session.accessToken).toBe("dev-token");
   });
 
-  it("returns not-configured error when app auth fallback has no access token", async () => {
-    process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
-    process.env.NEXT_PUBLIC_AUTH_DEFAULT_USER_ID = "dev-user";
+  it("returns not-configured error when app login response has no access token", async () => {
+    process.env.NEXT_PUBLIC_AUTH_LOGIN_URL = "http://api.test/login";
+    process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "false";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(
+        new Response(JSON.stringify({ user_id: "dev-user" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
 
     await expect(
       startLoginSession({
@@ -58,6 +69,7 @@ describe("startLoginSession", () => {
   });
 
   it("returns safe invalid-credentials error for local fallback password mismatch", async () => {
+    process.env.NEXT_PUBLIC_AUTH_PROVIDER = "clerk";
     process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "true";
     process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD = "correct-password";
 

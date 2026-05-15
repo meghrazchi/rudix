@@ -6,9 +6,13 @@ import hmac
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 from app.auth.errors import AuthenticationError
 from app.core.config import settings
+
+TOKEN_USE_ACCESS = "access"
+TOKEN_USE_REFRESH = "refresh"
 
 
 def _b64url_encode(raw: bytes) -> str:
@@ -32,8 +36,44 @@ def create_app_access_token(
     email: str | None = None,
     expires_in_seconds: int | None = None,
 ) -> str:
+    return _create_signed_token(
+        subject=subject,
+        organization_id=organization_id,
+        email=email,
+        expires_in_seconds=expires_in_seconds,
+        default_ttl_seconds=settings.app_auth_access_token_ttl_seconds,
+        token_use=TOKEN_USE_ACCESS,
+    )
+
+
+def create_app_refresh_token(
+    *,
+    subject: str,
+    organization_id: str | None = None,
+    email: str | None = None,
+    expires_in_seconds: int | None = None,
+) -> str:
+    return _create_signed_token(
+        subject=subject,
+        organization_id=organization_id,
+        email=email,
+        expires_in_seconds=expires_in_seconds,
+        default_ttl_seconds=settings.app_auth_refresh_token_ttl_seconds,
+        token_use=TOKEN_USE_REFRESH,
+    )
+
+
+def _create_signed_token(
+    *,
+    subject: str,
+    organization_id: str | None,
+    email: str | None,
+    expires_in_seconds: int | None,
+    default_ttl_seconds: int,
+    token_use: str,
+) -> str:
     issued_at = datetime.now(UTC)
-    ttl_seconds = expires_in_seconds or settings.app_auth_access_token_ttl_seconds
+    ttl_seconds = expires_in_seconds or default_ttl_seconds
     expires_at = issued_at + timedelta(seconds=ttl_seconds)
 
     header = {"alg": "HS256", "typ": "JWT"}
@@ -43,6 +83,8 @@ def create_app_access_token(
         "aud": settings.app_auth_audience,
         "iat": int(issued_at.timestamp()),
         "exp": int(expires_at.timestamp()),
+        "token_use": token_use,
+        "jti": uuid4().hex,
     }
     if organization_id is not None:
         payload["org_id"] = organization_id
@@ -57,6 +99,27 @@ def create_app_access_token(
 
 
 def decode_app_access_token(token: str) -> dict[str, Any]:
+    return _decode_signed_token(
+        token=token,
+        expected_token_use=TOKEN_USE_ACCESS,
+        allow_missing_token_use=True,
+    )
+
+
+def decode_app_refresh_token(token: str) -> dict[str, Any]:
+    return _decode_signed_token(
+        token=token,
+        expected_token_use=TOKEN_USE_REFRESH,
+        allow_missing_token_use=False,
+    )
+
+
+def _decode_signed_token(
+    *,
+    token: str,
+    expected_token_use: str,
+    allow_missing_token_use: bool,
+) -> dict[str, Any]:
     try:
         encoded_header, encoded_payload, encoded_signature = token.split(".")
     except ValueError as exc:
@@ -96,5 +159,11 @@ def decode_app_access_token(token: str) -> dict[str, Any]:
         raise AuthenticationError("Token expiration is invalid")
     if datetime.now(UTC).timestamp() >= exp:
         raise AuthenticationError("Token has expired")
+
+    token_use = payload.get("token_use")
+    if token_use is None and allow_missing_token_use:
+        return dict(payload)
+    if token_use != expected_token_use:
+        raise AuthenticationError("Invalid token type")
 
     return dict(payload)

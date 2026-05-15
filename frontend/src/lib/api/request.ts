@@ -19,6 +19,7 @@ const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
 const DEFAULT_RETRYABLE_STATUS_CODES = new Set([429, 503]);
 const DEFAULT_RETRY_DELAY_MS = 250;
 const DEFAULT_REFRESH_PATH = "/auth/token/refresh";
+const DEFAULT_LOGOUT_PATH = "/auth/logout";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -186,11 +187,15 @@ function resolveRefreshUrl(apiBaseUrl?: string): string {
 
 function resolveLogoutUrl(apiBaseUrl?: string): string | null {
   const configured = trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGOUT_URL);
-  if (!configured) {
-    return null;
+  if (configured) {
+    return toAbsoluteUrl(configured, apiBaseUrl);
   }
 
-  return toAbsoluteUrl(configured, apiBaseUrl);
+  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  if (provider === "app") {
+    return toAbsoluteUrl(DEFAULT_LOGOUT_PATH, apiBaseUrl);
+  }
+  return null;
 }
 
 function hasConfiguredRefreshUrl(): boolean {
@@ -298,6 +303,11 @@ function canAttemptRefresh(session: AuthenticatedSession | null): boolean {
   }
 
   if (trimToNull(session.refreshToken) || hasConfiguredRefreshUrl()) {
+    return true;
+  }
+
+  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  if (provider === "app") {
     return true;
   }
 
@@ -722,13 +732,20 @@ export async function performLogout(params?: {
     try {
       const headers = new Headers({ Accept: "application/json" });
       const token = trimToNull(currentSession?.accessToken);
+      const refreshToken = trimToNull(currentSession?.refreshToken);
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
+      }
+      if (refreshToken) {
+        headers.set("Content-Type", "application/json");
       }
 
       await fetch(logoutUrl, {
         method: "POST",
         headers,
+        body: refreshToken
+          ? JSON.stringify({ refresh_token: refreshToken })
+          : undefined,
         credentials: "include",
         cache: "no-store",
       });

@@ -25,7 +25,8 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.factory import get_auth_provider
-from app.auth.token_codec import create_app_access_token
+from app.auth.repository import AuthRepository
+from app.auth.token_codec import create_app_access_token, decode_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.main import app
@@ -35,6 +36,8 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
 from app.repositories.evaluations import EvaluationRepository
+
+_repository = AuthRepository()
 
 
 @pytest_asyncio.fixture
@@ -143,6 +146,14 @@ def _auth_headers(*, token: str, organization_id: str | None = None) -> dict[str
     if organization_id is not None:
         headers["X-Organization-ID"] = organization_id
     return headers
+
+
+def _extract_refresh_cookie(response) -> str:
+    set_cookie = response.headers.get("set-cookie")
+    assert set_cookie is not None
+    prefix = "rudix_refresh_token="
+    assert prefix in set_cookie
+    return set_cookie.split(prefix, maxsplit=1)[1].split(";", maxsplit=1)[0]
 
 
 @pytest.mark.asyncio
@@ -436,3 +447,110 @@ async def test_evaluation_admin_only_rejects_member_role(
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Insufficient role for requested operation"
+
+
+@pytest.mark.asyncio
+async def test_auth_login_returns_access_token_and_refresh_cookie(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+
+    response = await auth_client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload["access_token"], str)
+    assert payload["refresh_token"] is None
+    assert payload["organization_id"] == str(org.id)
+    assert payload["role"] == OrganizationRole.member.value
+
+    claims = decode_app_access_token(payload["access_token"])
+    assert claims["sub"] == user.external_auth_id
+    assert claims["org_id"] == str(org.id)
+    _ = _extract_refresh_cookie(response)
+
+
+@pytest.mark.asyncio
+async def test_auth_login_auto_provisions_user_when_email_is_unknown(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "app_auth_auto_provision_users", True)
+    email = f"new-{uuid4().hex[:8]}@example.com"
+
+    response = await auth_client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": "password123"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["email"] == email
+    assert payload["organization_id"] is not None
+    assert payload["role"] == OrganizationRole.owner.value
+
+    expected_user = await _repository.get_user_by_email(db_session, email=email)
+    assert expected_user is not None
+    assert expected_user.memberships
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_rotation_revokes_old_refresh_cookie(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, _, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    login_response = await auth_client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    assert login_response.status_code == 200
+    old_refresh_token = _extract_refresh_cookie(login_response)
+
+    refresh_response = await auth_client.post(
+        "/api/v1/auth/token/refresh",
+        cookies={"rudix_refresh_token": old_refresh_token},
+    )
+    assert refresh_response.status_code == 200
+    new_refresh_token = _extract_refresh_cookie(refresh_response)
+    assert new_refresh_token != old_refresh_token
+
+    replay_response = await auth_client.post(
+        "/api/v1/auth/token/refresh",
+        cookies={"rudix_refresh_token": old_refresh_token},
+    )
+    assert replay_response.status_code == 403
+    assert replay_response.json()["detail"] == "Refresh token has been revoked"
+
+
+@pytest.mark.asyncio
+async def test_logout_revokes_refresh_cookie(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, _, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    login_response = await auth_client.post(
+        "/api/v1/auth/login",
+        json={"email": user.email, "password": "password123"},
+    )
+    assert login_response.status_code == 200
+    refresh_token = _extract_refresh_cookie(login_response)
+
+    logout_response = await auth_client.post(
+        "/api/v1/auth/logout",
+        cookies={"rudix_refresh_token": refresh_token},
+    )
+    assert logout_response.status_code == 200
+    assert logout_response.json() == {"success": True}
+
+    refresh_response = await auth_client.post(
+        "/api/v1/auth/token/refresh",
+        cookies={"rudix_refresh_token": refresh_token},
+    )
+    assert refresh_response.status_code == 403
+    assert refresh_response.json()["detail"] == "Refresh token has been revoked"

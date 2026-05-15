@@ -140,8 +140,11 @@ class Settings(BaseSettings):
     auth_provider: AuthProvider = AuthProvider.app
     app_auth_secret: SecretStr = SecretStr("dev-insecure-change-me")
     app_auth_access_token_ttl_seconds: int = Field(default=3600, ge=60, le=604800)
+    app_auth_refresh_token_ttl_seconds: int = Field(default=1209600, ge=300, le=7776000)
     app_auth_issuer: str = Field(default="rudix-app", min_length=3, max_length=120)
     app_auth_audience: str = Field(default="rudix-api", min_length=3, max_length=120)
+    app_auth_login_password: SecretStr | None = None
+    app_auth_auto_provision_users: bool = True
     clerk_jwks_url: AnyHttpUrl | None = None
     supabase_jwks_url: AnyHttpUrl | None = None
 
@@ -328,6 +331,8 @@ class Settings(BaseSettings):
                 raise ValueError("sentry_test_event_enabled must be false in production")
             if self.auth_provider == AuthProvider.app and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me":
                 raise ValueError("app_auth_secret must be overridden in production")
+            if self.auth_provider == AuthProvider.app:
+                self.app_auth_auto_provision_users = False
         elif self.environment == Environment.test:
             self.feature_expose_config_snapshot = True
 
@@ -433,8 +438,11 @@ class Settings(BaseSettings):
             "auth_provider": self.auth_provider.value,
             "app_auth_secret_set": bool(self.app_auth_secret.get_secret_value()),
             "app_auth_access_token_ttl_seconds": self.app_auth_access_token_ttl_seconds,
+            "app_auth_refresh_token_ttl_seconds": self.app_auth_refresh_token_ttl_seconds,
             "app_auth_issuer": self.app_auth_issuer,
             "app_auth_audience": self.app_auth_audience,
+            "app_auth_login_password_set": bool(self.app_auth_login_password and self.app_auth_login_password.get_secret_value()),
+            "app_auth_auto_provision_users": self.app_auth_auto_provision_users,
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
             "supabase_jwks_url": str(self.supabase_jwks_url) if self.supabase_jwks_url else None,
             "sentry_dsn_set": self.sentry_dsn is not None,

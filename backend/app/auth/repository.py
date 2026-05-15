@@ -15,7 +15,7 @@ class AuthRepository:
         result = await session.execute(
             select(User)
             .where(User.id == user_id)
-            .options(selectinload(User.memberships))
+            .options(selectinload(User.memberships).selectinload(OrganizationMember.organization))
         )
         return result.scalar_one_or_none()
 
@@ -23,7 +23,15 @@ class AuthRepository:
         result = await session.execute(
             select(User)
             .where(User.external_auth_id == external_auth_id)
-            .options(selectinload(User.memberships))
+            .options(selectinload(User.memberships).selectinload(OrganizationMember.organization))
+        )
+        return result.scalar_one_or_none()
+
+    async def get_user_by_email(self, session: AsyncSession, *, email: str) -> User | None:
+        result = await session.execute(
+            select(User)
+            .where(User.email == email)
+            .options(selectinload(User.memberships).selectinload(OrganizationMember.organization))
         )
         return result.scalar_one_or_none()
 

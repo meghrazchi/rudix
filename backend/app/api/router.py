@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 
-from app.api import admin, chat, documents, evaluation_sets, evaluations, health, pipeline
+from app.api import admin, auth, chat, documents, evaluation_sets, evaluations, health, pipeline
 from app.auth.dependencies import get_current_principal
 
 api_router = APIRouter()
 api_router.include_router(health.router)
+api_router.include_router(auth.router)
 
 protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
 protected_router.include_router(documents.router)
