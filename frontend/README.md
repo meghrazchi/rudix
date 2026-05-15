@@ -79,6 +79,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
+- Evaluations page behavior:
+  - evaluation set list with create flow, question management, and permission-aware controls
+  - run controls for `top_k`, rerank, and optional document scope
+  - run status + summary dashboard with question-level result inspection and failed/low-score filter
+  - explicit loading, empty, error, and forbidden states with safe request-id rendering
 - Settings page behavior:
   - profile and organization context sections for authenticated users
   - security section shows safe auth diagnostics only (provider and token availability flags)
@@ -152,6 +157,8 @@ NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT=50
 NEXT_PUBLIC_CHAT_TOP_K_MIN=1
 NEXT_PUBLIC_CHAT_TOP_K_MAX=20
 NEXT_PUBLIC_CHAT_TOP_K_DEFAULT=5
+NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT=5
+NEXT_PUBLIC_EVALUATION_LOW_SCORE_THRESHOLD=0.5
 NEXT_PUBLIC_AUTH_PROVIDER=app
 NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=

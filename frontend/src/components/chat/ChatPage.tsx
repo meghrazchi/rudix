@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -164,11 +164,10 @@ export function ChatPage() {
     [indexedDocuments],
   );
 
-  useEffect(() => {
-    setSelectedDocumentIds((previous) =>
-      previous.filter((documentId) => indexedDocumentIdSet.has(documentId)),
-    );
-  }, [indexedDocumentIdSet]);
+  const filteredSelectedDocumentIds = useMemo(
+    () => selectedDocumentIds.filter((documentId) => indexedDocumentIdSet.has(documentId)),
+    [selectedDocumentIds, indexedDocumentIdSet],
+  );
 
   const activeSession = sessionsQuery.data?.items.find((item) => item.session_id === activeSessionId) ?? null;
   const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];
@@ -209,10 +208,11 @@ export function ChatPage() {
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
-      if (previous.includes(documentId)) {
-        return previous.filter((value) => value !== documentId);
+      const validPrevious = previous.filter((value) => indexedDocumentIdSet.has(value));
+      if (validPrevious.includes(documentId)) {
+        return validPrevious.filter((value) => value !== documentId);
       }
-      return [...previous, documentId];
+      return [...validPrevious, documentId];
     });
   }
 
@@ -237,7 +237,10 @@ export function ChatPage() {
     queryMutation.mutate({
       question: trimmedQuestion,
       chat_session_id: activeSessionId,
-      document_ids: selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+      document_ids:
+        filteredSelectedDocumentIds.length > 0
+          ? filteredSelectedDocumentIds
+          : undefined,
       top_k: topK,
       rerank,
     });
@@ -371,7 +374,7 @@ export function ChatPage() {
                   <DocumentSelectorItem
                     key={document.document_id}
                     document={document}
-                    checked={selectedDocumentIds.includes(document.document_id)}
+                    checked={filteredSelectedDocumentIds.includes(document.document_id)}
                     onToggle={() => toggleDocument(document.document_id)}
                   />
                 ))}
@@ -393,8 +396,8 @@ export function ChatPage() {
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-[#6a6780]">
-                  {selectedDocumentIds.length > 0
-                    ? `${selectedDocumentIds.length} document(s) selected`
+                  {filteredSelectedDocumentIds.length > 0
+                    ? `${filteredSelectedDocumentIds.length} document(s) selected`
                     : "All indexed accessible documents are in scope"}
                 </p>
                 <button

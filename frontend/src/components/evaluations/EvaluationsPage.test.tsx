@@ -1,0 +1,286 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { EvaluationsPage } from "@/components/evaluations/EvaluationsPage";
+import type {
+  EvaluationQuestionListResponse,
+  EvaluationRunDetailResponse,
+  EvaluationSetListResponse,
+} from "@/lib/api/evaluations";
+import type { DocumentListResponse } from "@/lib/api/documents";
+import type { SessionState } from "@/lib/auth-session";
+
+const mockState = vi.hoisted(() => ({
+  authState: { status: "unauthenticated", session: null } as SessionState,
+}));
+
+const mockApi = vi.hoisted(() => ({
+  listEvaluationSets: vi.fn(),
+  listEvaluationQuestions: vi.fn(),
+  createEvaluationSet: vi.fn(),
+  createEvaluationQuestion: vi.fn(),
+  runEvaluation: vi.fn(),
+  getEvaluationRun: vi.fn(),
+  listDocuments: vi.fn(),
+}));
+
+vi.mock("@/lib/use-auth-session", () => ({
+  useAuthSession: () => ({
+    state: mockState.authState,
+    setAuthenticatedSession: vi.fn(),
+    signOut: vi.fn(),
+  }),
+}));
+
+vi.mock("@/lib/api/evaluations", () => ({
+  listEvaluationSets: (...args: unknown[]) => mockApi.listEvaluationSets(...args),
+  listEvaluationQuestions: (...args: unknown[]) => mockApi.listEvaluationQuestions(...args),
+  createEvaluationSet: (...args: unknown[]) => mockApi.createEvaluationSet(...args),
+  createEvaluationQuestion: (...args: unknown[]) => mockApi.createEvaluationQuestion(...args),
+  runEvaluation: (...args: unknown[]) => mockApi.runEvaluation(...args),
+  getEvaluationRun: (...args: unknown[]) => mockApi.getEvaluationRun(...args),
+}));
+
+vi.mock("@/lib/api/documents", () => ({
+  listDocuments: (...args: unknown[]) => mockApi.listDocuments(...args),
+}));
+
+function renderPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <EvaluationsPage />
+    </QueryClientProvider>,
+  );
+}
+
+function buildSetList(): EvaluationSetListResponse {
+  return {
+    items: [
+      {
+        evaluation_set_id: "set-1",
+        name: "Regression Set",
+        description: "test",
+        question_count: 2,
+        created_at: "2026-05-16T10:00:00Z",
+        updated_at: "2026-05-16T11:00:00Z",
+      },
+    ],
+    total: 1,
+    limit: 100,
+    offset: 0,
+  };
+}
+
+function buildQuestionList(): EvaluationQuestionListResponse {
+  return {
+    evaluation_set_id: "set-1",
+    items: [
+      {
+        evaluation_question_id: "q-1",
+        evaluation_set_id: "set-1",
+        question: "What is the SLA?",
+        expected_answer: "99.9%",
+        expected_document_id: null,
+        expected_page_number: 4,
+        tags: ["sla"],
+        metadata: {},
+        created_at: "2026-05-16T10:00:00Z",
+        updated_at: "2026-05-16T10:00:00Z",
+      },
+    ],
+    total: 1,
+    limit: 200,
+    offset: 0,
+  };
+}
+
+function buildDocuments(): DocumentListResponse {
+  return {
+    items: [
+      {
+        document_id: "doc-1",
+        filename: "policy.pdf",
+        file_type: "pdf",
+        status: "indexed",
+        page_count: 4,
+        chunk_count: 8,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-16T10:00:00Z",
+        updated_at: "2026-05-16T10:00:00Z",
+      },
+    ],
+    total: 1,
+    limit: 200,
+    offset: 0,
+    status: "indexed",
+    sort_by: "updated_at",
+    sort_order: "desc",
+  };
+}
+
+function buildRunDetail(): EvaluationRunDetailResponse {
+  return {
+    evaluation_run_id: "run-1",
+    evaluation_set_id: "set-1",
+    status: "completed",
+    config: {
+      top_k: 5,
+      rerank: true,
+    },
+    summary: {
+      question_total_count: 2,
+      question_success_count: 1,
+      question_failure_count: 1,
+      faithfulness_score: 0.82,
+      answer_relevance_score: 0.78,
+      citation_accuracy_score: 0.75,
+      latency_ms_average: 380,
+      cost_usd_total: 1.25,
+    },
+    failure_reason: null,
+    failure_type: null,
+    started_at: "2026-05-16T10:00:00Z",
+    completed_at: "2026-05-16T10:02:00Z",
+    created_at: "2026-05-16T10:00:00Z",
+    updated_at: "2026-05-16T10:02:00Z",
+    results: {
+      items: [
+        {
+          evaluation_result_id: "r-1",
+          evaluation_question_id: "q-1",
+          question: "What is the SLA?",
+          status: "completed",
+          generated_answer: "SLA is 99.9%.",
+          retrieval_score: 0.8,
+          faithfulness_score: 0.82,
+          citation_accuracy_score: 0.75,
+          answer_relevance_score: 0.78,
+          latency_ms: 380,
+          metrics: {},
+          failure_reason: null,
+          failure_type: null,
+          details: {},
+          created_at: "2026-05-16T10:01:00Z",
+          updated_at: "2026-05-16T10:01:00Z",
+        },
+        {
+          evaluation_result_id: "r-2",
+          evaluation_question_id: "q-2",
+          question: "Where is the retention note?",
+          status: "failed",
+          generated_answer: null,
+          retrieval_score: null,
+          faithfulness_score: null,
+          citation_accuracy_score: null,
+          answer_relevance_score: null,
+          latency_ms: null,
+          metrics: {},
+          failure_reason: "No supporting chunks found",
+          failure_type: "NotFound",
+          details: {},
+          created_at: "2026-05-16T10:01:20Z",
+          updated_at: "2026-05-16T10:01:20Z",
+        },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+    },
+  };
+}
+
+describe("EvaluationsPage", () => {
+  beforeEach(() => {
+    mockApi.listEvaluationSets.mockReset();
+    mockApi.listEvaluationQuestions.mockReset();
+    mockApi.createEvaluationSet.mockReset();
+    mockApi.createEvaluationQuestion.mockReset();
+    mockApi.runEvaluation.mockReset();
+    mockApi.getEvaluationRun.mockReset();
+    mockApi.listDocuments.mockReset();
+
+    mockApi.listEvaluationSets.mockResolvedValue(buildSetList());
+    mockApi.listEvaluationQuestions.mockResolvedValue(buildQuestionList());
+    mockApi.listDocuments.mockResolvedValue(buildDocuments());
+    mockApi.runEvaluation.mockResolvedValue({
+      evaluation_run_id: "run-1",
+      status: "queued",
+    });
+    mockApi.getEvaluationRun.mockResolvedValue(buildRunDetail());
+  });
+
+  it("renders run summary metrics and failed/low-score inspection controls", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-1",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Run evaluation" });
+    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+
+    await screen.findByText("Run status: completed");
+
+    expect(screen.getAllByText("Faithfulness").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("82.0%").length).toBeGreaterThan(0);
+    expect(screen.getByText("Answer relevance")).toBeInTheDocument();
+    expect(screen.getAllByText("78.0%").length).toBeGreaterThan(0);
+    expect(screen.getByText("Citation accuracy")).toBeInTheDocument();
+    expect(screen.getAllByText("75.0%").length).toBeGreaterThan(0);
+
+    expect(screen.getByRole("button", { name: "Failed/low (1)" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Failed/low (1)" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("No supporting chunks found")).toBeInTheDocument();
+    });
+  });
+
+  it("renders permission-aware controls for viewer role", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-2",
+        email: "viewer@example.com",
+        role: "viewer",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-2",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Run evaluation" });
+
+    expect(
+      screen.getByText("Your role can view evaluation sets but cannot create or edit them."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Your role can inspect results but only owner/admin can run evaluations."),
+    ).toBeInTheDocument();
+
+    const runButton = screen.getByRole("button", { name: "Run evaluation" });
+    expect(runButton).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Create set" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+  });
+});

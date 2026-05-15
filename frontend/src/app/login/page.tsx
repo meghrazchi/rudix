@@ -1,13 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
-  getAuthClientConfig,
   getForgotPasswordHref,
   getLoginProviderLabel,
   getSsoStartHref,
@@ -61,7 +60,6 @@ export default function LoginPage() {
     mode: "onSubmit",
   });
 
-  const authConfig = useMemo(() => getAuthClientConfig(), []);
   const authNoticeMessage =
     getAuthBoundaryMessage(authReason) ?? boundaryMessage;
   const ssoStartHref = getSsoStartHref(nextPath);
