@@ -54,6 +54,22 @@ Supported document types include:
 
 ---
 
+## Business Use Cases
+
+- 🏢 **Internal knowledge assistant**: Answer employee questions from SOPs, policies, handbooks, and team playbooks.
+- 🎧 **Support agent copilot**: Help support teams resolve tickets faster using product docs, runbooks, and release notes.
+- 🛡️ **Compliance and audit evidence lookup**: Retrieve cited answers from controlled documents with audit-ready traces.
+- ⚖️ **Legal and contract Q&A**: Search contracts and legal guidance to find clauses, obligations, and deadlines quickly.
+- 👥 **HR policy assistant**: Provide grounded responses for onboarding, leave, benefits, and internal process questions.
+- 🔧 **Operations and incident runbooks**: Assist DevOps/SRE with fast retrieval of troubleshooting and incident procedures.
+- 📈 **Sales enablement search**: Query battle cards, case studies, pricing collateral, and proposal templates.
+- 📑 **Procurement and vendor review**: Compare RFPs, vendor responses, and security/compliance questionnaires.
+- 🔬 **Research and analyst workspace**: Explore reports and technical docs with citations and confidence indicators.
+- 🧩 **Multi-tenant knowledge portals**: Offer organization-isolated document Q&A with role-based access control.
+- 📊 **AI operations visibility**: Monitor ingestion, indexing, failures, latency, confidence, and usage/cost trends.
+
+---
+
 ## Frontend Example Page
 
 ### Pipeline Explorer (`/rag-pipeline`)
