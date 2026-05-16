@@ -74,6 +74,7 @@ afterAll(() => {
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
+  process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE = "false";
   mockState.authState = {
     status: "authenticated",
     session: {
@@ -124,6 +125,12 @@ describe("DashboardPage MSW states", () => {
       "href",
       "/documents",
     );
+  });
+
+  it("shows recent activity empty state when no activity data exists", async () => {
+    renderPage();
+    expect(await screen.findByText("Recent activity")).toBeInTheDocument();
+    expect(await screen.findByText("No recent activity available yet.")).toBeInTheDocument();
   });
 
   it("shows actionable error state with retry control", async () => {

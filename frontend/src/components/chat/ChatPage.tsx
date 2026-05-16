@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -136,6 +137,19 @@ function buildTurnsFromSessionMessages(messages: ChatSessionMessageResponse[]): 
   return turns;
 }
 
+function replaceSessionParamInUrl(sessionId: string | null): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const nextUrl = new URL(window.location.href);
+  if (sessionId) {
+    nextUrl.searchParams.set("session_id", sessionId);
+  } else {
+    nextUrl.searchParams.delete("session_id");
+  }
+  window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+}
+
 function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
   if (citations.length === 0) {
     return (
@@ -172,6 +186,8 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
 
 export function ChatPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const lastAppliedSessionIdRef = useRef<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -192,6 +208,21 @@ export function ChatPage() {
 
   const shouldLoadActiveSessionHistory =
     activeSessionId !== null && (threadsBySession[activeThreadKey(activeSessionId)] ?? []).length === 0;
+
+  useEffect(() => {
+    const sessionIdFromQuery = searchParams.get("session_id");
+    if (!sessionIdFromQuery) {
+      lastAppliedSessionIdRef.current = null;
+      return;
+    }
+    if (lastAppliedSessionIdRef.current === sessionIdFromQuery) {
+      return;
+    }
+    setActiveSessionId(sessionIdFromQuery);
+    setPendingQuestion(null);
+    setSubmitRequestId(null);
+    lastAppliedSessionIdRef.current = sessionIdFromQuery;
+  }, [searchParams]);
 
   const sessionMessagesQuery = useQuery({
     queryKey: queryKeys.chat.sessionMessages(activeSessionId ?? ""),
@@ -279,6 +310,7 @@ export function ChatPage() {
       });
 
       setActiveSessionId(nextSessionId);
+      replaceSessionParamInUrl(nextSessionId);
       setSubmitRequestId(null);
       setPendingQuestion(null);
       await invalidateAfterMutation(queryClient, "chat.query");
@@ -307,6 +339,7 @@ export function ChatPage() {
     setQuestion("");
     setPendingQuestion(null);
     setSubmitRequestId(null);
+    replaceSessionParamInUrl(null);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -388,7 +421,10 @@ export function ChatPage() {
                   <li key={session.session_id}>
                     <button
                       type="button"
-                      onClick={() => setActiveSessionId(session.session_id)}
+                      onClick={() => {
+                        setActiveSessionId(session.session_id);
+                        replaceSessionParamInUrl(session.session_id);
+                      }}
                       className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
                         session.session_id === activeSessionId
                           ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"

@@ -15,6 +15,7 @@ const mockApi = vi.hoisted(() => ({
   listDocuments: vi.fn(),
   listChatSessions: vi.fn(),
   getUsageSummary: vi.fn(),
+  listAuditLogs: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -36,6 +37,8 @@ vi.mock("@/lib/api/chat", () => ({
 vi.mock("@/lib/api/admin-usage", () => ({
   getUsageSummary: (options?: { from?: string; to?: string; granularity?: "day" | "week" | "month" }) =>
     mockApi.getUsageSummary(options),
+  listAuditLogs: (options?: { from?: string; to?: string; limit?: number; offset?: number }) =>
+    mockApi.listAuditLogs(options),
 }));
 
 function renderPage() {
@@ -71,6 +74,7 @@ describe("DashboardPage", () => {
     mockApi.listDocuments.mockReset();
     mockApi.listChatSessions.mockReset();
     mockApi.getUsageSummary.mockReset();
+    mockApi.listAuditLogs.mockReset();
 
     mockApi.listDocuments.mockImplementation((options?: ListDocumentsOptions) => {
       if (options?.status === "indexed") {
@@ -149,6 +153,25 @@ describe("DashboardPage", () => {
       series: [],
     };
     mockApi.getUsageSummary.mockResolvedValue(usage);
+    mockApi.listAuditLogs.mockResolvedValue({
+      items: [
+        {
+          audit_log_id: "audit-1",
+          organization_id: "org-1",
+          user_id: "u-1",
+          action: "evaluation.run.completed",
+          resource_type: "evaluation_run",
+          resource_id: "run-1",
+          request_id: "req-1",
+          metadata: {},
+          created_at: "2026-05-14T00:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+      range: { from: "2026-05-01", to: "2026-05-14" },
+    });
   });
 
   afterEach(() => {
@@ -176,6 +199,52 @@ describe("DashboardPage", () => {
     await waitFor(() => expectKpiValue("Average confidence", "81.0%"));
     await waitFor(() => expectKpiValue("Average latency", "321 ms"));
     await waitFor(() => expectKpiValue("Estimated cost", "$4.50"));
+    await screen.findByText("Recent activity");
+  });
+
+  it("renders latest documents and recent activity links with quick actions", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-1",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByText("Latest documents");
+    expect(screen.getByRole("link", { name: "Upload document" })).toHaveAttribute("href", "/documents");
+    expect(screen.getByRole("link", { name: "New chat" })).toHaveAttribute("href", "/chat");
+    expect(screen.getByRole("link", { name: "Evaluation run" })).toHaveAttribute("href", "/evaluations");
+    expect(screen.getByRole("link", { name: "Pipeline explorer" })).toHaveAttribute("href", "/rag-pipeline");
+
+    const latestDocumentsSection = screen.getByText("Latest documents").closest("section");
+    if (!latestDocumentsSection) {
+      throw new Error("Latest documents section is missing");
+    }
+    await waitFor(() => {
+      expect(within(latestDocumentsSection).getByText("a.pdf")).toBeInTheDocument();
+      expect(within(latestDocumentsSection).getByText("b.pdf")).toBeInTheDocument();
+    });
+    expect(within(latestDocumentsSection).getByText("indexed")).toHaveClass("bg-emerald-100");
+    expect(within(latestDocumentsSection).getByText("processing")).toHaveClass("bg-blue-100");
+
+    const detailLinks = within(latestDocumentsSection).getAllByRole("link", { name: "View document" });
+    expect(detailLinks[0]).toHaveAttribute("href", "/documents?document_id=doc-1");
+
+    const recentActivitySection = screen.getByText("Recent activity").closest("section");
+    if (!recentActivitySection) {
+      throw new Error("Recent activity section is missing");
+    }
+    expect(within(recentActivitySection).getByText("Chat questions")).toBeInTheDocument();
+    const activityLinks = within(recentActivitySection).getAllByRole("link", { name: "Open" });
+    const activityHrefs = activityLinks.map((link) => link.getAttribute("href"));
+    expect(activityHrefs).toContain("/chat?session_id=s-1");
   });
 
   it("hides admin-only estimated cost field for non-admin roles", async () => {

@@ -9,6 +9,10 @@ import { setupServer } from "msw/node";
 import { DocumentsPage } from "@/components/documents/DocumentsPage";
 import type { SessionState } from "@/lib/auth-session";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const apiBaseUrl = "http://api.test";
 
 const mockState = vi.hoisted(() => ({

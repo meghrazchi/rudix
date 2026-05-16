@@ -8,6 +8,10 @@ import { ChatPage } from "@/components/chat/ChatPage";
 import { listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/lib/api/documents", () => ({
   listDocuments: vi.fn(),
 }));

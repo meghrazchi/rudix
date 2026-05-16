@@ -8,6 +8,10 @@ import type { DocumentListResponse } from "@/lib/api/documents";
 import { normalizeApiError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
 }));

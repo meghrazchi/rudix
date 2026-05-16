@@ -5,10 +5,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
-import { getUsageSummary } from "@/lib/api/admin-usage";
-import { listChatSessions } from "@/lib/api/chat";
+import { getUsageSummary, listAuditLogs, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
+import { listChatSessions, type ChatSessionResponse } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { listDocuments } from "@/lib/api/documents";
+import { listDocuments, type DocumentListItemResponse, type DocumentStatus } from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
 import {
   canViewAdminUsage,
@@ -24,10 +24,14 @@ import {
   resolveUsageDateRange,
   type DashboardRangePreset,
 } from "@/lib/dashboard";
+import { resolveDocumentCapabilities } from "@/lib/documents-ui";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const DOCUMENT_PAGE_SIZE = 200;
 const CHAT_SESSION_PAGE_SIZE = 200;
+const LATEST_DOCUMENTS_LIMIT = 8;
+const RECENT_ACTIVITY_LIMIT = 10;
+const AUDIT_ACTIVITY_LIMIT = 20;
 
 function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
   if (!value) {
@@ -60,6 +64,20 @@ type DashboardDocumentSummary = {
 type DashboardChatSummary = {
   totalSessions: number;
   questionsAsked: number;
+};
+
+type DashboardRecentActivityItem = {
+  id: string;
+  category: "upload" | "processing" | "chat" | "evaluation" | "failure" | "admin" | "document";
+  title: string;
+  description: string;
+  timestamp: string;
+  href: string | null;
+};
+
+type DashboardAuditActivityBundle = {
+  items: AuditLogListItemResponse[];
+  unavailableReason: string | null;
 };
 
 async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummary> {
@@ -195,11 +213,152 @@ function KpiCard({ title, value, caption, loading = false, error = null, onRetry
   );
 }
 
+function formatDateTime(value: string): string {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return value;
+  }
+  return new Date(timestamp).toLocaleString();
+}
+
+function getDocumentStatusBadgeClass(status: DocumentStatus): string {
+  if (status === "indexed") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "processing") {
+    return "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-blue-800";
+  }
+  if (status === "uploaded") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "failed") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "deleting") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function safeTimestamp(value: string): number {
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return 0;
+  }
+  return parsed;
+}
+
+function resolveAuditActivityLink(item: AuditLogListItemResponse): string | null {
+  const resourceType = item.resource_type.toLowerCase();
+  if (resourceType === "document" && item.resource_id) {
+    return `/documents?document_id=${encodeURIComponent(item.resource_id)}`;
+  }
+  if (resourceType === "chat_session" && item.resource_id) {
+    return `/chat?session_id=${encodeURIComponent(item.resource_id)}`;
+  }
+  if (resourceType.includes("evaluation")) {
+    return "/evaluations";
+  }
+  if (resourceType.includes("pipeline")) {
+    return "/rag-pipeline";
+  }
+  return null;
+}
+
+function buildDocumentActivityItems(documents: DocumentListItemResponse[]): DashboardRecentActivityItem[] {
+  return documents
+    .slice(0, RECENT_ACTIVITY_LIMIT)
+    .map((document) => {
+      if (document.status === "uploaded") {
+        return {
+          id: `doc-upload:${document.document_id}`,
+          category: "upload" as const,
+          title: "Document uploaded",
+          description: document.filename,
+          timestamp: document.updated_at,
+          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+        };
+      }
+      if (document.status === "processing") {
+        return {
+          id: `doc-processing:${document.document_id}`,
+          category: "processing" as const,
+          title: "Document processing",
+          description: document.filename,
+          timestamp: document.updated_at,
+          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+        };
+      }
+      if (document.status === "failed") {
+        return {
+          id: `doc-failure:${document.document_id}`,
+          category: "failure" as const,
+          title: "Document failed",
+          description: `${document.filename}${document.error_message ? ` — ${document.error_message}` : ""}`,
+          timestamp: document.updated_at,
+          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+        };
+      }
+      return {
+        id: `doc-updated:${document.document_id}`,
+        category: "document" as const,
+        title: "Document updated",
+        description: document.filename,
+        timestamp: document.updated_at,
+        href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+      };
+    });
+}
+
+function buildChatActivityItems(sessions: ChatSessionResponse[]): DashboardRecentActivityItem[] {
+  return sessions
+    .filter((session) => session.message_count > 0)
+    .slice(0, RECENT_ACTIVITY_LIMIT)
+    .map((session) => ({
+      id: `chat:${session.session_id}`,
+      category: "chat" as const,
+      title: "Chat questions",
+      description: `${session.message_count} messages in ${session.title ?? "Untitled session"}`,
+      timestamp: session.updated_at,
+      href: `/chat?session_id=${encodeURIComponent(session.session_id)}`,
+    }));
+}
+
+function buildAuditActivityItems(items: AuditLogListItemResponse[]): DashboardRecentActivityItem[] {
+  return items
+    .slice(0, RECENT_ACTIVITY_LIMIT)
+    .map((item) => {
+      const action = item.action.toLowerCase();
+      let category: DashboardRecentActivityItem["category"] = "admin";
+      if (action.includes("evaluation")) {
+        category = "evaluation";
+      } else if (action.includes("failed") || action.includes("error")) {
+        category = "failure";
+      }
+
+      return {
+        id: `audit:${item.audit_log_id}`,
+        category,
+        title: item.action,
+        description: `${item.resource_type}${item.resource_id ? `:${item.resource_id}` : ""}`,
+        timestamp: item.created_at,
+        href: resolveAuditActivityLink(item),
+      };
+    });
+}
+
+function sortAndLimitActivities(items: DashboardRecentActivityItem[]): DashboardRecentActivityItem[] {
+  return items
+    .sort((left, right) => safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp))
+    .slice(0, RECENT_ACTIVITY_LIMIT);
+}
+
 export function DashboardPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
   const adminUsageEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE);
   const showAdminUsage = canViewAdminUsage(role) && adminUsageEnabled;
+  const documentCapabilities = resolveDocumentCapabilities(role);
 
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
   const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);
@@ -229,9 +388,53 @@ export function DashboardPage() {
     enabled: showAdminUsage,
   });
 
+  const latestDocumentsQuery = useQuery({
+    queryKey: queryKeys.documents.list({
+      limit: LATEST_DOCUMENTS_LIMIT,
+      offset: 0,
+      sort_by: "updated_at",
+      sort_order: "desc",
+    }),
+    queryFn: () =>
+      listDocuments({
+        limit: LATEST_DOCUMENTS_LIMIT,
+        offset: 0,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+  });
+
+  const recentChatSessionsQuery = useQuery({
+    queryKey: ["dashboard", "recent-chat-sessions", { limit: RECENT_ACTIVITY_LIMIT }],
+    queryFn: () =>
+      listChatSessions({
+        limit: RECENT_ACTIVITY_LIMIT,
+        offset: 0,
+      }),
+  });
+
+  const auditActivityQuery = useQuery({
+    queryKey: queryKeys.admin.auditLogs({
+      from: usageRange.from,
+      to: usageRange.to,
+      limit: AUDIT_ACTIVITY_LIMIT,
+      offset: 0,
+    }),
+    queryFn: () =>
+      listAuditLogs({
+        from: usageRange.from,
+        to: usageRange.to,
+        limit: AUDIT_ACTIVITY_LIMIT,
+        offset: 0,
+      }),
+    enabled: showAdminUsage,
+  });
+
   const documentsSummary = documentsQuery.data;
   const chatSummary = chatSummaryQuery.data;
   const usageSummary = usageQuery.data;
+  const latestDocuments = latestDocumentsQuery.data?.items ?? [];
+  const recentSessions = recentChatSessionsQuery.data?.items ?? [];
 
   const indexingSuccess = documentsSummary
     ? computeIndexingSuccess(documentsSummary.totalDocuments, documentsSummary.indexedDocuments)
@@ -252,6 +455,46 @@ export function DashboardPage() {
     !chatSummaryQuery.isError &&
     (documentsSummary?.totalDocuments ?? 0) === 0 &&
     (chatSummary?.questionsAsked ?? 0) === 0;
+
+  const auditActivityBundle: DashboardAuditActivityBundle = (() => {
+    if (!showAdminUsage) {
+      return {
+        items: [],
+        unavailableReason: "Admin activity is only available for owner/admin roles.",
+      };
+    }
+    if (auditActivityQuery.isError) {
+      return {
+        items: [],
+        unavailableReason: getApiErrorMessage(auditActivityQuery.error),
+      };
+    }
+    return {
+      items: auditActivityQuery.data?.items ?? [],
+      unavailableReason: null,
+    };
+  })();
+
+  const recentActivityItems = useMemo(
+    () =>
+      sortAndLimitActivities([
+        ...buildDocumentActivityItems(latestDocuments),
+        ...buildChatActivityItems(recentSessions),
+        ...buildAuditActivityItems(auditActivityBundle.items),
+      ]),
+    [latestDocuments, recentSessions, auditActivityBundle.items],
+  );
+
+  const recentActivityLoading =
+    latestDocumentsQuery.isLoading || recentChatSessionsQuery.isLoading || (showAdminUsage && auditActivityQuery.isLoading);
+  const recentActivityError =
+    latestDocumentsQuery.isError
+      ? getApiErrorMessage(latestDocumentsQuery.error)
+      : recentChatSessionsQuery.isError
+        ? getApiErrorMessage(recentChatSessionsQuery.error)
+        : null;
+  const viewDocumentHref =
+    latestDocuments.length > 0 ? `/documents?document_id=${encodeURIComponent(latestDocuments[0].document_id)}` : null;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
@@ -387,6 +630,169 @@ export function DashboardPage() {
             }}
           />
         ) : null}
+      </div>
+
+      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <h2 className="text-lg font-bold text-[#2a2640]">Quick actions</h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {documentCapabilities.canUpload ? (
+            <Link
+              href="/documents"
+              className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
+            >
+              Upload document
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
+              Upload document
+            </span>
+          )}
+          <Link
+            href="/chat"
+            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+          >
+            New chat
+          </Link>
+          {viewDocumentHref ? (
+            <Link
+              href={viewDocumentHref}
+              className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+            >
+              View document
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
+              View document
+            </span>
+          )}
+          <Link
+            href="/evaluations"
+            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+          >
+            Evaluation run
+          </Link>
+          <Link
+            href="/rag-pipeline"
+            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+          >
+            Pipeline explorer
+          </Link>
+        </div>
+      </section>
+
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[#2a2640]">Latest documents</h2>
+          {latestDocumentsQuery.isLoading ? (
+            <p className="mt-3 text-sm text-[#68647b]">Loading latest documents...</p>
+          ) : null}
+          {latestDocumentsQuery.isError ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-rose-700">{getApiErrorMessage(latestDocumentsQuery.error)}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  void latestDocumentsQuery.refetch();
+                }}
+                className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {latestDocumentsQuery.isSuccess && latestDocuments.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
+              No documents have been uploaded yet.
+            </p>
+          ) : null}
+          {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
+            <div className="mt-4 overflow-x-auto rounded-xl border border-[#e4e1f2]">
+              <table className="min-w-full divide-y divide-[#e7e4f4] text-sm">
+                <thead className="bg-[#faf9ff]">
+                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                    <th className="px-3 py-3">Filename</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Chunks</th>
+                    <th className="px-3 py-3">Updated</th>
+                    <th className="px-3 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0edf8]">
+                  {latestDocuments.map((document) => (
+                    <tr key={document.document_id} className="text-[#2a2640]">
+                      <td className="px-3 py-3 font-semibold">{document.filename}</td>
+                      <td className="px-3 py-3">
+                        <span className={getDocumentStatusBadgeClass(document.status)}>{document.status}</span>
+                      </td>
+                      <td className="px-3 py-3">{formatInteger(document.chunk_count)}</td>
+                      <td className="px-3 py-3 text-xs text-[#6a6780]">{formatDateTime(document.updated_at)}</td>
+                      <td className="px-3 py-3">
+                        <Link
+                          href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
+                          className="rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                        >
+                          View document
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-bold text-[#2a2640]">Recent activity</h2>
+          {recentActivityLoading ? (
+            <p className="mt-3 text-sm text-[#68647b]">Loading recent activity...</p>
+          ) : null}
+          {recentActivityError ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-rose-700">{recentActivityError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  void latestDocumentsQuery.refetch();
+                  void recentChatSessionsQuery.refetch();
+                  if (showAdminUsage) {
+                    void auditActivityQuery.refetch();
+                  }
+                }}
+                className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!recentActivityLoading && !recentActivityError && recentActivityItems.length === 0 ? (
+            <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
+              No recent activity available yet.
+            </p>
+          ) : null}
+          {!recentActivityLoading && !recentActivityError && recentActivityItems.length > 0 ? (
+            <ul className="mt-4 space-y-2">
+              {recentActivityItems.map((item) => (
+                <li key={item.id} className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{item.category}</p>
+                  <p className="mt-1 text-sm font-semibold text-[#2f2a46]">{item.title}</p>
+                  <p className="mt-1 text-sm text-[#5f5a74]">{item.description}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-[#6a6780]">{formatDateTime(item.timestamp)}</p>
+                    {item.href ? (
+                      <Link href={item.href} className="text-xs font-semibold text-[#3525cd] hover:underline">
+                        Open
+                      </Link>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {!recentActivityLoading && !recentActivityError && auditActivityBundle.unavailableReason ? (
+            <p className="mt-3 text-xs text-[#6a6780]">{auditActivityBundle.unavailableReason}</p>
+          ) : null}
+        </section>
       </div>
 
       {showEmptyState ? (

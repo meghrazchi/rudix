@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DocumentsUploadModal, type UploadFeedbackState } from "@/components/documents/DocumentsUploadModal";
@@ -108,6 +109,7 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
 
 export function DocumentsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const { state } = useAuthSession();
   const capabilities = resolveDocumentCapabilities(state.session?.role);
 
@@ -281,6 +283,17 @@ export function DocumentsPage() {
 
   const canGoPrevChunks = chunksOffset > 0;
   const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
+
+  useEffect(() => {
+    const documentIdFromQuery = searchParams.get("document_id");
+    if (!documentIdFromQuery) {
+      return;
+    }
+    if (documentIdFromQuery !== selectedDocumentId) {
+      setSelectedDocumentId(documentIdFromQuery);
+      setChunksOffset(0);
+    }
+  }, [searchParams, selectedDocumentId]);
 
   async function handleFileUpload(file: File): Promise<void> {
     setActionFeedback(null);
