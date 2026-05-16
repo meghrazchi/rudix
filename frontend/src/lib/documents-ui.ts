@@ -7,19 +7,20 @@ export type DocumentCapabilities = {
   canUpload: boolean;
   canDelete: boolean;
   canReindex: boolean;
+  canViewChunkFullText: boolean;
 };
 
 export function resolveDocumentCapabilities(role: AppRole | null | undefined): DocumentCapabilities {
   if (role === "owner") {
-    return { canUpload: true, canDelete: true, canReindex: true };
+    return { canUpload: true, canDelete: true, canReindex: true, canViewChunkFullText: true };
   }
   if (role === "admin") {
-    return { canUpload: true, canDelete: true, canReindex: true };
+    return { canUpload: true, canDelete: true, canReindex: true, canViewChunkFullText: true };
   }
   if (role === "member") {
-    return { canUpload: true, canDelete: true, canReindex: false };
+    return { canUpload: true, canDelete: true, canReindex: false, canViewChunkFullText: true };
   }
-  return { canUpload: false, canDelete: false, canReindex: false };
+  return { canUpload: false, canDelete: false, canReindex: false, canViewChunkFullText: false };
 }
 
 export function shouldPollDocumentStatus(status: DocumentStatus): boolean {

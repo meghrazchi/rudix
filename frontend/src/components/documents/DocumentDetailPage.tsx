@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { DocumentDetailResponse, DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
-import { deleteDocument, getDocument, getDocumentStatus, reindexDocument } from "@/lib/api/documents";
+import { deleteDocument, getDocument, getDocumentChunks, getDocumentStatus, reindexDocument } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
@@ -33,6 +33,9 @@ type TimelineStep = {
   timestamp: string | null;
 };
 
+const CHUNK_PAGE_SIZE = 8;
+const CHUNK_PREVIEW_MAX_CHARS = 420;
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "-";
@@ -42,6 +45,26 @@ function formatDate(value: string | null | undefined): string {
   } catch {
     return value;
   }
+}
+
+function truncateChunkPreview(value: string): string {
+  if (value.length <= CHUNK_PREVIEW_MAX_CHARS) {
+    return value;
+  }
+  return `${value.slice(0, CHUNK_PREVIEW_MAX_CHARS).trimEnd()}…`;
+}
+
+function noChunksMessage(status: DocumentStatus): string {
+  if (status === "processing" || status === "uploaded") {
+    return "Chunk extraction is still in progress. Chunks will appear after indexing completes.";
+  }
+  if (status === "failed") {
+    return "No chunks are available because document processing failed. Re-index after resolving the failure.";
+  }
+  if (status === "deleting" || status === "deleted") {
+    return "Chunk data is unavailable for documents being deleted or already deleted.";
+  }
+  return "No chunks are available for this document.";
 }
 
 function statusBadge(status: DocumentStatus): string {
@@ -160,6 +183,13 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const capabilities = resolveDocumentCapabilities(state.session?.role);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
+  const [chunksOffset, setChunksOffset] = useState(0);
+  const [includeFullText, setIncludeFullText] = useState(false);
+
+  useEffect(() => {
+    setChunksOffset(0);
+    setIncludeFullText(false);
+  }, [documentId]);
 
   const detailQuery = useQuery({
     queryKey: queryKeys.documents.detail(documentId),
@@ -177,6 +207,21 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       }
       return shouldPollDocumentStatus(data.status) ? 4_000 : false;
     },
+  });
+
+  const chunksQuery = useQuery({
+    queryKey: queryKeys.documents.chunks(documentId, {
+      limit: CHUNK_PAGE_SIZE,
+      offset: chunksOffset,
+      include_full_text: includeFullText,
+    }),
+    queryFn: () =>
+      getDocumentChunks(documentId, {
+        limit: CHUNK_PAGE_SIZE,
+        offset: chunksOffset,
+        include_full_text: includeFullText,
+      }),
+    enabled: detailQuery.isSuccess,
   });
 
   const deleteMutation = useMutation({
@@ -217,6 +262,8 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
   const detail = detailQuery.data;
   const currentStatus = detail ? deriveDetailStatus(detail, statusQuery.data) : null;
+  const chunkStatus = currentStatus ?? detail?.status ?? null;
+  const selectedChunks = chunksQuery.data;
   const lifecycle = useMemo(
     () => (detail && currentStatus ? buildLifecycleTimeline(currentStatus, detail) : []),
     [currentStatus, detail],
@@ -226,6 +273,8 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const canDelete = Boolean(currentStatus && capabilities.canDelete && canDeleteDocument(currentStatus));
   const canReindex = Boolean(currentStatus && capabilities.canReindex && canReindexDocument(currentStatus));
   const canAskInChat = currentStatus === "indexed";
+  const canGoPrevChunks = chunksOffset > 0;
+  const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
@@ -399,6 +448,108 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   </button>
                 ) : null}
               </div>
+            </section>
+
+            <section>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-[#2a2640]">Chunk preview</h3>
+                <div className="flex items-center gap-3">
+                  {capabilities.canViewChunkFullText ? (
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#5f5b72]">
+                      <input
+                        type="checkbox"
+                        checked={includeFullText}
+                        onChange={(event) => {
+                          setChunksOffset(0);
+                          setIncludeFullText(event.target.checked);
+                        }}
+                        className="h-4 w-4 rounded border-[#c9c4de]"
+                      />
+                      Include full chunk text
+                    </label>
+                  ) : null}
+                  {chunksQuery.isFetching ? (
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Refreshing...</span>
+                  ) : null}
+                </div>
+              </div>
+
+              {chunksQuery.isLoading ? (
+                <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
+                  Loading chunks...
+                </p>
+              ) : null}
+
+              {chunksQuery.isError ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                  <p>{getApiErrorMessage(chunksQuery.error)}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void chunksQuery.refetch();
+                    }}
+                    className="mt-3 rounded border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-800"
+                  >
+                    Retry chunk load
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedChunks && selectedChunks.items.length === 0 && chunkStatus ? (
+                <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
+                  {noChunksMessage(chunkStatus)}
+                </p>
+              ) : null}
+
+              {selectedChunks && selectedChunks.items.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedChunks.items.map((chunk) => (
+                    <article
+                      key={chunk.chunk_id}
+                      className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                    >
+                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        <span>Chunk #{chunk.chunk_index}</span>
+                        <span>Page {chunk.page_number ?? "-"}</span>
+                        <span>{chunk.token_count} tokens</span>
+                        <span>Model {chunk.embedding_model}</span>
+                        <span>Index {chunk.index_version}</span>
+                        <span>Created {formatDate(chunk.created_at)}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-sm text-[#2a2640]">
+                        {includeFullText && chunk.text
+                          ? chunk.text
+                          : truncateChunkPreview(chunk.text_preview)}
+                      </p>
+                    </article>
+                  ))}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-xs text-[#6e6a86]">
+                      Showing {selectedChunks.items.length} of {selectedChunks.total} chunks.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={!canGoPrevChunks}
+                        onClick={() =>
+                          setChunksOffset((current) => Math.max(0, current - CHUNK_PAGE_SIZE))
+                        }
+                        className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canGoNextChunks}
+                        onClick={() => setChunksOffset((current) => current + CHUNK_PAGE_SIZE)}
+                        className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </section>
           </div>
         ) : null}

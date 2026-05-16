@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentDetailPage } from "@/components/documents/DocumentDetailPage";
@@ -18,12 +19,13 @@ const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
 }));
 
-const mockApi = vi.hoisted(() => ({
-  getDocument: vi.fn(),
-  getDocumentStatus: vi.fn(),
-  deleteDocument: vi.fn(),
-  reindexDocument: vi.fn(),
-}));
+  const mockApi = vi.hoisted(() => ({
+    getDocument: vi.fn(),
+    getDocumentStatus: vi.fn(),
+    getDocumentChunks: vi.fn(),
+    deleteDocument: vi.fn(),
+    reindexDocument: vi.fn(),
+  }));
 
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
@@ -36,6 +38,7 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("@/lib/api/documents", () => ({
   getDocument: (documentId: string) => mockApi.getDocument(documentId),
   getDocumentStatus: (documentId: string) => mockApi.getDocumentStatus(documentId),
+  getDocumentChunks: (documentId: string, options?: unknown) => mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
 }));
@@ -71,6 +74,7 @@ describe("DocumentDetailPage", () => {
     };
     mockApi.getDocument.mockReset();
     mockApi.getDocumentStatus.mockReset();
+    mockApi.getDocumentChunks.mockReset();
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
 
@@ -93,6 +97,26 @@ describe("DocumentDetailPage", () => {
       error_message: null,
       error_details: null,
       updated_at: "2026-05-15T10:00:00Z",
+    });
+    mockApi.getDocumentChunks.mockResolvedValue({
+      document_id: "doc-1",
+      items: [
+        {
+          chunk_id: "chunk-1",
+          page_number: 1,
+          chunk_index: 1,
+          token_count: 42,
+          embedding_model: "text-embedding-3-small",
+          index_version: "v1",
+          text_preview: "Preview text for the first chunk.",
+          text: null,
+          created_at: "2026-05-14T11:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 8,
+      offset: 0,
+      include_full_text: false,
     });
   });
 
@@ -119,6 +143,66 @@ describe("DocumentDetailPage", () => {
     );
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();
+    expect(screen.getByText("Chunk #1")).toBeInTheDocument();
+    expect(screen.getByText("Model text-embedding-3-small")).toBeInTheDocument();
+    expect(screen.getByText("Preview text for the first chunk.")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /include full chunk text/i })).toBeInTheDocument();
+  });
+
+  it("fetches full chunk text when full-text toggle is enabled", async () => {
+    mockApi.getDocumentChunks.mockResolvedValueOnce({
+      document_id: "doc-1",
+      items: [
+        {
+          chunk_id: "chunk-1",
+          page_number: 1,
+          chunk_index: 1,
+          token_count: 42,
+          embedding_model: "text-embedding-3-small",
+          index_version: "v1",
+          text_preview: "Preview text for the first chunk.",
+          text: null,
+          created_at: "2026-05-14T11:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 8,
+      offset: 0,
+      include_full_text: false,
+    });
+    mockApi.getDocumentChunks.mockResolvedValueOnce({
+      document_id: "doc-1",
+      items: [
+        {
+          chunk_id: "chunk-1",
+          page_number: 1,
+          chunk_index: 1,
+          token_count: 42,
+          embedding_model: "text-embedding-3-small",
+          index_version: "v1",
+          text_preview: "Preview text for the first chunk.",
+          text: "FULL CHUNK TEXT",
+          created_at: "2026-05-14T11:00:00Z",
+        },
+      ],
+      total: 1,
+      limit: 8,
+      offset: 0,
+      include_full_text: true,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("Preview text for the first chunk.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: /include full chunk text/i }));
+
+    await waitFor(() => {
+      expect(mockApi.getDocumentChunks).toHaveBeenCalledWith(
+        "doc-1",
+        expect.objectContaining({ include_full_text: true }),
+      );
+    });
+    expect(await screen.findByText("FULL CHUNK TEXT")).toBeInTheDocument();
   });
 
   it("shows failed document safe error details and disables ask in chat", async () => {
@@ -196,5 +280,6 @@ describe("DocumentDetailPage", () => {
     expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Re-index" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /include full chunk text/i })).not.toBeInTheDocument();
   });
 });

@@ -30,11 +30,13 @@ describe("documents UI permissions", () => {
       canUpload: true,
       canDelete: true,
       canReindex: true,
+      canViewChunkFullText: true,
     });
     expect(resolveDocumentCapabilities("admin")).toEqual({
       canUpload: true,
       canDelete: true,
       canReindex: true,
+      canViewChunkFullText: true,
     });
   });
 
@@ -43,11 +45,13 @@ describe("documents UI permissions", () => {
       canUpload: true,
       canDelete: true,
       canReindex: false,
+      canViewChunkFullText: true,
     });
     expect(resolveDocumentCapabilities("viewer")).toEqual({
       canUpload: false,
       canDelete: false,
       canReindex: false,
+      canViewChunkFullText: false,
     });
   });
 });
