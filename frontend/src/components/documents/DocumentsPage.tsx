@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { DocumentsUploadModal, type UploadFeedbackState } from "@/components/documents/DocumentsUploadModal";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import type {
   DocumentDetailResponse,
@@ -33,11 +34,15 @@ import {
 } from "@/lib/documents-ui";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
+import {
+  ACCEPTED_UPLOAD_TYPES_LABEL,
+  maxUploadSizeMbFromEnv,
+  validateUploadFile,
+} from "@/components/documents/upload-validation";
 
-const ACCEPTED_EXTENSIONS = [".pdf", ".txt", ".docx"] as const;
-const ACCEPTED_TYPES_LABEL = "PDF, TXT, DOCX";
 const DOCUMENT_PAGE_SIZE = 20;
 const CHUNK_PAGE_SIZE = 8;
+const MAX_UPLOAD_SIZE_MB = maxUploadSizeMbFromEnv();
 
 type StatusFilter = "all" | DocumentStatus;
 
@@ -64,22 +69,6 @@ function formatDate(value: string): string {
   } catch {
     return value;
   }
-}
-
-function fileExtension(filename: string): string {
-  const parts = filename.toLowerCase().split(".");
-  if (parts.length < 2) {
-    return "";
-  }
-  return `.${parts[parts.length - 1]}`;
-}
-
-function validateFile(file: File): string | null {
-  const extension = fileExtension(file.name);
-  if (!ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
-    return `Unsupported file type. Use ${ACCEPTED_TYPES_LABEL}.`;
-  }
-  return null;
 }
 
 function statusBadge(status: DocumentStatus): string {
@@ -119,7 +108,6 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
 
 export function DocumentsPage() {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { state } = useAuthSession();
   const capabilities = resolveDocumentCapabilities(state.session?.role);
 
@@ -129,8 +117,8 @@ export function DocumentsPage() {
   const [offset, setOffset] = useState(0);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [chunksOffset, setChunksOffset] = useState(0);
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<UploadFeedbackState | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
 
@@ -157,17 +145,39 @@ export function DocumentsPage() {
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadDocument(file),
+    onMutate: (file) => {
+      setUploadFeedback({
+        state: "uploading",
+        message: `Uploading ${file.name}...`,
+      });
+    },
     onSuccess: async (result) => {
-      setUploadFeedback(`Uploaded ${result.filename}. Processing has been queued.`);
+      setUploadFeedback({
+        state: "queued",
+        message: `Uploaded ${result.filename}. Processing has been queued.`,
+      });
       setActionFeedback(null);
       setActionRequestId(null);
       setSelectedDocumentId(result.document_id);
       setChunksOffset(0);
       await invalidateAfterMutation(queryClient, "document.upload");
+      setUploadFeedback((previous) => {
+        if (!previous || previous.state !== "queued") {
+          return previous;
+        }
+        return {
+          state: "success",
+          message: `${result.filename} queued successfully. Document lists were refreshed.`,
+        };
+      });
+      setIsUploadModalOpen(false);
     },
     onError: (error) => {
-      setUploadFeedback(getApiErrorMessage(error));
-      setActionRequestId(extractRequestIdFromError(error));
+      setUploadFeedback({
+        state: "failed",
+        message: getApiErrorMessage(error),
+        requestId: extractRequestIdFromError(error),
+      });
     },
   });
 
@@ -272,63 +282,23 @@ export function DocumentsPage() {
   const canGoPrevChunks = chunksOffset > 0;
   const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
 
-  function resetFeedback() {
+  async function handleFileUpload(file: File): Promise<void> {
     setActionFeedback(null);
     setActionRequestId(null);
-    setUploadFeedback(null);
-  }
-
-  async function handleFileUpload(file: File) {
-    resetFeedback();
-
-    const validationError = validateFile(file);
+    const validationError = validateUploadFile(file, MAX_UPLOAD_SIZE_MB);
     if (validationError) {
-      setUploadFeedback(validationError);
+      setUploadFeedback({
+        state: "failed",
+        message: validationError,
+      });
       return;
     }
 
-    await uploadMutation.mutateAsync(file);
-  }
-
-  async function onFileInputChange(event: ChangeEvent<HTMLInputElement>) {
-    const input = event.currentTarget;
-    const nextFile = event.currentTarget.files?.[0];
-    if (!nextFile) {
-      return;
+    try {
+      await uploadMutation.mutateAsync(file);
+    } catch {
+      // upload feedback state is handled in the mutation onError callback
     }
-    await handleFileUpload(nextFile);
-    input.value = "";
-  }
-
-  async function onDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    setDragActive(false);
-
-    if (!capabilities.canUpload) {
-      return;
-    }
-
-    const nextFile = event.dataTransfer.files?.[0];
-    if (!nextFile) {
-      return;
-    }
-
-    await handleFileUpload(nextFile);
-  }
-
-  function onDragOver(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (capabilities.canUpload) {
-      setDragActive(true);
-    }
-  }
-
-  function onDragLeave(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    setDragActive(false);
   }
 
   return (
@@ -344,52 +314,32 @@ export function DocumentsPage() {
       <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-[#2a2640]">Upload</h2>
-          {!capabilities.canUpload ? (
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-              Read-only role
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {!capabilities.canUpload ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                Read-only role
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setIsUploadModalOpen(true)}
+              disabled={uploadMutation.isPending}
+              className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Open upload modal
+            </button>
+          </div>
         </div>
-        <div
-          onDrop={(event) => {
-            void onDrop(event);
-          }}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          className={`rounded-xl border-2 border-dashed p-6 text-center transition ${
-            dragActive ? "border-[#4b39db] bg-[#f3f1ff]" : "border-[#d8d3ed] bg-[#faf9ff]"
-          } ${capabilities.canUpload ? "cursor-pointer" : "opacity-75"}`}
-          onClick={() => {
-            if (!capabilities.canUpload || uploadMutation.isPending) {
-              return;
-            }
-            fileInputRef.current?.click();
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept={ACCEPTED_EXTENSIONS.join(",")}
-            onChange={(event) => {
-              void onFileInputChange(event);
-            }}
-            disabled={!capabilities.canUpload || uploadMutation.isPending}
-          />
-          <p className="text-base font-semibold text-[#2a2640]">
-            {uploadMutation.isPending ? "Uploading..." : "Drop a file here or click to select"}
-          </p>
-          <p className="mt-1 text-xs text-[#6e6a86]">Accepted types: {ACCEPTED_TYPES_LABEL}</p>
-          {!capabilities.canUpload ? (
-            <p className="mt-2 text-xs text-[#6e6a86]">Your role can view documents but cannot upload files.</p>
-          ) : null}
-        </div>
+
+        <p className="text-sm text-[#68647b]">
+          Upload one file at a time using the dropzone modal. Supported formats: {ACCEPTED_UPLOAD_TYPES_LABEL}. Max
+          size: {MAX_UPLOAD_SIZE_MB} MB.
+        </p>
+
         {uploadFeedback ? (
-          <p
-            role="status"
-            className="mt-3 rounded-lg border border-[#ddd7f6] bg-[#f3f1ff] px-3 py-2 text-sm text-[#3f3778]"
-          >
-            {uploadFeedback}
+          <p role="status" className="mt-3 text-sm text-[#3f3778]">
+            Last upload state: <span className="font-semibold uppercase">{uploadFeedback.state}</span> —{" "}
+            {uploadFeedback.message}
           </p>
         ) : null}
       </div>
@@ -493,7 +443,7 @@ export function DocumentsPage() {
           <div className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-8 text-center">
             <p className="text-base font-semibold text-[#2a2640]">No documents found</p>
             <p className="mt-1 text-sm text-[#68647b]">
-              Upload your first {ACCEPTED_TYPES_LABEL} file to start indexing and retrieval.
+              Upload your first {ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.
             </p>
           </div>
         ) : null}
@@ -751,6 +701,16 @@ export function DocumentsPage() {
           ) : null}
         </section>
       ) : null}
+
+      <DocumentsUploadModal
+        isOpen={isUploadModalOpen}
+        canUpload={capabilities.canUpload}
+        isUploading={uploadMutation.isPending}
+        acceptedTypesLabel={ACCEPTED_UPLOAD_TYPES_LABEL}
+        onClose={() => setIsUploadModalOpen(false)}
+        onFileSelected={handleFileUpload}
+        feedback={uploadFeedback}
+      />
     </section>
   );
 }

@@ -145,6 +145,11 @@ export async function invalidateAfterMutation(
   ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     await queryClient.invalidateQueries({ queryKey: queryKeys.pipeline.all });
+    await queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) && query.queryKey[0] === "dashboard",
+    });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.admin.usage() });
     return;
   }
 

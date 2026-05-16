@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DocumentsPage } from "@/components/documents/DocumentsPage";
 import type { DocumentListResponse } from "@/lib/api/documents";
+import { normalizeApiError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
 
 const mockState = vi.hoisted(() => ({
@@ -210,7 +211,9 @@ describe("DocumentsPage", () => {
     renderPage();
     await screen.findByText("policy.pdf");
 
-    const uploadInput = document.querySelector('input[type="file"]');
+    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+
+    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
 
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
@@ -220,6 +223,70 @@ describe("DocumentsPage", () => {
       expect(mockApi.uploadDocument).toHaveBeenCalledTimes(1);
     });
     expect(mockApi.uploadDocument).toHaveBeenCalledWith(expect.any(File));
+  });
+
+  it("rejects unsupported mime type before calling upload api", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-3",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+
+    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    const file = new File(["hello"], "guide.pdf", { type: "application/json" });
+    await userEvent.upload(uploadInput as HTMLInputElement, file);
+
+    expect(mockApi.uploadDocument).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/Unsupported MIME type/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows safe 413 and 415 upload errors", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-3",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+    renderPage();
+    await screen.findByText("policy.pdf");
+    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+
+    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+    const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
+
+    mockApi.uploadDocument.mockRejectedValueOnce(
+      normalizeApiError({ status: 413, payload: { detail: "too large" } }),
+    );
+    await userEvent.upload(uploadInput as HTMLInputElement, file);
+    await waitFor(() => {
+      expect(screen.getAllByText(/uploaded file is too large/i).length).toBeGreaterThan(0);
+    });
+
+    mockApi.uploadDocument.mockRejectedValueOnce(
+      normalizeApiError({ status: 415, payload: { detail: "unsupported" } }),
+    );
+    await userEvent.upload(uploadInput as HTMLInputElement, file);
+    await waitFor(() => {
+      expect(screen.getAllByText(/file type is not supported/i).length).toBeGreaterThan(0);
+    });
   });
 
   it("downloads a document file from list actions", async () => {
