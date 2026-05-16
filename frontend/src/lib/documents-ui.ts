@@ -1,5 +1,6 @@
 import type { DocumentListItemResponse, DocumentStatus } from "@/lib/api/documents";
 import type { AppRole } from "@/lib/auth-session";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 
 const POLLING_STATUSES = new Set<DocumentStatus>(["uploaded", "processing", "deleting"]);
 
@@ -40,4 +41,17 @@ export function canDeleteDocument(status: DocumentStatus): boolean {
 
 export function canReindexDocument(status: DocumentStatus): boolean {
   return status === "uploaded" || status === "indexed" || status === "failed";
+}
+
+export function getDocumentLifecycleActionErrorMessage(
+  action: "delete" | "reindex",
+  error: unknown,
+): string {
+  if (isApiClientError(error) && error.status === 409) {
+    if (action === "delete") {
+      return "Document cannot be deleted in its current lifecycle state. Wait for processing/deleting to finish, then refresh and retry.";
+    }
+    return "Document cannot be re-indexed in its current lifecycle state. Wait for processing/deleting to finish, then refresh and retry.";
+  }
+  return getApiErrorMessage(error);
 }

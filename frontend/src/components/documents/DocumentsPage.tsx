@@ -21,7 +21,6 @@ import {
   downloadDocumentFile,
   getDocument,
   getDocumentChunks,
-  getDocumentStatus,
   listDocuments,
   reindexDocument,
   uploadDocument,
@@ -31,10 +30,12 @@ import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
   canDeleteDocument,
   canReindexDocument,
+  getDocumentLifecycleActionErrorMessage,
   resolveDocumentCapabilities,
   shouldPollDocumentList,
 } from "@/lib/documents-ui";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { useDocumentStatusPolling } from "@/lib/use-document-status-polling";
 import { useAuthSession } from "@/lib/use-auth-session";
 import {
   ACCEPTED_UPLOAD_TYPES_LABEL,
@@ -228,7 +229,7 @@ export function DocumentsPage() {
       await invalidateAfterMutation(queryClient, "document.delete");
     },
     onError: (error) => {
-      setActionFeedback(getApiErrorMessage(error));
+      setActionFeedback(getDocumentLifecycleActionErrorMessage("delete", error));
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -242,7 +243,7 @@ export function DocumentsPage() {
       await invalidateAfterMutation(queryClient, "document.reindex");
     },
     onError: (error) => {
-      setActionFeedback(getApiErrorMessage(error));
+      setActionFeedback(getDocumentLifecycleActionErrorMessage("reindex", error));
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -269,20 +270,10 @@ export function DocumentsPage() {
     enabled: Boolean(selectedDocumentId),
   });
 
-  const statusQuery = useQuery({
-    queryKey: queryKeys.documents.status(selectedDocumentId ?? ""),
-    queryFn: () => getDocumentStatus(selectedDocumentId ?? ""),
+  const statusQuery = useDocumentStatusPolling(selectedDocumentId, {
     enabled: Boolean(selectedDocumentId),
-    refetchInterval: (query) => {
-      const data = query.state.data as DocumentStatusResponse | undefined;
-      if (!data) {
-        return false;
-      }
-      if (data.status === "uploaded" || data.status === "processing" || data.status === "deleting") {
-        return 4_000;
-      }
-      return false;
-    },
+    initialStatus: detailQuery.data?.status ?? null,
+    refetchInBackground: true,
   });
 
   const chunksQuery = useQuery({
@@ -596,7 +587,7 @@ export function DocumentsPage() {
                             type="button"
                             disabled={!downloadEnabled || downloadBusy}
                             onClick={() => {
-                              void downloadMutation.mutateAsync({
+                              downloadMutation.mutate({
                                 documentId: document.document_id,
                                 filename: document.filename,
                               });
@@ -609,7 +600,13 @@ export function DocumentsPage() {
                             type="button"
                             disabled={!deleteEnabled || deleteBusy}
                             onClick={() => {
-                              void deleteMutation.mutateAsync(document.document_id);
+                              const confirmed = window.confirm(
+                                `Delete document \"${document.filename}\"? This action cannot be undone.`,
+                              );
+                              if (!confirmed) {
+                                return;
+                              }
+                              deleteMutation.mutate(document.document_id);
                             }}
                             className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >
@@ -619,7 +616,7 @@ export function DocumentsPage() {
                             type="button"
                             disabled={!reindexEnabled || reindexBusy}
                             onClick={() => {
-                              void reindexMutation.mutateAsync(document.document_id);
+                              reindexMutation.mutate(document.document_id);
                             }}
                             className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >

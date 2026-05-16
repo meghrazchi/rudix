@@ -77,6 +77,10 @@ describe("DocumentDetailPage", () => {
     mockApi.getDocumentChunks.mockReset();
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
+    Object.defineProperty(window, "confirm", {
+      writable: true,
+      value: vi.fn(() => true),
+    });
 
     mockApi.getDocument.mockResolvedValue({
       document_id: "doc-1",
@@ -117,6 +121,15 @@ describe("DocumentDetailPage", () => {
       limit: 8,
       offset: 0,
       include_full_text: false,
+    });
+    mockApi.deleteDocument.mockResolvedValue({
+      document_id: "doc-1",
+      status: "deleting",
+    });
+    mockApi.reindexDocument.mockResolvedValue({
+      document_id: "doc-1",
+      status: "processing",
+      queue_status: "queued",
     });
   });
 
@@ -281,5 +294,61 @@ describe("DocumentDetailPage", () => {
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Re-index" })).not.toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: /include full chunk text/i })).not.toBeInTheDocument();
+  });
+
+  it("requires confirmation before delete and supports delete success flow", async () => {
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    const confirmMock = vi.mocked(window.confirm);
+    confirmMock.mockReturnValueOnce(false);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(mockApi.deleteDocument).not.toHaveBeenCalled();
+
+    confirmMock.mockReturnValueOnce(true);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => {
+      expect(mockApi.deleteDocument).toHaveBeenCalledWith("doc-1");
+    });
+    expect(await screen.findByText(/Delete requested\. Current status: deleting\./i)).toBeInTheDocument();
+  });
+
+  it("shows conflict-safe messages for delete and re-index mutations", async () => {
+    mockApi.deleteDocument.mockRejectedValueOnce(
+      normalizeApiError({
+        status: 409,
+        payload: { detail: "cannot delete while processing" },
+      }),
+    );
+    mockApi.reindexDocument.mockRejectedValueOnce(
+      normalizeApiError({
+        status: 409,
+        payload: { detail: "cannot reindex while deleting" },
+      }),
+    );
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(
+      await screen.findByText(/cannot be deleted in its current lifecycle state/i),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
+    expect(
+      await screen.findByText(/cannot be re-indexed in its current lifecycle state/i),
+    ).toBeInTheDocument();
+  });
+
+  it("supports successful re-index mutation flow", async () => {
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
+    await waitFor(() => {
+      expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1");
+    });
+    expect(await screen.findByText(/Re-index requested\. Queue status: queued\./i)).toBeInTheDocument();
   });
 });

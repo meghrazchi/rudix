@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   canDeleteDocument,
   canReindexDocument,
+  getDocumentLifecycleActionErrorMessage,
   resolveDocumentCapabilities,
   shouldPollDocumentList,
   shouldPollDocumentStatus,
 } from "@/lib/documents-ui";
 import type { DocumentListItemResponse } from "@/lib/api/documents";
+import { normalizeApiError } from "@/lib/api/errors";
 
 function documentWithStatus(status: DocumentListItemResponse["status"]): DocumentListItemResponse {
   return {
@@ -85,5 +87,19 @@ describe("documents UI polling and action helpers", () => {
     expect(canReindexDocument("processing")).toBe(false);
     expect(canReindexDocument("deleting")).toBe(false);
     expect(canReindexDocument("deleted")).toBe(false);
+  });
+
+  it("maps lifecycle conflict errors to user-friendly messages", () => {
+    const conflictError = normalizeApiError({
+      status: 409,
+      payload: { detail: "conflict" },
+    });
+
+    expect(getDocumentLifecycleActionErrorMessage("delete", conflictError)).toMatch(
+      /cannot be deleted in its current lifecycle state/i,
+    );
+    expect(getDocumentLifecycleActionErrorMessage("reindex", conflictError)).toMatch(
+      /cannot be re-indexed in its current lifecycle state/i,
+    );
   });
 });

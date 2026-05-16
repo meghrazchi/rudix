@@ -7,16 +7,17 @@ import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { DocumentDetailResponse, DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
-import { deleteDocument, getDocument, getDocumentChunks, getDocumentStatus, reindexDocument } from "@/lib/api/documents";
+import { deleteDocument, getDocument, getDocumentChunks, reindexDocument } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
   canDeleteDocument,
   canReindexDocument,
+  getDocumentLifecycleActionErrorMessage,
   resolveDocumentCapabilities,
-  shouldPollDocumentStatus,
 } from "@/lib/documents-ui";
 import { extractRequestIdFromError } from "@/lib/forbidden";
+import { useDocumentStatusPolling } from "@/lib/use-document-status-polling";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 type DocumentDetailPageProps = {
@@ -196,17 +197,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     queryFn: () => getDocument(documentId),
   });
 
-  const statusQuery = useQuery({
-    queryKey: queryKeys.documents.status(documentId),
-    queryFn: () => getDocumentStatus(documentId),
+  const statusQuery = useDocumentStatusPolling(documentId, {
     enabled: detailQuery.isSuccess,
-    refetchInterval: (query) => {
-      const data = query.state.data as DocumentStatusResponse | undefined;
-      if (!data) {
-        return false;
-      }
-      return shouldPollDocumentStatus(data.status) ? 4_000 : false;
-    },
+    initialStatus: detailQuery.data?.status ?? null,
+    refetchInBackground: true,
   });
 
   const chunksQuery = useQuery({
@@ -234,7 +228,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       await statusQuery.refetch();
     },
     onError: (error) => {
-      setActionFeedback(getApiErrorMessage(error));
+      setActionFeedback(getDocumentLifecycleActionErrorMessage("delete", error));
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -249,7 +243,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       await statusQuery.refetch();
     },
     onError: (error) => {
-      setActionFeedback(getApiErrorMessage(error));
+      setActionFeedback(getDocumentLifecycleActionErrorMessage("reindex", error));
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -424,9 +418,15 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     type="button"
                     disabled={!canDelete || deleteMutation.isPending}
                     onClick={() => {
+                      const confirmed = window.confirm(
+                        `Delete document \"${detail.filename}\"? This action cannot be undone.`,
+                      );
+                      if (!confirmed) {
+                        return;
+                      }
                       setActionFeedback(null);
                       setActionRequestId(null);
-                      void deleteMutation.mutateAsync();
+                      deleteMutation.mutate();
                     }}
                     className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -440,7 +440,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     onClick={() => {
                       setActionFeedback(null);
                       setActionRequestId(null);
-                      void reindexMutation.mutateAsync();
+                      reindexMutation.mutate();
                     }}
                     className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
