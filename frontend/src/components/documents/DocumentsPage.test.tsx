@@ -72,6 +72,18 @@ function makeListResponse(status: "indexed" | "processing" = "indexed"): Documen
   };
 }
 
+function makeEmptyListResponse(): DocumentListResponse {
+  return {
+    items: [],
+    total: 0,
+    limit: 20,
+    offset: 0,
+    status: null,
+    sort_by: "created_at",
+    sort_order: "desc",
+  };
+}
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -175,6 +187,117 @@ describe("DocumentsPage", () => {
 
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeDisabled();
+  });
+
+  it("renders documents table columns including updated timestamp and actions", async () => {
+    renderPage();
+
+    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Filename" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Type" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Pages" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Chunks" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Created" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Updated" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Inspect" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+  });
+
+  it("renders distinct lifecycle status badges", async () => {
+    mockApi.listDocuments.mockResolvedValueOnce({
+      items: [
+        {
+          document_id: "doc-uploaded",
+          filename: "uploaded.pdf",
+          file_type: "pdf",
+          status: "uploaded",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+        {
+          document_id: "doc-processing",
+          filename: "processing.pdf",
+          file_type: "pdf",
+          status: "processing",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+        {
+          document_id: "doc-indexed",
+          filename: "indexed.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+        {
+          document_id: "doc-failed",
+          filename: "failed.pdf",
+          file_type: "pdf",
+          status: "failed",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+        {
+          document_id: "doc-deleting",
+          filename: "deleting.pdf",
+          file_type: "pdf",
+          status: "deleting",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+        {
+          document_id: "doc-deleted",
+          filename: "deleted.pdf",
+          file_type: "pdf",
+          status: "deleted",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T00:00:00Z",
+          updated_at: "2026-05-14T00:00:00Z",
+        },
+      ],
+      total: 6,
+      limit: 20,
+      offset: 0,
+      status: null,
+      sort_by: "created_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("uploaded.pdf")).toBeInTheDocument();
+    expect(screen.getByText("uploaded")).toHaveClass("bg-amber-100");
+    expect(screen.getByText("processing")).toHaveClass("bg-blue-100");
+    expect(screen.getByText("indexed")).toHaveClass("bg-emerald-100");
+    expect(screen.getByText("failed")).toHaveClass("bg-rose-100");
+    expect(screen.getByText("deleting")).toHaveClass("bg-slate-200");
+    expect(screen.getByText("deleted")).toHaveClass("bg-slate-300");
   });
 
   it("enables delete but keeps re-index disabled for member role", async () => {
@@ -305,5 +428,29 @@ describe("DocumentsPage", () => {
     expect(mockApi.downloadDocumentFile).toHaveBeenCalledWith("doc-1");
     expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
     expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows empty-state upload CTA for permitted users", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-3",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+    mockApi.listDocuments.mockResolvedValueOnce(makeEmptyListResponse());
+
+    renderPage();
+
+    expect(await screen.findByText("No documents found")).toBeInTheDocument();
+    const emptyStateUploadButton = screen.getByRole("button", { name: "Upload document" });
+    expect(emptyStateUploadButton).toBeInTheDocument();
+
+    await userEvent.click(emptyStateUploadButton);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

@@ -165,3 +165,100 @@ describe("DocumentsPage upload states (MSW)", () => {
     });
   });
 });
+
+describe("DocumentsPage filters/sorting/pagination (MSW)", () => {
+  it("sends filter and sort query params and preserves them across pagination", async () => {
+    const observed: Array<{
+      status: string | null;
+      sortBy: string | null;
+      sortOrder: string | null;
+      limit: string | null;
+      offset: string | null;
+    }> = [];
+
+    server.use(
+      http.get(`${apiBaseUrl}/documents`, async ({ request }) => {
+        const url = new URL(request.url);
+        const limit = Number.parseInt(url.searchParams.get("limit") ?? "20", 10);
+        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+        observed.push({
+          status: url.searchParams.get("status"),
+          sortBy: url.searchParams.get("sort_by"),
+          sortOrder: url.searchParams.get("sort_order"),
+          limit: url.searchParams.get("limit"),
+          offset: url.searchParams.get("offset"),
+        });
+
+        const items = Array.from({ length: limit }, (_, index) => {
+          const rowNumber = offset + index + 1;
+          return {
+            document_id: `doc-${rowNumber}`,
+            filename: `file-${rowNumber}.pdf`,
+            file_type: "pdf",
+            status: "indexed",
+            page_count: 1,
+            chunk_count: 2,
+            error_message: null,
+            error_details: null,
+            created_at: "2026-05-14T00:00:00Z",
+            updated_at: "2026-05-15T00:00:00Z",
+          };
+        });
+
+        return HttpResponse.json({
+          items,
+          total: 45,
+          limit,
+          offset,
+          status: url.searchParams.get("status"),
+          sort_by: url.searchParams.get("sort_by") ?? "created_at",
+          sort_order: url.searchParams.get("sort_order") ?? "desc",
+        });
+      }),
+    );
+
+    renderPage();
+    expect(await screen.findByText("file-1.pdf")).toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText("Status"), "failed");
+    await waitFor(() => {
+      expect(observed.some((entry) => entry.status === "failed" && entry.offset === "0")).toBe(true);
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "updated_at");
+    await waitFor(() => {
+      expect(
+        observed.some(
+          (entry) => entry.status === "failed" && entry.sortBy === "updated_at" && entry.offset === "0",
+        ),
+      ).toBe(true);
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText("Order"), "asc");
+    await waitFor(() => {
+      expect(
+        observed.some(
+          (entry) =>
+            entry.status === "failed" &&
+            entry.sortBy === "updated_at" &&
+            entry.sortOrder === "asc" &&
+            entry.offset === "0",
+        ),
+      ).toBe(true);
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => {
+      expect(
+        observed.some(
+          (entry) =>
+            entry.status === "failed" &&
+            entry.sortBy === "updated_at" &&
+            entry.sortOrder === "asc" &&
+            entry.limit === "20" &&
+            entry.offset === "20",
+        ),
+      ).toBe(true);
+    });
+  });
+});

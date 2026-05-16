@@ -88,6 +88,9 @@ function statusBadge(status: DocumentStatus): string {
   if (status === "deleting") {
     return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
   }
+  if (status === "deleted") {
+    return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
+  }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
 
@@ -458,6 +461,17 @@ export function DocumentsPage() {
             <p className="mt-1 text-sm text-[#68647b]">
               Upload your first {ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.
             </p>
+            {capabilities.canUpload ? (
+              <button
+                type="button"
+                onClick={() => setIsUploadModalOpen(true)}
+                className="mt-4 rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
+              >
+                Upload document
+              </button>
+            ) : (
+              <p className="mt-3 text-xs text-[#6a6780]">Your role cannot upload new documents.</p>
+            )}
           </div>
         ) : null}
 
@@ -472,6 +486,7 @@ export function DocumentsPage() {
                   <th className="px-3 py-3">Pages</th>
                   <th className="px-3 py-3">Chunks</th>
                   <th className="px-3 py-3">Created</th>
+                  <th className="px-3 py-3">Updated</th>
                   <th className="px-3 py-3">Actions</th>
                 </tr>
               </thead>
@@ -500,6 +515,7 @@ export function DocumentsPage() {
                       <td className="px-3 py-3">{document.page_count ?? "-"}</td>
                       <td className="px-3 py-3">{document.chunk_count}</td>
                       <td className="px-3 py-3">{formatDate(document.created_at)}</td>
+                      <td className="px-3 py-3">{formatDate(document.updated_at)}</td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap gap-2">
                           <button
