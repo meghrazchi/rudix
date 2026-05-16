@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import {
@@ -195,17 +195,40 @@ export function ChatPage() {
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [rerank, setRerank] = useState(true);
   const [threadsBySession, setThreadsBySession] = useState<Record<string, ChatTurn[]>>({});
+  const [selectedResponseMessageId, setSelectedResponseMessageId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [submitRequestId, setSubmitRequestId] = useState<string | null>(null);
 
-  const sessionsQuery = useQuery({
+  const sessionsQuery = useInfiniteQuery({
     queryKey: queryKeys.chat.sessions,
-    queryFn: () =>
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
       listChatSessions({
         limit: SESSION_LIST_LIMIT,
-        offset: 0,
+        offset: Number(pageParam),
       }),
+    getNextPageParam: (lastPage, allPages) => {
+      const loadedCount = allPages.reduce((total, page) => total + page.items.length, 0);
+      if (loadedCount >= lastPage.total) {
+        return undefined;
+      }
+      return loadedCount;
+    },
   });
+
+  const sessions = useMemo(() => {
+    const allItems = sessionsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+    const seen = new Set<string>();
+    return allItems.filter((session) => {
+      if (seen.has(session.session_id)) {
+        return false;
+      }
+      seen.add(session.session_id);
+      return true;
+    });
+  }, [sessionsQuery.data?.pages]);
+
+  const totalSessions = sessionsQuery.data?.pages[0]?.total ?? sessions.length;
 
   const shouldLoadActiveSessionHistory =
     activeSessionId !== null && (threadsBySession[activeThreadKey(activeSessionId)] ?? []).length === 0;
@@ -308,8 +331,26 @@ export function ChatPage() {
     lastAppliedDocumentIdRef.current = documentIdFromQuery;
   }, [indexedDocumentIdSet, searchParams]);
 
-  const activeSession = sessionsQuery.data?.items.find((item) => item.session_id === activeSessionId) ?? null;
+  const activeSession = sessions.find((item) => item.session_id === activeSessionId) ?? null;
   const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];
+  const selectedCitationTurn =
+    thread.find((turn) => turn.response.message_id === selectedResponseMessageId) ??
+    thread[thread.length - 1] ??
+    null;
+
+  useEffect(() => {
+    if (thread.length === 0) {
+      if (selectedResponseMessageId !== null) {
+        setSelectedResponseMessageId(null);
+      }
+      return;
+    }
+    const hasSelected = thread.some((turn) => turn.response.message_id === selectedResponseMessageId);
+    if (hasSelected) {
+      return;
+    }
+    setSelectedResponseMessageId(thread[thread.length - 1].response.message_id);
+  }, [selectedResponseMessageId, thread]);
 
   const queryMutation = useMutation({
     mutationFn: (payload: ChatQueryRequest) => queryChat(payload),
@@ -332,6 +373,7 @@ export function ChatPage() {
       });
 
       setActiveSessionId(nextSessionId);
+      setSelectedResponseMessageId(nextTurn.response.message_id);
       replaceSessionParamInUrl(nextSessionId);
       setSubmitRequestId(null);
       setPendingQuestion(null);
@@ -358,6 +400,7 @@ export function ChatPage() {
 
   function resetForNewChat() {
     setActiveSessionId(null);
+    setSelectedResponseMessageId(null);
     setQuestion("");
     setPendingQuestion(null);
     setSubmitRequestId(null);
@@ -429,7 +472,7 @@ export function ChatPage() {
         </div>
       </header>
 
-      <div className="grid gap-4 xl:grid-cols-[300px_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
         <aside className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Sessions</h2>
@@ -437,30 +480,48 @@ export function ChatPage() {
               <p className="text-sm text-[#68647b]">Loading sessions...</p>
             ) : sessionsQuery.isError ? (
               <p className="text-sm text-rose-700">{getApiErrorMessage(sessionsQuery.error)}</p>
-            ) : sessionsQuery.data?.items.length ? (
-              <ul className="space-y-2">
-                {sessionsQuery.data.items.map((session) => (
-                  <li key={session.session_id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveSessionId(session.session_id);
-                        replaceSessionParamInUrl(session.session_id);
-                      }}
-                      className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                        session.session_id === activeSessionId
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
-                          : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
-                      }`}
-                    >
-                      <p className="font-semibold">{session.title ?? "Untitled session"}</p>
-                      <p className="mt-1 text-xs">
-                        {session.message_count} messages • updated {formatDate(session.updated_at)}
-                      </p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            ) : sessions.length ? (
+              <>
+                <ul className="space-y-2">
+                  {sessions.map((session) => (
+                    <li key={session.session_id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveSessionId(session.session_id);
+                          setSubmitRequestId(null);
+                          setPendingQuestion(null);
+                          replaceSessionParamInUrl(session.session_id);
+                        }}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                          session.session_id === activeSessionId
+                            ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
+                            : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
+                        }`}
+                      >
+                        <p className="font-semibold">{session.title ?? "Untitled session"}</p>
+                        <p className="mt-1 text-xs">
+                          {session.message_count} messages • updated {formatDate(session.updated_at)}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {sessionsQuery.hasNextPage ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void sessionsQuery.fetchNextPage();
+                    }}
+                    disabled={sessionsQuery.isFetchingNextPage}
+                    className="mt-3 w-full rounded-lg border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {sessionsQuery.isFetchingNextPage
+                      ? "Loading more sessions..."
+                      : `Load more sessions (${sessions.length}/${totalSessions})`}
+                  </button>
+                ) : null}
+              </>
             ) : (
               <p className="text-sm text-[#68647b]">No sessions yet. Ask your first question to start one.</p>
             )}
@@ -576,6 +637,21 @@ export function ChatPage() {
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Conversation</h2>
+            <div className="mb-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#5f5a74]">
+              {activeSession ? (
+                <p>
+                  Session: <span className="font-semibold text-[#2f2a46]">{activeSession.title ?? "Untitled session"}</span>
+                  {" • "}
+                  {activeSession.message_count} messages
+                  {" • "}
+                  updated {formatDate(activeSession.updated_at)}
+                </p>
+              ) : (
+                <p>
+                  New chat draft. Start with a question to create a session.
+                </p>
+              )}
+            </div>
             {sessionMessagesQuery.isLoading && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
               <p className="text-sm text-[#68647b]">Loading session history...</p>
             ) : null}
@@ -606,6 +682,17 @@ export function ChatPage() {
                           Confidence {formatPercent(turn.response.confidence_score)}
                         </span>
                         <span className="text-xs text-[#6a6780]">{formatDate(turn.response.created_at)}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedResponseMessageId(turn.response.message_id)}
+                          className={`ml-auto rounded border px-2 py-1 text-[11px] font-semibold ${
+                            selectedCitationTurn?.response.message_id === turn.response.message_id
+                              ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
+                              : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"
+                          }`}
+                        >
+                          View context
+                        </button>
                       </div>
 
                       {turn.response.confidence_category === "low" ? (
@@ -615,13 +702,6 @@ export function ChatPage() {
                       ) : null}
 
                       <p className="text-sm whitespace-pre-wrap text-[#2f2a46]">{turn.response.answer}</p>
-
-                      <div className="mt-3">
-                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-                          Citations
-                        </h3>
-                        <CitationPanel citations={turn.response.citations} />
-                      </div>
                     </article>
                   </li>
                 ))}
@@ -640,6 +720,30 @@ export function ChatPage() {
             )}
           </section>
         </section>
+
+        <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
+          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
+            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Context & citations</h2>
+            {!selectedCitationTurn ? (
+              <p className="text-sm text-[#68647b]">
+                Select an answer in the conversation to inspect citations and retrieval context.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Selected answer</p>
+                  <p className="text-xs text-[#5f5a74]">
+                    Confidence {formatPercent(selectedCitationTurn.response.confidence_score)}
+                    {" • "}
+                    {formatDate(selectedCitationTurn.response.created_at)}
+                  </p>
+                  <p className="mt-2 text-sm text-[#2f2a46]">{selectedCitationTurn.question}</p>
+                </div>
+                <CitationPanel citations={selectedCitationTurn.response.citations} />
+              </div>
+            )}
+          </section>
+        </aside>
       </div>
     </section>
   );

@@ -8,8 +8,12 @@ import { ChatPage } from "@/components/chat/ChatPage";
 import { listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockNavigation.searchParams,
 }));
 
 vi.mock("@/lib/api/documents", () => ({
@@ -40,6 +44,7 @@ function renderPage() {
 describe("ChatPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigation.searchParams = new URLSearchParams();
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [],
       total: 0,
@@ -52,6 +57,23 @@ describe("ChatPage", () => {
       limit: 50,
       offset: 0,
     });
+  });
+
+  it("shows empty sessions state with new-chat guidance", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("No sessions yet. Ask your first question to start one.")).toBeInTheDocument();
+    expect(screen.getByText("New chat draft. Start with a question to create a session.")).toBeInTheDocument();
   });
 
   it("renders citations and low-confidence warning for an answer", async () => {
@@ -270,7 +292,63 @@ describe("ChatPage", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /Previous session/i }));
 
-    expect(await screen.findByText("What is the policy date?")).toBeInTheDocument();
+    expect((await screen.findAllByText("What is the policy date?")).length).toBeGreaterThan(0);
     expect(screen.getByText("The policy date is May 2026.")).toBeInTheDocument();
+  });
+
+  it("supports incremental loading of sessions", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            session_id: "session-1",
+            title: "Session one",
+            message_count: 1,
+            created_at: "2026-05-14T10:00:00Z",
+            updated_at: "2026-05-14T10:10:00Z",
+          },
+        ],
+        total: 2,
+        limit: 50,
+        offset: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            session_id: "session-2",
+            title: "Session two",
+            message_count: 1,
+            created_at: "2026-05-14T11:00:00Z",
+            updated_at: "2026-05-14T11:10:00Z",
+          },
+        ],
+        total: 2,
+        limit: 50,
+        offset: 1,
+      });
+
+    renderPage();
+
+    expect(await screen.findByText("Session one")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Load more sessions/i }));
+
+    expect(await screen.findByText("Session two")).toBeInTheDocument();
+    expect(vi.mocked(listChatSessions)).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ limit: 50, offset: 0 }),
+    );
+    expect(vi.mocked(listChatSessions)).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ limit: 50, offset: 1 }),
+    );
   });
 });
