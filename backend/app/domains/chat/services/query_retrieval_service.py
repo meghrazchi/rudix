@@ -21,8 +21,9 @@ class OpenAIClientLike(Protocol):
 
 
 class QdrantClientLike(Protocol):
-    def search(self, **kwargs: object) -> list[Any]:
-        ...
+    def search(self, **kwargs: object) -> list[Any]: ...
+
+    def query_points(self, **kwargs: object) -> Any: ...
 
 
 @dataclass(frozen=True)
@@ -63,10 +64,7 @@ class QueryRetrievalService:
         if self._openai_client is None:
             if settings.openai_api_key is None:
                 raise RuntimeError("OpenAI API key is not configured")
-            timeout_seconds = max(
-                settings.dependency_connect_timeout_seconds,
-                settings.dependency_read_timeout_seconds,
-            )
+            timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
             self._openai_client = AsyncOpenAI(
                 api_key=settings.openai_api_key.get_secret_value(),
                 timeout=timeout_seconds,
@@ -128,13 +126,12 @@ class QueryRetrievalService:
             organization_id=normalized_organization_id,
             document_ids=[str(document_id) for document_id in document_ids],
         )
-        results = (qdrant_client or self._resolve_qdrant_client()).search(
-            collection_name=self.qdrant_collection,
+        client = qdrant_client or self._resolve_qdrant_client()
+        results = self._search_results(
+            qdrant_client=client,
             query_vector=query_vector,
             query_filter=query_filter,
             limit=initial_top_k,
-            with_payload=True,
-            with_vectors=False,
         )
 
         candidates: list[RetrievedCandidate] = []
@@ -174,6 +171,44 @@ class QueryRetrievalService:
             )
 
         return sorted(candidates, key=lambda candidate: candidate.similarity_score, reverse=True)
+
+    def _search_results(
+        self,
+        *,
+        qdrant_client: QdrantClientLike,
+        query_vector: list[float],
+        query_filter: object,
+        limit: int,
+    ) -> list[Any]:
+        search_method = getattr(qdrant_client, "search", None)
+        if callable(search_method):
+            return list(
+                search_method(
+                    collection_name=self.qdrant_collection,
+                    query_vector=query_vector,
+                    query_filter=query_filter,
+                    limit=limit,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+            )
+
+        query_points_method = getattr(qdrant_client, "query_points", None)
+        if callable(query_points_method):
+            response = query_points_method(
+                collection_name=self.qdrant_collection,
+                query=query_vector,
+                query_filter=query_filter,
+                limit=limit,
+                with_payload=True,
+                with_vectors=False,
+            )
+            points = getattr(response, "points", None)
+            if points is None:
+                raise RuntimeError("Qdrant query_points returned no points")
+            return list(points)
+
+        raise AttributeError("Qdrant client has neither 'search' nor 'query_points'")
 
     async def embed_and_retrieve(
         self,

@@ -1,11 +1,12 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
+from app.models.document import Document
 from app.models.enums import ChatRole
 
 
@@ -97,6 +98,42 @@ class ChatRepository:
         )
         return {row[0]: int(row[1]) for row in result.all()}
 
+    async def list_chat_messages(
+        self,
+        session: AsyncSession,
+        *,
+        chat_session_id: UUID,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> list[ChatMessage]:
+        result = await session.execute(
+            select(ChatMessage)
+            .where(ChatMessage.chat_session_id == chat_session_id)
+            .order_by(
+                ChatMessage.created_at.asc(),
+                case(
+                    (ChatMessage.role == ChatRole.user.value, 0),
+                    (ChatMessage.role == ChatRole.assistant.value, 1),
+                    else_=2,
+                ).asc(),
+                ChatMessage.id.asc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_chat_messages(
+        self,
+        session: AsyncSession,
+        *,
+        chat_session_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(ChatMessage.id)).where(ChatMessage.chat_session_id == chat_session_id)
+        )
+        return int(result.scalar_one())
+
     async def create_chat_message(
         self,
         session: AsyncSession,
@@ -165,3 +202,17 @@ class ChatRepository:
             .order_by(Citation.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def list_citations_for_message_with_filename(
+        self,
+        session: AsyncSession,
+        *,
+        chat_message_id: UUID,
+    ) -> list[tuple[Citation, str | None]]:
+        result = await session.execute(
+            select(Citation, Document.filename)
+            .join(Document, Document.id == Citation.document_id)
+            .where(Citation.chat_message_id == chat_message_id)
+            .order_by(Citation.created_at.asc())
+        )
+        return [(row[0], row[1]) for row in result.all()]

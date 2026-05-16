@@ -24,6 +24,8 @@ from app.domains.chat.schemas.chat import (
     ChatMessageResponse,
     ChatQueryRequest,
     ChatQueryResponse,
+    ChatSessionMessageListResponse,
+    ChatSessionMessageResponse,
     ChatSessionListResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
@@ -100,10 +102,7 @@ def _get_openai_client() -> AsyncOpenAI:
     if _openai_client is None:
         if settings.openai_api_key is None:
             raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(
-            settings.dependency_connect_timeout_seconds,
-            settings.dependency_read_timeout_seconds,
-        )
+        timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
         _openai_client = AsyncOpenAI(
             api_key=settings.openai_api_key.get_secret_value(),
             timeout=timeout_seconds,
@@ -211,6 +210,16 @@ def _to_confidence_signals(*, chunks: list[RetrievedChunk], rerank_applied: bool
         )
         for chunk in chunks
     ]
+
+
+def _confidence_category_from_score(score: float | None) -> str | None:
+    if score is None:
+        return None
+    if score >= settings.confidence_high_threshold:
+        return "high"
+    if score >= settings.confidence_medium_threshold:
+        return "medium"
+    return "low"
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -370,6 +379,104 @@ async def get_chat_session(
         message_count=message_counts.get(chat_session.id, 0),
         created_at=chat_session.created_at,
         updated_at=chat_session.updated_at,
+    )
+
+
+@router.get("/sessions/{session_id}/messages", response_model=ChatSessionMessageListResponse)
+async def list_chat_session_messages(
+    session_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> ChatSessionMessageListResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found") from exc
+
+    chat_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    messages = await chat_repository.list_chat_messages(
+        db_session,
+        chat_session_id=chat_session.id,
+        limit=limit,
+        offset=offset,
+    )
+    total = await chat_repository.count_chat_messages(
+        db_session,
+        chat_session_id=chat_session.id,
+    )
+
+    items: list[ChatSessionMessageResponse] = []
+    for message in messages:
+        message_citations: list[ChatCitationResponse] = []
+        if message.role == ChatRole.assistant.value:
+            citation_rows = await chat_repository.list_citations_for_message_with_filename(
+                db_session,
+                chat_message_id=message.id,
+            )
+            message_citations = [
+                ChatCitationResponse(
+                    document_id=str(citation.document_id),
+                    chunk_id=str(citation.chunk_id),
+                    filename=filename,
+                    page_number=citation.page_number,
+                    score=citation.rerank_score if citation.rerank_score is not None else citation.similarity_score,
+                    similarity_score=citation.similarity_score,
+                    rerank_score=citation.rerank_score,
+                    rerank_rank=None,
+                    text_snippet=citation.text_snippet,
+                )
+                for citation, filename in citation_rows
+            ]
+
+        items.append(
+            ChatSessionMessageResponse(
+                message_id=str(message.id),
+                role=message.role,
+                content=message.content,
+                confidence_score=message.confidence_score,
+                confidence_category=_confidence_category_from_score(message.confidence_score),
+                citations=message_citations,
+                created_at=message.created_at,
+            )
+        )
+
+    log_query_event(
+        event="chat.session.messages.listed",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=session_id,
+        status_code=status.HTTP_200_OK,
+        total=total,
+        returned=len(items),
+        limit=limit,
+        offset=offset,
+    )
+    return ChatSessionMessageListResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 

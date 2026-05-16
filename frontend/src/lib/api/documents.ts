@@ -188,3 +188,9 @@ export async function reindexDocument(documentId: string): Promise<ReindexDocume
     method: "POST",
   });
 }
+
+export async function downloadDocumentFile(documentId: string): Promise<Blob> {
+  return apiRequest<Blob>(`/documents/${encodeURIComponent(documentId)}/download`, {
+    responseType: "blob",
+  });
+}

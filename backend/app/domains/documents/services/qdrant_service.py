@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Protocol
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import PointStruct
@@ -54,10 +54,9 @@ class QdrantService:
         normalized_index_version = index_version.strip()
         if not normalized_index_version:
             raise ValueError("index_version is required")
-        point_id = f"{document_id}:{normalized_index_version}:{chunk_index}"
-        if len(point_id) > 128:
-            raise ValueError("qdrant point id exceeds max length")
-        return point_id
+        legacy_key = f"{document_id}:{normalized_index_version}:{chunk_index}"
+        # Qdrant point IDs must be unsigned integers or UUID values.
+        return str(uuid5(NAMESPACE_URL, legacy_key))
 
     @staticmethod
     def _client() -> QdrantClient:
@@ -67,6 +66,19 @@ class QdrantService:
         if client is None:
             raise RuntimeError("Qdrant client is not initialized")
         return client
+
+    @staticmethod
+    def _is_valid_qdrant_point_id(point_id: str) -> bool:
+        normalized = point_id.strip()
+        if not normalized:
+            return False
+        if normalized.isdigit():
+            return True
+        try:
+            UUID(normalized)
+            return True
+        except ValueError:
+            return False
 
     async def upsert_chunks(
         self,
@@ -97,11 +109,13 @@ class QdrantService:
                     f"expected {settings.qdrant_vector_size}, got {len(vector)}"
                 )
 
-            point_id = chunk.qdrant_point_id or self.build_point_id(
-                document_id=document_id,
-                chunk_index=chunk.chunk_index,
-                index_version=chunk.index_version,
-            )
+            point_id = chunk.qdrant_point_id
+            if point_id is None or not self._is_valid_qdrant_point_id(point_id):
+                point_id = self.build_point_id(
+                    document_id=document_id,
+                    chunk_index=chunk.chunk_index,
+                    index_version=chunk.index_version,
+                )
             point_ids_by_chunk_id[chunk.id] = point_id
             points.append(
                 PointStruct(

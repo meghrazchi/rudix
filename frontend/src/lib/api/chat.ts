@@ -84,6 +84,23 @@ export type ChatMessageResponse = {
   created_at: string;
 };
 
+export type ChatSessionMessageResponse = {
+  message_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  confidence_score: number | null;
+  confidence_category: "low" | "medium" | "high" | null;
+  citations: ChatCitationResponse[];
+  created_at: string;
+};
+
+export type ChatSessionMessageListResponse = {
+  items: ChatSessionMessageResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type ChatQueryRequest = {
   question: string;
   chat_session_id?: string | null;
@@ -116,6 +133,21 @@ export async function listChatSessions(params: { limit?: number; offset?: number
 
 export async function getChatSession(sessionId: string): Promise<ChatSessionResponse> {
   return apiRequest<ChatSessionResponse>(`/chat/sessions/${encodeURIComponent(sessionId)}`);
+}
+
+export async function listChatSessionMessages(
+  sessionId: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<ChatSessionMessageListResponse> {
+  return apiRequest<ChatSessionMessageListResponse>(
+    `/chat/sessions/${encodeURIComponent(sessionId)}/messages`,
+    {
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+      },
+    },
+  );
 }
 
 export async function queryChat(payload: ChatQueryRequest): Promise<ChatQueryResponse> {

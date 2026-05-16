@@ -71,6 +71,23 @@ class ChatMessageResponse(BaseModel):
     created_at: datetime
 
 
+class ChatSessionMessageResponse(BaseModel):
+    message_id: str
+    role: Literal["user", "assistant", "system"]
+    content: str
+    confidence_score: float | None = None
+    confidence_category: Literal["low", "medium", "high"] | None = None
+    citations: list["ChatCitationResponse"] = Field(default_factory=list)
+    created_at: datetime
+
+
+class ChatSessionMessageListResponse(BaseModel):
+    items: list[ChatSessionMessageResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class ChatCitationResponse(BaseModel):
     document_id: str
     chunk_id: str

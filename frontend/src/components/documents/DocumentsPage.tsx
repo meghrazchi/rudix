@@ -15,6 +15,7 @@ import type {
 } from "@/lib/api/documents";
 import {
   deleteDocument,
+  downloadDocumentFile,
   getDocument,
   getDocumentChunks,
   getDocumentStatus,
@@ -104,6 +105,18 @@ function deriveDetailStatus(detail: DocumentDetailResponse, liveStatus: Document
   return liveStatus?.status ?? detail.status;
 }
 
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export function DocumentsPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -188,6 +201,22 @@ export function DocumentsPage() {
     },
   });
 
+  const downloadMutation = useMutation({
+    mutationFn: async (params: { documentId: string; filename: string }) => {
+      const blob = await downloadDocumentFile(params.documentId);
+      return { blob, filename: params.filename };
+    },
+    onSuccess: ({ blob, filename }) => {
+      triggerBlobDownload(blob, filename);
+      setActionFeedback(null);
+      setActionRequestId(null);
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
   const detailQuery = useQuery({
     queryKey: queryKeys.documents.detail(selectedDocumentId ?? ""),
     queryFn: () => getDocument(selectedDocumentId ?? ""),
@@ -235,6 +264,7 @@ export function DocumentsPage() {
 
   const pendingDeleteDocumentId = deleteMutation.isPending ? deleteMutation.variables : null;
   const pendingReindexDocumentId = reindexMutation.isPending ? reindexMutation.variables : null;
+  const pendingDownloadDocumentId = downloadMutation.isPending ? downloadMutation.variables.documentId : null;
 
   const canGoPrevDocuments = offset > 0;
   const canGoNextDocuments = Boolean(documentsQuery.data && offset + DOCUMENT_PAGE_SIZE < documentsQuery.data.total);
@@ -486,8 +516,10 @@ export function DocumentsPage() {
                 {documents.map((document) => {
                   const deleteEnabled = capabilities.canDelete && canDeleteDocument(document.status);
                   const reindexEnabled = capabilities.canReindex && canReindexDocument(document.status);
+                  const downloadEnabled = document.status !== "deleted" && document.status !== "deleting";
                   const deleteBusy = pendingDeleteDocumentId === document.document_id;
                   const reindexBusy = pendingReindexDocumentId === document.document_id;
+                  const downloadBusy = pendingDownloadDocumentId === document.document_id;
 
                   return (
                     <tr key={document.document_id} className="align-top text-[#2a2640]">
@@ -518,6 +550,19 @@ export function DocumentsPage() {
                             className="rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f]"
                           >
                             Inspect
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!downloadEnabled || downloadBusy}
+                            onClick={() => {
+                              void downloadMutation.mutateAsync({
+                                documentId: document.document_id,
+                                filename: document.filename,
+                              });
+                            }}
+                            className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {downloadBusy ? "Downloading..." : "Download"}
                           </button>
                           <button
                             type="button"

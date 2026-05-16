@@ -1,7 +1,18 @@
 from typing import Annotated
+from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.documents.workflows import (
@@ -36,9 +47,15 @@ from app.domains.documents.schemas.documents import (
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
-from app.workers.document_tasks import delete_document as delete_document_task
-from app.workers.document_tasks import process_document
-from app.workers.document_tasks import reindex_document as reindex_document_task
+from app.workers.document_tasks import (
+    delete_document as delete_document_task,
+)
+from app.workers.document_tasks import (
+    process_document,
+)
+from app.workers.document_tasks import (
+    reindex_document as reindex_document_task,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
@@ -84,6 +101,16 @@ def _request_id_from_request(request: Request) -> str | None:
     return request.headers.get("x-request-id")
 
 
+def _download_media_type(file_type: str) -> str:
+    if file_type == "pdf":
+        return "application/pdf"
+    if file_type == "docx":
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if file_type == "txt":
+        return "text/plain; charset=utf-8"
+    return "application/octet-stream"
+
+
 @router.post("/upload", response_model=UploadDocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
@@ -112,7 +139,7 @@ async def upload_document(
         document_repository=document_repository,
         audit_log_service=audit_log_service,
         process_document_task=process_document,
-        minio_client=minio_module.minio_client,
+        minio_client=minio_module.get_minio_client(),
     )
 
 
@@ -313,6 +340,70 @@ async def get_document(
         error_details=safe_error_details,
         created_at=document.created_at,
         updated_at=document.updated_at,
+    )
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    request: Request,
+    document_id: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    document: Annotated[Document, Depends(require_document_access)],
+) -> Response:
+    del document_id
+    request_id = _request_id_from_request(request)
+    minio = minio_module.get_minio_client()
+    if minio is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Object storage is unavailable",
+        )
+
+    body = None
+    try:
+        object_response = minio.get_object(
+            Bucket=document.storage_bucket,
+            Key=document.storage_object_key,
+        )
+        body = object_response["Body"]
+        content = body.read()
+    except Exception as exc:
+        log_document_event(
+            event="document.download.failed",
+            document_id=str(document.id),
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            request_id=request_id,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            error=exc.__class__.__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document file is unavailable",
+        ) from exc
+    finally:
+        try:
+            if body is not None:
+                body.close()
+        except Exception:
+            pass
+
+    filename = document.filename or f"{document.id}.{document.file_type}"
+    content_disposition = f"attachment; filename*=UTF-8''{quote(filename)}"
+    media_type = _download_media_type(document.file_type)
+
+    log_document_event(
+        event="document.download.completed",
+        document_id=str(document.id),
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        request_id=request_id,
+        status_code=status.HTTP_200_OK,
+    )
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": content_disposition},
     )
 
 

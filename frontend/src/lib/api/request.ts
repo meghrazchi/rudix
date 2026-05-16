@@ -55,6 +55,7 @@ export type ApiRequestOptions = {
   credentials?: RequestCredentials;
   authRetry?: AuthRetryPolicy;
   skipAuthRefresh?: boolean;
+  responseType?: "json" | "blob" | "text";
 };
 
 export type SessionRequestContext = {
@@ -820,9 +821,8 @@ export async function apiRequest<T>(
           credentials: options.credentials,
         });
 
-        const parsedBody = await parseJsonOrText(response);
-
         if (!response.ok) {
+          const parsedBody = await parseJsonOrText(response);
           const requestId = resolveResponseRequestId(response);
           const error = normalizeApiError({
             status: response.status,
@@ -886,6 +886,15 @@ export async function apiRequest<T>(
           throw error;
         }
 
+        if (options.responseType === "blob") {
+          return (await response.blob()) as T;
+        }
+
+        if (options.responseType === "text") {
+          return (await response.text()) as T;
+        }
+
+        const parsedBody = await parseJsonOrText(response);
         if (parsedBody === null) {
           return {} as T;
         }

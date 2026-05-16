@@ -5,7 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
-import { listChatSessions, queryChat } from "@/lib/api/chat";
+import { listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 
 vi.mock("@/lib/api/documents", () => ({
@@ -13,6 +13,7 @@ vi.mock("@/lib/api/documents", () => ({
 }));
 
 vi.mock("@/lib/api/chat", () => ({
+  listChatSessionMessages: vi.fn(),
   listChatSessions: vi.fn(),
   queryChat: vi.fn(),
 }));
@@ -35,6 +36,12 @@ function renderPage() {
 describe("ChatPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listChatSessionMessages).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 500,
+      offset: 0,
+    });
     vi.mocked(listChatSessions).mockResolvedValue({
       items: [],
       total: 0,
@@ -203,5 +210,63 @@ describe("ChatPage", () => {
       expect(screen.getByText("Unable to complete the query.")).toBeInTheDocument();
     });
     expect(screen.getByText("Service unavailable")).toBeInTheDocument();
+  });
+
+  it("loads and renders messages from previous sessions", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "session-previous",
+          title: "Previous session",
+          message_count: 2,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:10:00Z",
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    vi.mocked(listChatSessionMessages).mockResolvedValue({
+      items: [
+        {
+          message_id: "user-1",
+          role: "user",
+          content: "What is the policy date?",
+          confidence_score: null,
+          confidence_category: null,
+          citations: [],
+          created_at: "2026-05-14T10:00:00Z",
+        },
+        {
+          message_id: "assistant-1",
+          role: "assistant",
+          content: "The policy date is May 2026.",
+          confidence_score: 0.82,
+          confidence_category: "high",
+          citations: [],
+          created_at: "2026-05-14T10:00:03Z",
+        },
+      ],
+      total: 2,
+      limit: 500,
+      offset: 0,
+    });
+
+    renderPage();
+
+    await userEvent.click(await screen.findByRole("button", { name: /Previous session/i }));
+
+    expect(await screen.findByText("What is the policy date?")).toBeInTheDocument();
+    expect(screen.getByText("The policy date is May 2026.")).toBeInTheDocument();
   });
 });

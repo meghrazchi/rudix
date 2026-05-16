@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Coroutine
 from typing import Any
 from uuid import UUID
@@ -9,27 +8,18 @@ from app.db.session import SessionLocal
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.models.enums import DocumentStatus, EvaluationRunStatus
+from app.workers.async_runtime import run_async
 
 _document_repository = DocumentRepository()
 _evaluation_repository = EvaluationRepository()
-_worker_loop: asyncio.AbstractEventLoop | None = None
 
 
 def _parse_uuid(value: str) -> UUID:
     return UUID(value)
 
 
-def _get_worker_loop() -> asyncio.AbstractEventLoop:
-    global _worker_loop
-    if _worker_loop is None or _worker_loop.is_closed():
-        _worker_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_worker_loop)
-    return _worker_loop
-
-
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
-    loop = _get_worker_loop()
-    return loop.run_until_complete(coro)
+    return run_async(coro)
 
 
 async def _get_document_status_async(document_id: str) -> str | None:

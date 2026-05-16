@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from collections.abc import Coroutine
 from dataclasses import asdict, dataclass
@@ -37,6 +36,7 @@ from app.domains.evaluations.services.evaluation_metrics_service import (
     RetrievedMetricChunk,
 )
 from app.models.enums import EvaluationRunStatus
+from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_evaluation_status, set_evaluation_status
@@ -49,7 +49,6 @@ _citation_service = CitationService()
 _confidence_service = ConfidenceService()
 _evaluation_metrics_service = EvaluationMetricsService()
 _audit_log_service = AuditLogService()
-_worker_loop: asyncio.AbstractEventLoop | None = None
 _openai_client: AsyncOpenAI | None = None
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
@@ -91,17 +90,8 @@ def _parse_uuid(value: str) -> UUID:
     return UUID(value)
 
 
-def _get_worker_loop() -> asyncio.AbstractEventLoop:
-    global _worker_loop
-    if _worker_loop is None or _worker_loop.is_closed():
-        _worker_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_worker_loop)
-    return _worker_loop
-
-
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
-    loop = _get_worker_loop()
-    return loop.run_until_complete(coro)
+    return run_async(coro)
 
 
 def _parse_optional_uuid(value: str | None) -> UUID | None:
@@ -174,10 +164,7 @@ def _get_openai_client() -> AsyncOpenAI:
     if _openai_client is None:
         if settings.openai_api_key is None:
             raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(
-            settings.dependency_connect_timeout_seconds,
-            settings.dependency_read_timeout_seconds,
-        )
+        timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
         _openai_client = AsyncOpenAI(
             api_key=settings.openai_api_key.get_secret_value(),
             timeout=timeout_seconds,

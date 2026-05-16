@@ -205,6 +205,50 @@ async def test_upsert_chunks_is_idempotent_for_same_point_id(monkeypatch: pytest
     assert stored["payload"]["token_count"] == 60
 
 
+@pytest.mark.asyncio
+async def test_upsert_chunks_regenerates_legacy_point_id_format(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_client = FakeQdrantClient()
+    monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
+    monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
+
+    service = QdrantService(batch_size=16)
+    document_id = uuid4()
+    chunk_id = uuid4()
+    legacy_point_id = f"{document_id}:v1:0"
+    expected_point_id = service.build_point_id(
+        document_id=document_id,
+        chunk_index=0,
+        index_version="v1",
+    )
+
+    chunk = ChunkStub(
+        id=chunk_id,
+        document_id=document_id,
+        page_number=1,
+        chunk_index=0,
+        text="legacy id text",
+        token_count=50,
+        qdrant_point_id=legacy_point_id,
+        embedding_model="text-embedding-3-small",
+        index_version="v1",
+    )
+    vectors = {chunk_id: [0.003] * settings.qdrant_vector_size}
+
+    result = await service.upsert_chunks(
+        organization_id=uuid4(),
+        user_id=uuid4(),
+        document_id=document_id,
+        filename="doc.pdf",
+        file_type="pdf",
+        chunks=[chunk],
+        vectors_by_chunk_id=vectors,
+    )
+
+    assert result.point_ids_by_chunk_id[chunk_id] == expected_point_id
+    assert expected_point_id in fake_client.storage
+    assert legacy_point_id not in fake_client.storage
+
+
 def test_build_point_id_is_deterministic() -> None:
     service = QdrantService()
     document_id = uuid4()
@@ -215,7 +259,7 @@ def test_build_point_id_is_deterministic() -> None:
 
     assert first == second
     assert different != first
-    assert first == f"{document_id}:v2:4"
+    assert UUID(first)
 
 
 @pytest.mark.asyncio

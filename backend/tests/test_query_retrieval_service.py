@@ -62,6 +62,16 @@ class FakeQdrantClient:
         return list(self.results)
 
 
+class FakeQdrantQueryPointsClient:
+    def __init__(self, *, results: list[FakeQdrantResult]) -> None:
+        self.results = results
+        self.calls: list[dict[str, object]] = []
+
+    def query_points(self, **kwargs: object) -> object:
+        self.calls.append(kwargs)
+        return SimpleNamespace(points=list(self.results))
+
+
 @pytest.mark.asyncio
 async def test_embed_query_uses_configured_embedding_model() -> None:
     fake_openai = FakeOpenAIClient()
@@ -180,6 +190,43 @@ def test_retrieve_candidates_drops_cross_org_and_unauthorized_documents() -> Non
     assert len(candidates) == 1
     assert candidates[0].document_id == allowed_document_id
     assert candidates[0].filename == "allowed.pdf"
+
+
+def test_retrieve_candidates_supports_query_points_client() -> None:
+    organization_id = uuid4()
+    document_id = uuid4()
+    chunk_id = uuid4()
+
+    fake_qdrant = FakeQdrantQueryPointsClient(
+        results=[
+            FakeQdrantResult(
+                score=0.77,
+                payload={
+                    "organization_id": str(organization_id),
+                    "document_id": str(document_id),
+                    "chunk_id": str(chunk_id),
+                    "filename": "query-points.pdf",
+                    "page_number": 6,
+                    "text": "Retrieved by query_points.",
+                },
+            )
+        ]
+    )
+    service = QueryRetrievalService(qdrant_client=fake_qdrant)
+
+    candidates = service.retrieve_candidates(
+        query_vector=[0.01] * settings.qdrant_vector_size,
+        organization_id=organization_id,
+        document_ids=[document_id],
+        initial_top_k=20,
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].document_id == document_id
+    assert candidates[0].chunk_id == chunk_id
+    assert candidates[0].similarity_score == pytest.approx(0.77)
+    assert len(fake_qdrant.calls) == 1
+    assert "query" in fake_qdrant.calls[0]
 
 
 @pytest.mark.asyncio

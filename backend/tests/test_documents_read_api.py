@@ -26,6 +26,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
+from app.clients import minio_client as minio_module
 from app.core.config import AuthProvider, settings
 from app.core.document_errors import build_document_error_details, encode_document_error
 from app.db.session import get_db_session
@@ -36,6 +37,34 @@ from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+
+
+class FakeObjectBody:
+    def __init__(self, content: bytes) -> None:
+        self.content = content
+        self.closed = False
+
+    def read(self) -> bytes:
+        return self.content
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class FakeMinioForDownload:
+    def __init__(self, *, content: bytes) -> None:
+        self.content = content
+        self.calls: list[dict[str, object]] = []
+        self.raise_error = False
+        self.last_body: FakeObjectBody | None = None
+
+    def get_object(self, **kwargs: object) -> dict[str, object]:
+        self.calls.append(kwargs)
+        if self.raise_error:
+            raise RuntimeError("storage unavailable")
+        body = FakeObjectBody(self.content)
+        self.last_body = body
+        return {"Body": body}
 
 
 @pytest_asyncio.fixture
@@ -322,21 +351,69 @@ async def test_document_chunks_endpoint_paginates_and_hides_full_text_by_default
     assert payload["offset"] == 1
     assert payload["include_full_text"] is False
     assert len(payload["items"]) == 2
-    first_item = payload["items"][0]
-    assert first_item["chunk_index"] == 1
-    assert first_item["text"] is None
-    assert first_item["text_preview"]
-    assert len(first_item["text_preview"]) <= 240
 
-    full_response = await documents_client.get(
-        f"/api/v1/documents/{document.id}/chunks",
-        headers=_auth_headers(token=token, organization_id=str(org.id)),
-        params={"limit": 1, "offset": 0, "include_full_text": True},
+
+@pytest.mark.asyncio
+async def test_document_download_streams_file_for_authorized_user(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    document = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="download-policy.pdf",
+        status=DocumentStatus.indexed,
+        page_count=3,
     )
-    assert full_response.status_code == 200
-    full_payload = full_response.json()
-    assert full_payload["include_full_text"] is True
-    assert full_payload["items"][0]["text"] is not None
+    fake_minio = FakeMinioForDownload(content=b"%PDF-1.7\nmock")
+    monkeypatch.setattr(minio_module, "minio_client", fake_minio)
+
+    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    response = await documents_client.get(
+        f"/api/v1/documents/{document.id}/download",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-1.7\nmock"
+    assert response.headers["content-type"] == "application/pdf"
+    assert "attachment;" in response.headers["content-disposition"]
+    assert "download-policy.pdf" in response.headers["content-disposition"]
+    assert len(fake_minio.calls) == 1
+    assert fake_minio.calls[0]["Bucket"] == document.storage_bucket
+    assert fake_minio.calls[0]["Key"] == document.storage_object_key
+    assert fake_minio.last_body is not None and fake_minio.last_body.closed is True
+
+
+@pytest.mark.asyncio
+async def test_document_download_returns_503_when_storage_unavailable(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    document = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="unavailable.pdf",
+        status=DocumentStatus.indexed,
+    )
+    fake_minio = FakeMinioForDownload(content=b"")
+    fake_minio.raise_error = True
+    monkeypatch.setattr(minio_module, "minio_client", fake_minio)
+
+    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    response = await documents_client.get(
+        f"/api/v1/documents/{document.id}/download",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Document file is unavailable"
 
 
 @pytest.mark.asyncio

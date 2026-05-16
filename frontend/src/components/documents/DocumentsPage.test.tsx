@@ -19,6 +19,7 @@ const mockApi = vi.hoisted(() => ({
   getDocumentChunks: vi.fn(),
   deleteDocument: vi.fn(),
   reindexDocument: vi.fn(),
+  downloadDocumentFile: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -37,6 +38,8 @@ vi.mock("@/lib/api/documents", () => ({
   getDocumentChunks: (documentId: string, options?: unknown) => mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
+  downloadDocumentFile: (documentId: string) =>
+    mockApi.downloadDocumentFile(documentId),
 }));
 
 function makeListResponse(status: "indexed" | "processing" = "indexed"): DocumentListResponse {
@@ -80,7 +83,15 @@ function renderPage() {
 }
 
 describe("DocumentsPage", () => {
+  const createObjectUrlMock = vi.fn(() => "blob:mock-url");
+  const revokeObjectUrlMock = vi.fn();
+
   beforeEach(() => {
+    createObjectUrlMock.mockClear();
+    revokeObjectUrlMock.mockClear();
+    URL.createObjectURL = createObjectUrlMock;
+    URL.revokeObjectURL = revokeObjectUrlMock;
+
     mockState.authState = {
       status: "authenticated",
       session: {
@@ -100,6 +111,7 @@ describe("DocumentsPage", () => {
     mockApi.uploadDocument.mockReset();
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
+    mockApi.downloadDocumentFile.mockReset();
 
     mockApi.listDocuments.mockResolvedValue(makeListResponse("indexed"));
     mockApi.getDocument.mockResolvedValue({
@@ -147,6 +159,7 @@ describe("DocumentsPage", () => {
       status: "processing",
       queue_status: "queued",
     });
+    mockApi.downloadDocumentFile.mockResolvedValue(new Blob(["pdf-bytes"]));
   });
 
   it("shows read-only state for viewer role and disables mutation actions", async () => {
@@ -207,5 +220,19 @@ describe("DocumentsPage", () => {
       expect(mockApi.uploadDocument).toHaveBeenCalledTimes(1);
     });
     expect(mockApi.uploadDocument).toHaveBeenCalledWith(expect.any(File));
+  });
+
+  it("downloads a document file from list actions", async () => {
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    await userEvent.click(screen.getByRole("button", { name: "Download" }));
+
+    await waitFor(() => {
+      expect(mockApi.downloadDocumentFile).toHaveBeenCalledTimes(1);
+    });
+    expect(mockApi.downloadDocumentFile).toHaveBeenCalledWith("doc-1");
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
   });
 });

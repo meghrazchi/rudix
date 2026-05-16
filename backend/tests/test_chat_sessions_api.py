@@ -315,3 +315,115 @@ async def test_get_chat_session_rejects_inaccessible_sessions(
     )
     assert invalid_id_response.status_code == 404
     assert invalid_id_response.json()["detail"] == "Chat session not found"
+
+
+@pytest.mark.asyncio
+async def test_list_chat_session_messages_returns_history_for_accessible_session(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    chat_session = await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="History Session",
+    )
+    await repository.create_chat_message(
+        db_session,
+        chat_session_id=chat_session.id,
+        role="user",
+        content="What changed?",
+    )
+    assistant_message = await repository.create_chat_message(
+        db_session,
+        chat_session_id=chat_session.id,
+        role="assistant",
+        content="The policy was updated in May 2026.",
+        confidence_score=0.81,
+    )
+    await repository.create_chat_message(
+        db_session,
+        chat_session_id=chat_session.id,
+        role="assistant",
+        content="Secondary note",
+        confidence_score=0.55,
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.get(
+        f"/api/v1/chat/sessions/{chat_session.id}/messages",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        params={"limit": 2, "offset": 0},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 3
+    assert payload["limit"] == 2
+    assert payload["offset"] == 0
+    assert len(payload["items"]) == 2
+    assert payload["items"][0]["role"] == "user"
+    assert payload["items"][0]["content"] == "What changed?"
+    assert payload["items"][0]["confidence_category"] is None
+    assert payload["items"][1]["message_id"] == str(assistant_message.id)
+    assert payload["items"][1]["role"] == "assistant"
+    assert payload["items"][1]["confidence_category"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_list_chat_session_messages_rejects_inaccessible_sessions(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, other_organization = await _seed_principal(db_session)
+    other_user_same_org = await _seed_user_for_org(db_session, organization=organization)
+    other_user_other_org = await _seed_user_for_org(db_session, organization=other_organization)
+
+    same_org_other_user_session = await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=other_user_same_org.id,
+        title="Blocked Session",
+    )
+    other_org_session = await repository.create_chat_session(
+        db_session,
+        organization_id=other_organization.id,
+        user_id=other_user_other_org.id,
+        title="Blocked Org Session",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    same_org_response = await chat_sessions_client.get(
+        f"/api/v1/chat/sessions/{same_org_other_user_session.id}/messages",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert same_org_response.status_code == 404
+    assert same_org_response.json()["detail"] == "Chat session not found"
+
+    other_org_response = await chat_sessions_client.get(
+        f"/api/v1/chat/sessions/{other_org_session.id}/messages",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert other_org_response.status_code == 404
+    assert other_org_response.json()["detail"] == "Chat session not found"
+
+    invalid_id_response = await chat_sessions_client.get(
+        "/api/v1/chat/sessions/not-a-uuid/messages",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert invalid_id_response.status_code == 404
+    assert invalid_id_response.json()["detail"] == "Chat session not found"

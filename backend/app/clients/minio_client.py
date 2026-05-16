@@ -46,6 +46,25 @@ def close_minio() -> None:
         logger.info("minio.close")
 
 
+def get_minio_client(*, lazy_init: bool = True) -> Any | None:
+    """Return active MinIO client, optionally attempting a lazy initialization."""
+    if minio_client is not None:
+        return minio_client
+    if not lazy_init:
+        return None
+    try:
+        init_minio()
+    except Exception as exc:
+        logger.warning(
+            "minio.lazy_init.failed",
+            endpoint=str(settings.minio_endpoint),
+            bucket=settings.minio_bucket,
+            error=exc.__class__.__name__,
+        )
+        return None
+    return minio_client
+
+
 def check_minio_health() -> bool:
     if minio_client is None:
         return False

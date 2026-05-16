@@ -87,10 +87,7 @@ class EmbeddingService:
         if self._openai_client is None:
             if settings.openai_api_key is None:
                 raise PermanentEmbeddingError("openai_api_key is not configured")
-            timeout_seconds = max(
-                settings.dependency_connect_timeout_seconds,
-                settings.dependency_read_timeout_seconds,
-            )
+            timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
             self._openai_client = AsyncOpenAI(
                 api_key=settings.openai_api_key.get_secret_value(),
                 timeout=timeout_seconds,

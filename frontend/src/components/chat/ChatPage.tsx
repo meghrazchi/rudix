@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import {
+  listChatSessionMessages,
   listChatSessions,
   queryChat,
   type ChatCitationResponse,
+  type ChatSessionMessageResponse,
   type ChatQueryRequest,
   type ChatQueryResponse,
 } from "@/lib/api/chat";
@@ -43,7 +45,14 @@ const DEFAULT_TOP_K = Math.min(
 
 type ChatTurn = {
   question: string;
-  response: ChatQueryResponse;
+  response: {
+    message_id: string;
+    answer: string;
+    confidence_score: number;
+    confidence_category: "low" | "medium" | "high";
+    citations: ChatCitationResponse[];
+    created_at: string;
+  };
 };
 
 function formatDate(value: string): string {
@@ -80,6 +89,51 @@ function confidenceBadgeClass(confidence: ChatQueryResponse["confidence_category
 
 function activeThreadKey(sessionId: string | null): string {
   return sessionId ?? DRAFT_SESSION_KEY;
+}
+
+function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["response"] {
+  return {
+    message_id: response.message_id,
+    answer: response.answer,
+    confidence_score: response.confidence_score,
+    confidence_category: response.confidence_category,
+    citations: response.citations,
+    created_at: response.created_at,
+  };
+}
+
+function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): ChatTurn["response"] {
+  return {
+    message_id: message.message_id,
+    answer: message.content,
+    confidence_score: typeof message.confidence_score === "number" ? message.confidence_score : 0,
+    confidence_category: message.confidence_category ?? "low",
+    citations: message.citations,
+    created_at: message.created_at,
+  };
+}
+
+function buildTurnsFromSessionMessages(messages: ChatSessionMessageResponse[]): ChatTurn[] {
+  const turns: ChatTurn[] = [];
+  let lastUserQuestion: string | null = null;
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      lastUserQuestion = message.content;
+      continue;
+    }
+    if (message.role !== "assistant") {
+      continue;
+    }
+
+    turns.push({
+      question: lastUserQuestion ?? "Question unavailable.",
+      response: toTurnResponseFromHistoryMessage(message),
+    });
+    lastUserQuestion = null;
+  }
+
+  return turns;
 }
 
 function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
@@ -136,6 +190,38 @@ export function ChatPage() {
       }),
   });
 
+  const shouldLoadActiveSessionHistory =
+    activeSessionId !== null && (threadsBySession[activeThreadKey(activeSessionId)] ?? []).length === 0;
+
+  const sessionMessagesQuery = useQuery({
+    queryKey: queryKeys.chat.sessionMessages(activeSessionId ?? ""),
+    queryFn: () =>
+      listChatSessionMessages(activeSessionId ?? "", {
+        limit: 500,
+        offset: 0,
+      }),
+    enabled: shouldLoadActiveSessionHistory,
+  });
+
+  useEffect(() => {
+    if (!activeSessionId || !sessionMessagesQuery.data) {
+      return;
+    }
+
+    const threadKey = activeThreadKey(activeSessionId);
+    const hydratedTurns = buildTurnsFromSessionMessages(sessionMessagesQuery.data.items);
+    setThreadsBySession((previous) => {
+      const existing = previous[threadKey];
+      if (existing && existing.length > 0) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [threadKey]: hydratedTurns,
+      };
+    });
+  }, [activeSessionId, sessionMessagesQuery.data]);
+
   const indexedDocumentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
       status: "indexed",
@@ -179,7 +265,7 @@ export function ChatPage() {
       const previousThreadKey = activeThreadKey(payload.chat_session_id ?? null);
       const nextTurn: ChatTurn = {
         question: payload.question,
-        response,
+        response: toTurnResponseFromQuery(response),
       };
 
       setThreadsBySession((previous) => {
@@ -432,13 +518,17 @@ export function ChatPage() {
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Conversation</h2>
-            {activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
-              <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                This session has existing messages. Historical messages are not yet available in this view.
+            {sessionMessagesQuery.isLoading && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
+              <p className="text-sm text-[#68647b]">Loading session history...</p>
+            ) : null}
+
+            {sessionMessagesQuery.isError && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                Unable to load prior messages: {getApiErrorMessage(sessionMessagesQuery.error)}
               </p>
             ) : null}
 
-            {thread.length === 0 && !pendingQuestion ? (
+            {thread.length === 0 && !pendingQuestion && !sessionMessagesQuery.isLoading ? (
               <p className="text-sm text-[#68647b]">
                 No messages yet. Submit a question to start the conversation.
               </p>

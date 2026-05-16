@@ -94,6 +94,8 @@ export const queryKeys = {
   chat: {
     sessions: ["chat", "sessions"] as const,
     session: (sessionId: string) => ["chat", "session", sessionId] as const,
+    sessionMessages: (sessionId: string) =>
+      ["chat", "session-messages", sessionId] as const,
   },
   evaluations: {
     sets: ["evaluations", "sets"] as const,

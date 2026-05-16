@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Coroutine
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +35,7 @@ from app.domains.documents.services.text_normalization import (
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 from app.models.enums import DocumentStatus
+from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
@@ -47,7 +47,6 @@ _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService()
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
-_worker_loop: asyncio.AbstractEventLoop | None = None
 
 
 def _safe_duration_ms(*, started_at: datetime, ended_at: datetime) -> int:
@@ -265,17 +264,8 @@ def _parse_uuid(value: str) -> UUID:
     return UUID(value)
 
 
-def _get_worker_loop() -> asyncio.AbstractEventLoop:
-    global _worker_loop
-    if _worker_loop is None or _worker_loop.is_closed():
-        _worker_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_worker_loop)
-    return _worker_loop
-
-
 def _run[T](coro: Coroutine[Any, Any, T]) -> T:
-    loop = _get_worker_loop()
-    return loop.run_until_complete(coro)
+    return run_async(coro)
 
 
 def _parse_optional_uuid(value: str | None) -> UUID | None:
@@ -344,7 +334,7 @@ def _record_worker_audit(
 
 
 def _read_object_bytes(*, bucket: str, object_key: str) -> bytes:
-    minio = minio_module.minio_client
+    minio = minio_module.get_minio_client()
     if minio is None:
         raise TransientTaskError("Object storage is unavailable")
 
@@ -385,7 +375,7 @@ def _object_key_prefix(object_key: str) -> str:
 
 
 def _delete_objects_by_prefix(*, bucket: str, prefix: str) -> int:
-    minio = minio_module.minio_client
+    minio = minio_module.get_minio_client()
     if minio is None:
         raise TransientTaskError("Object storage is unavailable")
 
