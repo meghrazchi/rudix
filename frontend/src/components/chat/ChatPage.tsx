@@ -188,6 +188,7 @@ export function ChatPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const lastAppliedSessionIdRef = useRef<string | null>(null);
+  const lastAppliedDocumentIdRef = useRef<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
@@ -285,6 +286,27 @@ export function ChatPage() {
     () => selectedDocumentIds.filter((documentId) => indexedDocumentIdSet.has(documentId)),
     [selectedDocumentIds, indexedDocumentIdSet],
   );
+
+  useEffect(() => {
+    const documentIdFromQuery = searchParams.get("document_id");
+    if (!documentIdFromQuery) {
+      lastAppliedDocumentIdRef.current = null;
+      return;
+    }
+    if (lastAppliedDocumentIdRef.current === documentIdFromQuery) {
+      return;
+    }
+    if (!indexedDocumentIdSet.has(documentIdFromQuery)) {
+      return;
+    }
+    setSelectedDocumentIds((previous) => {
+      if (previous.includes(documentIdFromQuery)) {
+        return previous;
+      }
+      return [documentIdFromQuery, ...previous.filter((value) => indexedDocumentIdSet.has(value))];
+    });
+    lastAppliedDocumentIdRef.current = documentIdFromQuery;
+  }, [indexedDocumentIdSet, searchParams]);
 
   const activeSession = sessionsQuery.data?.items.find((item) => item.session_id === activeSessionId) ?? null;
   const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];

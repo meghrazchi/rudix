@@ -8,8 +8,12 @@ import type { DocumentListResponse } from "@/lib/api/documents";
 import { normalizeApiError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockNavigation.searchParams,
 }));
 
 const mockState = vi.hoisted(() => ({
@@ -104,6 +108,7 @@ describe("DocumentsPage", () => {
   const revokeObjectUrlMock = vi.fn();
 
   beforeEach(() => {
+    mockNavigation.searchParams = new URLSearchParams();
     createObjectUrlMock.mockClear();
     revokeObjectUrlMock.mockClear();
     URL.createObjectURL = createObjectUrlMock;

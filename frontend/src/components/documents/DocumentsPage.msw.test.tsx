@@ -9,8 +9,12 @@ import { setupServer } from "msw/node";
 import { DocumentsPage } from "@/components/documents/DocumentsPage";
 import type { SessionState } from "@/lib/auth-session";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+}));
+
 vi.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockNavigation.searchParams,
 }));
 
 const apiBaseUrl = "http://api.test";
@@ -94,6 +98,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  mockNavigation.searchParams = new URLSearchParams();
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   mockState.authState = {
     status: "authenticated",

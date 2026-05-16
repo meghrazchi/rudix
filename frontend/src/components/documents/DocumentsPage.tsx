@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -64,6 +65,36 @@ const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
   { value: "status", label: "Status" },
 ];
 
+function parseStatusFilter(value: string | null): StatusFilter {
+  if (!value) {
+    return "all";
+  }
+  const supported: DocumentStatus[] = ["uploaded", "processing", "indexed", "failed", "deleting", "deleted"];
+  return supported.includes(value as DocumentStatus) ? (value as DocumentStatus) : "all";
+}
+
+function parseSortBy(value: string | null): DocumentSortBy {
+  if (value === "updated_at" || value === "filename" || value === "status") {
+    return value;
+  }
+  return "created_at";
+}
+
+function parseSortOrder(value: string | null): SortOrder {
+  return value === "asc" ? "asc" : "desc";
+}
+
+function parseOffset(value: string | null): number {
+  if (!value) {
+    return 0;
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+  return parsed;
+}
+
 function formatDate(value: string): string {
   try {
     return new Date(value).toLocaleString();
@@ -116,10 +147,10 @@ export function DocumentsPage() {
   const { state } = useAuthSession();
   const capabilities = resolveDocumentCapabilities(state.session?.role);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [sortBy, setSortBy] = useState<DocumentSortBy>("created_at");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-  const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => parseStatusFilter(searchParams.get("status")));
+  const [sortBy, setSortBy] = useState<DocumentSortBy>(() => parseSortBy(searchParams.get("sort_by")));
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => parseSortOrder(searchParams.get("sort_order")));
+  const [offset, setOffset] = useState(() => parseOffset(searchParams.get("offset")));
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [chunksOffset, setChunksOffset] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -286,6 +317,31 @@ export function DocumentsPage() {
 
   const canGoPrevChunks = chunksOffset > 0;
   const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
+
+  const currentListHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") {
+      params.set("status", statusFilter);
+    }
+    params.set("sort_by", sortBy);
+    params.set("sort_order", sortOrder);
+    if (offset > 0) {
+      params.set("offset", String(offset));
+    }
+    const serialized = params.toString();
+    return serialized ? `/documents?${serialized}` : "/documents";
+  }, [offset, sortBy, sortOrder, statusFilter]);
+
+  useEffect(() => {
+    const nextStatus = parseStatusFilter(searchParams.get("status"));
+    const nextSortBy = parseSortBy(searchParams.get("sort_by"));
+    const nextSortOrder = parseSortOrder(searchParams.get("sort_order"));
+    const nextOffset = parseOffset(searchParams.get("offset"));
+    setStatusFilter(nextStatus);
+    setSortBy(nextSortBy);
+    setSortOrder(nextSortOrder);
+    setOffset(nextOffset);
+  }, [searchParams]);
 
   useEffect(() => {
     const documentIdFromQuery = searchParams.get("document_id");
@@ -530,6 +586,12 @@ export function DocumentsPage() {
                           >
                             Inspect
                           </button>
+                          <Link
+                            href={`/documents/${encodeURIComponent(document.document_id)}?back=${encodeURIComponent(currentListHref)}`}
+                            className="rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                          >
+                            View detail
+                          </Link>
                           <button
                             type="button"
                             disabled={!downloadEnabled || downloadBusy}

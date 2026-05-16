@@ -1,0 +1,447 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import type { DocumentDetailResponse, DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
+import { deleteDocument, getDocument, getDocumentStatus, reindexDocument } from "@/lib/api/documents";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
+import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
+import {
+  canDeleteDocument,
+  canReindexDocument,
+  resolveDocumentCapabilities,
+  shouldPollDocumentStatus,
+} from "@/lib/documents-ui";
+import { extractRequestIdFromError } from "@/lib/forbidden";
+import { useAuthSession } from "@/lib/use-auth-session";
+
+type DocumentDetailPageProps = {
+  documentId: string;
+};
+
+type TimelineStepState = "completed" | "active" | "pending" | "failed";
+
+type TimelineStep = {
+  key: string;
+  label: string;
+  description: string;
+  state: TimelineStepState;
+  timestamp: string | null;
+};
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
+function statusBadge(status: DocumentStatus): string {
+  if (status === "indexed") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "processing") {
+    return "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-blue-800";
+  }
+  if (status === "uploaded") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  }
+  if (status === "failed") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "deleting") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
+  }
+  if (status === "deleted") {
+    return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function timelineStepClass(state: TimelineStepState): string {
+  if (state === "completed") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  }
+  if (state === "active") {
+    return "border-blue-200 bg-blue-50 text-blue-900";
+  }
+  if (state === "failed") {
+    return "border-rose-200 bg-rose-50 text-rose-900";
+  }
+  return "border-[#e4e1f2] bg-[#faf9ff] text-[#5f5a74]";
+}
+
+function buildLifecycleTimeline(status: DocumentStatus, detail: DocumentDetailResponse): TimelineStep[] {
+  const createdAt = detail.created_at;
+  const updatedAt = detail.updated_at;
+  const isTerminal = status === "indexed" || status === "failed" || status === "deleted";
+
+  return [
+    {
+      key: "uploaded",
+      label: "Uploaded",
+      description: "Document metadata accepted and queued for processing.",
+      state: "completed",
+      timestamp: createdAt,
+    },
+    {
+      key: "processing",
+      label: "Processing",
+      description: "Extraction, chunking, and embedding generation.",
+      state:
+        status === "processing"
+          ? "active"
+          : status === "uploaded"
+            ? "pending"
+            : "completed",
+      timestamp: status === "processing" || isTerminal ? updatedAt : null,
+    },
+    {
+      key: "indexed",
+      label: "Indexed",
+      description: "Ready for retrieval and chat queries.",
+      state:
+        status === "indexed"
+          ? "completed"
+          : status === "failed"
+            ? "failed"
+            : status === "deleted" || status === "deleting"
+              ? "completed"
+              : "pending",
+      timestamp: status === "indexed" || status === "deleted" || status === "deleting" ? updatedAt : null,
+    },
+    {
+      key: "failed",
+      label: "Failed",
+      description: "Processing stopped due to a recoverable or terminal error.",
+      state: status === "failed" ? "failed" : "pending",
+      timestamp: status === "failed" ? updatedAt : null,
+    },
+    {
+      key: "deleting",
+      label: "Deleting",
+      description: "Deletion queued or currently in progress.",
+      state: status === "deleting" ? "active" : status === "deleted" ? "completed" : "pending",
+      timestamp: status === "deleting" || status === "deleted" ? updatedAt : null,
+    },
+    {
+      key: "deleted",
+      label: "Deleted",
+      description: "Document removed from active organization access.",
+      state: status === "deleted" ? "completed" : "pending",
+      timestamp: status === "deleted" ? updatedAt : null,
+    },
+  ];
+}
+
+function deriveDetailStatus(detail: DocumentDetailResponse, liveStatus: DocumentStatusResponse | undefined): DocumentStatus {
+  return liveStatus?.status ?? detail.status;
+}
+
+function isSafeNotFoundError(error: unknown): boolean {
+  if (!isApiClientError(error)) {
+    return false;
+  }
+  return error.status === 403 || error.status === 404;
+}
+
+export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
+  const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const { state } = useAuthSession();
+  const capabilities = resolveDocumentCapabilities(state.session?.role);
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null);
+  const [actionRequestId, setActionRequestId] = useState<string | null>(null);
+
+  const detailQuery = useQuery({
+    queryKey: queryKeys.documents.detail(documentId),
+    queryFn: () => getDocument(documentId),
+  });
+
+  const statusQuery = useQuery({
+    queryKey: queryKeys.documents.status(documentId),
+    queryFn: () => getDocumentStatus(documentId),
+    enabled: detailQuery.isSuccess,
+    refetchInterval: (query) => {
+      const data = query.state.data as DocumentStatusResponse | undefined;
+      if (!data) {
+        return false;
+      }
+      return shouldPollDocumentStatus(data.status) ? 4_000 : false;
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteDocument(documentId),
+    onSuccess: async (result) => {
+      setActionFeedback(`Delete requested. Current status: ${result.status}.`);
+      setActionRequestId(null);
+      await invalidateAfterMutation(queryClient, "document.delete");
+      await detailQuery.refetch();
+      await statusQuery.refetch();
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const reindexMutation = useMutation({
+    mutationFn: () => reindexDocument(documentId),
+    onSuccess: async (result) => {
+      setActionFeedback(`Re-index requested. Queue status: ${result.queue_status}.`);
+      setActionRequestId(null);
+      await invalidateAfterMutation(queryClient, "document.reindex");
+      await detailQuery.refetch();
+      await statusQuery.refetch();
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const safeBackHrefRaw = searchParams.get("back");
+  const safeBackHref =
+    safeBackHrefRaw && safeBackHrefRaw.startsWith("/documents")
+      ? safeBackHrefRaw
+      : "/documents";
+
+  const detail = detailQuery.data;
+  const currentStatus = detail ? deriveDetailStatus(detail, statusQuery.data) : null;
+  const lifecycle = useMemo(
+    () => (detail && currentStatus ? buildLifecycleTimeline(currentStatus, detail) : []),
+    [currentStatus, detail],
+  );
+
+  const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error) || isSafeNotFoundError(statusQuery.error);
+  const canDelete = Boolean(currentStatus && capabilities.canDelete && canDeleteDocument(currentStatus));
+  const canReindex = Boolean(currentStatus && capabilities.canReindex && canReindexDocument(currentStatus));
+  const canAskInChat = currentStatus === "indexed";
+
+  return (
+    <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
+      <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Document Detail</p>
+        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Document Metadata and Lifecycle</h1>
+        <p className="text-sm text-[#68647b]">
+          Review document processing status, metadata, structured errors, and lifecycle actions.
+        </p>
+      </header>
+
+      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-[#2a2640]">Overview</h2>
+          <Link
+            href={safeBackHref}
+            className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+          >
+            Back to documents
+          </Link>
+        </div>
+
+        {detailQuery.isLoading ? (
+          <p className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]">
+            Loading document detail...
+          </p>
+        ) : null}
+
+        {notFoundOrInaccessible ? (
+          <div className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-6 text-center">
+            <p className="text-base font-semibold text-[#2a2640]">Document not found</p>
+            <p className="mt-1 text-sm text-[#68647b]">
+              The requested document was not found or is not accessible in your current organization context.
+            </p>
+          </div>
+        ) : null}
+
+        {!detailQuery.isLoading && detailQuery.isError && !notFoundOrInaccessible ? (
+          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
+            <p>{getApiErrorMessage(detailQuery.error)}</p>
+            <button
+              type="button"
+              onClick={() => {
+                void detailQuery.refetch();
+                void statusQuery.refetch();
+              }}
+              className="mt-3 rounded border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-800"
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {detail && currentStatus && !notFoundOrInaccessible ? (
+          <div className="mt-4 space-y-4">
+            {actionFeedback ? (
+              <p
+                role="status"
+                className="rounded-lg border border-[#ddd7f6] bg-[#f3f1ff] px-3 py-2 text-sm text-[#3f3778]"
+              >
+                {actionFeedback}
+                {actionRequestId ? ` (Trace ID: ${actionRequestId})` : ""}
+              </p>
+            ) : null}
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard label="Filename" value={detail.filename} />
+              <MetricCard label="File type" value={detail.file_type.toUpperCase()} />
+              <MetricCard label="Status" value={currentStatus} valueClass={statusBadge(currentStatus)} plain={false} />
+              <MetricCard label="Checksum" value={detail.checksum ?? "-"} mono />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard label="Pages" value={detail.page_count ?? "-"} />
+              <MetricCard label="Chunks" value={detail.chunk_count} />
+              <MetricCard label="Created" value={formatDate(detail.created_at)} />
+              <MetricCard label="Updated" value={formatDate(detail.updated_at)} />
+            </div>
+
+            {detail.error_message ? (
+              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
+                <p className="font-semibold">Processing error</p>
+                <p className="mt-1">{detail.error_message}</p>
+                {detail.error_details ? (
+                  <ul className="mt-2 space-y-1 text-xs">
+                    <li>
+                      <span className="font-semibold">Stage:</span> {detail.error_details.stage}
+                    </li>
+                    <li>
+                      <span className="font-semibold">Code:</span> {detail.error_details.code}
+                    </li>
+                    <li>
+                      <span className="font-semibold">Category:</span> {detail.error_details.category}
+                    </li>
+                    <li>
+                      <span className="font-semibold">Retryable:</span> {detail.error_details.retryable ? "yes" : "no"}
+                    </li>
+                    <li>
+                      <span className="font-semibold">Message:</span> {detail.error_details.message}
+                    </li>
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+
+            <section>
+              <h3 className="mb-2 text-base font-bold text-[#2a2640]">Lifecycle timeline</h3>
+              <ol className="space-y-2">
+                {lifecycle.map((step) => (
+                  <li
+                    key={step.key}
+                    className={`rounded-lg border px-3 py-3 text-sm ${timelineStepClass(step.state)}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold">{step.label}</p>
+                      <p className="text-xs">{step.timestamp ? formatDate(step.timestamp) : "-"}</p>
+                    </div>
+                    <p className="mt-1 text-xs">{step.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+
+            <section>
+              <h3 className="mb-2 text-base font-bold text-[#2a2640]">Actions</h3>
+              <div className="flex flex-wrap gap-2">
+                {canAskInChat ? (
+                  <Link
+                    href={`/chat?document_id=${encodeURIComponent(documentId)}`}
+                    className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                  >
+                    Ask in Chat
+                  </Link>
+                ) : (
+                  <span className="rounded border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
+                    Ask in Chat
+                  </span>
+                )}
+                <Link
+                  href={`/rag-pipeline?document_id=${encodeURIComponent(documentId)}`}
+                  className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                >
+                  View Pipeline
+                </Link>
+                {capabilities.canDelete ? (
+                  <button
+                    type="button"
+                    disabled={!canDelete || deleteMutation.isPending}
+                    onClick={() => {
+                      setActionFeedback(null);
+                      setActionRequestId(null);
+                      void deleteMutation.mutateAsync();
+                    }}
+                    className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                  </button>
+                ) : null}
+                {capabilities.canReindex ? (
+                  <button
+                    type="button"
+                    disabled={!canReindex || reindexMutation.isPending}
+                    onClick={() => {
+                      setActionFeedback(null);
+                      setActionRequestId(null);
+                      void reindexMutation.mutateAsync();
+                    }}
+                    className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {reindexMutation.isPending ? "Queueing..." : "Re-index"}
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          </div>
+        ) : null}
+      </section>
+    </section>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  valueClass,
+  plain = true,
+  mono = false,
+}: {
+  label: string;
+  value: string | number;
+  valueClass?: string;
+  plain?: boolean;
+  mono?: boolean;
+}) {
+  if (!plain && valueClass) {
+    return (
+      <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+        <span className={valueClass}>{value}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+      <p
+        className="text-sm font-semibold text-[#2a2640]"
+        style={
+          mono
+            ? { fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace" }
+            : undefined
+        }
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
