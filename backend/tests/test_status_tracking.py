@@ -22,12 +22,12 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
 from app.workers import status_tracking
 
 

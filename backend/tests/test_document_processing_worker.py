@@ -29,6 +29,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.clients import minio_client as minio_module
 from app.core.config import settings
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
@@ -36,7 +37,6 @@ from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
 from app.workers import document_tasks
 from app.workers.base_task import PermanentTaskError, TransientTaskError
 

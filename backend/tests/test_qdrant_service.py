@@ -23,7 +23,7 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
-from app.services.qdrant_service import QdrantService
+from app.domains.documents.services.qdrant_service import QdrantService
 
 
 @dataclass

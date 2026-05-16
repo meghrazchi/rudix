@@ -1,4 +1,4 @@
-from app.services.pipeline_event_service import sanitize_pipeline_payload
+from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 
 
 def test_sanitize_pipeline_payload_redacts_sensitive_fields_and_truncates_text() -> None:

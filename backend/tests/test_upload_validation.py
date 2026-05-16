@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from app.services.upload_validation import validate_upload
+from app.domains.documents.services.upload_validation import validate_upload
 
 
 def test_validate_upload_accepts_pdf() -> None:

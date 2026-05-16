@@ -26,16 +26,16 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.core.config import settings
+from app.domains.chat.services.llm_service import ParsedCitation
+from app.domains.chat.services.query_retrieval_service import RetrievedCandidate
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
 from app.models.evaluation import EvaluationResult, EvaluationRun
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
-from app.repositories.evaluations import EvaluationRepository
-from app.services.llm_service import ParsedCitation
-from app.services.query_retrieval_service import RetrievedCandidate
 from app.workers import evaluation_tasks
 
 

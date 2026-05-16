@@ -1,6 +1,7 @@
+from urllib.parse import urlsplit
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from urllib.parse import urlsplit
 
 from app.api.router import api_router
 from app.core.config import settings

@@ -26,7 +26,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.core.config import settings
-from app.services.query_retrieval_service import QueryRetrievalService
+from app.domains.chat.services.query_retrieval_service import QueryRetrievalService
 
 
 class FakeEmbeddingsEndpoint:

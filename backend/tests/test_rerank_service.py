@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.rerank_service import RerankCandidate, RerankService
+from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
 
 
 def test_rerank_disabled_returns_similarity_order_without_rerank_fields() -> None:

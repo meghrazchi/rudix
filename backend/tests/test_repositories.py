@@ -5,15 +5,13 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.admin.repositories.usage import UsageRepository
+from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.models import Organization, OrganizationMember, User
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
-from app.repositories import (
-    ChatRepository,
-    DocumentRepository,
-    EvaluationRepository,
-    PipelineRepository,
-    UsageRepository,
-)
 
 
 @pytest.fixture

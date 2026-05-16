@@ -17,22 +17,25 @@ from app.core.document_errors import (
 )
 from app.core.logging import log_document_event
 from app.db.session import SessionLocal
-from app.models.enums import DocumentStatus
-from app.repositories.documents import DocumentRepository
-from app.repositories.pipeline import PipelineRepository
-from app.repositories.usage import UsageRepository
-from app.services.audit_service import AuditLogService
-from app.services.chunking_service import ChunkingService
-from app.services.embedding_service import (
+from app.domains.admin.repositories.usage import UsageRepository
+from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.documents.services.chunking_service import ChunkingService
+from app.domains.documents.services.embedding_service import (
     EmbeddingResult,
     EmbeddingService,
     PermanentEmbeddingError,
     TransientEmbeddingError,
 )
-from app.services.pipeline_event_service import sanitize_pipeline_payload
-from app.services.qdrant_service import QdrantService
-from app.services.text_extraction import extract_text_sections
-from app.services.text_normalization import TextCleaningStats, clean_extracted_sections
+from app.domains.documents.services.qdrant_service import QdrantService
+from app.domains.documents.services.text_extraction import extract_text_sections
+from app.domains.documents.services.text_normalization import (
+    TextCleaningStats,
+    clean_extracted_sections,
+)
+from app.domains.pipeline.repositories.pipeline import PipelineRepository
+from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
+from app.models.enums import DocumentStatus
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
@@ -1162,7 +1165,7 @@ class DocumentTask(RudixTask):
             return
 
 
-@celery_app.task(name="documents.process", bind=True, base=DocumentTask)
+@celery_app.task(name="documents.process", bind=True, base=DocumentTask, ignore_result=True)
 def process_document(
     self: DocumentTask,
     document_id: str,
@@ -1269,7 +1272,7 @@ def process_document(
     }
 
 
-@celery_app.task(name="documents.delete", bind=True, base=DocumentTask)
+@celery_app.task(name="documents.delete", bind=True, base=DocumentTask, ignore_result=True)
 def delete_document(
     self: DocumentTask,
     document_id: str,
@@ -1346,7 +1349,7 @@ def delete_document(
     return {"document_id": document_id, "status": DocumentStatus.deleted.value}
 
 
-@celery_app.task(name="documents.reindex", bind=True, base=DocumentTask)
+@celery_app.task(name="documents.reindex", bind=True, base=DocumentTask, ignore_result=True)
 def reindex_document(
     self: DocumentTask,
     document_id: str,

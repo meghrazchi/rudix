@@ -23,7 +23,7 @@ os.environ.setdefault("CLERK_JWT_ISSUER", "https://clerk.example.com")
 os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.main import app
-from app.schemas.common import HealthDependency
+from app.shared.schemas.common import HealthDependency
 
 
 def _ok_dependency() -> HealthDependency:

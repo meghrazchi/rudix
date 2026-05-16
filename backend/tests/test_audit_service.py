@@ -6,12 +6,12 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
-from app.services.audit_service import AuditLogService, sanitize_metadata
 
 
 async def _seed_org_user(db_session: AsyncSession) -> tuple[UUID, UUID]:

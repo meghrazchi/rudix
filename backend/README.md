@@ -5,6 +5,7 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 ## Includes
 
 - FastAPI app structure with versioned API routers.
+- Domain-driven backend structure under `app/domains/*` (admin, auth, chat, documents, evaluations, pipeline).
 - Strict environment-based configuration and fail-fast validation.
 - SQLAlchemy async database foundation and Alembic scaffold.
 - Celery worker scaffold with RabbitMQ/Redis wiring.
@@ -104,7 +105,18 @@ Current endpoint authorization:
 - `evaluations` (POST): `owner|admin`
 - `admin/usage` and `admin/audit-logs`: `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
-- Retrieval-side qdrant filters must include `organization_id` (see `app/services/qdrant_filters.py`).
+- Retrieval-side qdrant filters must include `organization_id` (see `app/domains/documents/services/qdrant_filters.py`).
+
+## DDD layout
+
+- `app/domains/<domain>/api`: FastAPI transport adapters for that domain.
+- `app/domains/<domain>/repositories`: persistence adapters used by the domain/application logic.
+- `app/domains/<domain>/services`: domain/application services for business workflows.
+- `app/domains/<domain>/schemas`: transport DTOs for API request/response contracts.
+- `app/shared`: cross-domain shared artifacts (for example health schemas).
+- `app/api/router.py`: top-level composition root wiring domain routers.
+
+Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) were removed in favor of domain-local modules.
 
 ## Development commands
 

@@ -11,8 +11,8 @@ from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.document import Document
-from app.repositories.documents import DocumentRepository
 
 _document_repository = DocumentRepository()
 

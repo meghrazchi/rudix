@@ -23,7 +23,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.services.embedding_service import (
+from app.domains.documents.services.embedding_service import (
     EmbeddingService,
     PermanentEmbeddingError,
     TransientEmbeddingError,
@@ -175,7 +175,7 @@ async def test_embed_chunks_retries_transient_errors(monkeypatch: pytest.MonkeyP
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.services.embedding_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep)
 
     service = EmbeddingService(
         retry_max_attempts=3,
@@ -208,7 +208,7 @@ async def test_embed_chunks_raises_transient_after_retry_exhaustion(monkeypatch:
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.services.embedding_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep)
 
     service = EmbeddingService(
         retry_max_attempts=3,

@@ -30,12 +30,12 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.admin.repositories.usage import UsageRepository
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-from app.repositories.usage import UsageRepository
 
 
 @pytest_asyncio.fixture

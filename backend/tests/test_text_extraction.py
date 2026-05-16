@@ -6,7 +6,7 @@ import fitz
 import pytest
 from docx import Document as DocxDocument
 
-from app.services.text_extraction import extract_text_sections
+from app.domains.documents.services.text_extraction import extract_text_sections
 
 
 def _build_pdf_bytes(*, pages: list[str]) -> bytes:

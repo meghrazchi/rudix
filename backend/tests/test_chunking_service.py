@@ -23,8 +23,8 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.services.chunking_service import ChunkingService
-from app.services.text_extraction import ExtractedSection
+from app.domains.documents.services.chunking_service import ChunkingService
+from app.domains.documents.services.text_extraction import ExtractedSection
 
 
 @pytest.mark.asyncio

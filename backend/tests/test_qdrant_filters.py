@@ -1,7 +1,7 @@
 import pytest
 from qdrant_client.http.models import MatchAny, MatchValue
 
-from app.services.qdrant_filters import build_organization_filter
+from app.domains.documents.services.qdrant_filters import build_organization_filter
 
 
 def test_build_organization_filter_requires_organization_id() -> None:

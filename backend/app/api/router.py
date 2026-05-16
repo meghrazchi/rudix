@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends
 
-from app.api import admin, auth, chat, documents, evaluation_sets, evaluations, health, pipeline
 from app.auth.dependencies import get_current_principal
+from app.interfaces.http import admin, auth, chat, documents, evaluation_sets, evaluations, pipeline
+
+from . import health
 
 api_router = APIRouter()
 api_router.include_router(health.router)

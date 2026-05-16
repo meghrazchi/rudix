@@ -6,9 +6,9 @@ from typing import Any
 from uuid import UUID
 
 from app.db.session import SessionLocal
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.models.enums import DocumentStatus, EvaluationRunStatus
-from app.repositories.documents import DocumentRepository
-from app.repositories.evaluations import EvaluationRepository
 
 _document_repository = DocumentRepository()
 _evaluation_repository = EvaluationRepository()

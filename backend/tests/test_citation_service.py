@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from app.services.citation_service import CitationContextChunk, CitationService
-from app.services.llm_service import ParsedCitation
+from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
+from app.domains.chat.services.llm_service import ParsedCitation
 
 
 def _chunk(*, text: str = "Employees receive twenty days of annual leave.") -> CitationContextChunk:

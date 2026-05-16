@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.llm_service import (
+from app.domains.chat.services.llm_service import (
     LLMService,
     ParsedCitation,
     PermanentLLMServiceError,
@@ -117,7 +117,7 @@ async def test_generate_answer_retries_invalid_json_then_succeeds(monkeypatch: p
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.services.llm_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
 
     service = LLMService(retry_max_attempts=2, retry_base_seconds=0.1, retry_max_seconds=1.0)
 
@@ -198,7 +198,7 @@ async def test_generate_answer_retries_transient_provider_error(monkeypatch: pyt
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.services.llm_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
     service = LLMService(retry_max_attempts=2, retry_base_seconds=0.2, retry_max_seconds=1.0)
 
     result = await service.generate_answer(
@@ -243,7 +243,7 @@ async def test_generate_answer_raises_after_transient_retry_exhaustion(monkeypat
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.services.llm_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr("app.domains.chat.services.llm_service.asyncio.sleep", _fake_sleep)
     service = LLMService(retry_max_attempts=2, retry_base_seconds=0.3, retry_max_seconds=1.0)
 
     with pytest.raises(TransientLLMServiceError):

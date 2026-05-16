@@ -26,11 +26,13 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.api import evaluations as evaluations_api
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.interfaces.http import evaluations as evaluations_api
 from app.main import app
 from app.models.document import Document
 from app.models.enums import DocumentStatus, EvaluationRunStatus, OrganizationRole
@@ -39,8 +41,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
-from app.repositories.evaluations import EvaluationRepository
 
 
 class FakeTaskResult:

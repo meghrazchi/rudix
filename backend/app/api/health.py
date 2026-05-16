@@ -12,7 +12,7 @@ from app.clients.redis_client import check_redis_health
 from app.core.config import settings
 from app.core.sentry import capture_sentry_test_event
 from app.db.session import check_database_health
-from app.schemas.common import HealthDependency, HealthMetadataValue, HealthResponse
+from app.shared.schemas.common import HealthDependency, HealthMetadataValue, HealthResponse
 
 router = APIRouter(tags=["health"])
 READINESS_CHECK_TIMEOUT_SECONDS = 2.0

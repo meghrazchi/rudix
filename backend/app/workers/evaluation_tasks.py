@@ -14,22 +14,29 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 from app.core.logging import log_evaluation_event
 from app.db.session import SessionLocal
-from app.models.enums import EvaluationRunStatus
-from app.repositories.evaluations import EvaluationRepository
-from app.services.audit_service import AuditLogService
-from app.services.citation_service import CitationContextChunk, CitationService
-from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
-from app.services.evaluation_metrics_service import (
+from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
+from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.llm_service import (
+    LLMService,
+    PermanentLLMServiceError,
+    TransientLLMServiceError,
+)
+from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
+from app.domains.chat.services.query_retrieval_service import (
+    QueryRetrievalService,
+    RetrievedCandidate,
+)
+from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.domains.evaluations.services.evaluation_metrics_service import (
     EvaluationJudgeScores,
     EvaluationMetricOptions,
     EvaluationMetricsService,
     EvaluationQuestionMetrics,
     RetrievedMetricChunk,
 )
-from app.services.llm_service import LLMService, PermanentLLMServiceError, TransientLLMServiceError
-from app.services.prompt_service import PromptContextChunk, PromptService
-from app.services.query_retrieval_service import QueryRetrievalService, RetrievedCandidate
-from app.services.rerank_service import RerankCandidate, RerankService
+from app.models.enums import EvaluationRunStatus
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_evaluation_status, set_evaluation_status
@@ -890,7 +897,7 @@ class EvaluationTask(RudixTask):
             return
 
 
-@celery_app.task(name="evaluations.run", bind=True, base=EvaluationTask)
+@celery_app.task(name="evaluations.run", bind=True, base=EvaluationTask, ignore_result=True)
 def run_evaluation(
     self: EvaluationTask,
     evaluation_run_id: str,

@@ -1,4 +1,4 @@
-from app.services.prompt_service import PromptContextChunk, PromptService
+from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
 
 
 def test_build_prompt_snapshot_includes_grounding_rules_and_metadata() -> None:

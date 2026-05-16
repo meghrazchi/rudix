@@ -27,12 +27,14 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.api import chat as chat_api
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.chat.services.rerank_service import RerankService
+from app.domains.documents.repositories.documents import DocumentRepository
+from app.interfaces.http import chat as chat_api
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
@@ -42,8 +44,6 @@ from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
-from app.services.rerank_service import RerankService
 
 
 @dataclass

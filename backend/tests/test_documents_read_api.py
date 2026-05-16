@@ -29,13 +29,13 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.core.document_errors import build_document_error_details, encode_document_error
 from app.db.session import get_db_session
+from app.domains.documents.repositories.documents import DocumentRepository
 from app.main import app
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-from app.repositories.documents import DocumentRepository
 
 
 @pytest_asyncio.fixture

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from app.services.text_extraction import ExtractedSection
-from app.services.text_normalization import clean_extracted_sections, clean_page_text
+from app.domains.documents.services.text_extraction import ExtractedSection
+from app.domains.documents.services.text_normalization import (
+    clean_extracted_sections,
+    clean_page_text,
+)
 
 
 def test_clean_page_text_removes_null_bytes_and_invalid_control_characters() -> None:

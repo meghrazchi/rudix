@@ -28,12 +28,12 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.main import app
 from app.models.enums import EvaluationRunStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-from app.repositories.evaluations import EvaluationRepository
 
 
 @pytest_asyncio.fixture

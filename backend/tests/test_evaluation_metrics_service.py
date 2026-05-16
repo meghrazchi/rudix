@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from app.services.evaluation_metrics_service import (
+from app.domains.evaluations.services.evaluation_metrics_service import (
     EvaluationJudgeScores,
     EvaluationMetricOptions,
     EvaluationMetricsService,

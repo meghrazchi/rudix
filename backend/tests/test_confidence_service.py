@@ -1,4 +1,4 @@
-from app.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 
 
 def test_confidence_service_returns_high_for_strong_retrieval_and_valid_citations() -> None:

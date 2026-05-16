@@ -26,12 +26,12 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
-from app.api import documents as documents_api
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.clients import minio_client as minio_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.interfaces.http import documents as documents_api
 from app.main import app
 from app.models.document import Document
 from app.models.enums import OrganizationRole
