@@ -16,39 +16,45 @@ A typical flow looks like this:
 
 ```mermaid
 flowchart LR
-  subgraph Ingestion Pipeline (Async)
+  subgraph L["Ingestion Pipeline (Async)"]
     direction TB
-    A[Next.js Upload UI]
-    B[FastAPI /documents/upload]
-    C[MinIO object storage]
-    D[Celery worker via RabbitMQ]
-    E[Extract, clean, and chunk text]
-    F[OpenAI embeddings]
-    G[Qdrant vector upsert]
-    H[PostgreSQL metadata and status]
-    A --> B --> C --> D --> E --> F --> G
-    B --> H
-    E --> H
-    G --> H
+    U[Next.js /documents upload modal]
+    A[FastAPI POST /api/v1/documents/upload]
+    M[(MinIO object storage)]
+    R[(RabbitMQ)]
+    W[Celery documents.reindex worker]
+    X[Extract text (PyMuPDF or python-docx)]
+    C[Clean and chunk content]
+    E[OpenAI Embeddings API]
+    Q[(Qdrant vector collection)]
+    P[(PostgreSQL document metadata)]
+    S[FastAPI GET /api/v1/documents/:id/status]
+
+    U --> A --> M
+    A --> P
+    A --> R --> W --> X --> C --> E --> Q
+    W --> P
+    P --> S
   end
 
-  subgraph Query Pipeline (Realtime)
+  subgraph RQ["Query Pipeline (Realtime)"]
     direction TB
-    I[Next.js Chat UI]
-    J[FastAPI /chat]
-    K[OpenAI query embedding]
-    L[Qdrant retrieval with org filters]
-    M[Optional rerank]
-    N[OpenAI answer generation]
-    O[Return answer, citations, confidence, metadata]
-    P[Persist chat messages, citations, usage events in PostgreSQL]
-    I --> J --> K --> L --> M --> N --> O
-    N --> P
-    O --> P
+    UI[Next.js /chat]
+    CH[FastAPI POST /api/v1/chat]
+    DE[OpenAI query embedding]
+    RT[Qdrant retrieve org-scoped chunks]
+    RR[Optional rerank]
+    ANS[OpenAI grounded answer generation]
+    OUT[Answer plus citations, confidence, and trace id]
+    LOG[(PostgreSQL chat sessions plus usage and audit events)]
+
+    UI --> CH --> DE --> RT --> RR --> ANS --> OUT
+    CH --> LOG
+    ANS --> LOG
   end
 
-  H --> J
-  G --> L
+  Q --> RT
+  P --> CH
 ```
 
 Supported document types include:
