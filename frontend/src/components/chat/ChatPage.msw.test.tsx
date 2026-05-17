@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
@@ -12,6 +13,8 @@ const apiBaseUrl = "http://api.test";
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
 }));
+
+const chatPayloads: Array<{ chat_session_id: string | null; question: string }> = [];
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockNavigation.searchParams,
@@ -50,6 +53,58 @@ const server = setupServer(
       sort_by: "updated_at",
       sort_order: "desc",
     })),
+  http.post(`${apiBaseUrl}/chat/sessions`, async () =>
+    HttpResponse.json(
+      {
+        session_id: "session-new",
+        title: null,
+        message_count: 0,
+        created_at: "2026-05-15T10:10:00Z",
+        updated_at: "2026-05-15T10:10:00Z",
+      },
+      { status: 201 },
+    )),
+  http.post(`${apiBaseUrl}/chat`, async ({ request }) => {
+    const payload = (await request.json()) as { chat_session_id?: string; question?: string };
+    chatPayloads.push({
+      chat_session_id: payload.chat_session_id ?? null,
+      question: payload.question ?? "",
+    });
+    return HttpResponse.json({
+      chat_session_id: payload.chat_session_id ?? "session-new",
+      message_id: "msg-1",
+      answer: "MSW answer",
+      confidence_score: 0.81,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.8,
+        average_similarity: 0.7,
+        top_rerank_score: 0.75,
+        citation_support_score: 0.7,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.85,
+        retrieval_agreement_score: 0.8,
+        raw_score: 0.81,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 110 },
+        retrieval_count: 3,
+        selected_count: 2,
+        rerank_applied: true,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-05-15T10:12:00Z",
+    });
+  }),
 );
 
 function renderPage() {
@@ -82,6 +137,7 @@ afterAll(() => {
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   mockNavigation.searchParams = new URLSearchParams();
+  chatPayloads.length = 0;
 });
 
 describe("ChatPage sessions (MSW)", () => {
@@ -102,5 +158,34 @@ describe("ChatPage sessions (MSW)", () => {
 
     expect(await screen.findByText(/The service is temporarily unavailable/i)).toBeInTheDocument();
   });
-});
 
+  it("submits a new question and renders the successful response", async () => {
+    renderPage();
+
+    await screen.findByText("MSW Session");
+    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    await userEvent.type(textarea, "When did it start?");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("MSW answer")).toBeInTheDocument();
+    expect(chatPayloads.length).toBe(1);
+    expect(chatPayloads[0]?.chat_session_id).toBe("session-new");
+  });
+
+  it("preserves the draft question when submission fails", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/chat`, async () =>
+        HttpResponse.json({ detail: "upstream timeout" }, { status: 503 })),
+    );
+
+    renderPage();
+
+    await screen.findByText("MSW Session");
+    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    await userEvent.type(textarea, "Keep this draft");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Unable to complete the query.")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Keep this draft")).toBeInTheDocument();
+  });
+});

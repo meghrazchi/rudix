@@ -8,6 +8,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import {
+  createChatSession,
   listChatSessionMessages,
   listChatSessions,
   queryChat,
@@ -43,6 +44,7 @@ const DEFAULT_TOP_K = Math.min(
   Math.max(parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5), MIN_TOP_K),
   MAX_TOP_K,
 );
+const STREAMING_PLACEHOLDER_ENABLED = process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
 type ChatTurn = {
   question: string;
@@ -385,8 +387,13 @@ export function ChatPage() {
     },
   });
 
+  const createSessionMutation = useMutation({
+    mutationFn: () => createChatSession(),
+  });
+
   const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
-  const queryForbidden = isForbiddenError(queryMutation.error);
+  const composerError = queryMutation.error ?? createSessionMutation.error;
+  const composerForbidden = isForbiddenError(composerError);
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
@@ -409,8 +416,12 @@ export function ChatPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void submitQuestion();
+  }
+
+  async function submitQuestion() {
     const trimmedQuestion = question.trim();
-    if (!trimmedQuestion || queryMutation.isPending) {
+    if (!trimmedQuestion || queryMutation.isPending || createSessionMutation.isPending) {
       return;
     }
 
@@ -418,15 +429,36 @@ export function ChatPage() {
     setPendingQuestion(trimmedQuestion);
     setQuestion("");
 
+    let targetSessionId = activeSessionId;
+    if (!targetSessionId) {
+      try {
+        const createdSession = await createSessionMutation.mutateAsync();
+        targetSessionId = createdSession.session_id;
+        setActiveSessionId(createdSession.session_id);
+        replaceSessionParamInUrl(createdSession.session_id);
+      } catch (error) {
+        setSubmitRequestId(extractRequestIdFromError(error));
+        setPendingQuestion(null);
+        setQuestion(trimmedQuestion);
+        return;
+      }
+    }
+
     queryMutation.mutate({
       question: trimmedQuestion,
-      chat_session_id: activeSessionId,
+      chat_session_id: targetSessionId,
       document_ids:
         filteredSelectedDocumentIds.length > 0
           ? filteredSelectedDocumentIds
           : undefined,
       top_k: topK,
       rerank,
+    }, {
+      onError: (error) => {
+        setSubmitRequestId(extractRequestIdFromError(error));
+        setQuestion(trimmedQuestion);
+        setPendingQuestion(null);
+      },
     });
   }
 
@@ -595,6 +627,12 @@ export function ChatPage() {
               <textarea
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                    event.preventDefault();
+                    void submitQuestion();
+                  }
+                }}
                 rows={4}
                 placeholder="Ask a question about your selected documents..."
                 className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] outline-none ring-[#3525cd]/20 focus:ring"
@@ -607,28 +645,33 @@ export function ChatPage() {
                 </p>
                 <button
                   type="submit"
-                  disabled={queryMutation.isPending || question.trim().length === 0}
+                  disabled={queryMutation.isPending || createSessionMutation.isPending || question.trim().length === 0}
                   className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {queryMutation.isPending ? "Generating answer..." : "Ask"}
+                  {createSessionMutation.isPending
+                    ? "Starting session..."
+                    : queryMutation.isPending
+                      ? "Generating answer..."
+                      : "Ask"}
                 </button>
               </div>
+              <p className="text-xs text-[#6a6780]">Shortcut: Ctrl/Cmd + Enter to submit.</p>
             </form>
           </section>
 
-          {queryForbidden ? (
+          {composerForbidden ? (
             <ForbiddenState
               compact
               title="Query is not allowed"
               description="You do not have permission to query the selected documents in this organization."
-              requestId={extractRequestIdFromError(queryMutation.error)}
+              requestId={extractRequestIdFromError(composerError)}
             />
           ) : null}
 
-          {queryMutation.isError && !queryForbidden ? (
+          {composerError && !composerForbidden ? (
             <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <p className="font-semibold">Unable to complete the query.</p>
-              <p className="mt-1">{getApiErrorMessage(queryMutation.error)}</p>
+              <p className="mt-1">{getApiErrorMessage(composerError)}</p>
               {submitRequestId ? (
                 <p className="mt-1 text-xs">Trace ID: {submitRequestId}</p>
               ) : null}
@@ -712,7 +755,9 @@ export function ChatPage() {
                       <p className="text-sm text-[#2f2a46]">{pendingQuestion}</p>
                     </article>
                     <article className="rounded-xl border border-[#d7d4e8] bg-white p-3">
-                      <p className="text-sm text-[#68647b]">Generating answer...</p>
+                      <p className="text-sm text-[#68647b]">
+                        {STREAMING_PLACEHOLDER_ENABLED ? "Streaming response..." : "Generating answer..."}
+                      </p>
                     </article>
                   </li>
                 ) : null}

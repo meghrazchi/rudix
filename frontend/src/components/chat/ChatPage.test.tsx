@@ -5,7 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
-import { listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
+import { createChatSession, listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 
 const mockNavigation = vi.hoisted(() => ({
@@ -21,6 +21,7 @@ vi.mock("@/lib/api/documents", () => ({
 }));
 
 vi.mock("@/lib/api/chat", () => ({
+  createChatSession: vi.fn(),
   listChatSessionMessages: vi.fn(),
   listChatSessions: vi.fn(),
   queryChat: vi.fn(),
@@ -57,6 +58,35 @@ describe("ChatPage", () => {
       limit: 50,
       offset: 0,
     });
+    vi.mocked(createChatSession).mockResolvedValue({
+      session_id: "session-new",
+      title: null,
+      message_count: 0,
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: "2026-05-14T10:00:00Z",
+    });
+  });
+
+  it("prevents empty submissions in composer", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const askButton = screen.getByRole("button", { name: "Ask" });
+    expect(askButton).toBeDisabled();
+
+    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    await userEvent.type(textarea, "   ");
+    expect(askButton).toBeDisabled();
+    expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
   });
 
   it("shows empty sessions state with new-chat guidance", async () => {
@@ -154,6 +184,8 @@ describe("ChatPage", () => {
     await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "When is the policy active?");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
+    expect(vi.mocked(createChatSession)).toHaveBeenCalledTimes(1);
+
     expect(await screen.findByText("The policy is active as of May 2026.")).toBeInTheDocument();
     expect(screen.getByText("Low confidence warning: validate this answer against the cited source text.")).toBeInTheDocument();
     expect(screen.getByText("Policy became active in May 2026.")).toBeInTheDocument();
@@ -236,6 +268,83 @@ describe("ChatPage", () => {
       expect(screen.getByText("Unable to complete the query.")).toBeInTheDocument();
     });
     expect(screen.getByText("Service unavailable")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("hello")).toBeInTheDocument();
+  });
+
+  it("submits via Cmd/Ctrl+Enter and preserves failed draft for retry", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "indexed.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat)
+      .mockRejectedValueOnce(new Error("Temporary failure"))
+      .mockResolvedValueOnce({
+        chat_session_id: "session-new",
+        message_id: "msg-retry",
+        answer: "Recovered answer",
+        confidence_score: 0.72,
+        confidence_category: "medium",
+        confidence_explanation: {
+          top_similarity: 0.5,
+          average_similarity: 0.45,
+          top_rerank_score: 0.48,
+          citation_support_score: 0.6,
+          citation_validation_score: 0.9,
+          citation_coverage_score: 0.7,
+          retrieval_agreement_score: 0.65,
+          raw_score: 0.72,
+          citation_validation_multiplier: 1,
+          not_found_penalty_multiplier: 1,
+          no_context: false,
+          not_found_signal: false,
+          weights: {},
+          thresholds: {},
+        },
+        not_found: false,
+        citations: [],
+        debug: {
+          latencies_ms: { total: 100 },
+          retrieval_count: 3,
+          selected_count: 2,
+          rerank_applied: true,
+          embedding_model: "embed-model",
+          llm_model: "llm-model",
+        },
+        created_at: "2026-05-14T10:10:00Z",
+      });
+
+    renderPage();
+
+    await screen.findByText("indexed.pdf");
+    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    await userEvent.type(textarea, "retry me");
+    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+    await waitFor(() => {
+      expect(screen.getByText("Unable to complete the query.")).toBeInTheDocument();
+    });
+    expect(screen.getByDisplayValue("retry me")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    expect(await screen.findByText("Recovered answer")).toBeInTheDocument();
   });
 
   it("loads and renders messages from previous sessions", async () => {
