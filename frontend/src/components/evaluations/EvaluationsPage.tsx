@@ -289,6 +289,27 @@ function parseTagsCsv(rawTags: string): string[] {
   return Array.from(new Set(parts));
 }
 
+function parseMetadataJson(rawMetadata: string): Record<string, unknown> | undefined {
+  const normalized = rawMetadata.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(normalized);
+  } catch {
+    throw new Error("Metadata must be valid JSON.");
+  }
+
+  const record = asRecord(parsed);
+  if (!record) {
+    throw new Error("Metadata must be a JSON object.");
+  }
+
+  return record;
+}
+
 function KpiCard({ title, value, caption }: SummaryMetric) {
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
@@ -337,7 +358,7 @@ export function EvaluationsPage() {
 
   const role = state.session?.role ?? null;
   const canCreateSet = role === "owner" || role === "admin";
-  const canCreateAndEditQuestions = role === "owner" || role === "admin" || role === "member";
+  const canManageQuestions = role === "owner" || role === "admin";
   const canRun = role === "owner" || role === "admin";
 
   const lowScoreThreshold = parseScoreThresholdEnv(
@@ -359,6 +380,7 @@ export function EvaluationsPage() {
   const [expectedDocumentId, setExpectedDocumentId] = useState<string>("");
   const [expectedPageNumber, setExpectedPageNumber] = useState("");
   const [questionTags, setQuestionTags] = useState("");
+  const [questionMetadata, setQuestionMetadata] = useState("");
   const [questionFormError, setQuestionFormError] = useState<string | null>(null);
 
   const [runTopK, setRunTopK] = useState(parseDefaultTopK);
@@ -402,7 +424,6 @@ export function EvaluationsPage() {
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
-      status: "indexed",
       limit: EVALUATION_QUESTION_LIMIT,
       offset: 0,
       sort_by: "updated_at",
@@ -410,7 +431,6 @@ export function EvaluationsPage() {
     }),
     queryFn: () =>
       listDocuments({
-        status: "indexed",
         limit: EVALUATION_QUESTION_LIMIT,
         offset: 0,
         sort_by: "updated_at",
@@ -459,9 +479,17 @@ export function EvaluationsPage() {
     },
   });
 
-  const indexedDocuments = useMemo(
+  const accessibleDocuments = useMemo(
     () => documentsQuery.data?.items ?? [],
     [documentsQuery.data?.items],
+  );
+  const accessibleDocumentIdSet = useMemo(
+    () => new Set(accessibleDocuments.map((document) => document.document_id)),
+    [accessibleDocuments],
+  );
+  const indexedDocuments = useMemo(
+    () => accessibleDocuments.filter((document) => document.status === "indexed"),
+    [accessibleDocuments],
   );
   const indexedDocumentIdSet = useMemo(
     () => new Set(indexedDocuments.map((document) => document.document_id)),
@@ -474,7 +502,7 @@ export function EvaluationsPage() {
   );
 
   const safeExpectedDocumentId =
-    expectedDocumentId && indexedDocumentIdSet.has(expectedDocumentId) ? expectedDocumentId : "";
+    expectedDocumentId && accessibleDocumentIdSet.has(expectedDocumentId) ? expectedDocumentId : "";
 
   const createSetMutation = useMutation({
     mutationFn: createEvaluationSet,
@@ -513,6 +541,7 @@ export function EvaluationsPage() {
       }
 
       const tags = parseTagsCsv(questionTags);
+      const metadata = parseMetadataJson(questionMetadata);
 
       return createEvaluationQuestion(selectedEvaluationSetId, {
         question: normalizedQuestion,
@@ -520,6 +549,7 @@ export function EvaluationsPage() {
         expected_document_id: safeExpectedDocumentId || null,
         expected_page_number: pageNumber,
         tags,
+        metadata,
       });
     },
     onSuccess: async () => {
@@ -528,6 +558,7 @@ export function EvaluationsPage() {
       setExpectedDocumentId("");
       setExpectedPageNumber("");
       setQuestionTags("");
+      setQuestionMetadata("");
       setQuestionFormError(null);
       if (selectedEvaluationSetId) {
         await queryClient.invalidateQueries({
@@ -876,7 +907,7 @@ export function EvaluationsPage() {
               <p className="text-sm text-[#68647b]">Select a set before adding or reviewing questions.</p>
             ) : (
               <>
-                {canCreateAndEditQuestions ? (
+                {canManageQuestions ? (
                   <form
                     className="mb-4 grid gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 lg:grid-cols-2"
                     onSubmit={(event) => {
@@ -915,7 +946,7 @@ export function EvaluationsPage() {
                         className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
                       >
                         <option value="">Not specified</option>
-                        {indexedDocuments.map((document) => (
+                        {accessibleDocuments.map((document) => (
                           <option key={document.document_id} value={document.document_id}>
                             {document.filename}
                           </option>
@@ -943,6 +974,19 @@ export function EvaluationsPage() {
                       />
                     </label>
 
+                    <label className="grid gap-1 lg:col-span-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        Metadata (JSON object)
+                      </span>
+                      <textarea
+                        value={questionMetadata}
+                        onChange={(event) => setQuestionMetadata(event.target.value)}
+                        rows={3}
+                        className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
+                        placeholder='{"difficulty":"medium","owner":"qa-team"}'
+                      />
+                    </label>
+
                     {questionFormError ? <p className="text-xs text-rose-700 lg:col-span-2">{questionFormError}</p> : null}
 
                     <button
@@ -955,7 +999,7 @@ export function EvaluationsPage() {
                   </form>
                 ) : (
                   <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Your role can view questions but cannot add new questions.
+                    Your role can view questions but only owner/admin can add new questions.
                   </p>
                 )}
 

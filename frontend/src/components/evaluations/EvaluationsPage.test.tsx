@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -212,6 +212,18 @@ describe("EvaluationsPage", () => {
     mockApi.listEvaluationSets.mockResolvedValue(buildSetList());
     mockApi.listEvaluationQuestions.mockResolvedValue(buildQuestionList());
     mockApi.listDocuments.mockResolvedValue(buildDocuments());
+    mockApi.createEvaluationQuestion.mockResolvedValue({
+      evaluation_question_id: "q-new",
+      evaluation_set_id: "set-1",
+      question: "New question?",
+      expected_answer: null,
+      expected_document_id: null,
+      expected_page_number: null,
+      tags: [],
+      metadata: {},
+      created_at: "2026-05-16T12:30:00Z",
+      updated_at: "2026-05-16T12:30:00Z",
+    });
     mockApi.createEvaluationSet.mockResolvedValue({
       evaluation_set_id: "set-2",
       name: "New Set",
@@ -285,11 +297,75 @@ describe("EvaluationsPage", () => {
     expect(
       screen.getByText("Your role can inspect results but only owner/admin can run evaluations."),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText("Your role can view questions but only owner/admin can add new questions."),
+    ).toBeInTheDocument();
 
     const runButton = screen.getByRole("button", { name: "Run evaluation" });
     expect(runButton).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Create evaluation set" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+  });
+
+  it("renders question create permissions for member vs admin", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-4",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-4",
+      },
+    };
+
+    renderPage();
+    await screen.findByText("Question management");
+
+    expect(
+      await screen.findByText("Your role can view questions but only owner/admin can add new questions."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+  });
+
+  it("validates question form fields before submission", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-5",
+        email: "admin2@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-5",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Add question" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
+    expect(await screen.findByText("Question is required.")).toBeInTheDocument();
+    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
+
+    await userEvent.type(
+      screen.getByPlaceholderText("What is the retention policy for invoices?"),
+      "How long do we keep logs?",
+    );
+    await userEvent.type(screen.getByPlaceholderText("Optional"), "invalid");
+    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
+    expect(await screen.findByText("Expected page must be a positive integer.")).toBeInTheDocument();
+    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
+
+    await userEvent.clear(screen.getByPlaceholderText("Optional"));
+    fireEvent.change(screen.getByLabelText("Metadata (JSON object)"), {
+      target: { value: "{bad" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
+    expect(await screen.findByText("Metadata must be valid JSON.")).toBeInTheDocument();
+    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
   });
 
   it("validates create set modal input and submits the set", async () => {
