@@ -13,6 +13,7 @@ import {
   listChatSessions,
   queryChat,
   type ChatCitationResponse,
+  type ChatDebugResponse,
   type ChatSessionMessageResponse,
   type ChatQueryRequest,
   type ChatQueryResponse,
@@ -21,6 +22,8 @@ import { listDocuments, type DocumentListItemResponse } from "@/lib/api/document
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { loadSettingsPreferences } from "@/lib/settings-preferences";
+import { useAuthSession } from "@/lib/use-auth-session";
 
 const DRAFT_SESSION_KEY = "__draft__";
 
@@ -45,6 +48,7 @@ const DEFAULT_TOP_K = Math.min(
   MAX_TOP_K,
 );
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
+const CHAT_FEEDBACK_ENABLED = process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
 const STREAMING_PLACEHOLDER_ENABLED = process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
 type PersistedChatSettings = {
@@ -61,6 +65,7 @@ type ChatTurn = {
     confidence_score: number;
     confidence_category: "low" | "medium" | "high";
     not_found: boolean;
+    debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
     created_at: string;
   };
@@ -98,6 +103,10 @@ function confidenceBadgeClass(confidence: ChatQueryResponse["confidence_category
   return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
 }
 
+function isAdminLikeRole(role: string | null | undefined): boolean {
+  return role === "owner" || role === "admin";
+}
+
 function activeThreadKey(sessionId: string | null): string {
   return sessionId ?? DRAFT_SESSION_KEY;
 }
@@ -109,6 +118,7 @@ function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["respons
     confidence_score: response.confidence_score,
     confidence_category: response.confidence_category,
     not_found: response.not_found,
+    debug: response.debug ?? null,
     citations: response.citations,
     created_at: response.created_at,
   };
@@ -121,6 +131,7 @@ function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): 
     confidence_score: typeof message.confidence_score === "number" ? message.confidence_score : 0,
     confidence_category: message.confidence_category ?? "low",
     not_found: false,
+    debug: null,
     citations: message.citations,
     created_at: message.created_at,
   };
@@ -213,18 +224,45 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
           key={`${citation.document_id}:${citation.chunk_id}`}
           className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3"
         >
-          <p className="text-xs font-semibold text-[#3f3b58]">
-            {citation.filename ?? "Unknown document"}
-            {citation.page_number ? ` • page ${citation.page_number}` : ""}
-          </p>
-          <p className="mt-1 text-xs text-[#5f5a74]">
-            Similarity: {formatScore(citation.similarity_score)}
-            {" • "}
-            Rerank: {formatScore(citation.rerank_score)}
-            {" • "}
-            Score: {formatScore(citation.score)}
-          </p>
-          <p className="mt-2 text-sm text-[#2f2a46]">{citation.text_snippet ?? "Snippet unavailable."}</p>
+          <details open>
+            <summary className="cursor-pointer list-none text-xs font-semibold text-[#3f3b58]">
+              <span>
+                {citation.filename ?? "Unknown document"}
+                {citation.page_number ? ` • page ${citation.page_number}` : ""}
+                {" • "}
+                score {formatScore(citation.score)}
+              </span>
+            </summary>
+            <div className="mt-2 space-y-2">
+              <p className="text-sm text-[#2f2a46]">{citation.text_snippet ?? "Snippet unavailable."}</p>
+              <dl className="grid grid-cols-2 gap-2 text-xs text-[#5f5a74]">
+                <div>
+                  <dt className="font-semibold text-[#4f4b63]">Similarity</dt>
+                  <dd>{formatScore(citation.similarity_score)}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-[#4f4b63]">Rerank score</dt>
+                  <dd>{formatScore(citation.rerank_score)}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-[#4f4b63]">Rerank rank</dt>
+                  <dd>{citation.rerank_rank ?? "N/A"}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-[#4f4b63]">Chunk ID</dt>
+                  <dd className="truncate">{citation.chunk_id}</dd>
+                </div>
+              </dl>
+              {citation.document_id ? (
+                <Link
+                  href={`/documents/${encodeURIComponent(citation.document_id)}?chunk_id=${encodeURIComponent(citation.chunk_id)}&back=${encodeURIComponent("/chat")}`}
+                  className="inline-flex rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                >
+                  Open document detail
+                </Link>
+              ) : null}
+            </div>
+          </details>
         </li>
       ))}
     </ul>
@@ -234,6 +272,7 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
 export function ChatPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const { state } = useAuthSession();
   const lastAppliedSessionIdRef = useRef<string | null>(null);
   const lastAppliedDocumentIdRef = useRef<string | null>(null);
   const didLoadPersistedSettingsRef = useRef(false);
@@ -248,6 +287,13 @@ export function ChatPage() {
   const [selectedResponseMessageId, setSelectedResponseMessageId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [submitRequestId, setSubmitRequestId] = useState<string | null>(null);
+  const [feedbackByMessageId, setFeedbackByMessageId] = useState<Record<string, "up" | "down">>({});
+
+  const settingsPreferencesQuery = useQuery({
+    queryKey: ["settings", "preferences", "chat"],
+    queryFn: loadSettingsPreferences,
+    retry: false,
+  });
 
   const sessionsQuery = useInfiniteQuery({
     queryKey: queryKeys.chat.sessions,
@@ -481,6 +527,7 @@ export function ChatPage() {
   const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
   const composerError = queryMutation.error ?? createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
+  const showDebugDetails = isAdminLikeRole(state.session?.role ?? null) || Boolean(settingsPreferencesQuery.data?.developerMode);
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
@@ -878,6 +925,47 @@ export function ChatPage() {
                       ) : (
                         <p className="text-sm whitespace-pre-wrap text-[#2f2a46]">{turn.response.answer}</p>
                       )}
+                      {CHAT_FEEDBACK_ENABLED ? (
+                        <div className="mt-3 flex items-center gap-2">
+                          <span className="text-xs text-[#6a6780]">Was this answer helpful?</span>
+                          <button
+                            type="button"
+                            aria-label="Mark answer helpful"
+                            onClick={() => {
+                              setFeedbackByMessageId((previous) => {
+                                const next = { ...previous };
+                                if (next[turn.response.message_id] === "up") {
+                                  delete next[turn.response.message_id];
+                                } else {
+                                  next[turn.response.message_id] = "up";
+                                }
+                                return next;
+                              });
+                            }}
+                            className={`rounded border px-2 py-1 text-xs ${feedbackByMessageId[turn.response.message_id] === "up" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"}`}
+                          >
+                            Helpful
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Mark answer not helpful"
+                            onClick={() => {
+                              setFeedbackByMessageId((previous) => {
+                                const next = { ...previous };
+                                if (next[turn.response.message_id] === "down") {
+                                  delete next[turn.response.message_id];
+                                } else {
+                                  next[turn.response.message_id] = "down";
+                                }
+                                return next;
+                              });
+                            }}
+                            className={`rounded border px-2 py-1 text-xs ${feedbackByMessageId[turn.response.message_id] === "down" ? "border-rose-300 bg-rose-50 text-rose-800" : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"}`}
+                          >
+                            Not helpful
+                          </button>
+                        </div>
+                      ) : null}
                     </article>
                   </li>
                 ))}
@@ -924,6 +1012,57 @@ export function ChatPage() {
                 ) : (
                   <CitationPanel citations={selectedCitationTurn.response.citations} />
                 )}
+
+                {showDebugDetails ? (
+                  <section className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
+                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      Retrieval debug
+                    </h3>
+                    {selectedCitationTurn.response.debug ? (
+                      <div className="space-y-2 text-xs text-[#4f4b63]">
+                        <dl className="grid grid-cols-2 gap-2">
+                          <div>
+                            <dt className="font-semibold">retrieval_count</dt>
+                            <dd>{selectedCitationTurn.response.debug.retrieval_count}</dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold">selected_count</dt>
+                            <dd>{selectedCitationTurn.response.debug.selected_count}</dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold">rerank_applied</dt>
+                            <dd>{selectedCitationTurn.response.debug.rerank_applied ? "true" : "false"}</dd>
+                          </div>
+                          <div>
+                            <dt className="font-semibold">embedding_model</dt>
+                            <dd>{selectedCitationTurn.response.debug.embedding_model ?? "N/A"}</dd>
+                          </div>
+                          <div className="col-span-2">
+                            <dt className="font-semibold">llm_model</dt>
+                            <dd>{selectedCitationTurn.response.debug.llm_model ?? "N/A"}</dd>
+                          </div>
+                        </dl>
+                        <div>
+                          <p className="mb-1 font-semibold">latencies_ms</p>
+                          {Object.keys(selectedCitationTurn.response.debug.latencies_ms).length === 0 ? (
+                            <p className="text-[#6a6780]">No latency details available.</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {Object.entries(selectedCitationTurn.response.debug.latencies_ms).map(([key, value]) => (
+                                <li key={key} className="flex items-center justify-between gap-2 rounded border border-[#ebe8f7] px-2 py-1">
+                                  <span>{key}</span>
+                                  <span>{value} ms</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#6a6780]">Debug details are unavailable for this message.</p>
+                    )}
+                  </section>
+                ) : null}
               </div>
             )}
           </section>

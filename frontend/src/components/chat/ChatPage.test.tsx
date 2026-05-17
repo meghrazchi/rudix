@@ -192,6 +192,165 @@ describe("ChatPage", () => {
     expect(await screen.findByText("The policy is active as of May 2026.")).toBeInTheDocument();
     expect(screen.getByText("Low confidence warning: validate this answer against the cited source text.")).toBeInTheDocument();
     expect(screen.getByText("Policy became active in May 2026.")).toBeInTheDocument();
+    expect(screen.getByText("Rerank rank")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open document detail" })).toHaveAttribute(
+      "href",
+      "/documents/doc-indexed-1?chunk_id=chunk-1&back=%2Fchat",
+    );
+  });
+
+  it("hides debug panel for normal users by default", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 3,
+          chunk_count: 42,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-1",
+      message_id: "msg-1",
+      answer: "normal answer",
+      confidence_score: 0.72,
+      confidence_category: "medium",
+      confidence_explanation: {
+        top_similarity: 0.5,
+        average_similarity: 0.45,
+        top_rerank_score: 0.48,
+        citation_support_score: 0.6,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.7,
+        retrieval_agreement_score: 0.65,
+        raw_score: 0.72,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 123 },
+        retrieval_count: 5,
+        selected_count: 3,
+        rerank_applied: true,
+        embedding_model: "model-a",
+        llm_model: "model-b",
+      },
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "check debug visibility");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("normal answer")).toBeInTheDocument();
+    expect(screen.queryByText("Retrieval debug")).not.toBeInTheDocument();
+  });
+
+  it("shows debug panel in developer mode", async () => {
+    window.localStorage.setItem(
+      "rudix.settings.preferences.v1",
+      JSON.stringify({
+        default_top_k: 5,
+        rerank_enabled: true,
+        developer_mode: true,
+        notifications: {
+          product_updates: true,
+          security_alerts: true,
+          document_processing: true,
+        },
+      }),
+    );
+
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 3,
+          chunk_count: 42,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-1",
+      message_id: "msg-1",
+      answer: "debug answer",
+      confidence_score: 0.72,
+      confidence_category: "medium",
+      confidence_explanation: {
+        top_similarity: 0.5,
+        average_similarity: 0.45,
+        top_rerank_score: 0.48,
+        citation_support_score: 0.6,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.7,
+        retrieval_agreement_score: 0.65,
+        raw_score: 0.72,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 123, retrieve: 34 },
+        retrieval_count: 5,
+        selected_count: 3,
+        rerank_applied: true,
+        embedding_model: "model-a",
+        llm_model: "model-b",
+      },
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "show debug");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Retrieval debug")).toBeInTheDocument();
+    expect(screen.getByText("retrieval_count")).toBeInTheDocument();
+    expect(screen.getByText("selected_count")).toBeInTheDocument();
+    expect(screen.getByText("rerank_applied")).toBeInTheDocument();
+    expect(screen.getByText("embedding_model")).toBeInTheDocument();
+    expect(screen.getByText("llm_model")).toBeInTheDocument();
+    expect(screen.getByText("latencies_ms")).toBeInTheDocument();
   });
 
   it("shows only indexed documents in the selector", async () => {
