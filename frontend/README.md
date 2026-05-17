@@ -189,6 +189,7 @@ NEXT_PUBLIC_HELP_SHORTCUTS_URL=
 NEXT_PUBLIC_HELP_README_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
 NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL=
+NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
@@ -202,6 +203,7 @@ If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` an
 Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
 Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
+Set `NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL` to enable CSV export from Admin Audit Logs.
 
 ### 3. Start dev server
 

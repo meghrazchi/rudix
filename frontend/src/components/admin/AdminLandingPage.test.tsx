@@ -44,7 +44,7 @@ describe("AdminLandingPage", () => {
 
     expect(screen.getByText("Admin landing")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Usage analytics" })).toHaveAttribute("href", "/admin/usage");
-    expect(screen.getByRole("link", { name: "Open Audit logs" })).toHaveAttribute("href", "/admin/audit");
+    expect(screen.getByRole("link", { name: "Open Audit logs" })).toHaveAttribute("href", "/admin/audit-logs");
     expect(screen.getByRole("link", { name: "Open System health" })).toHaveAttribute("href", "/admin/system-health");
     expect(screen.getByText("Unavailable in this deployment")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View setup details" })).toHaveAttribute("href", "/admin/monitoring");

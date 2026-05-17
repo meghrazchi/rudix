@@ -39,7 +39,7 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       id: "audit",
       title: "Audit logs",
       description: "Review security and product activity across admin events.",
-      href: "/admin/audit",
+      href: "/admin/audit-logs",
       available: true,
       availabilityNote: "Available",
     },
