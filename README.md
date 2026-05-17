@@ -16,26 +16,39 @@ A typical flow looks like this:
 
 ```mermaid
 flowchart LR
-  subgraph Ingestion Pipeline
+  subgraph Ingestion Pipeline (Async)
     direction TB
-    A[Upload document]
-    B[Extract text]
-    C[Clean and chunk content]
-    D[Generate embeddings]
-    E[Store vectors]
-    A --> B --> C --> D --> E
+    A[Next.js Upload UI]
+    B[FastAPI /documents/upload]
+    C[MinIO object storage]
+    D[Celery worker via RabbitMQ]
+    E[Extract, clean, and chunk text]
+    F[OpenAI embeddings]
+    G[Qdrant vector upsert]
+    H[PostgreSQL metadata and status]
+    A --> B --> C --> D --> E --> F --> G
+    B --> H
+    E --> H
+    G --> H
   end
 
-  subgraph Query Pipeline
+  subgraph Query Pipeline (Realtime)
     direction TB
-    F[Ask questions]
-    G[Retrieve relevant chunks]
-    H[Generate grounded answers]
-    I[Return citations and metadata]
-    F --> G --> H --> I
+    I[Next.js Chat UI]
+    J[FastAPI /chat]
+    K[OpenAI query embedding]
+    L[Qdrant retrieval with org filters]
+    M[Optional rerank]
+    N[OpenAI answer generation]
+    O[Return answer, citations, confidence, metadata]
+    P[Persist chat messages, citations, usage events in PostgreSQL]
+    I --> J --> K --> L --> M --> N --> O
+    N --> P
+    O --> P
   end
 
-  E --> F --> G --> H --> I
+  H --> J
+  G --> L
 ```
 
 Supported document types include:
