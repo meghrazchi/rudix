@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useSearchParams } from "next/navigation";
 import {
   Background,
   Controls,
@@ -20,6 +21,7 @@ import {
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { parsePipelineExplorerQuery, type PipelineExplorerQueryContext } from "@/lib/pipeline-links";
 import {
   fallbackNodeDetail,
   fallbackPipelineGraph,
@@ -32,6 +34,10 @@ import {
 } from "@/lib/pipeline";
 
 type RunTypeFilter = "all" | "document.process" | "chat.answer" | "evaluation.run";
+
+function toRunTypeFilter(context: PipelineExplorerQueryContext): RunTypeFilter {
+  return context.runType ?? "all";
+}
 
 type StatusMeta = {
   label: string;
@@ -232,6 +238,10 @@ function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
 }
 
 export function RagPipelinePage() {
+  const searchParams = useSearchParams();
+  const deepLinkContext = useMemo(() => parsePipelineExplorerQuery(searchParams), [searchParams]);
+  const deepLinkSignatureRef = useRef<string | null>(null);
+
   const [runId, setRunId] = useState("");
   const [runTypeFilter, setRunTypeFilter] = useState<RunTypeFilter>("all");
   const [documentFilter, setDocumentFilter] = useState("");
@@ -279,9 +289,23 @@ export function RagPipelinePage() {
   const flowEdges = useMemo(() => buildFlowEdges(filteredEdges, filteredNodes), [filteredEdges, filteredNodes]);
 
   const runLabel = runId.trim() ? runId.trim() : graph.pipeline_run_id;
+  const deepLinkDetails = useMemo(() => {
+    const details: string[] = [];
+    if (deepLinkContext.documentId) {
+      details.push(`Document: ${deepLinkContext.documentId}`);
+    }
+    if (deepLinkContext.chatMessageId) {
+      details.push(`Chat message: ${deepLinkContext.chatMessageId}`);
+    }
+    if (deepLinkContext.evaluationRunId) {
+      details.push(`Evaluation run: ${deepLinkContext.evaluationRunId}`);
+    }
+    return details;
+  }, [deepLinkContext.chatMessageId, deepLinkContext.documentId, deepLinkContext.evaluationRunId]);
 
-  async function loadGraph() {
-    if (!runId.trim()) {
+  async function loadGraph(runIdOverride?: string) {
+    const effectiveRunId = (runIdOverride ?? runId).trim();
+    if (!effectiveRunId) {
       setGraph(fallbackPipelineGraph);
       const firstNode = fallbackPipelineGraph.nodes[0];
       if (firstNode) {
@@ -297,7 +321,7 @@ export function RagPipelinePage() {
     setForbiddenState(null);
     setErrorText(null);
     try {
-      const loaded = await fetchPipelineRunGraph(runId.trim());
+      const loaded = await fetchPipelineRunGraph(effectiveRunId);
       setGraph(loaded);
       const firstNode = loaded.nodes[0];
       if (firstNode) {
@@ -332,13 +356,14 @@ export function RagPipelinePage() {
     setSelectedNodeId(node.id);
     setNodeDetail(deriveNodeDetail(node));
 
-    if (!runId.trim()) {
+    const effectiveRunId = runId.trim();
+    if (!effectiveRunId) {
       return;
     }
 
     setLoadingNode(true);
     try {
-      const detail = await fetchPipelineNodeDetail(runId.trim(), node.id);
+      const detail = await fetchPipelineNodeDetail(effectiveRunId, node.id);
       setNodeDetail(detail);
       setForbiddenState(null);
       setErrorText(null);
@@ -362,6 +387,34 @@ export function RagPipelinePage() {
   function refreshGraph() {
     void loadGraph();
   }
+
+  useEffect(() => {
+    const signature = JSON.stringify({
+      runId: deepLinkContext.runId,
+      runType: deepLinkContext.runType,
+      documentId: deepLinkContext.documentId,
+      chatMessageId: deepLinkContext.chatMessageId,
+      evaluationRunId: deepLinkContext.evaluationRunId,
+    });
+    if (deepLinkSignatureRef.current === signature) {
+      return;
+    }
+    deepLinkSignatureRef.current = signature;
+
+    setRunTypeFilter(toRunTypeFilter(deepLinkContext));
+    setForbiddenState(null);
+
+    if (deepLinkContext.runId) {
+      setRunId(deepLinkContext.runId);
+      void loadGraph(deepLinkContext.runId);
+      return;
+    }
+
+    if (deepLinkContext.hasContext) {
+      setRunId("");
+      setErrorText("No pipeline run ID is available for this resource yet. Load a run ID to inspect the graph.");
+    }
+  }, [deepLinkContext]);
 
   return (
     <div className="flex h-[calc(100vh-85px)] min-h-[700px] flex-col lg:flex-row">
@@ -428,6 +481,16 @@ export function RagPipelinePage() {
             <span>Type: {graph.pipeline_type}</span>
             <span>Status: {graph.status}</span>
           </div>
+
+          {deepLinkDetails.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 border-b border-[#e8e4f5] bg-[#faf9ff] px-4 py-2 text-xs text-[#5f5b72]">
+              {deepLinkDetails.map((detail) => (
+                <span key={detail} className="rounded border border-[#ddd7f2] bg-white px-2 py-1 font-medium">
+                  {detail}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {forbiddenState ? (
             <div className="border-b border-[#e8e4f5] bg-[#f5f3ff] p-3">

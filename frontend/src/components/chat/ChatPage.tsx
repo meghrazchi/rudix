@@ -22,6 +22,7 @@ import { listDocuments, type DocumentListItemResponse } from "@/lib/api/document
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { buildPipelineExplorerHref, normalizePipelineRunType, type PipelineRunType } from "@/lib/pipeline-links";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -101,6 +102,39 @@ function confidenceBadgeClass(confidence: ChatQueryResponse["confidence_category
     return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
   }
   return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+}
+
+function readDebugString(debug: ChatDebugResponse | null, key: string): string | null {
+  if (!debug) {
+    return null;
+  }
+  const value = (debug as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getChatRunType(debug: ChatDebugResponse | null): PipelineRunType {
+  const debugRunType = normalizePipelineRunType(
+    readDebugString(debug, "pipeline_type") ?? readDebugString(debug, "run_type"),
+  );
+  return debugRunType ?? "chat.answer";
+}
+
+function buildChatPipelineHref(response: ChatTurn["response"]): string | null {
+  const chatMessageId = response.message_id.trim();
+  const runId = readDebugString(response.debug, "pipeline_run_id") ?? readDebugString(response.debug, "run_id");
+  const runType = getChatRunType(response.debug);
+  const firstCitationDocumentId = response.citations.find((citation) => Boolean(citation.document_id))?.document_id ?? null;
+
+  if (!chatMessageId && !runId && !firstCitationDocumentId) {
+    return null;
+  }
+
+  return buildPipelineExplorerHref({
+    runId,
+    runType,
+    chatMessageId: chatMessageId || null,
+    documentId: firstCitationDocumentId,
+  });
 }
 
 function isAdminLikeRole(role: string | null | undefined): boolean {
@@ -464,6 +498,9 @@ export function ChatPage() {
     thread.find((turn) => turn.response.message_id === selectedResponseMessageId) ??
     thread[thread.length - 1] ??
     null;
+  const selectedCitationPipelineHref = selectedCitationTurn
+    ? buildChatPipelineHref(selectedCitationTurn.response)
+    : null;
 
   useEffect(() => {
     if (thread.length === 0) {
@@ -1004,6 +1041,14 @@ export function ChatPage() {
                     {formatDate(selectedCitationTurn.response.created_at)}
                   </p>
                   <p className="mt-2 text-sm text-[#2f2a46]">{selectedCitationTurn.question}</p>
+                  {selectedCitationPipelineHref ? (
+                    <Link
+                      href={selectedCitationPipelineHref}
+                      className="mt-2 inline-flex rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                    >
+                      View pipeline run
+                    </Link>
+                  ) : null}
                 </div>
                 {selectedCitationTurn.response.not_found ? (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#68647b]">

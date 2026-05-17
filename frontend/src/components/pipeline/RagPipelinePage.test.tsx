@@ -13,6 +13,14 @@ import {
 } from "@/lib/pipeline";
 import { normalizeApiError } from "@/lib/api/errors";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockNavigation.searchParams,
+}));
+
 vi.mock("@xyflow/react", () => {
   const ReactFlow = ({
     nodes,
@@ -59,6 +67,7 @@ const mockedFetchPipelineNodeDetail = vi.mocked(fetchPipelineNodeDetail);
 
 describe("RagPipelinePage", () => {
   beforeEach(() => {
+    mockNavigation.searchParams = new URLSearchParams();
     mockedFetchPipelineRunGraph.mockReset();
     mockedFetchPipelineNodeDetail.mockReset();
     mockedFetchPipelineRunGraph.mockResolvedValue(fallbackPipelineGraph);
@@ -107,6 +116,54 @@ describe("RagPipelinePage", () => {
     });
     expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
+  });
+
+  it("initializes from URL params and auto-loads a run graph", async () => {
+    const loadedGraph: PipelineRunGraphResponse = {
+      pipeline_run_id: "run-url-1",
+      pipeline_type: "chat.answer",
+      status: "completed",
+      nodes: [
+        {
+          id: "retrieve",
+          label: "Retrieve",
+          section: "query",
+          status: "completed",
+          duration_ms: 64,
+        },
+      ],
+      edges: [],
+    };
+
+    mockNavigation.searchParams = new URLSearchParams({
+      run_id: "run-url-1",
+      run_type: "chat.answer",
+      document_id: "doc-url-1",
+    });
+    mockedFetchPipelineRunGraph.mockResolvedValueOnce(loadedGraph);
+
+    render(<RagPipelinePage />);
+
+    await waitFor(() => {
+      expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith("run-url-1");
+    });
+    expect(screen.getByPlaceholderText("Pipeline run id")).toHaveValue("run-url-1");
+    expect(screen.getByRole("combobox")).toHaveValue("chat.answer");
+    expect(screen.getByText("Document: doc-url-1")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Retrieve" })).toBeInTheDocument();
+  });
+
+  it("shows safe deep-link empty state when run id is missing", () => {
+    mockNavigation.searchParams = new URLSearchParams({
+      document_id: "doc-missing-run",
+    });
+
+    render(<RagPipelinePage />);
+
+    expect(
+      screen.getByText("No pipeline run ID is available for this resource yet. Load a run ID to inspect the graph."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Document: doc-missing-run")).toBeInTheDocument();
   });
 
   it("shows permission-aware error on forbidden run access", async () => {

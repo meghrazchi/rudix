@@ -9,6 +9,14 @@ import { setupServer } from "msw/node";
 import { RagPipelinePage } from "@/components/pipeline/RagPipelinePage";
 import { clearSessionStorage, writeSessionToStorage } from "@/lib/auth-session";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockNavigation.searchParams,
+}));
+
 vi.mock("@xyflow/react", () => {
   const ReactFlow = ({
     nodes,
@@ -74,6 +82,7 @@ beforeAll(() => {
 afterEach(() => {
   server.resetHandlers();
   clearSessionStorage();
+  mockNavigation.searchParams = new URLSearchParams();
   observedAuthHeader = null;
   observedOrganizationHeader = null;
 });

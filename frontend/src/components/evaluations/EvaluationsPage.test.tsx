@@ -277,6 +277,10 @@ describe("EvaluationsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     await screen.findByText("Run status: completed");
+    expect(screen.getByRole("link", { name: "View pipeline run" })).toHaveAttribute(
+      "href",
+      "/rag-pipeline?run_type=evaluation.run&evaluation_run_id=run-1",
+    );
 
     expect(screen.getAllByText("Faithfulness").length).toBeGreaterThan(0);
     expect(screen.getAllByText("82.0%").length).toBeGreaterThan(0);

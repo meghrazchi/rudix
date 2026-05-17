@@ -152,7 +152,7 @@ describe("DocumentDetailPage", () => {
     );
     expect(screen.getByRole("link", { name: "View Pipeline" })).toHaveAttribute(
       "href",
-      "/rag-pipeline?document_id=doc-1",
+      "/rag-pipeline?run_type=document.process&document_id=doc-1",
     );
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();

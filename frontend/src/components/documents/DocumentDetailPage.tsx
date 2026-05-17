@@ -17,6 +17,7 @@ import {
   resolveDocumentCapabilities,
 } from "@/lib/documents-ui";
 import { extractRequestIdFromError } from "@/lib/forbidden";
+import { buildPipelineExplorerHref } from "@/lib/pipeline-links";
 import { useDocumentStatusPolling } from "@/lib/use-document-status-polling";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -408,7 +409,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   </span>
                 )}
                 <Link
-                  href={`/rag-pipeline?document_id=${encodeURIComponent(documentId)}`}
+                  href={buildPipelineExplorerHref({
+                    runType: "document.process",
+                    documentId,
+                  })}
                   className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
                 >
                   View Pipeline

@@ -351,6 +351,10 @@ describe("ChatPage", () => {
     expect(screen.getByText("embedding_model")).toBeInTheDocument();
     expect(screen.getByText("llm_model")).toBeInTheDocument();
     expect(screen.getByText("latencies_ms")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View pipeline run" })).toHaveAttribute(
+      "href",
+      "/rag-pipeline?run_type=chat.answer&chat_message_id=msg-1",
+    );
   });
 
   it("shows only indexed documents in the selector", async () => {

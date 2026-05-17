@@ -21,6 +21,7 @@ import { listDocuments } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { buildPipelineExplorerHref } from "@/lib/pipeline-links";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const EVALUATION_SET_LIMIT = 100;
@@ -1356,6 +1357,18 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.updated_at)}</dd>
                   </div>
                 </dl>
+
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={buildPipelineExplorerHref({
+                      runType: "evaluation.run",
+                      evaluationRunId: runDetails.evaluation_run_id,
+                    })}
+                    className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
+                  >
+                    View pipeline run
+                  </Link>
+                </div>
 
                 {(runDetails.status === "queued" || runDetails.status === "running") && runProgress ? (
                   <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
