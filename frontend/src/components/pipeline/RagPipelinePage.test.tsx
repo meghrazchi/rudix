@@ -5,13 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { RagPipelinePage } from "@/components/pipeline/RagPipelinePage";
 import {
-  PipelineApiError,
   fallbackNodeDetail,
   fallbackPipelineGraph,
   fetchPipelineNodeDetail,
   fetchPipelineRunGraph,
   type PipelineRunGraphResponse,
 } from "@/lib/pipeline";
+import { normalizeApiError } from "@/lib/api/errors";
 
 vi.mock("@xyflow/react", () => {
   const ReactFlow = ({
@@ -103,17 +103,20 @@ describe("RagPipelinePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     await waitFor(() => {
-      expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith(
-        "run-abc",
-        expect.objectContaining({ token: "", organizationId: "" }),
-      );
+      expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith("run-abc");
     });
     expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
   });
 
   it("shows permission-aware error on forbidden run access", async () => {
-    mockedFetchPipelineRunGraph.mockRejectedValueOnce(new PipelineApiError(403, "Forbidden"));
+    mockedFetchPipelineRunGraph.mockRejectedValueOnce(
+      normalizeApiError({
+        status: 403,
+        payload: { detail: "forbidden internal detail" },
+        requestId: "forbidden-req-id",
+      }),
+    );
 
     render(<RagPipelinePage />);
 
@@ -128,6 +131,24 @@ describe("RagPipelinePage", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: "Action blocked" })).toBeInTheDocument();
+  });
+
+  it("shows shared unauthorized message when API returns 401", async () => {
+    mockedFetchPipelineRunGraph.mockRejectedValueOnce(
+      normalizeApiError({
+        status: 401,
+        payload: { detail: "missing token" },
+      }),
+    );
+
+    render(<RagPipelinePage />);
+
+    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-unauthorized");
+    await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Your session is not valid. Sign in again.")).toBeInTheDocument();
+    });
   });
 
   it("applies run type filter and shows mismatch state", async () => {

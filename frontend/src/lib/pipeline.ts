@@ -7,7 +7,6 @@ import {
   type PipelineNodeStatus,
   type PipelineRunGraphResponse,
 } from "@/lib/api/pipeline";
-import { isApiClientError } from "@/lib/api/errors";
 
 export type {
   PipelineEdge,
@@ -23,45 +22,11 @@ export type PipelineApiOptions = {
   organizationId?: string;
 };
 
-export class PipelineApiError extends Error {
-  status: number;
-  code: string;
-  requestId: string | null;
-
-  constructor(status: number, message: string, code = "pipeline_error", requestId: string | null = null) {
-    super(message);
-    this.name = "PipelineApiError";
-    this.status = status;
-    this.code = code;
-    this.requestId = requestId;
-  }
-}
-
-function toPipelineError(error: unknown): PipelineApiError {
-  if (error instanceof PipelineApiError) {
-    return error;
-  }
-
-  if (isApiClientError(error)) {
-    return new PipelineApiError(error.status, error.message, error.code, error.requestId);
-  }
-
-  if (error instanceof Error) {
-    return new PipelineApiError(500, error.message);
-  }
-
-  return new PipelineApiError(500, "Pipeline request failed");
-}
-
 export async function fetchPipelineRunGraph(
   runId: string,
   options: PipelineApiOptions = {},
 ): Promise<PipelineRunGraphResponse> {
-  try {
-    return await fetchPipelineRunGraphRequest(runId, options);
-  } catch (error) {
-    throw toPipelineError(error);
-  }
+  return fetchPipelineRunGraphRequest(runId, options);
 }
 
 export async function fetchPipelineNodeDetail(
@@ -69,11 +34,7 @@ export async function fetchPipelineNodeDetail(
   nodeId: string,
   options: PipelineApiOptions = {},
 ): Promise<PipelineNodeDetailResponse> {
-  try {
-    return await fetchPipelineNodeDetailRequest(runId, nodeId, options);
-  } catch (error) {
-    throw toPipelineError(error);
-  }
+  return fetchPipelineNodeDetailRequest(runId, nodeId, options);
 }
 
 export const fallbackPipelineGraph: PipelineRunGraphResponse = {

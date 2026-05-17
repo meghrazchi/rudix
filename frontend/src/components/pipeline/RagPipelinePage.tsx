@@ -18,9 +18,9 @@ import {
 } from "@xyflow/react";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import {
-  PipelineApiError,
   fallbackNodeDetail,
   fallbackPipelineGraph,
   fetchPipelineNodeDetail,
@@ -233,8 +233,6 @@ function PipelineFlowNode({ data, selected }: NodeProps<FlowNode>) {
 
 export function RagPipelinePage() {
   const [runId, setRunId] = useState("");
-  const [token, setToken] = useState("");
-  const [organizationId, setOrganizationId] = useState("");
   const [runTypeFilter, setRunTypeFilter] = useState<RunTypeFilter>("all");
   const [documentFilter, setDocumentFilter] = useState("");
 
@@ -299,10 +297,7 @@ export function RagPipelinePage() {
     setForbiddenState(null);
     setErrorText(null);
     try {
-      const loaded = await fetchPipelineRunGraph(runId.trim(), {
-        token,
-        organizationId,
-      });
+      const loaded = await fetchPipelineRunGraph(runId.trim());
       setGraph(loaded);
       const firstNode = loaded.nodes[0];
       if (firstNode) {
@@ -323,8 +318,8 @@ export function RagPipelinePage() {
             "You do not have permission to view this pipeline run. Check your role or organization scope.",
           requestId: extractRequestIdFromError(error),
         });
-      } else if (error instanceof PipelineApiError && error.status === 401) {
-        setErrorText("You do not have permission to view this pipeline run. Check your token or organization scope.");
+      } else if (isApiClientError(error) && error.status === 401) {
+        setErrorText(getApiErrorMessage(error));
       } else {
         setErrorText("Could not load backend run graph. Fallback sample data is displayed.");
       }
@@ -343,10 +338,7 @@ export function RagPipelinePage() {
 
     setLoadingNode(true);
     try {
-      const detail = await fetchPipelineNodeDetail(runId.trim(), node.id, {
-        token,
-        organizationId,
-      });
+      const detail = await fetchPipelineNodeDetail(runId.trim(), node.id);
       setNodeDetail(detail);
       setForbiddenState(null);
       setErrorText(null);
@@ -357,8 +349,8 @@ export function RagPipelinePage() {
           description: "You do not have permission to inspect this node detail.",
           requestId: extractRequestIdFromError(error),
         });
-      } else if (error instanceof PipelineApiError && error.status === 401) {
-        setErrorText("You do not have permission to inspect this node detail.");
+      } else if (isApiClientError(error) && error.status === 401) {
+        setErrorText(getApiErrorMessage(error));
       } else {
         setErrorText("Node detail endpoint not available for this run. Showing best-effort preview.");
       }
@@ -411,19 +403,6 @@ export function RagPipelinePage() {
               onChange={(event) => setDocumentFilter(event.target.value)}
               placeholder="Document filter"
               className="h-10 min-w-[150px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-            />
-            <input
-              value={organizationId}
-              onChange={(event) => setOrganizationId(event.target.value)}
-              placeholder="Organization id (optional)"
-              className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
-            />
-            <input
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="Bearer token (optional)"
-              type="password"
-              className="h-10 min-w-[170px] flex-1 rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             />
             <div className="ml-auto flex shrink-0 gap-2">
               <button
