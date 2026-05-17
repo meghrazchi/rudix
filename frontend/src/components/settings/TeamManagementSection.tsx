@@ -6,7 +6,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getTeamCapabilities,
@@ -249,28 +252,30 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
       </p>
 
       {!capabilities.listMembersEnabled ? (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Member list endpoint is not configured for this deployment.
-        </p>
+        <EmptyState
+          compact
+          className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          title="Member list endpoint is not configured for this deployment."
+        />
       ) : membersQuery.isLoading ? (
-        <p className="mb-4 text-sm text-[#68647b]">Loading team members...</p>
+        <LoadingState compact className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading team members..." />
       ) : membersQuery.isError ? (
-        <div className="mb-4 space-y-2">
-          <p className="text-sm text-rose-700">{getApiErrorMessage(membersQuery.error)}</p>
-          <button
-            type="button"
-            onClick={() => {
+        <div className="mb-4">
+          <ErrorState
+            compact
+            error={membersQuery.error}
+            description={getApiErrorMessage(membersQuery.error)}
+            onRetry={() => {
               void membersQuery.refetch();
             }}
-            className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-          >
-            Retry
-          </button>
+          />
         </div>
       ) : members.length === 0 ? (
-        <p className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]">
-          No members are currently available for this organization.
-        </p>
+        <EmptyState
+          compact
+          className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+          title="No members are currently available for this organization."
+        />
       ) : (
         <div className="mb-4 overflow-x-auto rounded-lg border border-[#ebe8f7]">
           <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">

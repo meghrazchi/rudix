@@ -5,7 +5,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import {
   getUsageSummary,
   listAuditLogs,
@@ -283,25 +286,31 @@ export function AdminPage() {
           Date range: <span className="font-semibold">{usageRange.from}</span> to{" "}
           <span className="font-semibold">{usageRange.to}</span>
         </p>
-        {usageQuery.isLoading ? <p className="mt-3 text-sm text-[#68647b]">Loading usage trend...</p> : null}
+        {usageQuery.isLoading ? (
+          <LoadingState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+            title="Loading usage trend..."
+          />
+        ) : null}
         {usageQuery.isError ? (
-          <div className="mt-3 space-y-2">
-            <p className="text-sm text-rose-700">{getApiErrorMessage(usageQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => {
+          <div className="mt-3">
+            <ErrorState
+              compact
+              error={usageQuery.error}
+              description={getApiErrorMessage(usageQuery.error)}
+              onRetry={() => {
                 void usageQuery.refetch();
               }}
-              className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-            >
-              Retry
-            </button>
+            />
           </div>
         ) : null}
         {usageQuery.isSuccess && usage?.series.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-            No usage events were recorded in this range.
-          </p>
+          <EmptyState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
+            title="No usage events were recorded in this range."
+          />
         ) : null}
         {usageQuery.isSuccess && usage && usage.series.length > 0 ? (
           <div className="mt-4 overflow-x-auto">
@@ -348,25 +357,31 @@ export function AdminPage() {
             </p>
           ) : null}
         </div>
-        {auditQuery.isLoading ? <p className="mt-3 text-sm text-[#68647b]">Loading recent activity...</p> : null}
+        {auditQuery.isLoading ? (
+          <LoadingState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+            title="Loading recent activity..."
+          />
+        ) : null}
         {auditQuery.isError ? (
-          <div className="mt-3 space-y-2">
-            <p className="text-sm text-rose-700">{getApiErrorMessage(auditQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => {
+          <div className="mt-3">
+            <ErrorState
+              compact
+              error={auditQuery.error}
+              description={getApiErrorMessage(auditQuery.error)}
+              onRetry={() => {
                 void auditQuery.refetch();
               }}
-              className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-            >
-              Retry
-            </button>
+            />
           </div>
         ) : null}
         {auditQuery.isSuccess && audit?.items.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-            No audit events were found for the selected range and filters.
-          </p>
+          <EmptyState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
+            title="No audit events were found for the selected range and filters."
+          />
         ) : null}
         {auditQuery.isSuccess && audit && audit.items.length > 0 ? (
           <>

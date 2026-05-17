@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import {
   createEvaluationQuestion,
   createEvaluationSet,
@@ -1029,20 +1032,16 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             )}
 
             {evaluationSetsQuery.isLoading ? (
-              <p className="text-sm text-[#68647b]">Loading evaluation sets...</p>
+              <LoadingState compact title="Loading evaluation sets..." />
             ) : evaluationSetsQuery.isError ? (
-              <div className="space-y-2">
-                <p className="text-sm text-rose-700">{getApiErrorMessage(evaluationSetsQuery.error)}</p>
-                <button
-                  type="button"
-                  onClick={() => void evaluationSetsQuery.refetch()}
-                  className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-                >
-                  Retry
-                </button>
-              </div>
+              <ErrorState
+                compact
+                error={evaluationSetsQuery.error}
+                description={getApiErrorMessage(evaluationSetsQuery.error)}
+                onRetry={() => void evaluationSetsQuery.refetch()}
+              />
             ) : emptySetState ? (
-              <p className="text-sm text-[#68647b]">No evaluation sets yet. Create one to start question benchmarking.</p>
+              <EmptyState compact title="No evaluation sets yet. Create one to start question benchmarking." />
             ) : (
               <ul className="max-h-[380px] space-y-2 overflow-auto pr-1">
                 {evaluationSetItems.map((item) => {
@@ -1233,20 +1232,16 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 )}
 
                 {questionsQuery.isLoading ? (
-                  <p className="text-sm text-[#68647b]">Loading questions...</p>
+                  <LoadingState compact title="Loading questions..." />
                 ) : questionsQuery.isError ? (
-                  <div className="space-y-2">
-                    <p className="text-sm text-rose-700">{getApiErrorMessage(questionsQuery.error)}</p>
-                    <button
-                      type="button"
-                      onClick={() => void questionsQuery.refetch()}
-                      className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-                    >
-                      Retry
-                    </button>
-                  </div>
+                  <ErrorState
+                    compact
+                    error={questionsQuery.error}
+                    description={getApiErrorMessage(questionsQuery.error)}
+                    onRetry={() => void questionsQuery.refetch()}
+                  />
                 ) : (questionsQuery.data?.items.length ?? 0) === 0 ? (
-                  <p className="text-sm text-[#68647b]">No questions yet. Add at least one question before running evaluations.</p>
+                  <EmptyState compact title="No questions yet. Add at least one question before running evaluations." />
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-[#ebe8f7]">
                     <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
@@ -1289,11 +1284,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             </div>
 
             {!activeRunId ? (
-              <p className="text-sm text-[#68647b]">
-                No run selected yet. Start an evaluation run to populate status, summary, and question-level metrics.
-              </p>
+              <EmptyState
+                compact
+                title="No run selected yet. Start an evaluation run to populate status, summary, and question-level metrics."
+              />
             ) : runDetailQuery.isLoading ? (
-              <p className="text-sm text-[#68647b]">Loading evaluation run details...</p>
+              <LoadingState compact title="Loading evaluation run details..." />
             ) : runDetailQuery.isError ? (
               <div className="space-y-2">
                 {isForbiddenError(runDetailQuery.error) ? (
@@ -1304,29 +1300,27 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     requestId={extractRequestIdFromError(runDetailQuery.error)}
                   />
                 ) : runNotFound ? (
-                  <div className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm text-[#4d4963]">
-                    <p className="font-semibold text-[#2f2a46]">Run not found or inaccessible.</p>
-                    <p className="mt-1">
-                      The evaluation run may belong to another organization or may no longer exist.
-                    </p>
-                    <Link
-                      href="/evaluations"
-                      className="mt-2 inline-flex rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
-                    >
-                      Back to evaluations
-                    </Link>
-                  </div>
+                  <EmptyState
+                    compact
+                    className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm text-[#4d4963]"
+                    title="Run not found or inaccessible."
+                    description="The evaluation run may belong to another organization or may no longer exist."
+                    action={
+                      <Link
+                        href="/evaluations"
+                        className="inline-flex rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
+                      >
+                        Back to evaluations
+                      </Link>
+                    }
+                  />
                 ) : (
-                  <>
-                    <p className="text-sm text-rose-700">{getApiErrorMessage(runDetailQuery.error)}</p>
-                    <button
-                      type="button"
-                      onClick={() => void runDetailQuery.refetch()}
-                      className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-                    >
-                      Retry
-                    </button>
-                  </>
+                  <ErrorState
+                    compact
+                    error={runDetailQuery.error}
+                    description={getApiErrorMessage(runDetailQuery.error)}
+                    onRetry={() => void runDetailQuery.refetch()}
+                  />
                 )}
               </div>
             ) : runDetails ? (
@@ -1765,11 +1759,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <div>
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Selected documents</p>
                 {documentsQuery.isLoading ? (
-                  <p className="text-xs text-[#68647b]">Loading indexed documents...</p>
+                  <LoadingState compact title="Loading indexed documents..." />
                 ) : documentsQuery.isError ? (
-                  <p className="text-xs text-rose-700">{getApiErrorMessage(documentsQuery.error)}</p>
+                  <ErrorState compact error={documentsQuery.error} description={getApiErrorMessage(documentsQuery.error)} />
                 ) : indexedDocuments.length === 0 ? (
-                  <p className="text-xs text-[#68647b]">No indexed documents available.</p>
+                  <EmptyState compact title="No indexed documents available." />
                 ) : (
                   <ul className="max-h-40 space-y-1 overflow-auto rounded border border-[#ebe8f7] bg-[#faf9ff] p-2">
                     {indexedDocuments.map((document) => {

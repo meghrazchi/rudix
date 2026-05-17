@@ -7,7 +7,9 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -305,22 +307,16 @@ export function SettingsPage() {
         </h2>
 
         {preferencesQuery.isLoading ? (
-          <p className="text-sm text-[#68647b]">Loading preferences...</p>
+          <LoadingState compact title="Loading preferences..." />
         ) : preferencesQuery.isError ? (
-          <div className="space-y-3">
-            <p className="text-sm text-rose-700">
-              {getApiErrorMessage(preferencesQuery.error)}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                void preferencesQuery.refetch();
-              }}
-              className="rounded-lg border border-rose-300 px-3 py-2 text-sm font-semibold text-rose-800 hover:bg-rose-50"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState
+            compact
+            error={preferencesQuery.error}
+            description={getApiErrorMessage(preferencesQuery.error)}
+            onRetry={() => {
+              void preferencesQuery.refetch();
+            }}
+          />
         ) : (
           <form
             onSubmit={form.handleSubmit(handleSave)}

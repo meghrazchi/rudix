@@ -241,5 +241,6 @@ npm run test
 - `@radix-ui/react-dialog` and `@radix-ui/react-slot` were removed because they are not used in the current code.
 - Typed frontend API clients are in `src/lib/api/*`.
 - Shared request handling includes bearer token and organization header injection from local session (when available), normalized API errors, and safe retry behavior for transient query failures.
+- Shared UI state primitives are in `src/components/states/*` (`LoadingState`, `EmptyState`, `ErrorState`, `ForbiddenState`, `RateLimitState`, `RetryAction`) with safe trace/request ID rendering.
 - TanStack Query defaults and mutation invalidation helpers are in `src/lib/api/query.ts`.
 - Pipeline fallback graph/data remain in `src/lib/pipeline.ts`.

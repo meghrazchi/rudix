@@ -18,7 +18,9 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 
+import { EmptyState } from "@/components/states/EmptyState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { parsePipelineExplorerQuery, type PipelineExplorerQueryContext } from "@/lib/pipeline-links";
@@ -664,12 +666,15 @@ export function RagPipelinePage() {
 
           <div className="relative min-h-0 flex-1">
             {runTypeMismatch ? (
-              <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
-                Current run type ({graph.pipeline_type}) is filtered out. Update the run type filter to view this graph.
+              <div className="p-6">
+                <EmptyState
+                  title="Run type is filtered out"
+                  description={`Current run type (${graph.pipeline_type}) is filtered out. Update the run type filter to view this graph.`}
+                />
               </div>
             ) : flowNodes.length === 0 ? (
-              <div className="flex h-full items-center justify-center px-6 text-sm text-[#67637c]">
-                No nodes match the current document filter.
+              <div className="p-6">
+                <EmptyState title="No nodes match the current document filter." />
               </div>
             ) : (
               <ReactFlowProvider>
@@ -748,7 +753,7 @@ export function RagPipelinePage() {
                 className="space-y-1 rounded-xl bg-[#2f2b3f] p-3 text-xs text-[#efeefe]"
                 style={{ fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace" }}
               >
-                {loadingNode ? <p>Loading node detail...</p> : null}
+                {loadingNode ? <LoadingState compact title="Loading node detail..." className="rounded bg-[#2f2b3f] px-0 py-0 text-xs text-[#efeefe]" /> : null}
                 {displayedNodeDetail.logs.length === 0 && !loadingNode ? <p>No logs available.</p> : null}
                 {displayedNodeDetail.logs.map((line) => (
                   <p key={line}>- {line}</p>
@@ -800,7 +805,9 @@ function KeyValueSection({ title, values }: KeyValueSectionProps) {
       <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#66637a]">{title}</h4>
       <div className="overflow-hidden rounded-xl border border-[#dcd7ea] bg-white">
         {entries.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-[#777489]">No data.</div>
+          <div className="p-2">
+            <EmptyState compact title="No data." />
+          </div>
         ) : (
           entries.map(([key, value]) => (
             <div key={key} className="grid grid-cols-2 gap-2 border-b border-[#ece8f6] px-3 py-2 last:border-b-0">

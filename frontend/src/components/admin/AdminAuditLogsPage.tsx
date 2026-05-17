@@ -5,7 +5,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { listAuditLogs, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
 import { queryKeys } from "@/lib/api/query";
@@ -299,34 +302,38 @@ export function AdminAuditLogsPage() {
         </div>
 
         {endpointUnavailable ? (
-          <div className="mt-3 rounded-lg border border-dashed border-[#d7d4e8] bg-[#fcfbff] px-3 py-3">
-            <p className="text-sm font-semibold text-[#2a2640]">
-              Audit log endpoint is not configured for this deployment.
-            </p>
-            <p className="mt-1 text-sm text-[#68647b]">
-              Enable <code>GET /admin/audit-logs</code> in the backend to populate this page.
-            </p>
-          </div>
+          <EmptyState
+            compact
+            className="mt-3 rounded-lg border border-dashed border-[#d7d4e8] bg-[#fcfbff] px-3 py-3"
+            title="Audit log endpoint is not configured for this deployment."
+            description="Enable GET /admin/audit-logs in the backend to populate this page."
+          />
         ) : null}
-        {auditQuery.isLoading ? <p className="mt-3 text-sm text-[#68647b]">Loading audit events...</p> : null}
+        {auditQuery.isLoading ? (
+          <LoadingState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+            title="Loading audit events..."
+          />
+        ) : null}
         {auditQuery.isError && !endpointUnavailable ? (
-          <div className="mt-3 space-y-2">
-            <p className="text-sm text-rose-700">{getApiErrorMessage(auditQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => {
+          <div className="mt-3">
+            <ErrorState
+              compact
+              error={auditQuery.error}
+              description={getApiErrorMessage(auditQuery.error)}
+              onRetry={() => {
                 void auditQuery.refetch();
               }}
-              className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-            >
-              Retry
-            </button>
+            />
           </div>
         ) : null}
         {auditQuery.isSuccess && filteredEvents.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-            No audit events match the current filters.
-          </p>
+          <EmptyState
+            compact
+            className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
+            title="No audit events match the current filters."
+          />
         ) : null}
 
         {auditQuery.isSuccess && filteredEvents.length > 0 ? (
@@ -490,4 +497,3 @@ export function AdminAuditLogsPage() {
     </section>
   );
 }
-

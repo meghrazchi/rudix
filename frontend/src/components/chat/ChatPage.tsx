@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import {
   createChatSession,
   listChatSessionMessages,
@@ -691,9 +694,16 @@ export function ChatPage() {
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Sessions</h2>
             {sessionsQuery.isLoading ? (
-              <p className="text-sm text-[#68647b]">Loading sessions...</p>
+              <LoadingState compact title="Loading sessions..." />
             ) : sessionsQuery.isError ? (
-              <p className="text-sm text-rose-700">{getApiErrorMessage(sessionsQuery.error)}</p>
+              <ErrorState
+                compact
+                error={sessionsQuery.error}
+                description={getApiErrorMessage(sessionsQuery.error)}
+                onRetry={() => {
+                  void sessionsQuery.refetch();
+                }}
+              />
             ) : sessions.length ? (
               <>
                 <ul className="space-y-2">
@@ -737,7 +747,7 @@ export function ChatPage() {
                 ) : null}
               </>
             ) : (
-              <p className="text-sm text-[#68647b]">No sessions yet. Ask your first question to start one.</p>
+              <EmptyState compact title="No sessions yet. Ask your first question to start one." />
             )}
           </section>
 
@@ -780,16 +790,26 @@ export function ChatPage() {
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Document selector</h2>
             {indexedDocumentsQuery.isLoading ? (
-              <p className="text-sm text-[#68647b]">Loading indexed documents...</p>
+              <LoadingState compact title="Loading indexed documents..." />
             ) : indexedDocumentsQuery.isError ? (
-              <p className="text-sm text-rose-700">{getApiErrorMessage(indexedDocumentsQuery.error)}</p>
+              <ErrorState
+                compact
+                error={indexedDocumentsQuery.error}
+                description={getApiErrorMessage(indexedDocumentsQuery.error)}
+                onRetry={() => {
+                  void indexedDocumentsQuery.refetch();
+                }}
+              />
             ) : indexedDocuments.length === 0 ? (
-              <div className="space-y-2 text-sm text-[#68647b]">
-                <p>No indexed documents available. Upload and index documents first.</p>
+              <EmptyState
+                compact
+                title="No indexed documents available. Upload and index documents first."
+                action={
                 <Link href="/documents" className="text-sm font-semibold text-[#3525cd] hover:underline">
                   Go to documents upload
                 </Link>
-              </div>
+                }
+              />
             ) : (
               <ul className="max-h-72 space-y-2 overflow-auto pr-1">
                 {indexedDocuments.map((document) => (
@@ -875,13 +895,12 @@ export function ChatPage() {
           ) : null}
 
           {composerError && !composerForbidden ? (
-            <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-              <p className="font-semibold">Unable to complete the query.</p>
-              <p className="mt-1">{getApiErrorMessage(composerError)}</p>
-              {submitRequestId ? (
-                <p className="mt-1 text-xs">Trace ID: {submitRequestId}</p>
-              ) : null}
-            </section>
+            <ErrorState
+              title="Unable to complete the query."
+              error={composerError}
+              description={getApiErrorMessage(composerError)}
+              requestId={submitRequestId}
+            />
           ) : null}
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
@@ -902,19 +921,23 @@ export function ChatPage() {
               )}
             </div>
             {sessionMessagesQuery.isLoading && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
-              <p className="text-sm text-[#68647b]">Loading session history...</p>
+              <LoadingState compact title="Loading session history..." />
             ) : null}
 
             {sessionMessagesQuery.isError && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                Unable to load prior messages: {getApiErrorMessage(sessionMessagesQuery.error)}
-              </p>
+              <ErrorState
+                compact
+                title="Unable to load prior messages"
+                error={sessionMessagesQuery.error}
+                description={getApiErrorMessage(sessionMessagesQuery.error)}
+                onRetry={() => {
+                  void sessionMessagesQuery.refetch();
+                }}
+              />
             ) : null}
 
             {thread.length === 0 && !pendingQuestion && !sessionMessagesQuery.isLoading ? (
-              <p className="text-sm text-[#68647b]">
-                No messages yet. Submit a question to start the conversation.
-              </p>
+              <EmptyState compact title="No messages yet. Submit a question to start the conversation." />
             ) : (
               <ul className="space-y-4">
                 {thread.map((turn) => (

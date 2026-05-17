@@ -7,7 +7,10 @@ import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { DocumentsUploadModal, type UploadFeedbackState } from "@/components/documents/DocumentsUploadModal";
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import type {
   DocumentDetailResponse,
   DocumentListResponse,
@@ -473,9 +476,7 @@ export function DocumentsPage() {
         ) : null}
 
         {documentsQuery.isLoading ? (
-          <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]">
-            Loading documents...
-          </p>
+          <LoadingState title="Loading documents..." />
         ) : null}
 
         {documentsQuery.isError && listForbidden ? (
@@ -488,38 +489,33 @@ export function DocumentsPage() {
         ) : null}
 
         {documentsQuery.isError && !listForbidden ? (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
-            <p>{getApiErrorMessage(documentsQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => {
-                void documentsQuery.refetch();
-              }}
-              className="mt-3 rounded border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-800"
-            >
-              Retry
-            </button>
-          </div>
+          <ErrorState
+            error={documentsQuery.error}
+            description={getApiErrorMessage(documentsQuery.error)}
+            onRetry={() => {
+              void documentsQuery.refetch();
+            }}
+          />
         ) : null}
 
         {!documentsQuery.isLoading && !documentsQuery.isError && documents.length === 0 ? (
-          <div className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-8 text-center">
-            <p className="text-base font-semibold text-[#2a2640]">No documents found</p>
-            <p className="mt-1 text-sm text-[#68647b]">
-              Upload your first {ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.
-            </p>
-            {capabilities.canUpload ? (
-              <button
-                type="button"
-                onClick={() => setIsUploadModalOpen(true)}
-                className="mt-4 rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
-              >
-                Upload document
-              </button>
-            ) : (
-              <p className="mt-3 text-xs text-[#6a6780]">Your role cannot upload new documents.</p>
-            )}
-          </div>
+          <EmptyState
+            title="No documents found"
+            description={`Upload your first ${ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.`}
+            action={
+              capabilities.canUpload ? (
+                <button
+                  type="button"
+                  onClick={() => setIsUploadModalOpen(true)}
+                  className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
+                >
+                  Upload document
+                </button>
+              ) : (
+                <p className="text-xs text-[#6a6780]">Your role cannot upload new documents.</p>
+              )
+            }
+          />
         ) : null}
 
         {!documentsQuery.isLoading && !documentsQuery.isError && documents.length > 0 ? (
@@ -673,9 +669,7 @@ export function DocumentsPage() {
           </div>
 
           {detailQuery.isLoading ? (
-            <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]">
-              Loading document details...
-            </p>
+            <LoadingState title="Loading document details..." />
           ) : null}
 
           {(detailQuery.isError || statusQuery.isError) && detailForbidden ? (
@@ -688,9 +682,7 @@ export function DocumentsPage() {
           ) : null}
 
           {detailQuery.isError && !detailForbidden ? (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
-              {getApiErrorMessage(detailQuery.error)}
-            </div>
+            <ErrorState error={detailQuery.error} description={getApiErrorMessage(detailQuery.error)} />
           ) : null}
 
           {selectedDetail ? (
@@ -727,21 +719,15 @@ export function DocumentsPage() {
                 </div>
 
                 {chunksQuery.isLoading ? (
-                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
-                    Loading chunks...
-                  </p>
+                  <LoadingState compact title="Loading chunks..." />
                 ) : null}
 
                 {chunksQuery.isError ? (
-                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                    {getApiErrorMessage(chunksQuery.error)}
-                  </div>
+                  <ErrorState compact error={chunksQuery.error} description={getApiErrorMessage(chunksQuery.error)} />
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length === 0 ? (
-                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
-                    No chunks available yet for this document.
-                  </p>
+                  <EmptyState compact title="No chunks available yet for this document." />
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length > 0 ? (

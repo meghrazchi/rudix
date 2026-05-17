@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getHealth, getReadiness } from "@/lib/api/health";
 import { queryKeys } from "@/lib/api/query";
@@ -29,17 +31,10 @@ function HealthPanel({
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <h2 className="text-lg font-bold text-[#2a2640]">{title}</h2>
-      {loading ? <p className="mt-2 text-sm text-[#68647b]">Loading health status...</p> : null}
+      {loading ? <LoadingState compact className="mt-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading health status..." /> : null}
       {!loading && error ? (
-        <div className="mt-2 space-y-2">
-          <p className="text-sm text-rose-700">{error}</p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-          >
-            Retry
-          </button>
+        <div className="mt-2">
+          <ErrorState compact description={error} onRetry={onRetry} />
         </div>
       ) : null}
       {!loading && !error ? (

@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import type { DocumentDetailResponse, DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
 import { deleteDocument, getDocument, getDocumentChunks, reindexDocument } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
@@ -293,33 +296,27 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
         </div>
 
         {detailQuery.isLoading ? (
-          <p className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]">
-            Loading document detail...
-          </p>
+          <LoadingState className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]" title="Loading document detail..." />
         ) : null}
 
         {notFoundOrInaccessible ? (
-          <div className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-6 text-center">
-            <p className="text-base font-semibold text-[#2a2640]">Document not found</p>
-            <p className="mt-1 text-sm text-[#68647b]">
-              The requested document was not found or is not accessible in your current organization context.
-            </p>
-          </div>
+          <EmptyState
+            className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-6 text-center"
+            title="Document not found"
+            description="The requested document was not found or is not accessible in your current organization context."
+          />
         ) : null}
 
         {!detailQuery.isLoading && detailQuery.isError && !notFoundOrInaccessible ? (
-          <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-4 text-sm text-rose-800">
-            <p>{getApiErrorMessage(detailQuery.error)}</p>
-            <button
-              type="button"
-              onClick={() => {
+          <div className="mt-4">
+            <ErrorState
+              error={detailQuery.error}
+              description={getApiErrorMessage(detailQuery.error)}
+              onRetry={() => {
                 void detailQuery.refetch();
                 void statusQuery.refetch();
               }}
-              className="mt-3 rounded border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-800"
-            >
-              Retry
-            </button>
+            />
           </div>
         ) : null}
 
@@ -479,30 +476,23 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
               </div>
 
               {chunksQuery.isLoading ? (
-                <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
-                  Loading chunks...
-                </p>
+                <LoadingState compact title="Loading chunks..." />
               ) : null}
 
               {chunksQuery.isError ? (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                  <p>{getApiErrorMessage(chunksQuery.error)}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void chunksQuery.refetch();
-                    }}
-                    className="mt-3 rounded border border-rose-300 bg-white px-3 py-1 text-xs font-semibold text-rose-800"
-                  >
-                    Retry chunk load
-                  </button>
-                </div>
+                <ErrorState
+                  compact
+                  error={chunksQuery.error}
+                  description={getApiErrorMessage(chunksQuery.error)}
+                  onRetry={() => {
+                    void chunksQuery.refetch();
+                  }}
+                  retryLabel="Retry chunk load"
+                />
               ) : null}
 
               {selectedChunks && selectedChunks.items.length === 0 && chunkStatus ? (
-                <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#5f5b72]">
-                  {noChunksMessage(chunkStatus)}
-                </p>
+                <EmptyState compact title={noChunksMessage(chunkStatus)} />
               ) : null}
 
               {selectedChunks && selectedChunks.items.length > 0 ? (

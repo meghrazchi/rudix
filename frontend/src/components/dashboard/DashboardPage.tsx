@@ -5,6 +5,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getUsageSummary, listAuditLogs, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
 import { listChatSessions, type ChatSessionResponse } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
@@ -684,26 +687,26 @@ export function DashboardPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Latest documents</h2>
           {latestDocumentsQuery.isLoading ? (
-            <p className="mt-3 text-sm text-[#68647b]">Loading latest documents...</p>
+            <LoadingState compact className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading latest documents..." />
           ) : null}
           {latestDocumentsQuery.isError ? (
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-rose-700">{getApiErrorMessage(latestDocumentsQuery.error)}</p>
-              <button
-                type="button"
-                onClick={() => {
+            <div className="mt-3">
+              <ErrorState
+                compact
+                error={latestDocumentsQuery.error}
+                description={getApiErrorMessage(latestDocumentsQuery.error)}
+                onRetry={() => {
                   void latestDocumentsQuery.refetch();
                 }}
-                className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-              >
-                Retry
-              </button>
+              />
             </div>
           ) : null}
           {latestDocumentsQuery.isSuccess && latestDocuments.length === 0 ? (
-            <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-              No documents have been uploaded yet.
-            </p>
+            <EmptyState
+              compact
+              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+              title="No documents have been uploaded yet."
+            />
           ) : null}
           {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
             <div className="mt-4 overflow-x-auto rounded-xl border border-[#e4e1f2]">
@@ -745,30 +748,29 @@ export function DashboardPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Recent activity</h2>
           {recentActivityLoading ? (
-            <p className="mt-3 text-sm text-[#68647b]">Loading recent activity...</p>
+            <LoadingState compact className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading recent activity..." />
           ) : null}
           {recentActivityError ? (
-            <div className="mt-3 space-y-2">
-              <p className="text-sm text-rose-700">{recentActivityError}</p>
-              <button
-                type="button"
-                onClick={() => {
+            <div className="mt-3">
+              <ErrorState
+                compact
+                description={recentActivityError}
+                onRetry={() => {
                   void latestDocumentsQuery.refetch();
                   void recentChatSessionsQuery.refetch();
                   if (showAdminUsage) {
                     void auditActivityQuery.refetch();
                   }
                 }}
-                className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-              >
-                Retry
-              </button>
+              />
             </div>
           ) : null}
           {!recentActivityLoading && !recentActivityError && recentActivityItems.length === 0 ? (
-            <p className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-              No recent activity available yet.
-            </p>
+            <EmptyState
+              compact
+              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+              title="No recent activity available yet."
+            />
           ) : null}
           {!recentActivityLoading && !recentActivityError && recentActivityItems.length > 0 ? (
             <ul className="mt-4 space-y-2">
@@ -796,26 +798,27 @@ export function DashboardPage() {
       </div>
 
       {showEmptyState ? (
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-[#2a2640]">No activity yet</h2>
-          <p className="mt-2 text-sm text-[#68647b]">
-            No documents or chat questions were found for this workspace. Upload documents or start a chat to populate dashboard metrics.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Link
-              href="/documents"
-              className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
-            >
-              Upload documents
-            </Link>
-            <Link
-              href="/chat"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-            >
-              Open chat
-            </Link>
-          </div>
-        </section>
+        <EmptyState
+          className="rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-sm"
+          title="No activity yet"
+          description="No documents or chat questions were found for this workspace. Upload documents or start a chat to populate dashboard metrics."
+          action={
+            <div className="flex flex-wrap justify-center gap-3">
+              <Link
+                href="/documents"
+                className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
+              >
+                Upload documents
+              </Link>
+              <Link
+                href="/chat"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              >
+                Open chat
+              </Link>
+            </div>
+          }
+        />
       ) : null}
 
       {showAdminUsage ? (
