@@ -87,9 +87,6 @@ describe("AdminLandingPage", () => {
 
     render(<AdminLandingPage />);
     expect(screen.queryByText("Unavailable in this deployment")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open Monitoring" })).toHaveAttribute(
-      "href",
-      "https://monitoring.example.com/rudix",
-    );
+    expect(screen.getByRole("link", { name: "Open Monitoring" })).toHaveAttribute("href", "/admin/monitoring");
   });
 });

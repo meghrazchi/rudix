@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { canViewAdminUsage } from "@/lib/dashboard";
-import { isExternalHref } from "@/lib/top-bar";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 type AdminSurfaceCard = {
@@ -56,7 +55,7 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       id: "monitoring",
       title: "Monitoring",
       description: "Open service monitoring and alerting dashboards for incident response.",
-      href: monitoringUrl ?? "/admin/monitoring",
+      href: "/admin/monitoring",
       available: Boolean(monitoringUrl),
       availabilityNote: monitoringUrl ? "Available" : "Unavailable in this deployment",
     },
@@ -92,8 +91,6 @@ export function AdminLandingPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => {
-          const isExternal = isExternalHref(card.href);
-
           return (
             <article key={card.id} className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
@@ -111,8 +108,6 @@ export function AdminLandingPage() {
                 {card.available ? (
                   <Link
                     href={card.href}
-                    target={isExternal ? "_blank" : undefined}
-                    rel={isExternal ? "noreferrer noopener" : undefined}
                     className="inline-flex rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
                   >
                     Open {card.title}
