@@ -191,7 +191,7 @@ const server = setupServer(
   ),
 );
 
-function renderPage() {
+function renderPage(initialRunId?: string | null) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -201,7 +201,7 @@ function renderPage() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <EvaluationsPage />
+      <EvaluationsPage initialRunId={initialRunId ?? null} />
     </QueryClientProvider>,
   );
 }
@@ -220,6 +220,7 @@ afterAll(() => {
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
+  process.env.NEXT_PUBLIC_EVALUATION_RUN_POLL_INTERVAL_MS = "20";
   mockNavigation.searchParams = new URLSearchParams();
   mockNavigation.push.mockReset();
   questionStore = [
@@ -401,5 +402,107 @@ describe("EvaluationsPage list states (MSW)", () => {
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("retry-model")).toBeInTheDocument();
     expect(mockNavigation.push).not.toHaveBeenCalled();
+  });
+
+  it("polls queued run detail until completed and renders summary metrics", async () => {
+    let runDetailRequests = 0;
+    server.use(
+      http.get(`${apiBaseUrl}/evaluations/runs/:runId`, async ({ params }) => {
+        runDetailRequests += 1;
+        if (runDetailRequests < 2) {
+          return HttpResponse.json({
+            evaluation_run_id: String(params.runId),
+            evaluation_set_id: "set-1",
+            status: "queued",
+            config: {},
+            summary: null,
+            failure_reason: null,
+            failure_type: null,
+            started_at: null,
+            completed_at: null,
+            created_at: "2026-05-16T12:00:00Z",
+            updated_at: "2026-05-16T12:00:00Z",
+            results: {
+              items: [],
+              total: 2,
+              limit: 200,
+              offset: 0,
+            },
+          });
+        }
+
+        return HttpResponse.json({
+          evaluation_run_id: String(params.runId),
+          evaluation_set_id: "set-1",
+          status: "completed",
+          config: { top_k: 5, rerank: true },
+          summary: {
+            question_total_count: 2,
+            question_success_count: 2,
+            question_failure_count: 0,
+            retrieval_hit_rate: 1.0,
+            context_precision: 0.85,
+            context_recall: 0.9,
+            faithfulness_score: 0.88,
+            answer_relevance_score: 0.84,
+            citation_accuracy_score: 0.86,
+            refusal_accuracy: null,
+            latency_ms_average: 240,
+            cost_usd_total: 0.12,
+          },
+          failure_reason: null,
+          failure_type: null,
+          started_at: "2026-05-16T12:00:00Z",
+          completed_at: "2026-05-16T12:00:30Z",
+          created_at: "2026-05-16T12:00:00Z",
+          updated_at: "2026-05-16T12:00:30Z",
+          results: {
+            items: [],
+            total: 2,
+            limit: 200,
+            offset: 0,
+          },
+        });
+      }),
+    );
+
+    renderPage("run-polling-1");
+
+    expect(await screen.findByText("Run status: queued")).toBeInTheDocument();
+    expect(await screen.findByText("Run status: completed")).toBeInTheDocument();
+    expect(screen.getByText("Retrieval hit rate")).toBeInTheDocument();
+    expect(screen.getByText("100.0%")).toBeInTheDocument();
+  });
+
+  it("renders failed run detail fields from API", async () => {
+    server.use(
+      http.get(`${apiBaseUrl}/evaluations/runs/:runId`, async ({ params }) =>
+        HttpResponse.json({
+          evaluation_run_id: String(params.runId),
+          evaluation_set_id: "set-1",
+          status: "failed",
+          config: { top_k: 5 },
+          summary: null,
+          failure_reason: "Evaluator worker timeout",
+          failure_type: "WorkerTimeout",
+          started_at: "2026-05-16T12:00:00Z",
+          completed_at: "2026-05-16T12:00:30Z",
+          created_at: "2026-05-16T12:00:00Z",
+          updated_at: "2026-05-16T12:00:30Z",
+          results: {
+            items: [],
+            total: 1,
+            limit: 200,
+            offset: 0,
+          },
+        }),
+      ),
+    );
+
+    renderPage("run-failed-msw");
+
+    expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
+    expect(await screen.findByText(/Evaluator worker timeout/i)).toBeInTheDocument();
+    expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
   });
 });

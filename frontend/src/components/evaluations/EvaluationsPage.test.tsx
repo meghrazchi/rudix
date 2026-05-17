@@ -10,6 +10,7 @@ import type {
   EvaluationSetListResponse,
 } from "@/lib/api/evaluations";
 import type { DocumentListResponse } from "@/lib/api/documents";
+import { normalizeApiError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
 
 const mockNavigation = vi.hoisted(() => ({
@@ -57,7 +58,7 @@ vi.mock("@/lib/api/documents", () => ({
   listDocuments: (...args: unknown[]) => mockApi.listDocuments(...args),
 }));
 
-function renderPage() {
+function renderPage(initialRunId?: string | null) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -67,7 +68,7 @@ function renderPage() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <EvaluationsPage />
+      <EvaluationsPage initialRunId={initialRunId ?? null} />
     </QueryClientProvider>,
   );
 }
@@ -151,9 +152,13 @@ function buildRunDetail(): EvaluationRunDetailResponse {
       question_total_count: 2,
       question_success_count: 1,
       question_failure_count: 1,
+      retrieval_hit_rate: 1,
+      context_precision: 0.7,
+      context_recall: 0.8,
       faithfulness_score: 0.82,
       answer_relevance_score: 0.78,
       citation_accuracy_score: 0.75,
+      refusal_accuracy: 0.9,
       latency_ms_average: 380,
       cost_usd_total: 1.25,
     },
@@ -279,6 +284,12 @@ describe("EvaluationsPage", () => {
     expect(screen.getAllByText("78.0%").length).toBeGreaterThan(0);
     expect(screen.getByText("Citation accuracy")).toBeInTheDocument();
     expect(screen.getAllByText("75.0%").length).toBeGreaterThan(0);
+    expect(screen.getByText("Retrieval hit rate")).toBeInTheDocument();
+    expect(screen.getByText("Context precision")).toBeInTheDocument();
+    expect(screen.getByText("Context recall")).toBeInTheDocument();
+    expect(screen.getByText("Refusal accuracy")).toBeInTheDocument();
+    expect(screen.getByText("Average latency")).toBeInTheDocument();
+    expect(screen.getByText("Estimated cost")).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Failed/low (1)" })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Failed/low (1)" }));
@@ -286,6 +297,63 @@ describe("EvaluationsPage", () => {
     await waitFor(() => {
       expect(screen.getByText("No supporting chunks found")).toBeInTheDocument();
     });
+  });
+
+  it("renders failed run reason and failure type safely", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-8",
+        email: "admin-failed@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-8",
+      },
+    };
+
+    mockApi.getEvaluationRun.mockResolvedValue({
+      ...buildRunDetail(),
+      status: "failed",
+      failure_reason: "Pipeline worker timeout.",
+      failure_type: "WorkerTimeout",
+    });
+
+    renderPage("run-failed-1");
+
+    expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
+    expect(await screen.findByText(/Failure:/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Pipeline worker timeout\./i)).toBeInTheDocument();
+    expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
+  });
+
+  it("renders safe not-found state for inaccessible run ids", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-9",
+        email: "admin-404@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-9",
+      },
+    };
+
+    mockApi.getEvaluationRun.mockRejectedValue(
+      normalizeApiError({
+        status: 404,
+        payload: { detail: "not found" },
+      }),
+    );
+
+    renderPage("run-missing");
+
+    expect(await screen.findByText("Run not found or inaccessible.")).toBeInTheDocument();
+    expect(
+      screen.getByText("The evaluation run may belong to another organization or may no longer exist."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to evaluations" })).toBeInTheDocument();
   });
 
   it("renders permission-aware controls for viewer role", async () => {

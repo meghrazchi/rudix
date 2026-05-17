@@ -31,6 +31,7 @@ const MIN_TOP_K = 1;
 const MAX_TOP_K = 50;
 const DEFAULT_TOP_K = 5;
 const LOW_SCORE_THRESHOLD = 0.5;
+const DEFAULT_RUN_POLL_INTERVAL_MS = 4_000;
 
 type ResultFilterMode = "all" | "problematic";
 
@@ -79,6 +80,13 @@ function parseDefaultTopK(): number {
   return Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed));
 }
 
+function parseRunPollIntervalMs(): number {
+  return parsePositiveIntegerEnv(
+    process.env.NEXT_PUBLIC_EVALUATION_RUN_POLL_INTERVAL_MS,
+    DEFAULT_RUN_POLL_INTERVAL_MS,
+  );
+}
+
 function formatDate(value: string | null | undefined): string {
   if (!value) {
     return "N/A";
@@ -109,7 +117,11 @@ function formatPercent(value: number | null | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "N/A";
   }
-  const normalized = Math.max(0, Math.min(1, value));
+  let normalized = value;
+  if (normalized > 1 && normalized <= 100) {
+    normalized /= 100;
+  }
+  normalized = Math.max(0, Math.min(1, normalized));
   return `${(normalized * 100).toFixed(1)}%`;
 }
 
@@ -155,18 +167,40 @@ function resolveStatusBadgeClass(status: string): string {
   return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
 }
 
+function resolveSummaryValue(
+  summary: Record<string, unknown> | null,
+  keys: string[],
+): number | null {
+  if (!summary) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = asNumber(summary[key]);
+    if (value != null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
 function summarizeRunMetrics(run: EvaluationRunDetailResponse | null): SummaryMetric[] {
   const summary = run?.summary ?? null;
   const summaryRecord = summary ? asRecord(summary) : null;
 
-  const totalQuestions = asNumber(summaryRecord?.question_total_count) ?? run?.results.total ?? null;
-  const successQuestions = asNumber(summaryRecord?.question_success_count);
-  const failedQuestions = asNumber(summaryRecord?.question_failure_count);
-  const faithfulness = asNumber(summaryRecord?.faithfulness_score);
-  const answerRelevance = asNumber(summaryRecord?.answer_relevance_score);
-  const citationAccuracy = asNumber(summaryRecord?.citation_accuracy_score);
-  const averageLatency = asNumber(summaryRecord?.latency_ms_average);
-  const totalCost = asNumber(summaryRecord?.cost_usd_total);
+  const totalQuestions = resolveSummaryValue(summaryRecord, ["question_total_count"]) ?? run?.results.total ?? null;
+  const successQuestions = resolveSummaryValue(summaryRecord, ["question_success_count"]);
+  const failedQuestions = resolveSummaryValue(summaryRecord, ["question_failure_count"]);
+  const retrievalHitRate = resolveSummaryValue(summaryRecord, ["retrieval_hit_rate", "retrieval_score"]);
+  const contextPrecision = resolveSummaryValue(summaryRecord, ["context_precision"]);
+  const contextRecall = resolveSummaryValue(summaryRecord, ["context_recall"]);
+  const faithfulness = resolveSummaryValue(summaryRecord, ["faithfulness_score"]);
+  const answerRelevance = resolveSummaryValue(summaryRecord, ["answer_relevance_score"]);
+  const citationAccuracy = resolveSummaryValue(summaryRecord, ["citation_accuracy_score"]);
+  const refusalAccuracy = resolveSummaryValue(summaryRecord, ["refusal_accuracy"]);
+  const averageLatency = resolveSummaryValue(summaryRecord, ["latency_ms_average"]);
+  const totalCost = resolveSummaryValue(summaryRecord, ["cost_usd_total"]);
 
   return [
     {
@@ -175,6 +209,21 @@ function summarizeRunMetrics(run: EvaluationRunDetailResponse | null): SummaryMe
       caption: successQuestions != null && failedQuestions != null
         ? `${formatInteger(successQuestions)} succeeded / ${formatInteger(failedQuestions)} failed`
         : "Total evaluated questions",
+    },
+    {
+      title: "Retrieval hit rate",
+      value: formatPercent(retrievalHitRate),
+      caption: "Questions with at least one relevant chunk retrieved",
+    },
+    {
+      title: "Context precision",
+      value: formatPercent(contextPrecision),
+      caption: "Selected chunks that were relevant",
+    },
+    {
+      title: "Context recall",
+      value: formatPercent(contextRecall),
+      caption: "Coverage of expected relevant context",
     },
     {
       title: "Faithfulness",
@@ -190,6 +239,11 @@ function summarizeRunMetrics(run: EvaluationRunDetailResponse | null): SummaryMe
       title: "Citation accuracy",
       value: formatPercent(citationAccuracy),
       caption: "Citation correctness score",
+    },
+    {
+      title: "Refusal accuracy",
+      value: formatPercent(refusalAccuracy),
+      caption: "Correct refusal behavior when answer is unavailable",
     },
     {
       title: "Average latency",
@@ -433,6 +487,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [runFormError, setRunFormError] = useState<string | null>(null);
 
   const [resultFilterMode, setResultFilterMode] = useState<ResultFilterMode>("all");
+  const runPollIntervalMs = parseRunPollIntervalMs();
 
   const evaluationSetsQuery = useQuery({
     queryKey: queryKeys.evaluations.sets,
@@ -521,9 +576,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     refetchInterval: (query) => {
       const payload = query.state.data as EvaluationRunDetailResponse | undefined;
       if (!payload) {
-        return 4_000;
+        return runPollIntervalMs;
       }
-      return payload.status === "queued" || payload.status === "running" ? 4_000 : false;
+      return payload.status === "queued" || payload.status === "running" ? runPollIntervalMs : false;
     },
   });
 
@@ -704,6 +759,28 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   });
 
   const filteredResults = resultFilterMode === "problematic" ? problematicResults : results;
+  const runNotFound =
+    runDetailQuery.isError &&
+    isApiClientError(runDetailQuery.error) &&
+    runDetailQuery.error.status === 404;
+  const runProgress = useMemo(() => {
+    if (!runDetails) {
+      return null;
+    }
+
+    const total = Math.max(runDetails.results.total, runDetails.results.items.length, 0);
+    const completed = runDetails.results.items.filter((item) => item.status === "completed").length;
+    const failed = runDetails.results.items.filter((item) => item.status === "failed").length;
+    const terminalCount = completed + failed;
+    const ratio = total > 0 ? Math.max(0, Math.min(1, terminalCount / total)) : runDetails.status === "completed" ? 1 : 0;
+    return {
+      total,
+      completed,
+      failed,
+      terminalCount,
+      ratio,
+    };
+  }, [runDetails]);
 
   useEffect(() => {
     if (!selectedEvaluationSetId || !runDetails) {
@@ -1087,6 +1164,19 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     description="You do not have permission to inspect this evaluation run."
                     requestId={extractRequestIdFromError(runDetailQuery.error)}
                   />
+                ) : runNotFound ? (
+                  <div className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm text-[#4d4963]">
+                    <p className="font-semibold text-[#2f2a46]">Run not found or inaccessible.</p>
+                    <p className="mt-1">
+                      The evaluation run may belong to another organization or may no longer exist.
+                    </p>
+                    <Link
+                      href="/evaluations"
+                      className="mt-2 inline-flex rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
+                    >
+                      Back to evaluations
+                    </Link>
+                  </div>
                 ) : (
                   <>
                     <p className="text-sm text-rose-700">{getApiErrorMessage(runDetailQuery.error)}</p>
@@ -1119,11 +1209,55 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Completed at</dt>
                     <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.completed_at)}</dd>
                   </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Created at</dt>
+                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.created_at)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Updated at</dt>
+                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.updated_at)}</dd>
+                  </div>
                 </dl>
+
+                {(runDetails.status === "queued" || runDetails.status === "running") && runProgress ? (
+                  <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
+                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">Run progress</h3>
+                    <p className="text-sm text-[#4d4963]">
+                      {runDetails.status === "queued"
+                        ? "Run is queued and waiting for workers."
+                        : "Run is processing question-level evaluation results."}
+                    </p>
+                    <p className="mt-1 text-xs text-[#6a6780]">
+                      Auto-refreshing every {Math.max(1, Math.round(runPollIntervalMs / 1000))}s.
+                    </p>
+                    <div className="mt-2 h-2 overflow-hidden rounded bg-[#dfdcf3]">
+                      <div
+                        className="h-full rounded bg-[#3525cd]"
+                        style={{ width: `${Math.round(runProgress.ratio * 100)}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-[#6a6780]">
+                      {formatInteger(runProgress.terminalCount)} / {formatInteger(runProgress.total)} completed
+                      {runProgress.failed > 0 ? ` (${formatInteger(runProgress.failed)} failed)` : ""}
+                    </p>
+                  </section>
+                ) : null}
+
+                <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
+                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">Run configuration</h3>
+                  <pre className="max-h-64 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
+                    {JSON.stringify(runDetails.config ?? {}, null, 2)}
+                  </pre>
+                </section>
 
                 {runDetails.failure_reason ? (
                   <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                    {runDetails.failure_reason}
+                    <span className="font-semibold">Failure:</span> {runDetails.failure_reason}
+                    {runDetails.failure_type ? (
+                      <span className="ml-2 text-xs uppercase tracking-wide text-rose-700">
+                        ({runDetails.failure_type})
+                      </span>
+                    ) : null}
                   </p>
                 ) : null}
 
