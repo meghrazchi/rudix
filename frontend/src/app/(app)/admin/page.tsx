@@ -1,5 +1,5 @@
-import { AdminPage } from "@/components/admin/AdminPage";
+import { AdminLandingPage } from "@/components/admin/AdminLandingPage";
 
 export default function AdminRoutePage() {
-  return <AdminPage />;
+  return <AdminLandingPage />;
 }
