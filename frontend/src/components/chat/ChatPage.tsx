@@ -60,6 +60,7 @@ type ChatTurn = {
     answer: string;
     confidence_score: number;
     confidence_category: "low" | "medium" | "high";
+    not_found: boolean;
     citations: ChatCitationResponse[];
     created_at: string;
   };
@@ -107,6 +108,7 @@ function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["respons
     answer: response.answer,
     confidence_score: response.confidence_score,
     confidence_category: response.confidence_category,
+    not_found: response.not_found,
     citations: response.citations,
     created_at: response.created_at,
   };
@@ -118,6 +120,7 @@ function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): 
     answer: message.content,
     confidence_score: typeof message.confidence_score === "number" ? message.confidence_score : 0,
     confidence_category: message.confidence_category ?? "low",
+    not_found: false,
     citations: message.citations,
     created_at: message.created_at,
   };
@@ -505,13 +508,20 @@ export function ChatPage() {
 
   async function submitQuestion() {
     const trimmedQuestion = question.trim();
+    await submitQuestionText(trimmedQuestion, true);
+  }
+
+  async function submitQuestionText(questionText: string, clearComposerOnSubmit: boolean) {
+    const trimmedQuestion = questionText.trim();
     if (!trimmedQuestion || queryMutation.isPending || createSessionMutation.isPending || !hasIndexedDocuments) {
       return;
     }
 
     setSubmitRequestId(null);
     setPendingQuestion(trimmedQuestion);
-    setQuestion("");
+    if (clearComposerOnSubmit) {
+      setQuestion("");
+    }
 
     let targetSessionId = activeSessionId;
     if (!targetSessionId) {
@@ -523,7 +533,9 @@ export function ChatPage() {
       } catch (error) {
         setSubmitRequestId(extractRequestIdFromError(error));
         setPendingQuestion(null);
-        setQuestion(trimmedQuestion);
+        if (clearComposerOnSubmit) {
+          setQuestion(trimmedQuestion);
+        }
         return;
       }
     }
@@ -540,7 +552,9 @@ export function ChatPage() {
     }, {
       onError: (error) => {
         setSubmitRequestId(extractRequestIdFromError(error));
-        setQuestion(trimmedQuestion);
+        if (clearComposerOnSubmit) {
+          setQuestion(trimmedQuestion);
+        }
         setPendingQuestion(null);
       },
     });
@@ -745,6 +759,24 @@ export function ChatPage() {
                       : "Ask"}
                 </button>
               </div>
+              {thread.length > 0 ? (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const latestTurn = thread[thread.length - 1];
+                      if (!latestTurn) {
+                        return;
+                      }
+                      void submitQuestionText(latestTurn.question, false);
+                    }}
+                    disabled={queryMutation.isPending || createSessionMutation.isPending || !hasIndexedDocuments}
+                    className="rounded-md border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Regenerate last answer
+                  </button>
+                </div>
+              ) : null}
               <p className="text-xs text-[#6a6780]">Shortcut: Ctrl/Cmd + Enter to submit.</p>
             </form>
           </section>
@@ -828,13 +860,24 @@ export function ChatPage() {
                         </button>
                       </div>
 
-                      {turn.response.confidence_category === "low" ? (
+                      {turn.response.confidence_category === "low" && !turn.response.not_found ? (
                         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                           Low confidence warning: validate this answer against the cited source text.
                         </p>
                       ) : null}
 
-                      <p className="text-sm whitespace-pre-wrap text-[#2f2a46]">{turn.response.answer}</p>
+                      {turn.response.not_found ? (
+                        <div className="space-y-2">
+                          <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm text-[#2f2a46]">
+                            No grounded answer was found in the selected documents.
+                          </p>
+                          <p className="text-xs text-[#6a6780]">
+                            Try refining your question, changing document scope, or adjusting retrieval settings.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap text-[#2f2a46]">{turn.response.answer}</p>
+                      )}
                     </article>
                   </li>
                 ))}
@@ -874,7 +917,13 @@ export function ChatPage() {
                   </p>
                   <p className="mt-2 text-sm text-[#2f2a46]">{selectedCitationTurn.question}</p>
                 </div>
-                <CitationPanel citations={selectedCitationTurn.response.citations} />
+                {selectedCitationTurn.response.not_found ? (
+                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#68647b]">
+                    No citations are shown because the assistant did not find grounded evidence for this response.
+                  </p>
+                ) : (
+                  <CitationPanel citations={selectedCitationTurn.response.citations} />
+                )}
               </div>
             )}
           </section>
