@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,6 +42,12 @@ type SummaryMetric = {
 type TimelinePoint = {
   label: string;
   score: number;
+};
+
+type EvaluationSetLatestRunSummary = {
+  status: string;
+  completedAt: string | null;
+  qualityScore: number | null;
 };
 
 function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
@@ -330,7 +336,8 @@ export function EvaluationsPage() {
   const { state } = useAuthSession();
 
   const role = state.session?.role ?? null;
-  const canCreateAndEdit = role === "owner" || role === "admin" || role === "member";
+  const canCreateSet = role === "owner" || role === "admin";
+  const canCreateAndEditQuestions = role === "owner" || role === "admin" || role === "member";
   const canRun = role === "owner" || role === "admin";
 
   const lowScoreThreshold = parseScoreThresholdEnv(
@@ -340,6 +347,8 @@ export function EvaluationsPage() {
 
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>({});
+  const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<Record<string, EvaluationSetLatestRunSummary>>({});
+  const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
 
   const [setName, setSetName] = useState("");
   const [setDescription, setSetDescription] = useState("");
@@ -473,6 +482,7 @@ export function EvaluationsPage() {
       setSetName("");
       setSetDescription("");
       setSetFormError(null);
+      setIsCreateSetModalOpen(false);
       setSelectedSetId(created.evaluation_set_id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
     },
@@ -572,6 +582,16 @@ export function EvaluationsPage() {
   const runDetails = runDetailQuery.data ?? null;
   const summaryMetrics = useMemo(() => summarizeRunMetrics(runDetails), [runDetails]);
 
+  const latestRunQualityScore = useMemo(() => {
+    const summary = asRecord(runDetails?.summary);
+    return (
+      asNumber(summary?.faithfulness_score) ??
+      asNumber(summary?.answer_relevance_score) ??
+      asNumber(summary?.citation_accuracy_score) ??
+      null
+    );
+  }, [runDetails?.summary]);
+
   const summaryTimeline = buildTimelineFromSummary(asRecord(runDetails?.summary));
   const timelinePoints: TimelinePoint[] = summaryTimeline;
 
@@ -585,6 +605,20 @@ export function EvaluationsPage() {
   });
 
   const filteredResults = resultFilterMode === "problematic" ? problematicResults : results;
+
+  useEffect(() => {
+    if (!selectedEvaluationSetId || !runDetails) {
+      return;
+    }
+    setLatestRunSummaryBySet((previous) => ({
+      ...previous,
+      [selectedEvaluationSetId]: {
+        status: runDetails.status,
+        completedAt: runDetails.completed_at,
+        qualityScore: latestRunQualityScore,
+      },
+    }));
+  }, [latestRunQualityScore, runDetails, selectedEvaluationSetId]);
 
   const listForbidden = isForbiddenError(evaluationSetsQuery.error) || isForbiddenError(questionsQuery.error);
   if (listForbidden) {
@@ -641,56 +675,28 @@ export function EvaluationsPage() {
       <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
         <aside className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Evaluation sets</h2>
-            {canCreateAndEdit ? (
-              <form
-                className="mb-4 space-y-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3"
-                onSubmit={(event: FormEvent) => {
-                  event.preventDefault();
-                  const trimmedName = setName.trim();
-                  if (!trimmedName) {
-                    setSetFormError("Set name is required.");
-                    return;
-                  }
-                  setSetFormError(null);
-                  createSetMutation.mutate({
-                    name: trimmedName,
-                    description: setDescription.trim() || null,
-                  });
-                }}
-              >
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-                  Set name
-                  <input
-                    value={setName}
-                    onChange={(event) => setSetName(event.target.value)}
-                    className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                    placeholder="RAG regression suite"
-                  />
-                </label>
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-                  Description
-                  <textarea
-                    value={setDescription}
-                    onChange={(event) => setSetDescription(event.target.value)}
-                    rows={2}
-                    className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                    placeholder="Optional notes about this set"
-                  />
-                </label>
-
-                {setFormError ? <p className="text-xs text-rose-700">{setFormError}</p> : null}
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Evaluation sets</h2>
+              {canCreateSet ? (
                 <button
-                  type="submit"
-                  disabled={createSetMutation.isPending}
-                  className="w-full rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  onClick={() => {
+                    setSetFormError(null);
+                    setIsCreateSetModalOpen(true);
+                  }}
+                  className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2b1fa8]"
                 >
-                  {createSetMutation.isPending ? "Creating set..." : "Create set"}
+                  Create evaluation set
                 </button>
-              </form>
-            ) : (
+              ) : null}
+            </div>
+            {!canCreateSet ? (
               <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Your role can view evaluation sets but cannot create or edit them.
+                Your role can view evaluation sets but only owner/admin can create new sets.
+              </p>
+            ) : (
+              <p className="mb-4 text-xs text-[#6a6780]">
+                Create and organize evaluation sets for your active organization.
               </p>
             )}
 
@@ -711,24 +717,45 @@ export function EvaluationsPage() {
               <p className="text-sm text-[#68647b]">No evaluation sets yet. Create one to start question benchmarking.</p>
             ) : (
               <ul className="max-h-[380px] space-y-2 overflow-auto pr-1">
-                {evaluationSetItems.map((item) => (
-                  <li key={item.evaluation_set_id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedSetId(item.evaluation_set_id)}
-                      className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                        item.evaluation_set_id === selectedEvaluationSetId
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
-                          : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
-                      }`}
-                    >
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="mt-1 text-xs">
-                        {item.question_count} questions • updated {formatDate(item.updated_at)}
-                      </p>
-                    </button>
-                  </li>
-                ))}
+                {evaluationSetItems.map((item) => {
+                  const latestSummary = latestRunSummaryBySet[item.evaluation_set_id];
+                  return (
+                    <li key={item.evaluation_set_id}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSetId(item.evaluation_set_id)}
+                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
+                          item.evaluation_set_id === selectedEvaluationSetId
+                            ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
+                            : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
+                        }`}
+                      >
+                        <p className="font-semibold">{item.name}</p>
+                        {item.description ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-[#6a6780]">{item.description}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-[#6a6780]">No description.</p>
+                        )}
+                        <p className="mt-1 text-xs">{item.question_count} questions</p>
+                        <p className="text-xs text-[#6a6780]">Created: {formatDate(item.created_at)}</p>
+                        <p className="text-xs text-[#6a6780]">Updated: {formatDate(item.updated_at)}</p>
+                        {latestSummary ? (
+                          <p className="mt-1 text-xs text-[#4f4b63]">
+                            Latest run: {latestSummary.status}
+                            {latestSummary.qualityScore != null
+                              ? ` • quality ${formatPercent(latestSummary.qualityScore)}`
+                              : ""}
+                            {latestSummary.completedAt
+                              ? ` • ${formatDate(latestSummary.completedAt)}`
+                              : ""}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-[#6a6780]">Latest run: Not available yet.</p>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
@@ -849,7 +876,7 @@ export function EvaluationsPage() {
               <p className="text-sm text-[#68647b]">Select a set before adding or reviewing questions.</p>
             ) : (
               <>
-                {canCreateAndEdit ? (
+                {canCreateAndEditQuestions ? (
                   <form
                     className="mb-4 grid gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 lg:grid-cols-2"
                     onSubmit={(event) => {
@@ -1149,6 +1176,105 @@ export function EvaluationsPage() {
           </section>
         </div>
       </div>
+      {isCreateSetModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-evaluation-set-title"
+            className="w-full max-w-lg rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="create-evaluation-set-title" className="text-lg font-bold text-[#2a2640]">
+                  Create evaluation set
+                </h2>
+                <p className="text-sm text-[#68647b]">
+                  Name your benchmark set and optionally add context for collaborators.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSetFormError(null);
+                  setIsCreateSetModalOpen(false);
+                }}
+                disabled={createSetMutation.isPending}
+                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Close
+              </button>
+            </div>
+
+            <form
+              className="space-y-3"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                if (!canCreateSet) {
+                  setSetFormError("Only owner/admin can create evaluation sets.");
+                  return;
+                }
+
+                const normalizedName = setName.trim();
+                if (!normalizedName) {
+                  setSetFormError("Set name is required.");
+                  return;
+                }
+
+                setSetFormError(null);
+                createSetMutation.mutate({
+                  name: normalizedName,
+                  description: setDescription.trim() || null,
+                });
+              }}
+            >
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Set name</span>
+                <input
+                  value={setName}
+                  onChange={(event) => setSetName(event.target.value)}
+                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
+                  placeholder="Regression suite"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Description</span>
+                <textarea
+                  value={setDescription}
+                  onChange={(event) => setSetDescription(event.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
+                  placeholder="Optional context for what this evaluation set validates"
+                />
+              </label>
+
+              {setFormError ? <p className="text-xs text-rose-700">{setFormError}</p> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSetFormError(null);
+                    setIsCreateSetModalOpen(false);
+                  }}
+                  disabled={createSetMutation.isPending}
+                  className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createSetMutation.isPending}
+                  className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {createSetMutation.isPending ? "Creating..." : "Create set"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

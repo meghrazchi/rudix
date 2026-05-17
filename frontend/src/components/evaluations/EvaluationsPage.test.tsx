@@ -212,6 +212,14 @@ describe("EvaluationsPage", () => {
     mockApi.listEvaluationSets.mockResolvedValue(buildSetList());
     mockApi.listEvaluationQuestions.mockResolvedValue(buildQuestionList());
     mockApi.listDocuments.mockResolvedValue(buildDocuments());
+    mockApi.createEvaluationSet.mockResolvedValue({
+      evaluation_set_id: "set-2",
+      name: "New Set",
+      description: "new description",
+      question_count: 0,
+      created_at: "2026-05-16T12:00:00Z",
+      updated_at: "2026-05-16T12:00:00Z",
+    });
     mockApi.runEvaluation.mockResolvedValue({
       evaluation_run_id: "run-1",
       status: "queued",
@@ -272,7 +280,7 @@ describe("EvaluationsPage", () => {
     await screen.findByRole("button", { name: "Run evaluation" });
 
     expect(
-      screen.getByText("Your role can view evaluation sets but cannot create or edit them."),
+      screen.getByText("Your role can view evaluation sets but only owner/admin can create new sets."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Your role can inspect results but only owner/admin can run evaluations."),
@@ -280,7 +288,48 @@ describe("EvaluationsPage", () => {
 
     const runButton = screen.getByRole("button", { name: "Run evaluation" });
     expect(runButton).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Create set" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create evaluation set" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+  });
+
+  it("validates create set modal input and submits the set", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-3",
+        email: "owner@example.com",
+        role: "owner",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Create evaluation set" });
+    const setTitleMatches = await screen.findAllByText("Regression Set");
+    expect(setTitleMatches.length).toBeGreaterThan(0);
+    expect(screen.getByText(/Created:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Updated:/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Create evaluation set" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Create set" }));
+    expect(await screen.findByText("Set name is required.")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Set name"), "Smoke test set");
+    await userEvent.type(screen.getByLabelText("Description"), "Validates retrieval quality");
+    await userEvent.click(screen.getByRole("button", { name: "Create set" }));
+
+    await waitFor(() => {
+      expect(mockApi.createEvaluationSet).toHaveBeenCalled();
+      const [payload] = mockApi.createEvaluationSet.mock.calls[0] ?? [];
+      expect(payload).toEqual({
+        name: "Smoke test set",
+        description: "Validates retrieval quality",
+      });
+    });
   });
 });
