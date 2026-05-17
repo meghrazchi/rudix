@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -17,7 +18,7 @@ import {
   type EvaluationRunDetailResponse,
 } from "@/lib/api/evaluations";
 import { listDocuments } from "@/lib/api/documents";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -310,6 +311,40 @@ function parseMetadataJson(rawMetadata: string): Record<string, unknown> | undef
   return record;
 }
 
+function parseMetricOptionsJson(rawMetricOptions: string): Record<string, boolean | number | string> | undefined {
+  const normalized = rawMetricOptions.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(normalized);
+  } catch {
+    throw new Error("Metric options must be valid JSON.");
+  }
+
+  const record = asRecord(parsed);
+  if (!record) {
+    throw new Error("Metric options must be a JSON object.");
+  }
+
+  const normalizedOptions: Record<string, boolean | number | string> = {};
+  for (const [key, value] of Object.entries(record)) {
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      normalizedOptions[key] = value;
+      continue;
+    }
+    throw new Error(`Metric option "${key}" must be a string, number, or boolean.`);
+  }
+
+  return normalizedOptions;
+}
+
 function KpiCard({ title, value, caption }: SummaryMetric) {
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
@@ -352,8 +387,14 @@ function MetricSparkline({ points }: { points: TimelinePoint[] }) {
   );
 }
 
-export function EvaluationsPage() {
+type EvaluationsPageProps = {
+  initialRunId?: string | null;
+};
+
+export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { state } = useAuthSession();
 
   const role = state.session?.role ?? null;
@@ -370,6 +411,7 @@ export function EvaluationsPage() {
   const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>({});
   const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<Record<string, EvaluationSetLatestRunSummary>>({});
   const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
+  const [isRunModalOpen, setIsRunModalOpen] = useState(false);
 
   const [setName, setSetName] = useState("");
   const [setDescription, setSetDescription] = useState("");
@@ -385,6 +427,8 @@ export function EvaluationsPage() {
 
   const [runTopK, setRunTopK] = useState(parseDefaultTopK);
   const [runRerank, setRunRerank] = useState(true);
+  const [runModelName, setRunModelName] = useState("");
+  const [runMetricOptions, setRunMetricOptions] = useState("");
   const [runDocumentIds, setRunDocumentIds] = useState<string[]>([]);
   const [runFormError, setRunFormError] = useState<string | null>(null);
 
@@ -418,9 +462,13 @@ export function EvaluationsPage() {
     return evaluationSetItems[0].evaluation_set_id;
   }, [evaluationSetItems, selectedSetId]);
 
-  const activeRunId = selectedEvaluationSetId
-    ? (latestRunBySet[selectedEvaluationSetId] ?? null)
-    : null;
+  const routeRunIdRaw = initialRunId ?? searchParams.get("runId");
+  const routeRunId = routeRunIdRaw && routeRunIdRaw.trim().length > 0 ? routeRunIdRaw.trim() : null;
+  const activeRunId = routeRunId ?? (
+    selectedEvaluationSetId
+      ? (latestRunBySet[selectedEvaluationSetId] ?? null)
+      : null
+  );
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -580,14 +628,28 @@ export function EvaluationsPage() {
       if (!selectedEvaluationSetId) {
         throw new Error("Select an evaluation set before running.");
       }
+      if (!canRun) {
+        throw new Error("Only owner/admin can queue evaluation runs.");
+      }
 
       const selectedTopK = Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, runTopK));
+      const selectedDocumentIds = runDocumentIds.filter((documentId) =>
+        accessibleDocumentIdSet.has(documentId),
+      );
+      if (selectedDocumentIds.length !== runDocumentIds.length) {
+        throw new Error("One or more selected documents are no longer accessible. Refresh and retry.");
+      }
+      const metricOptions = parseMetricOptionsJson(runMetricOptions);
+      const modelName = runModelName.trim() || null;
+
       return runEvaluation({
         evaluation_set_id: selectedEvaluationSetId,
         config: {
           top_k: selectedTopK,
           rerank: runRerank,
-          selected_document_ids: filteredRunDocumentIds,
+          model_name: modelName,
+          selected_document_ids: selectedDocumentIds,
+          metric_options: metricOptions,
         },
       });
     },
@@ -600,9 +662,15 @@ export function EvaluationsPage() {
       }
 
       setRunFormError(null);
+      setIsRunModalOpen(false);
       await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
+      router.push(`/evaluations/runs/${encodeURIComponent(result.evaluation_run_id)}`);
     },
     onError: (error) => {
+      if (isApiClientError(error) && error.status === 409) {
+        setRunFormError("An evaluation run is already active for this set. Open the existing run or wait for completion.");
+        return;
+      }
       setRunFormError(getApiErrorMessage(error));
     },
   });
@@ -650,6 +718,19 @@ export function EvaluationsPage() {
       },
     }));
   }, [latestRunQualityScore, runDetails, selectedEvaluationSetId]);
+
+  useEffect(() => {
+    if (!routeRunId || !runDetails?.evaluation_set_id) {
+      return;
+    }
+    if (
+      evaluationSetItems.some(
+        (item) => item.evaluation_set_id === runDetails.evaluation_set_id,
+      )
+    ) {
+      setSelectedSetId(runDetails.evaluation_set_id);
+    }
+  }, [evaluationSetItems, routeRunId, runDetails?.evaluation_set_id]);
 
   const listForbidden = isForbiddenError(evaluationSetsQuery.error) || isForbiddenError(questionsQuery.error);
   if (listForbidden) {
@@ -798,82 +879,14 @@ export function EvaluationsPage() {
                 <p className="text-sm text-[#4f4b63]">
                   Selected set: <span className="font-semibold text-[#2f2a46]">{selectedSet.name}</span>
                 </p>
-
-                <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-                  Top K
-                  <input
-                    type="number"
-                    min={MIN_TOP_K}
-                    max={MAX_TOP_K}
-                    value={runTopK}
-                    onChange={(event) => {
-                      const parsed = Number.parseInt(event.target.value, 10);
-                      if (!Number.isFinite(parsed)) {
-                        return;
-                      }
-                      setRunTopK(Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed)));
-                    }}
-                    className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                  />
-                </label>
-
-                <label className="flex items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
-                  <input
-                    type="checkbox"
-                    checked={runRerank}
-                    onChange={(event) => setRunRerank(event.target.checked)}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    Enable rerank
-                    <span className="mt-1 block text-xs text-[#6a6780]">
-                      Use a second-pass ranking to improve relevance.
-                    </span>
-                  </span>
-                </label>
-
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Document scope</p>
-                  {documentsQuery.isLoading ? (
-                    <p className="text-xs text-[#68647b]">Loading indexed documents...</p>
-                  ) : documentsQuery.isError ? (
-                    <p className="text-xs text-rose-700">{getApiErrorMessage(documentsQuery.error)}</p>
-                  ) : indexedDocuments.length === 0 ? (
-                    <p className="text-xs text-[#68647b]">No indexed documents available.</p>
-                  ) : (
-                    <ul className="max-h-32 space-y-1 overflow-auto rounded border border-[#ebe8f7] bg-[#faf9ff] p-2">
-                      {indexedDocuments.map((document) => {
-                        const checked = filteredRunDocumentIds.includes(document.document_id);
-                        return (
-                          <li key={document.document_id}>
-                            <label className="flex items-center gap-2 text-xs text-[#2f2a46]">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => {
-                                  setRunDocumentIds((previous) => {
-                                    const validPrevious = previous.filter((value) =>
-                                      indexedDocumentIdSet.has(value),
-                                    );
-                                    if (validPrevious.includes(document.document_id)) {
-                                      return validPrevious.filter(
-                                        (value) => value !== document.document_id,
-                                      );
-                                    }
-                                    return [...validPrevious, document.document_id];
-                                  });
-                                }}
-                              />
-                              <span className="truncate" title={document.filename}>{document.filename}</span>
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-
-                {runFormError ? <p className="text-xs text-rose-700">{runFormError}</p> : null}
+                <p className="text-xs text-[#6a6780]">
+                  Configure top-k retrieval, rerank behavior, optional model override, metric options, and document scope in the run modal.
+                </p>
+                {activeRunId ? (
+                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#5f5a74]">
+                    Active run detail: <span className="font-semibold text-[#2f2a46]">{activeRunId}</span>
+                  </p>
+                ) : null}
 
                 {!canRun ? (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -885,12 +898,12 @@ export function EvaluationsPage() {
                   type="button"
                   onClick={() => {
                     setRunFormError(null);
-                    runMutation.mutate();
+                    setIsRunModalOpen(true);
                   }}
-                  disabled={!canRun || runMutation.isPending || !selectedEvaluationSetId}
+                  disabled={!canRun || !selectedEvaluationSetId}
                   className="w-full rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {runMutation.isPending ? "Queueing run..." : "Run evaluation"}
+                  Run evaluation
                 </button>
               </div>
             ) : (
@@ -1220,6 +1233,173 @@ export function EvaluationsPage() {
           </section>
         </div>
       </div>
+      {isRunModalOpen ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="run-evaluation-title"
+            className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 id="run-evaluation-title" className="text-lg font-bold text-[#2a2640]">
+                  Run evaluation
+                </h2>
+                <p className="text-sm text-[#68647b]">
+                  Queue a run for <span className="font-semibold text-[#2f2a46]">{selectedSet?.name ?? "selected set"}</span>.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (runMutation.isPending) {
+                    return;
+                  }
+                  setRunFormError(null);
+                  setIsRunModalOpen(false);
+                }}
+                disabled={runMutation.isPending}
+                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Close
+              </button>
+            </div>
+
+            <form
+              className="space-y-3"
+              onSubmit={(event: FormEvent<HTMLFormElement>) => {
+                event.preventDefault();
+                setRunFormError(null);
+                runMutation.mutate();
+              }}
+            >
+              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                Top K
+                <input
+                  type="number"
+                  min={MIN_TOP_K}
+                  max={MAX_TOP_K}
+                  value={runTopK}
+                  onChange={(event) => {
+                    const parsed = Number.parseInt(event.target.value, 10);
+                    if (!Number.isFinite(parsed)) {
+                      return;
+                    }
+                    setRunTopK(Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed)));
+                  }}
+                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
+                />
+              </label>
+
+              <label className="flex items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
+                <input
+                  type="checkbox"
+                  checked={runRerank}
+                  onChange={(event) => setRunRerank(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Enable rerank
+                  <span className="mt-1 block text-xs text-[#6a6780]">
+                    Use a second-pass ranking to improve relevance.
+                  </span>
+                </span>
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Model name (optional)</span>
+                <input
+                  value={runModelName}
+                  onChange={(event) => setRunModelName(event.target.value)}
+                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
+                  placeholder="Optional backend-supported model identifier"
+                />
+              </label>
+
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Selected documents</p>
+                {documentsQuery.isLoading ? (
+                  <p className="text-xs text-[#68647b]">Loading indexed documents...</p>
+                ) : documentsQuery.isError ? (
+                  <p className="text-xs text-rose-700">{getApiErrorMessage(documentsQuery.error)}</p>
+                ) : indexedDocuments.length === 0 ? (
+                  <p className="text-xs text-[#68647b]">No indexed documents available.</p>
+                ) : (
+                  <ul className="max-h-40 space-y-1 overflow-auto rounded border border-[#ebe8f7] bg-[#faf9ff] p-2">
+                    {indexedDocuments.map((document) => {
+                      const checked = filteredRunDocumentIds.includes(document.document_id);
+                      return (
+                        <li key={document.document_id}>
+                          <label className="flex items-center gap-2 text-xs text-[#2f2a46]">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setRunDocumentIds((previous) => {
+                                  const validPrevious = previous.filter((value) =>
+                                    indexedDocumentIdSet.has(value),
+                                  );
+                                  if (validPrevious.includes(document.document_id)) {
+                                    return validPrevious.filter(
+                                      (value) => value !== document.document_id,
+                                    );
+                                  }
+                                  return [...validPrevious, document.document_id];
+                                });
+                              }}
+                            />
+                            <span className="truncate" title={document.filename}>{document.filename}</span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                  Metric options (JSON object)
+                </span>
+                <textarea
+                  value={runMetricOptions}
+                  onChange={(event) => setRunMetricOptions(event.target.value)}
+                  rows={3}
+                  className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
+                  placeholder='{"faithfulness":true,"latency_budget_ms":800}'
+                />
+              </label>
+
+              {runFormError ? <p className="text-xs text-rose-700">{runFormError}</p> : null}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (runMutation.isPending) {
+                      return;
+                    }
+                    setRunFormError(null);
+                    setIsRunModalOpen(false);
+                  }}
+                  disabled={runMutation.isPending}
+                  className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canRun || runMutation.isPending || !selectedEvaluationSetId}
+                  className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {runMutation.isPending ? "Queueing run..." : "Queue run"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
       {isCreateSetModalOpen ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4">
           <div

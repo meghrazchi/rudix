@@ -11,6 +11,16 @@ import type { SessionState } from "@/lib/auth-session";
 
 const apiBaseUrl = "http://api.test";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+  push: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockNavigation.searchParams,
+  useRouter: () => ({ push: mockNavigation.push }),
+}));
+
 const mockState = vi.hoisted(() => ({
   authState: { status: "authenticated", session: null } as SessionState,
 }));
@@ -37,6 +47,16 @@ let questionStore: Array<{
   updated_at: string;
 }> = [];
 let observedQuestionCreatePayload: QuestionPayload | null = null;
+let observedRunPayload: {
+  evaluation_set_id: string;
+  config?: {
+    top_k?: number;
+    rerank?: boolean;
+    model_name?: string | null;
+    selected_document_ids?: string[];
+    metric_options?: Record<string, unknown>;
+  };
+} | null = null;
 
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
@@ -92,6 +112,47 @@ const server = setupServer(
     questionStore = [...questionStore, created];
     return HttpResponse.json(created, { status: 201 });
   }),
+  http.post(`${apiBaseUrl}/evaluations/run`, async ({ request }) => {
+    const payload = (await request.json()) as {
+      evaluation_set_id: string;
+      config?: {
+        top_k?: number;
+        rerank?: boolean;
+        model_name?: string | null;
+        selected_document_ids?: string[];
+        metric_options?: Record<string, unknown>;
+      };
+    };
+    observedRunPayload = payload;
+    return HttpResponse.json(
+      {
+        evaluation_run_id: "run-msw-1",
+        status: "queued",
+      },
+      { status: 202 },
+    );
+  }),
+  http.get(`${apiBaseUrl}/evaluations/runs/:runId`, async ({ params }) =>
+    HttpResponse.json({
+      evaluation_run_id: String(params.runId),
+      evaluation_set_id: "set-1",
+      status: "queued",
+      config: {},
+      summary: null,
+      failure_reason: null,
+      failure_type: null,
+      started_at: null,
+      completed_at: null,
+      created_at: "2026-05-16T12:00:00Z",
+      updated_at: "2026-05-16T12:00:00Z",
+      results: {
+        items: [],
+        total: 0,
+        limit: 200,
+        offset: 0,
+      },
+    }),
+  ),
   http.get(`${apiBaseUrl}/documents`, async () =>
     HttpResponse.json({
       items: [
@@ -159,6 +220,8 @@ afterAll(() => {
 
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
+  mockNavigation.searchParams = new URLSearchParams();
+  mockNavigation.push.mockReset();
   questionStore = [
     {
       evaluation_question_id: "q-1",
@@ -174,6 +237,7 @@ beforeEach(() => {
     },
   ];
   observedQuestionCreatePayload = null;
+  observedRunPayload = null;
   mockState.authState = {
     status: "authenticated",
     session: {
@@ -280,5 +344,62 @@ describe("EvaluationsPage list states (MSW)", () => {
       });
     });
     expect(await screen.findByText("What is the new SLA?")).toBeInTheDocument();
+  });
+
+  it("queues a run and redirects to run detail/progress view", async () => {
+    renderPage();
+
+    await screen.findByRole("button", { name: "Run evaluation" });
+    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Optional backend-supported model identifier"),
+      "custom-eval-model",
+    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /policy\.pdf/i }));
+    fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
+      target: { value: '{"faithfulness":true,"max_latency_ms":900}' },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
+
+    await waitFor(() => {
+      expect(observedRunPayload).toEqual({
+        evaluation_set_id: "set-1",
+        config: {
+          top_k: 5,
+          rerank: true,
+          model_name: "custom-eval-model",
+          selected_document_ids: ["doc-1"],
+          metric_options: { faithfulness: true, max_latency_ms: 900 },
+        },
+      });
+      expect(mockNavigation.push).toHaveBeenCalledWith("/evaluations/runs/run-msw-1");
+    });
+  });
+
+  it("shows actionable 409 conflict error and preserves run form state", async () => {
+    server.use(
+      http.post(`${apiBaseUrl}/evaluations/run`, async () =>
+        HttpResponse.json({ detail: "active run exists" }, { status: 409 }),
+      ),
+    );
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Run evaluation" });
+    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    await userEvent.type(
+      screen.getByPlaceholderText("Optional backend-supported model identifier"),
+      "retry-model",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
+
+    expect(
+      await screen.findByText(
+        "An evaluation run is already active for this set. Open the existing run or wait for completion.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByDisplayValue("retry-model")).toBeInTheDocument();
+    expect(mockNavigation.push).not.toHaveBeenCalled();
   });
 });

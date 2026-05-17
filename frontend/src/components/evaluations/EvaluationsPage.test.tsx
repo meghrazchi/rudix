@@ -12,6 +12,16 @@ import type {
 import type { DocumentListResponse } from "@/lib/api/documents";
 import type { SessionState } from "@/lib/auth-session";
 
+const mockNavigation = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+  push: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockNavigation.searchParams,
+  useRouter: () => ({ push: mockNavigation.push }),
+}));
+
 const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
 }));
@@ -201,6 +211,8 @@ function buildRunDetail(): EvaluationRunDetailResponse {
 
 describe("EvaluationsPage", () => {
   beforeEach(() => {
+    mockNavigation.searchParams = new URLSearchParams();
+    mockNavigation.push.mockReset();
     mockApi.listEvaluationSets.mockReset();
     mockApi.listEvaluationQuestions.mockReset();
     mockApi.createEvaluationSet.mockReset();
@@ -256,6 +268,8 @@ describe("EvaluationsPage", () => {
 
     await screen.findByRole("button", { name: "Run evaluation" });
     await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    await screen.findByRole("dialog");
+    await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     await screen.findByText("Run status: completed");
 
@@ -327,6 +341,52 @@ describe("EvaluationsPage", () => {
       await screen.findByText("Your role can view questions but only owner/admin can add new questions."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+  });
+
+  it("disables run action for member role", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-6",
+        email: "member-run@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-6",
+      },
+    };
+
+    renderPage();
+    const runButton = await screen.findByRole("button", { name: "Run evaluation" });
+    expect(runButton).toBeDisabled();
+  });
+
+  it("validates run modal config fields before queueing", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-7",
+        email: "owner-run@example.com",
+        role: "owner",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-7",
+      },
+    };
+
+    renderPage();
+
+    await screen.findByRole("button", { name: "Run evaluation" });
+    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
+      target: { value: "{bad" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
+
+    expect(await screen.findByText("Metric options must be valid JSON.")).toBeInTheDocument();
+    expect(mockApi.runEvaluation).not.toHaveBeenCalled();
   });
 
   it("validates question form fields before submission", async () => {
