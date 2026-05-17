@@ -16,19 +16,19 @@ A typical flow looks like this:
 
 ```mermaid
 flowchart LR
-  subgraph L["Ingestion Pipeline (Async)"]
+  subgraph ING[Ingestion Pipeline (Async)]
     direction TB
-    U[Next.js /documents upload modal]
-    A[FastAPI POST /api/v1/documents/upload]
-    M[(MinIO object storage)]
-    R[(RabbitMQ)]
-    W[Celery documents.reindex worker]
-    X[Extract text (PyMuPDF or python-docx)]
-    C[Clean and chunk content]
-    E[OpenAI Embeddings API]
-    Q[(Qdrant vector collection)]
-    P[(PostgreSQL document metadata)]
-    S[FastAPI GET /api/v1/documents/:id/status]
+    U["Next.js upload modal"]
+    A["FastAPI POST /api/v1/documents/upload"]
+    M["MinIO object storage"]
+    R["RabbitMQ queue"]
+    W["Celery documents.reindex worker"]
+    X["Text extraction (PyMuPDF or python-docx)"]
+    C["Clean and chunk content"]
+    E["OpenAI embeddings"]
+    Q["Qdrant vector collection"]
+    P["PostgreSQL document metadata"]
+    S["FastAPI GET /api/v1/documents status"]
 
     U --> A --> M
     A --> P
@@ -37,16 +37,16 @@ flowchart LR
     P --> S
   end
 
-  subgraph RQ["Query Pipeline (Realtime)"]
+  subgraph QRY[Query Pipeline (Realtime)]
     direction TB
-    UI[Next.js /chat]
-    CH[FastAPI POST /api/v1/chat]
-    DE[OpenAI query embedding]
-    RT[Qdrant retrieve org-scoped chunks]
-    RR[Optional rerank]
-    ANS[OpenAI grounded answer generation]
-    OUT[Answer plus citations, confidence, and trace id]
-    LOG[(PostgreSQL chat sessions plus usage and audit events)]
+    UI["Next.js chat page"]
+    CH["FastAPI POST /api/v1/chat"]
+    DE["OpenAI query embedding"]
+    RT["Qdrant retrieval with org filters"]
+    RR["Optional rerank"]
+    ANS["OpenAI grounded answer generation"]
+    OUT["Answer, citations, confidence, trace id"]
+    LOG["PostgreSQL sessions, usage, audit events"]
 
     UI --> CH --> DE --> RT --> RR --> ANS --> OUT
     CH --> LOG
