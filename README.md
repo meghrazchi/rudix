@@ -14,16 +14,25 @@ Rudix is designed for document-based AI workflows.
 
 A typical flow looks like this:
 
-```text
-Upload document
-→ Extract text
-→ Clean and chunk content
-→ Generate embeddings
-→ Store vectors
-→ Ask questions
-→ Retrieve relevant chunks
-→ Generate grounded answers
-→ Return citations and metadata
+```mermaid
+flowchart TD
+  subgraph Ingestion Pipeline
+    A[Upload document]
+    B[Extract text]
+    C[Clean and chunk content]
+    D[Generate embeddings]
+    E[Store vectors]
+  end
+
+  subgraph Query Pipeline
+    F[Ask questions]
+    G[Retrieve relevant chunks]
+    H[Generate grounded answers]
+    I[Return citations and metadata]
+  end
+
+  A --> B --> C --> D --> E
+  E --> F --> G --> H --> I
 ```
 
 Supported document types include:
