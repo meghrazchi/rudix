@@ -16,45 +16,43 @@ A typical flow looks like this:
 
 ```mermaid
 flowchart LR
-  subgraph ING[Ingestion Pipeline (Async)]
-    direction TB
-    U["Next.js upload modal"]
-    A["FastAPI POST /api/v1/documents/upload"]
-    M["MinIO object storage"]
-    R["RabbitMQ queue"]
-    W["Celery documents.reindex worker"]
-    X["Text extraction (PyMuPDF or python-docx)"]
-    C["Clean and chunk content"]
-    E["OpenAI embeddings"]
-    Q["Qdrant vector collection"]
-    P["PostgreSQL document metadata"]
-    S["FastAPI GET /api/v1/documents status"]
+  subgraph ING[Ingestion Pipeline]
+    U[Upload Document]
+    APIU[Upload API]
+    OBJ[Object Storage]
+    QUEUE[Task Queue]
+    WORKER[Index Worker]
+    EXTRACT[Extract Text]
+    CHUNK[Clean And Chunk]
+    EMBED[Generate Embeddings]
+    VECTOR[Store Vectors]
+    META[Store Metadata]
+    STATUS[Status API]
 
-    U --> A --> M
-    A --> P
-    A --> R --> W --> X --> C --> E --> Q
-    W --> P
-    P --> S
+    U --> APIU --> OBJ
+    APIU --> META
+    APIU --> QUEUE --> WORKER --> EXTRACT --> CHUNK --> EMBED --> VECTOR
+    WORKER --> META
+    META --> STATUS
   end
 
-  subgraph QRY[Query Pipeline (Realtime)]
-    direction TB
-    UI["Next.js chat page"]
-    CH["FastAPI POST /api/v1/chat"]
-    DE["OpenAI query embedding"]
-    RT["Qdrant retrieval with org filters"]
-    RR["Optional rerank"]
-    ANS["OpenAI grounded answer generation"]
-    OUT["Answer, citations, confidence, trace id"]
-    LOG["PostgreSQL sessions, usage, audit events"]
+  subgraph QRY[Query Pipeline]
+    ASK[Ask Question]
+    APIC[Chat API]
+    QEMB[Embed Query]
+    RETRIEVE[Retrieve Chunks]
+    RERANK[Rerank Chunks]
+    ANSWER[Generate Answer]
+    RETURN[Return Answer And Citations]
+    EVENTS[Store Chat Events]
 
-    UI --> CH --> DE --> RT --> RR --> ANS --> OUT
-    CH --> LOG
-    ANS --> LOG
+    ASK --> APIC --> QEMB --> RETRIEVE --> RERANK --> ANSWER --> RETURN
+    APIC --> EVENTS
+    ANSWER --> EVENTS
   end
 
-  Q --> RT
-  P --> CH
+  VECTOR --> RETRIEVE
+  META --> APIC
 ```
 
 Supported document types include:
