@@ -23,7 +23,9 @@ import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { parsePipelineExplorerQuery, type PipelineExplorerQueryContext } from "@/lib/pipeline-links";
 import {
+  fallbackChatPipelineGraph,
   fallbackNodeDetail,
+  fallbackEvaluationPipelineGraph,
   fallbackPipelineGraph,
   fetchPipelineNodeDetail,
   fetchPipelineRunGraph,
@@ -37,6 +39,139 @@ type RunTypeFilter = "all" | "document.process" | "chat.answer" | "evaluation.ru
 
 function toRunTypeFilter(context: PipelineExplorerQueryContext): RunTypeFilter {
   return context.runType ?? "all";
+}
+
+const RUN_TYPE_FILTER_OPTIONS: Array<{ value: RunTypeFilter; label: string }> = [
+  { value: "all", label: "All run types" },
+  { value: "document.process", label: "Document processing (document.process)" },
+  { value: "chat.answer", label: "Chat answer (chat.answer)" },
+  { value: "evaluation.run", label: "Evaluation run (evaluation.run)" },
+];
+
+const SECTION_ORDER: PipelineNode["section"][] = ["ingestion", "query", "evaluation"];
+const NODE_STATUS_VALUES: PipelineNodeStatus[] = ["pending", "running", "completed", "failed", "skipped"];
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizeRunType(value: unknown): RunTypeFilter | null {
+  return value === "document.process" || value === "chat.answer" || value === "evaluation.run" || value === "all"
+    ? value
+    : null;
+}
+
+function normalizeNodeStatus(value: unknown): PipelineNodeStatus {
+  return NODE_STATUS_VALUES.includes(value as PipelineNodeStatus) ? (value as PipelineNodeStatus) : "pending";
+}
+
+function normalizeNodeSection(value: unknown): PipelineNode["section"] {
+  return SECTION_ORDER.includes(value as PipelineNode["section"]) ? (value as PipelineNode["section"]) : "query";
+}
+
+function normalizePipelineNode(rawNode: unknown, index: number): PipelineNode {
+  const node = asObject(rawNode);
+  const fallbackId = `node-${index + 1}`;
+  const id = asNonEmptyString(node.id) ?? fallbackId;
+  const label = asNonEmptyString(node.label) ?? id.replaceAll("-", " ");
+  const description = asNonEmptyString(node.description);
+  const status = normalizeNodeStatus(node.status);
+  const section = normalizeNodeSection(node.section);
+  const startedAt = asNonEmptyString(node.started_at);
+  const completedAt = asNonEmptyString(node.completed_at);
+  const durationMs = typeof node.duration_ms === "number" && Number.isFinite(node.duration_ms)
+    ? node.duration_ms
+    : null;
+  const metrics = asObject(node.metrics);
+
+  return {
+    id,
+    label,
+    description: description ?? undefined,
+    status,
+    section,
+    started_at: startedAt,
+    completed_at: completedAt,
+    duration_ms: durationMs,
+    metrics,
+  };
+}
+
+function normalizePipelineGraph(rawGraph: PipelineRunGraphResponse | unknown): PipelineRunGraphResponse {
+  const graph = asObject(rawGraph);
+  const nodesSource = Array.isArray(graph.nodes) ? graph.nodes : [];
+  const nodes = nodesSource.map((node, index) => normalizePipelineNode(node, index));
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edgesSource = Array.isArray(graph.edges) ? graph.edges : [];
+  const edges: PipelineRunGraphResponse["edges"] = [];
+
+  for (let index = 0; index < edgesSource.length; index += 1) {
+    const edge = asObject(edgesSource[index]);
+    const source = asNonEmptyString(edge.source);
+    const target = asNonEmptyString(edge.target);
+    if (!source || !target) {
+      continue;
+    }
+    if (!nodeIds.has(source) || !nodeIds.has(target)) {
+      continue;
+    }
+    const edgeId = asNonEmptyString(edge.id) ?? `edge-${index + 1}`;
+    edges.push({
+      id: edgeId,
+      source,
+      target,
+    });
+  }
+
+  return {
+    pipeline_run_id: asNonEmptyString(graph.pipeline_run_id) ?? "sample-run",
+    pipeline_type: normalizeRunType(graph.pipeline_type) ?? "document.process",
+    status: asNonEmptyString(graph.status) ?? "unknown",
+    nodes,
+    edges,
+  };
+}
+
+function normalizeNodeDetailPayload(
+  rawDetail: PipelineNodeDetailResponse | unknown,
+  fallbackNode: PipelineNode,
+): PipelineNodeDetailResponse {
+  const detail = asObject(rawDetail);
+  const base = deriveNodeDetail(fallbackNode);
+
+  return {
+    node_id: asNonEmptyString(detail.node_id) ?? base.node_id,
+    title: asNonEmptyString(detail.title) ?? base.title,
+    description: asNonEmptyString(detail.description) ?? base.description,
+    status: normalizeNodeStatus(detail.status ?? base.status),
+    inputs: asObject(detail.inputs),
+    outputs: asObject(detail.outputs),
+    config: asObject(detail.config),
+    logs: Array.isArray(detail.logs) ? detail.logs.map((line) => String(line)) : [],
+    error_message: asNonEmptyString(detail.error_message),
+    error_details: asObject(detail.error_details),
+    metrics: asObject(detail.metrics),
+    started_at: asNonEmptyString(detail.started_at),
+    completed_at: asNonEmptyString(detail.completed_at),
+    duration_ms:
+      typeof detail.duration_ms === "number" && Number.isFinite(detail.duration_ms)
+        ? detail.duration_ms
+        : null,
+  };
+}
+
+function fallbackGraphByFilter(runTypeFilter: RunTypeFilter): PipelineRunGraphResponse {
+  if (runTypeFilter === "chat.answer") {
+    return fallbackChatPipelineGraph;
+  }
+  if (runTypeFilter === "evaluation.run") {
+    return fallbackEvaluationPipelineGraph;
+  }
+  return fallbackPipelineGraph;
 }
 
 type StatusMeta = {
@@ -258,7 +393,7 @@ export function RagPipelinePage() {
   } | null>(null);
 
   const nodeLookup = useMemo(() => new Map(graph.nodes.map((node) => [node.id, node])), [graph.nodes]);
-  const runTypeMismatch = runTypeFilter !== "all" && graph.pipeline_type !== runTypeFilter;
+  const runTypeMismatch = runTypeFilter !== "all" && normalizeRunType(graph.pipeline_type) !== runTypeFilter;
   const filteredNodes = useMemo(
     () => (runTypeMismatch ? [] : graph.nodes.filter((node) => matchesDocumentFilter(node, documentFilter))),
     [graph.nodes, documentFilter, runTypeMismatch],
@@ -305,9 +440,10 @@ export function RagPipelinePage() {
 
   async function loadGraph(runIdOverride?: string) {
     const effectiveRunId = (runIdOverride ?? runId).trim();
+    const currentFallbackGraph = fallbackGraphByFilter(runTypeFilter);
     if (!effectiveRunId) {
-      setGraph(fallbackPipelineGraph);
-      const firstNode = fallbackPipelineGraph.nodes[0];
+      setGraph(currentFallbackGraph);
+      const firstNode = currentFallbackGraph.nodes[0];
       if (firstNode) {
         setSelectedNodeId(firstNode.id);
         setNodeDetail(deriveNodeDetail(firstNode));
@@ -321,7 +457,7 @@ export function RagPipelinePage() {
     setForbiddenState(null);
     setErrorText(null);
     try {
-      const loaded = await fetchPipelineRunGraph(effectiveRunId);
+      const loaded = normalizePipelineGraph(await fetchPipelineRunGraph(effectiveRunId));
       setGraph(loaded);
       const firstNode = loaded.nodes[0];
       if (firstNode) {
@@ -329,8 +465,8 @@ export function RagPipelinePage() {
         setNodeDetail(deriveNodeDetail(firstNode));
       }
     } catch (error) {
-      setGraph(fallbackPipelineGraph);
-      const firstNode = fallbackPipelineGraph.nodes[0];
+      setGraph(currentFallbackGraph);
+      const firstNode = currentFallbackGraph.nodes[0];
       if (firstNode) {
         setSelectedNodeId(firstNode.id);
         setNodeDetail(deriveNodeDetail(firstNode));
@@ -364,7 +500,7 @@ export function RagPipelinePage() {
     setLoadingNode(true);
     try {
       const detail = await fetchPipelineNodeDetail(effectiveRunId, node.id);
-      setNodeDetail(detail);
+      setNodeDetail(normalizeNodeDetailPayload(detail, node));
       setForbiddenState(null);
       setErrorText(null);
     } catch (error) {
@@ -387,6 +523,24 @@ export function RagPipelinePage() {
   function refreshGraph() {
     void loadGraph();
   }
+
+  useEffect(() => {
+    if (runId.trim()) {
+      return;
+    }
+
+    const sampleGraph = fallbackGraphByFilter(runTypeFilter);
+    setGraph(sampleGraph);
+    const firstNode = sampleGraph.nodes[0];
+    if (firstNode) {
+      setSelectedNodeId(firstNode.id);
+      setNodeDetail(deriveNodeDetail(firstNode));
+    }
+
+    if (!deepLinkContext.hasContext) {
+      setErrorText("Showing sample graph. Enter a run id to load backend data.");
+    }
+  }, [deepLinkContext.hasContext, runId, runTypeFilter]);
 
   useEffect(() => {
     const signature = JSON.stringify({
@@ -446,10 +600,11 @@ export function RagPipelinePage() {
               onChange={(event) => setRunTypeFilter(event.target.value as RunTypeFilter)}
               className="h-10 min-w-[142px] rounded-lg border border-[#d2cee6] px-3 text-sm outline-none ring-[#3525cd]/20 focus:ring"
             >
-              <option value="all">All run types</option>
-              <option value="document.process">document.process</option>
-              <option value="chat.answer">chat.answer</option>
-              <option value="evaluation.run">evaluation.run</option>
+              {RUN_TYPE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <input
               value={documentFilter}

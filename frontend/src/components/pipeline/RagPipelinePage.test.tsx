@@ -87,6 +87,14 @@ describe("RagPipelinePage", () => {
     });
   });
 
+  it("shows run type filter labels for document, chat, and evaluation telemetry", () => {
+    render(<RagPipelinePage />);
+
+    expect(screen.getByRole("option", { name: "Document processing (document.process)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Chat answer (chat.answer)" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Evaluation run (evaluation.run)" })).toBeInTheDocument();
+  });
+
   it("loads run graph from API and renders loaded nodes", async () => {
     const loadedGraph: PipelineRunGraphResponse = {
       pipeline_run_id: "run-abc",
@@ -208,11 +216,63 @@ describe("RagPipelinePage", () => {
     });
   });
 
-  it("applies run type filter and shows mismatch state", async () => {
+  it("renders chat telemetry fixture nodes when chat run type filter is selected", async () => {
     render(<RagPipelinePage />);
 
     await userEvent.selectOptions(screen.getByRole("combobox"), "chat.answer");
 
-    expect(screen.getByText("Current run type (document.process) is filtered out. Update the run type filter to view this graph.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Embed query" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Build prompt" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Validate citations" })).toBeInTheDocument();
+    expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
+  });
+
+  it("renders evaluation telemetry fixture nodes when evaluation run type filter is selected", async () => {
+    render(<RagPipelinePage />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox"), "evaluation.run");
+
+    expect(screen.getByRole("button", { name: "Load set" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run question" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Score metrics" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Aggregate summary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Persist results" })).toBeInTheDocument();
+    expect(screen.getByText("Type: evaluation.run")).toBeInTheDocument();
+  });
+
+  it("falls back safely for unknown node payloads and partial telemetry", async () => {
+    mockedFetchPipelineRunGraph.mockResolvedValueOnce({
+      pipeline_run_id: "",
+      pipeline_type: "chat.answer",
+      status: "",
+      nodes: [
+        {
+          id: "unknown-step",
+          section: "future",
+          status: "unexpected",
+        },
+      ],
+      edges: [{ id: "e-unknown", source: "missing-source", target: "unknown-step" }],
+    } as unknown as PipelineRunGraphResponse);
+
+    render(<RagPipelinePage />);
+
+    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-malformed");
+    await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
+
+    expect(await screen.findByRole("button", { name: "unknown step" })).toBeInTheDocument();
+    expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
+    expect(screen.queryByText("Current run type (chat.answer) is filtered out. Update the run type filter to view this graph.")).not.toBeInTheDocument();
+  });
+
+  it("applies run type filter and shows mismatch state", async () => {
+    render(<RagPipelinePage />);
+
+    await userEvent.selectOptions(screen.getByRole("combobox"), "chat.answer");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "all");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "document.process");
+
+    expect(screen.getByText("Type: document.process")).toBeInTheDocument();
   });
 });
