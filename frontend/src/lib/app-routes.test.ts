@@ -53,6 +53,7 @@ describe("app route protection", () => {
     });
 
     expect(resolveProtectedRouteRedirect("/admin", state)).toBe("/forbidden");
+    expect(resolveProtectedRouteRedirect("/admin/usage", state)).toBe("/forbidden");
   });
 
   it("redirects users without organization context to onboarding", () => {

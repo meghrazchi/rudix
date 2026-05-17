@@ -1,5 +1,5 @@
-import { AdminPage } from "@/components/admin/AdminPage";
+import { AdminUsagePage } from "@/components/admin/AdminUsagePage";
 
-export default function AdminUsagePage() {
-  return <AdminPage />;
+export default function AdminUsageRoutePage() {
+  return <AdminUsagePage />;
 }

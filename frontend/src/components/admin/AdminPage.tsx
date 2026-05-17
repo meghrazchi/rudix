@@ -58,6 +58,7 @@ export function AdminPage() {
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
   const [userIdInput, setUserIdInput] = useState("");
   const [actionInput, setActionInput] = useState("");
+  const [auditOffset, setAuditOffset] = useState(0);
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
     userId: null,
     action: null,
@@ -87,7 +88,7 @@ export function AdminPage() {
       from: usageRange.from,
       to: usageRange.to,
       limit: AUDIT_PAGE_LIMIT,
-      offset: 0,
+      offset: auditOffset,
       user_id: appliedFilters.userId,
       action: appliedFilters.action,
     }),
@@ -96,7 +97,7 @@ export function AdminPage() {
         from: usageRange.from,
         to: usageRange.to,
         limit: AUDIT_PAGE_LIMIT,
-        offset: 0,
+        offset: auditOffset,
         user_id: appliedFilters.userId ?? undefined,
         action: appliedFilters.action ?? undefined,
       }),
@@ -134,9 +135,15 @@ export function AdminPage() {
 
   const usage = usageQuery.data;
   const audit = auditQuery.data;
+  const auditTotal = audit?.total ?? 0;
+  const auditPageStart = auditTotal === 0 ? 0 : auditOffset + 1;
+  const auditPageEnd = auditTotal === 0 ? 0 : Math.min(auditOffset + AUDIT_PAGE_LIMIT, auditTotal);
+  const hasPreviousAuditPage = auditOffset > 0;
+  const hasNextAuditPage = auditOffset + AUDIT_PAGE_LIMIT < auditTotal;
 
   function applyFilters(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
+    setAuditOffset(0);
     setAppliedFilters({
       userId: trimToNull(userIdInput),
       action: trimToNull(actionInput),
@@ -146,6 +153,7 @@ export function AdminPage() {
   function clearFilters(): void {
     setUserIdInput("");
     setActionInput("");
+    setAuditOffset(0);
     setAppliedFilters({ userId: null, action: null });
   }
 
@@ -166,7 +174,10 @@ export function AdminPage() {
             Date range
             <select
               value={rangePreset}
-              onChange={(event) => setRangePreset(event.target.value as DashboardRangePreset)}
+              onChange={(event) => {
+                setAuditOffset(0);
+                setRangePreset(event.target.value as DashboardRangePreset);
+              }}
               className="h-9 min-w-[150px] rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             >
               {DASHBOARD_RANGE_PRESETS.map((option) => (
@@ -328,7 +339,15 @@ export function AdminPage() {
       </section>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">Recent audit activity</h2>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h2 className="text-lg font-bold text-[#2a2640]">Recent audit activity</h2>
+          {auditQuery.isSuccess ? (
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+              Showing {formatInteger(auditPageStart)}-{formatInteger(auditPageEnd)} of{" "}
+              {formatInteger(auditTotal)}
+            </p>
+          ) : null}
+        </div>
         {auditQuery.isLoading ? <p className="mt-3 text-sm text-[#68647b]">Loading recent activity...</p> : null}
         {auditQuery.isError ? (
           <div className="mt-3 space-y-2">
@@ -350,21 +369,45 @@ export function AdminPage() {
           </p>
         ) : null}
         {auditQuery.isSuccess && audit && audit.items.length > 0 ? (
-          <ul className="mt-4 space-y-2">
-            {audit.items.map((item) => (
-              <li key={item.audit_log_id} className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3">
-                <p className="text-sm font-semibold text-[#2f2a46]">{item.action}</p>
-                <p className="mt-1 text-xs text-[#5f5a74]">
-                  {eventCaption(item)} • {formatTimestamp(item.created_at)}
-                </p>
-                {sanitizeRequestId(item.request_id) ? (
+          <>
+            <ul className="mt-4 space-y-2">
+              {audit.items.map((item) => (
+                <li key={item.audit_log_id} className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3">
+                  <p className="text-sm font-semibold text-[#2f2a46]">{item.action}</p>
                   <p className="mt-1 text-xs text-[#5f5a74]">
-                    Trace ID: <span className="font-semibold">{sanitizeRequestId(item.request_id)}</span>
+                    {eventCaption(item)} • {formatTimestamp(item.created_at)}
                   </p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  {sanitizeRequestId(item.request_id) ? (
+                    <p className="mt-1 text-xs text-[#5f5a74]">
+                      Trace ID: <span className="font-semibold">{sanitizeRequestId(item.request_id)}</span>
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuditOffset((previous) => Math.max(0, previous - AUDIT_PAGE_LIMIT));
+                }}
+                disabled={!hasPreviousAuditPage || auditQuery.isFetching}
+                className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3f3b58] enabled:hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuditOffset((previous) => previous + AUDIT_PAGE_LIMIT);
+                }}
+                disabled={!hasNextAuditPage || auditQuery.isFetching}
+                className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3f3b58] enabled:hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
         ) : null}
       </section>
 

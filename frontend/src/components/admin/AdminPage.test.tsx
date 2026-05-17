@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminPage } from "@/components/admin/AdminPage";
@@ -166,5 +167,78 @@ describe("AdminPage", () => {
     renderPage();
     expect(await screen.findByText("Recent audit activity")).toBeInTheDocument();
     expect(await screen.findByText("No audit events were found for the selected range and filters.")).toBeInTheDocument();
+  });
+
+  it("paginates audit logs with offset changes", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-4",
+        email: "owner@example.com",
+        role: "owner",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-4",
+      },
+    };
+
+    mockApi.listAuditLogs.mockImplementation((query?: { offset?: number }) => {
+      if (query?.offset === 20) {
+        return Promise.resolve({
+          items: [
+            {
+              audit_log_id: "audit-2",
+              organization_id: "org-1",
+              user_id: "user-2",
+              action: "documents.reindex.queued",
+              resource_type: "document",
+              resource_id: "doc-2",
+              request_id: "req-2",
+              metadata: { status_code: 202 },
+              created_at: "2026-05-15T12:00:00Z",
+            },
+          ],
+          total: 41,
+          limit: 20,
+          offset: 20,
+          range: { from: "2026-05-01", to: "2026-05-30" },
+        });
+      }
+
+      return Promise.resolve({
+        items: [
+          {
+            audit_log_id: "audit-1",
+            organization_id: "org-1",
+            user_id: "user-1",
+            action: "chat.query.completed",
+            resource_type: "chat_session",
+            resource_id: "session-1",
+            request_id: "req-1",
+            metadata: { status_code: 200 },
+            created_at: "2026-05-14T12:00:00Z",
+          },
+        ],
+        total: 41,
+        limit: 20,
+        offset: 0,
+        range: { from: "2026-05-01", to: "2026-05-30" },
+      });
+    });
+
+    renderPage();
+    expect(await screen.findByText("chat.query.completed")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1-20 of 41")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText("documents.reindex.queued")).toBeInTheDocument();
+    expect(screen.getByText("Showing 21-40 of 41")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockApi.listAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({ offset: 20, limit: 20 }),
+      );
+    });
   });
 });

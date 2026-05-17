@@ -188,6 +188,7 @@ NEXT_PUBLIC_HELP_SUPPORT_URL=
 NEXT_PUBLIC_HELP_SHORTCUTS_URL=
 NEXT_PUBLIC_HELP_README_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
+NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
@@ -200,6 +201,7 @@ If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, se
 If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` and `NEXT_PUBLIC_AUTH_LOGOUT_URL`; otherwise refresh can still use `/auth/token/refresh` when a refresh token is present.
 Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
+Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
 
 ### 3. Start dev server
 
