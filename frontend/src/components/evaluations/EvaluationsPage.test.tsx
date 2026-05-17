@@ -327,6 +327,95 @@ describe("EvaluationsPage", () => {
     expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
   });
 
+  it("supports result filters and expandable metrics/details rows", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-10",
+        email: "admin-filters@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-10",
+      },
+    };
+
+    mockApi.getEvaluationRun.mockResolvedValue({
+      ...buildRunDetail(),
+      results: {
+        items: [
+          {
+            evaluation_result_id: "r-low",
+            evaluation_question_id: "q-low",
+            question: "Low quality answer?",
+            status: "completed",
+            generated_answer: "Uncertain answer.",
+            retrieval_score: 0.2,
+            faithfulness_score: 0.2,
+            citation_accuracy_score: 0.2,
+            answer_relevance_score: 0.2,
+            latency_ms: 2_100,
+            metrics: { score_bucket: "low" },
+            failure_reason: null,
+            failure_type: null,
+            details: { status: "completed", notes: "low confidence" },
+            created_at: "2026-05-16T10:01:00Z",
+            updated_at: "2026-05-16T10:01:00Z",
+          },
+          {
+            evaluation_result_id: "r-failed",
+            evaluation_question_id: "q-failed",
+            question: "Missing chunk location?",
+            status: "failed",
+            generated_answer: null,
+            retrieval_score: null,
+            faithfulness_score: null,
+            citation_accuracy_score: null,
+            answer_relevance_score: null,
+            latency_ms: 80,
+            metrics: {},
+            failure_reason: "No supporting chunks found",
+            failure_type: "NotFound",
+            details: { status: "failed", error: "No supporting chunks found" },
+            created_at: "2026-05-16T10:01:20Z",
+            updated_at: "2026-05-16T10:01:20Z",
+          },
+        ],
+        total: 2,
+        limit: 20,
+        offset: 0,
+      },
+    });
+
+    renderPage("run-filter-1");
+
+    await screen.findByText("Run status: completed");
+    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
+    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Failed (1)" }));
+    expect(screen.queryByText("Low quality answer?")).not.toBeInTheDocument();
+    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Low score (1)" }));
+    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
+    expect(screen.queryByText("Missing chunk location?")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "High latency (1)" }));
+    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Not found (1)" }));
+    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Citation issues (1)" }));
+    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "All (2)" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Details" })[0]);
+    expect(await screen.findByText("Metrics JSON")).toBeInTheDocument();
+    expect(await screen.findByText("Details JSON")).toBeInTheDocument();
+  });
+
   it("renders safe not-found state for inaccessible run ids", async () => {
     mockState.authState = {
       status: "authenticated",

@@ -221,6 +221,7 @@ afterAll(() => {
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   process.env.NEXT_PUBLIC_EVALUATION_RUN_POLL_INTERVAL_MS = "20";
+  process.env.NEXT_PUBLIC_EVALUATION_RESULTS_PAGE_SIZE = "2";
   mockNavigation.searchParams = new URLSearchParams();
   mockNavigation.push.mockReset();
   questionStore = [
@@ -504,5 +505,111 @@ describe("EvaluationsPage list states (MSW)", () => {
     expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
     expect(await screen.findByText(/Evaluator worker timeout/i)).toBeInTheDocument();
     expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
+  });
+
+  it("supports paginated run results with next/previous controls", async () => {
+    const observedOffsets: string[] = [];
+    const sourceResults = [
+      {
+        evaluation_result_id: "r-1",
+        evaluation_question_id: "q-1",
+        question: "Question one?",
+        status: "completed",
+        generated_answer: "Answer one",
+        retrieval_score: 0.9,
+        faithfulness_score: 0.9,
+        citation_accuracy_score: 0.9,
+        answer_relevance_score: 0.9,
+        latency_ms: 100,
+        metrics: {},
+        failure_reason: null,
+        failure_type: null,
+        details: {},
+        created_at: "2026-05-16T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      },
+      {
+        evaluation_result_id: "r-2",
+        evaluation_question_id: "q-2",
+        question: "Question two?",
+        status: "completed",
+        generated_answer: "Answer two",
+        retrieval_score: 0.8,
+        faithfulness_score: 0.8,
+        citation_accuracy_score: 0.8,
+        answer_relevance_score: 0.8,
+        latency_ms: 200,
+        metrics: {},
+        failure_reason: null,
+        failure_type: null,
+        details: {},
+        created_at: "2026-05-16T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      },
+      {
+        evaluation_result_id: "r-3",
+        evaluation_question_id: "q-3",
+        question: "Question three?",
+        status: "failed",
+        generated_answer: null,
+        retrieval_score: null,
+        faithfulness_score: null,
+        citation_accuracy_score: null,
+        answer_relevance_score: null,
+        latency_ms: 300,
+        metrics: {},
+        failure_reason: "No supporting chunks found",
+        failure_type: "NotFound",
+        details: {},
+        created_at: "2026-05-16T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      },
+    ];
+
+    server.use(
+      http.get(`${apiBaseUrl}/evaluations/runs/:runId`, async ({ params, request }) => {
+        const url = new URL(request.url);
+        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+        const limit = Number.parseInt(url.searchParams.get("limit") ?? "2", 10);
+        observedOffsets.push(String(offset));
+        return HttpResponse.json({
+          evaluation_run_id: String(params.runId),
+          evaluation_set_id: "set-1",
+          status: "completed",
+          config: {},
+          summary: {
+            question_total_count: sourceResults.length,
+          },
+          failure_reason: null,
+          failure_type: null,
+          started_at: "2026-05-16T12:00:00Z",
+          completed_at: "2026-05-16T12:00:30Z",
+          created_at: "2026-05-16T12:00:00Z",
+          updated_at: "2026-05-16T12:00:30Z",
+          results: {
+            items: sourceResults.slice(offset, offset + limit),
+            total: sourceResults.length,
+            limit,
+            offset,
+          },
+        });
+      }),
+    );
+
+    renderPage("run-paginated-1");
+
+    expect(await screen.findByText("Question one?")).toBeInTheDocument();
+    expect(screen.getByText("Question two?")).toBeInTheDocument();
+    expect(screen.queryByText("Question three?")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(await screen.findByText("Question three?")).toBeInTheDocument();
+    expect(screen.queryByText("Question one?")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
+    expect(await screen.findByText("Question one?")).toBeInTheDocument();
+
+    expect(observedOffsets).toContain("0");
+    expect(observedOffsets).toContain("2");
   });
 });

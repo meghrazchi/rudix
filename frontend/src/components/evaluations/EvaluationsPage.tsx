@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,15 +25,24 @@ import { useAuthSession } from "@/lib/use-auth-session";
 
 const EVALUATION_SET_LIMIT = 100;
 const EVALUATION_QUESTION_LIMIT = 200;
-const EVALUATION_RESULTS_LIMIT = 200;
+const EVALUATION_RESULTS_MAX_LIMIT = 200;
+const EVALUATION_RESULTS_DEFAULT_PAGE_SIZE = 20;
 
 const MIN_TOP_K = 1;
 const MAX_TOP_K = 50;
 const DEFAULT_TOP_K = 5;
 const LOW_SCORE_THRESHOLD = 0.5;
 const DEFAULT_RUN_POLL_INTERVAL_MS = 4_000;
+const DEFAULT_HIGH_LATENCY_THRESHOLD_MS = 1_500;
 
-type ResultFilterMode = "all" | "problematic";
+type ResultFilterMode =
+  | "all"
+  | "problematic"
+  | "failed"
+  | "low_score"
+  | "high_latency"
+  | "not_found"
+  | "citation_issues";
 
 type SummaryMetric = {
   title: string;
@@ -84,6 +93,21 @@ function parseRunPollIntervalMs(): number {
   return parsePositiveIntegerEnv(
     process.env.NEXT_PUBLIC_EVALUATION_RUN_POLL_INTERVAL_MS,
     DEFAULT_RUN_POLL_INTERVAL_MS,
+  );
+}
+
+function parseResultsPageSize(): number {
+  const parsed = parsePositiveIntegerEnv(
+    process.env.NEXT_PUBLIC_EVALUATION_RESULTS_PAGE_SIZE,
+    EVALUATION_RESULTS_DEFAULT_PAGE_SIZE,
+  );
+  return Math.max(1, Math.min(EVALUATION_RESULTS_MAX_LIMIT, parsed));
+}
+
+function parseHighLatencyThresholdMs(): number {
+  return parsePositiveIntegerEnv(
+    process.env.NEXT_PUBLIC_EVALUATION_HIGH_LATENCY_MS,
+    DEFAULT_HIGH_LATENCY_THRESHOLD_MS,
   );
 }
 
@@ -274,6 +298,36 @@ function computeResultQualityScore(item: EvaluationRunDetailResponse["results"][
   return Math.max(0, Math.min(1, average));
 }
 
+function buildRunExportHref(rawTemplate: string, runId: string): string {
+  const template = rawTemplate.trim();
+  if (!template) {
+    return "";
+  }
+
+  const encodedRunId = encodeURIComponent(runId);
+  if (template.includes("{runId}")) {
+    return template.replaceAll("{runId}", encodedRunId);
+  }
+  if (template.includes(":runId")) {
+    return template.replaceAll(":runId", encodedRunId);
+  }
+  if (template.includes("?")) {
+    return `${template}&evaluation_run_id=${encodedRunId}`;
+  }
+  return `${template}?evaluation_run_id=${encodedRunId}`;
+}
+
+function isNotFoundResult(item: EvaluationRunDetailResponse["results"]["items"][number]): boolean {
+  const normalizedFailureType = item.failure_type?.trim().toLowerCase() ?? "";
+  const normalizedFailureReason = item.failure_reason?.trim().toLowerCase() ?? "";
+  const normalizedStatus = item.status.trim().toLowerCase();
+  return (
+    normalizedFailureType.includes("notfound") ||
+    normalizedFailureReason.includes("not found") ||
+    normalizedStatus === "not_found"
+  );
+}
+
 function formatQuestionTags(question: EvaluationQuestionResponse): string {
   if (question.tags.length === 0) {
     return "-";
@@ -460,6 +514,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     process.env.NEXT_PUBLIC_EVALUATION_LOW_SCORE_THRESHOLD,
     LOW_SCORE_THRESHOLD,
   );
+  const highLatencyThresholdMs = parseHighLatencyThresholdMs();
+  const runResultsPageSize = parseResultsPageSize();
+  const exportEndpointTemplate = process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "";
 
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>({});
@@ -487,6 +544,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [runFormError, setRunFormError] = useState<string | null>(null);
 
   const [resultFilterMode, setResultFilterMode] = useState<ResultFilterMode>("all");
+  const [resultOffset, setResultOffset] = useState(0);
+  const [expandedResultIds, setExpandedResultIds] = useState<Record<string, boolean>>({});
   const runPollIntervalMs = parseRunPollIntervalMs();
 
   const evaluationSetsQuery = useQuery({
@@ -560,16 +619,16 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
   const runDetailQuery = useQuery({
     queryKey: queryKeys.evaluations.run(activeRunId ?? "", {
-      limit: EVALUATION_RESULTS_LIMIT,
-      offset: 0,
+      limit: runResultsPageSize,
+      offset: resultOffset,
     }),
     queryFn: () => {
       if (!activeRunId) {
         throw new Error("Evaluation run is required");
       }
       return getEvaluationRun(activeRunId, {
-        limit: EVALUATION_RESULTS_LIMIT,
-        offset: 0,
+        limit: runResultsPageSize,
+        offset: resultOffset,
       });
     },
     enabled: Boolean(activeRunId),
@@ -750,15 +809,89 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const timelinePoints: TimelinePoint[] = summaryTimeline;
 
   const results = runDetails?.results.items ?? [];
-  const problematicResults = results.filter((item) => {
-    if (item.status === "failed") {
+  const matchesResultFilter = (
+    mode: ResultFilterMode,
+    item: EvaluationRunDetailResponse["results"]["items"][number],
+  ): boolean => {
+    const qualityScore = computeResultQualityScore(item);
+    const lowScore = qualityScore != null && qualityScore < lowScoreThreshold;
+    const failed = item.status === "failed";
+    const highLatency = item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
+    const notFound = isNotFoundResult(item);
+    const citationIssue =
+      item.citation_accuracy_score != null &&
+      item.citation_accuracy_score < lowScoreThreshold;
+
+    if (mode === "all") {
       return true;
     }
-    const score = computeResultQualityScore(item);
-    return score != null && score < lowScoreThreshold;
-  });
+    if (mode === "problematic") {
+      return failed || lowScore;
+    }
+    if (mode === "failed") {
+      return failed;
+    }
+    if (mode === "low_score") {
+      return lowScore;
+    }
+    if (mode === "high_latency") {
+      return highLatency;
+    }
+    if (mode === "not_found") {
+      return notFound;
+    }
+    if (mode === "citation_issues") {
+      return citationIssue;
+    }
+    return true;
+  };
 
-  const filteredResults = resultFilterMode === "problematic" ? problematicResults : results;
+  const filterCounts = useMemo(() => {
+    const counts: Record<ResultFilterMode, number> = {
+      all: results.length,
+      problematic: 0,
+      failed: 0,
+      low_score: 0,
+      high_latency: 0,
+      not_found: 0,
+      citation_issues: 0,
+    };
+    for (const item of results) {
+      if (matchesResultFilter("problematic", item)) {
+        counts.problematic += 1;
+      }
+      if (matchesResultFilter("failed", item)) {
+        counts.failed += 1;
+      }
+      if (matchesResultFilter("low_score", item)) {
+        counts.low_score += 1;
+      }
+      if (matchesResultFilter("high_latency", item)) {
+        counts.high_latency += 1;
+      }
+      if (matchesResultFilter("not_found", item)) {
+        counts.not_found += 1;
+      }
+      if (matchesResultFilter("citation_issues", item)) {
+        counts.citation_issues += 1;
+      }
+    }
+    return counts;
+  }, [highLatencyThresholdMs, lowScoreThreshold, results]);
+
+  const filteredResults = useMemo(
+    () => results.filter((item) => matchesResultFilter(resultFilterMode, item)),
+    [highLatencyThresholdMs, lowScoreThreshold, resultFilterMode, results],
+  );
+
+  const currentResultsPageIndex = Math.floor(resultOffset / runResultsPageSize) + 1;
+  const totalResultsCount = runDetails?.results.total ?? 0;
+  const totalResultsPages = Math.max(1, Math.ceil(totalResultsCount / runResultsPageSize));
+  const canLoadPreviousResultsPage = resultOffset > 0;
+  const canLoadNextResultsPage = resultOffset + runResultsPageSize < totalResultsCount;
+
+  const exportHref = activeRunId ? buildRunExportHref(exportEndpointTemplate, activeRunId) : "";
+  const canExportCsv = exportHref.length > 0;
   const runNotFound =
     runDetailQuery.isError &&
     isApiClientError(runDetailQuery.error) &&
@@ -781,6 +914,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       ratio,
     };
   }, [runDetails]);
+
+  useEffect(() => {
+    setResultOffset(0);
+    setExpandedResultIds({});
+  }, [activeRunId]);
 
   useEffect(() => {
     if (!selectedEvaluationSetId || !runDetails) {
@@ -1278,7 +1416,29 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                   <h3 className="text-xs font-bold uppercase tracking-wide text-[#5f5a74]">
                     Question-level results
                   </h3>
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    {canExportCsv ? (
+                      <a
+                        href={exportHref}
+                        className="rounded border border-[#3525cd] bg-[#f4f2ff] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#ede9ff]"
+                      >
+                        Export CSV
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="CSV export endpoint is not configured yet."
+                        className="rounded border border-[#d2cee6] bg-[#f7f6fc] px-2 py-1 font-semibold text-[#8c89a0] disabled:cursor-not-allowed"
+                      >
+                        Export CSV (coming soon)
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setResultFilterMode("all")}
@@ -1288,7 +1448,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                           : "border-[#d2cee6] bg-white text-[#5f5a74]"
                       }`}
                     >
-                      All ({results.length})
+                      All ({filterCounts.all})
                     </button>
                     <button
                       type="button"
@@ -1299,9 +1459,67 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                           : "border-[#d2cee6] bg-white text-[#5f5a74]"
                       }`}
                     >
-                      Failed/low ({problematicResults.length})
+                      Failed/low ({filterCounts.problematic})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResultFilterMode("failed")}
+                      className={`rounded border px-2 py-1 font-semibold ${
+                        resultFilterMode === "failed"
+                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
+                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
+                      }`}
+                    >
+                      Failed ({filterCounts.failed})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResultFilterMode("low_score")}
+                      className={`rounded border px-2 py-1 font-semibold ${
+                        resultFilterMode === "low_score"
+                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
+                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
+                      }`}
+                    >
+                      Low score ({filterCounts.low_score})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResultFilterMode("high_latency")}
+                      className={`rounded border px-2 py-1 font-semibold ${
+                        resultFilterMode === "high_latency"
+                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
+                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
+                      }`}
+                    >
+                      High latency ({filterCounts.high_latency})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResultFilterMode("not_found")}
+                      className={`rounded border px-2 py-1 font-semibold ${
+                        resultFilterMode === "not_found"
+                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
+                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
+                      }`}
+                    >
+                      Not found ({filterCounts.not_found})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResultFilterMode("citation_issues")}
+                      className={`rounded border px-2 py-1 font-semibold ${
+                        resultFilterMode === "citation_issues"
+                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
+                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
+                      }`}
+                    >
+                      Citation issues ({filterCounts.citation_issues})
                     </button>
                   </div>
+                  <p className="text-xs text-[#6a6780]">
+                    Filters are applied to the current page of results. High latency threshold: {formatMilliseconds(highLatencyThresholdMs)}.
+                  </p>
                 </div>
 
                 {filteredResults.length === 0 ? (
@@ -1315,53 +1533,133 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Status</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Retrieval</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Quality</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Faithfulness</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Citation</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Relevance</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Latency</th>
                           <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Failure</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Details</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f0edf9]">
                         {filteredResults.map((item) => {
                           const qualityScore = computeResultQualityScore(item);
                           const isProblematic = item.status === "failed" || (qualityScore != null && qualityScore < lowScoreThreshold);
+                          const isExpanded = expandedResultIds[item.evaluation_result_id] === true;
                           return (
-                            <tr
-                              key={item.evaluation_result_id}
-                              className={isProblematic ? "bg-rose-50/50" : "bg-white"}
-                            >
-                              <td className="px-3 py-2 text-[#2f2a46]">
-                                <p className="font-medium">{item.question}</p>
-                                {item.generated_answer ? (
-                                  <p className="mt-1 max-w-[420px] truncate text-xs text-[#6a6780]" title={item.generated_answer}>
-                                    {item.generated_answer}
-                                  </p>
-                                ) : null}
-                              </td>
-                              <td className="px-3 py-2 text-[#2f2a46]">
-                                <span className={resolveStatusBadgeClass(item.status)}>{item.status}</span>
-                              </td>
-                              <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(qualityScore)}</td>
-                              <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.faithfulness_score)}</td>
-                              <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.citation_accuracy_score)}</td>
-                              <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.answer_relevance_score)}</td>
-                              <td className="px-3 py-2 text-[#2f2a46]">{formatMilliseconds(item.latency_ms)}</td>
-                              <td className="px-3 py-2 text-[#2f2a46]">
-                                {item.failure_reason ? (
-                                  <span className="text-rose-700" title={item.failure_reason}>{item.failure_reason}</span>
-                                ) : (
-                                  "-"
-                                )}
-                              </td>
-                            </tr>
+                            <Fragment key={item.evaluation_result_id}>
+                              <tr
+                                className={isProblematic ? "bg-rose-50/50" : "bg-white"}
+                              >
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  <p className="font-medium">{item.question}</p>
+                                  {item.generated_answer ? (
+                                    <p className="mt-1 max-w-[420px] truncate text-xs text-[#6a6780]" title={item.generated_answer}>
+                                      {item.generated_answer}
+                                    </p>
+                                  ) : null}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  <span className={resolveStatusBadgeClass(item.status)}>{item.status}</span>
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.retrieval_score)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(qualityScore)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.faithfulness_score)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.citation_accuracy_score)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.answer_relevance_score)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">{formatMilliseconds(item.latency_ms)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {item.failure_reason ? (
+                                    <div className="space-y-1">
+                                      <span className="text-rose-700" title={item.failure_reason}>{item.failure_reason}</span>
+                                      {item.failure_type ? (
+                                        <p className="text-xs uppercase tracking-wide text-rose-700">
+                                          {item.failure_type}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    "-"
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  <button
+                                    type="button"
+                                    aria-expanded={isExpanded}
+                                    onClick={() =>
+                                      setExpandedResultIds((previous) => ({
+                                        ...previous,
+                                        [item.evaluation_result_id]: !previous[item.evaluation_result_id],
+                                      }))
+                                    }
+                                    className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
+                                  >
+                                    {isExpanded ? "Hide" : "Details"}
+                                  </button>
+                                </td>
+                              </tr>
+                              {isExpanded ? (
+                                <tr className={isProblematic ? "bg-rose-50/40" : "bg-[#faf9ff]"}>
+                                  <td colSpan={10} className="px-3 py-3">
+                                    <div className="grid gap-2 lg:grid-cols-2">
+                                      <div>
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                                          Metrics JSON
+                                        </p>
+                                        <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
+                                          {JSON.stringify(item.metrics ?? {}, null, 2)}
+                                        </pre>
+                                      </div>
+                                      <div>
+                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                                          Details JSON
+                                        </p>
+                                        <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
+                                          {JSON.stringify(item.details ?? {}, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] px-3 py-2">
+                  <p className="text-xs text-[#6a6780]">
+                    Page {formatInteger(currentResultsPageIndex)} of {formatInteger(totalResultsPages)} • Showing{" "}
+                    {formatInteger(results.length)} of {formatInteger(totalResultsCount)} total results
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!canLoadPreviousResultsPage}
+                      onClick={() =>
+                        setResultOffset((previous) => Math.max(0, previous - runResultsPageSize))
+                      }
+                      className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canLoadNextResultsPage}
+                      onClick={() =>
+                        setResultOffset((previous) => previous + runResultsPageSize)
+                      }
+                      className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
           </section>
