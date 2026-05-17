@@ -174,6 +174,10 @@ NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN=
 NEXT_PUBLIC_AUTH_REFRESH_URL=
 NEXT_PUBLIC_AUTH_LOGOUT_URL=
 NEXT_PUBLIC_AUTH_REFRESH_SKEW_SECONDS=60
+NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL=/team/members
+NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL=/team/members/invite
+NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE=/team/members/{memberId}/role
+NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE=/team/members/{memberId}
 NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL=
 NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true
@@ -193,6 +197,7 @@ NEXT_PUBLIC_SUPPORT_EMAIL=
 
 If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` (and optionally `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN`) to valid backend app tokens.  
 If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` and `NEXT_PUBLIC_AUTH_LOGOUT_URL`; otherwise refresh can still use `/auth/token/refresh` when a refresh token is present.
+Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
 
 ### 3. Start dev server
 

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsPage } from "@/components/settings/SettingsPage";
 import type { SessionState } from "@/lib/auth-session";
 import type { SettingsPreferences } from "@/lib/settings-preferences";
+import type { TeamCapabilities } from "@/lib/api/team";
 
 const mockState = vi.hoisted(() => ({
   authState: { status: "authenticated", session: null } as SessionState,
@@ -16,6 +17,19 @@ const mockState = vi.hoisted(() => ({
 const mockPreferencesApi = vi.hoisted(() => ({
   loadSettingsPreferences: vi.fn(),
   persistSettingsPreferences: vi.fn(),
+}));
+
+const mockTeamApi = vi.hoisted(() => ({
+  capabilities: {
+    listMembersEnabled: false,
+    inviteEnabled: false,
+    updateRoleEnabled: false,
+    removeMemberEnabled: false,
+  } satisfies TeamCapabilities,
+  listTeamMembers: vi.fn(),
+  inviteTeamMember: vi.fn(),
+  updateTeamMemberRole: vi.fn(),
+  removeTeamMember: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -45,6 +59,15 @@ vi.mock("@/lib/settings-preferences", async () => {
   };
 });
 
+vi.mock("@/lib/api/team", () => ({
+  getTeamCapabilities: () => mockTeamApi.capabilities,
+  listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
+  inviteTeamMember: (...args: unknown[]) => mockTeamApi.inviteTeamMember(...args),
+  updateTeamMemberRole: (...args: unknown[]) => mockTeamApi.updateTeamMemberRole(...args),
+  removeTeamMember: (...args: unknown[]) => mockTeamApi.removeTeamMember(...args),
+  isTeamEndpointUnavailableError: () => false,
+}));
+
 function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -64,6 +87,12 @@ describe("SettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockState.signOut.mockResolvedValue(undefined);
+    mockTeamApi.capabilities = {
+      listMembersEnabled: false,
+      inviteEnabled: false,
+      updateRoleEnabled: false,
+      removeMemberEnabled: false,
+    };
 
     mockState.authState = {
       status: "authenticated",
@@ -121,6 +150,9 @@ describe("SettingsPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Preferences section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Team management section" }),
     ).toBeInTheDocument();
   });
 

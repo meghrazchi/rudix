@@ -1,7 +1,16 @@
 from fastapi import APIRouter, Depends
 
 from app.auth.dependencies import get_current_principal
-from app.interfaces.http import admin, auth, chat, documents, evaluation_sets, evaluations, pipeline
+from app.interfaces.http import (
+    admin,
+    auth,
+    chat,
+    documents,
+    evaluation_sets,
+    evaluations,
+    pipeline,
+    team,
+)
 
 from . import health
 
@@ -16,5 +25,6 @@ protected_router.include_router(evaluation_sets.router)
 protected_router.include_router(evaluations.router)
 protected_router.include_router(pipeline.router)
 protected_router.include_router(admin.router)
+protected_router.include_router(team.router)
 
 api_router.include_router(protected_router)

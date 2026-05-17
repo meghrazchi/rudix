@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 
 import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { useAuthSession } from "@/lib/use-auth-session";
 import {
@@ -429,6 +430,8 @@ export function SettingsPage() {
           </form>
         )}
       </section>
+
+      <TeamManagementSection role={role} />
 
       <section
         className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"

@@ -42,9 +42,15 @@ def test_domain_layer_has_no_http_api_modules() -> None:
 def test_api_router_uses_interface_routers() -> None:
     router_file = APP_DIR / "api" / "router.py"
     content = router_file.read_text()
-    assert "from app.interfaces.http import admin, auth, chat, documents, evaluation_sets, evaluations, pipeline" in (
-        content
-    )
+    assert "from app.interfaces.http import (" in content
+    assert "admin," in content
+    assert "auth," in content
+    assert "chat," in content
+    assert "documents," in content
+    assert "evaluation_sets," in content
+    assert "evaluations," in content
+    assert "pipeline," in content
+    assert "team," in content
     assert "api_router.include_router(auth.router)" in content
     assert "protected_router.include_router(documents.router)" in content
     assert "protected_router.include_router(chat.router)" in content
@@ -52,3 +58,4 @@ def test_api_router_uses_interface_routers() -> None:
     assert "protected_router.include_router(evaluations.router)" in content
     assert "protected_router.include_router(pipeline.router)" in content
     assert "protected_router.include_router(admin.router)" in content
+    assert "protected_router.include_router(team.router)" in content
