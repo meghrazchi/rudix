@@ -44,7 +44,14 @@ const DEFAULT_TOP_K = Math.min(
   Math.max(parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5), MIN_TOP_K),
   MAX_TOP_K,
 );
+const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
 const STREAMING_PLACEHOLDER_ENABLED = process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
+
+type PersistedChatSettings = {
+  topK: number;
+  rerank: boolean;
+  selectedDocumentIds: string[];
+};
 
 type ChatTurn = {
   question: string;
@@ -152,6 +159,41 @@ function replaceSessionParamInUrl(sessionId: string | null): void {
   window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
 }
 
+function readPersistedChatSettings(): PersistedChatSettings | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(CHAT_SETTINGS_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<PersistedChatSettings> | null;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const storedTopK =
+      typeof parsed.topK === "number" && Number.isFinite(parsed.topK)
+        ? Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, Math.trunc(parsed.topK)))
+        : DEFAULT_TOP_K;
+
+    const selectedDocumentIds = Array.isArray(parsed.selectedDocumentIds)
+      ? parsed.selectedDocumentIds.filter((value): value is string => typeof value === "string")
+      : [];
+
+    return {
+      topK: storedTopK,
+      rerank: parsed.rerank !== false,
+      selectedDocumentIds,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
   if (citations.length === 0) {
     return (
@@ -191,9 +233,12 @@ export function ChatPage() {
   const searchParams = useSearchParams();
   const lastAppliedSessionIdRef = useRef<string | null>(null);
   const lastAppliedDocumentIdRef = useRef<string | null>(null);
+  const didLoadPersistedSettingsRef = useRef(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(() =>
+    readPersistedChatSettings()?.selectedDocumentIds ?? [],
+  );
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [rerank, setRerank] = useState(true);
   const [threadsBySession, setThreadsBySession] = useState<Record<string, ChatTurn[]>>({});
@@ -312,6 +357,30 @@ export function ChatPage() {
     [selectedDocumentIds, indexedDocumentIdSet],
   );
 
+  const hasIndexedDocuments = indexedDocuments.length > 0;
+
+  useEffect(() => {
+    const persisted = readPersistedChatSettings();
+    if (persisted) {
+      setTopK(persisted.topK);
+      setRerank(persisted.rerank);
+      setSelectedDocumentIds(persisted.selectedDocumentIds);
+    }
+    didLoadPersistedSettingsRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!didLoadPersistedSettingsRef.current || typeof window === "undefined") {
+      return;
+    }
+    const payload: PersistedChatSettings = {
+      topK,
+      rerank,
+      selectedDocumentIds: filteredSelectedDocumentIds,
+    };
+    window.localStorage.setItem(CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+  }, [filteredSelectedDocumentIds, rerank, topK]);
+
   useEffect(() => {
     const documentIdFromQuery = searchParams.get("document_id");
     if (!documentIdFromQuery) {
@@ -332,6 +401,13 @@ export function ChatPage() {
     });
     lastAppliedDocumentIdRef.current = documentIdFromQuery;
   }, [indexedDocumentIdSet, searchParams]);
+
+  useEffect(() => {
+    if (filteredSelectedDocumentIds.length === selectedDocumentIds.length) {
+      return;
+    }
+    setSelectedDocumentIds(filteredSelectedDocumentIds);
+  }, [filteredSelectedDocumentIds, selectedDocumentIds.length]);
 
   const activeSession = sessions.find((item) => item.session_id === activeSessionId) ?? null;
   const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];
@@ -391,6 +467,14 @@ export function ChatPage() {
     mutationFn: () => createChatSession(),
   });
 
+  const isComposerDisabled =
+    queryMutation.isPending ||
+    createSessionMutation.isPending ||
+    question.trim().length === 0 ||
+    indexedDocumentsQuery.isLoading ||
+    indexedDocumentsQuery.isError ||
+    !hasIndexedDocuments;
+
   const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
   const composerError = queryMutation.error ?? createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
@@ -421,7 +505,7 @@ export function ChatPage() {
 
   async function submitQuestion() {
     const trimmedQuestion = question.trim();
-    if (!trimmedQuestion || queryMutation.isPending || createSessionMutation.isPending) {
+    if (!trimmedQuestion || queryMutation.isPending || createSessionMutation.isPending || !hasIndexedDocuments) {
       return;
     }
 
@@ -602,9 +686,12 @@ export function ChatPage() {
             ) : indexedDocumentsQuery.isError ? (
               <p className="text-sm text-rose-700">{getApiErrorMessage(indexedDocumentsQuery.error)}</p>
             ) : indexedDocuments.length === 0 ? (
-              <p className="text-sm text-[#68647b]">
-                No indexed documents available. Upload and index documents first.
-              </p>
+              <div className="space-y-2 text-sm text-[#68647b]">
+                <p>No indexed documents available. Upload and index documents first.</p>
+                <Link href="/documents" className="text-sm font-semibold text-[#3525cd] hover:underline">
+                  Go to documents upload
+                </Link>
+              </div>
             ) : (
               <ul className="max-h-72 space-y-2 overflow-auto pr-1">
                 {indexedDocuments.map((document) => (
@@ -635,17 +722,20 @@ export function ChatPage() {
                 }}
                 rows={4}
                 placeholder="Ask a question about your selected documents..."
+                disabled={!hasIndexedDocuments}
                 className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] outline-none ring-[#3525cd]/20 focus:ring"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-[#6a6780]">
-                  {filteredSelectedDocumentIds.length > 0
+                  {!hasIndexedDocuments
+                    ? "Chat is disabled until at least one document is indexed."
+                    : filteredSelectedDocumentIds.length > 0
                     ? `${filteredSelectedDocumentIds.length} document(s) selected`
                     : "All indexed accessible documents are in scope"}
                 </p>
                 <button
                   type="submit"
-                  disabled={queryMutation.isPending || createSessionMutation.isPending || question.trim().length === 0}
+                  disabled={isComposerDisabled}
                   className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {createSessionMutation.isPending

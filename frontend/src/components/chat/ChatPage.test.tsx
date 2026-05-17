@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
@@ -45,6 +45,7 @@ function renderPage() {
 describe("ChatPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     mockNavigation.searchParams = new URLSearchParams();
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [],
@@ -104,6 +105,8 @@ describe("ChatPage", () => {
 
     expect(await screen.findByText("No sessions yet. Ask your first question to start one.")).toBeInTheDocument();
     expect(screen.getByText("New chat draft. Start with a question to create a session.")).toBeInTheDocument();
+    expect(screen.getByText("No indexed documents available. Upload and index documents first.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to documents upload" })).toHaveAttribute("href", "/documents");
   });
 
   it("renders citations and low-confidence warning for an answer", async () => {
@@ -231,6 +234,135 @@ describe("ChatPage", () => {
 
     expect(await screen.findByText("indexed.pdf")).toBeInTheDocument();
     expect(screen.queryByText("failed.pdf")).not.toBeInTheDocument();
+  });
+
+  it("submits selected document_ids with top_k and rerank payload", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+        {
+          document_id: "doc-indexed-b",
+          filename: "policy-b.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 3,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:06:00Z",
+        },
+      ],
+      total: 2,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-new",
+      message_id: "msg-1",
+      answer: "ok",
+      confidence_score: 0.8,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.8,
+        average_similarity: 0.7,
+        top_rerank_score: 0.75,
+        citation_support_score: 0.7,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.85,
+        retrieval_agreement_score: 0.8,
+        raw_score: 0.81,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 100 },
+        retrieval_count: 3,
+        selected_count: 2,
+        rerank_applied: false,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    renderPage();
+
+    const firstDocRow = (await screen.findByText("policy-a.pdf")).closest("label");
+    expect(firstDocRow).not.toBeNull();
+    await userEvent.click(within(firstDocRow as HTMLLabelElement).getByRole("checkbox"));
+
+    const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
+    fireEvent.change(topKInput, { target: { value: "9" } });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Enable rerank/i }));
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "scope check");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "scope check",
+          document_ids: ["doc-indexed-a"],
+          top_k: 9,
+          rerank: false,
+        }),
+      );
+    });
+  });
+
+  it("enforces top_k min and max bounds", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "indexed.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
+    fireEvent.change(topKInput, { target: { value: "0" } });
+    expect(topKInput).toHaveValue(1);
+
+    fireEvent.change(topKInput, { target: { value: "999" } });
+    expect(topKInput).toHaveValue(20);
   });
 
   it("shows actionable error state when chat query fails", async () => {

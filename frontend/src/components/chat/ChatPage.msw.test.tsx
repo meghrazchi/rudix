@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -14,7 +14,13 @@ const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
 }));
 
-const chatPayloads: Array<{ chat_session_id: string | null; question: string }> = [];
+const chatPayloads: Array<{
+  chat_session_id: string | null;
+  question: string;
+  document_ids?: string[];
+  top_k?: number;
+  rerank?: boolean;
+}> = [];
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockNavigation.searchParams,
@@ -45,8 +51,21 @@ const server = setupServer(
   }),
   http.get(`${apiBaseUrl}/documents`, async () =>
     HttpResponse.json({
-      items: [],
-      total: 0,
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "indexed.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-15T09:00:00Z",
+          updated_at: "2026-05-15T09:10:00Z",
+        },
+      ],
+      total: 1,
       limit: 200,
       offset: 0,
       status: "indexed",
@@ -65,10 +84,19 @@ const server = setupServer(
       { status: 201 },
     )),
   http.post(`${apiBaseUrl}/chat`, async ({ request }) => {
-    const payload = (await request.json()) as { chat_session_id?: string; question?: string };
+    const payload = (await request.json()) as {
+      chat_session_id?: string;
+      question?: string;
+      document_ids?: string[];
+      top_k?: number;
+      rerank?: boolean;
+    };
     chatPayloads.push({
       chat_session_id: payload.chat_session_id ?? null,
       question: payload.question ?? "",
+      document_ids: payload.document_ids,
+      top_k: payload.top_k,
+      rerank: payload.rerank,
     });
     return HttpResponse.json({
       chat_session_id: payload.chat_session_id ?? "session-new",
@@ -138,6 +166,7 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   mockNavigation.searchParams = new URLSearchParams();
   chatPayloads.length = 0;
+  window.localStorage.clear();
 });
 
 describe("ChatPage sessions (MSW)", () => {
@@ -170,6 +199,31 @@ describe("ChatPage sessions (MSW)", () => {
     expect(await screen.findByText("MSW answer")).toBeInTheDocument();
     expect(chatPayloads.length).toBe(1);
     expect(chatPayloads[0]?.chat_session_id).toBe("session-new");
+  });
+
+  it("sends selected document_ids with top_k and rerank in chat payload", async () => {
+    renderPage();
+
+    await screen.findByText("MSW Session");
+    await userEvent.click(screen.getByRole("checkbox", { name: /indexed\.pdf/i }));
+
+    const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
+    fireEvent.change(topKInput, { target: { value: "8" } });
+    await userEvent.click(screen.getByRole("checkbox", { name: /Enable rerank/i }));
+
+    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    await userEvent.type(textarea, "Send payload");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("MSW answer")).toBeInTheDocument();
+    expect(chatPayloads.length).toBe(1);
+    expect(chatPayloads[0]).toMatchObject({
+      chat_session_id: "session-new",
+      question: "Send payload",
+      document_ids: ["doc-indexed-1"],
+      top_k: 8,
+      rerank: false,
+    });
   });
 
   it("preserves the draft question when submission fails", async () => {
