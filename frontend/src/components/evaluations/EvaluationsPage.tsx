@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,6 +25,7 @@ import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { buildPipelineExplorerHref } from "@/lib/pipeline-links";
+import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const EVALUATION_SET_LIMIT = 100;
@@ -527,6 +528,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<Record<string, EvaluationSetLatestRunSummary>>({});
   const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
+  const runModalRef = useRef<HTMLDivElement | null>(null);
+  const createSetModalRef = useRef<HTMLDivElement | null>(null);
 
   const [setName, setSetName] = useState("");
   const [setDescription, setSetDescription] = useState("");
@@ -791,6 +794,34 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       }
       setRunFormError(getApiErrorMessage(error));
     },
+  });
+
+  const closeRunModal = useCallback(() => {
+    if (runMutation.isPending) {
+      return;
+    }
+    setRunFormError(null);
+    setIsRunModalOpen(false);
+  }, [runMutation.isPending, setIsRunModalOpen, setRunFormError]);
+
+  const closeCreateSetModal = useCallback(() => {
+    if (createSetMutation.isPending) {
+      return;
+    }
+    setSetFormError(null);
+    setIsCreateSetModalOpen(false);
+  }, [createSetMutation.isPending, setIsCreateSetModalOpen, setSetFormError]);
+
+  useOverlayFocus({
+    isOpen: isRunModalOpen,
+    containerRef: runModalRef,
+    onClose: closeRunModal,
+  });
+
+  useOverlayFocus({
+    isOpen: isCreateSetModalOpen,
+    containerRef: createSetModalRef,
+    onClose: closeCreateSetModal,
   });
 
   const selectedSet =
@@ -1673,31 +1704,32 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         </div>
       </div>
       {isRunModalOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4"
+          onClick={closeRunModal}
+        >
           <div
+            ref={runModalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="run-evaluation-title"
+            aria-describedby="run-evaluation-description"
             className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h2 id="run-evaluation-title" className="text-lg font-bold text-[#2a2640]">
                   Run evaluation
                 </h2>
-                <p className="text-sm text-[#68647b]">
+                <p id="run-evaluation-description" className="text-sm text-[#68647b]">
                   Queue a run for <span className="font-semibold text-[#2f2a46]">{selectedSet?.name ?? "selected set"}</span>.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (runMutation.isPending) {
-                    return;
-                  }
-                  setRunFormError(null);
-                  setIsRunModalOpen(false);
-                }}
+                data-overlay-autofocus="true"
+                onClick={closeRunModal}
                 disabled={runMutation.isPending}
                 className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -1815,13 +1847,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (runMutation.isPending) {
-                      return;
-                    }
-                    setRunFormError(null);
-                    setIsRunModalOpen(false);
-                  }}
+                  onClick={closeRunModal}
                   disabled={runMutation.isPending}
                   className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -1840,28 +1866,32 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         </div>
       ) : null}
       {isCreateSetModalOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4"
+          onClick={closeCreateSetModal}
+        >
           <div
+            ref={createSetModalRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="create-evaluation-set-title"
+            aria-describedby="create-evaluation-set-description"
             className="w-full max-w-lg rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h2 id="create-evaluation-set-title" className="text-lg font-bold text-[#2a2640]">
                   Create evaluation set
                 </h2>
-                <p className="text-sm text-[#68647b]">
+                <p id="create-evaluation-set-description" className="text-sm text-[#68647b]">
                   Name your benchmark set and optionally add context for collaborators.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setSetFormError(null);
-                  setIsCreateSetModalOpen(false);
-                }}
+                data-overlay-autofocus="true"
+                onClick={closeCreateSetModal}
                 disabled={createSetMutation.isPending}
                 className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -1917,10 +1947,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSetFormError(null);
-                    setIsCreateSetModalOpen(false);
-                  }}
+                  onClick={closeCreateSetModal}
                   disabled={createSetMutation.isPending}
                   className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                 >

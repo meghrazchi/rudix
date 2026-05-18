@@ -192,8 +192,8 @@ describe("DocumentDetailPage MSW", () => {
 
     expect(await screen.findByText("indexed.pdf")).toBeInTheDocument();
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
-    expect(screen.getByText("Chunk #1")).toBeInTheDocument();
-    expect(screen.getByText("Preview 1")).toBeInTheDocument();
+    expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
+    expect(await screen.findByText("Preview 1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ask in Chat" })).toHaveAttribute(
       "href",
       "/chat?document_id=doc-indexed",

@@ -120,6 +120,11 @@ describe("AdminAuditLogsPage", () => {
     await userEvent.click(screen.getAllByRole("button", { name: "View details" })[0]);
     expect(await screen.findByText("Sanitized metadata")).toBeInTheDocument();
     expect(screen.getByText(/redacted/i)).toBeInTheDocument();
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByText("Sanitized metadata")).not.toBeInTheDocument();
+    });
   });
 
   it("renders forbidden state for non-admin role", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +29,7 @@ import {
 } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError, sanitizeRequestId } from "@/lib/forbidden";
 import { isExternalHref } from "@/lib/top-bar";
+import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const AUDIT_PAGE_LIMIT = 20;
@@ -101,10 +102,21 @@ export function AdminAuditLogsPage() {
   const [statusFilter, setStatusFilter] = useState<AuditStatusFilter>("all");
   const [offset, setOffset] = useState(0);
   const [selectedEvent, setSelectedEvent] = useState<AuditLogListItemResponse | null>(null);
+  const eventDrawerRef = useRef<HTMLElement | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
     userId: null,
     action: null,
     resourceType: null,
+  });
+
+  const closeSelectedEvent = useCallback(() => {
+    setSelectedEvent(null);
+  }, [setSelectedEvent]);
+
+  useOverlayFocus({
+    isOpen: selectedEvent != null,
+    containerRef: eventDrawerRef,
+    onClose: closeSelectedEvent,
   });
 
   const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);
@@ -440,16 +452,29 @@ export function AdminAuditLogsPage() {
       </section>
 
       {selectedEvent ? (
-        <div className="fixed inset-0 z-50 flex justify-end bg-[#17172a]/35" role="dialog" aria-modal="true">
-          <aside className="h-full w-full max-w-xl overflow-y-auto bg-white p-5 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-[#17172a]/35"
+          onClick={closeSelectedEvent}
+        >
+          <aside
+            ref={eventDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="audit-event-details-title"
+            className="h-full w-full max-w-xl overflow-y-auto bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">Audit event details</p>
-                <h3 className="mt-1 text-lg font-bold text-[#2a2640]">{selectedEvent.action}</h3>
+                <h3 id="audit-event-details-title" className="mt-1 text-lg font-bold text-[#2a2640]">
+                  {selectedEvent.action}
+                </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedEvent(null)}
+                data-overlay-autofocus="true"
+                onClick={closeSelectedEvent}
                 className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3f3b58] hover:bg-[#f8f6ff]"
               >
                 Close

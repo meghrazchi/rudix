@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+
+import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
 type UploadState = "idle" | "uploading" | "queued" | "success" | "failed";
 
@@ -42,8 +44,22 @@ export function DocumentsUploadModal({
   onFileSelected,
   feedback,
 }: DocumentsUploadModalProps) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);
+
+  const handleClose = useCallback(() => {
+    if (isUploading) {
+      return;
+    }
+    onClose();
+  }, [isUploading, onClose]);
+
+  useOverlayFocus({
+    isOpen,
+    containerRef: dialogRef,
+    onClose: handleClose,
+  });
 
   if (!isOpen) {
     return null;
@@ -94,25 +110,32 @@ export function DocumentsUploadModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#17172a]/55 px-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#17172a]/55 px-4"
+      onClick={handleClose}
+    >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="documents-upload-modal-title"
+        aria-describedby="documents-upload-modal-description"
         className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h3 id="documents-upload-modal-title" className="text-lg font-bold text-[#2a2640]">
               Upload document
             </h3>
-            <p className="text-sm text-[#68647b]">
+            <p id="documents-upload-modal-description" className="text-sm text-[#68647b]">
               Drop one file or click to select. Supported formats: {acceptedTypesLabel}.
             </p>
           </div>
           <button
             type="button"
-            onClick={onClose}
+            data-overlay-autofocus="true"
+            onClick={handleClose}
             disabled={isUploading}
             className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -129,11 +152,23 @@ export function DocumentsUploadModal({
           className={`rounded-xl border-2 border-dashed p-6 text-center transition ${
             dragActive ? "border-[#4b39db] bg-[#f3f1ff]" : "border-[#d8d3ed] bg-[#faf9ff]"
           } ${canUpload && !isUploading ? "cursor-pointer" : "opacity-75"}`}
+          role="button"
+          tabIndex={canUpload && !isUploading ? 0 : -1}
+          aria-label="Upload a document file"
           onClick={() => {
             if (!canUpload || isUploading) {
               return;
             }
             fileInputRef.current?.click();
+          }}
+          onKeyDown={(event) => {
+            if (!canUpload || isUploading) {
+              return;
+            }
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
           }}
         >
           <input

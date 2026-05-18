@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -191,11 +191,6 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [chunksOffset, setChunksOffset] = useState(0);
   const [includeFullText, setIncludeFullText] = useState(false);
 
-  useEffect(() => {
-    setChunksOffset(0);
-    setIncludeFullText(false);
-  }, [documentId]);
-
   const detailQuery = useQuery({
     queryKey: queryKeys.documents.detail(documentId),
     queryFn: () => getDocument(documentId),
@@ -254,7 +249,8 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
   const safeBackHrefRaw = searchParams.get("back");
   const safeBackHref =
-    safeBackHrefRaw && safeBackHrefRaw.startsWith("/documents")
+    safeBackHrefRaw &&
+    (safeBackHrefRaw.startsWith("/documents") || safeBackHrefRaw.startsWith("/chat"))
       ? safeBackHrefRaw
       : "/documents";
 
@@ -267,7 +263,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     [currentStatus, detail],
   );
 
-  const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error) || isSafeNotFoundError(statusQuery.error);
+  const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error);
   const canDelete = Boolean(currentStatus && capabilities.canDelete && canDeleteDocument(currentStatus));
   const canReindex = Boolean(currentStatus && capabilities.canReindex && canReindexDocument(currentStatus));
   const canAskInChat = currentStatus === "indexed";

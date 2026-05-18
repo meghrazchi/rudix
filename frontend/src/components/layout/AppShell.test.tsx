@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -121,5 +121,32 @@ describe("AppShell top bar menus", () => {
       "https://github.com/example/project#readme",
     );
     expect(screen.queryByRole("link", { name: "Admin usage" })).not.toBeInTheDocument();
+  });
+
+  it("opens and closes the mobile navigation drawer with keyboard support", async () => {
+    renderShell({
+      session: {
+        userId: "user-3",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const drawer = await screen.findByRole("dialog", { name: "Navigation menu" });
+    expect(drawer).toBeInTheDocument();
+
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    await waitFor(() => {
+      expect(closeButton).toHaveFocus();
+    });
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+    });
   });
 });

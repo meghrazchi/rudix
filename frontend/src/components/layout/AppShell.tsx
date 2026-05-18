@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import {
   resolveHelpMenuItems,
   resolveNotificationsEndpoint,
 } from "@/lib/top-bar";
+import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
 const BRAND_LOGO_SRC = "/brand/rudix-mark.svg";
 
@@ -207,6 +208,7 @@ function NavList({
 export function AppShell({ activeRoute, navItems, session, onSignOut, children }: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<TopBarMenuKey | null>(null);
+  const mobileSidebarRef = useRef<HTMLElement | null>(null);
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
   const helpMenuRef = useRef<HTMLDivElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -227,6 +229,16 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
 
   const notificationCount = visibleNotifications.length;
   const showNotificationUnavailable = !notificationsEndpoint || notificationsQuery.isError;
+
+  const closeMobileSidebar = useCallback(() => {
+    setMobileSidebarOpen(false);
+  }, [setMobileSidebarOpen]);
+
+  useOverlayFocus({
+    isOpen: mobileSidebarOpen,
+    containerRef: mobileSidebarRef,
+    onClose: closeMobileSidebar,
+  });
 
   useEffect(() => {
     if (!openMenu) {
@@ -318,8 +330,12 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
         </aside>
 
         {mobileSidebarOpen ? (
-          <div className="fixed inset-0 z-40 bg-[#17172a]/40 lg:hidden" onClick={() => setMobileSidebarOpen(false)}>
+          <div className="fixed inset-0 z-40 bg-[#17172a]/40 lg:hidden" onClick={closeMobileSidebar}>
             <aside
+              ref={mobileSidebarRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation menu"
               className="h-full w-[280px] border-r border-[#d7d4e7] bg-[#f7f5ff] px-4 py-5"
               onClick={(event) => event.stopPropagation()}
             >
@@ -335,13 +351,14 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                 </div>
                 <button
                   type="button"
-                  onClick={() => setMobileSidebarOpen(false)}
+                  data-overlay-autofocus="true"
+                  onClick={closeMobileSidebar}
                   className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700"
                 >
                   Close
                 </button>
               </div>
-              <NavList navItems={navItems} onNavigate={() => setMobileSidebarOpen(false)} />
+              <NavList navItems={navItems} onNavigate={closeMobileSidebar} />
             </aside>
           </div>
         ) : null}

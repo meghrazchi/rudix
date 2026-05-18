@@ -156,9 +156,9 @@ describe("DocumentDetailPage", () => {
     );
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();
-    expect(screen.getByText("Chunk #1")).toBeInTheDocument();
-    expect(screen.getByText("Model text-embedding-3-small")).toBeInTheDocument();
-    expect(screen.getByText("Preview text for the first chunk.")).toBeInTheDocument();
+    expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
+    expect(await screen.findByText("Model text-embedding-3-small")).toBeInTheDocument();
+    expect(await screen.findByText("Preview text for the first chunk.")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: /include full chunk text/i })).toBeInTheDocument();
   });
 
@@ -273,6 +273,31 @@ describe("DocumentDetailPage", () => {
 
     expect(await screen.findByText("Document not found")).toBeInTheDocument();
     expect(screen.queryByText("forbidden internal detail")).not.toBeInTheDocument();
+  });
+
+  it("keeps rendering document details when live status endpoint fails", async () => {
+    mockApi.getDocumentStatus.mockRejectedValueOnce(
+      normalizeApiError({
+        status: 404,
+        payload: { detail: "status endpoint unavailable" },
+      }),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("Document not found")).not.toBeInTheDocument();
+  });
+
+  it("accepts a safe chat back-link from citation deep links", async () => {
+    mockNavigation.searchParams = new URLSearchParams({
+      back: "/chat",
+    });
+
+    renderPage();
+
+    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to documents" })).toHaveAttribute("href", "/chat");
   });
 
   it("hides admin actions for viewer role", async () => {

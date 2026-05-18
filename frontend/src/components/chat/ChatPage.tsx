@@ -271,7 +271,9 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
               </span>
             </summary>
             <div className="mt-2 space-y-2">
-              <p className="text-sm text-[#2f2a46]">{citation.text_snippet ?? "Snippet unavailable."}</p>
+              <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">
+                {citation.text_snippet ?? "Snippet unavailable."}
+              </p>
               <dl className="grid grid-cols-2 gap-2 text-xs text-[#5f5a74]">
                 <div>
                   <dt className="font-semibold text-[#4f4b63]">Similarity</dt>
@@ -287,7 +289,7 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
                 </div>
                 <div>
                   <dt className="font-semibold text-[#4f4b63]">Chunk ID</dt>
-                  <dd className="truncate">{citation.chunk_id}</dd>
+                  <dd className="break-all">{citation.chunk_id}</dd>
                 </div>
               </dl>
               {citation.document_id ? (
@@ -944,7 +946,7 @@ export function ChatPage() {
                   <li key={turn.response.message_id} className="space-y-2">
                     <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
                       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</p>
-                      <p className="text-sm text-[#2f2a46]">{turn.question}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">{turn.question}</p>
                     </article>
 
                     <article className="rounded-xl border border-[#d7d4e8] bg-white p-3">
@@ -975,7 +977,7 @@ export function ChatPage() {
 
                       {turn.response.not_found ? (
                         <div className="space-y-2">
-                          <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm text-[#2f2a46]">
+                          <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
                             No grounded answer was found in the selected documents.
                           </p>
                           <p className="text-xs text-[#6a6780]">
@@ -983,7 +985,9 @@ export function ChatPage() {
                           </p>
                         </div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap text-[#2f2a46]">{turn.response.answer}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">
+                          {turn.response.answer}
+                        </p>
                       )}
                       {CHAT_FEEDBACK_ENABLED ? (
                         <div className="mt-3 flex items-center gap-2">
@@ -1033,7 +1037,7 @@ export function ChatPage() {
                   <li className="space-y-2">
                     <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
                       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</p>
-                      <p className="text-sm text-[#2f2a46]">{pendingQuestion}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">{pendingQuestion}</p>
                     </article>
                     <article className="rounded-xl border border-[#d7d4e8] bg-white p-3">
                       <p className="text-sm text-[#68647b]">

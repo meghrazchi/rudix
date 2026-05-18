@@ -7,5 +7,5 @@ type DocumentDetailRoutePageProps = {
 };
 
 export default function DocumentDetailRoutePage({ params }: DocumentDetailRoutePageProps) {
-  return <DocumentDetailPage documentId={params.documentId} />;
+  return <DocumentDetailPage key={params.documentId} documentId={params.documentId} />;
 }
