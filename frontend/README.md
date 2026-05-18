@@ -190,6 +190,7 @@ NEXT_PUBLIC_HELP_README_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
 NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL=
 NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL=
+NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL=
@@ -204,6 +205,7 @@ Team-management endpoints default to `/team/members*` on the same API base; keep
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
 Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
 Set `NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL` to enable CSV export from Admin Audit Logs.
+Set `NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS` (milliseconds) to auto-refresh `/admin/system-health`; leave empty or `0` to disable.
 
 ### 3. Start dev server
 

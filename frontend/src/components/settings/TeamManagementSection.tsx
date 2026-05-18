@@ -203,6 +203,22 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
     });
   }
 
+  const members = membersQuery.data?.items ?? [];
+  const membersTotal = membersQuery.data?.total ?? members.length;
+  const hasPreviousMembersPage = memberOffset > 0;
+  const hasNextMembersPage = memberOffset + members.length < membersTotal;
+  const membersRangeStart = membersTotal === 0 ? 0 : memberOffset + 1;
+  const membersRangeEnd = membersTotal === 0 ? 0 : memberOffset + members.length;
+
+  useEffect(() => {
+    if (!isAdmin || membersQuery.isFetching) {
+      return;
+    }
+    if (membersTotal > 0 && members.length === 0 && memberPageIndex > 0) {
+      setMemberPageIndex((previous) => Math.max(0, previous - 1));
+    }
+  }, [isAdmin, memberPageIndex, members.length, membersQuery.isFetching, membersTotal]);
+
   if (!isAdmin) {
     return (
       <section
@@ -222,22 +238,6 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
       </section>
     );
   }
-
-  const members = membersQuery.data?.items ?? [];
-  const membersTotal = membersQuery.data?.total ?? members.length;
-  const hasPreviousMembersPage = memberOffset > 0;
-  const hasNextMembersPage = memberOffset + members.length < membersTotal;
-  const membersRangeStart = membersTotal === 0 ? 0 : memberOffset + 1;
-  const membersRangeEnd = membersTotal === 0 ? 0 : memberOffset + members.length;
-
-  useEffect(() => {
-    if (membersQuery.isFetching) {
-      return;
-    }
-    if (membersTotal > 0 && members.length === 0 && memberPageIndex > 0) {
-      setMemberPageIndex((previous) => Math.max(0, previous - 1));
-    }
-  }, [memberPageIndex, members.length, membersQuery.isFetching, membersTotal]);
 
   return (
     <section
