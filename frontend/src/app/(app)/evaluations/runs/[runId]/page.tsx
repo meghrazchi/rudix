@@ -1,11 +1,15 @@
 import { EvaluationsPage } from "@/components/evaluations/EvaluationsPage";
 
 type EvaluationRunDetailRoutePageProps = {
-  params: {
+  params: Promise<{
     runId: string;
-  };
+  }>;
 };
 
-export default function EvaluationRunDetailRoutePage({ params }: EvaluationRunDetailRoutePageProps) {
-  return <EvaluationsPage initialRunId={params.runId} />;
+export default async function EvaluationRunDetailRoutePage({
+  params,
+}: EvaluationRunDetailRoutePageProps) {
+  const { runId } = await params;
+
+  return <EvaluationsPage initialRunId={runId} />;
 }

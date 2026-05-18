@@ -1,11 +1,13 @@
 import { DocumentDetailPage } from "@/components/documents/DocumentDetailPage";
 
 type DocumentDetailRoutePageProps = {
-  params: {
+  params: Promise<{
     documentId: string;
-  };
+  }>;
 };
 
-export default function DocumentDetailRoutePage({ params }: DocumentDetailRoutePageProps) {
-  return <DocumentDetailPage key={params.documentId} documentId={params.documentId} />;
+export default async function DocumentDetailRoutePage({ params }: DocumentDetailRoutePageProps) {
+  const { documentId } = await params;
+
+  return <DocumentDetailPage key={documentId} documentId={documentId} />;
 }
