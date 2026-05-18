@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -108,11 +109,14 @@ export default function SignupPage() {
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 py-8"
+      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6 py-8"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Access</p>
+        <div className="mb-2 flex items-center gap-2">
+          <Image src="/brand/rudix-mark.svg" alt="Rudix logo" width={18} height={18} className="h-[18px] w-[18px]" />
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Access</p>
+        </div>
         <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">Create your account</h1>
         <p className="mb-6 text-sm text-[#68647b]">
           Sign up to create a new workspace or join an existing one and continue to onboarding.
@@ -170,7 +174,7 @@ export default function SignupPage() {
             </p>
           ) : null}
 
-          <fieldset className="rounded-lg border border-[#e0dced] bg-[#faf8ff] p-4">
+          <fieldset className="rounded-lg border border-[#e0dced] bg-white p-4">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Workspace</legend>
             <div className="mt-2 space-y-2">
               <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
