@@ -1,3 +1,4 @@
+from app.domains.agents.repositories import AgentRunRepository
 from app.domains.agents.schemas import (
     ToolBudget,
     ToolCall,
@@ -17,6 +18,7 @@ from app.domains.agents.schemas import (
 from app.domains.agents.services import build_default_tool_specs
 
 __all__ = [
+    "AgentRunRepository",
     "ToolBudget",
     "ToolCall",
     "ToolEffectPolicy",
@@ -33,4 +35,3 @@ __all__ = [
     "redact_tool_payload",
     "validate_tool_call_budget",
 ]
-

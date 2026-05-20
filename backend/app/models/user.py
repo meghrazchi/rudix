@@ -28,3 +28,16 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chat_sessions = relationship("ChatSession", back_populates="user")
     usage_events = relationship("UsageEvent", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
+    agent_runs = relationship("AgentRun", back_populates="user")
+    agent_steps = relationship("AgentStep", back_populates="user")
+    agent_tool_calls = relationship("AgentToolCall", back_populates="user")
+    agent_approvals_requested = relationship(
+        "AgentApproval",
+        foreign_keys="AgentApproval.requested_by_user_id",
+        back_populates="requested_by_user",
+    )
+    agent_approvals_decided = relationship(
+        "AgentApproval",
+        foreign_keys="AgentApproval.decided_by_user_id",
+        back_populates="decided_by_user",
+    )

@@ -34,3 +34,39 @@ class EvaluationRunStatus(StrEnum):
     running = "running"
     completed = "completed"
     failed = "failed"
+
+
+class AgentRunStatus(StrEnum):
+    queued = "queued"
+    planning = "planning"
+    running = "running"
+    waiting_approval = "waiting_approval"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class AgentStepStatus(StrEnum):
+    queued = "queued"
+    running = "running"
+    waiting_approval = "waiting_approval"
+    completed = "completed"
+    failed = "failed"
+    skipped = "skipped"
+    cancelled = "cancelled"
+
+
+class AgentToolCallStatus(StrEnum):
+    queued = "queued"
+    running = "running"
+    succeeded = "succeeded"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class AgentApprovalStatus(StrEnum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    expired = "expired"
+    cancelled = "cancelled"

@@ -1,3 +1,4 @@
+from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -9,6 +10,10 @@ from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 
 __all__ = [
+    "AgentApproval",
+    "AgentRun",
+    "AgentStep",
+    "AgentToolCall",
     "AuditLog",
     "ChatMessage",
     "ChatSession",

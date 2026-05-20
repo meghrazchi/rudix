@@ -102,6 +102,26 @@ stateDiagram-v2
   waiting_approval --> cancelled
 ```
 
+## Persistence and Trace Schema (F99)
+
+Agent execution traces are persisted in organization-scoped tables:
+
+- `agent_runs`
+- `agent_steps`
+- `agent_tool_calls`
+- `agent_approvals`
+
+Design constraints:
+
+1. Every table carries `organization_id` and must be queried with org-scoped filters.
+2. Status fields are constrained with explicit allowed values.
+3. Inputs/outputs/errors are stored as sanitized JSON payloads only.
+4. Idempotency keys are not stored in plaintext for tool calls (hashed at persistence boundary).
+5. Indexes support common audit/ops reads:
+   - organization + status
+   - organization + user + created time
+   - run + sequence/status
+
 ## Security and Threat Model
 
 ### Enforced Controls
@@ -171,4 +191,3 @@ Minimum automated coverage:
 2. validation failure (mismatched tool spec or missing idempotency key)
 3. authorization failure (role check and cross-org isolation)
 4. safe error redaction behavior for nested sensitive payloads
-

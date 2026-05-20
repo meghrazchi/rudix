@@ -5,6 +5,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    AgentApproval,
+    AgentRun,
+    AgentStep,
+    AgentToolCall,
     AuditLog,
     ChatMessage,
     ChatSession,
@@ -167,6 +171,53 @@ async def test_model_creation_roundtrip(db_session: AsyncSession) -> None:
     db_session.add(pipeline_event)
     await db_session.flush()
 
+    agent_run = AgentRun(
+        organization_id=organization.id,
+        user_id=user.id,
+        status="running",
+        surface="api",
+        budget_json={"max_steps": 5},
+        costs_json={"token_input_count": 12},
+    )
+    db_session.add(agent_run)
+    await db_session.flush()
+
+    agent_step = AgentStep(
+        agent_run_id=agent_run.id,
+        organization_id=organization.id,
+        user_id=user.id,
+        sequence=0,
+        step_name="plan",
+        status="completed",
+    )
+    db_session.add(agent_step)
+    await db_session.flush()
+
+    agent_tool_call = AgentToolCall(
+        agent_run_id=agent_run.id,
+        agent_step_id=agent_step.id,
+        organization_id=organization.id,
+        user_id=user.id,
+        call_id="call-1",
+        tool_name="documents.list",
+        surface="api",
+        effect_policy="read_only",
+        status="succeeded",
+    )
+    db_session.add(agent_tool_call)
+    await db_session.flush()
+
+    agent_approval = AgentApproval(
+        organization_id=organization.id,
+        agent_run_id=agent_run.id,
+        agent_step_id=agent_step.id,
+        tool_call_id=agent_tool_call.id,
+        requested_by_user_id=user.id,
+        status="approved",
+    )
+    db_session.add(agent_approval)
+    await db_session.flush()
+
     usage = UsageEvent(
         organization_id=organization.id,
         user_id=user.id,
@@ -193,6 +244,8 @@ async def test_model_creation_roundtrip(db_session: AsyncSession) -> None:
     document_count = await db_session.scalar(select(func.count(Document.id)))
     message_count = await db_session.scalar(select(func.count(ChatMessage.id)))
     pipeline_event_count = await db_session.scalar(select(func.count(PipelineEvent.id)))
+    agent_run_count = await db_session.scalar(select(func.count(AgentRun.id)))
     assert document_count == 1
     assert message_count == 1
     assert pipeline_event_count == 1
+    assert agent_run_count == 1

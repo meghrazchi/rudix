@@ -19,3 +19,7 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     usage_events = relationship("UsageEvent", back_populates="organization")
     audit_logs = relationship("AuditLog", back_populates="organization")
     pipeline_runs = relationship("PipelineRun", back_populates="organization")
+    agent_runs = relationship("AgentRun", back_populates="organization")
+    agent_steps = relationship("AgentStep", back_populates="organization")
+    agent_tool_calls = relationship("AgentToolCall", back_populates="organization")
+    agent_approvals = relationship("AgentApproval", back_populates="organization")
