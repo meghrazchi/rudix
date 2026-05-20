@@ -109,7 +109,9 @@ describe("AdminUsagePage", () => {
     expect(await screen.findByText("$4.50")).toBeInTheDocument();
     expect(await screen.findByText("321 ms")).toBeInTheDocument();
     expect(await screen.findByText("81.0%")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Export CSV (planned)" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Export CSV (planned)" }),
+    ).toBeDisabled();
   });
 
   it("shows forbidden state for non-admin users", async () => {
@@ -126,7 +128,9 @@ describe("AdminUsagePage", () => {
     };
 
     renderPage();
-    expect(await screen.findByText("Admin usage restricted")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Admin usage restricted"),
+    ).toBeInTheDocument();
     expect(mockApi.getUsageSummary).not.toHaveBeenCalled();
     expect(mockApi.listDocuments).not.toHaveBeenCalled();
   });

@@ -85,7 +85,8 @@ const STATUS_ERROR_META: Record<number, ApiErrorMeta> = {
 const CODE_ERROR_META: Partial<Record<ApiErrorCode, Partial<ApiErrorMeta>>> = {
   feature_not_available: {
     userMessage: "This feature is not enabled on the backend.",
-    actionMessage: "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
+    actionMessage:
+      "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
     retryable: false,
   },
 };
@@ -133,7 +134,9 @@ function extractRequestIdFromPayload(payload: unknown): string | null {
   );
 }
 
-export function normalizeBackendError(payload: unknown): NormalizedBackendError {
+export function normalizeBackendError(
+  payload: unknown,
+): NormalizedBackendError {
   const envelope = asRecord(payload);
   if (!envelope) {
     return {
@@ -219,7 +222,10 @@ export function normalizeApiError(params: {
   return new ApiClientError({
     status: params.status,
     code,
-    message: normalized.message ?? params.fallbackMessage ?? `Request failed (${params.status})`,
+    message:
+      normalized.message ??
+      params.fallbackMessage ??
+      `Request failed (${params.status})`,
     details: normalized.details,
     requestId: params.requestId ?? extractRequestIdFromPayload(params.payload),
     userMessage,
@@ -229,7 +235,8 @@ export function normalizeApiError(params: {
 }
 
 export function normalizeNetworkError(error: unknown): ApiClientError {
-  const message = error instanceof Error ? error.message : "Network request failed";
+  const message =
+    error instanceof Error ? error.message : "Network request failed";
   return new ApiClientError({
     status: 0,
     code: "network_error",

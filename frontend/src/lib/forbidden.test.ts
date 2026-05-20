@@ -58,9 +58,15 @@ describe("forbidden utilities", () => {
     });
 
     expect(extractRequestIdFromError(forbiddenError)).toBe("req-403");
-    expect(extractRequestIdFromError({ status: 403, requestId: "trace-1" })).toBe("trace-1");
-    expect(extractRequestIdFromError({ status: 403, request_id: "trace-2" })).toBe("trace-2");
-    expect(extractRequestIdFromError({ status: 403, requestId: "bad id" })).toBeNull();
+    expect(
+      extractRequestIdFromError({ status: 403, requestId: "trace-1" }),
+    ).toBe("trace-1");
+    expect(
+      extractRequestIdFromError({ status: 403, request_id: "trace-2" }),
+    ).toBe("trace-2");
+    expect(
+      extractRequestIdFromError({ status: 403, requestId: "bad id" }),
+    ).toBeNull();
   });
 
   it("resolves support action from environment config", () => {

@@ -11,7 +11,9 @@ import {
 import type { DocumentListItemResponse } from "@/lib/api/documents";
 import { normalizeApiError } from "@/lib/api/errors";
 
-function documentWithStatus(status: DocumentListItemResponse["status"]): DocumentListItemResponse {
+function documentWithStatus(
+  status: DocumentListItemResponse["status"],
+): DocumentListItemResponse {
   return {
     document_id: `doc-${status}`,
     filename: `sample-${status}.pdf`,
@@ -71,8 +73,18 @@ describe("documents UI polling and action helpers", () => {
   it("polls list when at least one transitional item exists", () => {
     expect(shouldPollDocumentList(undefined)).toBe(false);
     expect(shouldPollDocumentList([])).toBe(false);
-    expect(shouldPollDocumentList([documentWithStatus("indexed"), documentWithStatus("failed")])).toBe(false);
-    expect(shouldPollDocumentList([documentWithStatus("indexed"), documentWithStatus("processing")])).toBe(true);
+    expect(
+      shouldPollDocumentList([
+        documentWithStatus("indexed"),
+        documentWithStatus("failed"),
+      ]),
+    ).toBe(false);
+    expect(
+      shouldPollDocumentList([
+        documentWithStatus("indexed"),
+        documentWithStatus("processing"),
+      ]),
+    ).toBe(true);
   });
 
   it("allows safe actions based on backend-compatible statuses", () => {
@@ -95,11 +107,11 @@ describe("documents UI polling and action helpers", () => {
       payload: { detail: "conflict" },
     });
 
-    expect(getDocumentLifecycleActionErrorMessage("delete", conflictError)).toMatch(
-      /cannot be deleted in its current lifecycle state/i,
-    );
-    expect(getDocumentLifecycleActionErrorMessage("reindex", conflictError)).toMatch(
-      /cannot be re-indexed in its current lifecycle state/i,
-    );
+    expect(
+      getDocumentLifecycleActionErrorMessage("delete", conflictError),
+    ).toMatch(/cannot be deleted in its current lifecycle state/i);
+    expect(
+      getDocumentLifecycleActionErrorMessage("reindex", conflictError),
+    ).toMatch(/cannot be re-indexed in its current lifecycle state/i);
   });
 });

@@ -1,8 +1,15 @@
-import type { DocumentListItemResponse, DocumentStatus } from "@/lib/api/documents";
+import type {
+  DocumentListItemResponse,
+  DocumentStatus,
+} from "@/lib/api/documents";
 import type { AppRole } from "@/lib/auth-session";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 
-const POLLING_STATUSES = new Set<DocumentStatus>(["uploaded", "processing", "deleting"]);
+const POLLING_STATUSES = new Set<DocumentStatus>([
+  "uploaded",
+  "processing",
+  "deleting",
+]);
 
 export type DocumentCapabilities = {
   canUpload: boolean;
@@ -11,24 +18,48 @@ export type DocumentCapabilities = {
   canViewChunkFullText: boolean;
 };
 
-export function resolveDocumentCapabilities(role: AppRole | null | undefined): DocumentCapabilities {
+export function resolveDocumentCapabilities(
+  role: AppRole | null | undefined,
+): DocumentCapabilities {
   if (role === "owner") {
-    return { canUpload: true, canDelete: true, canReindex: true, canViewChunkFullText: true };
+    return {
+      canUpload: true,
+      canDelete: true,
+      canReindex: true,
+      canViewChunkFullText: true,
+    };
   }
   if (role === "admin") {
-    return { canUpload: true, canDelete: true, canReindex: true, canViewChunkFullText: true };
+    return {
+      canUpload: true,
+      canDelete: true,
+      canReindex: true,
+      canViewChunkFullText: true,
+    };
   }
   if (role === "member") {
-    return { canUpload: true, canDelete: true, canReindex: false, canViewChunkFullText: true };
+    return {
+      canUpload: true,
+      canDelete: true,
+      canReindex: false,
+      canViewChunkFullText: true,
+    };
   }
-  return { canUpload: false, canDelete: false, canReindex: false, canViewChunkFullText: false };
+  return {
+    canUpload: false,
+    canDelete: false,
+    canReindex: false,
+    canViewChunkFullText: false,
+  };
 }
 
 export function shouldPollDocumentStatus(status: DocumentStatus): boolean {
   return POLLING_STATUSES.has(status);
 }
 
-export function shouldPollDocumentList(items: DocumentListItemResponse[] | undefined): boolean {
+export function shouldPollDocumentList(
+  items: DocumentListItemResponse[] | undefined,
+): boolean {
   if (!items || items.length === 0) {
     return false;
   }

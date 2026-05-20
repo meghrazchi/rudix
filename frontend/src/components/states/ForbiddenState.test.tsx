@@ -7,11 +7,12 @@ describe("ForbiddenState", () => {
   it("renders default forbidden state actions", () => {
     render(<ForbiddenState />);
 
-    expect(screen.getByRole("heading", { name: "Forbidden" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute(
-      "href",
-      "/dashboard",
-    );
+    expect(
+      screen.getByRole("heading", { name: "Forbidden" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Back to dashboard" }),
+    ).toHaveAttribute("href", "/dashboard");
   });
 
   it("renders safe trace/request id when provided", () => {
@@ -36,7 +37,9 @@ describe("ForbiddenState", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Action blocked" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Action blocked" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         "You are not allowed to run this operation for the selected organization.",
@@ -47,14 +50,16 @@ describe("ForbiddenState", () => {
   it("renders configured support action", () => {
     const originalEnv = { ...process.env };
     try {
-      process.env = { ...originalEnv, NEXT_PUBLIC_SUPPORT_URL: "https://support.rudix.local" };
+      process.env = {
+        ...originalEnv,
+        NEXT_PUBLIC_SUPPORT_URL: "https://support.rudix.local",
+      };
 
       render(<ForbiddenState />);
 
-      expect(screen.getByRole("link", { name: "Contact support" })).toHaveAttribute(
-        "href",
-        "https://support.rudix.local",
-      );
+      expect(
+        screen.getByRole("link", { name: "Contact support" }),
+      ).toHaveAttribute("href", "https://support.rudix.local");
     } finally {
       process.env = originalEnv;
     }

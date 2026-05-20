@@ -5,7 +5,9 @@ type ForbiddenPageProps = {
   searchParams?: Promise<{ from?: string; rid?: string; request_id?: string }>;
 };
 
-export default async function ForbiddenPage({ searchParams }: ForbiddenPageProps) {
+export default async function ForbiddenPage({
+  searchParams,
+}: ForbiddenPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestId = sanitizeRequestId(
     resolvedSearchParams.rid ?? resolvedSearchParams.request_id ?? null,

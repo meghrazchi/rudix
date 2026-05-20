@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const FRONTEND_PORT = Number.parseInt(process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3001", 10);
+const FRONTEND_PORT = Number.parseInt(
+  process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3001",
+  10,
+);
 const FRONTEND_BASE_URL = `http://localhost:${FRONTEND_PORT}`;
 const useBundledBrowser = process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true";
 
@@ -43,7 +46,8 @@ export default defineConfig({
       NEXT_PUBLIC_AUTH_LOCAL_PASSWORD: "123123123",
       NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN: "e2e-access-token",
       NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN: "e2e-refresh-token",
-      NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID: "c8ae2f17-c58e-499e-88bf-e6b0a8648c21",
+      NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_ID:
+        "c8ae2f17-c58e-499e-88bf-e6b0a8648c21",
       NEXT_PUBLIC_AUTH_DEFAULT_ORGANIZATION_NAME: "Rudix E2E Org",
       NEXT_PUBLIC_AUTH_DEFAULT_ROLE: "admin",
       NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true",

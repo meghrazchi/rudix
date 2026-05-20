@@ -100,7 +100,9 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
   const isAdmin = isAdminLikeRole(role);
   const capabilities = useMemo(() => getTeamCapabilities(), []);
   const [saveState, setSaveState] = useState<TeamSaveState>(null);
-  const [roleDraftByMemberId, setRoleDraftByMemberId] = useState<Record<string, TeamInviteRole>>({});
+  const [roleDraftByMemberId, setRoleDraftByMemberId] = useState<
+    Record<string, TeamInviteRole>
+  >({});
   const [memberPageIndex, setMemberPageIndex] = useState(0);
   const memberOffset = memberPageIndex * TEAM_MEMBERS_PAGE_SIZE;
 
@@ -208,7 +210,8 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
   const hasPreviousMembersPage = memberOffset > 0;
   const hasNextMembersPage = memberOffset + members.length < membersTotal;
   const membersRangeStart = membersTotal === 0 ? 0 : memberOffset + 1;
-  const membersRangeEnd = membersTotal === 0 ? 0 : memberOffset + members.length;
+  const membersRangeEnd =
+    membersTotal === 0 ? 0 : memberOffset + members.length;
 
   useEffect(() => {
     if (!isAdmin || membersQuery.isFetching) {
@@ -217,7 +220,13 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
     if (membersTotal > 0 && members.length === 0 && memberPageIndex > 0) {
       setMemberPageIndex((previous) => Math.max(0, previous - 1));
     }
-  }, [isAdmin, memberPageIndex, members.length, membersQuery.isFetching, membersTotal]);
+  }, [
+    isAdmin,
+    memberPageIndex,
+    members.length,
+    membersQuery.isFetching,
+    membersTotal,
+  ]);
 
   if (!isAdmin) {
     return (
@@ -248,7 +257,8 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
         Team management
       </h2>
       <p className="mb-4 text-sm text-[#4d4963]">
-        Review organization members, send invites, and manage roles for active users.
+        Review organization members, send invites, and manage roles for active
+        users.
       </p>
 
       {!capabilities.listMembersEnabled ? (
@@ -258,7 +268,11 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
           title="Member list endpoint is not configured for this deployment."
         />
       ) : membersQuery.isLoading ? (
-        <LoadingState compact className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading team members..." />
+        <LoadingState
+          compact
+          className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+          title="Loading team members..."
+        />
       ) : membersQuery.isError ? (
         <div className="mb-4">
           <ErrorState
@@ -281,31 +295,51 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
           <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
             <thead className="bg-[#faf9ff]">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Name</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Email</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Role</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Status</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Updated</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Actions</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Name
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Email
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Role
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Status
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Updated
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#f0edf9]">
               {members.map((member) => {
                 const draftRole = resolveDraftRole(member);
-                const roleChanged = member.role !== "owner" && draftRole !== member.role;
+                const roleChanged =
+                  member.role !== "owner" && draftRole !== member.role;
                 const isRowBusy =
-                  updateRoleMutation.isPending || removeMemberMutation.isPending;
+                  updateRoleMutation.isPending ||
+                  removeMemberMutation.isPending;
                 return (
                   <tr key={member.member_id} className="bg-white">
                     <td className="px-3 py-2 text-[#2f2a46]">{member.name}</td>
                     <td className="px-3 py-2 text-[#2f2a46]">{member.email}</td>
                     <td className="px-3 py-2">
-                      <span className={roleBadge(member.role)}>{member.role}</span>
+                      <span className={roleBadge(member.role)}>
+                        {member.role}
+                      </span>
                     </td>
                     <td className="px-3 py-2">
-                      <span className={statusBadge(member.status)}>{member.status}</span>
+                      <span className={statusBadge(member.status)}>
+                        {member.status}
+                      </span>
                     </td>
-                    <td className="px-3 py-2 text-[#4f4b63]">{formatDate(member.updated_at)}</td>
+                    <td className="px-3 py-2 text-[#4f4b63]">
+                      {formatDate(member.updated_at)}
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex min-w-[260px] flex-wrap items-center gap-2">
                         <select
@@ -315,7 +349,8 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
                           onChange={(event) => {
                             setRoleDraftByMemberId((previous) => ({
                               ...previous,
-                              [member.member_id]: event.target.value as TeamInviteRole,
+                              [member.member_id]: event.target
+                                .value as TeamInviteRole,
                             }));
                           }}
                           className="h-8 rounded border border-[#d2cee6] px-2 text-xs text-[#2f2a46] disabled:cursor-not-allowed disabled:opacity-60"
@@ -326,7 +361,9 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
                         </select>
                         <button
                           type="button"
-                          disabled={!canUpdateRole(member) || !roleChanged || isRowBusy}
+                          disabled={
+                            !canUpdateRole(member) || !roleChanged || isRowBusy
+                          }
                           onClick={() => {
                             setSaveState(null);
                             updateRoleMutation.mutate({
@@ -393,15 +430,19 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
       )}
 
       <div className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">
+        <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
           Invite member
         </h3>
         {!capabilities.inviteEnabled ? (
           <p className="text-sm text-[#68647b]">
-            Invite endpoint is not configured. Enable it to send organization invites.
+            Invite endpoint is not configured. Enable it to send organization
+            invites.
           </p>
         ) : (
-          <form onSubmit={inviteForm.handleSubmit(handleInvite)} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto]">
+          <form
+            onSubmit={inviteForm.handleSubmit(handleInvite)}
+            className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto]"
+          >
             <label className="block">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                 Invite email
@@ -446,14 +487,19 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
         )}
       </div>
 
-      {saveState ? <p className={`mt-4 ${saveStateClass(saveState)}`}>{saveState.message}</p> : null}
+      {saveState ? (
+        <p className={`mt-4 ${saveStateClass(saveState)}`}>
+          {saveState.message}
+        </p>
+      ) : null}
 
-      {(isTeamEndpointUnavailableError(membersQuery.error) ||
-        isTeamEndpointUnavailableError(inviteMutation.error) ||
-        isTeamEndpointUnavailableError(updateRoleMutation.error) ||
-        isTeamEndpointUnavailableError(removeMemberMutation.error)) ? (
+      {isTeamEndpointUnavailableError(membersQuery.error) ||
+      isTeamEndpointUnavailableError(inviteMutation.error) ||
+      isTeamEndpointUnavailableError(updateRoleMutation.error) ||
+      isTeamEndpointUnavailableError(removeMemberMutation.error) ? (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Some team management actions are unavailable until membership endpoints are configured.
+          Some team management actions are unavailable until membership
+          endpoints are configured.
         </p>
       ) : null}
     </section>

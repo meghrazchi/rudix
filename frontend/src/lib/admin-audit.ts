@@ -1,6 +1,11 @@
 import type { AuditLogListItemResponse } from "@/lib/api/admin-usage";
 
-export type AuditStatusFilter = "all" | "success" | "client_error" | "server_error" | "unknown";
+export type AuditStatusFilter =
+  | "all"
+  | "success"
+  | "client_error"
+  | "server_error"
+  | "unknown";
 
 const REDACTED_VALUE = "[redacted]";
 const TRUNCATED_VALUE_SUFFIX = "…";
@@ -8,7 +13,8 @@ const MAX_STRING_LENGTH = 400;
 const MAX_OBJECT_KEYS = 40;
 const MAX_ARRAY_ITEMS = 40;
 const MAX_DEPTH = 6;
-const SENSITIVE_KEY_PATTERN = /(authorization|token|cookie|password|secret|api[_-]?key|credential|session)/i;
+const SENSITIVE_KEY_PATTERN =
+  /(authorization|token|cookie|password|secret|api[_-]?key|credential|session)/i;
 
 function truncateString(value: string): string {
   if (value.length <= MAX_STRING_LENGTH) {
@@ -35,7 +41,9 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   }
 
   if (Array.isArray(value)) {
-    const trimmed = value.slice(0, MAX_ARRAY_ITEMS).map((item) => sanitizeValue(item, depth + 1));
+    const trimmed = value
+      .slice(0, MAX_ARRAY_ITEMS)
+      .map((item) => sanitizeValue(item, depth + 1));
     if (value.length > MAX_ARRAY_ITEMS) {
       trimmed.push(`[truncated ${value.length - MAX_ARRAY_ITEMS} items]`);
     }
@@ -65,12 +73,20 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   return String(value);
 }
 
-export function sanitizeAuditMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeAuditMetadata(
+  metadata: Record<string, unknown>,
+): Record<string, unknown> {
   return sanitizeValue(metadata, 0) as Record<string, unknown>;
 }
 
-export function getAuditStatusCode(metadata: Record<string, unknown>): number | null {
-  const candidates = [metadata.status_code, metadata.http_status, metadata.statusCode];
+export function getAuditStatusCode(
+  metadata: Record<string, unknown>,
+): number | null {
+  const candidates = [
+    metadata.status_code,
+    metadata.http_status,
+    metadata.statusCode,
+  ];
   for (const candidate of candidates) {
     if (typeof candidate === "number" && Number.isFinite(candidate)) {
       return Math.trunc(candidate);
@@ -85,7 +101,9 @@ export function getAuditStatusCode(metadata: Record<string, unknown>): number | 
   return null;
 }
 
-export function getAuditStatusFilter(event: AuditLogListItemResponse): Exclude<AuditStatusFilter, "all"> {
+export function getAuditStatusFilter(
+  event: AuditLogListItemResponse,
+): Exclude<AuditStatusFilter, "all"> {
   const statusCode = getAuditStatusCode(event.metadata ?? {});
   if (statusCode == null) {
     return "unknown";
@@ -112,7 +130,9 @@ export function matchesAuditStatusFilter(
   return getAuditStatusFilter(event) === filter;
 }
 
-export function formatAuditStatusLabel(filter: Exclude<AuditStatusFilter, "all">): string {
+export function formatAuditStatusLabel(
+  filter: Exclude<AuditStatusFilter, "all">,
+): string {
   if (filter === "success") {
     return "Success";
   }
@@ -124,4 +144,3 @@ export function formatAuditStatusLabel(filter: Exclude<AuditStatusFilter, "all">
   }
   return "Unknown";
 }
-

@@ -25,7 +25,9 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/documents", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api/documents")>("@/lib/api/documents");
+  const actual = await vi.importActual<typeof import("@/lib/api/documents")>(
+    "@/lib/api/documents",
+  );
   return {
     ...actual,
     listDocuments: (query?: unknown) => mockApi.listDocuments(query),
@@ -33,7 +35,9 @@ vi.mock("@/lib/api/documents", async () => {
 });
 
 vi.mock("@/lib/api/admin-usage", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api/admin-usage")>("@/lib/api/admin-usage");
+  const actual = await vi.importActual<typeof import("@/lib/api/admin-usage")>(
+    "@/lib/api/admin-usage",
+  );
   return {
     ...actual,
     listAuditLogs: (query?: unknown) => mockApi.listAuditLogs(query),
@@ -42,10 +46,13 @@ vi.mock("@/lib/api/admin-usage", async () => {
 });
 
 vi.mock("@/lib/api/notifications", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api/notifications")>("@/lib/api/notifications");
+  const actual = await vi.importActual<
+    typeof import("@/lib/api/notifications")
+  >("@/lib/api/notifications");
   return {
     ...actual,
-    getTopBarNotifications: (endpoint: string) => mockApi.getTopBarNotifications(endpoint),
+    getTopBarNotifications: (endpoint: string) =>
+      mockApi.getTopBarNotifications(endpoint),
   };
 });
 
@@ -67,8 +74,10 @@ function renderPage() {
 describe("AdminMonitoringPage", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL = "/notifications";
-    process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL = "https://monitoring.example.com/rudix";
-    process.env.NEXT_PUBLIC_SENTRY_URL = "https://sentry.example.com/projects/rudix";
+    process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL =
+      "https://monitoring.example.com/rudix";
+    process.env.NEXT_PUBLIC_SENTRY_URL =
+      "https://sentry.example.com/projects/rudix";
 
     mockApi.listDocuments.mockReset();
     mockApi.listAuditLogs.mockReset();
@@ -185,7 +194,9 @@ describe("AdminMonitoringPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Admin monitoring restricted")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Admin monitoring restricted"),
+    ).toBeInTheDocument();
     expect(mockApi.listDocuments).not.toHaveBeenCalled();
     expect(mockApi.listAuditLogs).not.toHaveBeenCalled();
     expect(mockApi.getUsageSummary).not.toHaveBeenCalled();
@@ -208,16 +219,19 @@ describe("AdminMonitoringPage", () => {
 
     expect(await screen.findByText("Monitoring overview")).toBeInTheDocument();
     expect(await screen.findByText("Failed document jobs")).toBeInTheDocument();
-    expect(await screen.findByText("Failed evaluation runs")).toBeInTheDocument();
-    expect(await screen.findByText("Low-confidence events")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Failed evaluation runs"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Low-confidence events"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("High-latency events")).toBeInTheDocument();
     expect((await screen.findAllByText("Critical")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("High")).length).toBeGreaterThan(0);
     expect((await screen.findAllByText("Medium")).length).toBeGreaterThan(0);
-    expect(await screen.findByRole("link", { name: "Monitoring dashboard" })).toHaveAttribute(
-      "href",
-      "https://monitoring.example.com/rudix",
-    );
+    expect(
+      await screen.findByRole("link", { name: "Monitoring dashboard" }),
+    ).toHaveAttribute("href", "https://monitoring.example.com/rudix");
     expect(await screen.findByRole("link", { name: "Sentry" })).toHaveAttribute(
       "href",
       "https://sentry.example.com/projects/rudix",

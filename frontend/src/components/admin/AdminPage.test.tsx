@@ -118,10 +118,21 @@ describe("AdminPage", () => {
       expect(screen.getByText("Trace ID:")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("link", { name: "Documents" })).toHaveAttribute("href", "/documents");
-    expect(screen.getByRole("link", { name: "Chats" })).toHaveAttribute("href", "/chat");
-    expect(screen.getByRole("link", { name: "Evaluations" })).toHaveAttribute("href", "/evaluations");
-    expect(screen.getByRole("link", { name: "Pipeline Explorer" })).toHaveAttribute("href", "/rag-pipeline");
+    expect(screen.getByRole("link", { name: "Documents" })).toHaveAttribute(
+      "href",
+      "/documents",
+    );
+    expect(screen.getByRole("link", { name: "Chats" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+    expect(screen.getByRole("link", { name: "Evaluations" })).toHaveAttribute(
+      "href",
+      "/evaluations",
+    );
+    expect(
+      screen.getByRole("link", { name: "Pipeline Explorer" }),
+    ).toHaveAttribute("href", "/rag-pipeline");
   });
 
   it("renders forbidden state for non-admin role", async () => {
@@ -138,7 +149,9 @@ describe("AdminPage", () => {
     };
 
     renderPage();
-    expect(await screen.findByText("Admin usage restricted")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Admin usage restricted"),
+    ).toBeInTheDocument();
     expect(mockApi.getUsageSummary).not.toHaveBeenCalled();
     expect(mockApi.listAuditLogs).not.toHaveBeenCalled();
   });
@@ -165,8 +178,14 @@ describe("AdminPage", () => {
     });
 
     renderPage();
-    expect(await screen.findByText("Recent audit activity")).toBeInTheDocument();
-    expect(await screen.findByText("No audit events were found for the selected range and filters.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Recent audit activity"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "No audit events were found for the selected range and filters.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("paginates audit logs with offset changes", async () => {
@@ -232,7 +251,9 @@ describe("AdminPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
 
-    expect(await screen.findByText("documents.reindex.queued")).toBeInTheDocument();
+    expect(
+      await screen.findByText("documents.reindex.queued"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Showing 21-40 of 41")).toBeInTheDocument();
 
     await waitFor(() => {

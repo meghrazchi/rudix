@@ -17,7 +17,13 @@ type ProtectedAppLayoutProps = {
   children: React.ReactNode;
 };
 
-function FullScreenStatus({ title, subtitle }: { title: string; subtitle: string }) {
+function FullScreenStatus({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
   return (
     <div
       className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 text-center"
@@ -25,8 +31,16 @@ function FullScreenStatus({ title, subtitle }: { title: string; subtitle: string
     >
       <div className="max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-8 shadow-sm">
         <div className="mb-2 flex items-center justify-center gap-2">
-          <Image src="/brand/rudix-mark.svg" alt="Rudix logo" width={18} height={18} className="h-[18px] w-[18px]" />
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix</p>
+          <Image
+            src="/brand/rudix-mark.svg"
+            alt="Rudix logo"
+            width={18}
+            height={18}
+            className="h-[18px] w-[18px]"
+          />
+          <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+            Rudix
+          </p>
         </div>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640]">{title}</h1>
         <p className="text-sm text-[#68647b]">{subtitle}</p>
@@ -41,7 +55,11 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   const { state, signOut, boundaryEvent } = useAuthSession();
 
   const redirectTarget = useMemo(() => {
-    if (state.status !== "loading" && !state.session && boundaryEvent?.redirectTo) {
+    if (
+      state.status !== "loading" &&
+      !state.session &&
+      boundaryEvent?.redirectTo
+    ) {
       return boundaryEvent.redirectTo;
     }
     return resolveProtectedRouteRedirect(pathname, state);

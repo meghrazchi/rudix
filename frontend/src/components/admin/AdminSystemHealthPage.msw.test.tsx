@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -34,12 +43,20 @@ function buildHealthyResponse(): HealthResponse {
     status: "ok",
     timestamp: "2026-05-18T10:00:00Z",
     dependencies: {
-      postgresql: { ok: true, detail: "Connected", metadata: { latency_ms: 10 } },
+      postgresql: {
+        ok: true,
+        detail: "Connected",
+        metadata: { latency_ms: 10 },
+      },
       redis: { ok: true, detail: "Connected", metadata: { latency_ms: 4 } },
       rabbitmq: { ok: true, detail: "Connected", metadata: { latency_ms: 6 } },
       minio: { ok: true, detail: "Connected", metadata: { latency_ms: 9 } },
       qdrant: { ok: true, detail: "Connected", metadata: { latency_ms: 14 } },
-      openai: { ok: true, detail: "Configured", metadata: { configured: true } },
+      openai: {
+        ok: true,
+        detail: "Configured",
+        metadata: { configured: true },
+      },
     },
     failed_dependencies: [],
   };
@@ -113,10 +130,14 @@ describe("AdminSystemHealthPage MSW", () => {
     await screen.findByText("API Health (/health)");
     await screen.findByText("Readiness (/ready)");
     await waitFor(() => {
-      expect(screen.getAllByText("All reported dependencies are healthy.")).toHaveLength(2);
+      expect(
+        screen.getAllByText("All reported dependencies are healthy."),
+      ).toHaveLength(2);
     });
     expect(screen.getAllByText("PostgreSQL").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("OpenAI Config").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("OpenAI Config").length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(healthRequestCount).toBe(1);
     expect(readinessRequestCount).toBe(1);
   });
@@ -127,8 +148,16 @@ describe("AdminSystemHealthPage MSW", () => {
       status: "degraded",
       dependencies: {
         ...buildHealthyResponse().dependencies,
-        redis: { ok: false, detail: "Connection refused", metadata: { retry_in_seconds: 5 } },
-        qdrant: { ok: false, detail: "Collection unavailable", metadata: { collection: "documents" } },
+        redis: {
+          ok: false,
+          detail: "Connection refused",
+          metadata: { retry_in_seconds: 5 },
+        },
+        qdrant: {
+          ok: false,
+          detail: "Collection unavailable",
+          metadata: { collection: "documents" },
+        },
       },
       failed_dependencies: ["redis", "qdrant"],
     };
@@ -136,23 +165,31 @@ describe("AdminSystemHealthPage MSW", () => {
     renderPage();
 
     expect(await screen.findByText("Readiness (/ready)")).toBeInTheDocument();
-    expect(await screen.findByText(/failed dependencies:/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/failed dependencies:/i),
+    ).toBeInTheDocument();
     expect(await screen.findByText(/redis, qdrant/i)).toBeInTheDocument();
     expect(await screen.findByText("Connection refused")).toBeInTheDocument();
-    expect(await screen.findByText("Collection unavailable")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Collection unavailable"),
+    ).toBeInTheDocument();
   });
 
   it("refreshes health checks when refresh button is clicked", async () => {
     renderPage();
     await screen.findByText("API Health (/health)");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Refresh checks" })).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: "Refresh checks" }),
+      ).toBeEnabled();
     });
 
     expect(healthRequestCount).toBe(1);
     expect(readinessRequestCount).toBe(1);
 
-    await userEvent.click(screen.getByRole("button", { name: "Refresh checks" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Refresh checks" }),
+    );
 
     await waitFor(() => {
       expect(healthRequestCount).toBe(2);
@@ -175,7 +212,9 @@ describe("AdminSystemHealthPage MSW", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Admin health restricted")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Admin health restricted"),
+    ).toBeInTheDocument();
     expect(healthRequestCount).toBe(0);
     expect(readinessRequestCount).toBe(0);
   });

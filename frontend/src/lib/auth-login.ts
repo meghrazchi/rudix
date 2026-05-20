@@ -116,15 +116,15 @@ export function getAuthClientConfig(): AuthClientConfig {
   return {
     providerName,
     loginUrl:
-      configuredLoginUrl ?? (normalizedProvider === "app" ? "/auth/login" : null),
+      configuredLoginUrl ??
+      (normalizedProvider === "app" ? "/auth/login" : null),
     ssoUrl: trimToNull(process.env.NEXT_PUBLIC_AUTH_SSO_URL),
     forgotPasswordUrl: trimToNull(
       process.env.NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL,
     ),
     localFallbackEnabled:
       trimToNull(process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK) === "true" ||
-      (configuredLoginUrl === null &&
-        process.env.NODE_ENV !== "production"),
+      (configuredLoginUrl === null && process.env.NODE_ENV !== "production"),
     localFallbackPassword: trimToNull(
       process.env.NEXT_PUBLIC_AUTH_LOCAL_PASSWORD,
     ),

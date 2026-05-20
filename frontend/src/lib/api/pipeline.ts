@@ -1,6 +1,11 @@
 import { apiRequest, type ApiRequestOptions } from "@/lib/api/request";
 
-export type PipelineNodeStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+export type PipelineNodeStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 export type PipelineNode = {
   id: string;
@@ -60,7 +65,9 @@ export type PipelineRequestOptions = Pick<
   "apiBaseUrl" | "token" | "organizationId" | "signal"
 >;
 
-export async function fetchPipelineSteps(options: PipelineRequestOptions = {}): Promise<PipelineStepListResponse> {
+export async function fetchPipelineSteps(
+  options: PipelineRequestOptions = {},
+): Promise<PipelineStepListResponse> {
   return apiRequest<PipelineStepListResponse>("/pipeline/steps", {
     ...options,
     retry: { maxRetries: 1 },
@@ -71,7 +78,10 @@ export async function fetchPipelineRunGraph(
   runId: string,
   options: PipelineRequestOptions = {},
 ): Promise<PipelineRunGraphResponse> {
-  return apiRequest<PipelineRunGraphResponse>(`/pipeline/runs/${encodeURIComponent(runId)}`, options);
+  return apiRequest<PipelineRunGraphResponse>(
+    `/pipeline/runs/${encodeURIComponent(runId)}`,
+    options,
+  );
 }
 
 export async function resolvePipelineRun(

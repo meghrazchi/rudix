@@ -21,15 +21,28 @@ function parseIntegerEnv(value: string | undefined, fallback: number): number {
   return parsed;
 }
 
-function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
+function parseBooleanEnv(
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
   if (!value) {
     return fallback;
   }
   const normalized = value.trim().toLowerCase();
-  if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+  if (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "on"
+  ) {
     return true;
   }
-  if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+  if (
+    normalized === "0" ||
+    normalized === "false" ||
+    normalized === "no" ||
+    normalized === "off"
+  ) {
     return false;
   }
   return fallback;
@@ -41,9 +54,19 @@ function clampInteger(value: number, min: number, max: number): number {
 
 const SETTINGS_STORAGE_KEY = "rudix.settings.preferences.v1";
 
-const TOP_K_MIN = Math.max(1, parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN, 1));
-const TOP_K_MAX = Math.max(TOP_K_MIN, parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX, 20));
-const TOP_K_DEFAULT = clampInteger(parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5), TOP_K_MIN, TOP_K_MAX);
+const TOP_K_MIN = Math.max(
+  1,
+  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN, 1),
+);
+const TOP_K_MAX = Math.max(
+  TOP_K_MIN,
+  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX, 20),
+);
+const TOP_K_DEFAULT = clampInteger(
+  parseIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5),
+  TOP_K_MIN,
+  TOP_K_MAX,
+);
 
 export const settingsTopKBounds = {
   min: TOP_K_MIN,
@@ -102,8 +125,10 @@ function toSettingsPreferencesConfig(): SettingsPreferencesConfig {
     loadUrl: trimToNull(process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL),
     saveUrl: trimToNull(process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL),
     localFallbackEnabled:
-      parseBooleanEnv(process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK, false) ||
-      process.env.NODE_ENV !== "production",
+      parseBooleanEnv(
+        process.env.NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK,
+        false,
+      ) || process.env.NODE_ENV !== "production",
   };
 }
 
@@ -136,7 +161,11 @@ function sanitizeNumber(value: unknown, fallback: number): number {
 
 function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
   const defaults = createDefaultSettingsPreferences();
-  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
     return defaults;
   }
 
@@ -192,7 +221,10 @@ function saveToLocalStorage(preferences: SettingsPreferences): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(toPayload(preferences)));
+  window.localStorage.setItem(
+    SETTINGS_STORAGE_KEY,
+    JSON.stringify(toPayload(preferences)),
+  );
 }
 
 function readFromLocalStorage(): SettingsPreferences | null {

@@ -1,6 +1,14 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -66,7 +74,10 @@ type EvaluationSetLatestRunSummary = {
   qualityScore: number | null;
 };
 
-function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) {
     return fallback;
   }
@@ -78,7 +89,10 @@ function parsePositiveIntegerEnv(value: string | undefined, fallback: number): n
   return parsed;
 }
 
-function parseScoreThresholdEnv(value: string | undefined, fallback: number): number {
+function parseScoreThresholdEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) {
     return fallback;
   }
@@ -90,7 +104,10 @@ function parseScoreThresholdEnv(value: string | undefined, fallback: number): nu
 }
 
 function parseDefaultTopK(): number {
-  const parsed = parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT, DEFAULT_TOP_K);
+  const parsed = parsePositiveIntegerEnv(
+    process.env.NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT,
+    DEFAULT_TOP_K,
+  );
   return Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed));
 }
 
@@ -132,7 +149,9 @@ function formatInteger(value: number | null | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "N/A";
   }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
+    value,
+  );
 }
 
 function formatMilliseconds(value: number | null | undefined): string {
@@ -214,30 +233,55 @@ function resolveSummaryValue(
   return null;
 }
 
-function summarizeRunMetrics(run: EvaluationRunDetailResponse | null): SummaryMetric[] {
+function summarizeRunMetrics(
+  run: EvaluationRunDetailResponse | null,
+): SummaryMetric[] {
   const summary = run?.summary ?? null;
   const summaryRecord = summary ? asRecord(summary) : null;
 
-  const totalQuestions = resolveSummaryValue(summaryRecord, ["question_total_count"]) ?? run?.results.total ?? null;
-  const successQuestions = resolveSummaryValue(summaryRecord, ["question_success_count"]);
-  const failedQuestions = resolveSummaryValue(summaryRecord, ["question_failure_count"]);
-  const retrievalHitRate = resolveSummaryValue(summaryRecord, ["retrieval_hit_rate", "retrieval_score"]);
-  const contextPrecision = resolveSummaryValue(summaryRecord, ["context_precision"]);
+  const totalQuestions =
+    resolveSummaryValue(summaryRecord, ["question_total_count"]) ??
+    run?.results.total ??
+    null;
+  const successQuestions = resolveSummaryValue(summaryRecord, [
+    "question_success_count",
+  ]);
+  const failedQuestions = resolveSummaryValue(summaryRecord, [
+    "question_failure_count",
+  ]);
+  const retrievalHitRate = resolveSummaryValue(summaryRecord, [
+    "retrieval_hit_rate",
+    "retrieval_score",
+  ]);
+  const contextPrecision = resolveSummaryValue(summaryRecord, [
+    "context_precision",
+  ]);
   const contextRecall = resolveSummaryValue(summaryRecord, ["context_recall"]);
-  const faithfulness = resolveSummaryValue(summaryRecord, ["faithfulness_score"]);
-  const answerRelevance = resolveSummaryValue(summaryRecord, ["answer_relevance_score"]);
-  const citationAccuracy = resolveSummaryValue(summaryRecord, ["citation_accuracy_score"]);
-  const refusalAccuracy = resolveSummaryValue(summaryRecord, ["refusal_accuracy"]);
-  const averageLatency = resolveSummaryValue(summaryRecord, ["latency_ms_average"]);
+  const faithfulness = resolveSummaryValue(summaryRecord, [
+    "faithfulness_score",
+  ]);
+  const answerRelevance = resolveSummaryValue(summaryRecord, [
+    "answer_relevance_score",
+  ]);
+  const citationAccuracy = resolveSummaryValue(summaryRecord, [
+    "citation_accuracy_score",
+  ]);
+  const refusalAccuracy = resolveSummaryValue(summaryRecord, [
+    "refusal_accuracy",
+  ]);
+  const averageLatency = resolveSummaryValue(summaryRecord, [
+    "latency_ms_average",
+  ]);
   const totalCost = resolveSummaryValue(summaryRecord, ["cost_usd_total"]);
 
   return [
     {
       title: "Questions",
       value: formatInteger(totalQuestions),
-      caption: successQuestions != null && failedQuestions != null
-        ? `${formatInteger(successQuestions)} succeeded / ${formatInteger(failedQuestions)} failed`
-        : "Total evaluated questions",
+      caption:
+        successQuestions != null && failedQuestions != null
+          ? `${formatInteger(successQuestions)} succeeded / ${formatInteger(failedQuestions)} failed`
+          : "Total evaluated questions",
     },
     {
       title: "Retrieval hit rate",
@@ -287,13 +331,18 @@ function summarizeRunMetrics(run: EvaluationRunDetailResponse | null): SummaryMe
   ];
 }
 
-function computeResultQualityScore(item: EvaluationRunDetailResponse["results"]["items"][number]): number | null {
+function computeResultQualityScore(
+  item: EvaluationRunDetailResponse["results"]["items"][number],
+): number | null {
   const values = [
     item.faithfulness_score,
     item.answer_relevance_score,
     item.citation_accuracy_score,
     item.retrieval_score,
-  ].filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  ].filter(
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value),
+  );
 
   if (values.length === 0) {
     return null;
@@ -322,9 +371,12 @@ function buildRunExportHref(rawTemplate: string, runId: string): string {
   return `${template}?evaluation_run_id=${encodedRunId}`;
 }
 
-function isNotFoundResult(item: EvaluationRunDetailResponse["results"]["items"][number]): boolean {
+function isNotFoundResult(
+  item: EvaluationRunDetailResponse["results"]["items"][number],
+): boolean {
   const normalizedFailureType = item.failure_type?.trim().toLowerCase() ?? "";
-  const normalizedFailureReason = item.failure_reason?.trim().toLowerCase() ?? "";
+  const normalizedFailureReason =
+    item.failure_reason?.trim().toLowerCase() ?? "";
   const normalizedStatus = item.status.trim().toLowerCase();
   return (
     normalizedFailureType.includes("notfound") ||
@@ -340,7 +392,9 @@ function formatQuestionTags(question: EvaluationQuestionResponse): string {
   return question.tags.join(", ");
 }
 
-function buildTimelineFromSummary(summary: Record<string, unknown> | null): TimelinePoint[] {
+function buildTimelineFromSummary(
+  summary: Record<string, unknown> | null,
+): TimelinePoint[] {
   if (!summary) {
     return [];
   }
@@ -403,7 +457,9 @@ function parseTagsCsv(rawTags: string): string[] {
   return Array.from(new Set(parts));
 }
 
-function parseMetadataJson(rawMetadata: string): Record<string, unknown> | undefined {
+function parseMetadataJson(
+  rawMetadata: string,
+): Record<string, unknown> | undefined {
   const normalized = rawMetadata.trim();
   if (!normalized) {
     return undefined;
@@ -424,7 +480,9 @@ function parseMetadataJson(rawMetadata: string): Record<string, unknown> | undef
   return record;
 }
 
-function parseMetricOptionsJson(rawMetricOptions: string): Record<string, boolean | number | string> | undefined {
+function parseMetricOptionsJson(
+  rawMetricOptions: string,
+): Record<string, boolean | number | string> | undefined {
   const normalized = rawMetricOptions.trim();
   if (!normalized) {
     return undefined;
@@ -452,7 +510,9 @@ function parseMetricOptionsJson(rawMetricOptions: string): Record<string, boolea
       normalizedOptions[key] = value;
       continue;
     }
-    throw new Error(`Metric option "${key}" must be a string, number, or boolean.`);
+    throw new Error(
+      `Metric option "${key}" must be a string, number, or boolean.`,
+    );
   }
 
   return normalizedOptions;
@@ -461,7 +521,9 @@ function parseMetricOptionsJson(rawMetricOptions: string): Record<string, boolea
 function KpiCard({ title, value, caption }: SummaryMetric) {
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">{title}</p>
+      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
+        {title}
+      </p>
       <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
       <p className="mt-2 text-xs text-[#6a6780]">{caption}</p>
     </article>
@@ -484,7 +546,10 @@ function MetricSparkline({ points }: { points: TimelinePoint[] }) {
           key={`${point.label}:${point.score}`}
           className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-2"
         >
-          <p className="mb-1 truncate text-xs font-semibold text-[#5f5a74]" title={point.label}>
+          <p
+            className="mb-1 truncate text-xs font-semibold text-[#5f5a74]"
+            title={point.label}
+          >
             {point.label}
           </p>
           <div className="h-2 overflow-hidden rounded bg-[#dfdcf3]">
@@ -493,7 +558,9 @@ function MetricSparkline({ points }: { points: TimelinePoint[] }) {
               style={{ width: `${Math.round(point.score * 100)}%` }}
             />
           </div>
-          <p className="mt-1 text-xs text-[#68647b]">{formatPercent(point.score)}</p>
+          <p className="mt-1 text-xs text-[#68647b]">
+            {formatPercent(point.score)}
+          </p>
         </li>
       ))}
     </ul>
@@ -521,11 +588,16 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   );
   const highLatencyThresholdMs = parseHighLatencyThresholdMs();
   const runResultsPageSize = parseResultsPageSize();
-  const exportEndpointTemplate = process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "";
+  const exportEndpointTemplate =
+    process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "";
 
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>({});
-  const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<Record<string, EvaluationSetLatestRunSummary>>({});
+  const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>(
+    {},
+  );
+  const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<
+    Record<string, EvaluationSetLatestRunSummary>
+  >({});
   const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
   const [isRunModalOpen, setIsRunModalOpen] = useState(false);
   const runModalRef = useRef<HTMLDivElement | null>(null);
@@ -541,7 +613,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [expectedPageNumber, setExpectedPageNumber] = useState("");
   const [questionTags, setQuestionTags] = useState("");
   const [questionMetadata, setQuestionMetadata] = useState("");
-  const [questionFormError, setQuestionFormError] = useState<string | null>(null);
+  const [questionFormError, setQuestionFormError] = useState<string | null>(
+    null,
+  );
 
   const [runTopK, setRunTopK] = useState(parseDefaultTopK);
   const [runRerank, setRunRerank] = useState(true);
@@ -550,9 +624,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [runDocumentIds, setRunDocumentIds] = useState<string[]>([]);
   const [runFormError, setRunFormError] = useState<string | null>(null);
 
-  const [resultFilterMode, setResultFilterMode] = useState<ResultFilterMode>("all");
+  const [resultFilterMode, setResultFilterMode] =
+    useState<ResultFilterMode>("all");
   const [resultOffset, setResultOffset] = useState(0);
-  const [expandedResultIds, setExpandedResultIds] = useState<Record<string, boolean>>({});
+  const [expandedResultIds, setExpandedResultIds] = useState<
+    Record<string, boolean>
+  >({});
   const runPollIntervalMs = parseRunPollIntervalMs();
 
   const evaluationSetsQuery = useQuery({
@@ -575,7 +652,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
     if (
       selectedSetId &&
-      evaluationSetItems.some((item) => item.evaluation_set_id === selectedSetId)
+      evaluationSetItems.some(
+        (item) => item.evaluation_set_id === selectedSetId,
+      )
     ) {
       return selectedSetId;
     }
@@ -584,12 +663,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   }, [evaluationSetItems, selectedSetId]);
 
   const routeRunIdRaw = initialRunId ?? searchParams.get("runId");
-  const routeRunId = routeRunIdRaw && routeRunIdRaw.trim().length > 0 ? routeRunIdRaw.trim() : null;
-  const activeRunId = routeRunId ?? (
-    selectedEvaluationSetId
+  const routeRunId =
+    routeRunIdRaw && routeRunIdRaw.trim().length > 0
+      ? routeRunIdRaw.trim()
+      : null;
+  const activeRunId =
+    routeRunId ??
+    (selectedEvaluationSetId
       ? (latestRunBySet[selectedEvaluationSetId] ?? null)
-      : null
-  );
+      : null);
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -608,10 +690,13 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   });
 
   const questionsQuery = useQuery({
-    queryKey: queryKeys.evaluations.setQuestions(selectedEvaluationSetId ?? "", {
-      limit: EVALUATION_QUESTION_LIMIT,
-      offset: 0,
-    }),
+    queryKey: queryKeys.evaluations.setQuestions(
+      selectedEvaluationSetId ?? "",
+      {
+        limit: EVALUATION_QUESTION_LIMIT,
+        offset: 0,
+      },
+    ),
     queryFn: () => {
       if (!selectedEvaluationSetId) {
         throw new Error("Evaluation set is required");
@@ -640,11 +725,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     },
     enabled: Boolean(activeRunId),
     refetchInterval: (query) => {
-      const payload = query.state.data as EvaluationRunDetailResponse | undefined;
+      const payload = query.state.data as
+        | EvaluationRunDetailResponse
+        | undefined;
       if (!payload) {
         return runPollIntervalMs;
       }
-      return payload.status === "queued" || payload.status === "running" ? runPollIntervalMs : false;
+      return payload.status === "queued" || payload.status === "running"
+        ? runPollIntervalMs
+        : false;
     },
   });
 
@@ -657,7 +746,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     [accessibleDocuments],
   );
   const indexedDocuments = useMemo(
-    () => accessibleDocuments.filter((document) => document.status === "indexed"),
+    () =>
+      accessibleDocuments.filter((document) => document.status === "indexed"),
     [accessibleDocuments],
   );
   const indexedDocumentIdSet = useMemo(
@@ -666,12 +756,17 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   );
 
   const filteredRunDocumentIds = useMemo(
-    () => runDocumentIds.filter((documentId) => indexedDocumentIdSet.has(documentId)),
+    () =>
+      runDocumentIds.filter((documentId) =>
+        indexedDocumentIdSet.has(documentId),
+      ),
     [runDocumentIds, indexedDocumentIdSet],
   );
 
   const safeExpectedDocumentId =
-    expectedDocumentId && accessibleDocumentIdSet.has(expectedDocumentId) ? expectedDocumentId : "";
+    expectedDocumentId && accessibleDocumentIdSet.has(expectedDocumentId)
+      ? expectedDocumentId
+      : "";
 
   const createSetMutation = useMutation({
     mutationFn: createEvaluationSet,
@@ -681,7 +776,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       setSetFormError(null);
       setIsCreateSetModalOpen(false);
       setSelectedSetId(created.evaluation_set_id);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.evaluations.sets,
+      });
     },
     onError: (error) => {
       setSetFormError(getApiErrorMessage(error));
@@ -731,13 +828,18 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       setQuestionFormError(null);
       if (selectedEvaluationSetId) {
         await queryClient.invalidateQueries({
-          queryKey: queryKeys.evaluations.setQuestions(selectedEvaluationSetId, {
-            limit: EVALUATION_QUESTION_LIMIT,
-            offset: 0,
-          }),
+          queryKey: queryKeys.evaluations.setQuestions(
+            selectedEvaluationSetId,
+            {
+              limit: EVALUATION_QUESTION_LIMIT,
+              offset: 0,
+            },
+          ),
         });
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.evaluations.sets,
+      });
     },
     onError: (error) => {
       setQuestionFormError(getApiErrorMessage(error));
@@ -758,7 +860,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         accessibleDocumentIdSet.has(documentId),
       );
       if (selectedDocumentIds.length !== runDocumentIds.length) {
-        throw new Error("One or more selected documents are no longer accessible. Refresh and retry.");
+        throw new Error(
+          "One or more selected documents are no longer accessible. Refresh and retry.",
+        );
       }
       const metricOptions = parseMetricOptionsJson(runMetricOptions);
       const modelName = runModelName.trim() || null;
@@ -784,12 +888,18 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
       setRunFormError(null);
       setIsRunModalOpen(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.evaluations.sets });
-      router.push(`/evaluations/runs/${encodeURIComponent(result.evaluation_run_id)}`);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.evaluations.sets,
+      });
+      router.push(
+        `/evaluations/runs/${encodeURIComponent(result.evaluation_run_id)}`,
+      );
     },
     onError: (error) => {
       if (isApiClientError(error) && error.status === 409) {
-        setRunFormError("An evaluation run is already active for this set. Open the existing run or wait for completion.");
+        setRunFormError(
+          "An evaluation run is already active for this set. Open the existing run or wait for completion.",
+        );
         return;
       }
       setRunFormError(getApiErrorMessage(error));
@@ -825,10 +935,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   });
 
   const selectedSet =
-    evaluationSetItems.find((item) => item.evaluation_set_id === selectedEvaluationSetId) ?? null;
+    evaluationSetItems.find(
+      (item) => item.evaluation_set_id === selectedEvaluationSetId,
+    ) ?? null;
 
   const runDetails = runDetailQuery.data ?? null;
-  const summaryMetrics = useMemo(() => summarizeRunMetrics(runDetails), [runDetails]);
+  const summaryMetrics = useMemo(
+    () => summarizeRunMetrics(runDetails),
+    [runDetails],
+  );
 
   const latestRunQualityScore = useMemo(() => {
     const summary = asRecord(runDetails?.summary);
@@ -840,7 +955,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     );
   }, [runDetails?.summary]);
 
-  const summaryTimeline = buildTimelineFromSummary(asRecord(runDetails?.summary));
+  const summaryTimeline = buildTimelineFromSummary(
+    asRecord(runDetails?.summary),
+  );
   const timelinePoints: TimelinePoint[] = summaryTimeline;
 
   const results = runDetails?.results.items ?? [];
@@ -851,7 +968,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     const qualityScore = computeResultQualityScore(item);
     const lowScore = qualityScore != null && qualityScore < lowScoreThreshold;
     const failed = item.status === "failed";
-    const highLatency = item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
+    const highLatency =
+      item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
     const notFound = isNotFoundResult(item);
     const citationIssue =
       item.citation_accuracy_score != null &&
@@ -919,13 +1037,20 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     [highLatencyThresholdMs, lowScoreThreshold, resultFilterMode, results],
   );
 
-  const currentResultsPageIndex = Math.floor(resultOffset / runResultsPageSize) + 1;
+  const currentResultsPageIndex =
+    Math.floor(resultOffset / runResultsPageSize) + 1;
   const totalResultsCount = runDetails?.results.total ?? 0;
-  const totalResultsPages = Math.max(1, Math.ceil(totalResultsCount / runResultsPageSize));
+  const totalResultsPages = Math.max(
+    1,
+    Math.ceil(totalResultsCount / runResultsPageSize),
+  );
   const canLoadPreviousResultsPage = resultOffset > 0;
-  const canLoadNextResultsPage = resultOffset + runResultsPageSize < totalResultsCount;
+  const canLoadNextResultsPage =
+    resultOffset + runResultsPageSize < totalResultsCount;
 
-  const exportHref = activeRunId ? buildRunExportHref(exportEndpointTemplate, activeRunId) : "";
+  const exportHref = activeRunId
+    ? buildRunExportHref(exportEndpointTemplate, activeRunId)
+    : "";
   const canExportCsv = exportHref.length > 0;
   const runNotFound =
     runDetailQuery.isError &&
@@ -936,11 +1061,24 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       return null;
     }
 
-    const total = Math.max(runDetails.results.total, runDetails.results.items.length, 0);
-    const completed = runDetails.results.items.filter((item) => item.status === "completed").length;
-    const failed = runDetails.results.items.filter((item) => item.status === "failed").length;
+    const total = Math.max(
+      runDetails.results.total,
+      runDetails.results.items.length,
+      0,
+    );
+    const completed = runDetails.results.items.filter(
+      (item) => item.status === "completed",
+    ).length;
+    const failed = runDetails.results.items.filter(
+      (item) => item.status === "failed",
+    ).length;
     const terminalCount = completed + failed;
-    const ratio = total > 0 ? Math.max(0, Math.min(1, terminalCount / total)) : runDetails.status === "completed" ? 1 : 0;
+    const ratio =
+      total > 0
+        ? Math.max(0, Math.min(1, terminalCount / total))
+        : runDetails.status === "completed"
+          ? 1
+          : 0;
     return {
       total,
       completed,
@@ -982,14 +1120,18 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     }
   }, [evaluationSetItems, routeRunId, runDetails?.evaluation_set_id]);
 
-  const listForbidden = isForbiddenError(evaluationSetsQuery.error) || isForbiddenError(questionsQuery.error);
+  const listForbidden =
+    isForbiddenError(evaluationSetsQuery.error) ||
+    isForbiddenError(questionsQuery.error);
   if (listForbidden) {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
           title="Evaluation access is restricted"
           description="Your role does not have permission to view evaluation resources in this organization."
-          requestId={extractRequestIdFromError(evaluationSetsQuery.error ?? questionsQuery.error)}
+          requestId={extractRequestIdFromError(
+            evaluationSetsQuery.error ?? questionsQuery.error,
+          )}
         />
       </section>
     );
@@ -1005,10 +1147,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Evaluations</p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Evaluation page and dashboard</h1>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Evaluations
+            </p>
+            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              Evaluation page and dashboard
+            </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Create evaluation sets, manage questions, run benchmarks, and inspect low-scoring or failed answers.
+              Create evaluation sets, manage questions, run benchmarks, and
+              inspect low-scoring or failed answers.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1038,7 +1185,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         <aside className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Evaluation sets</h2>
+              <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+                Evaluation sets
+              </h2>
               {canCreateSet ? (
                 <button
                   type="button"
@@ -1054,11 +1203,13 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             </div>
             {!canCreateSet ? (
               <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Your role can view evaluation sets but only owner/admin can create new sets.
+                Your role can view evaluation sets but only owner/admin can
+                create new sets.
               </p>
             ) : (
               <p className="mb-4 text-xs text-[#6a6780]">
-                Create and organize evaluation sets for your active organization.
+                Create and organize evaluation sets for your active
+                organization.
               </p>
             )}
 
@@ -1072,11 +1223,15 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 onRetry={() => void evaluationSetsQuery.refetch()}
               />
             ) : emptySetState ? (
-              <EmptyState compact title="No evaluation sets yet. Create one to start question benchmarking." />
+              <EmptyState
+                compact
+                title="No evaluation sets yet. Create one to start question benchmarking."
+              />
             ) : (
               <ul className="max-h-[380px] space-y-2 overflow-auto pr-1">
                 {evaluationSetItems.map((item) => {
-                  const latestSummary = latestRunSummaryBySet[item.evaluation_set_id];
+                  const latestSummary =
+                    latestRunSummaryBySet[item.evaluation_set_id];
                   return (
                     <li key={item.evaluation_set_id}>
                       <button
@@ -1090,13 +1245,23 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       >
                         <p className="font-semibold">{item.name}</p>
                         {item.description ? (
-                          <p className="mt-1 line-clamp-2 text-xs text-[#6a6780]">{item.description}</p>
+                          <p className="mt-1 line-clamp-2 text-xs text-[#6a6780]">
+                            {item.description}
+                          </p>
                         ) : (
-                          <p className="mt-1 text-xs text-[#6a6780]">No description.</p>
+                          <p className="mt-1 text-xs text-[#6a6780]">
+                            No description.
+                          </p>
                         )}
-                        <p className="mt-1 text-xs">{item.question_count} questions</p>
-                        <p className="text-xs text-[#6a6780]">Created: {formatDate(item.created_at)}</p>
-                        <p className="text-xs text-[#6a6780]">Updated: {formatDate(item.updated_at)}</p>
+                        <p className="mt-1 text-xs">
+                          {item.question_count} questions
+                        </p>
+                        <p className="text-xs text-[#6a6780]">
+                          Created: {formatDate(item.created_at)}
+                        </p>
+                        <p className="text-xs text-[#6a6780]">
+                          Updated: {formatDate(item.updated_at)}
+                        </p>
                         {latestSummary ? (
                           <p className="mt-1 text-xs text-[#4f4b63]">
                             Latest run: {latestSummary.status}
@@ -1108,7 +1273,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                               : ""}
                           </p>
                         ) : (
-                          <p className="mt-1 text-xs text-[#6a6780]">Latest run: Not available yet.</p>
+                          <p className="mt-1 text-xs text-[#6a6780]">
+                            Latest run: Not available yet.
+                          </p>
                         )}
                       </button>
                     </li>
@@ -1119,24 +1286,34 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           </section>
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Run controls</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Run controls
+            </h2>
             {selectedSet ? (
               <div className="space-y-3">
                 <p className="text-sm text-[#4f4b63]">
-                  Selected set: <span className="font-semibold text-[#2f2a46]">{selectedSet.name}</span>
+                  Selected set:{" "}
+                  <span className="font-semibold text-[#2f2a46]">
+                    {selectedSet.name}
+                  </span>
                 </p>
                 <p className="text-xs text-[#6a6780]">
-                  Configure top-k retrieval, rerank behavior, optional model override, metric options, and document scope in the run modal.
+                  Configure top-k retrieval, rerank behavior, optional model
+                  override, metric options, and document scope in the run modal.
                 </p>
                 {activeRunId ? (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#5f5a74]">
-                    Active run detail: <span className="font-semibold text-[#2f2a46]">{activeRunId}</span>
+                    Active run detail:{" "}
+                    <span className="font-semibold text-[#2f2a46]">
+                      {activeRunId}
+                    </span>
                   </p>
                 ) : null}
 
                 {!canRun ? (
                   <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Your role can inspect results but only owner/admin can run evaluations.
+                    Your role can inspect results but only owner/admin can run
+                    evaluations.
                   </p>
                 ) : null}
 
@@ -1153,17 +1330,23 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 </button>
               </div>
             ) : (
-              <p className="text-sm text-[#68647b]">Select an evaluation set to configure and run it.</p>
+              <p className="text-sm text-[#68647b]">
+                Select an evaluation set to configure and run it.
+              </p>
             )}
           </section>
         </aside>
 
         <div className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Question management</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Question management
+            </h2>
 
             {!selectedEvaluationSetId ? (
-              <p className="text-sm text-[#68647b]">Select a set before adding or reviewing questions.</p>
+              <p className="text-sm text-[#68647b]">
+                Select a set before adding or reviewing questions.
+              </p>
             ) : (
               <>
                 {canManageQuestions ? (
@@ -1176,10 +1359,14 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     }}
                   >
                     <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</span>
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Question
+                      </span>
                       <textarea
                         value={questionText}
-                        onChange={(event) => setQuestionText(event.target.value)}
+                        onChange={(event) =>
+                          setQuestionText(event.target.value)
+                        }
                         rows={2}
                         className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
                         placeholder="What is the retention policy for invoices?"
@@ -1187,10 +1374,14 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     </label>
 
                     <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Expected answer</span>
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Expected answer
+                      </span>
                       <textarea
                         value={expectedAnswer}
-                        onChange={(event) => setExpectedAnswer(event.target.value)}
+                        onChange={(event) =>
+                          setExpectedAnswer(event.target.value)
+                        }
                         rows={2}
                         className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
                         placeholder="Optional expected answer for quality scoring"
@@ -1198,15 +1389,22 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     </label>
 
                     <label className="grid gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Expected document</span>
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Expected document
+                      </span>
                       <select
                         value={safeExpectedDocumentId}
-                        onChange={(event) => setExpectedDocumentId(event.target.value)}
+                        onChange={(event) =>
+                          setExpectedDocumentId(event.target.value)
+                        }
                         className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
                       >
                         <option value="">Not specified</option>
                         {accessibleDocuments.map((document) => (
-                          <option key={document.document_id} value={document.document_id}>
+                          <option
+                            key={document.document_id}
+                            value={document.document_id}
+                          >
                             {document.filename}
                           </option>
                         ))}
@@ -1214,51 +1412,68 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     </label>
 
                     <label className="grid gap-1">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Expected page</span>
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Expected page
+                      </span>
                       <input
                         value={expectedPageNumber}
-                        onChange={(event) => setExpectedPageNumber(event.target.value)}
+                        onChange={(event) =>
+                          setExpectedPageNumber(event.target.value)
+                        }
                         className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
                         placeholder="Optional"
                       />
                     </label>
 
                     <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Tags (comma separated)</span>
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Tags (comma separated)
+                      </span>
                       <input
                         value={questionTags}
-                        onChange={(event) => setQuestionTags(event.target.value)}
+                        onChange={(event) =>
+                          setQuestionTags(event.target.value)
+                        }
                         className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
                         placeholder="invoice, policy, legal"
                       />
                     </label>
 
                     <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         Metadata (JSON object)
                       </span>
                       <textarea
                         value={questionMetadata}
-                        onChange={(event) => setQuestionMetadata(event.target.value)}
+                        onChange={(event) =>
+                          setQuestionMetadata(event.target.value)
+                        }
                         rows={3}
                         className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
                         placeholder='{"difficulty":"medium","owner":"qa-team"}'
                       />
                     </label>
 
-                    {questionFormError ? <p className="text-xs text-rose-700 lg:col-span-2">{questionFormError}</p> : null}
+                    {questionFormError ? (
+                      <p className="text-xs text-rose-700 lg:col-span-2">
+                        {questionFormError}
+                      </p>
+                    ) : null}
 
                     <button
                       type="submit"
                       disabled={createQuestionMutation.isPending}
                       className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 lg:col-span-2"
                     >
-                      {createQuestionMutation.isPending ? "Adding question..." : "Add question"}
+                      {createQuestionMutation.isPending
+                        ? "Adding question..."
+                        : "Add question"}
                     </button>
                   </form>
                 ) : (
                   <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Your role can view questions but only owner/admin can add new questions.
+                    Your role can view questions but only owner/admin can add
+                    new questions.
                   </p>
                 )}
 
@@ -1272,15 +1487,24 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     onRetry={() => void questionsQuery.refetch()}
                   />
                 ) : (questionsQuery.data?.items.length ?? 0) === 0 ? (
-                  <EmptyState compact title="No questions yet. Add at least one question before running evaluations." />
+                  <EmptyState
+                    compact
+                    title="No questions yet. Add at least one question before running evaluations."
+                  />
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-[#ebe8f7]">
                     <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
                       <thead className="bg-[#faf9ff]">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Expected page</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Tags</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Question
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Expected page
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Tags
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f0edf9]">
@@ -1294,8 +1518,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                                 </p>
                               ) : null}
                             </td>
-                            <td className="px-3 py-2 text-[#2f2a46]">{question.expected_page_number ?? "-"}</td>
-                            <td className="px-3 py-2 text-[#2f2a46]">{formatQuestionTags(question)}</td>
+                            <td className="px-3 py-2 text-[#2f2a46]">
+                              {question.expected_page_number ?? "-"}
+                            </td>
+                            <td className="px-3 py-2 text-[#2f2a46]">
+                              {formatQuestionTags(question)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1308,9 +1536,13 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Evaluation run dashboard</h2>
+              <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+                Evaluation run dashboard
+              </h2>
               {runDetails ? (
-                <span className={resolveStatusBadgeClass(runDetails.status)}>Run status: {runDetails.status}</span>
+                <span className={resolveStatusBadgeClass(runDetails.status)}>
+                  Run status: {runDetails.status}
+                </span>
               ) : null}
             </div>
 
@@ -1358,28 +1590,54 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <div className="space-y-4">
                 <dl className="grid gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Run ID</dt>
-                    <dd className="font-medium text-[#2f2a46]">{runDetails.evaluation_run_id}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Run ID
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {runDetails.evaluation_run_id}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Evaluation set</dt>
-                    <dd className="font-medium text-[#2f2a46]">{selectedSet?.name ?? runDetails.evaluation_set_id}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Evaluation set
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {selectedSet?.name ?? runDetails.evaluation_set_id}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Started at</dt>
-                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.started_at ?? runDetails.created_at)}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Started at
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {formatDate(
+                        runDetails.started_at ?? runDetails.created_at,
+                      )}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Completed at</dt>
-                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.completed_at)}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Completed at
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {formatDate(runDetails.completed_at)}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Created at</dt>
-                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.created_at)}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Created at
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {formatDate(runDetails.created_at)}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Updated at</dt>
-                    <dd className="font-medium text-[#2f2a46]">{formatDate(runDetails.updated_at)}</dd>
+                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Updated at
+                    </dt>
+                    <dd className="font-medium text-[#2f2a46]">
+                      {formatDate(runDetails.updated_at)}
+                    </dd>
                   </div>
                 </dl>
 
@@ -1395,32 +1653,44 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                   </Link>
                 </div>
 
-                {(runDetails.status === "queued" || runDetails.status === "running") && runProgress ? (
+                {(runDetails.status === "queued" ||
+                  runDetails.status === "running") &&
+                runProgress ? (
                   <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                    <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">Run progress</h3>
+                    <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
+                      Run progress
+                    </h3>
                     <p className="text-sm text-[#4d4963]">
                       {runDetails.status === "queued"
                         ? "Run is queued and waiting for workers."
                         : "Run is processing question-level evaluation results."}
                     </p>
                     <p className="mt-1 text-xs text-[#6a6780]">
-                      Auto-refreshing every {Math.max(1, Math.round(runPollIntervalMs / 1000))}s.
+                      Auto-refreshing every{" "}
+                      {Math.max(1, Math.round(runPollIntervalMs / 1000))}s.
                     </p>
                     <div className="mt-2 h-2 overflow-hidden rounded bg-[#dfdcf3]">
                       <div
                         className="h-full rounded bg-[#3525cd]"
-                        style={{ width: `${Math.round(runProgress.ratio * 100)}%` }}
+                        style={{
+                          width: `${Math.round(runProgress.ratio * 100)}%`,
+                        }}
                       />
                     </div>
                     <p className="mt-1 text-xs text-[#6a6780]">
-                      {formatInteger(runProgress.terminalCount)} / {formatInteger(runProgress.total)} completed
-                      {runProgress.failed > 0 ? ` (${formatInteger(runProgress.failed)} failed)` : ""}
+                      {formatInteger(runProgress.terminalCount)} /{" "}
+                      {formatInteger(runProgress.total)} completed
+                      {runProgress.failed > 0
+                        ? ` (${formatInteger(runProgress.failed)} failed)`
+                        : ""}
                     </p>
                   </section>
                 ) : null}
 
                 <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">Run configuration</h3>
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
+                    Run configuration
+                  </h3>
                   <pre className="max-h-64 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
                     {JSON.stringify(runDetails.config ?? {}, null, 2)}
                   </pre>
@@ -1428,9 +1698,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
                 {runDetails.failure_reason ? (
                   <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                    <span className="font-semibold">Failure:</span> {runDetails.failure_reason}
+                    <span className="font-semibold">Failure:</span>{" "}
+                    {runDetails.failure_reason}
                     {runDetails.failure_type ? (
-                      <span className="ml-2 text-xs uppercase tracking-wide text-rose-700">
+                      <span className="ml-2 text-xs tracking-wide text-rose-700 uppercase">
                         ({runDetails.failure_type})
                       </span>
                     ) : null}
@@ -1444,14 +1715,14 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 </div>
 
                 <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                  <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f5a74]">
+                  <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
                     Quality over time
                   </h3>
                   <MetricSparkline points={timelinePoints} />
                 </section>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-[#5f5a74]">
+                  <h3 className="text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
                     Question-level results
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1556,7 +1827,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     </button>
                   </div>
                   <p className="text-xs text-[#6a6780]">
-                    Filters are applied to the current page of results. High latency threshold: {formatMilliseconds(highLatencyThresholdMs)}.
+                    Filters are applied to the current page of results. High
+                    latency threshold:{" "}
+                    {formatMilliseconds(highLatencyThresholdMs)}.
                   </p>
                 </div>
 
@@ -1569,51 +1842,104 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
                       <thead className="bg-[#faf9ff]">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Status</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Retrieval</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Quality</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Faithfulness</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Citation</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Relevance</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Latency</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Failure</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Details</th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Question
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Status
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Retrieval
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Quality
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Faithfulness
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Citation
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Relevance
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Latency
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Failure
+                          </th>
+                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Details
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#f0edf9]">
                         {filteredResults.map((item) => {
                           const qualityScore = computeResultQualityScore(item);
-                          const isProblematic = item.status === "failed" || (qualityScore != null && qualityScore < lowScoreThreshold);
-                          const isExpanded = expandedResultIds[item.evaluation_result_id] === true;
+                          const isProblematic =
+                            item.status === "failed" ||
+                            (qualityScore != null &&
+                              qualityScore < lowScoreThreshold);
+                          const isExpanded =
+                            expandedResultIds[item.evaluation_result_id] ===
+                            true;
                           return (
                             <Fragment key={item.evaluation_result_id}>
                               <tr
-                                className={isProblematic ? "bg-rose-50/50" : "bg-white"}
+                                className={
+                                  isProblematic ? "bg-rose-50/50" : "bg-white"
+                                }
                               >
                                 <td className="px-3 py-2 text-[#2f2a46]">
                                   <p className="font-medium">{item.question}</p>
                                   {item.generated_answer ? (
-                                    <p className="mt-1 max-w-[420px] truncate text-xs text-[#6a6780]" title={item.generated_answer}>
+                                    <p
+                                      className="mt-1 max-w-[420px] truncate text-xs text-[#6a6780]"
+                                      title={item.generated_answer}
+                                    >
                                       {item.generated_answer}
                                     </p>
                                   ) : null}
                                 </td>
                                 <td className="px-3 py-2 text-[#2f2a46]">
-                                  <span className={resolveStatusBadgeClass(item.status)}>{item.status}</span>
+                                  <span
+                                    className={resolveStatusBadgeClass(
+                                      item.status,
+                                    )}
+                                  >
+                                    {item.status}
+                                  </span>
                                 </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.retrieval_score)}</td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(qualityScore)}</td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.faithfulness_score)}</td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.citation_accuracy_score)}</td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatPercent(item.answer_relevance_score)}</td>
-                                <td className="px-3 py-2 text-[#2f2a46]">{formatMilliseconds(item.latency_ms)}</td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatPercent(item.retrieval_score)}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatPercent(qualityScore)}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatPercent(item.faithfulness_score)}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatPercent(item.citation_accuracy_score)}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatPercent(item.answer_relevance_score)}
+                                </td>
+                                <td className="px-3 py-2 text-[#2f2a46]">
+                                  {formatMilliseconds(item.latency_ms)}
+                                </td>
                                 <td className="px-3 py-2 text-[#2f2a46]">
                                   {item.failure_reason ? (
                                     <div className="space-y-1">
-                                      <span className="text-rose-700" title={item.failure_reason}>{item.failure_reason}</span>
+                                      <span
+                                        className="text-rose-700"
+                                        title={item.failure_reason}
+                                      >
+                                        {item.failure_reason}
+                                      </span>
                                       {item.failure_type ? (
-                                        <p className="text-xs uppercase tracking-wide text-rose-700">
+                                        <p className="text-xs tracking-wide text-rose-700 uppercase">
                                           {item.failure_type}
                                         </p>
                                       ) : null}
@@ -1629,7 +1955,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                                     onClick={() =>
                                       setExpandedResultIds((previous) => ({
                                         ...previous,
-                                        [item.evaluation_result_id]: !previous[item.evaluation_result_id],
+                                        [item.evaluation_result_id]:
+                                          !previous[item.evaluation_result_id],
                                       }))
                                     }
                                     className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
@@ -1639,23 +1966,37 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                                 </td>
                               </tr>
                               {isExpanded ? (
-                                <tr className={isProblematic ? "bg-rose-50/40" : "bg-[#faf9ff]"}>
+                                <tr
+                                  className={
+                                    isProblematic
+                                      ? "bg-rose-50/40"
+                                      : "bg-[#faf9ff]"
+                                  }
+                                >
                                   <td colSpan={10} className="px-3 py-3">
                                     <div className="grid gap-2 lg:grid-cols-2">
                                       <div>
-                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                                        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                                           Metrics JSON
                                         </p>
                                         <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
-                                          {JSON.stringify(item.metrics ?? {}, null, 2)}
+                                          {JSON.stringify(
+                                            item.metrics ?? {},
+                                            null,
+                                            2,
+                                          )}
                                         </pre>
                                       </div>
                                       <div>
-                                        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                                        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                                           Details JSON
                                         </p>
                                         <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
-                                          {JSON.stringify(item.details ?? {}, null, 2)}
+                                          {JSON.stringify(
+                                            item.details ?? {},
+                                            null,
+                                            2,
+                                          )}
                                         </pre>
                                       </div>
                                     </div>
@@ -1672,15 +2013,19 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] px-3 py-2">
                   <p className="text-xs text-[#6a6780]">
-                    Page {formatInteger(currentResultsPageIndex)} of {formatInteger(totalResultsPages)} • Showing{" "}
-                    {formatInteger(results.length)} of {formatInteger(totalResultsCount)} total results
+                    Page {formatInteger(currentResultsPageIndex)} of{" "}
+                    {formatInteger(totalResultsPages)} • Showing{" "}
+                    {formatInteger(results.length)} of{" "}
+                    {formatInteger(totalResultsCount)} total results
                   </p>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       disabled={!canLoadPreviousResultsPage}
                       onClick={() =>
-                        setResultOffset((previous) => Math.max(0, previous - runResultsPageSize))
+                        setResultOffset((previous) =>
+                          Math.max(0, previous - runResultsPageSize),
+                        )
                       }
                       className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -1690,7 +2035,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       type="button"
                       disabled={!canLoadNextResultsPage}
                       onClick={() =>
-                        setResultOffset((previous) => previous + runResultsPageSize)
+                        setResultOffset(
+                          (previous) => previous + runResultsPageSize,
+                        )
                       }
                       className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -1719,11 +2066,21 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 id="run-evaluation-title" className="text-lg font-bold text-[#2a2640]">
+                <h2
+                  id="run-evaluation-title"
+                  className="text-lg font-bold text-[#2a2640]"
+                >
                   Run evaluation
                 </h2>
-                <p id="run-evaluation-description" className="text-sm text-[#68647b]">
-                  Queue a run for <span className="font-semibold text-[#2f2a46]">{selectedSet?.name ?? "selected set"}</span>.
+                <p
+                  id="run-evaluation-description"
+                  className="text-sm text-[#68647b]"
+                >
+                  Queue a run for{" "}
+                  <span className="font-semibold text-[#2f2a46]">
+                    {selectedSet?.name ?? "selected set"}
+                  </span>
+                  .
                 </p>
               </div>
               <button
@@ -1745,7 +2102,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 runMutation.mutate();
               }}
             >
-              <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+              <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                 Top K
                 <input
                   type="number"
@@ -1757,7 +2114,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                     if (!Number.isFinite(parsed)) {
                       return;
                     }
-                    setRunTopK(Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed)));
+                    setRunTopK(
+                      Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed)),
+                    );
                   }}
                   className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
                 />
@@ -1779,7 +2138,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               </label>
 
               <label className="grid gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Model name (optional)</span>
+                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Model name (optional)
+                </span>
                 <input
                   value={runModelName}
                   onChange={(event) => setRunModelName(event.target.value)}
@@ -1789,17 +2150,25 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               </label>
 
               <div>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Selected documents</p>
+                <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Selected documents
+                </p>
                 {documentsQuery.isLoading ? (
                   <LoadingState compact title="Loading indexed documents..." />
                 ) : documentsQuery.isError ? (
-                  <ErrorState compact error={documentsQuery.error} description={getApiErrorMessage(documentsQuery.error)} />
+                  <ErrorState
+                    compact
+                    error={documentsQuery.error}
+                    description={getApiErrorMessage(documentsQuery.error)}
+                  />
                 ) : indexedDocuments.length === 0 ? (
                   <EmptyState compact title="No indexed documents available." />
                 ) : (
                   <ul className="max-h-40 space-y-1 overflow-auto rounded border border-[#ebe8f7] bg-[#faf9ff] p-2">
                     {indexedDocuments.map((document) => {
-                      const checked = filteredRunDocumentIds.includes(document.document_id);
+                      const checked = filteredRunDocumentIds.includes(
+                        document.document_id,
+                      );
                       return (
                         <li key={document.document_id}>
                           <label className="flex items-center gap-2 text-xs text-[#2f2a46]">
@@ -1808,19 +2177,29 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                               checked={checked}
                               onChange={() => {
                                 setRunDocumentIds((previous) => {
-                                  const validPrevious = previous.filter((value) =>
-                                    indexedDocumentIdSet.has(value),
+                                  const validPrevious = previous.filter(
+                                    (value) => indexedDocumentIdSet.has(value),
                                   );
-                                  if (validPrevious.includes(document.document_id)) {
+                                  if (
+                                    validPrevious.includes(document.document_id)
+                                  ) {
                                     return validPrevious.filter(
                                       (value) => value !== document.document_id,
                                     );
                                   }
-                                  return [...validPrevious, document.document_id];
+                                  return [
+                                    ...validPrevious,
+                                    document.document_id,
+                                  ];
                                 });
                               }}
                             />
-                            <span className="truncate" title={document.filename}>{document.filename}</span>
+                            <span
+                              className="truncate"
+                              title={document.filename}
+                            >
+                              {document.filename}
+                            </span>
                           </label>
                         </li>
                       );
@@ -1830,7 +2209,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               </div>
 
               <label className="grid gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                   Metric options (JSON object)
                 </span>
                 <textarea
@@ -1842,7 +2221,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 />
               </label>
 
-              {runFormError ? <p className="text-xs text-rose-700">{runFormError}</p> : null}
+              {runFormError ? (
+                <p className="text-xs text-rose-700">{runFormError}</p>
+              ) : null}
 
               <div className="flex items-center justify-end gap-2">
                 <button
@@ -1855,7 +2236,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={!canRun || runMutation.isPending || !selectedEvaluationSetId}
+                  disabled={
+                    !canRun || runMutation.isPending || !selectedEvaluationSetId
+                  }
                   className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {runMutation.isPending ? "Queueing run..." : "Queue run"}
@@ -1881,11 +2264,18 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 id="create-evaluation-set-title" className="text-lg font-bold text-[#2a2640]">
+                <h2
+                  id="create-evaluation-set-title"
+                  className="text-lg font-bold text-[#2a2640]"
+                >
                   Create evaluation set
                 </h2>
-                <p id="create-evaluation-set-description" className="text-sm text-[#68647b]">
-                  Name your benchmark set and optionally add context for collaborators.
+                <p
+                  id="create-evaluation-set-description"
+                  className="text-sm text-[#68647b]"
+                >
+                  Name your benchmark set and optionally add context for
+                  collaborators.
                 </p>
               </div>
               <button
@@ -1904,7 +2294,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               onSubmit={(event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
                 if (!canCreateSet) {
-                  setSetFormError("Only owner/admin can create evaluation sets.");
+                  setSetFormError(
+                    "Only owner/admin can create evaluation sets.",
+                  );
                   return;
                 }
 
@@ -1922,7 +2314,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               }}
             >
               <label className="grid gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Set name</span>
+                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Set name
+                </span>
                 <input
                   value={setName}
                   onChange={(event) => setSetName(event.target.value)}
@@ -1932,7 +2326,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               </label>
 
               <label className="grid gap-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Description</span>
+                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Description
+                </span>
                 <textarea
                   value={setDescription}
                   onChange={(event) => setSetDescription(event.target.value)}
@@ -1942,7 +2338,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 />
               </label>
 
-              {setFormError ? <p className="text-xs text-rose-700">{setFormError}</p> : null}
+              {setFormError ? (
+                <p className="text-xs text-rose-700">{setFormError}</p>
+              ) : null}
 
               <div className="flex items-center justify-end gap-2">
                 <button

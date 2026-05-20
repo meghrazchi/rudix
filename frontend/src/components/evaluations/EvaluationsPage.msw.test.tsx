@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -84,34 +93,39 @@ const server = setupServer(
       offset: 0,
     }),
   ),
-  http.get(`${apiBaseUrl}/evaluation-sets/:setId/questions`, async ({ params }) =>
-    HttpResponse.json({
-      evaluation_set_id: String(params.setId),
-      items: questionStore,
-      total: questionStore.length,
-      limit: 200,
-      offset: 0,
-    }),
+  http.get(
+    `${apiBaseUrl}/evaluation-sets/:setId/questions`,
+    async ({ params }) =>
+      HttpResponse.json({
+        evaluation_set_id: String(params.setId),
+        items: questionStore,
+        total: questionStore.length,
+        limit: 200,
+        offset: 0,
+      }),
   ),
-  http.post(`${apiBaseUrl}/evaluation-sets/:setId/questions`, async ({ params, request }) => {
-    const payload = (await request.json()) as QuestionPayload;
-    observedQuestionCreatePayload = payload;
-    const setId = String(params.setId);
-    const created = {
-      evaluation_question_id: `q-${questionStore.length + 1}`,
-      evaluation_set_id: setId,
-      question: payload.question,
-      expected_answer: payload.expected_answer ?? null,
-      expected_document_id: payload.expected_document_id ?? null,
-      expected_page_number: payload.expected_page_number ?? null,
-      tags: payload.tags ?? [],
-      metadata: payload.metadata ?? {},
-      created_at: "2026-05-16T12:00:00Z",
-      updated_at: "2026-05-16T12:00:00Z",
-    };
-    questionStore = [...questionStore, created];
-    return HttpResponse.json(created, { status: 201 });
-  }),
+  http.post(
+    `${apiBaseUrl}/evaluation-sets/:setId/questions`,
+    async ({ params, request }) => {
+      const payload = (await request.json()) as QuestionPayload;
+      observedQuestionCreatePayload = payload;
+      const setId = String(params.setId);
+      const created = {
+        evaluation_question_id: `q-${questionStore.length + 1}`,
+        evaluation_set_id: setId,
+        question: payload.question,
+        expected_answer: payload.expected_answer ?? null,
+        expected_document_id: payload.expected_document_id ?? null,
+        expected_page_number: payload.expected_page_number ?? null,
+        tags: payload.tags ?? [],
+        metadata: payload.metadata ?? {},
+        created_at: "2026-05-16T12:00:00Z",
+        updated_at: "2026-05-16T12:00:00Z",
+      };
+      questionStore = [...questionStore, created];
+      return HttpResponse.json(created, { status: 201 });
+    },
+  ),
   http.post(`${apiBaseUrl}/evaluations/run`, async ({ request }) => {
     const payload = (await request.json()) as {
       evaluation_set_id: string;
@@ -298,7 +312,9 @@ describe("EvaluationsPage list states (MSW)", () => {
     renderPage();
 
     expect(
-      await screen.findByText("No evaluation sets yet. Create one to start question benchmarking."),
+      await screen.findByText(
+        "No evaluation sets yet. Create one to start question benchmarking.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -311,7 +327,9 @@ describe("EvaluationsPage list states (MSW)", () => {
 
     renderPage();
 
-    expect(await screen.findByText(/The service is temporarily unavailable/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/The service is temporarily unavailable/i),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
@@ -324,12 +342,20 @@ describe("EvaluationsPage list states (MSW)", () => {
       "What is the new SLA?",
     );
     await userEvent.type(
-      screen.getByPlaceholderText("Optional expected answer for quality scoring"),
+      screen.getByPlaceholderText(
+        "Optional expected answer for quality scoring",
+      ),
       "99.95%",
     );
-    await userEvent.selectOptions(screen.getByLabelText("Expected document"), "doc-2");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Expected document"),
+      "doc-2",
+    );
     await userEvent.type(screen.getByPlaceholderText("Optional"), "5");
-    await userEvent.type(screen.getByPlaceholderText("invoice, policy, legal"), "sla,ops");
+    await userEvent.type(
+      screen.getByPlaceholderText("invoice, policy, legal"),
+      "sla,ops",
+    );
     fireEvent.change(screen.getByLabelText("Metadata (JSON object)"), {
       target: { value: '{"priority":"medium","owner":"qa"}' },
     });
@@ -352,12 +378,21 @@ describe("EvaluationsPage list states (MSW)", () => {
     renderPage();
 
     await screen.findByRole("button", { name: "Run evaluation" });
-    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Run evaluation" }),
+    );
 
-    fireEvent.change(screen.getByPlaceholderText("Optional backend-supported model identifier"), {
-      target: { value: "custom-eval-model" },
-    });
-    await userEvent.click(screen.getByRole("checkbox", { name: /policy\.pdf/i }));
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "Optional backend-supported model identifier",
+      ),
+      {
+        target: { value: "custom-eval-model" },
+      },
+    );
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /policy\.pdf/i }),
+    );
     fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
       target: { value: '{"faithfulness":true,"max_latency_ms":900}' },
     });
@@ -374,7 +409,9 @@ describe("EvaluationsPage list states (MSW)", () => {
           metric_options: { faithfulness: true, max_latency_ms: 900 },
         },
       });
-      expect(mockNavigation.push).toHaveBeenCalledWith("/evaluations/runs/run-msw-1");
+      expect(mockNavigation.push).toHaveBeenCalledWith(
+        "/evaluations/runs/run-msw-1",
+      );
     });
   });
 
@@ -388,10 +425,17 @@ describe("EvaluationsPage list states (MSW)", () => {
     renderPage();
 
     await screen.findByRole("button", { name: "Run evaluation" });
-    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
-    fireEvent.change(screen.getByPlaceholderText("Optional backend-supported model identifier"), {
-      target: { value: "retry-model" },
-    });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Run evaluation" }),
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "Optional backend-supported model identifier",
+      ),
+      {
+        target: { value: "retry-model" },
+      },
+    );
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     expect(
@@ -468,7 +512,9 @@ describe("EvaluationsPage list states (MSW)", () => {
     renderPage("run-polling-1");
 
     expect(await screen.findByText("Run status: queued")).toBeInTheDocument();
-    expect(await screen.findByText("Run status: completed")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Run status: completed"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Retrieval hit rate")).toBeInTheDocument();
     expect(screen.getByText("100.0%")).toBeInTheDocument();
   });
@@ -501,7 +547,9 @@ describe("EvaluationsPage list states (MSW)", () => {
     renderPage("run-failed-msw");
 
     expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
-    expect(await screen.findByText(/Evaluator worker timeout/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Evaluator worker timeout/i),
+    ).toBeInTheDocument();
     expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
   });
 
@@ -565,33 +613,42 @@ describe("EvaluationsPage list states (MSW)", () => {
     ];
 
     server.use(
-      http.get(`${apiBaseUrl}/evaluations/runs/:runId`, async ({ params, request }) => {
-        const url = new URL(request.url);
-        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
-        const limit = Number.parseInt(url.searchParams.get("limit") ?? "2", 10);
-        observedOffsets.push(String(offset));
-        return HttpResponse.json({
-          evaluation_run_id: String(params.runId),
-          evaluation_set_id: "set-1",
-          status: "completed",
-          config: {},
-          summary: {
-            question_total_count: sourceResults.length,
-          },
-          failure_reason: null,
-          failure_type: null,
-          started_at: "2026-05-16T12:00:00Z",
-          completed_at: "2026-05-16T12:00:30Z",
-          created_at: "2026-05-16T12:00:00Z",
-          updated_at: "2026-05-16T12:00:30Z",
-          results: {
-            items: sourceResults.slice(offset, offset + limit),
-            total: sourceResults.length,
-            limit,
-            offset,
-          },
-        });
-      }),
+      http.get(
+        `${apiBaseUrl}/evaluations/runs/:runId`,
+        async ({ params, request }) => {
+          const url = new URL(request.url);
+          const offset = Number.parseInt(
+            url.searchParams.get("offset") ?? "0",
+            10,
+          );
+          const limit = Number.parseInt(
+            url.searchParams.get("limit") ?? "2",
+            10,
+          );
+          observedOffsets.push(String(offset));
+          return HttpResponse.json({
+            evaluation_run_id: String(params.runId),
+            evaluation_set_id: "set-1",
+            status: "completed",
+            config: {},
+            summary: {
+              question_total_count: sourceResults.length,
+            },
+            failure_reason: null,
+            failure_type: null,
+            started_at: "2026-05-16T12:00:00Z",
+            completed_at: "2026-05-16T12:00:30Z",
+            created_at: "2026-05-16T12:00:00Z",
+            updated_at: "2026-05-16T12:00:30Z",
+            results: {
+              items: sourceResults.slice(offset, offset + limit),
+              total: sourceResults.length,
+              limit,
+              offset,
+            },
+          });
+        },
+      ),
     );
 
     renderPage("run-paginated-1");

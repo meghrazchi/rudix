@@ -50,14 +50,24 @@ describe("OrganizationOnboardingPage", () => {
     mockState.setAuthenticatedSession.mockReset();
     mockState.authState = authenticatedNoOrganizationState();
 
-    vi.spyOn(onboardingLib, "loadOrganizationOnboardingDraft").mockResolvedValue(null);
-    vi.spyOn(onboardingLib, "persistOrganizationOnboardingDraft").mockResolvedValue();
-    vi.spyOn(onboardingLib, "clearOnboardingDraft").mockImplementation(() => undefined);
-    vi.spyOn(onboardingLib, "completeOrganizationOnboarding").mockResolvedValue({
-      organizationId: "org-acme-workspace",
-      organizationName: "Acme Workspace",
-      role: "admin",
-    });
+    vi.spyOn(
+      onboardingLib,
+      "loadOrganizationOnboardingDraft",
+    ).mockResolvedValue(null);
+    vi.spyOn(
+      onboardingLib,
+      "persistOrganizationOnboardingDraft",
+    ).mockResolvedValue();
+    vi.spyOn(onboardingLib, "clearOnboardingDraft").mockImplementation(
+      () => undefined,
+    );
+    vi.spyOn(onboardingLib, "completeOrganizationOnboarding").mockResolvedValue(
+      {
+        organizationId: "org-acme-workspace",
+        organizationName: "Acme Workspace",
+        role: "admin",
+      },
+    );
   });
 
   it("redirects unauthenticated users to login with next path", async () => {
@@ -65,7 +75,9 @@ describe("OrganizationOnboardingPage", () => {
     render(<OrganizationOnboardingPage />);
 
     await waitFor(() => {
-      expect(mockState.replace).toHaveBeenCalledWith("/login?next=%2Forganization-onboarding");
+      expect(mockState.replace).toHaveBeenCalledWith(
+        "/login?next=%2Forganization-onboarding",
+      );
     });
   });
 
@@ -108,20 +120,27 @@ describe("OrganizationOnboardingPage", () => {
 
     await screen.findByRole("heading", { name: "Organization onboarding" });
 
-    await userEvent.type(screen.getByLabelText("Workspace name"), "Acme Workspace");
+    await userEvent.type(
+      screen.getByLabelText("Workspace name"),
+      "Acme Workspace",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await userEvent.click(screen.getByRole("button", { name: "Complete setup" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete setup" }),
+    );
 
     await waitFor(() => {
-      expect(onboardingLib.completeOrganizationOnboarding).toHaveBeenCalledWith({
-        workspaceName: "Acme Workspace",
-        domainAllowlistText: "",
-        defaultAccessRole: "member",
-        allowSelfServeJoin: true,
-        invites: [{ email: "", role: "member" }],
-      } satisfies OrganizationOnboardingFormValues);
+      expect(onboardingLib.completeOrganizationOnboarding).toHaveBeenCalledWith(
+        {
+          workspaceName: "Acme Workspace",
+          domainAllowlistText: "",
+          defaultAccessRole: "member",
+          allowSelfServeJoin: true,
+          invites: [{ email: "", role: "member" }],
+        } satisfies OrganizationOnboardingFormValues,
+      );
     });
 
     expect(mockState.setAuthenticatedSession).toHaveBeenCalledWith({
@@ -136,7 +155,10 @@ describe("OrganizationOnboardingPage", () => {
   });
 
   it("shows safe completion errors without clearing entered values", async () => {
-    vi.spyOn(onboardingLib, "completeOrganizationOnboarding").mockRejectedValueOnce(
+    vi.spyOn(
+      onboardingLib,
+      "completeOrganizationOnboarding",
+    ).mockRejectedValueOnce(
       new OrganizationOnboardingError(
         "workspace_conflict",
         "Workspace name is already in use. Choose another name.",
@@ -147,11 +169,16 @@ describe("OrganizationOnboardingPage", () => {
 
     await screen.findByRole("heading", { name: "Organization onboarding" });
 
-    await userEvent.type(screen.getByLabelText("Workspace name"), "Acme Workspace");
+    await userEvent.type(
+      screen.getByLabelText("Workspace name"),
+      "Acme Workspace",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await userEvent.click(screen.getByRole("button", { name: "Complete setup" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Complete setup" }),
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Workspace name is already in use. Choose another name.",

@@ -71,13 +71,17 @@ export type AuditLogListQuery = {
   resource_type?: string;
 };
 
-export async function getUsageSummary(query: UsageSummaryQuery = {}): Promise<UsageSummaryResponse> {
+export async function getUsageSummary(
+  query: UsageSummaryQuery = {},
+): Promise<UsageSummaryResponse> {
   return apiRequest<UsageSummaryResponse>("/admin/usage", {
     query,
   });
 }
 
-export async function listAuditLogs(query: AuditLogListQuery = {}): Promise<AuditLogListResponse> {
+export async function listAuditLogs(
+  query: AuditLogListQuery = {},
+): Promise<AuditLogListResponse> {
   return apiRequest<AuditLogListResponse>("/admin/audit-logs", {
     query,
   });

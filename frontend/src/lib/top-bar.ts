@@ -36,11 +36,19 @@ export function resolveHelpMenuItems(): HelpMenuItem[] {
   }
 
   if (supportAction?.href) {
-    items.push({ id: "support", label: supportAction.label, href: supportAction.href });
+    items.push({
+      id: "support",
+      label: supportAction.label,
+      href: supportAction.href,
+    });
   }
 
   if (shortcutsUrl) {
-    items.push({ id: "shortcuts", label: "Keyboard shortcuts", href: shortcutsUrl });
+    items.push({
+      id: "shortcuts",
+      label: "Keyboard shortcuts",
+      href: shortcutsUrl,
+    });
   }
 
   if (readmeUrl) {
@@ -59,7 +67,10 @@ export function filterNotificationsByRole(
   role: AppRole,
 ): TopBarNotification[] {
   return notifications.filter((notification) => {
-    if (!notification.allowed_roles || notification.allowed_roles.length === 0) {
+    if (
+      !notification.allowed_roles ||
+      notification.allowed_roles.length === 0
+    ) {
       return true;
     }
     return notification.allowed_roles.includes(role);

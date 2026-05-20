@@ -13,10 +13,7 @@ type ErrorStateProps = {
   compact?: boolean;
 };
 
-function resolveTitle(params: {
-  title?: string;
-  error?: unknown;
-}): string {
+function resolveTitle(params: { title?: string; error?: unknown }): string {
   if (params.title) {
     return params.title;
   }
@@ -67,7 +64,9 @@ export function ErrorState({
 
   const resolvedTitle = resolveTitle({ title, error });
   const resolvedDescription = resolveDescription({ description, error });
-  const safeRequestId = sanitizeRequestId(requestId ?? extractRequestIdFromError(error));
+  const safeRequestId = sanitizeRequestId(
+    requestId ?? extractRequestIdFromError(error),
+  );
 
   return (
     <section
@@ -78,8 +77,16 @@ export function ErrorState({
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-rose-900`}
     >
-      <p className={compact ? "text-sm font-semibold" : "text-base font-semibold"}>{resolvedTitle}</p>
-      <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"}`}>{resolvedDescription}</p>
+      <p
+        className={
+          compact ? "text-sm font-semibold" : "text-base font-semibold"
+        }
+      >
+        {resolvedTitle}
+      </p>
+      <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"}`}>
+        {resolvedDescription}
+      </p>
       {safeRequestId ? (
         <p className="mt-2 text-xs">
           Trace ID: <span className="font-semibold">{safeRequestId}</span>

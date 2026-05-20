@@ -42,11 +42,17 @@ export function renderWithProviders(
   ui: ReactElement,
   options: RenderWithProvidersOptions = {},
 ) {
-  const { queryClient = createTestQueryClient(), session = null, ...renderOptions } = options;
+  const {
+    queryClient = createTestQueryClient(),
+    session = null,
+    ...renderOptions
+  } = options;
   seedTestSession(session);
 
   function Wrapper({ children }: { children: ReactNode }) {
-    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
   }
 
   return {

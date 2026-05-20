@@ -34,13 +34,17 @@ describe("app route protection", () => {
       accessToken: null,
     });
 
-    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/organization-onboarding");
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe(
+      "/organization-onboarding",
+    );
   });
 
   it("redirects unauthenticated users to login with next path", () => {
     const state: SessionState = { status: "unauthenticated", session: null };
 
-    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/login?next=%2Fdashboard");
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe(
+      "/login?next=%2Fdashboard",
+    );
   });
 
   it("redirects unauthorized users to forbidden page", () => {
@@ -53,8 +57,12 @@ describe("app route protection", () => {
     });
 
     expect(resolveProtectedRouteRedirect("/admin", state)).toBe("/forbidden");
-    expect(resolveProtectedRouteRedirect("/admin/usage", state)).toBe("/forbidden");
-    expect(resolveProtectedRouteRedirect("/admin/audit-logs", state)).toBe("/forbidden");
+    expect(resolveProtectedRouteRedirect("/admin/usage", state)).toBe(
+      "/forbidden",
+    );
+    expect(resolveProtectedRouteRedirect("/admin/audit-logs", state)).toBe(
+      "/forbidden",
+    );
   });
 
   it("redirects users without organization context to onboarding", () => {
@@ -68,7 +76,9 @@ describe("app route protection", () => {
       accessToken: null,
     });
 
-    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe("/organization-onboarding");
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe(
+      "/organization-onboarding",
+    );
   });
 
   it("allows app sessions with token even when organization id is missing", () => {

@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -36,12 +44,18 @@ function renderShell(session: AuthenticatedSession) {
     },
   });
 
-  const activeRoute = APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
+  const activeRoute =
+    APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
   const navItems = buildNavItems(activeRoute.key);
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <AppShell activeRoute={activeRoute} navItems={navItems} session={session} onSignOut={() => undefined}>
+      <AppShell
+        activeRoute={activeRoute}
+        navItems={navItems}
+        session={session}
+        onSignOut={() => undefined}
+      >
         <div>Page content</div>
       </AppShell>
     </QueryClientProvider>,
@@ -91,14 +105,19 @@ describe("AppShell notifications menu states", () => {
       accessToken: "token-1",
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
-    expect(await screen.findByText("No notifications right now.")).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Notifications" }),
+    );
+    expect(
+      await screen.findByText("No notifications right now."),
+    ).toBeInTheDocument();
   });
 
   it("shows unavailable state when notification endpoint fails", async () => {
     server.use(
       http.get(`${apiBaseUrl}/notifications`, async () =>
-        HttpResponse.json({ detail: "Service unavailable" }, { status: 503 })),
+        HttpResponse.json({ detail: "Service unavailable" }, { status: 503 }),
+      ),
     );
 
     renderShell({
@@ -110,10 +129,16 @@ describe("AppShell notifications menu states", () => {
       accessToken: "token-2",
     });
 
-    await userEvent.click(screen.getByRole("button", { name: "Notifications" }));
-    expect(await screen.findByText(/temporarily unavailable/i)).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Notifications" }),
+    );
     expect(
-      screen.getByText(/failed-job alerts will appear here when the backend feed is available/i),
+      await screen.findByText(/temporarily unavailable/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /failed-job alerts will appear here when the backend feed is available/i,
+      ),
     ).toBeInTheDocument();
   });
 });

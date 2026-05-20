@@ -6,12 +6,23 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { getHealth, getReadiness, type HealthDependency, type HealthResponse } from "@/lib/api/health";
+import {
+  getHealth,
+  getReadiness,
+  type HealthDependency,
+  type HealthResponse,
+} from "@/lib/api/health";
 import { queryKeys } from "@/lib/api/query";
 import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-type DependencyKey = "postgresql" | "redis" | "rabbitmq" | "minio" | "qdrant" | "openai";
+type DependencyKey =
+  | "postgresql"
+  | "redis"
+  | "rabbitmq"
+  | "minio"
+  | "qdrant"
+  | "openai";
 type DependencyState = "healthy" | "degraded" | "unavailable";
 
 type DependencyDescriptor = {
@@ -65,7 +76,8 @@ const DEPENDENCY_DESCRIPTORS: DependencyDescriptor[] = [
   },
 ];
 
-const SENSITIVE_METADATA_PATTERN = /(token|secret|key|password|credential|authorization|api)/i;
+const SENSITIVE_METADATA_PATTERN =
+  /(token|secret|key|password|credential|authorization|api)/i;
 
 function sanitizeMetadataValue(value: unknown): string {
   if (value == null) {
@@ -90,16 +102,16 @@ function sanitizeMetadataValue(value: unknown): string {
   return trimmed;
 }
 
-function sanitizeDependencyMetadata(metadata: HealthDependency["metadata"]): Array<{ key: string; value: string }> {
+function sanitizeDependencyMetadata(
+  metadata: HealthDependency["metadata"],
+): Array<{ key: string; value: string }> {
   const entries = Object.entries(metadata ?? {});
-  return entries
-    .slice(0, 6)
-    .map(([key, value]) => {
-      if (SENSITIVE_METADATA_PATTERN.test(key)) {
-        return { key, value: "[redacted]" };
-      }
-      return { key, value: sanitizeMetadataValue(value) };
-    });
+  return entries.slice(0, 6).map(([key, value]) => {
+    if (SENSITIVE_METADATA_PATTERN.test(key)) {
+      return { key, value: "[redacted]" };
+    }
+    return { key, value: sanitizeMetadataValue(value) };
+  });
 }
 
 function dependencyCardClass(state: DependencyState): string {
@@ -123,7 +135,10 @@ function dependencyBadgeClass(state: DependencyState): string {
 }
 
 function normalizeKey(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function findDependencyFromResponse(
@@ -135,7 +150,9 @@ function findDependencyFromResponse(
   }
 
   const dependencies = response.dependencies ?? {};
-  const normalizedAliasSet = new Set(descriptor.aliases.map((alias) => normalizeKey(alias)));
+  const normalizedAliasSet = new Set(
+    descriptor.aliases.map((alias) => normalizeKey(alias)),
+  );
 
   for (const [rawKey, dependency] of Object.entries(dependencies)) {
     if (normalizedAliasSet.has(normalizeKey(rawKey))) {
@@ -146,7 +163,9 @@ function findDependencyFromResponse(
   return null;
 }
 
-function resolveDependencyState(dependency: HealthDependency | null): DependencyState {
+function resolveDependencyState(
+  dependency: HealthDependency | null,
+): DependencyState {
   if (!dependency) {
     return "unavailable";
   }
@@ -155,10 +174,18 @@ function resolveDependencyState(dependency: HealthDependency | null): Dependency
 
 function statusBadgeClass(status: string | null | undefined): string {
   const normalized = status?.toLowerCase() ?? "unknown";
-  if (normalized === "ok" || normalized === "healthy" || normalized === "ready") {
+  if (
+    normalized === "ok" ||
+    normalized === "healthy" ||
+    normalized === "ready"
+  ) {
     return "bg-emerald-100 text-emerald-800";
   }
-  if (normalized === "degraded" || normalized === "error" || normalized === "failed") {
+  if (
+    normalized === "degraded" ||
+    normalized === "error" ||
+    normalized === "failed"
+  ) {
     return "bg-rose-100 text-rose-800";
   }
   return "bg-slate-200 text-slate-700";
@@ -234,18 +261,21 @@ function HealthSection({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h2 className="text-lg font-bold text-[#2a2640]">{title}</h2>
         <span
-          className={`rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wide ${statusBadgeClass(
+          className={`rounded-full px-2 py-1 text-xs font-semibold tracking-wide uppercase ${statusBadgeClass(
             response?.status,
           )}`}
         >
           {response?.status ?? "unknown"}
         </span>
       </div>
-      <p className="mt-2 text-xs text-[#6a6780]">Updated: {formatTimestamp(response?.timestamp)}</p>
+      <p className="mt-2 text-xs text-[#6a6780]">
+        Updated: {formatTimestamp(response?.timestamp)}
+      </p>
 
       {failedDependencies.length > 0 ? (
         <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          Failed dependencies: <span className="font-semibold">{failedDependencies.join(", ")}</span>
+          Failed dependencies:{" "}
+          <span className="font-semibold">{failedDependencies.join(", ")}</span>
         </p>
       ) : (
         <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
@@ -257,7 +287,9 @@ function HealthSection({
         {DEPENDENCY_DESCRIPTORS.map((descriptor) => {
           const dependency = findDependencyFromResponse(response, descriptor);
           const state = resolveDependencyState(dependency);
-          const metadataEntries = dependency ? sanitizeDependencyMetadata(dependency.metadata) : [];
+          const metadataEntries = dependency
+            ? sanitizeDependencyMetadata(dependency.metadata)
+            : [];
 
           return (
             <article
@@ -266,9 +298,11 @@ function HealthSection({
               aria-label={`${descriptor.label} dependency card`}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-[#2a2640]">{descriptor.label}</p>
+                <p className="text-sm font-semibold text-[#2a2640]">
+                  {descriptor.label}
+                </p>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${dependencyBadgeClass(
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${dependencyBadgeClass(
                     state,
                   )}`}
                 >
@@ -276,12 +310,19 @@ function HealthSection({
                 </span>
               </div>
               <p className="mt-2 text-xs text-[#4d4963]">
-                {dependency?.detail?.trim() ? dependency.detail : state === "unavailable" ? "Not reported by backend." : "No detail provided."}
+                {dependency?.detail?.trim()
+                  ? dependency.detail
+                  : state === "unavailable"
+                    ? "Not reported by backend."
+                    : "No detail provided."}
               </p>
               {metadataEntries.length > 0 ? (
                 <dl className="mt-2 space-y-1 text-[11px] text-[#5f5b72]">
                   {metadataEntries.map((entry) => (
-                    <div key={`${descriptor.key}:${entry.key}`} className="flex items-start justify-between gap-2">
+                    <div
+                      key={`${descriptor.key}:${entry.key}`}
+                      className="flex items-start justify-between gap-2"
+                    >
                       <dt className="font-semibold">{entry.key}</dt>
                       <dd className="text-right">{entry.value}</dd>
                     </div>
@@ -301,7 +342,8 @@ export function AdminSystemHealthPage() {
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
 
-  const refetchInterval = REFRESH_INTERVAL_MS > 0 ? REFRESH_INTERVAL_MS : (false as const);
+  const refetchInterval =
+    REFRESH_INTERVAL_MS > 0 ? REFRESH_INTERVAL_MS : (false as const);
 
   const healthQuery = useQuery<HealthResponse>({
     queryKey: queryKeys.health.status,
@@ -340,8 +382,12 @@ export function AdminSystemHealthPage() {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Admin</p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">System health</h1>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Admin
+            </p>
+            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              System health
+            </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
               Monitor API readiness and core dependency health for operations.
             </p>
@@ -358,7 +404,9 @@ export function AdminSystemHealthPage() {
               disabled={healthQuery.isFetching || readinessQuery.isFetching}
               className="rounded-lg border border-[#cbc5e6] px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {healthQuery.isFetching || readinessQuery.isFetching ? "Refreshing..." : "Refresh checks"}
+              {healthQuery.isFetching || readinessQuery.isFetching
+                ? "Refreshing..."
+                : "Refresh checks"}
             </button>
           </div>
         </div>

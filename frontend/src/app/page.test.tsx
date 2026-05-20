@@ -27,27 +27,59 @@ describe("Public Landing Page", () => {
   it("renders all major landing sections", () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { name: /Scale Precision AI/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Native RAG Capabilities" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Built for Engineering Excellence" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Security First Infrastructure" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Deploy Production RAG Today" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Scale Precision AI/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Native RAG Capabilities" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Built for Engineering Excellence" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Security First Infrastructure" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Deploy Production RAG Today" }),
+    ).toBeInTheDocument();
 
     expect(screen.getByRole("link", { name: "Login" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Request Demo" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start Free Trial" })).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Read Documentation" }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByRole("link", { name: "Request Demo" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Start Free Trial" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "Read Documentation" }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("uses safe default CTA/navigation routes when landing env vars are not configured", () => {
     render(<Home />);
 
-    expect(screen.getByRole("link", { name: "Product" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "Solutions" })).toHaveAttribute("href", "/documents");
-    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/settings");
-    expect(screen.getByRole("link", { name: "Start Free Trial" })).toHaveAttribute("href", "/signup");
-    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute("href", "/login");
-    expect(screen.getAllByRole("link", { name: "Read Documentation" })[0]).toHaveAttribute("href", "/documents");
+    expect(screen.getByRole("link", { name: "Product" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+    expect(screen.getByRole("link", { name: "Solutions" })).toHaveAttribute(
+      "href",
+      "/documents",
+    );
+    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(
+      screen.getByRole("link", { name: "Start Free Trial" }),
+    ).toHaveAttribute("href", "/signup");
+    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(
+      screen.getAllByRole("link", { name: "Read Documentation" })[0],
+    ).toHaveAttribute("href", "/documents");
   });
 
   it("applies env-driven landing links when configured", () => {
@@ -56,18 +88,32 @@ describe("Public Landing Page", () => {
     process.env.NEXT_PUBLIC_LANDING_PRICING_URL = "/pricing";
     process.env.NEXT_PUBLIC_LANDING_TRIAL_URL = "https://trial.example.com";
     process.env.NEXT_PUBLIC_LANDING_DEMO_URL = "https://demo.example.com";
-    process.env.NEXT_PUBLIC_LANDING_DOCUMENTATION_URL = "https://docs.example.com";
+    process.env.NEXT_PUBLIC_LANDING_DOCUMENTATION_URL =
+      "https://docs.example.com";
 
     render(<Home />);
 
-    expect(screen.getByRole("link", { name: "Product" })).toHaveAttribute("href", "/product-overview");
-    expect(screen.getByRole("link", { name: "Solutions" })).toHaveAttribute("href", "/solutions");
-    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
-    expect(screen.getByRole("link", { name: "Start Free Trial" })).toHaveAttribute("href", "https://trial.example.com");
-    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute("href", "https://demo.example.com");
-    expect(screen.getAllByRole("link", { name: "Read Documentation" })[0]).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Product" })).toHaveAttribute(
       "href",
-      "https://docs.example.com",
+      "/product-overview",
     );
+    expect(screen.getByRole("link", { name: "Solutions" })).toHaveAttribute(
+      "href",
+      "/solutions",
+    );
+    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
+    expect(
+      screen.getByRole("link", { name: "Start Free Trial" }),
+    ).toHaveAttribute("href", "https://trial.example.com");
+    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute(
+      "href",
+      "https://demo.example.com",
+    );
+    expect(
+      screen.getAllByRole("link", { name: "Read Documentation" })[0],
+    ).toHaveAttribute("href", "https://docs.example.com");
   });
 });

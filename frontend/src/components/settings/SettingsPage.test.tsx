@@ -62,9 +62,12 @@ vi.mock("@/lib/settings-preferences", async () => {
 vi.mock("@/lib/api/team", () => ({
   getTeamCapabilities: () => mockTeamApi.capabilities,
   listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
-  inviteTeamMember: (...args: unknown[]) => mockTeamApi.inviteTeamMember(...args),
-  updateTeamMemberRole: (...args: unknown[]) => mockTeamApi.updateTeamMemberRole(...args),
-  removeTeamMember: (...args: unknown[]) => mockTeamApi.removeTeamMember(...args),
+  inviteTeamMember: (...args: unknown[]) =>
+    mockTeamApi.inviteTeamMember(...args),
+  updateTeamMemberRole: (...args: unknown[]) =>
+    mockTeamApi.updateTeamMemberRole(...args),
+  removeTeamMember: (...args: unknown[]) =>
+    mockTeamApi.removeTeamMember(...args),
   isTeamEndpointUnavailableError: () => false,
 }));
 

@@ -8,10 +8,18 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { getUsageSummary, listAuditLogs, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
+import {
+  getUsageSummary,
+  listAuditLogs,
+  type AuditLogListItemResponse,
+} from "@/lib/api/admin-usage";
 import { listChatSessions, type ChatSessionResponse } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import { listDocuments, type DocumentListItemResponse, type DocumentStatus } from "@/lib/api/documents";
+import {
+  listDocuments,
+  type DocumentListItemResponse,
+  type DocumentStatus,
+} from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
 import {
   canViewAdminUsage,
@@ -36,7 +44,10 @@ const LATEST_DOCUMENTS_LIMIT = 8;
 const RECENT_ACTIVITY_LIMIT = 10;
 const AUDIT_ACTIVITY_LIMIT = 20;
 
-function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) {
     return fallback;
   }
@@ -54,7 +65,12 @@ function isTruthyEnv(value: string | undefined): boolean {
     return false;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
 }
 
 type DashboardDocumentSummary = {
@@ -71,7 +87,14 @@ type DashboardChatSummary = {
 
 type DashboardRecentActivityItem = {
   id: string;
-  category: "upload" | "processing" | "chat" | "evaluation" | "failure" | "admin" | "document";
+  category:
+    | "upload"
+    | "processing"
+    | "chat"
+    | "evaluation"
+    | "failure"
+    | "admin"
+    | "document";
   title: string;
   description: string;
   timestamp: string;
@@ -95,7 +118,10 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
   let totalChunks = 0;
 
   while (fetchedRows < maxDocumentRows) {
-    const pageLimit = Math.min(DOCUMENT_PAGE_SIZE, maxDocumentRows - fetchedRows);
+    const pageLimit = Math.min(
+      DOCUMENT_PAGE_SIZE,
+      maxDocumentRows - fetchedRows,
+    );
     const page = await listDocuments({
       limit: pageLimit,
       offset,
@@ -111,7 +137,10 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
       break;
     }
 
-    totalChunks += page.items.reduce((sum, item) => sum + Math.max(0, item.chunk_count), 0);
+    totalChunks += page.items.reduce(
+      (sum, item) => sum + Math.max(0, item.chunk_count),
+      0,
+    );
     fetchedRows += page.items.length;
     offset += page.items.length;
 
@@ -150,7 +179,10 @@ async function fetchDashboardChatSummary(): Promise<DashboardChatSummary> {
   const sessions = [];
 
   while (fetchedRows < maxSessionRows) {
-    const pageLimit = Math.min(CHAT_SESSION_PAGE_SIZE, maxSessionRows - fetchedRows);
+    const pageLimit = Math.min(
+      CHAT_SESSION_PAGE_SIZE,
+      maxSessionRows - fetchedRows,
+    );
     const page = await listChatSessions({
       limit: pageLimit,
       offset,
@@ -188,10 +220,19 @@ type KpiCardProps = {
   onRetry?: () => void;
 };
 
-function KpiCard({ title, value, caption, loading = false, error = null, onRetry }: KpiCardProps) {
+function KpiCard({
+  title,
+  value,
+  caption,
+  loading = false,
+  error = null,
+  onRetry,
+}: KpiCardProps) {
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">{title}</p>
+      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
+        {title}
+      </p>
       {loading ? (
         <p className="text-2xl font-extrabold text-[#2a2640]">Loading...</p>
       ) : error ? (
@@ -251,7 +292,9 @@ function safeTimestamp(value: string): number {
   return parsed;
 }
 
-function resolveAuditActivityLink(item: AuditLogListItemResponse): string | null {
+function resolveAuditActivityLink(
+  item: AuditLogListItemResponse,
+): string | null {
   const resourceType = item.resource_type.toLowerCase();
   if (resourceType === "document" && item.resource_id) {
     return `/documents?document_id=${encodeURIComponent(item.resource_id)}`;
@@ -268,52 +311,54 @@ function resolveAuditActivityLink(item: AuditLogListItemResponse): string | null
   return null;
 }
 
-function buildDocumentActivityItems(documents: DocumentListItemResponse[]): DashboardRecentActivityItem[] {
-  return documents
-    .slice(0, RECENT_ACTIVITY_LIMIT)
-    .map((document) => {
-      if (document.status === "uploaded") {
-        return {
-          id: `doc-upload:${document.document_id}`,
-          category: "upload" as const,
-          title: "Document uploaded",
-          description: document.filename,
-          timestamp: document.updated_at,
-          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
-        };
-      }
-      if (document.status === "processing") {
-        return {
-          id: `doc-processing:${document.document_id}`,
-          category: "processing" as const,
-          title: "Document processing",
-          description: document.filename,
-          timestamp: document.updated_at,
-          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
-        };
-      }
-      if (document.status === "failed") {
-        return {
-          id: `doc-failure:${document.document_id}`,
-          category: "failure" as const,
-          title: "Document failed",
-          description: `${document.filename}${document.error_message ? ` — ${document.error_message}` : ""}`,
-          timestamp: document.updated_at,
-          href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
-        };
-      }
+function buildDocumentActivityItems(
+  documents: DocumentListItemResponse[],
+): DashboardRecentActivityItem[] {
+  return documents.slice(0, RECENT_ACTIVITY_LIMIT).map((document) => {
+    if (document.status === "uploaded") {
       return {
-        id: `doc-updated:${document.document_id}`,
-        category: "document" as const,
-        title: "Document updated",
+        id: `doc-upload:${document.document_id}`,
+        category: "upload" as const,
+        title: "Document uploaded",
         description: document.filename,
         timestamp: document.updated_at,
         href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
       };
-    });
+    }
+    if (document.status === "processing") {
+      return {
+        id: `doc-processing:${document.document_id}`,
+        category: "processing" as const,
+        title: "Document processing",
+        description: document.filename,
+        timestamp: document.updated_at,
+        href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+      };
+    }
+    if (document.status === "failed") {
+      return {
+        id: `doc-failure:${document.document_id}`,
+        category: "failure" as const,
+        title: "Document failed",
+        description: `${document.filename}${document.error_message ? ` — ${document.error_message}` : ""}`,
+        timestamp: document.updated_at,
+        href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+      };
+    }
+    return {
+      id: `doc-updated:${document.document_id}`,
+      category: "document" as const,
+      title: "Document updated",
+      description: document.filename,
+      timestamp: document.updated_at,
+      href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
+    };
+  });
 }
 
-function buildChatActivityItems(sessions: ChatSessionResponse[]): DashboardRecentActivityItem[] {
+function buildChatActivityItems(
+  sessions: ChatSessionResponse[],
+): DashboardRecentActivityItem[] {
   return sessions
     .filter((session) => session.message_count > 0)
     .slice(0, RECENT_ACTIVITY_LIMIT)
@@ -327,44 +372,54 @@ function buildChatActivityItems(sessions: ChatSessionResponse[]): DashboardRecen
     }));
 }
 
-function buildAuditActivityItems(items: AuditLogListItemResponse[]): DashboardRecentActivityItem[] {
-  return items
-    .slice(0, RECENT_ACTIVITY_LIMIT)
-    .map((item) => {
-      const action = item.action.toLowerCase();
-      let category: DashboardRecentActivityItem["category"] = "admin";
-      if (action.includes("evaluation")) {
-        category = "evaluation";
-      } else if (action.includes("failed") || action.includes("error")) {
-        category = "failure";
-      }
+function buildAuditActivityItems(
+  items: AuditLogListItemResponse[],
+): DashboardRecentActivityItem[] {
+  return items.slice(0, RECENT_ACTIVITY_LIMIT).map((item) => {
+    const action = item.action.toLowerCase();
+    let category: DashboardRecentActivityItem["category"] = "admin";
+    if (action.includes("evaluation")) {
+      category = "evaluation";
+    } else if (action.includes("failed") || action.includes("error")) {
+      category = "failure";
+    }
 
-      return {
-        id: `audit:${item.audit_log_id}`,
-        category,
-        title: item.action,
-        description: `${item.resource_type}${item.resource_id ? `:${item.resource_id}` : ""}`,
-        timestamp: item.created_at,
-        href: resolveAuditActivityLink(item),
-      };
-    });
+    return {
+      id: `audit:${item.audit_log_id}`,
+      category,
+      title: item.action,
+      description: `${item.resource_type}${item.resource_id ? `:${item.resource_id}` : ""}`,
+      timestamp: item.created_at,
+      href: resolveAuditActivityLink(item),
+    };
+  });
 }
 
-function sortAndLimitActivities(items: DashboardRecentActivityItem[]): DashboardRecentActivityItem[] {
+function sortAndLimitActivities(
+  items: DashboardRecentActivityItem[],
+): DashboardRecentActivityItem[] {
   return items
-    .sort((left, right) => safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp))
+    .sort(
+      (left, right) =>
+        safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp),
+    )
     .slice(0, RECENT_ACTIVITY_LIMIT);
 }
 
 export function DashboardPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
-  const adminUsageEnabled = isTruthyEnv(process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE);
+  const adminUsageEnabled = isTruthyEnv(
+    process.env.NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE,
+  );
   const showAdminUsage = canViewAdminUsage(role) && adminUsageEnabled;
   const documentCapabilities = resolveDocumentCapabilities(role);
 
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
-  const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);
+  const usageRange = useMemo(
+    () => resolveUsageDateRange(rangePreset),
+    [rangePreset],
+  );
 
   const documentsQuery = useQuery({
     queryKey: ["dashboard", "documents-summary"],
@@ -408,7 +463,11 @@ export function DashboardPage() {
   });
 
   const recentChatSessionsQuery = useQuery({
-    queryKey: ["dashboard", "recent-chat-sessions", { limit: RECENT_ACTIVITY_LIMIT }],
+    queryKey: [
+      "dashboard",
+      "recent-chat-sessions",
+      { limit: RECENT_ACTIVITY_LIMIT },
+    ],
     queryFn: () =>
       listChatSessions({
         limit: RECENT_ACTIVITY_LIMIT,
@@ -440,15 +499,22 @@ export function DashboardPage() {
   const recentSessions = recentChatSessionsQuery.data?.items ?? [];
 
   const indexingSuccess = documentsSummary
-    ? computeIndexingSuccess(documentsSummary.totalDocuments, documentsSummary.indexedDocuments)
+    ? computeIndexingSuccess(
+        documentsSummary.totalDocuments,
+        documentsSummary.indexedDocuments,
+      )
     : null;
 
   const questionsAsked =
     usageSummary?.totals.event_count ??
     (chatSummary ? chatSummary.questionsAsked : null);
 
-  const averageConfidence = usageSummary ? extractAverageConfidence(usageSummary) : null;
-  const averageLatencyMs = usageSummary ? extractAverageLatencyMs(usageSummary) : null;
+  const averageConfidence = usageSummary
+    ? extractAverageConfidence(usageSummary)
+    : null;
+  const averageLatencyMs = usageSummary
+    ? extractAverageLatencyMs(usageSummary)
+    : null;
   const estimatedCost = usageSummary?.totals.cost_usd ?? null;
 
   const showEmptyState =
@@ -463,7 +529,8 @@ export function DashboardPage() {
     if (!showAdminUsage) {
       return {
         items: [],
-        unavailableReason: "Admin activity is only available for owner/admin roles.",
+        unavailableReason:
+          "Admin activity is only available for owner/admin roles.",
       };
     }
     if (auditActivityQuery.isError) {
@@ -489,36 +556,44 @@ export function DashboardPage() {
   );
 
   const recentActivityLoading =
-    latestDocumentsQuery.isLoading || recentChatSessionsQuery.isLoading || (showAdminUsage && auditActivityQuery.isLoading);
-  const recentActivityError =
-    latestDocumentsQuery.isError
-      ? getApiErrorMessage(latestDocumentsQuery.error)
-      : recentChatSessionsQuery.isError
-        ? getApiErrorMessage(recentChatSessionsQuery.error)
-        : null;
+    latestDocumentsQuery.isLoading ||
+    recentChatSessionsQuery.isLoading ||
+    (showAdminUsage && auditActivityQuery.isLoading);
+  const recentActivityError = latestDocumentsQuery.isError
+    ? getApiErrorMessage(latestDocumentsQuery.error)
+    : recentChatSessionsQuery.isError
+      ? getApiErrorMessage(recentChatSessionsQuery.error)
+      : null;
   const viewDocumentHref =
-    latestDocuments.length > 0 ? `/documents?document_id=${encodeURIComponent(latestDocuments[0].document_id)}` : null;
+    latestDocuments.length > 0
+      ? `/documents?document_id=${encodeURIComponent(latestDocuments[0].document_id)}`
+      : null;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Dashboard</p>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Dashboard
+            </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
               Organization Metrics Overview
             </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Monitor document indexing, retrieval performance, and usage trends with permission-aware KPI cards.
+              Monitor document indexing, retrieval performance, and usage trends
+              with permission-aware KPI cards.
             </p>
           </div>
 
           {showAdminUsage ? (
-            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Usage range
               <select
                 value={rangePreset}
-                onChange={(event) => setRangePreset(event.target.value as DashboardRangePreset)}
+                onChange={(event) =>
+                  setRangePreset(event.target.value as DashboardRangePreset)
+                }
                 className="h-9 min-w-[150px] rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
               >
                 {DASHBOARD_RANGE_PRESETS.map((option) => (
@@ -538,7 +613,11 @@ export function DashboardPage() {
           value={formatInteger(documentsSummary?.totalDocuments)}
           caption="Documents currently scoped to your organization."
           loading={documentsQuery.isLoading}
-          error={documentsQuery.isError ? getApiErrorMessage(documentsQuery.error) : null}
+          error={
+            documentsQuery.isError
+              ? getApiErrorMessage(documentsQuery.error)
+              : null
+          }
           onRetry={() => {
             void documentsQuery.refetch();
           }}
@@ -548,7 +627,11 @@ export function DashboardPage() {
           value={formatInteger(documentsSummary?.indexedDocuments)}
           caption="Documents ready for retrieval and chat."
           loading={documentsQuery.isLoading}
-          error={documentsQuery.isError ? getApiErrorMessage(documentsQuery.error) : null}
+          error={
+            documentsQuery.isError
+              ? getApiErrorMessage(documentsQuery.error)
+              : null
+          }
           onRetry={() => {
             void documentsQuery.refetch();
           }}
@@ -566,7 +649,11 @@ export function DashboardPage() {
               : "Total indexed chunks across fetched organization documents."
           }
           loading={documentsQuery.isLoading}
-          error={documentsQuery.isError ? getApiErrorMessage(documentsQuery.error) : null}
+          error={
+            documentsQuery.isError
+              ? getApiErrorMessage(documentsQuery.error)
+              : null
+          }
           onRetry={() => {
             void documentsQuery.refetch();
           }}
@@ -575,7 +662,10 @@ export function DashboardPage() {
           title="Questions asked"
           value={formatInteger(questionsAsked)}
           caption="Estimated from chat activity and usage events."
-          loading={chatSummaryQuery.isLoading || (showAdminUsage && usageQuery.isLoading)}
+          loading={
+            chatSummaryQuery.isLoading ||
+            (showAdminUsage && usageQuery.isLoading)
+          }
           error={
             chatSummaryQuery.isError
               ? getApiErrorMessage(chatSummaryQuery.error)
@@ -596,7 +686,11 @@ export function DashboardPage() {
           value={formatPercentage(averageConfidence)}
           caption="Mean answer confidence from usage analytics, when exposed."
           loading={showAdminUsage && usageQuery.isLoading}
-          error={showAdminUsage && usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            showAdminUsage && usageQuery.isError
+              ? getApiErrorMessage(usageQuery.error)
+              : null
+          }
           onRetry={() => {
             void usageQuery.refetch();
           }}
@@ -606,7 +700,11 @@ export function DashboardPage() {
           value={formatLatencyMs(averageLatencyMs)}
           caption="Average end-to-end response latency, if reported by usage metrics."
           loading={showAdminUsage && usageQuery.isLoading}
-          error={showAdminUsage && usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            showAdminUsage && usageQuery.isError
+              ? getApiErrorMessage(usageQuery.error)
+              : null
+          }
           onRetry={() => {
             void usageQuery.refetch();
           }}
@@ -616,7 +714,11 @@ export function DashboardPage() {
           value={formatPercentage(indexingSuccess)}
           caption="Indexed documents divided by total documents."
           loading={documentsQuery.isLoading}
-          error={documentsQuery.isError ? getApiErrorMessage(documentsQuery.error) : null}
+          error={
+            documentsQuery.isError
+              ? getApiErrorMessage(documentsQuery.error)
+              : null
+          }
           onRetry={() => {
             void documentsQuery.refetch();
           }}
@@ -627,7 +729,9 @@ export function DashboardPage() {
             value={formatUsd(estimatedCost)}
             caption="Aggregated LLM usage cost in the selected range."
             loading={usageQuery.isLoading}
-            error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+            error={
+              usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+            }
             onRetry={() => {
               void usageQuery.refetch();
             }}
@@ -687,7 +791,11 @@ export function DashboardPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Latest documents</h2>
           {latestDocumentsQuery.isLoading ? (
-            <LoadingState compact className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading latest documents..." />
+            <LoadingState
+              compact
+              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+              title="Loading latest documents..."
+            />
           ) : null}
           {latestDocumentsQuery.isError ? (
             <div className="mt-3">
@@ -712,7 +820,7 @@ export function DashboardPage() {
             <div className="mt-4 overflow-x-auto rounded-xl border border-[#e4e1f2]">
               <table className="min-w-full divide-y divide-[#e7e4f4] text-sm">
                 <thead className="bg-[#faf9ff]">
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                  <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                     <th className="px-3 py-3">Filename</th>
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3">Chunks</th>
@@ -723,12 +831,24 @@ export function DashboardPage() {
                 <tbody className="divide-y divide-[#f0edf8]">
                   {latestDocuments.map((document) => (
                     <tr key={document.document_id} className="text-[#2a2640]">
-                      <td className="px-3 py-3 font-semibold">{document.filename}</td>
-                      <td className="px-3 py-3">
-                        <span className={getDocumentStatusBadgeClass(document.status)}>{document.status}</span>
+                      <td className="px-3 py-3 font-semibold">
+                        {document.filename}
                       </td>
-                      <td className="px-3 py-3">{formatInteger(document.chunk_count)}</td>
-                      <td className="px-3 py-3 text-xs text-[#6a6780]">{formatDateTime(document.updated_at)}</td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={getDocumentStatusBadgeClass(
+                            document.status,
+                          )}
+                        >
+                          {document.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        {formatInteger(document.chunk_count)}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-[#6a6780]">
+                        {formatDateTime(document.updated_at)}
+                      </td>
                       <td className="px-3 py-3">
                         <Link
                           href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
@@ -748,7 +868,11 @@ export function DashboardPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Recent activity</h2>
           {recentActivityLoading ? (
-            <LoadingState compact className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading recent activity..." />
+            <LoadingState
+              compact
+              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+              title="Loading recent activity..."
+            />
           ) : null}
           {recentActivityError ? (
             <div className="mt-3">
@@ -765,24 +889,42 @@ export function DashboardPage() {
               />
             </div>
           ) : null}
-          {!recentActivityLoading && !recentActivityError && recentActivityItems.length === 0 ? (
+          {!recentActivityLoading &&
+          !recentActivityError &&
+          recentActivityItems.length === 0 ? (
             <EmptyState
               compact
               className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
               title="No recent activity available yet."
             />
           ) : null}
-          {!recentActivityLoading && !recentActivityError && recentActivityItems.length > 0 ? (
+          {!recentActivityLoading &&
+          !recentActivityError &&
+          recentActivityItems.length > 0 ? (
             <ul className="mt-4 space-y-2">
               {recentActivityItems.map((item) => (
-                <li key={item.id} className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{item.category}</p>
-                  <p className="mt-1 text-sm font-semibold text-[#2f2a46]">{item.title}</p>
-                  <p className="mt-1 text-sm text-[#5f5a74]">{item.description}</p>
+                <li
+                  key={item.id}
+                  className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                >
+                  <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                    {item.category}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[#2f2a46]">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-[#5f5a74]">
+                    {item.description}
+                  </p>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="text-xs text-[#6a6780]">{formatDateTime(item.timestamp)}</p>
+                    <p className="text-xs text-[#6a6780]">
+                      {formatDateTime(item.timestamp)}
+                    </p>
                     {item.href ? (
-                      <Link href={item.href} className="text-xs font-semibold text-[#3525cd] hover:underline">
+                      <Link
+                        href={item.href}
+                        className="text-xs font-semibold text-[#3525cd] hover:underline"
+                      >
                         Open
                       </Link>
                     ) : null}
@@ -791,8 +933,12 @@ export function DashboardPage() {
               ))}
             </ul>
           ) : null}
-          {!recentActivityLoading && !recentActivityError && auditActivityBundle.unavailableReason ? (
-            <p className="mt-3 text-xs text-[#6a6780]">{auditActivityBundle.unavailableReason}</p>
+          {!recentActivityLoading &&
+          !recentActivityError &&
+          auditActivityBundle.unavailableReason ? (
+            <p className="mt-3 text-xs text-[#6a6780]">
+              {auditActivityBundle.unavailableReason}
+            </p>
           ) : null}
         </section>
       </div>
@@ -825,15 +971,28 @@ export function DashboardPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <h2 className="text-lg font-bold text-[#2a2640]">Usage window</h2>
           <p className="mt-2 text-sm text-[#68647b]">
-            Showing usage from <span className="font-semibold">{usageRange.from}</span> to{" "}
+            Showing usage from{" "}
+            <span className="font-semibold">{usageRange.from}</span> to{" "}
             <span className="font-semibold">{usageRange.to}</span>.
           </p>
           {usageQuery.isSuccess ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricRow label="Input tokens" value={formatInteger(usageSummary?.totals.input_tokens)} />
-              <MetricRow label="Output tokens" value={formatInteger(usageSummary?.totals.output_tokens)} />
-              <MetricRow label="Usage events" value={formatInteger(usageSummary?.totals.event_count)} />
-              <MetricRow label="Series points" value={formatInteger(usageSummary?.series.length ?? 0)} />
+              <MetricRow
+                label="Input tokens"
+                value={formatInteger(usageSummary?.totals.input_tokens)}
+              />
+              <MetricRow
+                label="Output tokens"
+                value={formatInteger(usageSummary?.totals.output_tokens)}
+              />
+              <MetricRow
+                label="Usage events"
+                value={formatInteger(usageSummary?.totals.event_count)}
+              />
+              <MetricRow
+                label="Series points"
+                value={formatInteger(usageSummary?.series.length ?? 0)}
+              />
             </div>
           ) : null}
         </section>
@@ -845,7 +1004,9 @@ export function DashboardPage() {
 function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+        {label}
+      </p>
       <p className="text-base font-semibold text-[#2a2640]">{value}</p>
     </div>
   );

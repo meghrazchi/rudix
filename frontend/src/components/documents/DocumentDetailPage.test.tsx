@@ -19,13 +19,13 @@ const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
 }));
 
-  const mockApi = vi.hoisted(() => ({
-    getDocument: vi.fn(),
-    getDocumentStatus: vi.fn(),
-    getDocumentChunks: vi.fn(),
-    deleteDocument: vi.fn(),
-    reindexDocument: vi.fn(),
-  }));
+const mockApi = vi.hoisted(() => ({
+  getDocument: vi.fn(),
+  getDocumentStatus: vi.fn(),
+  getDocumentChunks: vi.fn(),
+  deleteDocument: vi.fn(),
+  reindexDocument: vi.fn(),
+}));
 
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
@@ -37,8 +37,10 @@ vi.mock("@/lib/use-auth-session", () => ({
 
 vi.mock("@/lib/api/documents", () => ({
   getDocument: (documentId: string) => mockApi.getDocument(documentId),
-  getDocumentStatus: (documentId: string) => mockApi.getDocumentStatus(documentId),
-  getDocumentChunks: (documentId: string, options?: unknown) => mockApi.getDocumentChunks(documentId, options),
+  getDocumentStatus: (documentId: string) =>
+    mockApi.getDocumentStatus(documentId),
+  getDocumentChunks: (documentId: string, options?: unknown) =>
+    mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
 }));
@@ -142,7 +144,9 @@ describe("DocumentDetailPage", () => {
 
     expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to documents" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Back to documents" }),
+    ).toHaveAttribute(
       "href",
       "/documents?status=failed&sort_by=updated_at&sort_order=asc&offset=20",
     );
@@ -157,9 +161,15 @@ describe("DocumentDetailPage", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
-    expect(await screen.findByText("Model text-embedding-3-small")).toBeInTheDocument();
-    expect(await screen.findByText("Preview text for the first chunk.")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /include full chunk text/i })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Model text-embedding-3-small"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("Preview text for the first chunk."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: /include full chunk text/i }),
+    ).toBeInTheDocument();
   });
 
   it("fetches full chunk text when full-text toggle is enabled", async () => {
@@ -206,8 +216,12 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Preview text for the first chunk.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("checkbox", { name: /include full chunk text/i }));
+    expect(
+      await screen.findByText("Preview text for the first chunk."),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /include full chunk text/i }),
+    );
 
     await waitFor(() => {
       expect(mockApi.getDocumentChunks).toHaveBeenCalledWith(
@@ -257,7 +271,9 @@ describe("DocumentDetailPage", () => {
     expect(await screen.findByText("Processing error")).toBeInTheDocument();
     expect(screen.getByText("Processing failed")).toBeInTheDocument();
     expect(screen.getByText(/EMBED_TIMEOUT/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ask in Chat" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Ask in Chat" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Ask in Chat")).toBeInTheDocument();
   });
 
@@ -272,7 +288,9 @@ describe("DocumentDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("Document not found")).toBeInTheDocument();
-    expect(screen.queryByText("forbidden internal detail")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("forbidden internal detail"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps rendering document details when live status endpoint fails", async () => {
@@ -297,7 +315,9 @@ describe("DocumentDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to documents" })).toHaveAttribute("href", "/chat");
+    expect(
+      screen.getByRole("link", { name: "Back to documents" }),
+    ).toHaveAttribute("href", "/chat");
   });
 
   it("hides admin actions for viewer role", async () => {
@@ -316,9 +336,15 @@ describe("DocumentDetailPage", () => {
     renderPage();
 
     expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Re-index" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: /include full chunk text/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Re-index" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: /include full chunk text/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("requires confirmation before delete and supports delete success flow", async () => {
@@ -335,7 +361,9 @@ describe("DocumentDetailPage", () => {
     await waitFor(() => {
       expect(mockApi.deleteDocument).toHaveBeenCalledWith("doc-1");
     });
-    expect(await screen.findByText(/Delete requested\. Current status: deleting\./i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Delete requested\. Current status: deleting\./i),
+    ).toBeInTheDocument();
   });
 
   it("shows conflict-safe messages for delete and re-index mutations", async () => {
@@ -357,12 +385,16 @@ describe("DocumentDetailPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(
-      await screen.findByText(/cannot be deleted in its current lifecycle state/i),
+      await screen.findByText(
+        /cannot be deleted in its current lifecycle state/i,
+      ),
     ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
     expect(
-      await screen.findByText(/cannot be re-indexed in its current lifecycle state/i),
+      await screen.findByText(
+        /cannot be re-indexed in its current lifecycle state/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -374,6 +406,8 @@ describe("DocumentDetailPage", () => {
     await waitFor(() => {
       expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1");
     });
-    expect(await screen.findByText(/Re-index requested\. Queue status: queued\./i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Re-index requested\. Queue status: queued\./i),
+    ).toBeInTheDocument();
   });
 });

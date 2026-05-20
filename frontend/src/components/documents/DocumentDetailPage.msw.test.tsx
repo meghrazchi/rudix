@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -108,38 +117,44 @@ const server = setupServer(
       updated_at: "2026-05-15T11:00:00Z",
     });
   }),
-  http.get(`${apiBaseUrl}/documents/:documentId/chunks`, async ({ params, request }) => {
-    const documentId = String(params.documentId);
-    const url = new URL(request.url);
-    const limit = Number.parseInt(url.searchParams.get("limit") ?? "8", 10);
-    const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
-    const includeFullText = url.searchParams.get("include_full_text") === "true";
-    chunkRequests.push({ offset, includeFullText });
+  http.get(
+    `${apiBaseUrl}/documents/:documentId/chunks`,
+    async ({ params, request }) => {
+      const documentId = String(params.documentId);
+      const url = new URL(request.url);
+      const limit = Number.parseInt(url.searchParams.get("limit") ?? "8", 10);
+      const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+      const includeFullText =
+        url.searchParams.get("include_full_text") === "true";
+      chunkRequests.push({ offset, includeFullText });
 
-    if (documentId === "doc-failed") {
+      if (documentId === "doc-failed") {
+        return HttpResponse.json({
+          document_id: documentId,
+          items: [],
+          total: 0,
+          limit,
+          offset,
+          include_full_text: includeFullText,
+        });
+      }
+
+      const pageItems = indexedChunks
+        .slice(offset, offset + limit)
+        .map((chunk) => ({
+          ...chunk,
+          text: includeFullText ? chunk.text : null,
+        }));
       return HttpResponse.json({
         document_id: documentId,
-        items: [],
-        total: 0,
+        items: pageItems,
+        total: indexedChunks.length,
         limit,
         offset,
         include_full_text: includeFullText,
       });
-    }
-
-    const pageItems = indexedChunks.slice(offset, offset + limit).map((chunk) => ({
-      ...chunk,
-      text: includeFullText ? chunk.text : null,
-    }));
-    return HttpResponse.json({
-      document_id: documentId,
-      items: pageItems,
-      total: indexedChunks.length,
-      limit,
-      offset,
-      include_full_text: includeFullText,
-    });
-  }),
+    },
+  ),
 );
 
 function renderPage(documentId: string) {
@@ -206,7 +221,9 @@ describe("DocumentDetailPage MSW", () => {
     expect(await screen.findByText("failed.pdf")).toBeInTheDocument();
     expect(screen.getByText("Processing error")).toBeInTheDocument();
     expect(screen.getByText(/QDRANT_UPSERT_ERROR/)).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Ask in Chat" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Ask in Chat" }),
+    ).not.toBeInTheDocument();
   });
 
   it("paginates chunk preview results", async () => {
@@ -218,18 +235,26 @@ describe("DocumentDetailPage MSW", () => {
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByText("Chunk #9")).toBeInTheDocument();
-    expect(chunkRequests.some((request) => request.offset === 8 && request.includeFullText === false)).toBe(true);
+    expect(
+      chunkRequests.some(
+        (request) => request.offset === 8 && request.includeFullText === false,
+      ),
+    ).toBe(true);
   });
 
   it("refetches and shows full chunk text when toggle is enabled", async () => {
     renderPage("doc-indexed");
 
     expect(await screen.findByText("Preview 1")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("checkbox", { name: /include full chunk text/i }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /include full chunk text/i }),
+    );
 
     expect(await screen.findByText("Full text 1")).toBeInTheDocument();
     expect(
-      chunkRequests.some((request) => request.offset === 0 && request.includeFullText),
+      chunkRequests.some(
+        (request) => request.offset === 0 && request.includeFullText,
+      ),
     ).toBe(true);
   });
 });

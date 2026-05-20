@@ -31,10 +31,19 @@ type MockApiHandlersOptions = {
   healthMode?: "healthy" | "degraded";
 };
 
-function parsePaginationParams(requestUrl: string): { limit: number; offset: number } {
+function parsePaginationParams(requestUrl: string): {
+  limit: number;
+  offset: number;
+} {
   const url = new URL(requestUrl);
-  const limit = Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "20", 10) || 20);
-  const offset = Math.max(0, Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0);
+  const limit = Math.max(
+    1,
+    Number.parseInt(url.searchParams.get("limit") ?? "20", 10) || 20,
+  );
+  const offset = Math.max(
+    0,
+    Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0,
+  );
   return { limit, offset };
 }
 
@@ -50,9 +59,12 @@ function pageItems<T>(items: T[], limit: number, offset: number): T[] {
   return items.slice(offset, offset + limit);
 }
 
-export function createMockApiHandlers(options: MockApiHandlersOptions = {}): HttpHandler[] {
+export function createMockApiHandlers(
+  options: MockApiHandlersOptions = {},
+): HttpHandler[] {
   const apiBaseUrl = options.apiBaseUrl ?? MSW_FIXTURES_API_BASE_URL;
-  const healthResponse = options.healthMode === "degraded" ? mockReadinessDegraded : mockHealth;
+  const healthResponse =
+    options.healthMode === "degraded" ? mockReadinessDegraded : mockHealth;
 
   return [
     http.get(`${apiBaseUrl}/documents`, ({ request }) => {
@@ -69,8 +81,12 @@ export function createMockApiHandlers(options: MockApiHandlersOptions = {}): Htt
         status: statusFilter as DocumentStatus | null,
       });
     }),
-    http.get(`${apiBaseUrl}/documents/:documentId`, () => HttpResponse.json(mockDocumentDetail)),
-    http.get(`${apiBaseUrl}/documents/:documentId/status`, () => HttpResponse.json(mockDocumentStatus)),
+    http.get(`${apiBaseUrl}/documents/:documentId`, () =>
+      HttpResponse.json(mockDocumentDetail),
+    ),
+    http.get(`${apiBaseUrl}/documents/:documentId/status`, () =>
+      HttpResponse.json(mockDocumentStatus),
+    ),
     http.get(`${apiBaseUrl}/documents/:documentId/chunks`, ({ request }) => {
       const { limit, offset } = parsePaginationParams(request.url);
       return HttpResponse.json({
@@ -92,7 +108,8 @@ export function createMockApiHandlers(options: MockApiHandlersOptions = {}): Htt
           message: "Document uploaded and queued for processing.",
         },
         { status: 201 },
-      )),
+      ),
+    ),
     http.get(`${apiBaseUrl}/chat/sessions`, ({ request }) => {
       const { limit, offset } = parsePaginationParams(request.url);
       return HttpResponse.json({
@@ -103,18 +120,25 @@ export function createMockApiHandlers(options: MockApiHandlersOptions = {}): Htt
         offset,
       });
     }),
-    http.post(`${apiBaseUrl}/chat/sessions`, () => HttpResponse.json(mockChatSession, { status: 201 })),
-    http.get(`${apiBaseUrl}/chat/sessions/:sessionId/messages`, ({ request }) => {
-      const { limit, offset } = parsePaginationParams(request.url);
-      return HttpResponse.json({
-        ...mockChatMessages,
-        items: pageItems(mockChatMessages.items, limit, offset),
-        total: mockChatMessages.items.length,
-        limit,
-        offset,
-      });
-    }),
-    http.post(`${apiBaseUrl}/chat`, () => HttpResponse.json(mockChatQueryResponse)),
+    http.post(`${apiBaseUrl}/chat/sessions`, () =>
+      HttpResponse.json(mockChatSession, { status: 201 }),
+    ),
+    http.get(
+      `${apiBaseUrl}/chat/sessions/:sessionId/messages`,
+      ({ request }) => {
+        const { limit, offset } = parsePaginationParams(request.url);
+        return HttpResponse.json({
+          ...mockChatMessages,
+          items: pageItems(mockChatMessages.items, limit, offset),
+          total: mockChatMessages.items.length,
+          limit,
+          offset,
+        });
+      },
+    ),
+    http.post(`${apiBaseUrl}/chat`, () =>
+      HttpResponse.json(mockChatQueryResponse),
+    ),
     http.get(`${apiBaseUrl}/evaluation-sets`, ({ request }) => {
       const { limit, offset } = parsePaginationParams(request.url);
       return HttpResponse.json({
@@ -125,28 +149,48 @@ export function createMockApiHandlers(options: MockApiHandlersOptions = {}): Htt
         offset,
       });
     }),
-    http.post(`${apiBaseUrl}/evaluation-sets`, () => HttpResponse.json(mockEvaluationSets.items[0], { status: 201 })),
-    http.get(`${apiBaseUrl}/evaluation-sets/:evaluationSetId/questions`, ({ request }) => {
-      const { limit, offset } = parsePaginationParams(request.url);
-      return HttpResponse.json({
-        ...mockEvaluationQuestions,
-        items: pageItems(mockEvaluationQuestions.items, limit, offset),
-        total: mockEvaluationQuestions.items.length,
-        limit,
-        offset,
-      });
-    }),
+    http.post(`${apiBaseUrl}/evaluation-sets`, () =>
+      HttpResponse.json(mockEvaluationSets.items[0], { status: 201 }),
+    ),
+    http.get(
+      `${apiBaseUrl}/evaluation-sets/:evaluationSetId/questions`,
+      ({ request }) => {
+        const { limit, offset } = parsePaginationParams(request.url);
+        return HttpResponse.json({
+          ...mockEvaluationQuestions,
+          items: pageItems(mockEvaluationQuestions.items, limit, offset),
+          total: mockEvaluationQuestions.items.length,
+          limit,
+          offset,
+        });
+      },
+    ),
     http.post(`${apiBaseUrl}/evaluation-sets/:evaluationSetId/questions`, () =>
-      HttpResponse.json(mockEvaluationQuestions.items[0], { status: 201 })),
-    http.post(`${apiBaseUrl}/evaluations/run`, () => HttpResponse.json(mockEvaluationRunQueued, { status: 202 })),
-    http.get(`${apiBaseUrl}/evaluations/runs/:evaluationRunId`, () => HttpResponse.json(mockEvaluationRunDetail)),
-    http.get(`${apiBaseUrl}/pipeline/steps`, () => HttpResponse.json(mockPipelineSteps)),
-    http.get(`${apiBaseUrl}/pipeline/runs/resolve`, () => HttpResponse.json(mockPipelineRunResolve)),
-    http.get(`${apiBaseUrl}/pipeline/runs/:runId`, () => HttpResponse.json(mockPipelineRunGraph)),
-    http.get(`${apiBaseUrl}/pipeline/runs/:runId/nodes/:nodeId`, () => HttpResponse.json(mockPipelineNodeDetail)),
+      HttpResponse.json(mockEvaluationQuestions.items[0], { status: 201 }),
+    ),
+    http.post(`${apiBaseUrl}/evaluations/run`, () =>
+      HttpResponse.json(mockEvaluationRunQueued, { status: 202 }),
+    ),
+    http.get(`${apiBaseUrl}/evaluations/runs/:evaluationRunId`, () =>
+      HttpResponse.json(mockEvaluationRunDetail),
+    ),
+    http.get(`${apiBaseUrl}/pipeline/steps`, () =>
+      HttpResponse.json(mockPipelineSteps),
+    ),
+    http.get(`${apiBaseUrl}/pipeline/runs/resolve`, () =>
+      HttpResponse.json(mockPipelineRunResolve),
+    ),
+    http.get(`${apiBaseUrl}/pipeline/runs/:runId`, () =>
+      HttpResponse.json(mockPipelineRunGraph),
+    ),
+    http.get(`${apiBaseUrl}/pipeline/runs/:runId/nodes/:nodeId`, () =>
+      HttpResponse.json(mockPipelineNodeDetail),
+    ),
     http.get(`${apiBaseUrl}/health`, () => HttpResponse.json(healthResponse)),
     http.get(`${apiBaseUrl}/ready`, () => HttpResponse.json(healthResponse)),
-    http.get(`${apiBaseUrl}/admin/usage`, () => HttpResponse.json(mockUsageSummary)),
+    http.get(`${apiBaseUrl}/admin/usage`, () =>
+      HttpResponse.json(mockUsageSummary),
+    ),
     http.get(`${apiBaseUrl}/admin/audit-logs`, ({ request }) => {
       const { limit, offset } = parsePaginationParams(request.url);
       return HttpResponse.json({
@@ -157,6 +201,8 @@ export function createMockApiHandlers(options: MockApiHandlersOptions = {}): Htt
         offset,
       });
     }),
-    http.get(`${apiBaseUrl}/notifications`, () => HttpResponse.json(mockTopBarNotifications)),
+    http.get(`${apiBaseUrl}/notifications`, () =>
+      HttpResponse.json(mockTopBarNotifications),
+    ),
   ];
 }

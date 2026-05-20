@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { filterNotificationsByRole, resolveHelpMenuItems, resolveNotificationsEndpoint } from "@/lib/top-bar";
+import {
+  filterNotificationsByRole,
+  resolveHelpMenuItems,
+  resolveNotificationsEndpoint,
+} from "@/lib/top-bar";
 import type { TopBarNotification } from "@/lib/api/notifications";
 
 describe("top-bar helpers", () => {
@@ -17,7 +21,8 @@ describe("top-bar helpers", () => {
   it("builds help menu links from configured environment values", () => {
     process.env.NEXT_PUBLIC_HELP_DOCS_URL = "https://docs.example.com";
     process.env.NEXT_PUBLIC_HELP_SHORTCUTS_URL = "/shortcuts";
-    process.env.NEXT_PUBLIC_HELP_README_URL = "https://github.com/example/project#readme";
+    process.env.NEXT_PUBLIC_HELP_README_URL =
+      "https://github.com/example/project#readme";
     process.env.NEXT_PUBLIC_HELP_SUPPORT_URL = "https://support.example.com";
     process.env.NEXT_PUBLIC_SUPPORT_URL = "";
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "";
@@ -27,7 +32,11 @@ describe("top-bar helpers", () => {
       { id: "docs", label: "Documentation", href: "https://docs.example.com" },
       { id: "support", label: "Support", href: "https://support.example.com" },
       { id: "shortcuts", label: "Keyboard shortcuts", href: "/shortcuts" },
-      { id: "readme", label: "Project README", href: "https://github.com/example/project#readme" },
+      {
+        id: "readme",
+        label: "Project README",
+        href: "https://github.com/example/project#readme",
+      },
     ]);
   });
 
@@ -40,7 +49,13 @@ describe("top-bar helpers", () => {
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "help@example.com";
 
     const items = resolveHelpMenuItems();
-    expect(items).toEqual([{ id: "support", label: "Email support", href: "mailto:help@example.com" }]);
+    expect(items).toEqual([
+      {
+        id: "support",
+        label: "Email support",
+        href: "mailto:help@example.com",
+      },
+    ]);
   });
 
   it("resolves notifications endpoint from environment", () => {
@@ -74,7 +89,11 @@ describe("top-bar helpers", () => {
       },
     ];
 
-    expect(filterNotificationsByRole(notifications, "member").map((item) => item.id)).toEqual(["n-1"]);
-    expect(filterNotificationsByRole(notifications, "admin").map((item) => item.id)).toEqual(["n-1", "n-2"]);
+    expect(
+      filterNotificationsByRole(notifications, "member").map((item) => item.id),
+    ).toEqual(["n-1"]);
+    expect(
+      filterNotificationsByRole(notifications, "admin").map((item) => item.id),
+    ).toEqual(["n-1", "n-2"]);
   });
 });

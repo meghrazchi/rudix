@@ -23,7 +23,11 @@ const baseSession: TestSession = {
   refreshToken: "e2e-refresh-token",
 };
 
-async function fulfillJson(route: Route, body: unknown, status = 200): Promise<void> {
+async function fulfillJson(
+  route: Route,
+  body: unknown,
+  status = 200,
+): Promise<void> {
   await route.fulfill({
     status,
     headers: {
@@ -70,12 +74,20 @@ async function installApiMocks(page: Page): Promise<void> {
           updated_at: "2026-05-20T08:30:00Z",
         },
       ];
-      const filtered = statusFilter ? items.filter((item) => item.status === statusFilter) : items;
+      const filtered = statusFilter
+        ? items.filter((item) => item.status === statusFilter)
+        : items;
       await fulfillJson(route, {
         items: filtered,
         total: filtered.length,
-        limit: Number.parseInt(requestUrl.searchParams.get("limit") ?? "20", 10),
-        offset: Number.parseInt(requestUrl.searchParams.get("offset") ?? "0", 10),
+        limit: Number.parseInt(
+          requestUrl.searchParams.get("limit") ?? "20",
+          10,
+        ),
+        offset: Number.parseInt(
+          requestUrl.searchParams.get("offset") ?? "0",
+          10,
+        ),
         status: statusFilter,
         sort_by: requestUrl.searchParams.get("sort_by") ?? "updated_at",
         sort_order: requestUrl.searchParams.get("sort_order") ?? "desc",
@@ -101,7 +113,10 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (path === "/chat/sessions/session-1/messages" && request.method() === "GET") {
+    if (
+      path === "/chat/sessions/session-1/messages" &&
+      request.method() === "GET"
+    ) {
       await fulfillJson(route, {
         items: [
           {
@@ -214,11 +229,18 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    await fulfillJson(route, { detail: `No e2e mock for ${request.method()} ${path}` }, 404);
+    await fulfillJson(
+      route,
+      { detail: `No e2e mock for ${request.method()} ${path}` },
+      404,
+    );
   });
 }
 
-async function seedAuthenticatedSession(page: Page, session: TestSession = baseSession): Promise<void> {
+async function seedAuthenticatedSession(
+  page: Page,
+  session: TestSession = baseSession,
+): Promise<void> {
   await page.addInitScript(
     ({ storageKey, payload }) => {
       window.localStorage.setItem(storageKey, JSON.stringify(payload));
@@ -235,7 +257,9 @@ async function waitForSessionBootstrap(page: Page): Promise<void> {
 }
 
 test.describe("frontend e2e smoke (no real backend)", () => {
-  test("redirects protected route to login and signs in successfully", async ({ page }) => {
+  test("redirects protected route to login and signs in successfully", async ({
+    page,
+  }) => {
     await installApiMocks(page);
     await page.goto("/documents");
     await waitForSessionBootstrap(page);
@@ -260,13 +284,17 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await expect(documentsHeading).toBeVisible();
   });
 
-  test("loads dashboard with mocked APIs while authenticated", async ({ page }) => {
+  test("loads dashboard with mocked APIs while authenticated", async ({
+    page,
+  }) => {
     await installApiMocks(page);
     await seedAuthenticatedSession(page);
 
     await page.goto("/dashboard");
     await waitForSessionBootstrap(page);
-    await expect(page.getByRole("heading", { name: "Organization Metrics Overview" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Organization Metrics Overview" }),
+    ).toBeVisible();
     await expect(page.getByText("Recent activity")).toBeVisible();
   });
 
@@ -276,15 +304,23 @@ test.describe("frontend e2e smoke (no real backend)", () => {
 
     await page.goto("/documents");
     await waitForSessionBootstrap(page);
-    await expect(page.getByRole("heading", { name: "Upload, Index, and Manage Documents" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Upload, Index, and Manage Documents",
+      }),
+    ).toBeVisible();
     await expect(page.getByText("Employee-Handbook.pdf")).toBeVisible();
 
     await page.goto("/chat");
     await waitForSessionBootstrap(page);
-    await expect(page.getByRole("heading", { name: "Document-grounded Q&A" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Document-grounded Q&A" }),
+    ).toBeVisible();
     await expect(page.getByText("Onboarding FAQ")).toBeVisible();
     await expect(
-      page.getByRole("textbox", { name: "Ask a question about your selected documents..." }),
+      page.getByRole("textbox", {
+        name: "Ask a question about your selected documents...",
+      }),
     ).toBeVisible();
   });
 });

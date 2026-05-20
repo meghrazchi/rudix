@@ -1,4 +1,8 @@
-import type { AppRole, AuthenticatedSession, SessionState } from "@/lib/auth-session";
+import type {
+  AppRole,
+  AuthenticatedSession,
+  SessionState,
+} from "@/lib/auth-session";
 
 export type AppRouteKey =
   | "dashboard"
@@ -19,7 +23,11 @@ export type AppRouteMeta = {
   allowedRoles: AppRole[];
 };
 
-export type RouteAccessReason = "unauthenticated" | "organization_required" | "insufficient_role" | null;
+export type RouteAccessReason =
+  | "unauthenticated"
+  | "organization_required"
+  | "insufficient_role"
+  | null;
 
 export type RouteAccess = {
   allowed: boolean;
@@ -112,8 +120,12 @@ function hasOrganizationContext(session: AuthenticatedSession): boolean {
     return true;
   }
 
-  const provider = process.env.NEXT_PUBLIC_AUTH_PROVIDER?.trim().toLowerCase() ?? "";
-  if (provider === "app" && (session.accessToken?.trim() || session.refreshToken?.trim())) {
+  const provider =
+    process.env.NEXT_PUBLIC_AUTH_PROVIDER?.trim().toLowerCase() ?? "";
+  if (
+    provider === "app" &&
+    (session.accessToken?.trim() || session.refreshToken?.trim())
+  ) {
     // App auth can resolve the active organization server-side from token principal memberships.
     return true;
   }
@@ -125,7 +137,11 @@ export function findRouteMeta(pathname: string): AppRouteMeta | null {
   const normalizedPathname = normalizePathname(pathname);
   return (
     APP_ROUTES.find((route) =>
-      route.matchPrefixes.some((prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`)),
+      route.matchPrefixes.some(
+        (prefix) =>
+          normalizedPathname === prefix ||
+          normalizedPathname.startsWith(`${prefix}/`),
+      ),
     ) ?? null
   );
 }
@@ -158,16 +174,22 @@ export function buildNavigationItems(
     return {
       ...route,
       isActive: route.matchPrefixes.some(
-        (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
+        (prefix) =>
+          normalizedPathname === prefix ||
+          normalizedPathname.startsWith(`${prefix}/`),
       ),
       hidden: isMissingOrganization,
       disabled: !access.allowed && !isMissingOrganization,
-      disabledReason: access.allowed || isMissingOrganization ? null : access.reason,
+      disabledReason:
+        access.allowed || isMissingOrganization ? null : access.reason,
     };
   });
 }
 
-export function resolveProtectedRouteRedirect(pathname: string, state: SessionState): string | null {
+export function resolveProtectedRouteRedirect(
+  pathname: string,
+  state: SessionState,
+): string | null {
   const route = findRouteMeta(pathname);
   if (!route) {
     return null;

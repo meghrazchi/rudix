@@ -73,7 +73,10 @@ function trimToNull(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function resolveTemplateEndpoint(template: string | null, memberId: string): string | null {
+function resolveTemplateEndpoint(
+  template: string | null,
+  memberId: string,
+): string | null {
   if (!template) {
     return null;
   }
@@ -87,49 +90,90 @@ function resolveTemplateEndpoint(template: string | null, memberId: string): str
 }
 
 function normalizeRole(value: unknown): TeamMemberRole {
-  if (value === "owner" || value === "admin" || value === "member" || value === "viewer") {
+  if (
+    value === "owner" ||
+    value === "admin" ||
+    value === "member" ||
+    value === "viewer"
+  ) {
     return value;
   }
   return "viewer";
 }
 
 function normalizeStatus(value: unknown): TeamMemberStatus {
-  if (value === "active" || value === "invited" || value === "disabled" || value === "suspended") {
+  if (
+    value === "active" ||
+    value === "invited" ||
+    value === "disabled" ||
+    value === "suspended"
+  ) {
     return value;
   }
   return "unknown";
 }
 
 function normalizeMember(value: unknown, index: number): TeamMember {
-  const raw = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const raw =
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
 
-  const memberId = typeof raw.member_id === "string" && raw.member_id.trim().length > 0
-    ? raw.member_id.trim()
-    : `member-${index + 1}`;
+  const memberId =
+    typeof raw.member_id === "string" && raw.member_id.trim().length > 0
+      ? raw.member_id.trim()
+      : `member-${index + 1}`;
 
-  const email = typeof raw.email === "string" && raw.email.trim().length > 0
-    ? raw.email.trim()
-    : "unknown@example.com";
+  const email =
+    typeof raw.email === "string" && raw.email.trim().length > 0
+      ? raw.email.trim()
+      : "unknown@example.com";
 
   return {
     member_id: memberId,
-    user_id: typeof raw.user_id === "string" && raw.user_id.trim().length > 0 ? raw.user_id.trim() : null,
-    name: typeof raw.name === "string" && raw.name.trim().length > 0 ? raw.name.trim() : email,
+    user_id:
+      typeof raw.user_id === "string" && raw.user_id.trim().length > 0
+        ? raw.user_id.trim()
+        : null,
+    name:
+      typeof raw.name === "string" && raw.name.trim().length > 0
+        ? raw.name.trim()
+        : email,
     email,
     role: normalizeRole(raw.role),
     status: normalizeStatus(raw.status),
-    created_at: typeof raw.created_at === "string" && raw.created_at.trim().length > 0 ? raw.created_at.trim() : null,
-    updated_at: typeof raw.updated_at === "string" && raw.updated_at.trim().length > 0 ? raw.updated_at.trim() : null,
+    created_at:
+      typeof raw.created_at === "string" && raw.created_at.trim().length > 0
+        ? raw.created_at.trim()
+        : null,
+    updated_at:
+      typeof raw.updated_at === "string" && raw.updated_at.trim().length > 0
+        ? raw.updated_at.trim()
+        : null,
   };
 }
 
 function normalizeMemberListResponse(payload: unknown): TeamMemberListResponse {
-  const raw = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
-  const items = Array.isArray(raw.items) ? raw.items.map((item, index) => normalizeMember(item, index)) : [];
+  const raw =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : {};
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((item, index) => normalizeMember(item, index))
+    : [];
 
-  const total = typeof raw.total === "number" && Number.isFinite(raw.total) ? raw.total : items.length;
-  const limit = typeof raw.limit === "number" && Number.isFinite(raw.limit) ? raw.limit : items.length;
-  const offset = typeof raw.offset === "number" && Number.isFinite(raw.offset) ? raw.offset : 0;
+  const total =
+    typeof raw.total === "number" && Number.isFinite(raw.total)
+      ? raw.total
+      : items.length;
+  const limit =
+    typeof raw.limit === "number" && Number.isFinite(raw.limit)
+      ? raw.limit
+      : items.length;
+  const offset =
+    typeof raw.offset === "number" && Number.isFinite(raw.offset)
+      ? raw.offset
+      : 0;
 
   return {
     items,
@@ -140,7 +184,10 @@ function normalizeMemberListResponse(payload: unknown): TeamMemberListResponse {
 }
 
 function normalizeInviteResponse(payload: unknown): InviteTeamMemberResponse {
-  const raw = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const raw =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : {};
   const member = normalizeMember(raw.member ?? raw, 0);
   return {
     member,
@@ -152,8 +199,12 @@ function getTeamEndpoints() {
   return {
     listMembersUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL),
     inviteUrl: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL),
-    updateRoleTemplate: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE),
-    removeMemberTemplate: trimToNull(process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE),
+    updateRoleTemplate: trimToNull(
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE,
+    ),
+    removeMemberTemplate: trimToNull(
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
+    ),
   };
 }
 
@@ -182,11 +233,15 @@ export async function listTeamMembers(
   }
 
   const limit =
-    typeof params.limit === "number" && Number.isFinite(params.limit) && params.limit > 0
+    typeof params.limit === "number" &&
+    Number.isFinite(params.limit) &&
+    params.limit > 0
       ? Math.floor(params.limit)
       : undefined;
   const offset =
-    typeof params.offset === "number" && Number.isFinite(params.offset) && params.offset >= 0
+    typeof params.offset === "number" &&
+    Number.isFinite(params.offset) &&
+    params.offset >= 0
       ? Math.floor(params.offset)
       : undefined;
 
@@ -235,10 +290,15 @@ export async function updateTeamMemberRole(
     },
     retry: false,
   });
-  return normalizeMember((payload as Record<string, unknown>).member ?? payload, 0);
+  return normalizeMember(
+    (payload as Record<string, unknown>).member ?? payload,
+    0,
+  );
 }
 
-export async function removeTeamMember(memberId: string): Promise<{ removed: boolean }> {
+export async function removeTeamMember(
+  memberId: string,
+): Promise<{ removed: boolean }> {
   const { removeMemberTemplate } = getTeamEndpoints();
   const url = resolveTemplateEndpoint(removeMemberTemplate, memberId);
   if (!url) {

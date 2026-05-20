@@ -1,4 +1,7 @@
-export type PipelineRunType = "document.process" | "chat.answer" | "evaluation.run";
+export type PipelineRunType =
+  | "document.process"
+  | "chat.answer"
+  | "evaluation.run";
 
 type PipelineQueryReader = Pick<URLSearchParams, "get">;
 
@@ -25,7 +28,9 @@ const PIPELINE_RUN_TYPES: ReadonlySet<PipelineRunType> = new Set([
   "evaluation.run",
 ]);
 
-function normalizeNonEmptyString(value: string | null | undefined): string | null {
+function normalizeNonEmptyString(
+  value: string | null | undefined,
+): string | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -33,15 +38,21 @@ function normalizeNonEmptyString(value: string | null | undefined): string | nul
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function normalizePipelineRunType(value: string | null | undefined): PipelineRunType | null {
+export function normalizePipelineRunType(
+  value: string | null | undefined,
+): PipelineRunType | null {
   const normalized = normalizeNonEmptyString(value);
   if (!normalized) {
     return null;
   }
-  return PIPELINE_RUN_TYPES.has(normalized as PipelineRunType) ? (normalized as PipelineRunType) : null;
+  return PIPELINE_RUN_TYPES.has(normalized as PipelineRunType)
+    ? (normalized as PipelineRunType)
+    : null;
 }
 
-export function buildPipelineExplorerHref(params: PipelineExplorerLinkParams): string {
+export function buildPipelineExplorerHref(
+  params: PipelineExplorerLinkParams,
+): string {
   const query = new URLSearchParams();
 
   const runId = normalizeNonEmptyString(params.runId);
@@ -73,14 +84,22 @@ export function buildPipelineExplorerHref(params: PipelineExplorerLinkParams): s
   return `/rag-pipeline?${encoded}`;
 }
 
-export function parsePipelineExplorerQuery(searchParams: PipelineQueryReader): PipelineExplorerQueryContext {
-  const runId = normalizeNonEmptyString(searchParams.get("run_id")) ??
+export function parsePipelineExplorerQuery(
+  searchParams: PipelineQueryReader,
+): PipelineExplorerQueryContext {
+  const runId =
+    normalizeNonEmptyString(searchParams.get("run_id")) ??
     normalizeNonEmptyString(searchParams.get("pipeline_run_id"));
-  const runType = normalizePipelineRunType(searchParams.get("run_type")) ??
+  const runType =
+    normalizePipelineRunType(searchParams.get("run_type")) ??
     normalizePipelineRunType(searchParams.get("pipeline_type"));
   const documentId = normalizeNonEmptyString(searchParams.get("document_id"));
-  const chatMessageId = normalizeNonEmptyString(searchParams.get("chat_message_id"));
-  const evaluationRunId = normalizeNonEmptyString(searchParams.get("evaluation_run_id"));
+  const chatMessageId = normalizeNonEmptyString(
+    searchParams.get("chat_message_id"),
+  );
+  const evaluationRunId = normalizeNonEmptyString(
+    searchParams.get("evaluation_run_id"),
+  );
 
   return {
     runId,
@@ -88,6 +107,8 @@ export function parsePipelineExplorerQuery(searchParams: PipelineQueryReader): P
     documentId,
     chatMessageId,
     evaluationRunId,
-    hasContext: Boolean(runId || documentId || chatMessageId || evaluationRunId),
+    hasContext: Boolean(
+      runId || documentId || chatMessageId || evaluationRunId,
+    ),
   };
 }

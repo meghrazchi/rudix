@@ -34,15 +34,21 @@ describe("admin-audit utils", () => {
     });
 
     expect(sanitized.authorization).toBe("[redacted]");
-    expect((sanitized.nested as Record<string, unknown>).api_key).toBe("[redacted]");
+    expect((sanitized.nested as Record<string, unknown>).api_key).toBe(
+      "[redacted]",
+    );
   });
 
   it("classifies audit status code categories", () => {
     expect(getAuditStatusCode({ status_code: 200 })).toBe(200);
     expect(getAuditStatusCode({ http_status: "404" })).toBe(404);
     expect(getAuditStatusFilter(event({ status_code: 200 }))).toBe("success");
-    expect(getAuditStatusFilter(event({ status_code: 404 }))).toBe("client_error");
-    expect(getAuditStatusFilter(event({ status_code: 503 }))).toBe("server_error");
+    expect(getAuditStatusFilter(event({ status_code: 404 }))).toBe(
+      "client_error",
+    );
+    expect(getAuditStatusFilter(event({ status_code: 503 }))).toBe(
+      "server_error",
+    );
     expect(getAuditStatusFilter(event({}))).toBe("unknown");
   });
 
@@ -54,4 +60,3 @@ describe("admin-audit utils", () => {
     expect(formatAuditStatusLabel("client_error")).toBe("Client error");
   });
 });
-

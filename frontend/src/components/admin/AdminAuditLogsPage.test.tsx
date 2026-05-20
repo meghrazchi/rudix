@@ -93,11 +93,18 @@ describe("AdminAuditLogsPage", () => {
     renderPage();
     expect(await screen.findByText("Audit logs")).toBeInTheDocument();
     expect(await screen.findByText("chat.query.completed")).toBeInTheDocument();
-    expect(await screen.findByText("documents.reindex.failed")).toBeInTheDocument();
+    expect(
+      await screen.findByText("documents.reindex.failed"),
+    ).toBeInTheDocument();
 
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Status" }), "server_error");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Status" }),
+      "server_error",
+    );
 
-    expect(await screen.findByText("documents.reindex.failed")).toBeInTheDocument();
+    expect(
+      await screen.findByText("documents.reindex.failed"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("chat.query.completed")).not.toBeInTheDocument();
   });
 
@@ -117,7 +124,9 @@ describe("AdminAuditLogsPage", () => {
     renderPage();
     await screen.findByText("chat.query.completed");
 
-    await userEvent.click(screen.getAllByRole("button", { name: "View details" })[0]);
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "View details" })[0],
+    );
     expect(await screen.findByText("Sanitized metadata")).toBeInTheDocument();
     expect(screen.getByText(/redacted/i)).toBeInTheDocument();
 
@@ -141,7 +150,9 @@ describe("AdminAuditLogsPage", () => {
     };
 
     renderPage();
-    expect(await screen.findByText("Admin audit logs restricted")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Admin audit logs restricted"),
+    ).toBeInTheDocument();
     expect(mockApi.listAuditLogs).not.toHaveBeenCalled();
   });
 
@@ -173,7 +184,11 @@ describe("AdminAuditLogsPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("Audit log endpoint is not configured for this deployment.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "Audit log endpoint is not configured for this deployment.",
+      ),
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockApi.listAuditLogs).toHaveBeenCalled();

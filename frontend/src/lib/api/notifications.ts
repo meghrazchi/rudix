@@ -24,6 +24,8 @@ export type TopBarNotificationsResponse = {
   items: TopBarNotification[];
 };
 
-export async function getTopBarNotifications(endpoint: string): Promise<TopBarNotificationsResponse> {
+export async function getTopBarNotifications(
+  endpoint: string,
+): Promise<TopBarNotificationsResponse> {
   return apiRequest<TopBarNotificationsResponse>(endpoint);
 }

@@ -29,10 +29,12 @@ export function ForbiddenState({
       } shadow-sm`}
       aria-label="Forbidden state"
     >
-      <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">
+      <p className="mb-2 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
         Rudix Access Control
       </p>
-      <h1 className={`${compact ? "text-2xl" : "text-3xl"} mb-2 font-extrabold text-[#2a2640]`}>
+      <h1
+        className={`${compact ? "text-2xl" : "text-3xl"} mb-2 font-extrabold text-[#2a2640]`}
+      >
         {title}
       </h1>
       <p className="mb-5 text-sm text-[#68647b]">{description}</p>

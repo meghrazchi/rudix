@@ -51,7 +51,10 @@ function resolveUsageExportUrl(): string | null {
   return configured;
 }
 
-function withExportQuery(url: string, params: Record<string, string | undefined>): string {
+function withExportQuery(
+  url: string,
+  params: Record<string, string | undefined>,
+): string {
   try {
     const parsed = new URL(url, "http://placeholder.local");
     for (const [key, value] of Object.entries(params)) {
@@ -83,19 +86,37 @@ function UsageMetricCard({
 }) {
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">{title}</p>
-      {loading ? <p className="text-2xl font-extrabold text-[#2a2640]">Loading...</p> : null}
-      {!loading && error ? <p className="text-sm font-semibold text-rose-700">Unable to load: {error}</p> : null}
-      {!loading && !error ? <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p> : null}
+      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
+        {title}
+      </p>
+      {loading ? (
+        <p className="text-2xl font-extrabold text-[#2a2640]">Loading...</p>
+      ) : null}
+      {!loading && error ? (
+        <p className="text-sm font-semibold text-rose-700">
+          Unable to load: {error}
+        </p>
+      ) : null}
+      {!loading && !error ? (
+        <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
+      ) : null}
       <p className="mt-2 text-xs text-[#6a6780]">{caption}</p>
     </article>
   );
 }
 
-function PlannedFeatureCard({ title, description }: { title: string; description: string }) {
+function PlannedFeatureCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
     <article className="rounded-2xl border border-dashed border-[#d7d4e8] bg-[#fcfbff] p-4">
-      <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">Planned</p>
+      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
+        Planned
+      </p>
       <h3 className="text-sm font-bold text-[#2a2640]">{title}</h3>
       <p className="mt-1 text-sm text-[#68647b]">{description}</p>
     </article>
@@ -108,9 +129,14 @@ export function AdminUsagePage() {
   const isAdminUser = canViewAdminUsage(role);
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
   const [userIdInput, setUserIdInput] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({ userId: null });
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
+    userId: null,
+  });
 
-  const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);
+  const usageRange = useMemo(
+    () => resolveUsageDateRange(rangePreset),
+    [rangePreset],
+  );
   const exportBaseUrl = resolveUsageExportUrl();
 
   const usageQuery = useQuery({
@@ -148,8 +174,12 @@ export function AdminUsagePage() {
   });
 
   const forbiddenError =
-    (usageQuery.isError && isForbiddenError(usageQuery.error) && usageQuery.error) ||
-    (documentsQuery.isError && isForbiddenError(documentsQuery.error) && documentsQuery.error) ||
+    (usageQuery.isError &&
+      isForbiddenError(usageQuery.error) &&
+      usageQuery.error) ||
+    (documentsQuery.isError &&
+      isForbiddenError(documentsQuery.error) &&
+      documentsQuery.error) ||
     null;
 
   if (!isAdminUser) {
@@ -178,7 +208,9 @@ export function AdminUsagePage() {
 
   const usage = usageQuery.data;
   const totalTokens =
-    usage && Number.isFinite(usage.totals.input_tokens) && Number.isFinite(usage.totals.output_tokens)
+    usage &&
+    Number.isFinite(usage.totals.input_tokens) &&
+    Number.isFinite(usage.totals.output_tokens)
       ? usage.totals.input_tokens + usage.totals.output_tokens
       : null;
   const exportUrl = exportBaseUrl
@@ -207,17 +239,24 @@ export function AdminUsagePage() {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Admin</p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Usage analytics</h1>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Admin
+            </p>
+            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              Usage analytics
+            </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Review questions, documents, token usage, estimated cost, and latency trends.
+              Review questions, documents, token usage, estimated cost, and
+              latency trends.
             </p>
           </div>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Date range
             <select
               value={rangePreset}
-              onChange={(event) => setRangePreset(event.target.value as DashboardRangePreset)}
+              onChange={(event) =>
+                setRangePreset(event.target.value as DashboardRangePreset)
+              }
               className="h-9 min-w-[150px] rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             >
               {DASHBOARD_RANGE_PRESETS.map((option) => (
@@ -231,8 +270,11 @@ export function AdminUsagePage() {
       </header>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <form className="grid gap-3 md:grid-cols-[1fr_auto_auto]" onSubmit={applyFilters}>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+        <form
+          className="grid gap-3 md:grid-cols-[1fr_auto_auto]"
+          onSubmit={applyFilters}
+        >
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             User ID filter
             <input
               value={userIdInput}
@@ -263,42 +305,56 @@ export function AdminUsagePage() {
           value={formatInteger(usage?.totals.event_count)}
           caption="Counted from usage events in selected range."
           loading={usageQuery.isLoading}
-          error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+          }
         />
         <UsageMetricCard
           title="Total documents"
           value={formatInteger(documentsQuery.data?.total)}
           caption="Accessible documents in current organization."
           loading={documentsQuery.isLoading}
-          error={documentsQuery.isError ? getApiErrorMessage(documentsQuery.error) : null}
+          error={
+            documentsQuery.isError
+              ? getApiErrorMessage(documentsQuery.error)
+              : null
+          }
         />
         <UsageMetricCard
           title="Total tokens"
           value={formatInteger(totalTokens)}
           caption="Input and output token total."
           loading={usageQuery.isLoading}
-          error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+          }
         />
         <UsageMetricCard
           title="Estimated cost"
           value={formatUsd(usage?.totals.cost_usd)}
           caption="Estimated USD based on usage events."
           loading={usageQuery.isLoading}
-          error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+          }
         />
         <UsageMetricCard
           title="Average latency"
           value={formatLatencyMs(usage?.totals.avg_latency_ms)}
           caption="Average response latency for tracked requests."
           loading={usageQuery.isLoading}
-          error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+          }
         />
         <UsageMetricCard
           title="Average confidence"
           value={formatPercentage(usage?.totals.avg_confidence)}
           caption="Average confidence score from tracked responses."
           loading={usageQuery.isLoading}
-          error={usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null}
+          error={
+            usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
+          }
         />
       </div>
 
@@ -342,7 +398,7 @@ export function AdminUsagePage() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-[#e6e3f3] text-sm">
               <thead>
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                   <th className="px-3 py-2">Period</th>
                   <th className="px-3 py-2">Questions</th>
                   <th className="px-3 py-2">Tokens in</th>
@@ -357,11 +413,21 @@ export function AdminUsagePage() {
                     <td className="px-3 py-2 font-medium text-[#2f2a46]">
                       {formatPeriodLabel(point.period_start, point.period_end)}
                     </td>
-                    <td className="px-3 py-2 text-[#4d4963]">{formatInteger(point.event_count)}</td>
-                    <td className="px-3 py-2 text-[#4d4963]">{formatInteger(point.input_tokens)}</td>
-                    <td className="px-3 py-2 text-[#4d4963]">{formatInteger(point.output_tokens)}</td>
-                    <td className="px-3 py-2 text-[#4d4963]">{formatUsd(point.cost_usd)}</td>
-                    <td className="px-3 py-2 text-[#4d4963]">{formatLatencyMs(point.avg_latency_ms)}</td>
+                    <td className="px-3 py-2 text-[#4d4963]">
+                      {formatInteger(point.event_count)}
+                    </td>
+                    <td className="px-3 py-2 text-[#4d4963]">
+                      {formatInteger(point.input_tokens)}
+                    </td>
+                    <td className="px-3 py-2 text-[#4d4963]">
+                      {formatInteger(point.output_tokens)}
+                    </td>
+                    <td className="px-3 py-2 text-[#4d4963]">
+                      {formatUsd(point.cost_usd)}
+                    </td>
+                    <td className="px-3 py-2 text-[#4d4963]">
+                      {formatLatencyMs(point.avg_latency_ms)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -403,7 +469,8 @@ export function AdminUsagePage() {
               Export CSV (planned)
             </button>
             <p className="mt-2 text-sm text-[#68647b]">
-              Set <code>NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL</code> to enable CSV export.
+              Set <code>NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL</code> to enable CSV
+              export.
             </p>
           </div>
         )}

@@ -1,12 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
-import { createAgentRun, decideAgentRunApproval, getAgentRun } from "@/lib/api/agent";
-import { createChatSession, listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
+import {
+  createAgentRun,
+  decideAgentRunApproval,
+  getAgentRun,
+} from "@/lib/api/agent";
+import {
+  createChatSession,
+  listChatSessionMessages,
+  listChatSessions,
+  queryChat,
+} from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 
@@ -158,7 +173,9 @@ describe("ChatPage", () => {
     const askButton = screen.getByRole("button", { name: "Ask" });
     expect(askButton).toBeDisabled();
 
-    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    const textarea = screen.getByPlaceholderText(
+      "Ask a question about your selected documents...",
+    );
     await userEvent.type(textarea, "   ");
     expect(askButton).toBeDisabled();
     expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
@@ -177,10 +194,24 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("No sessions yet. Ask your first question to start one.")).toBeInTheDocument();
-    expect(screen.getByText("New chat draft. Start with a question to create a session.")).toBeInTheDocument();
-    expect(screen.getByText("No indexed documents available. Upload and index documents first.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Go to documents upload" })).toHaveAttribute("href", "/documents");
+    expect(
+      await screen.findByText(
+        "No sessions yet. Ask your first question to start one.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "New chat draft. Start with a question to create a session.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No indexed documents available. Upload and index documents first.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Go to documents upload" }),
+    ).toHaveAttribute("href", "/documents");
   });
 
   it("renders citations and low-confidence warning for an answer", async () => {
@@ -258,17 +289,32 @@ describe("ChatPage", () => {
 
     await screen.findByText("policy.pdf");
 
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "When is the policy active?");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "When is the policy active?",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(vi.mocked(createChatSession)).toHaveBeenCalledTimes(1);
 
-    expect(await screen.findByText("The policy is active as of May 2026.")).toBeInTheDocument();
-    expect(screen.getByText("Low confidence warning: validate this answer against the cited source text.")).toBeInTheDocument();
-    expect(screen.getByText("Policy became active in May 2026.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("The policy is active as of May 2026."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Low confidence warning: validate this answer against the cited source text.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Policy became active in May 2026."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Rerank rank")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open document detail" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "Open document detail" }),
+    ).toHaveAttribute(
       "href",
       "/documents/doc-indexed-1?chunk_id=chunk-1&back=%2Fchat",
     );
@@ -334,7 +380,12 @@ describe("ChatPage", () => {
 
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "check debug visibility");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "check debug visibility",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(await screen.findByText("normal answer")).toBeInTheDocument();
@@ -415,7 +466,12 @@ describe("ChatPage", () => {
 
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "show debug");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "show debug",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(await screen.findByText("Retrieval debug")).toBeInTheDocument();
@@ -425,7 +481,9 @@ describe("ChatPage", () => {
     expect(screen.getByText("embedding_model")).toBeInTheDocument();
     expect(screen.getByText("llm_model")).toBeInTheDocument();
     expect(screen.getByText("latencies_ms")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View pipeline run" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "View pipeline run" }),
+    ).toHaveAttribute(
       "href",
       "/rag-pipeline?run_type=chat.answer&chat_message_id=msg-1",
     );
@@ -545,15 +603,26 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    const firstDocRow = (await screen.findByText("policy-a.pdf")).closest("label");
+    const firstDocRow = (await screen.findByText("policy-a.pdf")).closest(
+      "label",
+    );
     expect(firstDocRow).not.toBeNull();
-    await userEvent.click(within(firstDocRow as HTMLLabelElement).getByRole("checkbox"));
+    await userEvent.click(
+      within(firstDocRow as HTMLLabelElement).getByRole("checkbox"),
+    );
 
     const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
     fireEvent.change(topKInput, { target: { value: "9" } });
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Enable rerank/i }));
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "scope check");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Enable rerank/i }),
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "scope check",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     await waitFor(() => {
@@ -675,11 +744,20 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("policy-a.pdf");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "agentic question");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "agentic question",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Agent generated grounded answer.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Agent generated grounded answer."),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(vi.mocked(createAgentRun)).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -696,7 +774,9 @@ describe("ChatPage", () => {
     expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
     expect(vi.mocked(createChatSession)).not.toHaveBeenCalled();
     expect(await screen.findByText("Agent timeline")).toBeInTheDocument();
-    expect(await screen.findByText("1. discover_documents")).toBeInTheDocument();
+    expect(
+      await screen.findByText("1. discover_documents"),
+    ).toBeInTheDocument();
   });
 
   it("shows safe agentic error state with trace id and no secret leakage", async () => {
@@ -740,12 +820,25 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("policy-a.pdf");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "agentic failing question");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "agentic failing question",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Unable to complete the query.")).toBeInTheDocument();
-    expect(screen.getByText("The service is temporarily unavailable. Retry shortly.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unable to complete the query."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The service is temporarily unavailable. Retry shortly.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("trace-agent-err")).toBeInTheDocument();
     expect(screen.queryByText(/top-secret/i)).not.toBeInTheDocument();
   });
@@ -781,7 +874,8 @@ describe("ChatPage", () => {
         details: { code: "feature_not_available" },
         requestId: "trace-agent-disabled",
         userMessage: "This feature is not enabled on the backend.",
-        actionMessage: "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
+        actionMessage:
+          "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
         retryable: false,
       }),
     );
@@ -823,14 +917,23 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("policy-a.pdf");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "fallback question");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "fallback question",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(await screen.findByText("Fallback chat answer")).toBeInTheDocument();
     expect(vi.mocked(createAgentRun)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(queryChat)).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("checkbox", { name: /Agentic mode/i })).not.toBeChecked();
+    expect(
+      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+    ).not.toBeChecked();
   });
 
   it("renders pending approvals in timeline and allows admin decisions", async () => {
@@ -956,8 +1059,15 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("policy-a.pdf");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "approval question");
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+    );
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "approval question",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(await screen.findByText("Approvals")).toBeInTheDocument();
@@ -1034,11 +1144,18 @@ describe("ChatPage", () => {
     renderPage();
 
     await screen.findByText("indexed.pdf");
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "hello");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "hello",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to complete the query.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Unable to complete the query."),
+      ).toBeInTheDocument();
     });
     expect(screen.getByText("Service unavailable")).toBeInTheDocument();
     expect(screen.getByDisplayValue("hello")).toBeInTheDocument();
@@ -1107,12 +1224,16 @@ describe("ChatPage", () => {
     renderPage();
 
     await screen.findByText("indexed.pdf");
-    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    const textarea = screen.getByPlaceholderText(
+      "Ask a question about your selected documents...",
+    );
     await userEvent.type(textarea, "retry me");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to complete the query.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Unable to complete the query."),
+      ).toBeInTheDocument();
     });
     expect(screen.getByDisplayValue("retry me")).toBeInTheDocument();
 
@@ -1172,10 +1293,16 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await userEvent.click(await screen.findByRole("button", { name: /Previous session/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Previous session/i }),
+    );
 
-    expect((await screen.findAllByText("What is the policy date?")).length).toBeGreaterThan(0);
-    expect(screen.getByText("The policy date is May 2026.")).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText("What is the policy date?")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getByText("The policy date is May 2026."),
+    ).toBeInTheDocument();
   });
 
   it("supports incremental loading of sessions", async () => {
@@ -1221,7 +1348,9 @@ describe("ChatPage", () => {
     renderPage();
 
     expect(await screen.findByText("Session one")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Load more sessions/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Load more sessions/i }),
+    );
 
     expect(await screen.findByText("Session two")).toBeInTheDocument();
     expect(vi.mocked(listChatSessions)).toHaveBeenNthCalledWith(
@@ -1321,12 +1450,26 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await userEvent.click(await screen.findByRole("button", { name: /Confidence history/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Confidence history/i }),
+    );
 
-    expect((await screen.findAllByText("Confidence 91.0%")).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText("Confidence 55.0%")).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText("Confidence 22.0%")).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText("Low confidence warning: validate this answer against the cited source text.")).length).toBe(1);
+    expect(
+      (await screen.findAllByText("Confidence 91.0%")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText("Confidence 55.0%")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      (await screen.findAllByText("Confidence 22.0%")).length,
+    ).toBeGreaterThan(0);
+    expect(
+      (
+        await screen.findAllByText(
+          "Low confidence warning: validate this answer against the cited source text.",
+        )
+      ).length,
+    ).toBe(1);
   });
 
   it("renders safe not-found state and hides citations panel details", async () => {
@@ -1389,12 +1532,29 @@ describe("ChatPage", () => {
 
     renderPage();
     await screen.findByText("indexed.pdf");
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "unknown question");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "unknown question",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("No grounded answer was found in the selected documents.")).toBeInTheDocument();
-    expect(screen.getByText("No citations are shown because the assistant did not find grounded evidence for this response.")).toBeInTheDocument();
-    expect(screen.queryByText("Low confidence warning: validate this answer against the cited source text.")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "No grounded answer was found in the selected documents.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No citations are shown because the assistant did not find grounded evidence for this response.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Low confidence warning: validate this answer against the cited source text.",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps previous answers visible when a later query fails", async () => {
@@ -1460,14 +1620,28 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("indexed.pdf");
 
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "first");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "first",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
-    expect(await screen.findByText("First answer stays visible")).toBeInTheDocument();
+    expect(
+      await screen.findByText("First answer stays visible"),
+    ).toBeInTheDocument();
 
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "second");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "second",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Unable to complete the query.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unable to complete the query."),
+    ).toBeInTheDocument();
     expect(screen.getByText("First answer stays visible")).toBeInTheDocument();
   });
 
@@ -1567,11 +1741,18 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByText("indexed.pdf");
 
-    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "repeat me");
+    await userEvent.type(
+      screen.getByPlaceholderText(
+        "Ask a question about your selected documents...",
+      ),
+      "repeat me",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect(await screen.findByText("Initial answer")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Regenerate last answer" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Regenerate last answer" }),
+    );
     expect(await screen.findByText("Regenerated answer")).toBeInTheDocument();
     expect(vi.mocked(queryChat)).toHaveBeenNthCalledWith(
       2,

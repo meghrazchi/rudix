@@ -1,4 +1,12 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -130,8 +138,14 @@ describe("TeamManagementSection MSW", () => {
     renderSection();
     await screen.findByText("Admin User");
 
-    await userEvent.type(screen.getByPlaceholderText("teammate@company.com"), "teammate@example.com");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Role" }), "viewer");
+    await userEvent.type(
+      screen.getByPlaceholderText("teammate@company.com"),
+      "teammate@example.com",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Role" }),
+      "viewer",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
     await waitFor(() => {
@@ -141,6 +155,8 @@ describe("TeamManagementSection MSW", () => {
       email: "teammate@example.com",
       role: "viewer",
     });
-    expect(await screen.findByText("Invite sent successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Invite sent successfully."),
+    ).toBeInTheDocument();
   });
 });

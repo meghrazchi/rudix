@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -55,7 +64,9 @@ const listDocumentsResponse = {
 };
 
 const server = setupServer(
-  http.get(`${apiBaseUrl}/documents`, async () => HttpResponse.json(listDocumentsResponse)),
+  http.get(`${apiBaseUrl}/documents`, async () =>
+    HttpResponse.json(listDocumentsResponse),
+  ),
   http.post(`${apiBaseUrl}/documents/upload`, async () =>
     HttpResponse.json(
       {
@@ -67,7 +78,8 @@ const server = setupServer(
         message: "Document uploaded and queued for processing.",
       },
       { status: 201 },
-    )),
+    ),
+  ),
 );
 
 function renderPage() {
@@ -118,9 +130,13 @@ describe("DocumentsPage upload states (MSW)", () => {
     renderPage();
     await screen.findByText("policy.pdf");
 
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
@@ -133,40 +149,57 @@ describe("DocumentsPage upload states (MSW)", () => {
   it("shows safe 413 error message", async () => {
     server.use(
       http.post(`${apiBaseUrl}/documents/upload`, async () =>
-        HttpResponse.json({ detail: "File too large" }, { status: 413 })),
+        HttpResponse.json({ detail: "File too large" }, { status: 413 }),
+      ),
     );
 
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
 
     await waitFor(() => {
-      expect(screen.getAllByText(/uploaded file is too large/i).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(/uploaded file is too large/i).length,
+      ).toBeGreaterThan(0);
     });
   });
 
   it("shows safe 415 error message", async () => {
     server.use(
       http.post(`${apiBaseUrl}/documents/upload`, async () =>
-        HttpResponse.json({ detail: "Unsupported media type" }, { status: 415 })),
+        HttpResponse.json(
+          { detail: "Unsupported media type" },
+          { status: 415 },
+        ),
+      ),
     );
 
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
 
     await waitFor(() => {
-      expect(screen.getAllByText(/file type is not supported/i).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(/file type is not supported/i).length,
+      ).toBeGreaterThan(0);
     });
   });
 });
@@ -184,8 +217,14 @@ describe("DocumentsPage filters/sorting/pagination (MSW)", () => {
     server.use(
       http.get(`${apiBaseUrl}/documents`, async ({ request }) => {
         const url = new URL(request.url);
-        const limit = Number.parseInt(url.searchParams.get("limit") ?? "20", 10);
-        const offset = Number.parseInt(url.searchParams.get("offset") ?? "0", 10);
+        const limit = Number.parseInt(
+          url.searchParams.get("limit") ?? "20",
+          10,
+        );
+        const offset = Number.parseInt(
+          url.searchParams.get("offset") ?? "0",
+          10,
+        );
         observed.push({
           status: url.searchParams.get("status"),
           sortBy: url.searchParams.get("sort_by"),
@@ -227,14 +266,21 @@ describe("DocumentsPage filters/sorting/pagination (MSW)", () => {
 
     await userEvent.selectOptions(screen.getByLabelText("Status"), "failed");
     await waitFor(() => {
-      expect(observed.some((entry) => entry.status === "failed" && entry.offset === "0")).toBe(true);
+      expect(
+        observed.some(
+          (entry) => entry.status === "failed" && entry.offset === "0",
+        ),
+      ).toBe(true);
     });
 
     await userEvent.selectOptions(screen.getByLabelText("Sort"), "updated_at");
     await waitFor(() => {
       expect(
         observed.some(
-          (entry) => entry.status === "failed" && entry.sortBy === "updated_at" && entry.offset === "0",
+          (entry) =>
+            entry.status === "failed" &&
+            entry.sortBy === "updated_at" &&
+            entry.offset === "0",
         ),
       ).toBe(true);
     });

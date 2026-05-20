@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
@@ -125,11 +131,18 @@ export function DocumentsUploadModal({
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h3 id="documents-upload-modal-title" className="text-lg font-bold text-[#2a2640]">
+            <h3
+              id="documents-upload-modal-title"
+              className="text-lg font-bold text-[#2a2640]"
+            >
               Upload document
             </h3>
-            <p id="documents-upload-modal-description" className="text-sm text-[#68647b]">
-              Drop one file or click to select. Supported formats: {acceptedTypesLabel}.
+            <p
+              id="documents-upload-modal-description"
+              className="text-sm text-[#68647b]"
+            >
+              Drop one file or click to select. Supported formats:{" "}
+              {acceptedTypesLabel}.
             </p>
           </div>
           <button
@@ -150,7 +163,9 @@ export function DocumentsUploadModal({
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           className={`rounded-xl border-2 border-dashed p-6 text-center transition ${
-            dragActive ? "border-[#4b39db] bg-[#f3f1ff]" : "border-[#d8d3ed] bg-[#faf9ff]"
+            dragActive
+              ? "border-[#4b39db] bg-[#f3f1ff]"
+              : "border-[#d8d3ed] bg-[#faf9ff]"
           } ${canUpload && !isUploading ? "cursor-pointer" : "opacity-75"}`}
           role="button"
           tabIndex={canUpload && !isUploading ? 0 : -1}
@@ -182,10 +197,14 @@ export function DocumentsUploadModal({
             disabled={!canUpload || isUploading}
           />
           <p className="text-base font-semibold text-[#2a2640]">
-            {isUploading ? "Uploading..." : "Drop a file here or click to select"}
+            {isUploading
+              ? "Uploading..."
+              : "Drop a file here or click to select"}
           </p>
           {!canUpload ? (
-            <p className="mt-2 text-xs text-[#6e6a86]">Your role can view documents but cannot upload files.</p>
+            <p className="mt-2 text-xs text-[#6e6a86]">
+              Your role can view documents but cannot upload files.
+            </p>
           ) : null}
         </div>
 

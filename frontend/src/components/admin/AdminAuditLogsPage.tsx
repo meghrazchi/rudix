@@ -10,7 +10,10 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
-import { listAuditLogs, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
+import {
+  listAuditLogs,
+  type AuditLogListItemResponse,
+} from "@/lib/api/admin-usage";
 import { queryKeys } from "@/lib/api/query";
 import {
   formatAuditStatusLabel,
@@ -27,7 +30,11 @@ import {
   resolveUsageDateRange,
   type DashboardRangePreset,
 } from "@/lib/dashboard";
-import { extractRequestIdFromError, isForbiddenError, sanitizeRequestId } from "@/lib/forbidden";
+import {
+  extractRequestIdFromError,
+  isForbiddenError,
+  sanitizeRequestId,
+} from "@/lib/forbidden";
 import { isExternalHref } from "@/lib/top-bar";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -61,7 +68,10 @@ function resolveAuditExportUrl(): string | null {
   return configured;
 }
 
-function withExportQuery(url: string, params: Record<string, string | undefined>): string {
+function withExportQuery(
+  url: string,
+  params: Record<string, string | undefined>,
+): string {
   try {
     const parsed = new URL(url, "http://placeholder.local");
     for (const [key, value] of Object.entries(params)) {
@@ -101,7 +111,8 @@ export function AdminAuditLogsPage() {
   const [resourceTypeInput, setResourceTypeInput] = useState("");
   const [statusFilter, setStatusFilter] = useState<AuditStatusFilter>("all");
   const [offset, setOffset] = useState(0);
-  const [selectedEvent, setSelectedEvent] = useState<AuditLogListItemResponse | null>(null);
+  const [selectedEvent, setSelectedEvent] =
+    useState<AuditLogListItemResponse | null>(null);
   const eventDrawerRef = useRef<HTMLElement | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>({
     userId: null,
@@ -119,7 +130,10 @@ export function AdminAuditLogsPage() {
     onClose: closeSelectedEvent,
   });
 
-  const usageRange = useMemo(() => resolveUsageDateRange(rangePreset), [rangePreset]);
+  const usageRange = useMemo(
+    () => resolveUsageDateRange(rangePreset),
+    [rangePreset],
+  );
   const exportBaseUrl = resolveAuditExportUrl();
 
   const auditQuery = useQuery({
@@ -145,7 +159,10 @@ export function AdminAuditLogsPage() {
     enabled: isAdminUser,
   });
 
-  const forbiddenError = auditQuery.isError && isForbiddenError(auditQuery.error) ? auditQuery.error : null;
+  const forbiddenError =
+    auditQuery.isError && isForbiddenError(auditQuery.error)
+      ? auditQuery.error
+      : null;
 
   if (!isAdminUser) {
     return (
@@ -173,11 +190,16 @@ export function AdminAuditLogsPage() {
 
   const audit = auditQuery.data;
   const endpointUnavailable =
-    auditQuery.isError && isApiClientError(auditQuery.error) && auditQuery.error.status === 404;
-  const filteredEvents = (audit?.items ?? []).filter((event) => matchesAuditStatusFilter(event, statusFilter));
+    auditQuery.isError &&
+    isApiClientError(auditQuery.error) &&
+    auditQuery.error.status === 404;
+  const filteredEvents = (audit?.items ?? []).filter((event) =>
+    matchesAuditStatusFilter(event, statusFilter),
+  );
   const pageTotal = audit?.total ?? 0;
   const pageStart = pageTotal === 0 ? 0 : offset + 1;
-  const pageEnd = pageTotal === 0 ? 0 : Math.min(offset + AUDIT_PAGE_LIMIT, pageTotal);
+  const pageEnd =
+    pageTotal === 0 ? 0 : Math.min(offset + AUDIT_PAGE_LIMIT, pageTotal);
   const hasPreviousPage = offset > 0;
   const hasNextPage = offset + AUDIT_PAGE_LIMIT < pageTotal;
   const exportUrl = exportBaseUrl
@@ -190,9 +212,15 @@ export function AdminAuditLogsPage() {
       })
     : null;
   const exportExternal = exportUrl ? isExternalHref(exportUrl) : false;
-  const selectedStatus = selectedEvent ? getAuditStatusFilter(selectedEvent) : null;
-  const selectedStatusCode = selectedEvent ? getAuditStatusCode(selectedEvent.metadata) : null;
-  const selectedSanitizedMetadata = selectedEvent ? sanitizeAuditMetadata(selectedEvent.metadata) : null;
+  const selectedStatus = selectedEvent
+    ? getAuditStatusFilter(selectedEvent)
+    : null;
+  const selectedStatusCode = selectedEvent
+    ? getAuditStatusCode(selectedEvent.metadata)
+    : null;
+  const selectedSanitizedMetadata = selectedEvent
+    ? sanitizeAuditMetadata(selectedEvent.metadata)
+    : null;
 
   function applyFilters(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -218,13 +246,18 @@ export function AdminAuditLogsPage() {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Admin</p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Audit logs</h1>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Admin
+            </p>
+            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              Audit logs
+            </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Inspect audit events by actor, action, resource, status, and sanitized metadata.
+              Inspect audit events by actor, action, resource, status, and
+              sanitized metadata.
             </p>
           </div>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Date range
             <select
               value={rangePreset}
@@ -245,8 +278,11 @@ export function AdminAuditLogsPage() {
       </header>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]" onSubmit={applyFilters}>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+        <form
+          className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]"
+          onSubmit={applyFilters}
+        >
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             User ID
             <input
               value={userIdInput}
@@ -255,7 +291,7 @@ export function AdminAuditLogsPage() {
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             />
           </label>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Action
             <input
               value={actionInput}
@@ -264,7 +300,7 @@ export function AdminAuditLogsPage() {
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             />
           </label>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Resource type
             <input
               value={resourceTypeInput}
@@ -273,11 +309,13 @@ export function AdminAuditLogsPage() {
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             />
           </label>
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+          <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Status
             <select
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as AuditStatusFilter)}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as AuditStatusFilter)
+              }
               className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
             >
               <option value="all">All statuses</option>
@@ -307,8 +345,9 @@ export function AdminAuditLogsPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h2 className="text-lg font-bold text-[#2a2640]">Audit events</h2>
           {auditQuery.isSuccess ? (
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
-              Showing {formatInteger(pageStart)}-{formatInteger(pageEnd)} of {formatInteger(pageTotal)}
+            <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Showing {formatInteger(pageStart)}-{formatInteger(pageEnd)} of{" "}
+              {formatInteger(pageTotal)}
             </p>
           ) : null}
         </div>
@@ -353,7 +392,7 @@ export function AdminAuditLogsPage() {
             <div className="mt-4 overflow-x-auto">
               <table className="min-w-full divide-y divide-[#e6e3f3] text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                  <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                     <th className="px-3 py-2">Actor</th>
                     <th className="px-3 py-2">Action</th>
                     <th className="px-3 py-2">Resource</th>
@@ -370,22 +409,30 @@ export function AdminAuditLogsPage() {
                     const metadataKeys = Object.keys(item.metadata ?? {});
                     return (
                       <tr key={item.audit_log_id}>
-                        <td className="px-3 py-2 text-[#4d4963]">{item.user_id ?? "System"}</td>
-                        <td className="px-3 py-2 font-semibold text-[#2f2a46]">{item.action}</td>
+                        <td className="px-3 py-2 text-[#4d4963]">
+                          {item.user_id ?? "System"}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-[#2f2a46]">
+                          {item.action}
+                        </td>
                         <td className="px-3 py-2 text-[#4d4963]">
                           {item.resource_type}
                           {item.resource_id ? `:${item.resource_id}` : ""}
                         </td>
-                        <td className="px-3 py-2 text-[#4d4963]">{formatTimestamp(item.created_at)}</td>
+                        <td className="px-3 py-2 text-[#4d4963]">
+                          {formatTimestamp(item.created_at)}
+                        </td>
                         <td className="px-3 py-2">
                           <span
-                            className={`rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${statusBadgeClass(status)}`}
+                            className={`rounded-full px-2 py-1 text-xs font-bold tracking-wide uppercase ${statusBadgeClass(status)}`}
                           >
                             {formatAuditStatusLabel(status)}
                             {statusCode ? ` (${statusCode})` : ""}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-[#4d4963]">{formatInteger(metadataKeys.length)} keys</td>
+                        <td className="px-3 py-2 text-[#4d4963]">
+                          {formatInteger(metadataKeys.length)} keys
+                        </td>
                         <td className="px-3 py-2">
                           <button
                             type="button"
@@ -404,7 +451,11 @@ export function AdminAuditLogsPage() {
             <div className="mt-4 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setOffset((previous) => Math.max(0, previous - AUDIT_PAGE_LIMIT))}
+                onClick={() =>
+                  setOffset((previous) =>
+                    Math.max(0, previous - AUDIT_PAGE_LIMIT),
+                  )
+                }
                 disabled={!hasPreviousPage || auditQuery.isFetching}
                 className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3f3b58] enabled:hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -412,7 +463,9 @@ export function AdminAuditLogsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setOffset((previous) => previous + AUDIT_PAGE_LIMIT)}
+                onClick={() =>
+                  setOffset((previous) => previous + AUDIT_PAGE_LIMIT)
+                }
                 disabled={!hasNextPage || auditQuery.isFetching}
                 className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3f3b58] enabled:hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -445,7 +498,8 @@ export function AdminAuditLogsPage() {
               Export CSV (planned)
             </button>
             <p className="mt-2 text-sm text-[#68647b]">
-              Set <code>NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL</code> to enable CSV export.
+              Set <code>NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL</code> to enable CSV
+              export.
             </p>
           </div>
         )}
@@ -466,8 +520,13 @@ export function AdminAuditLogsPage() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6f6a8d]">Audit event details</p>
-                <h3 id="audit-event-details-title" className="mt-1 text-lg font-bold text-[#2a2640]">
+                <p className="text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
+                  Audit event details
+                </p>
+                <h3
+                  id="audit-event-details-title"
+                  className="mt-1 text-lg font-bold text-[#2a2640]"
+                >
                   {selectedEvent.action}
                 </h3>
               </div>
@@ -483,35 +542,47 @@ export function AdminAuditLogsPage() {
             <dl className="mt-4 grid gap-2 text-sm">
               <div>
                 <dt className="font-semibold text-[#2a2640]">Actor</dt>
-                <dd className="text-[#4d4963]">{selectedEvent.user_id ?? "System"}</dd>
+                <dd className="text-[#4d4963]">
+                  {selectedEvent.user_id ?? "System"}
+                </dd>
               </div>
               <div>
                 <dt className="font-semibold text-[#2a2640]">Resource</dt>
                 <dd className="text-[#4d4963]">
                   {selectedEvent.resource_type}
-                  {selectedEvent.resource_id ? `:${selectedEvent.resource_id}` : ""}
+                  {selectedEvent.resource_id
+                    ? `:${selectedEvent.resource_id}`
+                    : ""}
                 </dd>
               </div>
               <div>
                 <dt className="font-semibold text-[#2a2640]">Timestamp</dt>
-                <dd className="text-[#4d4963]">{formatTimestamp(selectedEvent.created_at)}</dd>
+                <dd className="text-[#4d4963]">
+                  {formatTimestamp(selectedEvent.created_at)}
+                </dd>
               </div>
               <div>
                 <dt className="font-semibold text-[#2a2640]">Status</dt>
                 <dd className="text-[#4d4963]">
-                  {selectedStatus ? formatAuditStatusLabel(selectedStatus) : "Unknown"}
+                  {selectedStatus
+                    ? formatAuditStatusLabel(selectedStatus)
+                    : "Unknown"}
                   {selectedStatusCode ? ` (${selectedStatusCode})` : ""}
                 </dd>
               </div>
               {sanitizeRequestId(selectedEvent.request_id) ? (
                 <div>
                   <dt className="font-semibold text-[#2a2640]">Trace ID</dt>
-                  <dd className="text-[#4d4963]">{sanitizeRequestId(selectedEvent.request_id)}</dd>
+                  <dd className="text-[#4d4963]">
+                    {sanitizeRequestId(selectedEvent.request_id)}
+                  </dd>
                 </div>
               ) : null}
             </dl>
             <div className="mt-5">
-              <h4 className="text-sm font-semibold text-[#2a2640]">Sanitized metadata</h4>
+              <h4 className="text-sm font-semibold text-[#2a2640]">
+                Sanitized metadata
+              </h4>
               <pre className="mt-2 overflow-x-auto rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-xs text-[#2f2a46]">
                 {JSON.stringify(selectedSanitizedMetadata, null, 2)}
               </pre>

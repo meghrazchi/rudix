@@ -43,15 +43,19 @@ vi.mock("@/lib/api/documents", () => ({
   uploadDocument: (file: File) => mockApi.uploadDocument(file),
   listDocuments: (options?: unknown) => mockApi.listDocuments(options),
   getDocument: (documentId: string) => mockApi.getDocument(documentId),
-  getDocumentStatus: (documentId: string) => mockApi.getDocumentStatus(documentId),
-  getDocumentChunks: (documentId: string, options?: unknown) => mockApi.getDocumentChunks(documentId, options),
+  getDocumentStatus: (documentId: string) =>
+    mockApi.getDocumentStatus(documentId),
+  getDocumentChunks: (documentId: string, options?: unknown) =>
+    mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
   downloadDocumentFile: (documentId: string) =>
     mockApi.downloadDocumentFile(documentId),
 }));
 
-function makeListResponse(status: "indexed" | "processing" = "indexed"): DocumentListResponse {
+function makeListResponse(
+  status: "indexed" | "processing" = "indexed",
+): DocumentListResponse {
   return {
     items: [
       {
@@ -198,16 +202,34 @@ describe("DocumentsPage", () => {
     renderPage();
 
     expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Filename" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Type" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Pages" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Chunks" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Created" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Updated" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Filename" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Type" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Status" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Pages" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Chunks" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Created" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Updated" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Actions" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Inspect" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Download" }),
+    ).toBeInTheDocument();
   });
 
   it("renders distinct lifecycle status badges", async () => {
@@ -343,9 +365,13 @@ describe("DocumentsPage", () => {
     renderPage();
     await screen.findByText("policy.pdf");
 
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
 
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
@@ -372,16 +398,22 @@ describe("DocumentsPage", () => {
 
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
 
     const file = new File(["hello"], "guide.pdf", { type: "application/json" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
 
     expect(mockApi.uploadDocument).not.toHaveBeenCalled();
-    expect(screen.getAllByText(/Unsupported MIME type/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/Unsupported MIME type/i).length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows safe 413 and 415 upload errors", async () => {
@@ -398,9 +430,13 @@ describe("DocumentsPage", () => {
     };
     renderPage();
     await screen.findByText("policy.pdf");
-    await userEvent.click(screen.getByRole("button", { name: "Open upload modal" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
 
-    const uploadInput = screen.getByRole("dialog").querySelector('input[type="file"]');
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
     expect(uploadInput).toBeTruthy();
     const file = new File(["hello"], "guide.pdf", { type: "application/pdf" });
 
@@ -409,7 +445,9 @@ describe("DocumentsPage", () => {
     );
     await userEvent.upload(uploadInput as HTMLInputElement, file);
     await waitFor(() => {
-      expect(screen.getAllByText(/uploaded file is too large/i).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(/uploaded file is too large/i).length,
+      ).toBeGreaterThan(0);
     });
 
     mockApi.uploadDocument.mockRejectedValueOnce(
@@ -417,7 +455,9 @@ describe("DocumentsPage", () => {
     );
     await userEvent.upload(uploadInput as HTMLInputElement, file);
     await waitFor(() => {
-      expect(screen.getAllByText(/file type is not supported/i).length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText(/file type is not supported/i).length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -452,7 +492,9 @@ describe("DocumentsPage", () => {
     renderPage();
 
     expect(await screen.findByText("No documents found")).toBeInTheDocument();
-    const emptyStateUploadButton = screen.getByRole("button", { name: "Upload document" });
+    const emptyStateUploadButton = screen.getByRole("button", {
+      name: "Upload document",
+    });
     expect(emptyStateUploadButton).toBeInTheDocument();
 
     await userEvent.click(emptyStateUploadButton);

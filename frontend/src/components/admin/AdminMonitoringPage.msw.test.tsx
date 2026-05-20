@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -32,7 +41,8 @@ const server = setupServer(
       status: "failed",
       sort_by: "updated_at",
       sort_order: "desc",
-    })),
+    }),
+  ),
   http.get(`${apiBaseUrl}/admin/audit-logs`, () =>
     HttpResponse.json({
       items: [],
@@ -40,7 +50,8 @@ const server = setupServer(
       limit: 60,
       offset: 0,
       range: { from: "2026-04-21", to: "2026-05-20" },
-    })),
+    }),
+  ),
   http.get(`${apiBaseUrl}/admin/usage`, () =>
     HttpResponse.json({
       organization_id: "org-1",
@@ -55,7 +66,8 @@ const server = setupServer(
         avg_latency_ms: null,
       },
       series: [],
-    })),
+    }),
+  ),
   http.get(`${apiBaseUrl}/notifications`, () =>
     HttpResponse.json(
       {
@@ -63,7 +75,8 @@ const server = setupServer(
         message: "Not found",
       },
       { status: 404 },
-    )),
+    ),
+  ),
 );
 
 function renderPage() {
@@ -121,7 +134,9 @@ describe("AdminMonitoringPage MSW", () => {
 
     expect(await screen.findByText("Monitoring overview")).toBeInTheDocument();
     expect(
-      await screen.findByText("Aggregation feed is not configured for this deployment."),
+      await screen.findByText(
+        "Aggregation feed is not configured for this deployment.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -130,6 +145,8 @@ describe("AdminMonitoringPage MSW", () => {
     renderPage();
 
     expect(await screen.findByText("Monitoring overview")).toBeInTheDocument();
-    expect(await screen.findByText("Monitoring feed endpoint is unavailable.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Monitoring feed endpoint is unavailable."),
+    ).toBeInTheDocument();
   });
 });

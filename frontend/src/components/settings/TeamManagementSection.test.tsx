@@ -23,9 +23,12 @@ const mockTeamApi = vi.hoisted(() => ({
 vi.mock("@/lib/api/team", () => ({
   getTeamCapabilities: () => mockTeamApi.capabilities,
   listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
-  inviteTeamMember: (...args: unknown[]) => mockTeamApi.inviteTeamMember(...args),
-  updateTeamMemberRole: (...args: unknown[]) => mockTeamApi.updateTeamMemberRole(...args),
-  removeTeamMember: (...args: unknown[]) => mockTeamApi.removeTeamMember(...args),
+  inviteTeamMember: (...args: unknown[]) =>
+    mockTeamApi.inviteTeamMember(...args),
+  updateTeamMemberRole: (...args: unknown[]) =>
+    mockTeamApi.updateTeamMemberRole(...args),
+  removeTeamMember: (...args: unknown[]) =>
+    mockTeamApi.removeTeamMember(...args),
   isTeamEndpointUnavailableError: () => false,
 }));
 
@@ -90,8 +93,12 @@ describe("TeamManagementSection", () => {
   it("hides member-management actions for non-admin roles", async () => {
     renderSection("member");
 
-    expect(await screen.findByText("Team management restricted")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Send invite" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Team management restricted"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Send invite" }),
+    ).not.toBeInTheDocument();
     expect(mockTeamApi.listTeamMembers).not.toHaveBeenCalled();
   });
 
@@ -116,8 +123,14 @@ describe("TeamManagementSection", () => {
     renderSection("owner");
     await screen.findByText("Admin User");
 
-    expect(screen.getByText("Invite endpoint is not configured. Enable it to send organization invites.")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Role for admin@example.com" })).toBeDisabled();
+    expect(
+      screen.getByText(
+        "Invite endpoint is not configured. Enable it to send organization invites.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Role for admin@example.com" }),
+    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Change role" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Remove" })).toBeDisabled();
   });
@@ -126,8 +139,14 @@ describe("TeamManagementSection", () => {
     renderSection("admin");
     await screen.findByText("Admin User");
 
-    await userEvent.type(screen.getByPlaceholderText("teammate@company.com"), "teammate@example.com");
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Role" }), "viewer");
+    await userEvent.type(
+      screen.getByPlaceholderText("teammate@company.com"),
+      "teammate@example.com",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Role" }),
+      "viewer",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
     await waitFor(() => {
@@ -137,28 +156,44 @@ describe("TeamManagementSection", () => {
       email: "teammate@example.com",
       role: "viewer",
     });
-    expect(await screen.findByText("Invite sent successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Invite sent successfully."),
+    ).toBeInTheDocument();
   });
 
   it("loads paginated members and switches pages", async () => {
-    mockTeamApi.listTeamMembers.mockImplementation(async (params?: { limit?: number; offset?: number }) => {
-      const limit = params?.limit ?? 10;
-      const offset = params?.offset ?? 0;
-      if (offset === 0) {
+    mockTeamApi.listTeamMembers.mockImplementation(
+      async (params?: { limit?: number; offset?: number }) => {
+        const limit = params?.limit ?? 10;
+        const offset = params?.offset ?? 0;
+        if (offset === 0) {
+          return {
+            items: [
+              buildMember({
+                member_id: "member-1",
+                name: "Page One Member",
+                email: "page1@example.com",
+              }),
+            ],
+            total: 11,
+            limit,
+            offset,
+          };
+        }
         return {
-          items: [buildMember({ member_id: "member-1", name: "Page One Member", email: "page1@example.com" })],
+          items: [
+            buildMember({
+              member_id: "member-11",
+              name: "Page Two Member",
+              email: "page2@example.com",
+            }),
+          ],
           total: 11,
           limit,
           offset,
         };
-      }
-      return {
-        items: [buildMember({ member_id: "member-11", name: "Page Two Member", email: "page2@example.com" })],
-        total: 11,
-        limit,
-        offset,
-      };
-    });
+      },
+    );
 
     renderSection("admin");
     expect(await screen.findByText("Page One Member")).toBeInTheDocument();

@@ -8,7 +8,10 @@ export const ACCEPTED_UPLOAD_MIME_TYPES = new Set([
 ]);
 export const ACCEPTED_UPLOAD_TYPES_LABEL = "PDF, TXT, DOCX";
 
-function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) {
     return fallback;
   }
@@ -38,12 +41,22 @@ function fileExtension(filename: string): string {
 }
 
 export function maxUploadSizeMbFromEnv(): number {
-  return parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB, DEFAULT_MAX_UPLOAD_SIZE_MB);
+  return parsePositiveIntegerEnv(
+    process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB,
+    DEFAULT_MAX_UPLOAD_SIZE_MB,
+  );
 }
 
-export function validateUploadFile(file: File, maxUploadSizeMb: number): string | null {
+export function validateUploadFile(
+  file: File,
+  maxUploadSizeMb: number,
+): string | null {
   const extension = fileExtension(file.name);
-  if (!ACCEPTED_UPLOAD_EXTENSIONS.includes(extension as (typeof ACCEPTED_UPLOAD_EXTENSIONS)[number])) {
+  if (
+    !ACCEPTED_UPLOAD_EXTENSIONS.includes(
+      extension as (typeof ACCEPTED_UPLOAD_EXTENSIONS)[number],
+    )
+  ) {
     return `Unsupported file type. Use ${ACCEPTED_UPLOAD_TYPES_LABEL}.`;
   }
 

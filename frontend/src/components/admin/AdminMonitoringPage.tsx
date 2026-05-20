@@ -12,10 +12,19 @@ import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { getTopBarNotifications } from "@/lib/api/notifications";
 import { listDocuments } from "@/lib/api/documents";
-import { listAuditLogs, getUsageSummary, type AuditLogListItemResponse } from "@/lib/api/admin-usage";
+import {
+  listAuditLogs,
+  getUsageSummary,
+  type AuditLogListItemResponse,
+} from "@/lib/api/admin-usage";
 import { queryKeys } from "@/lib/api/query";
 import { canViewAdminUsage } from "@/lib/dashboard";
-import { formatLatencyMs, formatPercentage, formatUsd, resolveUsageDateRange } from "@/lib/dashboard";
+import {
+  formatLatencyMs,
+  formatPercentage,
+  formatUsd,
+  resolveUsageDateRange,
+} from "@/lib/dashboard";
 import { resolveNotificationsEndpoint, isExternalHref } from "@/lib/top-bar";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -146,7 +155,11 @@ function extractNumericValue(
 }
 
 function hasFailureStatusCode(record: Record<string, unknown>): boolean {
-  const statusCode = extractNumericValue(record, ["status_code", "statusCode", "http_status"]);
+  const statusCode = extractNumericValue(record, [
+    "status_code",
+    "statusCode",
+    "http_status",
+  ]);
   return statusCode !== null && statusCode >= 500;
 }
 
@@ -266,7 +279,7 @@ function MetricCard({
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-bold text-[#2a2640]">{title}</h3>
         <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${severityBadgeClass(
+          className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${severityBadgeClass(
             severity,
           )}`}
         >
@@ -284,8 +297,13 @@ export function AdminMonitoringPage() {
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
   const monitoringPanels = useMemo(() => resolveMonitoringPanels(), []);
-  const configuredMonitoringLinks = monitoringPanels.filter((panel) => panel.href);
-  const notificationsEndpoint = useMemo(() => resolveNotificationsEndpoint(), []);
+  const configuredMonitoringLinks = monitoringPanels.filter(
+    (panel) => panel.href,
+  );
+  const notificationsEndpoint = useMemo(
+    () => resolveNotificationsEndpoint(),
+    [],
+  );
   const usageRange = useMemo(() => resolveUsageDateRange("30d"), []);
   const lowConfidenceThreshold = parseFloatEnv(
     process.env.NEXT_PUBLIC_MONITORING_LOW_CONFIDENCE_THRESHOLD,
@@ -370,9 +388,15 @@ export function AdminMonitoringPage() {
   const failedDocuments = failedDocumentsQuery.data?.items ?? [];
   const failedDocumentsTotal = failedDocumentsQuery.data?.total ?? 0;
   const auditItems = auditQuery.data?.items ?? [];
-  const failedEvaluationEvents = auditItems.filter((event) => isFailedEvaluationEvent(event));
-  const lowConfidenceEvents = auditItems.filter((event) => isLowConfidenceEvent(event, lowConfidenceThreshold));
-  const highLatencyEvents = auditItems.filter((event) => isHighLatencyEvent(event, highLatencyThresholdMs));
+  const failedEvaluationEvents = auditItems.filter((event) =>
+    isFailedEvaluationEvent(event),
+  );
+  const lowConfidenceEvents = auditItems.filter((event) =>
+    isLowConfidenceEvent(event, lowConfidenceThreshold),
+  );
+  const highLatencyEvents = auditItems.filter((event) =>
+    isHighLatencyEvent(event, highLatencyThresholdMs),
+  );
   const recentFailedDocuments: MonitoringEvent[] = sortByCreatedAtDesc(
     failedDocuments.map((document) => ({
       id: document.document_id,
@@ -420,22 +444,32 @@ export function AdminMonitoringPage() {
     notificationsQuery.isError &&
     isApiClientError(notificationsQuery.error) &&
     notificationsQuery.error.status === 404;
-  const notificationsAvailable = Boolean(notificationsEndpoint) && !endpointUnavailable;
+  const notificationsAvailable =
+    Boolean(notificationsEndpoint) && !endpointUnavailable;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Admin</p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Monitoring</h1>
+        <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          Rudix Admin
+        </p>
+        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+          Monitoring
+        </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Track failed jobs, latency and confidence risks, and observability links without leaving Rudix.
+          Track failed jobs, latency and confidence risks, and observability
+          links without leaving Rudix.
         </p>
       </header>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-bold text-[#2a2640]">Monitoring overview</h2>
+        <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+          Monitoring overview
+        </h2>
 
-        {usageQuery.isLoading || auditQuery.isLoading || failedDocumentsQuery.isLoading ? (
+        {usageQuery.isLoading ||
+        auditQuery.isLoading ||
+        failedDocumentsQuery.isLoading ? (
           <LoadingState
             compact
             className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
@@ -443,13 +477,21 @@ export function AdminMonitoringPage() {
           />
         ) : null}
 
-        {usageQuery.isError || auditQuery.isError || failedDocumentsQuery.isError ? (
+        {usageQuery.isError ||
+        auditQuery.isError ||
+        failedDocumentsQuery.isError ? (
           <div className="mb-3">
             <ErrorState
               compact
-              error={usageQuery.error ?? auditQuery.error ?? failedDocumentsQuery.error}
+              error={
+                usageQuery.error ??
+                auditQuery.error ??
+                failedDocumentsQuery.error
+              }
               description={getApiErrorMessage(
-                usageQuery.error ?? auditQuery.error ?? failedDocumentsQuery.error,
+                usageQuery.error ??
+                  auditQuery.error ??
+                  failedDocumentsQuery.error,
               )}
               onRetry={() => {
                 void Promise.all([
@@ -499,7 +541,9 @@ export function AdminMonitoringPage() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">Recent failed document jobs</h2>
+          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+            Recent failed document jobs
+          </h2>
           {failedDocumentsQuery.isLoading ? (
             <LoadingState compact title="Loading failed document jobs..." />
           ) : failedDocumentsQuery.isError ? (
@@ -520,11 +564,16 @@ export function AdminMonitoringPage() {
           ) : (
             <ul className="space-y-2">
               {recentFailedDocuments.map((event) => (
-                <li key={event.id} className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2">
+                <li
+                  key={event.id}
+                  className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2"
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-rose-900">{event.title}</p>
+                    <p className="text-sm font-semibold text-rose-900">
+                      {event.title}
+                    </p>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${severityBadgeClass(
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${severityBadgeClass(
                         event.severity,
                       )}`}
                     >
@@ -532,9 +581,14 @@ export function AdminMonitoringPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-rose-800">{event.details}</p>
-                  <p className="mt-1 text-[11px] text-rose-700">{formatTimestamp(event.createdAt)}</p>
+                  <p className="mt-1 text-[11px] text-rose-700">
+                    {formatTimestamp(event.createdAt)}
+                  </p>
                   {event.href ? (
-                    <Link href={event.href} className="mt-2 inline-block text-xs font-semibold text-[#3525cd] hover:underline">
+                    <Link
+                      href={event.href}
+                      className="mt-2 inline-block text-xs font-semibold text-[#3525cd] hover:underline"
+                    >
                       View document
                     </Link>
                   ) : null}
@@ -545,7 +599,9 @@ export function AdminMonitoringPage() {
         </article>
 
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">Chat and evaluation risk signals</h2>
+          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+            Chat and evaluation risk signals
+          </h2>
           {auditQuery.isLoading ? (
             <LoadingState compact title="Loading risk signals..." />
           ) : auditQuery.isError ? (
@@ -569,22 +625,35 @@ export function AdminMonitoringPage() {
                 />
               ) : (
                 <ul className="space-y-2">
-                  {[...recentFailedEvaluations, ...recentLowConfidence, ...recentHighLatency]
+                  {[
+                    ...recentFailedEvaluations,
+                    ...recentLowConfidence,
+                    ...recentHighLatency,
+                  ]
                     .slice(0, RECENT_EVENTS_LIMIT)
                     .map((event) => (
-                      <li key={event.id} className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
+                      <li
+                        key={event.id}
+                        className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+                      >
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-[#2f2a46]">{event.title}</p>
+                          <p className="text-sm font-semibold text-[#2f2a46]">
+                            {event.title}
+                          </p>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${severityBadgeClass(
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${severityBadgeClass(
                               event.severity,
                             )}`}
                           >
                             {severityLabel(event.severity)}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs text-[#5f5a74]">{event.details}</p>
-                        <p className="mt-1 text-[11px] text-[#6d6985]">{formatTimestamp(event.createdAt)}</p>
+                        <p className="mt-1 text-xs text-[#5f5a74]">
+                          {event.details}
+                        </p>
+                        <p className="mt-1 text-[11px] text-[#6d6985]">
+                          {formatTimestamp(event.createdAt)}
+                        </p>
                         {event.href ? (
                           <Link
                             href={event.href}
@@ -604,7 +673,9 @@ export function AdminMonitoringPage() {
 
       <section className="grid gap-4 xl:grid-cols-2">
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">Operational telemetry snapshot</h2>
+          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+            Operational telemetry snapshot
+          </h2>
           {usageQuery.isLoading ? (
             <LoadingState compact title="Loading telemetry metrics..." />
           ) : usageQuery.isError ? (
@@ -620,26 +691,36 @@ export function AdminMonitoringPage() {
             <dl className="grid gap-2 text-sm text-[#4f4b68]">
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
                 <dt>Average latency</dt>
-                <dd className="font-semibold text-[#2f2a46]">{formatLatencyMs(usageQuery.data?.totals.avg_latency_ms)}</dd>
+                <dd className="font-semibold text-[#2f2a46]">
+                  {formatLatencyMs(usageQuery.data?.totals.avg_latency_ms)}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
                 <dt>Average confidence</dt>
-                <dd className="font-semibold text-[#2f2a46]">{formatPercentage(usageQuery.data?.totals.avg_confidence)}</dd>
+                <dd className="font-semibold text-[#2f2a46]">
+                  {formatPercentage(usageQuery.data?.totals.avg_confidence)}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
                 <dt>Estimated cost</dt>
-                <dd className="font-semibold text-[#2f2a46]">{formatUsd(usageQuery.data?.totals.cost_usd)}</dd>
+                <dd className="font-semibold text-[#2f2a46]">
+                  {formatUsd(usageQuery.data?.totals.cost_usd)}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
                 <dt>Tracked events</dt>
-                <dd className="font-semibold text-[#2f2a46]">{usageQuery.data?.totals.event_count ?? 0}</dd>
+                <dd className="font-semibold text-[#2f2a46]">
+                  {usageQuery.data?.totals.event_count ?? 0}
+                </dd>
               </div>
             </dl>
           )}
         </article>
 
         <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">Alert feed availability</h2>
+          <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+            Alert feed availability
+          </h2>
           {!notificationsEndpoint ? (
             <EmptyState
               compact
@@ -676,16 +757,27 @@ export function AdminMonitoringPage() {
               {notificationsQuery.data?.items?.length ? (
                 <ul className="space-y-2">
                   {notificationsQuery.data.items.slice(0, 4).map((item) => (
-                    <li key={item.id} className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2">
+                    <li
+                      key={item.id}
+                      className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-[#2f2a46]">{item.title}</p>
-                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700">
+                        <p className="text-sm font-semibold text-[#2f2a46]">
+                          {item.title}
+                        </p>
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-700 uppercase">
                           {item.severity}
                         </span>
                       </div>
-                      {item.message ? <p className="mt-1 text-xs text-[#5f5a74]">{item.message}</p> : null}
+                      {item.message ? (
+                        <p className="mt-1 text-xs text-[#5f5a74]">
+                          {item.message}
+                        </p>
+                      ) : null}
                       {item.created_at ? (
-                        <p className="mt-1 text-[11px] text-[#6d6985]">{formatTimestamp(item.created_at)}</p>
+                        <p className="mt-1 text-[11px] text-[#6d6985]">
+                          {formatTimestamp(item.created_at)}
+                        </p>
                       ) : null}
                     </li>
                   ))}
@@ -701,7 +793,9 @@ export function AdminMonitoringPage() {
       </section>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="mb-3 text-lg font-bold text-[#2a2640]">External observability links</h2>
+        <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
+          External observability links
+        </h2>
         {configuredMonitoringLinks.length === 0 ? (
           <EmptyState
             compact

@@ -27,7 +27,9 @@ export const organizationOnboardingSchema = z
     invites: z.array(inviteInputSchema).max(20, "You can add up to 20 invites"),
   })
   .superRefine((value, context) => {
-    for (const domain of parseDomainAllowlist(value.domainAllowlistText ?? "")) {
+    for (const domain of parseDomainAllowlist(
+      value.domainAllowlistText ?? "",
+    )) {
       if (!DOMAIN_PATTERN.test(domain)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -67,7 +69,9 @@ export const organizationOnboardingSchema = z
     });
   });
 
-export type OrganizationOnboardingFormValues = z.infer<typeof organizationOnboardingSchema>;
+export type OrganizationOnboardingFormValues = z.infer<
+  typeof organizationOnboardingSchema
+>;
 
 export type OrganizationOnboardingErrorKind =
   | "workspace_conflict"
@@ -128,7 +132,11 @@ function trimToNull(value: string | null | undefined): string | null {
 
 function sanitizeInviteRole(value: string | null | undefined): InviteRole {
   const normalized = trimToNull(value)?.toLowerCase();
-  if (normalized === "admin" || normalized === "member" || normalized === "viewer") {
+  if (
+    normalized === "admin" ||
+    normalized === "member" ||
+    normalized === "viewer"
+  ) {
     return normalized;
   }
 
@@ -137,7 +145,12 @@ function sanitizeInviteRole(value: string | null | undefined): InviteRole {
 
 function sanitizeAppRole(value: string | null | undefined): AppRole {
   const normalized = trimToNull(value)?.toLowerCase();
-  if (normalized === "owner" || normalized === "admin" || normalized === "member" || normalized === "viewer") {
+  if (
+    normalized === "owner" ||
+    normalized === "admin" ||
+    normalized === "member" ||
+    normalized === "viewer"
+  ) {
     return normalized;
   }
 
@@ -159,7 +172,9 @@ function serializeDomainAllowlist(domains: string[]): string {
   return domains.join("\n");
 }
 
-function normalizeInvites(invites: OrganizationOnboardingFormValues["invites"]): OnboardingInvite[] {
+function normalizeInvites(
+  invites: OrganizationOnboardingFormValues["invites"],
+): OnboardingInvite[] {
   const sanitized = invites
     .map((invite) => ({
       email: invite.email.trim().toLowerCase(),
@@ -177,7 +192,9 @@ function normalizeInvites(invites: OrganizationOnboardingFormValues["invites"]):
   return Array.from(deduped.values());
 }
 
-function toDraftPayload(values: OrganizationOnboardingFormValues): OnboardingDraft {
+function toDraftPayload(
+  values: OrganizationOnboardingFormValues,
+): OnboardingDraft {
   return {
     workspace_name: values.workspaceName.trim(),
     domain_allowlist: parseDomainAllowlist(values.domainAllowlistText ?? ""),
@@ -187,11 +204,14 @@ function toDraftPayload(values: OrganizationOnboardingFormValues): OnboardingDra
   };
 }
 
-function fromDraftPayload(draft: Partial<OnboardingDraft>): OrganizationOnboardingFormValues {
+function fromDraftPayload(
+  draft: Partial<OnboardingDraft>,
+): OrganizationOnboardingFormValues {
   return {
     workspaceName: trimToNull(draft.workspace_name) ?? "",
     domainAllowlistText: serializeDomainAllowlist(draft.domain_allowlist ?? []),
-    defaultAccessRole: draft.default_access_role === "viewer" ? "viewer" : "member",
+    defaultAccessRole:
+      draft.default_access_role === "viewer" ? "viewer" : "member",
     allowSelfServeJoin: draft.allow_self_serve_join ?? true,
     invites:
       draft.invites?.map((invite) => ({
@@ -203,12 +223,19 @@ function fromDraftPayload(draft: Partial<OnboardingDraft>): OrganizationOnboardi
 
 function getOnboardingConfig(): OrganizationOnboardingConfig {
   return {
-    resumeUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL),
-    saveUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL),
-    completeUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL),
+    resumeUrl: trimToNull(
+      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL,
+    ),
+    saveUrl: trimToNull(
+      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL,
+    ),
+    completeUrl: trimToNull(
+      process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_COMPLETE_URL,
+    ),
     localFallbackEnabled:
-      trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK) === "true" ||
-      process.env.NODE_ENV !== "production",
+      trimToNull(
+        process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK,
+      ) === "true" || process.env.NODE_ENV !== "production",
   };
 }
 
@@ -217,7 +244,10 @@ function saveDraftToStorage(draft: OnboardingDraft): void {
     return;
   }
 
-  window.localStorage.setItem(ONBOARDING_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  window.localStorage.setItem(
+    ONBOARDING_DRAFT_STORAGE_KEY,
+    JSON.stringify(draft),
+  );
 }
 
 function readDraftFromStorage(): OnboardingDraft | null {
@@ -280,7 +310,10 @@ function toOnboardingError(error: unknown): OrganizationOnboardingError {
     }
   }
 
-  return new OrganizationOnboardingError("unknown", "Organization setup failed. Please try again.");
+  return new OrganizationOnboardingError(
+    "unknown",
+    "Organization setup failed. Please try again.",
+  );
 }
 
 function deriveOrganizationId(workspaceName: string): string {
@@ -309,13 +342,20 @@ export async function loadOrganizationOnboardingDraft(): Promise<OrganizationOnb
 
   if (config.resumeUrl) {
     try {
-      const payload = await apiRequest<Partial<OnboardingDraft>>(config.resumeUrl, {
-        method: "GET",
-        retry: false,
-      });
+      const payload = await apiRequest<Partial<OnboardingDraft>>(
+        config.resumeUrl,
+        {
+          method: "GET",
+          retry: false,
+        },
+      );
 
       const values = fromDraftPayload(payload);
-      if (!values.workspaceName && values.invites.length === 0 && !values.domainAllowlistText) {
+      if (
+        !values.workspaceName &&
+        values.invites.length === 0 &&
+        !values.domainAllowlistText
+      ) {
         return null;
       }
 
@@ -379,8 +419,11 @@ export async function completeOrganizationOnboarding(
       clearOnboardingDraft();
 
       return {
-        organizationId: trimToNull(response.organization_id) ?? deriveOrganizationId(draft.workspace_name),
-        organizationName: trimToNull(response.organization_name) ?? draft.workspace_name,
+        organizationId:
+          trimToNull(response.organization_id) ??
+          deriveOrganizationId(draft.workspace_name),
+        organizationName:
+          trimToNull(response.organization_name) ?? draft.workspace_name,
         role: sanitizeAppRole(response.role),
       };
     } catch (error) {

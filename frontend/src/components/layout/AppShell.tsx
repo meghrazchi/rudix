@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -42,7 +49,9 @@ function roleLabel(role: AuthenticatedSession["role"]): string {
   return "Viewer";
 }
 
-function routeDisabledReason(reason: AppNavigationItem["disabledReason"]): string {
+function routeDisabledReason(
+  reason: AppNavigationItem["disabledReason"],
+): string {
   if (reason === "insufficient_role") {
     return "Insufficient role";
   }
@@ -134,7 +143,9 @@ function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
 
 type TopBarMenuKey = "notifications" | "help" | "profile";
 
-function notificationSeverityClass(severity: "info" | "warning" | "error"): string {
+function notificationSeverityClass(
+  severity: "info" | "warning" | "error",
+): string {
   if (severity === "error") {
     return "bg-rose-100 text-rose-800";
   }
@@ -205,7 +216,13 @@ function NavList({
   );
 }
 
-export function AppShell({ activeRoute, navItems, session, onSignOut, children }: AppShellProps) {
+export function AppShell({
+  activeRoute,
+  navItems,
+  session,
+  onSignOut,
+  children,
+}: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<TopBarMenuKey | null>(null);
   const mobileSidebarRef = useRef<HTMLElement | null>(null);
@@ -214,21 +231,31 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   const helpItems = useMemo(() => resolveHelpMenuItems(), []);
-  const notificationsEndpoint = useMemo(() => resolveNotificationsEndpoint(), []);
+  const notificationsEndpoint = useMemo(
+    () => resolveNotificationsEndpoint(),
+    [],
+  );
 
   const notificationsQuery = useQuery({
-    queryKey: notificationsEndpoint ? queryKeys.topBar.notifications(notificationsEndpoint) : ["top-bar", "notifications", "none"],
+    queryKey: notificationsEndpoint
+      ? queryKeys.topBar.notifications(notificationsEndpoint)
+      : ["top-bar", "notifications", "none"],
     queryFn: () => getTopBarNotifications(notificationsEndpoint as string),
     enabled: openMenu === "notifications" && Boolean(notificationsEndpoint),
   });
 
   const visibleNotifications = useMemo(
-    () => filterNotificationsByRole(notificationsQuery.data?.items ?? [], session.role),
+    () =>
+      filterNotificationsByRole(
+        notificationsQuery.data?.items ?? [],
+        session.role,
+      ),
     [notificationsQuery.data?.items, session.role],
   );
 
   const notificationCount = visibleNotifications.length;
-  const showNotificationUnavailable = !notificationsEndpoint || notificationsQuery.isError;
+  const showNotificationUnavailable =
+    !notificationsEndpoint || notificationsQuery.isError;
 
   const closeMobileSidebar = useCallback(() => {
     setMobileSidebarOpen(false);
@@ -291,7 +318,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
           ? helpMenuRef.current
           : profileMenuRef.current;
 
-    const focusTarget = activeMenuContainer?.querySelector<HTMLElement>("[data-menu-autofocus='true']");
+    const focusTarget = activeMenuContainer?.querySelector<HTMLElement>(
+      "[data-menu-autofocus='true']",
+    );
     focusTarget?.focus();
   }, [openMenu]);
 
@@ -312,25 +341,40 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
         <aside className="hidden w-64 shrink-0 border-r border-[#d7d4e7] bg-[#f7f5ff] px-5 py-8 lg:block">
           <div className="mb-6">
             <div className="flex items-center gap-2">
-              <Image src={BRAND_LOGO_SRC} alt="Rudix logo" width={26} height={26} className="h-6 w-6" />
+              <Image
+                src={BRAND_LOGO_SRC}
+                alt="Rudix logo"
+                width={26}
+                height={26}
+                className="h-6 w-6"
+              />
               <p className="text-2xl font-extrabold text-[#3525cd]">Rudix</p>
             </div>
-            <p className="text-sm font-semibold text-[#5e5b72]">Enterprise RAG</p>
+            <p className="text-sm font-semibold text-[#5e5b72]">
+              Enterprise RAG
+            </p>
           </div>
 
           <NavList navItems={navItems} />
 
           <div className="mt-8 rounded-xl border border-[#d8d3f1] bg-white p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Organization</p>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+              Organization
+            </p>
             <p className="mt-1 text-sm font-semibold text-slate-800">
-              {session.organizationName ?? session.organizationId ?? "Unassigned"}
+              {session.organizationName ??
+                session.organizationId ??
+                "Unassigned"}
             </p>
             <p className="text-xs text-slate-500">{roleLabel(session.role)}</p>
           </div>
         </aside>
 
         {mobileSidebarOpen ? (
-          <div className="fixed inset-0 z-40 bg-[#17172a]/40 lg:hidden" onClick={closeMobileSidebar}>
+          <div
+            className="fixed inset-0 z-40 bg-[#17172a]/40 lg:hidden"
+            onClick={closeMobileSidebar}
+          >
             <aside
               ref={mobileSidebarRef}
               role="dialog"
@@ -342,10 +386,18 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <Image src={BRAND_LOGO_SRC} alt="Rudix logo" width={22} height={22} className="h-5 w-5" />
-                    <p className="text-xl font-extrabold text-[#3525cd]">Rudix</p>
+                    <Image
+                      src={BRAND_LOGO_SRC}
+                      alt="Rudix logo"
+                      width={22}
+                      height={22}
+                      className="h-5 w-5"
+                    />
+                    <p className="text-xl font-extrabold text-[#3525cd]">
+                      Rudix
+                    </p>
                   </div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#5e5b72]">
+                  <p className="text-xs font-semibold tracking-wide text-[#5e5b72] uppercase">
                     Enterprise RAG
                   </p>
                 </div>
@@ -378,7 +430,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                   <h1 className="truncate text-xl font-semibold text-[#3525cd] lg:text-2xl">
                     {activeRoute.label}
                   </h1>
-                  <p className="truncate text-xs text-[#6b6880]">{activeRoute.description}</p>
+                  <p className="truncate text-xs text-[#6b6880]">
+                    {activeRoute.description}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -409,7 +463,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                       aria-label="Notifications menu"
                       className="absolute right-0 z-50 mt-2 w-[360px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
-                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#5d58a8]">Notifications</p>
+                      <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
+                        Notifications
+                      </p>
 
                       {!notificationsEndpoint ? (
                         <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
@@ -421,7 +477,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                         </p>
                       ) : notificationsQuery.isError ? (
                         <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-                          <p className="text-sm text-rose-700">{getApiErrorMessage(notificationsQuery.error)}</p>
+                          <p className="text-sm text-rose-700">
+                            {getApiErrorMessage(notificationsQuery.error)}
+                          </p>
                           <button
                             type="button"
                             data-menu-autofocus="true"
@@ -443,37 +501,53 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                       ) : (
                         <ul className="max-h-[320px] space-y-2 overflow-auto">
                           {visibleNotifications.map((notification, index) => {
-                            const createdAtLabel = formatNotificationTime(notification.created_at);
+                            const createdAtLabel = formatNotificationTime(
+                              notification.created_at,
+                            );
                             const content = (
                               <>
                                 <div className="flex items-start justify-between gap-2">
-                                  <p className="text-sm font-semibold text-[#2f2a46]">{notification.title}</p>
+                                  <p className="text-sm font-semibold text-[#2f2a46]">
+                                    {notification.title}
+                                  </p>
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${notificationSeverityClass(notification.severity)}`}
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${notificationSeverityClass(notification.severity)}`}
                                   >
                                     {notification.severity}
                                   </span>
                                 </div>
                                 {notification.message ? (
-                                  <p className="mt-1 text-xs text-[#5f5a74]">{notification.message}</p>
+                                  <p className="mt-1 text-xs text-[#5f5a74]">
+                                    {notification.message}
+                                  </p>
                                 ) : null}
                                 {createdAtLabel ? (
-                                  <p className="mt-1 text-[11px] text-[#6d6985]">{createdAtLabel}</p>
+                                  <p className="mt-1 text-[11px] text-[#6d6985]">
+                                    {createdAtLabel}
+                                  </p>
                                 ) : null}
                               </>
                             );
 
                             if (notification.href) {
-                              const external = isExternalHref(notification.href);
+                              const external = isExternalHref(
+                                notification.href,
+                              );
                               return (
                                 <li key={notification.id}>
                                   <Link
                                     href={notification.href}
                                     role="menuitem"
-                                    data-menu-autofocus={index === 0 ? "true" : undefined}
+                                    data-menu-autofocus={
+                                      index === 0 ? "true" : undefined
+                                    }
                                     onClick={closeMenu}
                                     target={external ? "_blank" : undefined}
-                                    rel={external ? "noreferrer noopener" : undefined}
+                                    rel={
+                                      external
+                                        ? "noreferrer noopener"
+                                        : undefined
+                                    }
                                     className="block rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 hover:bg-[#f3f0ff]"
                                   >
                                     {content}
@@ -487,7 +561,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                                 key={notification.id}
                                 role="menuitem"
                                 tabIndex={0}
-                                data-menu-autofocus={index === 0 ? "true" : undefined}
+                                data-menu-autofocus={
+                                  index === 0 ? "true" : undefined
+                                }
                                 className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
                               >
                                 {content}
@@ -499,7 +575,8 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
 
                       {showNotificationUnavailable ? (
                         <p className="mt-2 text-[11px] text-[#7a7692]">
-                          Usage warnings and failed-job alerts will appear here when the backend feed is available.
+                          Usage warnings and failed-job alerts will appear here
+                          when the backend feed is available.
                         </p>
                       ) : null}
                     </div>
@@ -524,7 +601,9 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                       aria-label="Help menu"
                       className="absolute right-0 z-50 mt-2 w-[260px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
-                      <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#5d58a8]">Help</p>
+                      <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
+                        Help
+                      </p>
                       {helpItems.length === 0 ? (
                         <p
                           data-menu-autofocus="true"
@@ -541,10 +620,14 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                                 <Link
                                   href={item.href}
                                   role="menuitem"
-                                  data-menu-autofocus={index === 0 ? "true" : undefined}
+                                  data-menu-autofocus={
+                                    index === 0 ? "true" : undefined
+                                  }
                                   onClick={closeMenu}
                                   target={external ? "_blank" : undefined}
-                                  rel={external ? "noreferrer noopener" : undefined}
+                                  rel={
+                                    external ? "noreferrer noopener" : undefined
+                                  }
                                   className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                                 >
                                   {item.label}
@@ -576,13 +659,24 @@ export function AppShell({ activeRoute, navItems, session, onSignOut, children }
                       aria-label="Profile menu panel"
                       className="absolute right-0 z-50 mt-2 w-[280px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#5d58a8]">User profile</p>
-                      <p className="mt-2 text-sm font-semibold text-[#2f2a46]">{session.email ?? session.userId}</p>
-                      <p className="text-xs text-[#68647b]">User ID: {session.userId}</p>
-                      <p className="mt-1 text-xs text-[#68647b]">
-                        Organization: {session.organizationName ?? session.organizationId ?? "Unassigned"}
+                      <p className="text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
+                        User profile
                       </p>
-                      <p className="text-xs text-[#68647b]">Role: {roleLabel(session.role)}</p>
+                      <p className="mt-2 text-sm font-semibold text-[#2f2a46]">
+                        {session.email ?? session.userId}
+                      </p>
+                      <p className="text-xs text-[#68647b]">
+                        User ID: {session.userId}
+                      </p>
+                      <p className="mt-1 text-xs text-[#68647b]">
+                        Organization:{" "}
+                        {session.organizationName ??
+                          session.organizationId ??
+                          "Unassigned"}
+                      </p>
+                      <p className="text-xs text-[#68647b]">
+                        Role: {roleLabel(session.role)}
+                      </p>
 
                       <div className="mt-3 border-t border-[#ebe8f7] pt-2">
                         <Link

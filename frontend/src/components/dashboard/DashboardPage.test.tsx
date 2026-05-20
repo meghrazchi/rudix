@@ -27,18 +27,27 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/documents", () => ({
-  listDocuments: (options?: ListDocumentsOptions) => mockApi.listDocuments(options),
+  listDocuments: (options?: ListDocumentsOptions) =>
+    mockApi.listDocuments(options),
 }));
 
 vi.mock("@/lib/api/chat", () => ({
-  listChatSessions: (options?: { limit?: number; offset?: number }) => mockApi.listChatSessions(options),
+  listChatSessions: (options?: { limit?: number; offset?: number }) =>
+    mockApi.listChatSessions(options),
 }));
 
 vi.mock("@/lib/api/admin-usage", () => ({
-  getUsageSummary: (options?: { from?: string; to?: string; granularity?: "day" | "week" | "month" }) =>
-    mockApi.getUsageSummary(options),
-  listAuditLogs: (options?: { from?: string; to?: string; limit?: number; offset?: number }) =>
-    mockApi.listAuditLogs(options),
+  getUsageSummary: (options?: {
+    from?: string;
+    to?: string;
+    granularity?: "day" | "week" | "month";
+  }) => mockApi.getUsageSummary(options),
+  listAuditLogs: (options?: {
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }) => mockApi.listAuditLogs(options),
 }));
 
 function renderPage() {
@@ -69,60 +78,65 @@ describe("DashboardPage", () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
-    process.env = { ...originalEnv, NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE: "true" };
+    process.env = {
+      ...originalEnv,
+      NEXT_PUBLIC_DASHBOARD_ENABLE_ADMIN_USAGE: "true",
+    };
 
     mockApi.listDocuments.mockReset();
     mockApi.listChatSessions.mockReset();
     mockApi.getUsageSummary.mockReset();
     mockApi.listAuditLogs.mockReset();
 
-    mockApi.listDocuments.mockImplementation((options?: ListDocumentsOptions) => {
-      if (options?.status === "indexed") {
-        return Promise.resolve({
-          items: [],
-          total: 1,
-          limit: 1,
-          offset: 0,
-          status: "indexed",
-          sort_by: "created_at",
-          sort_order: "desc",
-        });
-      }
-      return Promise.resolve({
-        items: [
-          {
-            document_id: "doc-1",
-            filename: "a.pdf",
-            file_type: "pdf",
+    mockApi.listDocuments.mockImplementation(
+      (options?: ListDocumentsOptions) => {
+        if (options?.status === "indexed") {
+          return Promise.resolve({
+            items: [],
+            total: 1,
+            limit: 1,
+            offset: 0,
             status: "indexed",
-            page_count: 4,
-            chunk_count: 12,
-            error_message: null,
-            error_details: null,
-            created_at: "2026-05-14T00:00:00Z",
-            updated_at: "2026-05-14T00:00:00Z",
-          },
-          {
-            document_id: "doc-2",
-            filename: "b.pdf",
-            file_type: "pdf",
-            status: "processing",
-            page_count: 2,
-            chunk_count: 8,
-            error_message: null,
-            error_details: null,
-            created_at: "2026-05-14T00:00:00Z",
-            updated_at: "2026-05-14T00:00:00Z",
-          },
-        ],
-        total: 2,
-        limit: options?.limit ?? 200,
-        offset: options?.offset ?? 0,
-        status: options?.status ?? null,
-        sort_by: options?.sort_by ?? "updated_at",
-        sort_order: options?.sort_order ?? "desc",
-      });
-    });
+            sort_by: "created_at",
+            sort_order: "desc",
+          });
+        }
+        return Promise.resolve({
+          items: [
+            {
+              document_id: "doc-1",
+              filename: "a.pdf",
+              file_type: "pdf",
+              status: "indexed",
+              page_count: 4,
+              chunk_count: 12,
+              error_message: null,
+              error_details: null,
+              created_at: "2026-05-14T00:00:00Z",
+              updated_at: "2026-05-14T00:00:00Z",
+            },
+            {
+              document_id: "doc-2",
+              filename: "b.pdf",
+              file_type: "pdf",
+              status: "processing",
+              page_count: 2,
+              chunk_count: 8,
+              error_message: null,
+              error_details: null,
+              created_at: "2026-05-14T00:00:00Z",
+              updated_at: "2026-05-14T00:00:00Z",
+            },
+          ],
+          total: 2,
+          limit: options?.limit ?? 200,
+          offset: options?.offset ?? 0,
+          status: options?.status ?? null,
+          sort_by: options?.sort_by ?? "updated_at",
+          sort_order: options?.sort_order ?? "desc",
+        });
+      },
+    );
 
     mockApi.listChatSessions.mockResolvedValue({
       items: [
@@ -218,32 +232,64 @@ describe("DashboardPage", () => {
     renderPage();
 
     await screen.findByText("Latest documents");
-    expect(screen.getByRole("link", { name: "Upload document" })).toHaveAttribute("href", "/documents");
-    expect(screen.getByRole("link", { name: "New chat" })).toHaveAttribute("href", "/chat");
-    expect(screen.getByRole("link", { name: "Evaluation run" })).toHaveAttribute("href", "/evaluations");
-    expect(screen.getByRole("link", { name: "Pipeline explorer" })).toHaveAttribute("href", "/rag-pipeline");
+    expect(
+      screen.getByRole("link", { name: "Upload document" }),
+    ).toHaveAttribute("href", "/documents");
+    expect(screen.getByRole("link", { name: "New chat" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+    expect(
+      screen.getByRole("link", { name: "Evaluation run" }),
+    ).toHaveAttribute("href", "/evaluations");
+    expect(
+      screen.getByRole("link", { name: "Pipeline explorer" }),
+    ).toHaveAttribute("href", "/rag-pipeline");
 
-    const latestDocumentsSection = screen.getByText("Latest documents").closest("section");
+    const latestDocumentsSection = screen
+      .getByText("Latest documents")
+      .closest("section");
     if (!latestDocumentsSection) {
       throw new Error("Latest documents section is missing");
     }
     await waitFor(() => {
-      expect(within(latestDocumentsSection).getByText("a.pdf")).toBeInTheDocument();
-      expect(within(latestDocumentsSection).getByText("b.pdf")).toBeInTheDocument();
+      expect(
+        within(latestDocumentsSection).getByText("a.pdf"),
+      ).toBeInTheDocument();
+      expect(
+        within(latestDocumentsSection).getByText("b.pdf"),
+      ).toBeInTheDocument();
     });
-    expect(within(latestDocumentsSection).getByText("indexed")).toHaveClass("bg-emerald-100");
-    expect(within(latestDocumentsSection).getByText("processing")).toHaveClass("bg-blue-100");
+    expect(within(latestDocumentsSection).getByText("indexed")).toHaveClass(
+      "bg-emerald-100",
+    );
+    expect(within(latestDocumentsSection).getByText("processing")).toHaveClass(
+      "bg-blue-100",
+    );
 
-    const detailLinks = within(latestDocumentsSection).getAllByRole("link", { name: "View document" });
-    expect(detailLinks[0]).toHaveAttribute("href", "/documents?document_id=doc-1");
+    const detailLinks = within(latestDocumentsSection).getAllByRole("link", {
+      name: "View document",
+    });
+    expect(detailLinks[0]).toHaveAttribute(
+      "href",
+      "/documents?document_id=doc-1",
+    );
 
-    const recentActivitySection = screen.getByText("Recent activity").closest("section");
+    const recentActivitySection = screen
+      .getByText("Recent activity")
+      .closest("section");
     if (!recentActivitySection) {
       throw new Error("Recent activity section is missing");
     }
-    expect(within(recentActivitySection).getByText("Chat questions")).toBeInTheDocument();
-    const activityLinks = within(recentActivitySection).getAllByRole("link", { name: "Open" });
-    const activityHrefs = activityLinks.map((link) => link.getAttribute("href"));
+    expect(
+      within(recentActivitySection).getByText("Chat questions"),
+    ).toBeInTheDocument();
+    const activityLinks = within(recentActivitySection).getAllByRole("link", {
+      name: "Open",
+    });
+    const activityHrefs = activityLinks.map((link) =>
+      link.getAttribute("href"),
+    );
     expect(activityHrefs).toContain("/chat?session_id=s-1");
   });
 

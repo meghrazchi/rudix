@@ -17,9 +17,9 @@ function isVisible(element: HTMLElement): boolean {
 }
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (element) => !element.hasAttribute("inert") && isVisible(element),
-  );
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+  ).filter((element) => !element.hasAttribute("inert") && isVisible(element));
 }
 
 type UseOverlayFocusOptions = {
@@ -50,10 +50,13 @@ export function useOverlayFocus({
     }
 
     previouslyFocusedRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
 
     const focusInitialElement = () => {
-      const explicitAutofocus = container.querySelector<HTMLElement>(autofocusSelector);
+      const explicitAutofocus =
+        container.querySelector<HTMLElement>(autofocusSelector);
       const focusable = getFocusableElements(container);
       const nextFocus = explicitAutofocus ?? focusable[0] ?? container;
 
@@ -89,7 +92,10 @@ export function useOverlayFocus({
 
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const active =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
 
       if (!active || !container.contains(active)) {
         event.preventDefault();
@@ -126,4 +132,3 @@ export function useOverlayFocus({
     };
   }, [autofocusSelector, containerRef, isOpen, lockBodyScroll, onClose]);
 }
-

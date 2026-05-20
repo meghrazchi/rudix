@@ -115,14 +115,18 @@ export type ChatMessageRequest = {
   stream?: boolean;
 };
 
-export async function createChatSession(payload: CreateChatSessionRequest = {}): Promise<ChatSessionResponse> {
+export async function createChatSession(
+  payload: CreateChatSessionRequest = {},
+): Promise<ChatSessionResponse> {
   return apiRequest<ChatSessionResponse>("/chat/sessions", {
     method: "POST",
     json: payload,
   });
 }
 
-export async function listChatSessions(params: { limit?: number; offset?: number } = {}): Promise<ChatSessionListResponse> {
+export async function listChatSessions(
+  params: { limit?: number; offset?: number } = {},
+): Promise<ChatSessionListResponse> {
   return apiRequest<ChatSessionListResponse>("/chat/sessions", {
     query: {
       limit: params.limit,
@@ -131,8 +135,12 @@ export async function listChatSessions(params: { limit?: number; offset?: number
   });
 }
 
-export async function getChatSession(sessionId: string): Promise<ChatSessionResponse> {
-  return apiRequest<ChatSessionResponse>(`/chat/sessions/${encodeURIComponent(sessionId)}`);
+export async function getChatSession(
+  sessionId: string,
+): Promise<ChatSessionResponse> {
+  return apiRequest<ChatSessionResponse>(
+    `/chat/sessions/${encodeURIComponent(sessionId)}`,
+  );
 }
 
 export async function listChatSessionMessages(
@@ -150,7 +158,9 @@ export async function listChatSessionMessages(
   );
 }
 
-export async function queryChat(payload: ChatQueryRequest): Promise<ChatQueryResponse> {
+export async function queryChat(
+  payload: ChatQueryRequest,
+): Promise<ChatQueryResponse> {
   return apiRequest<ChatQueryResponse>("/chat", {
     method: "POST",
     json: payload,
@@ -161,8 +171,11 @@ export async function createChatMessage(
   sessionId: string,
   payload: ChatMessageRequest,
 ): Promise<ChatMessageResponse> {
-  return apiRequest<ChatMessageResponse>(`/chat/sessions/${encodeURIComponent(sessionId)}/messages`, {
-    method: "POST",
-    json: payload,
-  });
+  return apiRequest<ChatMessageResponse>(
+    `/chat/sessions/${encodeURIComponent(sessionId)}/messages`,
+    {
+      method: "POST",
+      json: payload,
+    },
+  );
 }

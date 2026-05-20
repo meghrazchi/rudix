@@ -14,7 +14,9 @@ import {
   resolveUsageDateRange,
 } from "@/lib/dashboard";
 
-function usageFixture(overrides?: Partial<UsageSummaryResponse>): UsageSummaryResponse {
+function usageFixture(
+  overrides?: Partial<UsageSummaryResponse>,
+): UsageSummaryResponse {
   return {
     organization_id: "org-1",
     range: { from: "2026-05-01", to: "2026-05-31" },

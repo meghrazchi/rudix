@@ -13,9 +13,13 @@ describe("ForbiddenPage", () => {
 
     render(page);
 
-    expect(screen.getByRole("heading", { name: "Forbidden" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Forbidden" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Requested route/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("/admin/documents/private-record-123")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("/admin/documents/private-record-123"),
+    ).not.toBeInTheDocument();
   });
 
   it("displays safe trace/request ID when provided", async () => {

@@ -104,7 +104,8 @@ describe("startLoginSession", () => {
       }),
     ).rejects.toMatchObject({
       kind: "network_failure",
-      safeMessage: "Unable to sign in right now. Check your connection and try again.",
+      safeMessage:
+        "Unable to sign in right now. Check your connection and try again.",
     } satisfies Partial<LoginFlowError>);
   });
 });

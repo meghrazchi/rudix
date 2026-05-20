@@ -11,7 +11,9 @@ import { normalizeApiError } from "@/lib/api/errors";
 
 describe("State components", () => {
   it("renders loading state", () => {
-    render(<LoadingState title="Loading documents..." description="Please wait." />);
+    render(
+      <LoadingState title="Loading documents..." description="Please wait." />,
+    );
     expect(screen.getByText("Loading documents...")).toBeInTheDocument();
     expect(screen.getByText("Please wait.")).toBeInTheDocument();
   });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiClientError, normalizeApiError, normalizeBackendError } from "@/lib/api/errors";
+import {
+  ApiClientError,
+  normalizeApiError,
+  normalizeBackendError,
+} from "@/lib/api/errors";
 
 describe("normalizeBackendError", () => {
   it("extracts message and code from nested detail envelopes", () => {

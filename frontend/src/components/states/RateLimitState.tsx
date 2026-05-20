@@ -29,8 +29,16 @@ export function RateLimitState({
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-amber-900`}
     >
-      <p className={compact ? "text-sm font-semibold" : "text-base font-semibold"}>{title}</p>
-      <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"}`}>{description}</p>
+      <p
+        className={
+          compact ? "text-sm font-semibold" : "text-base font-semibold"
+        }
+      >
+        {title}
+      </p>
+      <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"}`}>
+        {description}
+      </p>
       {safeRequestId ? (
         <p className="mt-2 text-xs">
           Trace ID: <span className="font-semibold">{safeRequestId}</span>

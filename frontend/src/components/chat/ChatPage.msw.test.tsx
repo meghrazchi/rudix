@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -71,7 +80,8 @@ const server = setupServer(
       status: "indexed",
       sort_by: "updated_at",
       sort_order: "desc",
-    })),
+    }),
+  ),
   http.post(`${apiBaseUrl}/chat/sessions`, async () =>
     HttpResponse.json(
       {
@@ -82,7 +92,8 @@ const server = setupServer(
         updated_at: "2026-05-15T10:10:00Z",
       },
       { status: 201 },
-    )),
+    ),
+  ),
   http.post(`${apiBaseUrl}/chat`, async ({ request }) => {
     const payload = (await request.json()) as {
       chat_session_id?: string;
@@ -180,19 +191,24 @@ describe("ChatPage sessions (MSW)", () => {
   it("shows session list error state", async () => {
     server.use(
       http.get(`${apiBaseUrl}/chat/sessions`, async () =>
-        HttpResponse.json({ detail: "service down" }, { status: 503 })),
+        HttpResponse.json({ detail: "service down" }, { status: 503 }),
+      ),
     );
 
     renderPage();
 
-    expect(await screen.findByText(/The service is temporarily unavailable/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/The service is temporarily unavailable/i),
+    ).toBeInTheDocument();
   });
 
   it("submits a new question and renders the successful response", async () => {
     renderPage();
 
     await screen.findByText("MSW Session");
-    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    const textarea = screen.getByPlaceholderText(
+      "Ask a question about your selected documents...",
+    );
     await userEvent.type(textarea, "When did it start?");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
@@ -205,13 +221,19 @@ describe("ChatPage sessions (MSW)", () => {
     renderPage();
 
     await screen.findByText("MSW Session");
-    await userEvent.click(screen.getByRole("checkbox", { name: /indexed\.pdf/i }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /indexed\.pdf/i }),
+    );
 
     const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
     fireEvent.change(topKInput, { target: { value: "8" } });
-    await userEvent.click(screen.getByRole("checkbox", { name: /Enable rerank/i }));
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /Enable rerank/i }),
+    );
 
-    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    const textarea = screen.getByPlaceholderText(
+      "Ask a question about your selected documents...",
+    );
     await userEvent.type(textarea, "Send payload");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
@@ -229,17 +251,22 @@ describe("ChatPage sessions (MSW)", () => {
   it("preserves the draft question when submission fails", async () => {
     server.use(
       http.post(`${apiBaseUrl}/chat`, async () =>
-        HttpResponse.json({ detail: "upstream timeout" }, { status: 503 })),
+        HttpResponse.json({ detail: "upstream timeout" }, { status: 503 }),
+      ),
     );
 
     renderPage();
 
     await screen.findByText("MSW Session");
-    const textarea = screen.getByPlaceholderText("Ask a question about your selected documents...");
+    const textarea = screen.getByPlaceholderText(
+      "Ask a question about your selected documents...",
+    );
     await userEvent.type(textarea, "Keep this draft");
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Unable to complete the query.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Unable to complete the query."),
+    ).toBeInTheDocument();
     expect(screen.getByDisplayValue("Keep this draft")).toBeInTheDocument();
   });
 });

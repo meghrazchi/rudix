@@ -158,8 +158,12 @@ export async function createAgentRun(
   });
 }
 
-export async function getAgentRun(runId: string): Promise<AgentRunDetailResponse> {
-  return apiRequest<AgentRunDetailResponse>(`/agent/runs/${encodeURIComponent(runId)}`);
+export async function getAgentRun(
+  runId: string,
+): Promise<AgentRunDetailResponse> {
+  return apiRequest<AgentRunDetailResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}`,
+  );
 }
 
 export async function decideAgentRunApproval(

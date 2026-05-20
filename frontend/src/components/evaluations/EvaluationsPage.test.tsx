@@ -46,10 +46,14 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/evaluations", () => ({
-  listEvaluationSets: (...args: unknown[]) => mockApi.listEvaluationSets(...args),
-  listEvaluationQuestions: (...args: unknown[]) => mockApi.listEvaluationQuestions(...args),
-  createEvaluationSet: (...args: unknown[]) => mockApi.createEvaluationSet(...args),
-  createEvaluationQuestion: (...args: unknown[]) => mockApi.createEvaluationQuestion(...args),
+  listEvaluationSets: (...args: unknown[]) =>
+    mockApi.listEvaluationSets(...args),
+  listEvaluationQuestions: (...args: unknown[]) =>
+    mockApi.listEvaluationQuestions(...args),
+  createEvaluationSet: (...args: unknown[]) =>
+    mockApi.createEvaluationSet(...args),
+  createEvaluationQuestion: (...args: unknown[]) =>
+    mockApi.createEvaluationQuestion(...args),
   runEvaluation: (...args: unknown[]) => mockApi.runEvaluation(...args),
   getEvaluationRun: (...args: unknown[]) => mockApi.getEvaluationRun(...args),
 }));
@@ -272,12 +276,16 @@ describe("EvaluationsPage", () => {
     renderPage();
 
     await screen.findByRole("button", { name: "Run evaluation" });
-    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Run evaluation" }),
+    );
     await screen.findByRole("dialog");
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     await screen.findByText("Run status: completed");
-    expect(screen.getByRole("link", { name: "View pipeline run" })).toHaveAttribute(
+    expect(
+      screen.getByRole("link", { name: "View pipeline run" }),
+    ).toHaveAttribute(
       "href",
       "/rag-pipeline?run_type=evaluation.run&evaluation_run_id=run-1",
     );
@@ -295,11 +303,17 @@ describe("EvaluationsPage", () => {
     expect(screen.getByText("Average latency")).toBeInTheDocument();
     expect(screen.getByText("Estimated cost")).toBeInTheDocument();
 
-    expect(screen.getByRole("button", { name: "Failed/low (1)" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Failed/low (1)" }));
+    expect(
+      screen.getByRole("button", { name: "Failed/low (1)" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Failed/low (1)" }),
+    );
 
     await waitFor(() => {
-      expect(screen.getByText("No supporting chunks found")).toBeInTheDocument();
+      expect(
+        screen.getByText("No supporting chunks found"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -327,7 +341,9 @@ describe("EvaluationsPage", () => {
 
     expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
     expect(await screen.findByText(/Failure:/i)).toBeInTheDocument();
-    expect(await screen.findByText(/Pipeline worker timeout\./i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Pipeline worker timeout\./i),
+    ).toBeInTheDocument();
     expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
   });
 
@@ -401,21 +417,33 @@ describe("EvaluationsPage", () => {
     expect(screen.queryByText("Low quality answer?")).not.toBeInTheDocument();
     expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Low score (1)" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Low score (1)" }),
+    );
     expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
-    expect(screen.queryByText("Missing chunk location?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Missing chunk location?"),
+    ).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "High latency (1)" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "High latency (1)" }),
+    );
     expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Not found (1)" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Not found (1)" }),
+    );
     expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Citation issues (1)" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Citation issues (1)" }),
+    );
     expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "All (2)" }));
-    await userEvent.click(screen.getAllByRole("button", { name: "Details" })[0]);
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Details" })[0],
+    );
     expect(await screen.findByText("Metrics JSON")).toBeInTheDocument();
     expect(await screen.findByText("Details JSON")).toBeInTheDocument();
   });
@@ -442,11 +470,17 @@ describe("EvaluationsPage", () => {
 
     renderPage("run-missing");
 
-    expect(await screen.findByText("Run not found or inaccessible.")).toBeInTheDocument();
     expect(
-      screen.getByText("The evaluation run may belong to another organization or may no longer exist."),
+      await screen.findByText("Run not found or inaccessible."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to evaluations" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The evaluation run may belong to another organization or may no longer exist.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Back to evaluations" }),
+    ).toBeInTheDocument();
   });
 
   it("renders permission-aware controls for viewer role", async () => {
@@ -467,19 +501,29 @@ describe("EvaluationsPage", () => {
     await screen.findByRole("button", { name: "Run evaluation" });
 
     expect(
-      screen.getByText("Your role can view evaluation sets but only owner/admin can create new sets."),
+      screen.getByText(
+        "Your role can view evaluation sets but only owner/admin can create new sets.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Your role can inspect results but only owner/admin can run evaluations."),
+      screen.getByText(
+        "Your role can inspect results but only owner/admin can run evaluations.",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Your role can view questions but only owner/admin can add new questions."),
+      screen.getByText(
+        "Your role can view questions but only owner/admin can add new questions.",
+      ),
     ).toBeInTheDocument();
 
     const runButton = screen.getByRole("button", { name: "Run evaluation" });
     expect(runButton).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Create evaluation set" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Create evaluation set" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add question" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders question create permissions for member vs admin", async () => {
@@ -499,9 +543,13 @@ describe("EvaluationsPage", () => {
     await screen.findByText("Question management");
 
     expect(
-      await screen.findByText("Your role can view questions but only owner/admin can add new questions."),
+      await screen.findByText(
+        "Your role can view questions but only owner/admin can add new questions.",
+      ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Add question" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add question" }),
+    ).not.toBeInTheDocument();
   });
 
   it("disables run action for member role", async () => {
@@ -518,7 +566,9 @@ describe("EvaluationsPage", () => {
     };
 
     renderPage();
-    const runButton = await screen.findByRole("button", { name: "Run evaluation" });
+    const runButton = await screen.findByRole("button", {
+      name: "Run evaluation",
+    });
     expect(runButton).toBeDisabled();
   });
 
@@ -538,7 +588,9 @@ describe("EvaluationsPage", () => {
     renderPage();
 
     await screen.findByRole("button", { name: "Run evaluation" });
-    await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Run evaluation" }),
+    );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
@@ -546,7 +598,9 @@ describe("EvaluationsPage", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
-    expect(await screen.findByText("Metric options must be valid JSON.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Metric options must be valid JSON."),
+    ).toBeInTheDocument();
     expect(mockApi.runEvaluation).not.toHaveBeenCalled();
   });
 
@@ -568,7 +622,9 @@ describe("EvaluationsPage", () => {
     await screen.findByRole("button", { name: "Add question" });
 
     await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(await screen.findByText("Question is required.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Question is required."),
+    ).toBeInTheDocument();
     expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
 
     await userEvent.type(
@@ -577,7 +633,9 @@ describe("EvaluationsPage", () => {
     );
     await userEvent.type(screen.getByPlaceholderText("Optional"), "invalid");
     await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(await screen.findByText("Expected page must be a positive integer.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Expected page must be a positive integer."),
+    ).toBeInTheDocument();
     expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
 
     await userEvent.clear(screen.getByPlaceholderText("Optional"));
@@ -585,7 +643,9 @@ describe("EvaluationsPage", () => {
       target: { value: "{bad" },
     });
     await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(await screen.findByText("Metadata must be valid JSON.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Metadata must be valid JSON."),
+    ).toBeInTheDocument();
     expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
   });
 
@@ -610,14 +670,21 @@ describe("EvaluationsPage", () => {
     expect(screen.getByText(/Created:/i)).toBeInTheDocument();
     expect(screen.getByText(/Updated:/i)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Create evaluation set" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create evaluation set" }),
+    );
     expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Create set" }));
-    expect(await screen.findByText("Set name is required.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Set name is required."),
+    ).toBeInTheDocument();
 
     await userEvent.type(screen.getByLabelText("Set name"), "Smoke test set");
-    await userEvent.type(screen.getByLabelText("Description"), "Validates retrieval quality");
+    await userEvent.type(
+      screen.getByLabelText("Description"),
+      "Validates retrieval quality",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Create set" }));
 
     await waitFor(() => {

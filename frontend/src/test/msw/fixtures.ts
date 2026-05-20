@@ -1,4 +1,7 @@
-import type { AuditLogListResponse, UsageSummaryResponse } from "@/lib/api/admin-usage";
+import type {
+  AuditLogListResponse,
+  UsageSummaryResponse,
+} from "@/lib/api/admin-usage";
 import type {
   ChatQueryResponse,
   ChatSessionListResponse,
@@ -121,7 +124,8 @@ export const mockChatSessions: ChatSessionListResponse = {
   offset: 0,
 };
 
-export const mockChatSession: ChatSessionResponse = mockChatSessions.items[0] as ChatSessionResponse;
+export const mockChatSession: ChatSessionResponse = mockChatSessions
+  .items[0] as ChatSessionResponse;
 
 export const mockChatMessages: ChatSessionMessageListResponse = {
   items: [
@@ -152,7 +156,8 @@ export const mockChatMessages: ChatSessionMessageListResponse = {
 export const mockChatQueryResponse: ChatQueryResponse = {
   chat_session_id: "session-1",
   message_id: "assistant-msg-2",
-  answer: "Index documents from the Documents page and track status in Dashboard.",
+  answer:
+    "Index documents from the Documents page and track status in Dashboard.",
   confidence_score: 0.78,
   confidence_category: "medium",
   confidence_explanation: {

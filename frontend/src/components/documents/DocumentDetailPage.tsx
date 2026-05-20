@@ -9,8 +9,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import type { DocumentDetailResponse, DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
-import { deleteDocument, getDocument, getDocumentChunks, reindexDocument } from "@/lib/api/documents";
+import type {
+  DocumentDetailResponse,
+  DocumentStatus,
+  DocumentStatusResponse,
+} from "@/lib/api/documents";
+import {
+  deleteDocument,
+  getDocument,
+  getDocumentChunks,
+  reindexDocument,
+} from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
@@ -107,10 +116,14 @@ function timelineStepClass(state: TimelineStepState): string {
   return "border-[#e4e1f2] bg-[#faf9ff] text-[#5f5a74]";
 }
 
-function buildLifecycleTimeline(status: DocumentStatus, detail: DocumentDetailResponse): TimelineStep[] {
+function buildLifecycleTimeline(
+  status: DocumentStatus,
+  detail: DocumentDetailResponse,
+): TimelineStep[] {
   const createdAt = detail.created_at;
   const updatedAt = detail.updated_at;
-  const isTerminal = status === "indexed" || status === "failed" || status === "deleted";
+  const isTerminal =
+    status === "indexed" || status === "failed" || status === "deleted";
 
   return [
     {
@@ -144,7 +157,10 @@ function buildLifecycleTimeline(status: DocumentStatus, detail: DocumentDetailRe
             : status === "deleted" || status === "deleting"
               ? "completed"
               : "pending",
-      timestamp: status === "indexed" || status === "deleted" || status === "deleting" ? updatedAt : null,
+      timestamp:
+        status === "indexed" || status === "deleted" || status === "deleting"
+          ? updatedAt
+          : null,
     },
     {
       key: "failed",
@@ -157,8 +173,14 @@ function buildLifecycleTimeline(status: DocumentStatus, detail: DocumentDetailRe
       key: "deleting",
       label: "Deleting",
       description: "Deletion queued or currently in progress.",
-      state: status === "deleting" ? "active" : status === "deleted" ? "completed" : "pending",
-      timestamp: status === "deleting" || status === "deleted" ? updatedAt : null,
+      state:
+        status === "deleting"
+          ? "active"
+          : status === "deleted"
+            ? "completed"
+            : "pending",
+      timestamp:
+        status === "deleting" || status === "deleted" ? updatedAt : null,
     },
     {
       key: "deleted",
@@ -170,7 +192,10 @@ function buildLifecycleTimeline(status: DocumentStatus, detail: DocumentDetailRe
   ];
 }
 
-function deriveDetailStatus(detail: DocumentDetailResponse, liveStatus: DocumentStatusResponse | undefined): DocumentStatus {
+function deriveDetailStatus(
+  detail: DocumentDetailResponse,
+  liveStatus: DocumentStatusResponse | undefined,
+): DocumentStatus {
   return liveStatus?.status ?? detail.status;
 }
 
@@ -227,7 +252,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       await statusQuery.refetch();
     },
     onError: (error) => {
-      setActionFeedback(getDocumentLifecycleActionErrorMessage("delete", error));
+      setActionFeedback(
+        getDocumentLifecycleActionErrorMessage("delete", error),
+      );
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -235,14 +262,18 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const reindexMutation = useMutation({
     mutationFn: () => reindexDocument(documentId),
     onSuccess: async (result) => {
-      setActionFeedback(`Re-index requested. Queue status: ${result.queue_status}.`);
+      setActionFeedback(
+        `Re-index requested. Queue status: ${result.queue_status}.`,
+      );
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "document.reindex");
       await detailQuery.refetch();
       await statusQuery.refetch();
     },
     onError: (error) => {
-      setActionFeedback(getDocumentLifecycleActionErrorMessage("reindex", error));
+      setActionFeedback(
+        getDocumentLifecycleActionErrorMessage("reindex", error),
+      );
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -250,33 +281,52 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const safeBackHrefRaw = searchParams.get("back");
   const safeBackHref =
     safeBackHrefRaw &&
-    (safeBackHrefRaw.startsWith("/documents") || safeBackHrefRaw.startsWith("/chat"))
+    (safeBackHrefRaw.startsWith("/documents") ||
+      safeBackHrefRaw.startsWith("/chat"))
       ? safeBackHrefRaw
       : "/documents";
 
   const detail = detailQuery.data;
-  const currentStatus = detail ? deriveDetailStatus(detail, statusQuery.data) : null;
+  const currentStatus = detail
+    ? deriveDetailStatus(detail, statusQuery.data)
+    : null;
   const chunkStatus = currentStatus ?? detail?.status ?? null;
   const selectedChunks = chunksQuery.data;
   const lifecycle = useMemo(
-    () => (detail && currentStatus ? buildLifecycleTimeline(currentStatus, detail) : []),
+    () =>
+      detail && currentStatus
+        ? buildLifecycleTimeline(currentStatus, detail)
+        : [],
     [currentStatus, detail],
   );
 
   const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error);
-  const canDelete = Boolean(currentStatus && capabilities.canDelete && canDeleteDocument(currentStatus));
-  const canReindex = Boolean(currentStatus && capabilities.canReindex && canReindexDocument(currentStatus));
+  const canDelete = Boolean(
+    currentStatus && capabilities.canDelete && canDeleteDocument(currentStatus),
+  );
+  const canReindex = Boolean(
+    currentStatus &&
+    capabilities.canReindex &&
+    canReindexDocument(currentStatus),
+  );
   const canAskInChat = currentStatus === "indexed";
   const canGoPrevChunks = chunksOffset > 0;
-  const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
+  const canGoNextChunks = Boolean(
+    selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total,
+  );
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Document Detail</p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Document Metadata and Lifecycle</h1>
+        <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          Rudix Document Detail
+        </p>
+        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+          Document Metadata and Lifecycle
+        </h1>
         <p className="text-sm text-[#68647b]">
-          Review document processing status, metadata, structured errors, and lifecycle actions.
+          Review document processing status, metadata, structured errors, and
+          lifecycle actions.
         </p>
       </header>
 
@@ -292,7 +342,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
         </div>
 
         {detailQuery.isLoading ? (
-          <LoadingState className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]" title="Loading document detail..." />
+          <LoadingState
+            className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]"
+            title="Loading document detail..."
+          />
         ) : null}
 
         {notFoundOrInaccessible ? (
@@ -303,7 +356,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
           />
         ) : null}
 
-        {!detailQuery.isLoading && detailQuery.isError && !notFoundOrInaccessible ? (
+        {!detailQuery.isLoading &&
+        detailQuery.isError &&
+        !notFoundOrInaccessible ? (
           <div className="mt-4">
             <ErrorState
               error={detailQuery.error}
@@ -330,16 +385,34 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard label="Filename" value={detail.filename} />
-              <MetricCard label="File type" value={detail.file_type.toUpperCase()} />
-              <MetricCard label="Status" value={currentStatus} valueClass={statusBadge(currentStatus)} plain={false} />
-              <MetricCard label="Checksum" value={detail.checksum ?? "-"} mono />
+              <MetricCard
+                label="File type"
+                value={detail.file_type.toUpperCase()}
+              />
+              <MetricCard
+                label="Status"
+                value={currentStatus}
+                valueClass={statusBadge(currentStatus)}
+                plain={false}
+              />
+              <MetricCard
+                label="Checksum"
+                value={detail.checksum ?? "-"}
+                mono
+              />
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard label="Pages" value={detail.page_count ?? "-"} />
               <MetricCard label="Chunks" value={detail.chunk_count} />
-              <MetricCard label="Created" value={formatDate(detail.created_at)} />
-              <MetricCard label="Updated" value={formatDate(detail.updated_at)} />
+              <MetricCard
+                label="Created"
+                value={formatDate(detail.created_at)}
+              />
+              <MetricCard
+                label="Updated"
+                value={formatDate(detail.updated_at)}
+              />
             </div>
 
             {detail.error_message ? (
@@ -349,19 +422,24 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 {detail.error_details ? (
                   <ul className="mt-2 space-y-1 text-xs">
                     <li>
-                      <span className="font-semibold">Stage:</span> {detail.error_details.stage}
+                      <span className="font-semibold">Stage:</span>{" "}
+                      {detail.error_details.stage}
                     </li>
                     <li>
-                      <span className="font-semibold">Code:</span> {detail.error_details.code}
+                      <span className="font-semibold">Code:</span>{" "}
+                      {detail.error_details.code}
                     </li>
                     <li>
-                      <span className="font-semibold">Category:</span> {detail.error_details.category}
+                      <span className="font-semibold">Category:</span>{" "}
+                      {detail.error_details.category}
                     </li>
                     <li>
-                      <span className="font-semibold">Retryable:</span> {detail.error_details.retryable ? "yes" : "no"}
+                      <span className="font-semibold">Retryable:</span>{" "}
+                      {detail.error_details.retryable ? "yes" : "no"}
                     </li>
                     <li>
-                      <span className="font-semibold">Message:</span> {detail.error_details.message}
+                      <span className="font-semibold">Message:</span>{" "}
+                      {detail.error_details.message}
                     </li>
                   </ul>
                 ) : null}
@@ -369,7 +447,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
             ) : null}
 
             <section>
-              <h3 className="mb-2 text-base font-bold text-[#2a2640]">Lifecycle timeline</h3>
+              <h3 className="mb-2 text-base font-bold text-[#2a2640]">
+                Lifecycle timeline
+              </h3>
               <ol className="space-y-2">
                 {lifecycle.map((step) => (
                   <li
@@ -378,7 +458,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold">{step.label}</p>
-                      <p className="text-xs">{step.timestamp ? formatDate(step.timestamp) : "-"}</p>
+                      <p className="text-xs">
+                        {step.timestamp ? formatDate(step.timestamp) : "-"}
+                      </p>
                     </div>
                     <p className="mt-1 text-xs">{step.description}</p>
                   </li>
@@ -387,7 +469,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
             </section>
 
             <section>
-              <h3 className="mb-2 text-base font-bold text-[#2a2640]">Actions</h3>
+              <h3 className="mb-2 text-base font-bold text-[#2a2640]">
+                Actions
+              </h3>
               <div className="flex flex-wrap gap-2">
                 {canAskInChat ? (
                   <Link
@@ -449,10 +533,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
             <section>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-[#2a2640]">Chunk preview</h3>
+                <h3 className="text-base font-bold text-[#2a2640]">
+                  Chunk preview
+                </h3>
                 <div className="flex items-center gap-3">
                   {capabilities.canViewChunkFullText ? (
-                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#5f5b72]">
+                    <label className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
                       <input
                         type="checkbox"
                         checked={includeFullText}
@@ -466,7 +552,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     </label>
                   ) : null}
                   {chunksQuery.isFetching ? (
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Refreshing...</span>
+                    <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Refreshing...
+                    </span>
                   ) : null}
                 </div>
               </div>
@@ -487,7 +575,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 />
               ) : null}
 
-              {selectedChunks && selectedChunks.items.length === 0 && chunkStatus ? (
+              {selectedChunks &&
+              selectedChunks.items.length === 0 &&
+              chunkStatus ? (
                 <EmptyState compact title={noChunksMessage(chunkStatus)} />
               ) : null}
 
@@ -498,7 +588,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       key={chunk.chunk_id}
                       className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
                     >
-                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                         <span>Chunk #{chunk.chunk_index}</span>
                         <span>Page {chunk.page_number ?? "-"}</span>
                         <span>{chunk.token_count} tokens</span>
@@ -506,7 +596,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         <span>Index {chunk.index_version}</span>
                         <span>Created {formatDate(chunk.created_at)}</span>
                       </div>
-                      <p className="whitespace-pre-wrap break-words text-sm text-[#2a2640]">
+                      <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
                         {includeFullText && chunk.text
                           ? chunk.text
                           : truncateChunkPreview(chunk.text_preview)}
@@ -515,14 +605,17 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   ))}
                   <div className="mt-2 flex items-center justify-between gap-2">
                     <p className="text-xs text-[#6e6a86]">
-                      Showing {selectedChunks.items.length} of {selectedChunks.total} chunks.
+                      Showing {selectedChunks.items.length} of{" "}
+                      {selectedChunks.total} chunks.
                     </p>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         disabled={!canGoPrevChunks}
                         onClick={() =>
-                          setChunksOffset((current) => Math.max(0, current - CHUNK_PAGE_SIZE))
+                          setChunksOffset((current) =>
+                            Math.max(0, current - CHUNK_PAGE_SIZE),
+                          )
                         }
                         className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                       >
@@ -531,7 +624,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       <button
                         type="button"
                         disabled={!canGoNextChunks}
-                        onClick={() => setChunksOffset((current) => current + CHUNK_PAGE_SIZE)}
+                        onClick={() =>
+                          setChunksOffset(
+                            (current) => current + CHUNK_PAGE_SIZE,
+                          )
+                        }
                         className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Next
@@ -564,7 +661,9 @@ function MetricCard({
   if (!plain && valueClass) {
     return (
       <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+          {label}
+        </p>
         <span className={valueClass}>{value}</span>
       </div>
     );
@@ -572,12 +671,17 @@ function MetricCard({
 
   return (
     <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+        {label}
+      </p>
       <p
         className="text-sm font-semibold text-[#2a2640]"
         style={
           mono
-            ? { fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace" }
+            ? {
+                fontFamily:
+                  "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace",
+              }
             : undefined
         }
       >

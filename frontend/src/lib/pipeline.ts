@@ -185,7 +185,11 @@ export const fallbackChatPipelineGraph: PipelineRunGraphResponse = {
     { id: "e-chat-rerank-build", source: "rerank", target: "build-prompt" },
     { id: "e-chat-build-llm", source: "build-prompt", target: "llm" },
     { id: "e-chat-llm-validate", source: "llm", target: "validate-citations" },
-    { id: "e-chat-validate-persist", source: "validate-citations", target: "persist-response" },
+    {
+      id: "e-chat-validate-persist",
+      source: "validate-citations",
+      target: "persist-response",
+    },
   ],
 };
 
@@ -231,8 +235,16 @@ export const fallbackEvaluationPipelineGraph: PipelineRunGraphResponse = {
   edges: [
     { id: "e-eval-load-run", source: "load-set", target: "run-question" },
     { id: "e-eval-run-score", source: "run-question", target: "score-metrics" },
-    { id: "e-eval-score-aggregate", source: "score-metrics", target: "aggregate-summary" },
-    { id: "e-eval-aggregate-persist", source: "aggregate-summary", target: "persist-results" },
+    {
+      id: "e-eval-score-aggregate",
+      source: "score-metrics",
+      target: "aggregate-summary",
+    },
+    {
+      id: "e-eval-aggregate-persist",
+      source: "aggregate-summary",
+      target: "persist-results",
+    },
   ],
 };
 

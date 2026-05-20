@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { useQuery } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -37,7 +46,12 @@ function HarnessProbe() {
   const status = searchParams.get("status") ?? undefined;
   const documentsQuery = useQuery({
     queryKey: ["probe", "documents", status],
-    queryFn: () => listDocuments({ status: status as "indexed" | undefined, limit: 20, offset: 0 }),
+    queryFn: () =>
+      listDocuments({
+        status: status as "indexed" | undefined,
+        limit: 20,
+        offset: 0,
+      }),
   });
   const sessionsQuery = useQuery({
     queryKey: ["probe", "chat-sessions"],

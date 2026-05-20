@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -31,17 +36,27 @@ import {
   type ChatQueryRequest,
   type ChatQueryResponse,
 } from "@/lib/api/chat";
-import { listDocuments, type DocumentListItemResponse } from "@/lib/api/documents";
+import {
+  listDocuments,
+  type DocumentListItemResponse,
+} from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
-import { buildPipelineExplorerHref, normalizePipelineRunType, type PipelineRunType } from "@/lib/pipeline-links";
+import {
+  buildPipelineExplorerHref,
+  normalizePipelineRunType,
+  type PipelineRunType,
+} from "@/lib/pipeline-links";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const DRAFT_SESSION_KEY = "__draft__";
 
-function parsePositiveIntegerEnv(value: string | undefined, fallback: number): number {
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
   if (!value) {
     return fallback;
   }
@@ -53,23 +68,42 @@ function parsePositiveIntegerEnv(value: string | undefined, fallback: number): n
   return parsed;
 }
 
-const MAX_INDEXED_DOCS = parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS, 200);
-const SESSION_LIST_LIMIT = parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT, 50);
-const MIN_TOP_K = parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN, 1);
-const MAX_TOP_K = parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX, 20);
+const MAX_INDEXED_DOCS = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_CHAT_MAX_INDEXED_DOCS,
+  200,
+);
+const SESSION_LIST_LIMIT = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT,
+  50,
+);
+const MIN_TOP_K = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_CHAT_TOP_K_MIN,
+  1,
+);
+const MAX_TOP_K = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX,
+  20,
+);
 const DEFAULT_TOP_K = Math.min(
-  Math.max(parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5), MIN_TOP_K),
+  Math.max(
+    parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5),
+    MIN_TOP_K,
+  ),
   MAX_TOP_K,
 );
 const AGENT_RUN_POLL_INTERVAL_MS = parsePositiveIntegerEnv(
   process.env.NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS,
   3_000,
 );
-const AGENTIC_CHAT_ENABLED = process.env.NEXT_PUBLIC_CHAT_AGENTIC_ENABLED !== "false";
-const DEFAULT_AGENTIC_MODE = process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
+const AGENTIC_CHAT_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_AGENTIC_ENABLED !== "false";
+const DEFAULT_AGENTIC_MODE =
+  process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
-const CHAT_FEEDBACK_ENABLED = process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
-const STREAMING_PLACEHOLDER_ENABLED = process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
+const CHAT_FEEDBACK_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
+const STREAMING_PLACEHOLDER_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
 type PersistedChatSettings = {
   topK: number;
@@ -118,7 +152,9 @@ function formatPercent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function confidenceBadgeClass(confidence: ChatQueryResponse["confidence_category"]): string {
+function confidenceBadgeClass(
+  confidence: ChatQueryResponse["confidence_category"],
+): string {
   if (confidence === "high") {
     return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
   }
@@ -149,7 +185,9 @@ function approvalStatusClass(status: string): string {
 }
 
 function isTerminalAgentRunStatus(status: string): boolean {
-  return status === "completed" || status === "failed" || status === "cancelled";
+  return (
+    status === "completed" || status === "failed" || status === "cancelled"
+  );
 }
 
 function toObject(value: unknown): Record<string, unknown> {
@@ -174,7 +212,10 @@ function toNumberOrNull(value: unknown): number | null {
   return value;
 }
 
-function toConfidenceCategory(value: unknown, score: number): "low" | "medium" | "high" {
+function toConfidenceCategory(
+  value: unknown,
+  score: number,
+): "low" | "medium" | "high" {
   if (value === "low" || value === "medium" || value === "high") {
     return value;
   }
@@ -187,7 +228,9 @@ function toConfidenceCategory(value: unknown, score: number): "low" | "medium" |
   return "low";
 }
 
-function normalizeAgentCitation(citation: Record<string, unknown>): ChatCitationResponse {
+function normalizeAgentCitation(
+  citation: Record<string, unknown>,
+): ChatCitationResponse {
   return {
     document_id: toStringOrNull(citation.document_id) ?? "",
     chunk_id: toStringOrNull(citation.chunk_id) ?? "",
@@ -197,30 +240,41 @@ function normalizeAgentCitation(citation: Record<string, unknown>): ChatCitation
     similarity_score: toNumberOrNull(citation.similarity_score),
     rerank_score: toNumberOrNull(citation.rerank_score),
     rerank_rank: toNumberOrNull(citation.rerank_rank),
-    text_snippet: toStringOrNull(citation.text_snippet) ?? toStringOrNull(citation.snippet),
+    text_snippet:
+      toStringOrNull(citation.text_snippet) ?? toStringOrNull(citation.snippet),
   };
 }
 
-function readDebugString(debug: ChatDebugResponse | null, key: string): string | null {
+function readDebugString(
+  debug: ChatDebugResponse | null,
+  key: string,
+): string | null {
   if (!debug) {
     return null;
   }
   const value = (debug as Record<string, unknown>)[key];
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 function getChatRunType(debug: ChatDebugResponse | null): PipelineRunType {
   const debugRunType = normalizePipelineRunType(
-    readDebugString(debug, "pipeline_type") ?? readDebugString(debug, "run_type"),
+    readDebugString(debug, "pipeline_type") ??
+      readDebugString(debug, "run_type"),
   );
   return debugRunType ?? "chat.answer";
 }
 
 function buildChatPipelineHref(response: ChatTurn["response"]): string | null {
   const chatMessageId = response.message_id.trim();
-  const runId = readDebugString(response.debug, "pipeline_run_id") ?? readDebugString(response.debug, "run_id");
+  const runId =
+    readDebugString(response.debug, "pipeline_run_id") ??
+    readDebugString(response.debug, "run_id");
   const runType = getChatRunType(response.debug);
-  const firstCitationDocumentId = response.citations.find((citation) => Boolean(citation.document_id))?.document_id ?? null;
+  const firstCitationDocumentId =
+    response.citations.find((citation) => Boolean(citation.document_id))
+      ?.document_id ?? null;
 
   if (!chatMessageId && !runId && !firstCitationDocumentId) {
     return null;
@@ -242,7 +296,9 @@ function activeThreadKey(sessionId: string | null): string {
   return sessionId ?? DRAFT_SESSION_KEY;
 }
 
-function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["response"] {
+function toTurnResponseFromQuery(
+  response: ChatQueryResponse,
+): ChatTurn["response"] {
   return {
     message_id: response.message_id,
     answer: response.answer,
@@ -259,11 +315,16 @@ function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["respons
   };
 }
 
-function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): ChatTurn["response"] {
+function toTurnResponseFromHistoryMessage(
+  message: ChatSessionMessageResponse,
+): ChatTurn["response"] {
   return {
     message_id: message.message_id,
     answer: message.content,
-    confidence_score: typeof message.confidence_score === "number" ? message.confidence_score : 0,
+    confidence_score:
+      typeof message.confidence_score === "number"
+        ? message.confidence_score
+        : 0,
     confidence_category: message.confidence_category ?? "low",
     not_found: false,
     debug: null,
@@ -276,7 +337,9 @@ function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): 
   };
 }
 
-function toTurnResponseFromAgentRun(run: AgentRunCreateResponse["run"]): ChatTurn["response"] {
+function toTurnResponseFromAgentRun(
+  run: AgentRunCreateResponse["run"],
+): ChatTurn["response"] {
   const outcome = run.outcome ?? null;
   const confidence = toObject(outcome?.confidence ?? {});
   const score = toNumberOrNull(confidence.score) ?? 0;
@@ -286,7 +349,9 @@ function toTurnResponseFromAgentRun(run: AgentRunCreateResponse["run"]): ChatTur
     "No answer was generated.";
 
   const citations = Array.isArray(outcome?.citations)
-    ? outcome.citations.map((citation) => normalizeAgentCitation(toObject(citation)))
+    ? outcome.citations.map((citation) =>
+        normalizeAgentCitation(toObject(citation)),
+      )
     : [];
 
   return {
@@ -305,7 +370,9 @@ function toTurnResponseFromAgentRun(run: AgentRunCreateResponse["run"]): ChatTur
   };
 }
 
-function buildTurnsFromSessionMessages(messages: ChatSessionMessageResponse[]): ChatTurn[] {
+function buildTurnsFromSessionMessages(
+  messages: ChatSessionMessageResponse[],
+): ChatTurn[] {
   const turns: ChatTurn[] = [];
   let lastUserQuestion: string | null = null;
 
@@ -338,7 +405,11 @@ function replaceSessionParamInUrl(sessionId: string | null): void {
   } else {
     nextUrl.searchParams.delete("session_id");
   }
-  window.history.replaceState(window.history.state, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`,
+  );
 }
 
 function readPersistedChatSettings(): PersistedChatSettings | null {
@@ -363,7 +434,9 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
         : DEFAULT_TOP_K;
 
     const selectedDocumentIds = Array.isArray(parsed.selectedDocumentIds)
-      ? parsed.selectedDocumentIds.filter((value): value is string => typeof value === "string")
+      ? parsed.selectedDocumentIds.filter(
+          (value): value is string => typeof value === "string",
+        )
       : [];
 
     return {
@@ -403,7 +476,7 @@ function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
               </span>
             </summary>
             <div className="mt-2 space-y-2">
-              <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">
+              <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
                 {citation.text_snippet ?? "Snippet unavailable."}
               </p>
               <dl className="grid grid-cols-2 gap-2 text-xs text-[#5f5a74]">
@@ -449,17 +522,23 @@ export function ChatPage() {
   const didLoadPersistedSettingsRef = useRef(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(() =>
-    readPersistedChatSettings()?.selectedDocumentIds ?? [],
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
+    () => readPersistedChatSettings()?.selectedDocumentIds ?? [],
   );
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [rerank, setRerank] = useState(true);
   const [agenticMode, setAgenticMode] = useState(DEFAULT_AGENTIC_MODE);
-  const [threadsBySession, setThreadsBySession] = useState<Record<string, ChatTurn[]>>({});
-  const [selectedResponseMessageId, setSelectedResponseMessageId] = useState<string | null>(null);
+  const [threadsBySession, setThreadsBySession] = useState<
+    Record<string, ChatTurn[]>
+  >({});
+  const [selectedResponseMessageId, setSelectedResponseMessageId] = useState<
+    string | null
+  >(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [submitRequestId, setSubmitRequestId] = useState<string | null>(null);
-  const [feedbackByMessageId, setFeedbackByMessageId] = useState<Record<string, "up" | "down">>({});
+  const [feedbackByMessageId, setFeedbackByMessageId] = useState<
+    Record<string, "up" | "down">
+  >({});
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -476,7 +555,10 @@ export function ChatPage() {
         offset: Number(pageParam),
       }),
     getNextPageParam: (lastPage, allPages) => {
-      const loadedCount = allPages.reduce((total, page) => total + page.items.length, 0);
+      const loadedCount = allPages.reduce(
+        (total, page) => total + page.items.length,
+        0,
+      );
       if (loadedCount >= lastPage.total) {
         return undefined;
       }
@@ -485,7 +567,8 @@ export function ChatPage() {
   });
 
   const sessions = useMemo(() => {
-    const allItems = sessionsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+    const allItems =
+      sessionsQuery.data?.pages.flatMap((page) => page.items) ?? [];
     const seen = new Set<string>();
     return allItems.filter((session) => {
       if (seen.has(session.session_id)) {
@@ -499,7 +582,8 @@ export function ChatPage() {
   const totalSessions = sessionsQuery.data?.pages[0]?.total ?? sessions.length;
 
   const shouldLoadActiveSessionHistory =
-    activeSessionId !== null && (threadsBySession[activeThreadKey(activeSessionId)] ?? []).length === 0;
+    activeSessionId !== null &&
+    (threadsBySession[activeThreadKey(activeSessionId)] ?? []).length === 0;
 
   useEffect(() => {
     const sessionIdFromQuery = searchParams.get("session_id");
@@ -532,7 +616,9 @@ export function ChatPage() {
     }
 
     const threadKey = activeThreadKey(activeSessionId);
-    const hydratedTurns = buildTurnsFromSessionMessages(sessionMessagesQuery.data.items);
+    const hydratedTurns = buildTurnsFromSessionMessages(
+      sessionMessagesQuery.data.items,
+    );
     setThreadsBySession((previous) => {
       const existing = previous[threadKey];
       if (existing && existing.length > 0) {
@@ -564,7 +650,10 @@ export function ChatPage() {
   });
 
   const indexedDocuments = useMemo(
-    () => indexedDocumentsQuery.data?.items.filter((item) => item.status === "indexed") ?? [],
+    () =>
+      indexedDocumentsQuery.data?.items.filter(
+        (item) => item.status === "indexed",
+      ) ?? [],
     [indexedDocumentsQuery.data?.items],
   );
 
@@ -574,7 +663,10 @@ export function ChatPage() {
   );
 
   const filteredSelectedDocumentIds = useMemo(
-    () => selectedDocumentIds.filter((documentId) => indexedDocumentIdSet.has(documentId)),
+    () =>
+      selectedDocumentIds.filter((documentId) =>
+        indexedDocumentIdSet.has(documentId),
+      ),
     [selectedDocumentIds, indexedDocumentIdSet],
   );
 
@@ -601,7 +693,10 @@ export function ChatPage() {
       selectedDocumentIds: filteredSelectedDocumentIds,
       agenticMode,
     };
-    window.localStorage.setItem(CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(
+      CHAT_SETTINGS_STORAGE_KEY,
+      JSON.stringify(payload),
+    );
   }, [agenticMode, filteredSelectedDocumentIds, rerank, topK]);
 
   useEffect(() => {
@@ -620,7 +715,10 @@ export function ChatPage() {
       if (previous.includes(documentIdFromQuery)) {
         return previous;
       }
-      return [documentIdFromQuery, ...previous.filter((value) => indexedDocumentIdSet.has(value))];
+      return [
+        documentIdFromQuery,
+        ...previous.filter((value) => indexedDocumentIdSet.has(value)),
+      ];
     });
     lastAppliedDocumentIdRef.current = documentIdFromQuery;
   }, [indexedDocumentIdSet, searchParams]);
@@ -632,16 +730,20 @@ export function ChatPage() {
     setSelectedDocumentIds(filteredSelectedDocumentIds);
   }, [filteredSelectedDocumentIds, selectedDocumentIds.length]);
 
-  const activeSession = sessions.find((item) => item.session_id === activeSessionId) ?? null;
+  const activeSession =
+    sessions.find((item) => item.session_id === activeSessionId) ?? null;
   const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];
   const selectedCitationTurn =
-    thread.find((turn) => turn.response.message_id === selectedResponseMessageId) ??
+    thread.find(
+      (turn) => turn.response.message_id === selectedResponseMessageId,
+    ) ??
     thread[thread.length - 1] ??
     null;
   const selectedCitationPipelineHref = selectedCitationTurn
     ? buildChatPipelineHref(selectedCitationTurn.response)
     : null;
-  const selectedAgentRunId = selectedCitationTurn?.response.agent_run_id ?? null;
+  const selectedAgentRunId =
+    selectedCitationTurn?.response.agent_run_id ?? null;
   const selectedAgentRunQuery = useQuery({
     queryKey: queryKeys.agent.run(selectedAgentRunId ?? ""),
     queryFn: () => getAgentRun(selectedAgentRunId ?? ""),
@@ -663,7 +765,9 @@ export function ChatPage() {
       }
       return;
     }
-    const hasSelected = thread.some((turn) => turn.response.message_id === selectedResponseMessageId);
+    const hasSelected = thread.some(
+      (turn) => turn.response.message_id === selectedResponseMessageId,
+    );
     if (hasSelected) {
       return;
     }
@@ -673,9 +777,12 @@ export function ChatPage() {
   const queryMutation = useMutation({
     mutationFn: (payload: ChatQueryRequest) => queryChat(payload),
     onSuccess: async (response, payload) => {
-      const resolvedSessionId = response.chat_session_id ?? payload.chat_session_id ?? activeSessionId;
+      const resolvedSessionId =
+        response.chat_session_id ?? payload.chat_session_id ?? activeSessionId;
       const nextSessionId = resolvedSessionId ?? DRAFT_SESSION_KEY;
-      const previousThreadKey = activeThreadKey(payload.chat_session_id ?? null);
+      const previousThreadKey = activeThreadKey(
+        payload.chat_session_id ?? null,
+      );
       const nextTurn: ChatTurn = {
         question: payload.question,
         response: toTurnResponseFromQuery(response),
@@ -713,7 +820,8 @@ export function ChatPage() {
       runId: string;
       approvalId: string;
       payload: AgentApprovalDecisionRequest;
-    }) => decideAgentRunApproval(params.runId, params.approvalId, params.payload),
+    }) =>
+      decideAgentRunApproval(params.runId, params.approvalId, params.payload),
     onSuccess: async (_, variables) => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.agent.run(variables.runId),
@@ -734,15 +842,24 @@ export function ChatPage() {
     indexedDocumentsQuery.isError ||
     !hasIndexedDocuments;
 
-  const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
-  const composerError = queryMutation.error ?? agentRunMutation.error ?? createSessionMutation.error;
+  const listForbidden =
+    isForbiddenError(indexedDocumentsQuery.error) ||
+    isForbiddenError(sessionsQuery.error);
+  const composerError =
+    queryMutation.error ??
+    agentRunMutation.error ??
+    createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
   const canDecideApprovals = isAdminLikeRole(state.session?.role ?? null);
-  const showDebugDetails = isAdminLikeRole(state.session?.role ?? null) || Boolean(settingsPreferencesQuery.data?.developerMode);
+  const showDebugDetails =
+    isAdminLikeRole(state.session?.role ?? null) ||
+    Boolean(settingsPreferencesQuery.data?.developerMode);
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
-      const validPrevious = previous.filter((value) => indexedDocumentIdSet.has(value));
+      const validPrevious = previous.filter((value) =>
+        indexedDocumentIdSet.has(value),
+      );
       if (validPrevious.includes(documentId)) {
         return validPrevious.filter((value) => value !== documentId);
       }
@@ -783,7 +900,10 @@ export function ChatPage() {
     await submitQuestionText(trimmedQuestion, true);
   }
 
-  async function submitQuestionText(questionText: string, clearComposerOnSubmit: boolean) {
+  async function submitQuestionText(
+    questionText: string,
+    clearComposerOnSubmit: boolean,
+  ) {
     const trimmedQuestion = questionText.trim();
     if (
       !trimmedQuestion ||
@@ -810,7 +930,10 @@ export function ChatPage() {
           objective: trimmedQuestion,
           mode: "answer",
           question: trimmedQuestion,
-          document_ids: filteredSelectedDocumentIds.length > 0 ? filteredSelectedDocumentIds : undefined,
+          document_ids:
+            filteredSelectedDocumentIds.length > 0
+              ? filteredSelectedDocumentIds
+              : undefined,
           top_k: topK,
           rerank,
         },
@@ -872,24 +995,27 @@ export function ChatPage() {
       }
     }
 
-    queryMutation.mutate({
-      question: trimmedQuestion,
-      chat_session_id: targetSessionId,
-      document_ids:
-        filteredSelectedDocumentIds.length > 0
-          ? filteredSelectedDocumentIds
-          : undefined,
-      top_k: topK,
-      rerank,
-    }, {
-      onError: (error) => {
-        setSubmitRequestId(extractRequestIdFromError(error));
-        if (clearComposerOnSubmit) {
-          setQuestion(trimmedQuestion);
-        }
-        setPendingQuestion(null);
+    queryMutation.mutate(
+      {
+        question: trimmedQuestion,
+        chat_session_id: targetSessionId,
+        document_ids:
+          filteredSelectedDocumentIds.length > 0
+            ? filteredSelectedDocumentIds
+            : undefined,
+        top_k: topK,
+        rerank,
       },
-    });
+      {
+        onError: (error) => {
+          setSubmitRequestId(extractRequestIdFromError(error));
+          if (clearComposerOnSubmit) {
+            setQuestion(trimmedQuestion);
+          }
+          setPendingQuestion(null);
+        },
+      },
+    );
   }
 
   if (listForbidden) {
@@ -898,7 +1024,9 @@ export function ChatPage() {
         <ForbiddenState
           title="Chat access is restricted"
           description="Your role does not have permission to query documents in this organization."
-          requestId={extractRequestIdFromError(indexedDocumentsQuery.error ?? sessionsQuery.error)}
+          requestId={extractRequestIdFromError(
+            indexedDocumentsQuery.error ?? sessionsQuery.error,
+          )}
           compact={false}
         />
       </section>
@@ -910,10 +1038,15 @@ export function ChatPage() {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Chat</p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Document-grounded Q&A</h1>
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+              Rudix Chat
+            </p>
+            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              Document-grounded Q&A
+            </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Ask questions against indexed documents with configurable retrieval and rerank settings.
+              Ask questions against indexed documents with configurable
+              retrieval and rerank settings.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -937,7 +1070,9 @@ export function ChatPage() {
       <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
         <aside className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Sessions</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Sessions
+            </h2>
             {sessionsQuery.isLoading ? (
               <LoadingState compact title="Loading sessions..." />
             ) : sessionsQuery.isError ? (
@@ -968,9 +1103,12 @@ export function ChatPage() {
                             : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
                         }`}
                       >
-                        <p className="font-semibold">{session.title ?? "Untitled session"}</p>
+                        <p className="font-semibold">
+                          {session.title ?? "Untitled session"}
+                        </p>
                         <p className="mt-1 text-xs">
-                          {session.message_count} messages • updated {formatDate(session.updated_at)}
+                          {session.message_count} messages • updated{" "}
+                          {formatDate(session.updated_at)}
                         </p>
                       </button>
                     </li>
@@ -992,12 +1130,17 @@ export function ChatPage() {
                 ) : null}
               </>
             ) : (
-              <EmptyState compact title="No sessions yet. Ask your first question to start one." />
+              <EmptyState
+                compact
+                title="No sessions yet. Ask your first question to start one."
+              />
             )}
           </section>
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Retrieval settings</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Retrieval settings
+            </h2>
             <label className="mb-3 flex items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
               <input
                 type="checkbox"
@@ -1009,7 +1152,8 @@ export function ChatPage() {
               <span>
                 Agentic mode
                 <span className="mt-1 block text-xs text-[#6a6780]">
-                  Run plan-act-observe execution with a step timeline and explicit budget handling.
+                  Run plan-act-observe execution with a step timeline and
+                  explicit budget handling.
                 </span>
                 {!AGENTIC_CHAT_ENABLED ? (
                   <span className="mt-1 block text-xs text-[#8a4762]">
@@ -1018,7 +1162,7 @@ export function ChatPage() {
                 ) : null}
               </span>
             </label>
-            <label className="mb-3 grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <label className="mb-3 grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Top K
               <input
                 type="number"
@@ -1053,7 +1197,9 @@ export function ChatPage() {
           </section>
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Document selector</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Document selector
+            </h2>
             {indexedDocumentsQuery.isLoading ? (
               <LoadingState compact title="Loading indexed documents..." />
             ) : indexedDocumentsQuery.isError ? (
@@ -1070,9 +1216,12 @@ export function ChatPage() {
                 compact
                 title="No indexed documents available. Upload and index documents first."
                 action={
-                <Link href="/documents" className="text-sm font-semibold text-[#3525cd] hover:underline">
-                  Go to documents upload
-                </Link>
+                  <Link
+                    href="/documents"
+                    className="text-sm font-semibold text-[#3525cd] hover:underline"
+                  >
+                    Go to documents upload
+                  </Link>
                 }
               />
             ) : (
@@ -1081,7 +1230,9 @@ export function ChatPage() {
                   <DocumentSelectorItem
                     key={document.document_id}
                     document={document}
-                    checked={filteredSelectedDocumentIds.includes(document.document_id)}
+                    checked={filteredSelectedDocumentIds.includes(
+                      document.document_id,
+                    )}
                     onToggle={() => toggleDocument(document.document_id)}
                   />
                 ))}
@@ -1092,13 +1243,18 @@ export function ChatPage() {
 
         <section className="space-y-4">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Ask a question</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Ask a question
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-3">
               <textarea
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key === "Enter"
+                  ) {
                     event.preventDefault();
                     void submitQuestion();
                   }
@@ -1106,16 +1262,18 @@ export function ChatPage() {
                 rows={4}
                 placeholder="Ask a question about your selected documents..."
                 disabled={!hasIndexedDocuments}
-                className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] outline-none ring-[#3525cd]/20 focus:ring"
+                className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-[#6a6780]">
                   {!hasIndexedDocuments
                     ? "Chat is disabled until at least one document is indexed."
                     : filteredSelectedDocumentIds.length > 0
-                    ? `${filteredSelectedDocumentIds.length} document(s) selected`
-                    : "All indexed accessible documents are in scope"}
-                  {AGENTIC_CHAT_ENABLED && agenticMode ? " • agentic mode enabled" : ""}
+                      ? `${filteredSelectedDocumentIds.length} document(s) selected`
+                      : "All indexed accessible documents are in scope"}
+                  {AGENTIC_CHAT_ENABLED && agenticMode
+                    ? " • agentic mode enabled"
+                    : ""}
                 </p>
                 <button
                   type="submit"
@@ -1126,9 +1284,9 @@ export function ChatPage() {
                     ? "Starting session..."
                     : agentRunMutation.isPending
                       ? "Running agent..."
-                    : queryMutation.isPending
-                      ? "Generating answer..."
-                      : "Ask"}
+                      : queryMutation.isPending
+                        ? "Generating answer..."
+                        : "Ask"}
                 </button>
               </div>
               {thread.length > 0 ? (
@@ -1154,7 +1312,9 @@ export function ChatPage() {
                   </button>
                 </div>
               ) : null}
-              <p className="text-xs text-[#6a6780]">Shortcut: Ctrl/Cmd + Enter to submit.</p>
+              <p className="text-xs text-[#6a6780]">
+                Shortcut: Ctrl/Cmd + Enter to submit.
+              </p>
             </form>
           </section>
 
@@ -1177,11 +1337,16 @@ export function ChatPage() {
           ) : null}
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Conversation</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Conversation
+            </h2>
             <div className="mb-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#5f5a74]">
               {activeSession ? (
                 <p>
-                  Session: <span className="font-semibold text-[#2f2a46]">{activeSession.title ?? "Untitled session"}</span>
+                  Session:{" "}
+                  <span className="font-semibold text-[#2f2a46]">
+                    {activeSession.title ?? "Untitled session"}
+                  </span>
                   {" • "}
                   {activeSession.message_count} messages
                   {" • "}
@@ -1193,11 +1358,17 @@ export function ChatPage() {
                 </p>
               )}
             </div>
-            {sessionMessagesQuery.isLoading && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
+            {sessionMessagesQuery.isLoading &&
+            activeSession &&
+            thread.length === 0 &&
+            activeSession.message_count > 0 ? (
               <LoadingState compact title="Loading session history..." />
             ) : null}
 
-            {sessionMessagesQuery.isError && activeSession && thread.length === 0 && activeSession.message_count > 0 ? (
+            {sessionMessagesQuery.isError &&
+            activeSession &&
+            thread.length === 0 &&
+            activeSession.message_count > 0 ? (
               <ErrorState
                 compact
                 title="Unable to load prior messages"
@@ -1209,34 +1380,61 @@ export function ChatPage() {
               />
             ) : null}
 
-            {thread.length === 0 && !pendingQuestion && !sessionMessagesQuery.isLoading ? (
-              <EmptyState compact title="No messages yet. Submit a question to start the conversation." />
+            {thread.length === 0 &&
+            !pendingQuestion &&
+            !sessionMessagesQuery.isLoading ? (
+              <EmptyState
+                compact
+                title="No messages yet. Submit a question to start the conversation."
+              />
             ) : (
               <ul className="space-y-4">
                 {thread.map((turn) => (
                   <li key={turn.response.message_id} className="space-y-2">
                     <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</p>
-                      <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">{turn.question}</p>
+                      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Question
+                      </p>
+                      <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                        {turn.question}
+                      </p>
                     </article>
 
                     <article className="rounded-xl border border-[#d7d4e8] bg-white p-3">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Answer</p>
-                        <span className={confidenceBadgeClass(turn.response.confidence_category)}>
-                          Confidence {formatPercent(turn.response.confidence_score)}
+                        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          Answer
+                        </p>
+                        <span
+                          className={confidenceBadgeClass(
+                            turn.response.confidence_category,
+                          )}
+                        >
+                          Confidence{" "}
+                          {formatPercent(turn.response.confidence_score)}
                         </span>
                         {turn.response.agent_run_status ? (
-                          <span className={agentRunStatusClass(turn.response.agent_run_status)}>
+                          <span
+                            className={agentRunStatusClass(
+                              turn.response.agent_run_status,
+                            )}
+                          >
                             Agent run {turn.response.agent_run_status}
                           </span>
                         ) : null}
-                        <span className="text-xs text-[#6a6780]">{formatDate(turn.response.created_at)}</span>
+                        <span className="text-xs text-[#6a6780]">
+                          {formatDate(turn.response.created_at)}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => setSelectedResponseMessageId(turn.response.message_id)}
+                          onClick={() =>
+                            setSelectedResponseMessageId(
+                              turn.response.message_id,
+                            )
+                          }
                           className={`ml-auto rounded border px-2 py-1 text-[11px] font-semibold ${
-                            selectedCitationTurn?.response.message_id === turn.response.message_id
+                            selectedCitationTurn?.response.message_id ===
+                            turn.response.message_id
                               ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
                               : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"
                           }`}
@@ -1245,34 +1443,41 @@ export function ChatPage() {
                         </button>
                       </div>
 
-                      {turn.response.confidence_category === "low" && !turn.response.not_found ? (
+                      {turn.response.confidence_category === "low" &&
+                      !turn.response.not_found ? (
                         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                          Low confidence warning: validate this answer against the cited source text.
+                          Low confidence warning: validate this answer against
+                          the cited source text.
                         </p>
                       ) : null}
 
                       {turn.response.not_found ? (
                         <div className="space-y-2">
                           <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
-                            No grounded answer was found in the selected documents.
+                            No grounded answer was found in the selected
+                            documents.
                           </p>
                           <p className="text-xs text-[#6a6780]">
-                            Try refining your question, changing document scope, or adjusting retrieval settings.
+                            Try refining your question, changing document scope,
+                            or adjusting retrieval settings.
                           </p>
                         </div>
                       ) : (
-                        <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">
+                        <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
                           {turn.response.answer}
                         </p>
                       )}
                       {turn.response.agent_run_error ? (
                         <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                          Agent stop reason: {turn.response.agent_run_error.message}
+                          Agent stop reason:{" "}
+                          {turn.response.agent_run_error.message}
                         </p>
                       ) : null}
                       {CHAT_FEEDBACK_ENABLED ? (
                         <div className="mt-3 flex items-center gap-2">
-                          <span className="text-xs text-[#6a6780]">Was this answer helpful?</span>
+                          <span className="text-xs text-[#6a6780]">
+                            Was this answer helpful?
+                          </span>
                           <button
                             type="button"
                             aria-label="Mark answer helpful"
@@ -1317,12 +1522,18 @@ export function ChatPage() {
                 {pendingQuestion ? (
                   <li className="space-y-2">
                     <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Question</p>
-                      <p className="text-sm whitespace-pre-wrap break-words text-[#2f2a46]">{pendingQuestion}</p>
+                      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        Question
+                      </p>
+                      <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                        {pendingQuestion}
+                      </p>
                     </article>
                     <article className="rounded-xl border border-[#d7d4e8] bg-white p-3">
                       <p className="text-sm text-[#68647b]">
-                        {STREAMING_PLACEHOLDER_ENABLED ? "Streaming response..." : "Generating answer..."}
+                        {STREAMING_PLACEHOLDER_ENABLED
+                          ? "Streaming response..."
+                          : "Generating answer..."}
                       </p>
                     </article>
                   </li>
@@ -1334,21 +1545,31 @@ export function ChatPage() {
 
         <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Context & citations</h2>
+            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Context & citations
+            </h2>
             {!selectedCitationTurn ? (
               <p className="text-sm text-[#68647b]">
-                Select an answer in the conversation to inspect citations and retrieval context.
+                Select an answer in the conversation to inspect citations and
+                retrieval context.
               </p>
             ) : (
               <div className="space-y-3">
                 <div className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Selected answer</p>
+                  <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                    Selected answer
+                  </p>
                   <p className="text-xs text-[#5f5a74]">
-                    Confidence {formatPercent(selectedCitationTurn.response.confidence_score)}
+                    Confidence{" "}
+                    {formatPercent(
+                      selectedCitationTurn.response.confidence_score,
+                    )}
                     {" • "}
                     {formatDate(selectedCitationTurn.response.created_at)}
                   </p>
-                  <p className="mt-2 text-sm text-[#2f2a46]">{selectedCitationTurn.question}</p>
+                  <p className="mt-2 text-sm text-[#2f2a46]">
+                    {selectedCitationTurn.question}
+                  </p>
                   {selectedCitationPipelineHref ? (
                     <Link
                       href={selectedCitationPipelineHref}
@@ -1360,15 +1581,18 @@ export function ChatPage() {
                 </div>
                 {selectedCitationTurn.response.not_found ? (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#68647b]">
-                    No citations are shown because the assistant did not find grounded evidence for this response.
+                    No citations are shown because the assistant did not find
+                    grounded evidence for this response.
                   </p>
                 ) : (
-                  <CitationPanel citations={selectedCitationTurn.response.citations} />
+                  <CitationPanel
+                    citations={selectedCitationTurn.response.citations}
+                  />
                 )}
 
                 {showDebugDetails ? (
                   <section className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                    <h3 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                       Retrieval debug
                     </h3>
                     {selectedCitationTurn.response.debug ? (
@@ -1376,33 +1600,64 @@ export function ChatPage() {
                         <dl className="grid grid-cols-2 gap-2">
                           <div>
                             <dt className="font-semibold">retrieval_count</dt>
-                            <dd>{selectedCitationTurn.response.debug.retrieval_count}</dd>
+                            <dd>
+                              {
+                                selectedCitationTurn.response.debug
+                                  .retrieval_count
+                              }
+                            </dd>
                           </div>
                           <div>
                             <dt className="font-semibold">selected_count</dt>
-                            <dd>{selectedCitationTurn.response.debug.selected_count}</dd>
+                            <dd>
+                              {
+                                selectedCitationTurn.response.debug
+                                  .selected_count
+                              }
+                            </dd>
                           </div>
                           <div>
                             <dt className="font-semibold">rerank_applied</dt>
-                            <dd>{selectedCitationTurn.response.debug.rerank_applied ? "true" : "false"}</dd>
+                            <dd>
+                              {selectedCitationTurn.response.debug
+                                .rerank_applied
+                                ? "true"
+                                : "false"}
+                            </dd>
                           </div>
                           <div>
                             <dt className="font-semibold">embedding_model</dt>
-                            <dd>{selectedCitationTurn.response.debug.embedding_model ?? "N/A"}</dd>
+                            <dd>
+                              {selectedCitationTurn.response.debug
+                                .embedding_model ?? "N/A"}
+                            </dd>
                           </div>
                           <div className="col-span-2">
                             <dt className="font-semibold">llm_model</dt>
-                            <dd>{selectedCitationTurn.response.debug.llm_model ?? "N/A"}</dd>
+                            <dd>
+                              {selectedCitationTurn.response.debug.llm_model ??
+                                "N/A"}
+                            </dd>
                           </div>
                         </dl>
                         <div>
                           <p className="mb-1 font-semibold">latencies_ms</p>
-                          {Object.keys(selectedCitationTurn.response.debug.latencies_ms).length === 0 ? (
-                            <p className="text-[#6a6780]">No latency details available.</p>
+                          {Object.keys(
+                            selectedCitationTurn.response.debug.latencies_ms,
+                          ).length === 0 ? (
+                            <p className="text-[#6a6780]">
+                              No latency details available.
+                            </p>
                           ) : (
                             <ul className="space-y-1">
-                              {Object.entries(selectedCitationTurn.response.debug.latencies_ms).map(([key, value]) => (
-                                <li key={key} className="flex items-center justify-between gap-2 rounded border border-[#ebe8f7] px-2 py-1">
+                              {Object.entries(
+                                selectedCitationTurn.response.debug
+                                  .latencies_ms,
+                              ).map(([key, value]) => (
+                                <li
+                                  key={key}
+                                  className="flex items-center justify-between gap-2 rounded border border-[#ebe8f7] px-2 py-1"
+                                >
                                   <span>{key}</span>
                                   <span>{value} ms</span>
                                 </li>
@@ -1412,13 +1667,15 @@ export function ChatPage() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs text-[#6a6780]">Debug details are unavailable for this message.</p>
+                      <p className="text-xs text-[#6a6780]">
+                        Debug details are unavailable for this message.
+                      </p>
                     )}
                   </section>
                 ) : null}
 
                 <section className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                  <h3 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                     Agent timeline
                   </h3>
                   {!selectedAgentRunId ? (
@@ -1434,8 +1691,12 @@ export function ChatPage() {
                       compact
                       title="Unable to load agent timeline"
                       error={selectedAgentRunQuery.error}
-                      description={getApiErrorMessage(selectedAgentRunQuery.error)}
-                      requestId={extractRequestIdFromError(selectedAgentRunQuery.error)}
+                      description={getApiErrorMessage(
+                        selectedAgentRunQuery.error,
+                      )}
+                      requestId={extractRequestIdFromError(
+                        selectedAgentRunQuery.error,
+                      )}
                       onRetry={() => {
                         void selectedAgentRunQuery.refetch();
                       }}
@@ -1443,7 +1704,11 @@ export function ChatPage() {
                   ) : selectedAgentRunQuery.data ? (
                     <div className="space-y-2 text-xs text-[#4f4b63]">
                       <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-2">
-                        <span className={agentRunStatusClass(selectedAgentRunQuery.data.status)}>
+                        <span
+                          className={agentRunStatusClass(
+                            selectedAgentRunQuery.data.status,
+                          )}
+                        >
                           {selectedAgentRunQuery.data.status}
                         </span>
                         <span>run {selectedAgentRunQuery.data.run_id}</span>
@@ -1451,7 +1716,13 @@ export function ChatPage() {
                       <dl className="grid grid-cols-2 gap-2 rounded border border-[#ebe8f7] px-2 py-2">
                         <div>
                           <dt className="font-semibold">Max steps</dt>
-                          <dd>{String(selectedAgentRunQuery.data.budget.max_steps ?? selectedAgentRunQuery.data.max_steps ?? "N/A")}</dd>
+                          <dd>
+                            {String(
+                              selectedAgentRunQuery.data.budget.max_steps ??
+                                selectedAgentRunQuery.data.max_steps ??
+                                "N/A",
+                            )}
+                          </dd>
                         </div>
                         <div>
                           <dt className="font-semibold">Steps used</dt>
@@ -1459,66 +1730,101 @@ export function ChatPage() {
                         </div>
                         <div>
                           <dt className="font-semibold">Max tool calls</dt>
-                          <dd>{String(selectedAgentRunQuery.data.budget.max_tool_calls ?? "N/A")}</dd>
+                          <dd>
+                            {String(
+                              selectedAgentRunQuery.data.budget
+                                .max_tool_calls ?? "N/A",
+                            )}
+                          </dd>
                         </div>
                         <div>
                           <dt className="font-semibold">Tool calls used</dt>
-                          <dd>{selectedAgentRunQuery.data.tool_calls.length}</dd>
+                          <dd>
+                            {selectedAgentRunQuery.data.tool_calls.length}
+                          </dd>
                         </div>
                       </dl>
                       {selectedAgentRunQuery.data.error_message ? (
                         <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
-                          Stop reason: {selectedAgentRunQuery.data.error_message}
+                          Stop reason:{" "}
+                          {selectedAgentRunQuery.data.error_message}
                         </p>
                       ) : null}
                       {selectedAgentRunQuery.data.approvals.length > 0 ? (
                         <section className="space-y-1 rounded border border-[#ebe8f7] px-2 py-2">
-                          <h4 className="font-semibold text-[#3f3b58]">Approvals</h4>
+                          <h4 className="font-semibold text-[#3f3b58]">
+                            Approvals
+                          </h4>
                           <ol className="space-y-1">
-                            {selectedAgentRunQuery.data.approvals.map((approval) => (
-                              <li key={approval.approval_id} className="rounded border border-[#ebe8f7] bg-white px-2 py-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className={approvalStatusClass(approval.status)}>{approval.status}</span>
-                                  <span className="text-[#6a6780]">{approval.request_summary ?? "Approval request"}</span>
-                                </div>
-                                <p className="mt-1 text-[#6a6780]">id {approval.approval_id}</p>
-                                {approval.decision_reason ? (
-                                  <p className="mt-1 text-[#6a6780]">reason: {approval.decision_reason}</p>
-                                ) : null}
-                                {approval.status === "pending" && canDecideApprovals ? (
-                                  <div className="mt-2 flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        void handleApprovalDecision({
-                                          runId: selectedAgentRunQuery.data.run_id,
-                                          approvalId: approval.approval_id,
-                                          status: "approved",
-                                        });
-                                      }}
-                                      disabled={decideApprovalMutation.isPending}
-                                      className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800 disabled:opacity-60"
+                            {selectedAgentRunQuery.data.approvals.map(
+                              (approval) => (
+                                <li
+                                  key={approval.approval_id}
+                                  className="rounded border border-[#ebe8f7] bg-white px-2 py-2"
+                                >
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span
+                                      className={approvalStatusClass(
+                                        approval.status,
+                                      )}
                                     >
-                                      Approve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        void handleApprovalDecision({
-                                          runId: selectedAgentRunQuery.data.run_id,
-                                          approvalId: approval.approval_id,
-                                          status: "rejected",
-                                        });
-                                      }}
-                                      disabled={decideApprovalMutation.isPending}
-                                      className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-800 disabled:opacity-60"
-                                    >
-                                      Reject
-                                    </button>
+                                      {approval.status}
+                                    </span>
+                                    <span className="text-[#6a6780]">
+                                      {approval.request_summary ??
+                                        "Approval request"}
+                                    </span>
                                   </div>
-                                ) : null}
-                              </li>
-                            ))}
+                                  <p className="mt-1 text-[#6a6780]">
+                                    id {approval.approval_id}
+                                  </p>
+                                  {approval.decision_reason ? (
+                                    <p className="mt-1 text-[#6a6780]">
+                                      reason: {approval.decision_reason}
+                                    </p>
+                                  ) : null}
+                                  {approval.status === "pending" &&
+                                  canDecideApprovals ? (
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          void handleApprovalDecision({
+                                            runId:
+                                              selectedAgentRunQuery.data.run_id,
+                                            approvalId: approval.approval_id,
+                                            status: "approved",
+                                          });
+                                        }}
+                                        disabled={
+                                          decideApprovalMutation.isPending
+                                        }
+                                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800 disabled:opacity-60"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          void handleApprovalDecision({
+                                            runId:
+                                              selectedAgentRunQuery.data.run_id,
+                                            approvalId: approval.approval_id,
+                                            status: "rejected",
+                                          });
+                                        }}
+                                        disabled={
+                                          decideApprovalMutation.isPending
+                                        }
+                                        className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-800 disabled:opacity-60"
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </li>
+                              ),
+                            )}
                           </ol>
                           {decideApprovalMutation.isError ? (
                             <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
@@ -1528,20 +1834,30 @@ export function ChatPage() {
                         </section>
                       ) : null}
                       {selectedAgentRunQuery.data.steps.length === 0 ? (
-                        <EmptyState compact title="No timeline steps were persisted." />
+                        <EmptyState
+                          compact
+                          title="No timeline steps were persisted."
+                        />
                       ) : (
                         <ol className="space-y-1">
                           {selectedAgentRunQuery.data.steps.map((step) => (
-                            <li key={step.step_id} className="rounded border border-[#ebe8f7] px-2 py-2">
+                            <li
+                              key={step.step_id}
+                              className="rounded border border-[#ebe8f7] px-2 py-2"
+                            >
                               <p className="font-semibold text-[#3f3b58]">
                                 {step.sequence}. {step.step_name}
                               </p>
                               <p className="text-[#6a6780]">
                                 status {step.status}
-                                {step.duration_ms !== null ? ` • ${step.duration_ms} ms` : ""}
+                                {step.duration_ms !== null
+                                  ? ` • ${step.duration_ms} ms`
+                                  : ""}
                               </p>
                               {step.error_message ? (
-                                <p className="mt-1 text-rose-700">{step.error_message}</p>
+                                <p className="mt-1 text-rose-700">
+                                  {step.error_message}
+                                </p>
                               ) : null}
                             </li>
                           ))}
@@ -1573,11 +1889,17 @@ function DocumentSelectorItem({
   return (
     <li>
       <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
-        <input type="checkbox" checked={checked} onChange={onToggle} className="mt-0.5" />
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="mt-0.5"
+        />
         <span>
           <span className="block font-semibold">{document.filename}</span>
           <span className="mt-1 block text-xs text-[#6a6780]">
-            {document.chunk_count} chunks • updated {formatDate(document.updated_at)}
+            {document.chunk_count} chunks • updated{" "}
+            {formatDate(document.updated_at)}
           </span>
         </span>
       </label>

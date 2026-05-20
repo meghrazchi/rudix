@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { DocumentsUploadModal, type UploadFeedbackState } from "@/components/documents/DocumentsUploadModal";
+import {
+  DocumentsUploadModal,
+  type UploadFeedbackState,
+} from "@/components/documents/DocumentsUploadModal";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -73,8 +76,17 @@ function parseStatusFilter(value: string | null): StatusFilter {
   if (!value) {
     return "all";
   }
-  const supported: DocumentStatus[] = ["uploaded", "processing", "indexed", "failed", "deleting", "deleted"];
-  return supported.includes(value as DocumentStatus) ? (value as DocumentStatus) : "all";
+  const supported: DocumentStatus[] = [
+    "uploaded",
+    "processing",
+    "indexed",
+    "failed",
+    "deleting",
+    "deleted",
+  ];
+  return supported.includes(value as DocumentStatus)
+    ? (value as DocumentStatus)
+    : "all";
 }
 
 function parseSortBy(value: string | null): DocumentSortBy {
@@ -129,7 +141,10 @@ function statusBadge(status: DocumentStatus): string {
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
 
-function deriveDetailStatus(detail: DocumentDetailResponse, liveStatus: DocumentStatusResponse | undefined): DocumentStatus {
+function deriveDetailStatus(
+  detail: DocumentDetailResponse,
+  liveStatus: DocumentStatusResponse | undefined,
+): DocumentStatus {
   return liveStatus?.status ?? detail.status;
 }
 
@@ -151,14 +166,25 @@ export function DocumentsPage() {
   const { state } = useAuthSession();
   const capabilities = resolveDocumentCapabilities(state.session?.role);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() => parseStatusFilter(searchParams.get("status")));
-  const [sortBy, setSortBy] = useState<DocumentSortBy>(() => parseSortBy(searchParams.get("sort_by")));
-  const [sortOrder, setSortOrder] = useState<SortOrder>(() => parseSortOrder(searchParams.get("sort_order")));
-  const [offset, setOffset] = useState(() => parseOffset(searchParams.get("offset")));
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    parseStatusFilter(searchParams.get("status")),
+  );
+  const [sortBy, setSortBy] = useState<DocumentSortBy>(() =>
+    parseSortBy(searchParams.get("sort_by")),
+  );
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() =>
+    parseSortOrder(searchParams.get("sort_order")),
+  );
+  const [offset, setOffset] = useState(() =>
+    parseOffset(searchParams.get("offset")),
+  );
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
+    null,
+  );
   const [chunksOffset, setChunksOffset] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [uploadFeedback, setUploadFeedback] = useState<UploadFeedbackState | null>(null);
+  const [uploadFeedback, setUploadFeedback] =
+    useState<UploadFeedbackState | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
 
@@ -224,7 +250,9 @@ export function DocumentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (documentId: string) => deleteDocument(documentId),
     onSuccess: async (result, documentId) => {
-      setActionFeedback(`Delete requested for ${documentId}. Current status: ${result.status}.`);
+      setActionFeedback(
+        `Delete requested for ${documentId}. Current status: ${result.status}.`,
+      );
       setActionRequestId(null);
       if (selectedDocumentId === documentId && result.status === "deleted") {
         setSelectedDocumentId(null);
@@ -232,7 +260,9 @@ export function DocumentsPage() {
       await invalidateAfterMutation(queryClient, "document.delete");
     },
     onError: (error) => {
-      setActionFeedback(getDocumentLifecycleActionErrorMessage("delete", error));
+      setActionFeedback(
+        getDocumentLifecycleActionErrorMessage("delete", error),
+      );
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -240,13 +270,17 @@ export function DocumentsPage() {
   const reindexMutation = useMutation({
     mutationFn: (documentId: string) => reindexDocument(documentId),
     onSuccess: async (result, documentId) => {
-      setActionFeedback(`Re-index requested for ${documentId}. Queue status: ${result.queue_status}.`);
+      setActionFeedback(
+        `Re-index requested for ${documentId}. Queue status: ${result.queue_status}.`,
+      );
       setActionRequestId(null);
       setSelectedDocumentId(documentId);
       await invalidateAfterMutation(queryClient, "document.reindex");
     },
     onError: (error) => {
-      setActionFeedback(getDocumentLifecycleActionErrorMessage("reindex", error));
+      setActionFeedback(
+        getDocumentLifecycleActionErrorMessage("reindex", error),
+      );
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -300,17 +334,29 @@ export function DocumentsPage() {
   const selectedChunks = chunksQuery.data;
 
   const listForbidden = isForbiddenError(documentsQuery.error);
-  const detailForbidden = isForbiddenError(detailQuery.error) || isForbiddenError(statusQuery.error);
+  const detailForbidden =
+    isForbiddenError(detailQuery.error) || isForbiddenError(statusQuery.error);
 
-  const pendingDeleteDocumentId = deleteMutation.isPending ? deleteMutation.variables : null;
-  const pendingReindexDocumentId = reindexMutation.isPending ? reindexMutation.variables : null;
-  const pendingDownloadDocumentId = downloadMutation.isPending ? downloadMutation.variables.documentId : null;
+  const pendingDeleteDocumentId = deleteMutation.isPending
+    ? deleteMutation.variables
+    : null;
+  const pendingReindexDocumentId = reindexMutation.isPending
+    ? reindexMutation.variables
+    : null;
+  const pendingDownloadDocumentId = downloadMutation.isPending
+    ? downloadMutation.variables.documentId
+    : null;
 
   const canGoPrevDocuments = offset > 0;
-  const canGoNextDocuments = Boolean(documentsQuery.data && offset + DOCUMENT_PAGE_SIZE < documentsQuery.data.total);
+  const canGoNextDocuments = Boolean(
+    documentsQuery.data &&
+    offset + DOCUMENT_PAGE_SIZE < documentsQuery.data.total,
+  );
 
   const canGoPrevChunks = chunksOffset > 0;
-  const canGoNextChunks = Boolean(selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total);
+  const canGoNextChunks = Boolean(
+    selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total,
+  );
 
   const currentListHref = useMemo(() => {
     const params = new URLSearchParams();
@@ -370,10 +416,15 @@ export function DocumentsPage() {
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">Rudix Documents</p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">Upload, Index, and Manage Documents</h1>
+        <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+          Rudix Documents
+        </p>
+        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+          Upload, Index, and Manage Documents
+        </h1>
         <p className="text-sm text-[#68647b]">
-          Track ingestion status, inspect chunk previews, and run delete or re-index actions with permission-aware controls.
+          Track ingestion status, inspect chunk previews, and run delete or
+          re-index actions with permission-aware controls.
         </p>
       </header>
 
@@ -382,7 +433,7 @@ export function DocumentsPage() {
           <h2 className="text-lg font-bold text-[#2a2640]">Upload</h2>
           <div className="flex items-center gap-2">
             {!capabilities.canUpload ? (
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold tracking-wide text-slate-600 uppercase">
                 Read-only role
               </span>
             ) : null}
@@ -398,14 +449,17 @@ export function DocumentsPage() {
         </div>
 
         <p className="text-sm text-[#68647b]">
-          Upload one file at a time using the dropzone modal. Supported formats: {ACCEPTED_UPLOAD_TYPES_LABEL}. Max
-          size: {MAX_UPLOAD_SIZE_MB} MB.
+          Upload one file at a time using the dropzone modal. Supported formats:{" "}
+          {ACCEPTED_UPLOAD_TYPES_LABEL}. Max size: {MAX_UPLOAD_SIZE_MB} MB.
         </p>
 
         {uploadFeedback ? (
           <p role="status" className="mt-3 text-sm text-[#3f3778]">
-            Last upload state: <span className="font-semibold uppercase">{uploadFeedback.state}</span> —{" "}
-            {uploadFeedback.message}
+            Last upload state:{" "}
+            <span className="font-semibold uppercase">
+              {uploadFeedback.state}
+            </span>{" "}
+            — {uploadFeedback.message}
           </p>
         ) : null}
       </div>
@@ -414,7 +468,7 @@ export function DocumentsPage() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-bold text-[#2a2640]">Documents</h2>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Status
               <select
                 value={statusFilter}
@@ -431,7 +485,7 @@ export function DocumentsPage() {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Sort
               <select
                 value={sortBy}
@@ -448,7 +502,7 @@ export function DocumentsPage() {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Order
               <select
                 value={sortOrder}
@@ -498,7 +552,9 @@ export function DocumentsPage() {
           />
         ) : null}
 
-        {!documentsQuery.isLoading && !documentsQuery.isError && documents.length === 0 ? (
+        {!documentsQuery.isLoading &&
+        !documentsQuery.isError &&
+        documents.length === 0 ? (
           <EmptyState
             title="No documents found"
             description={`Upload your first ${ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.`}
@@ -512,17 +568,21 @@ export function DocumentsPage() {
                   Upload document
                 </button>
               ) : (
-                <p className="text-xs text-[#6a6780]">Your role cannot upload new documents.</p>
+                <p className="text-xs text-[#6a6780]">
+                  Your role cannot upload new documents.
+                </p>
               )
             }
           />
         ) : null}
 
-        {!documentsQuery.isLoading && !documentsQuery.isError && documents.length > 0 ? (
+        {!documentsQuery.isLoading &&
+        !documentsQuery.isError &&
+        documents.length > 0 ? (
           <div className="overflow-x-auto rounded-xl border border-[#e4e1f2]">
             <table className="min-w-full divide-y divide-[#e7e4f4] bg-white text-sm">
               <thead className="bg-[#faf9ff]">
-                <tr className="text-left text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                   <th className="px-3 py-3">Filename</th>
                   <th className="px-3 py-3">Type</th>
                   <th className="px-3 py-3">Status</th>
@@ -535,30 +595,56 @@ export function DocumentsPage() {
               </thead>
               <tbody className="divide-y divide-[#f0edf8]">
                 {documents.map((document) => {
-                  const deleteEnabled = capabilities.canDelete && canDeleteDocument(document.status);
-                  const reindexEnabled = capabilities.canReindex && canReindexDocument(document.status);
-                  const downloadEnabled = document.status !== "deleted" && document.status !== "deleting";
-                  const deleteBusy = pendingDeleteDocumentId === document.document_id;
-                  const reindexBusy = pendingReindexDocumentId === document.document_id;
-                  const downloadBusy = pendingDownloadDocumentId === document.document_id;
+                  const deleteEnabled =
+                    capabilities.canDelete &&
+                    canDeleteDocument(document.status);
+                  const reindexEnabled =
+                    capabilities.canReindex &&
+                    canReindexDocument(document.status);
+                  const downloadEnabled =
+                    document.status !== "deleted" &&
+                    document.status !== "deleting";
+                  const deleteBusy =
+                    pendingDeleteDocumentId === document.document_id;
+                  const reindexBusy =
+                    pendingReindexDocumentId === document.document_id;
+                  const downloadBusy =
+                    pendingDownloadDocumentId === document.document_id;
 
                   return (
-                    <tr key={document.document_id} className="align-top text-[#2a2640]">
+                    <tr
+                      key={document.document_id}
+                      className="align-top text-[#2a2640]"
+                    >
                       <td className="px-3 py-3">
                         <div className="font-semibold">{document.filename}</div>
-                        <div className="text-xs text-[#7a768f]">{document.document_id}</div>
+                        <div className="text-xs text-[#7a768f]">
+                          {document.document_id}
+                        </div>
                         {document.error_message ? (
-                          <p className="mt-1 text-xs text-rose-700">{document.error_message}</p>
+                          <p className="mt-1 text-xs text-rose-700">
+                            {document.error_message}
+                          </p>
                         ) : null}
                       </td>
-                      <td className="px-3 py-3 uppercase">{document.file_type}</td>
-                      <td className="px-3 py-3">
-                        <span className={statusBadge(document.status)}>{document.status}</span>
+                      <td className="px-3 py-3 uppercase">
+                        {document.file_type}
                       </td>
-                      <td className="px-3 py-3">{document.page_count ?? "-"}</td>
+                      <td className="px-3 py-3">
+                        <span className={statusBadge(document.status)}>
+                          {document.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        {document.page_count ?? "-"}
+                      </td>
                       <td className="px-3 py-3">{document.chunk_count}</td>
-                      <td className="px-3 py-3">{formatDate(document.created_at)}</td>
-                      <td className="px-3 py-3">{formatDate(document.updated_at)}</td>
+                      <td className="px-3 py-3">
+                        {formatDate(document.created_at)}
+                      </td>
+                      <td className="px-3 py-3">
+                        {formatDate(document.updated_at)}
+                      </td>
                       <td className="px-3 py-3">
                         <div className="flex flex-wrap gap-2">
                           <button
@@ -628,16 +714,23 @@ export function DocumentsPage() {
           </div>
         ) : null}
 
-        {!documentsQuery.isLoading && !documentsQuery.isError && documents.length > 0 ? (
+        {!documentsQuery.isLoading &&
+        !documentsQuery.isError &&
+        documents.length > 0 ? (
           <div className="mt-3 flex items-center justify-between gap-3">
             <p className="text-xs text-[#6e6a86]">
-              Showing {documents.length} of {documentsQuery.data?.total ?? documents.length} documents.
+              Showing {documents.length} of{" "}
+              {documentsQuery.data?.total ?? documents.length} documents.
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 disabled={!canGoPrevDocuments}
-                onClick={() => setOffset((current) => Math.max(0, current - DOCUMENT_PAGE_SIZE))}
+                onClick={() =>
+                  setOffset((current) =>
+                    Math.max(0, current - DOCUMENT_PAGE_SIZE),
+                  )
+                }
                 className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Previous
@@ -645,7 +738,9 @@ export function DocumentsPage() {
               <button
                 type="button"
                 disabled={!canGoNextDocuments}
-                onClick={() => setOffset((current) => current + DOCUMENT_PAGE_SIZE)}
+                onClick={() =>
+                  setOffset((current) => current + DOCUMENT_PAGE_SIZE)
+                }
                 className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Next
@@ -658,7 +753,9 @@ export function DocumentsPage() {
       {selectedDocumentId ? (
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-[#2a2640]">Document detail</h2>
+            <h2 className="text-lg font-bold text-[#2a2640]">
+              Document detail
+            </h2>
             <button
               type="button"
               onClick={() => setSelectedDocumentId(null)}
@@ -677,31 +774,51 @@ export function DocumentsPage() {
               compact
               title="Document detail access denied"
               description="You do not have permission to inspect this document."
-              requestId={extractRequestIdFromError(detailQuery.error ?? statusQuery.error)}
+              requestId={extractRequestIdFromError(
+                detailQuery.error ?? statusQuery.error,
+              )}
             />
           ) : null}
 
           {detailQuery.isError && !detailForbidden ? (
-            <ErrorState error={detailQuery.error} description={getApiErrorMessage(detailQuery.error)} />
+            <ErrorState
+              error={detailQuery.error}
+              description={getApiErrorMessage(detailQuery.error)}
+            />
           ) : null}
 
           {selectedDetail ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <MetricCard label="Filename" value={selectedDetail.filename} />
-                <MetricCard label="Type" value={selectedDetail.file_type.toUpperCase()} />
+                <MetricCard
+                  label="Type"
+                  value={selectedDetail.file_type.toUpperCase()}
+                />
                 <MetricCard
                   label="Status"
                   value={deriveDetailStatus(selectedDetail, selectedStatus)}
-                  valueClass={statusBadge(deriveDetailStatus(selectedDetail, selectedStatus))}
+                  valueClass={statusBadge(
+                    deriveDetailStatus(selectedDetail, selectedStatus),
+                  )}
                   plain={false}
                 />
-                <MetricCard label="Updated" value={formatDate(selectedDetail.updated_at)} />
+                <MetricCard
+                  label="Updated"
+                  value={formatDate(selectedDetail.updated_at)}
+                />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
-                <MetricCard label="Pages" value={selectedDetail.page_count ?? "-"} />
+                <MetricCard
+                  label="Pages"
+                  value={selectedDetail.page_count ?? "-"}
+                />
                 <MetricCard label="Chunks" value={selectedDetail.chunk_count} />
-                <MetricCard label="Checksum" value={selectedDetail.checksum ?? "-"} mono />
+                <MetricCard
+                  label="Checksum"
+                  value={selectedDetail.checksum ?? "-"}
+                  mono
+                />
               </div>
 
               {selectedDetail.error_message ? (
@@ -712,9 +829,13 @@ export function DocumentsPage() {
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <h3 className="text-base font-bold text-[#2a2640]">Chunk previews</h3>
+                  <h3 className="text-base font-bold text-[#2a2640]">
+                    Chunk previews
+                  </h3>
                   {chunksQuery.isFetching ? (
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">Refreshing...</span>
+                    <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      Refreshing...
+                    </span>
                   ) : null}
                 </div>
 
@@ -723,11 +844,18 @@ export function DocumentsPage() {
                 ) : null}
 
                 {chunksQuery.isError ? (
-                  <ErrorState compact error={chunksQuery.error} description={getApiErrorMessage(chunksQuery.error)} />
+                  <ErrorState
+                    compact
+                    error={chunksQuery.error}
+                    description={getApiErrorMessage(chunksQuery.error)}
+                  />
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length === 0 ? (
-                  <EmptyState compact title="No chunks available yet for this document." />
+                  <EmptyState
+                    compact
+                    title="No chunks available yet for this document."
+                  />
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length > 0 ? (
@@ -737,23 +865,30 @@ export function DocumentsPage() {
                         key={chunk.chunk_id}
                         className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
                       >
-                        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                           <span>Chunk #{chunk.chunk_index}</span>
                           <span>Page {chunk.page_number ?? "-"}</span>
                           <span>{chunk.token_count} tokens</span>
                         </div>
-                        <p className="text-sm text-[#2a2640]">{chunk.text_preview}</p>
+                        <p className="text-sm text-[#2a2640]">
+                          {chunk.text_preview}
+                        </p>
                       </article>
                     ))}
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <p className="text-xs text-[#6e6a86]">
-                        Showing {selectedChunks.items.length} of {selectedChunks.total} chunks.
+                        Showing {selectedChunks.items.length} of{" "}
+                        {selectedChunks.total} chunks.
                       </p>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           disabled={!canGoPrevChunks}
-                          onClick={() => setChunksOffset((current) => Math.max(0, current - CHUNK_PAGE_SIZE))}
+                          onClick={() =>
+                            setChunksOffset((current) =>
+                              Math.max(0, current - CHUNK_PAGE_SIZE),
+                            )
+                          }
                           className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Previous
@@ -761,7 +896,11 @@ export function DocumentsPage() {
                         <button
                           type="button"
                           disabled={!canGoNextChunks}
-                          onClick={() => setChunksOffset((current) => current + CHUNK_PAGE_SIZE)}
+                          onClick={() =>
+                            setChunksOffset(
+                              (current) => current + CHUNK_PAGE_SIZE,
+                            )
+                          }
                           className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Next
@@ -805,7 +944,9 @@ function MetricCard({
   if (!plain && valueClass) {
     return (
       <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+          {label}
+        </p>
         <span className={valueClass}>{value}</span>
       </div>
     );
@@ -813,12 +954,17 @@ function MetricCard({
 
   return (
     <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+        {label}
+      </p>
       <p
         className="text-sm font-semibold text-[#2a2640]"
         style={
           mono
-            ? { fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace" }
+            ? {
+                fontFamily:
+                  "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace",
+              }
             : undefined
         }
       >

@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -24,12 +33,19 @@ vi.mock("@xyflow/react", () => {
     children,
   }: {
     nodes: Array<{ id: string; data: { label: string } }>;
-    onNodeClick?: (_event: unknown, node: { id: string; data: { label: string } }) => void;
+    onNodeClick?: (
+      _event: unknown,
+      node: { id: string; data: { label: string } },
+    ) => void;
     children?: ReactNode;
   }) => (
     <div data-testid="react-flow">
       {nodes.map((node) => (
-        <button key={node.id} type="button" onClick={() => onNodeClick?.({}, node)}>
+        <button
+          key={node.id}
+          type="button"
+          onClick={() => onNodeClick?.({}, node)}
+        >
           {node.data.label}
         </button>
       ))}
@@ -39,7 +55,9 @@ vi.mock("@xyflow/react", () => {
 
   return {
     ReactFlow,
-    ReactFlowProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    ReactFlowProvider: ({ children }: { children: ReactNode }) => (
+      <>{children}</>
+    ),
     Background: () => null,
     Controls: () => null,
     MiniMap: () => null,
@@ -107,15 +125,26 @@ describe("RagPipelinePage auth integration (MSW)", () => {
   it("loads pipeline graph for authenticated session without manual token entry", async () => {
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-auth-1");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-auth-1",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     expect(await screen.findByText("Type: chat.answer")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Bearer token (optional)")).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText("Organization id (optional)")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Retrieve" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Bearer token (optional)"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByPlaceholderText("Organization id (optional)"),
+    ).not.toBeInTheDocument();
     expect(observedAuthHeader).toBe("Bearer session-access-token");
-    expect(observedOrganizationHeader).toBe("c8ae2f17-c58e-499e-88bf-e6b0a8648c21");
+    expect(observedOrganizationHeader).toBe(
+      "c8ae2f17-c58e-499e-88bf-e6b0a8648c21",
+    );
   });
 
   it("renders shared forbidden state when API returns 403", async () => {
@@ -130,12 +159,19 @@ describe("RagPipelinePage auth integration (MSW)", () => {
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-403");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-403",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
-    expect(await screen.findByRole("heading", { name: "Action blocked" })).toBeInTheDocument();
     expect(
-      screen.getByText("You do not have permission to view this pipeline run. Check your role or organization scope."),
+      await screen.findByRole("heading", { name: "Action blocked" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "You do not have permission to view this pipeline run. Check your role or organization scope.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText("forbidden internals")).not.toBeInTheDocument();
   });
@@ -149,11 +185,16 @@ describe("RagPipelinePage auth integration (MSW)", () => {
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-401");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-401",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Your session is not valid. Sign in again.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Your session is not valid. Sign in again."),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -94,9 +94,12 @@ describe("organization onboarding helpers", () => {
     process.env.NEXT_PUBLIC_ORGANIZATION_ONBOARDING_LOCAL_FALLBACK = "false";
     (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
-    await expect(completeOrganizationOnboarding(VALID_VALUES)).rejects.toMatchObject({
+    await expect(
+      completeOrganizationOnboarding(VALID_VALUES),
+    ).rejects.toMatchObject({
       kind: "not_configured",
-      safeMessage: "Organization onboarding is not configured for this environment.",
+      safeMessage:
+        "Organization onboarding is not configured for this environment.",
     });
   });
 });

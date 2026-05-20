@@ -2,7 +2,10 @@
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 
-import type { DocumentStatus, DocumentStatusResponse } from "@/lib/api/documents";
+import type {
+  DocumentStatus,
+  DocumentStatusResponse,
+} from "@/lib/api/documents";
 import { getDocumentStatus } from "@/lib/api/documents";
 import { queryKeys } from "@/lib/api/query";
 import { shouldPollDocumentStatus } from "@/lib/documents-ui";
@@ -31,7 +34,8 @@ export function useDocumentStatusPolling(
   options: UseDocumentStatusPollingOptions = {},
 ): UseQueryResult<DocumentStatusResponse> {
   const enabled = options.enabled ?? true;
-  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_STATUS_POLL_INTERVAL_MS;
+  const pollIntervalMs =
+    options.pollIntervalMs ?? DEFAULT_STATUS_POLL_INTERVAL_MS;
   const initialStatus = options.initialStatus ?? null;
 
   return useQuery({
@@ -39,10 +43,14 @@ export function useDocumentStatusPolling(
     queryFn: () => getDocumentStatus(documentId ?? ""),
     enabled: Boolean(documentId) && enabled,
     refetchInterval: (query) => {
-      const liveStatus = (query.state.data as DocumentStatusResponse | undefined)?.status;
-      return getDocumentStatusRefetchInterval(liveStatus ?? initialStatus, pollIntervalMs);
+      const liveStatus = (
+        query.state.data as DocumentStatusResponse | undefined
+      )?.status;
+      return getDocumentStatusRefetchInterval(
+        liveStatus ?? initialStatus,
+        pollIntervalMs,
+      );
     },
     refetchIntervalInBackground: options.refetchInBackground ?? false,
   });
 }
-

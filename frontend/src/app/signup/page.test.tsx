@@ -56,13 +56,23 @@ describe("SignupPage", () => {
     await userEvent.type(screen.getByLabelText("Full name"), "A");
     await userEvent.type(screen.getByLabelText("Email"), "bad-email");
     await userEvent.type(screen.getByLabelText("Password"), "short");
-    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create account" }),
+    );
 
-    expect(await screen.findByText("Full name must be at least 2 characters")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Full name must be at least 2 characters"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Enter a valid email address")).toBeInTheDocument();
-    expect(screen.getByText("Password must be at least 8 characters")).toBeInTheDocument();
-    expect(screen.getByText("Workspace name must be at least 2 characters")).toBeInTheDocument();
-    expect(screen.getByText("You must accept the terms to create an account")).toBeInTheDocument();
+    expect(
+      screen.getByText("Password must be at least 8 characters"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Workspace name must be at least 2 characters"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("You must accept the terms to create an account"),
+    ).toBeInTheDocument();
     expect(startSpy).not.toHaveBeenCalled();
   });
 
@@ -84,9 +94,14 @@ describe("SignupPage", () => {
     await userEvent.type(screen.getByLabelText("Full name"), "Jane Doe");
     await userEvent.type(screen.getByLabelText("Email"), "user@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "password123");
-    await userEvent.type(screen.getByLabelText("Workspace name"), "Acme Workspace");
+    await userEvent.type(
+      screen.getByLabelText("Workspace name"),
+      "Acme Workspace",
+    );
     await userEvent.click(screen.getByRole("checkbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create account" }),
+    );
 
     await waitFor(() => {
       expect(authSignup.startSignupSession).toHaveBeenCalledWith({
@@ -106,17 +121,28 @@ describe("SignupPage", () => {
 
   it("shows safe duplicate-email error", async () => {
     vi.spyOn(authSignup, "startSignupSession").mockRejectedValueOnce(
-      new authSignup.SignupFlowError("duplicate_email", "An account with this email already exists."),
+      new authSignup.SignupFlowError(
+        "duplicate_email",
+        "An account with this email already exists.",
+      ),
     );
 
     render(<SignupPage />);
 
     await userEvent.type(screen.getByLabelText("Full name"), "Jane Doe");
-    await userEvent.type(screen.getByLabelText("Email"), "existing@example.com");
+    await userEvent.type(
+      screen.getByLabelText("Email"),
+      "existing@example.com",
+    );
     await userEvent.type(screen.getByLabelText("Password"), "password123");
-    await userEvent.type(screen.getByLabelText("Workspace name"), "Acme Workspace");
+    await userEvent.type(
+      screen.getByLabelText("Workspace name"),
+      "Acme Workspace",
+    );
     await userEvent.click(screen.getByRole("checkbox"));
-    await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create account" }),
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "An account with this email already exists.",
@@ -159,7 +185,9 @@ describe("SignupPage", () => {
     render(<SignupPage />);
 
     await waitFor(() => {
-      expect(mockState.replace).toHaveBeenCalledWith("/organization-onboarding");
+      expect(mockState.replace).toHaveBeenCalledWith(
+        "/organization-onboarding",
+      );
     });
   });
 });

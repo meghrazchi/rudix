@@ -26,8 +26,12 @@ export default function OnboardingPage() {
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <div className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 text-center shadow-sm">
-        <h1 className="text-2xl font-bold text-[#2a2640]">Redirecting to organization onboarding</h1>
-        <p className="mt-2 text-sm text-[#68647b]">Please wait while we route your session.</p>
+        <h1 className="text-2xl font-bold text-[#2a2640]">
+          Redirecting to organization onboarding
+        </h1>
+        <p className="mt-2 text-sm text-[#68647b]">
+          Please wait while we route your session.
+        </p>
       </div>
     </div>
   );

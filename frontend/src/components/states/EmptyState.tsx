@@ -25,11 +25,21 @@ export function EmptyState({
         }`
       }
     >
-      <p className={`${compact ? "text-sm" : "text-base"} font-semibold text-[#2a2640]`}>{title}</p>
+      <p
+        className={`${compact ? "text-sm" : "text-base"} font-semibold text-[#2a2640]`}
+      >
+        {title}
+      </p>
       {description ? (
-        <p className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"} text-[#68647b]`}>{description}</p>
+        <p
+          className={`${compact ? "mt-1 text-xs" : "mt-1 text-sm"} text-[#68647b]`}
+        >
+          {description}
+        </p>
       ) : null}
-      {action ? <div className={compact ? "mt-2" : "mt-4"}>{action}</div> : null}
+      {action ? (
+        <div className={compact ? "mt-2" : "mt-4"}>{action}</div>
+      ) : null}
     </section>
   );
 }

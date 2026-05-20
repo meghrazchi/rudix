@@ -13,7 +13,9 @@ describe("ForbiddenAliasPage", () => {
 
     render(page);
 
-    expect(screen.getByRole("heading", { name: "Forbidden" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Forbidden" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Trace ID:")).toBeInTheDocument();
     expect(screen.getByText("req-403-alias")).toBeInTheDocument();
   });

@@ -39,14 +39,20 @@ describe("useDocumentStatusPolling", () => {
     const options = mockUseQuery.mock.calls[0][0] as {
       enabled: boolean;
       queryKey: readonly unknown[];
-      refetchInterval: (query: { state: { data?: { status?: string } } }) => number | false;
+      refetchInterval: (query: {
+        state: { data?: { status?: string } };
+      }) => number | false;
       refetchIntervalInBackground: boolean;
     };
     expect(options.enabled).toBe(true);
     expect(options.queryKey).toEqual(queryKeys.documents.status("doc-1"));
     expect(options.refetchIntervalInBackground).toBe(true);
-    expect(options.refetchInterval({ state: { data: { status: "processing" } } })).toBe(1234);
-    expect(options.refetchInterval({ state: { data: { status: "indexed" } } })).toBe(false);
+    expect(
+      options.refetchInterval({ state: { data: { status: "processing" } } }),
+    ).toBe(1234);
+    expect(
+      options.refetchInterval({ state: { data: { status: "indexed" } } }),
+    ).toBe(false);
   });
 
   it("disables the status query when document id is missing", () => {
@@ -56,4 +62,3 @@ describe("useDocumentStatusPolling", () => {
     expect(options.enabled).toBe(false);
   });
 });
-

@@ -31,12 +31,18 @@ function renderShell({
     },
   });
 
-  const activeRoute = APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
+  const activeRoute =
+    APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
   const navItems = buildNavItems(activeRoute.key);
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <AppShell activeRoute={activeRoute} navItems={navItems} session={session} onSignOut={onSignOut}>
+      <AppShell
+        activeRoute={activeRoute}
+        navItems={navItems}
+        session={session}
+        onSignOut={onSignOut}
+      >
         <div>Page content</div>
       </AppShell>
     </QueryClientProvider>,
@@ -83,8 +89,13 @@ describe("AppShell top bar menus", () => {
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
     expect(screen.getByText("User ID: user-1")).toBeInTheDocument();
     expect(screen.getByText("Organization: Org One")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/settings");
-    expect(screen.getByRole("menuitem", { name: "Admin usage" })).toHaveAttribute("href", "/admin");
+    expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "Admin usage" }),
+    ).toHaveAttribute("href", "/admin");
 
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
@@ -104,23 +115,22 @@ describe("AppShell top bar menus", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Help" }));
 
-    expect(await screen.findByRole("menuitem", { name: "Documentation" })).toHaveAttribute(
-      "href",
-      "https://docs.example.com",
-    );
+    expect(
+      await screen.findByRole("menuitem", { name: "Documentation" }),
+    ).toHaveAttribute("href", "https://docs.example.com");
     expect(screen.getByRole("menuitem", { name: "Support" })).toHaveAttribute(
       "href",
       "https://support.example.com",
     );
-    expect(screen.getByRole("menuitem", { name: "Keyboard shortcuts" })).toHaveAttribute(
-      "href",
-      "/shortcuts",
-    );
-    expect(screen.getByRole("menuitem", { name: "Project README" })).toHaveAttribute(
-      "href",
-      "https://github.com/example/project#readme",
-    );
-    expect(screen.queryByRole("link", { name: "Admin usage" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Keyboard shortcuts" }),
+    ).toHaveAttribute("href", "/shortcuts");
+    expect(
+      screen.getByRole("menuitem", { name: "Project README" }),
+    ).toHaveAttribute("href", "https://github.com/example/project#readme");
+    expect(
+      screen.queryByRole("link", { name: "Admin usage" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens and closes the mobile navigation drawer with keyboard support", async () => {
@@ -136,7 +146,9 @@ describe("AppShell top bar menus", () => {
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Menu" }));
-    const drawer = await screen.findByRole("dialog", { name: "Navigation menu" });
+    const drawer = await screen.findByRole("dialog", {
+      name: "Navigation menu",
+    });
     expect(drawer).toBeInTheDocument();
 
     const closeButton = screen.getByRole("button", { name: "Close" });
@@ -146,7 +158,9 @@ describe("AppShell top bar menus", () => {
 
     await userEvent.keyboard("{Escape}");
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Navigation menu" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "Navigation menu" }),
+      ).not.toBeInTheDocument();
     });
   });
 });

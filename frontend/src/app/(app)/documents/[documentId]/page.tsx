@@ -6,7 +6,9 @@ type DocumentDetailRoutePageProps = {
   }>;
 };
 
-export default async function DocumentDetailRoutePage({ params }: DocumentDetailRoutePageProps) {
+export default async function DocumentDetailRoutePage({
+  params,
+}: DocumentDetailRoutePageProps) {
   const { documentId } = await params;
 
   return <DocumentDetailPage key={documentId} documentId={documentId} />;

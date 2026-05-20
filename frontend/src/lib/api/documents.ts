@@ -1,8 +1,18 @@
 import { apiRequest } from "@/lib/api/request";
 
 export type DocumentFileType = "pdf" | "txt" | "docx";
-export type DocumentStatus = "uploaded" | "processing" | "indexed" | "failed" | "deleting" | "deleted";
-export type DocumentSortBy = "created_at" | "updated_at" | "filename" | "status";
+export type DocumentStatus =
+  | "uploaded"
+  | "processing"
+  | "indexed"
+  | "failed"
+  | "deleting"
+  | "deleted";
+export type DocumentSortBy =
+  | "created_at"
+  | "updated_at"
+  | "filename"
+  | "status";
 export type SortOrder = "asc" | "desc";
 
 export type DocumentErrorDetails = {
@@ -126,7 +136,10 @@ export type DocumentChunksOptions = {
   include_full_text?: boolean;
 };
 
-export async function uploadDocument(file: File, signal?: AbortSignal): Promise<UploadDocumentResponse> {
+export async function uploadDocument(
+  file: File,
+  signal?: AbortSignal,
+): Promise<UploadDocumentResponse> {
   const formData = new FormData();
   formData.set("file", file);
 
@@ -137,14 +150,18 @@ export async function uploadDocument(file: File, signal?: AbortSignal): Promise<
   });
 }
 
-export async function createUploadUrl(payload: CreateUploadUrlRequest): Promise<CreateUploadUrlResponse> {
+export async function createUploadUrl(
+  payload: CreateUploadUrlRequest,
+): Promise<CreateUploadUrlResponse> {
   return apiRequest<CreateUploadUrlResponse>("/documents/upload-url", {
     method: "POST",
     json: payload,
   });
 }
 
-export async function listDocuments(options: ListDocumentsOptions = {}): Promise<DocumentListResponse> {
+export async function listDocuments(
+  options: ListDocumentsOptions = {},
+): Promise<DocumentListResponse> {
   return apiRequest<DocumentListResponse>("/documents", {
     query: {
       limit: options.limit,
@@ -156,41 +173,65 @@ export async function listDocuments(options: ListDocumentsOptions = {}): Promise
   });
 }
 
-export async function getDocument(documentId: string): Promise<DocumentDetailResponse> {
-  return apiRequest<DocumentDetailResponse>(`/documents/${encodeURIComponent(documentId)}`);
+export async function getDocument(
+  documentId: string,
+): Promise<DocumentDetailResponse> {
+  return apiRequest<DocumentDetailResponse>(
+    `/documents/${encodeURIComponent(documentId)}`,
+  );
 }
 
-export async function getDocumentStatus(documentId: string): Promise<DocumentStatusResponse> {
-  return apiRequest<DocumentStatusResponse>(`/documents/${encodeURIComponent(documentId)}/status`);
+export async function getDocumentStatus(
+  documentId: string,
+): Promise<DocumentStatusResponse> {
+  return apiRequest<DocumentStatusResponse>(
+    `/documents/${encodeURIComponent(documentId)}/status`,
+  );
 }
 
 export async function getDocumentChunks(
   documentId: string,
   options: DocumentChunksOptions = {},
 ): Promise<DocumentChunksResponse> {
-  return apiRequest<DocumentChunksResponse>(`/documents/${encodeURIComponent(documentId)}/chunks`, {
-    query: {
-      limit: options.limit,
-      offset: options.offset,
-      include_full_text: options.include_full_text,
+  return apiRequest<DocumentChunksResponse>(
+    `/documents/${encodeURIComponent(documentId)}/chunks`,
+    {
+      query: {
+        limit: options.limit,
+        offset: options.offset,
+        include_full_text: options.include_full_text,
+      },
     },
-  });
+  );
 }
 
-export async function deleteDocument(documentId: string): Promise<DeleteDocumentResponse> {
-  return apiRequest<DeleteDocumentResponse>(`/documents/${encodeURIComponent(documentId)}`, {
-    method: "DELETE",
-  });
+export async function deleteDocument(
+  documentId: string,
+): Promise<DeleteDocumentResponse> {
+  return apiRequest<DeleteDocumentResponse>(
+    `/documents/${encodeURIComponent(documentId)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
-export async function reindexDocument(documentId: string): Promise<ReindexDocumentResponse> {
-  return apiRequest<ReindexDocumentResponse>(`/documents/${encodeURIComponent(documentId)}/reindex`, {
-    method: "POST",
-  });
+export async function reindexDocument(
+  documentId: string,
+): Promise<ReindexDocumentResponse> {
+  return apiRequest<ReindexDocumentResponse>(
+    `/documents/${encodeURIComponent(documentId)}/reindex`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export async function downloadDocumentFile(documentId: string): Promise<Blob> {
-  return apiRequest<Blob>(`/documents/${encodeURIComponent(documentId)}/download`, {
-    responseType: "blob",
-  });
+  return apiRequest<Blob>(
+    `/documents/${encodeURIComponent(documentId)}/download`,
+    {
+      responseType: "blob",
+    },
+  );
 }

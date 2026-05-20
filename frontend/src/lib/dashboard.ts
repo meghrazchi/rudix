@@ -46,7 +46,10 @@ function asFiniteNumber(value: unknown): number | null {
   return value;
 }
 
-function extractNumericValue(record: Record<string, unknown>, keys: string[]): number | null {
+function extractNumericValue(
+  record: Record<string, unknown>,
+  keys: string[],
+): number | null {
   for (const key of keys) {
     const candidate = asFiniteNumber(record[key]);
     if (candidate !== null) {
@@ -56,7 +59,10 @@ function extractNumericValue(record: Record<string, unknown>, keys: string[]): n
   return null;
 }
 
-export function resolveUsageDateRange(preset: DashboardRangePreset, now: Date = new Date()): {
+export function resolveUsageDateRange(
+  preset: DashboardRangePreset,
+  now: Date = new Date(),
+): {
   from: string;
   to: string;
 } {
@@ -64,7 +70,9 @@ export function resolveUsageDateRange(preset: DashboardRangePreset, now: Date = 
     DASHBOARD_RANGE_PRESETS.find((option) => option.value === preset) ??
     DASHBOARD_RANGE_PRESETS[1];
 
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const end = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - (selected.days - 1));
 
@@ -78,8 +86,13 @@ export function canViewAdminUsage(role: AppRole | null | undefined): boolean {
   return role === "owner" || role === "admin";
 }
 
-export function estimateQuestionsAsked(sessions: ChatSessionResponse[]): number {
-  const totalMessages = sessions.reduce((sum, session) => sum + Math.max(0, session.message_count), 0);
+export function estimateQuestionsAsked(
+  sessions: ChatSessionResponse[],
+): number {
+  const totalMessages = sessions.reduce(
+    (sum, session) => sum + Math.max(0, session.message_count),
+    0,
+  );
   return Math.ceil(totalMessages / 2);
 }
 
@@ -111,7 +124,10 @@ export function formatUsd(value: number | null | undefined): string {
   return currencyFormatter.format(Math.max(0, value));
 }
 
-export function computeIndexingSuccess(totalDocuments: number, indexedDocuments: number): number | null {
+export function computeIndexingSuccess(
+  totalDocuments: number,
+  indexedDocuments: number,
+): number | null {
   if (!Number.isFinite(totalDocuments) || totalDocuments <= 0) {
     return null;
   }
@@ -121,7 +137,9 @@ export function computeIndexingSuccess(totalDocuments: number, indexedDocuments:
   return Math.max(0, Math.min(1, indexedDocuments / totalDocuments));
 }
 
-export function extractAverageConfidence(usage: UsageSummaryResponse): number | null {
+export function extractAverageConfidence(
+  usage: UsageSummaryResponse,
+): number | null {
   const totals = usage.totals as unknown as Record<string, unknown>;
   const direct = extractNumericValue(totals, [
     "average_confidence",
@@ -149,10 +167,14 @@ export function extractAverageConfidence(usage: UsageSummaryResponse): number | 
     return null;
   }
 
-  return seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length;
+  return (
+    seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length
+  );
 }
 
-export function extractAverageLatencyMs(usage: UsageSummaryResponse): number | null {
+export function extractAverageLatencyMs(
+  usage: UsageSummaryResponse,
+): number | null {
   const totals = usage.totals as unknown as Record<string, unknown>;
   const direct = extractNumericValue(totals, [
     "average_latency_ms",
@@ -180,5 +202,7 @@ export function extractAverageLatencyMs(usage: UsageSummaryResponse): number | n
     return null;
   }
 
-  return seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length;
+  return (
+    seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length
+  );
 }

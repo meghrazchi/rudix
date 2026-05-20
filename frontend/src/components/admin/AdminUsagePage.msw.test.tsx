@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -57,7 +66,8 @@ const server = setupServer(
       status: null,
       sort_by: "updated_at",
       sort_order: "desc",
-    })),
+    }),
+  ),
 );
 
 function renderPage() {
@@ -114,7 +124,9 @@ describe("AdminUsagePage MSW", () => {
     expect(await screen.findByText("11")).toBeInTheDocument();
     expect(await screen.findByText("1,500")).toBeInTheDocument();
     expect(await screen.findByText("$2.45")).toBeInTheDocument();
-    expect(await screen.findByText("No usage events were recorded in this range.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No usage events were recorded in this range."),
+    ).toBeInTheDocument();
     expect(observedFrom).not.toBeNull();
     expect(observedTo).not.toBeNull();
     expect(observedGranularity).toBe("day");

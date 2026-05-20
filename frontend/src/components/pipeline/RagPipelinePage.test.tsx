@@ -29,12 +29,19 @@ vi.mock("@xyflow/react", () => {
     children,
   }: {
     nodes: Array<{ id: string; data: { label: string } }>;
-    onNodeClick?: (_event: unknown, node: { id: string; data: { label: string } }) => void;
+    onNodeClick?: (
+      _event: unknown,
+      node: { id: string; data: { label: string } },
+    ) => void;
     children?: ReactNode;
   }) => (
     <div data-testid="react-flow">
       {nodes.map((node) => (
-        <button key={node.id} type="button" onClick={() => onNodeClick?.({}, node)}>
+        <button
+          key={node.id}
+          type="button"
+          onClick={() => onNodeClick?.({}, node)}
+        >
           {node.data.label}
         </button>
       ))}
@@ -44,7 +51,9 @@ vi.mock("@xyflow/react", () => {
 
   return {
     ReactFlow,
-    ReactFlowProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
+    ReactFlowProvider: ({ children }: { children: ReactNode }) => (
+      <>{children}</>
+    ),
     Background: () => null,
     Controls: () => null,
     MiniMap: () => null,
@@ -55,7 +64,8 @@ vi.mock("@xyflow/react", () => {
 });
 
 vi.mock("@/lib/pipeline", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/pipeline")>("@/lib/pipeline");
+  const actual =
+    await vi.importActual<typeof import("@/lib/pipeline")>("@/lib/pipeline");
   return {
     ...actual,
     fetchPipelineRunGraph: vi.fn(),
@@ -87,22 +97,36 @@ describe("RagPipelinePage", () => {
   it("renders fallback graph and updates side panel when a node is clicked", async () => {
     render(<RagPipelinePage />);
 
-    expect(screen.getByText("Showing sample graph. Enter a run id to load backend data.")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Showing sample graph. Enter a run id to load backend data.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Upload" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Chunk" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Chunk" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "Chunk" }),
+      ).toBeInTheDocument();
     });
   });
 
   it("shows run type filter labels for document, chat, and evaluation telemetry", () => {
     render(<RagPipelinePage />);
 
-    expect(screen.getByRole("option", { name: "Document processing (document.process)" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Chat answer (chat.answer)" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Evaluation run (evaluation.run)" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", {
+        name: "Document processing (document.process)",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Chat answer (chat.answer)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Evaluation run (evaluation.run)" }),
+    ).toBeInTheDocument();
   });
 
   it("loads run graph from API and renders loaded nodes", async () => {
@@ -126,14 +150,19 @@ describe("RagPipelinePage", () => {
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-abc");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-abc",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     await waitFor(() => {
       expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith("run-abc");
     });
     expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Retrieve" }),
+    ).toBeInTheDocument();
   });
 
   it("initializes from URL params and auto-loads a run graph", async () => {
@@ -165,10 +194,14 @@ describe("RagPipelinePage", () => {
     await waitFor(() => {
       expect(mockedFetchPipelineRunGraph).toHaveBeenCalledWith("run-url-1");
     });
-    expect(screen.getByPlaceholderText("Pipeline run id")).toHaveValue("run-url-1");
+    expect(screen.getByPlaceholderText("Pipeline run id")).toHaveValue(
+      "run-url-1",
+    );
     expect(screen.getByRole("combobox")).toHaveValue("chat.answer");
     expect(screen.getByText("Document: doc-url-1")).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "Retrieve" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Retrieve" }),
+    ).toBeInTheDocument();
   });
 
   it("shows safe deep-link empty state when run id is missing", async () => {
@@ -180,7 +213,9 @@ describe("RagPipelinePage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("No pipeline run was found yet for this resource. Retry after processing completes."),
+        screen.getByText(
+          "No pipeline run was found yet for this resource. Retry after processing completes.",
+        ),
       ).toBeInTheDocument();
     });
     expect(mockedResolvePipelineRun).toHaveBeenCalledWith({
@@ -203,7 +238,10 @@ describe("RagPipelinePage", () => {
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-forbidden");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-forbidden",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     await waitFor(() => {
@@ -213,7 +251,9 @@ describe("RagPipelinePage", () => {
         ),
       ).toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: "Action blocked" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Action blocked" }),
+    ).toBeInTheDocument();
   });
 
   it("shows shared unauthorized message when API returns 401", async () => {
@@ -226,11 +266,16 @@ describe("RagPipelinePage", () => {
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-unauthorized");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-unauthorized",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Your session is not valid. Sign in again.")).toBeInTheDocument();
+      expect(
+        screen.getByText("Your session is not valid. Sign in again."),
+      ).toBeInTheDocument();
     });
   });
 
@@ -239,23 +284,44 @@ describe("RagPipelinePage", () => {
 
     await userEvent.selectOptions(screen.getByRole("combobox"), "chat.answer");
 
-    expect(screen.getByRole("button", { name: "Embed query" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retrieve" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Build prompt" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Validate citations" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Embed query" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Retrieve" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Build prompt" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Validate citations" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
   });
 
   it("renders evaluation telemetry fixture nodes when evaluation run type filter is selected", async () => {
     render(<RagPipelinePage />);
 
-    await userEvent.selectOptions(screen.getByRole("combobox"), "evaluation.run");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox"),
+      "evaluation.run",
+    );
 
-    expect(screen.getByRole("button", { name: "Load set" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run question" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Score metrics" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Aggregate summary" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Persist results" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Load set" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Run question" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Score metrics" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Aggregate summary" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Persist results" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Type: evaluation.run")).toBeInTheDocument();
   });
 
@@ -271,17 +337,28 @@ describe("RagPipelinePage", () => {
           status: "unexpected",
         },
       ],
-      edges: [{ id: "e-unknown", source: "missing-source", target: "unknown-step" }],
+      edges: [
+        { id: "e-unknown", source: "missing-source", target: "unknown-step" },
+      ],
     } as unknown as PipelineRunGraphResponse);
 
     render(<RagPipelinePage />);
 
-    await userEvent.type(screen.getByPlaceholderText("Pipeline run id"), "run-malformed");
+    await userEvent.type(
+      screen.getByPlaceholderText("Pipeline run id"),
+      "run-malformed",
+    );
     await userEvent.click(screen.getByRole("button", { name: "Load Run" }));
 
-    expect(await screen.findByRole("button", { name: "unknown step" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "unknown step" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Type: chat.answer")).toBeInTheDocument();
-    expect(screen.queryByText("Current run type (chat.answer) is filtered out. Update the run type filter to view this graph.")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Current run type (chat.answer) is filtered out. Update the run type filter to view this graph.",
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("applies run type filter and shows mismatch state", async () => {
@@ -289,7 +366,10 @@ describe("RagPipelinePage", () => {
 
     await userEvent.selectOptions(screen.getByRole("combobox"), "chat.answer");
     await userEvent.selectOptions(screen.getByRole("combobox"), "all");
-    await userEvent.selectOptions(screen.getByRole("combobox"), "document.process");
+    await userEvent.selectOptions(
+      screen.getByRole("combobox"),
+      "document.process",
+    );
 
     expect(screen.getByText("Type: document.process")).toBeInTheDocument();
   });

@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
@@ -121,22 +130,24 @@ describe("DashboardPage MSW states", () => {
   it("shows empty state when no documents and chats exist", async () => {
     renderPage();
     expect(await screen.findByText("No activity yet")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Upload documents" })).toHaveAttribute(
-      "href",
-      "/documents",
-    );
+    expect(
+      screen.getByRole("link", { name: "Upload documents" }),
+    ).toHaveAttribute("href", "/documents");
   });
 
   it("shows recent activity empty state when no activity data exists", async () => {
     renderPage();
     expect(await screen.findByText("Recent activity")).toBeInTheDocument();
-    expect(await screen.findByText("No recent activity available yet.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("No recent activity available yet."),
+    ).toBeInTheDocument();
   });
 
   it("shows actionable error state with retry control", async () => {
     server.use(
       http.get(`${apiBaseUrl}/documents`, async () =>
-        HttpResponse.json({ detail: "Server failure" }, { status: 500 })),
+        HttpResponse.json({ detail: "Server failure" }, { status: 500 }),
+      ),
     );
 
     renderPage();
