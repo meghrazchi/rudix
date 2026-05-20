@@ -5,11 +5,12 @@ deploy:staging:
   resource_group: rudix-staging
   needs:
     - job: validate:staging-vars
+      optional: true
     - job: integration:stack-smoke
     - job: build:backend-images
     - job: build:frontend-image
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $ENABLE_STAGING_DEPLOY == "true"'
     - when: never
   environment:
     name: staging
@@ -70,6 +71,7 @@ deploy:production:
   resource_group: rudix-production
   needs:
     - job: validate:production-vars
+      optional: true
     - job: build:backend-images
     - job: build:frontend-image
   when: manual

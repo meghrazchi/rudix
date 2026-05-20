@@ -134,6 +134,9 @@ Rollback limitation:
 - `STAGING_ENV_FILE` (masked/protected; full runtime `.env` content)
 - `STAGING_ENV_URL`
 
+Staging deploy/validation is opt-in by default: set `ENABLE_STAGING_DEPLOY=true` to enable staging validation and deployment on protected default-branch pipelines.  
+Set `ENABLE_STAGING_VALIDATION=true` to run only the staging variable validation job.
+
 ### Production
 
 - `PRODUCTION_SSH_HOST`
@@ -147,6 +150,9 @@ Rollback limitation:
 - `PRODUCTION_POSTGRES_BACKUP_PATH`
 - `PRODUCTION_MINIO_BACKUP_PATH`
 - `PRODUCTION_QDRANT_BACKUP_PATH`
+
+Production variable validation runs automatically on protected release tags.  
+Set `ENABLE_PRODUCTION_VALIDATION=true` to force the validation job on other pipelines.
 
 ### Optional Sentry Release Tagging
 
