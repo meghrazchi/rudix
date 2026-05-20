@@ -626,6 +626,10 @@ class DocumentIntelligenceToolService:
         )
         retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates]
         selected_chunks = self._rerank_chunks(chunks=retrieved_chunks, enabled=rerank, final_top_k=top_k)
+        embedding_tokens = retrieval_result.embedding_prompt_tokens
+        embedding_cost_usd = (
+            (embedding_tokens / 1_000_000) * settings.openai_embedding_cost_per_million_tokens_usd
+        )
 
         confidence_signals = [
             ConfidenceChunkSignal(
@@ -666,6 +670,15 @@ class DocumentIntelligenceToolService:
                     "rerank_applied": rerank,
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": None,
+                    "usage": {
+                        "embedding_prompt_tokens": embedding_tokens,
+                        "llm_prompt_tokens": 0,
+                        "llm_completion_tokens": 0,
+                        "total_tokens": embedding_tokens,
+                        "embedding_cost_usd": embedding_cost_usd,
+                        "llm_cost_usd": 0.0,
+                        "total_cost_usd": embedding_cost_usd,
+                    },
                     "latency_ms_total": int((perf_counter() - started_total) * 1000),
                 },
             }
@@ -720,6 +733,15 @@ class DocumentIntelligenceToolService:
                     "rerank_applied": rerank,
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": llm_result.model_name,
+                    "usage": {
+                        "embedding_prompt_tokens": embedding_tokens,
+                        "llm_prompt_tokens": llm_result.prompt_tokens,
+                        "llm_completion_tokens": llm_result.completion_tokens,
+                        "total_tokens": embedding_tokens + llm_result.total_tokens,
+                        "embedding_cost_usd": embedding_cost_usd,
+                        "llm_cost_usd": float(llm_result.approximate_cost_usd),
+                        "total_cost_usd": embedding_cost_usd + float(llm_result.approximate_cost_usd),
+                    },
                     "latency_ms_total": int((perf_counter() - started_total) * 1000),
                 },
             }
@@ -778,6 +800,15 @@ class DocumentIntelligenceToolService:
                 "embedding_model": retrieval_result.embedding_model,
                 "llm_model": llm_result.model_name,
                 "citation_validation_score": citation_result.validation_score,
+                "usage": {
+                    "embedding_prompt_tokens": embedding_tokens,
+                    "llm_prompt_tokens": llm_result.prompt_tokens,
+                    "llm_completion_tokens": llm_result.completion_tokens,
+                    "total_tokens": embedding_tokens + llm_result.total_tokens,
+                    "embedding_cost_usd": embedding_cost_usd,
+                    "llm_cost_usd": float(llm_result.approximate_cost_usd),
+                    "total_cost_usd": embedding_cost_usd + float(llm_result.approximate_cost_usd),
+                },
                 "latency_ms_total": int((perf_counter() - started_total) * 1000),
             },
         }

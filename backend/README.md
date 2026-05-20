@@ -132,6 +132,12 @@ Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) wer
   - `AGENT_TOOL_MAX_RETRY_ATTEMPTS`
 - Agent contracts are defined under `app/domains/agents` using `ToolSpec`, `ToolCall`, and `ToolResult`.
 - Internal execution is shared through `ToolRegistry` (allowlist) and `AgentToolExecutor` (auth/budget/timeout/audit wrappers).
+- `AgentRuntime` provides a persisted plan-act-observe loop with:
+  - structured tool selection (`PlannedToolSelection`)
+  - runtime budgets (steps/runtime/tool calls/tokens/cost)
+  - step persistence in `agent_steps`
+  - cancellation checks and safe failure completion
+  - final outcome envelope (answer/citations/confidence)
 - Read-only document intelligence handlers are implemented in `DocumentIntelligenceToolService` and include:
   - `search_documents`
   - `get_document_detail`

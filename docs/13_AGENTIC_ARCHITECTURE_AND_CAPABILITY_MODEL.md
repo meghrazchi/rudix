@@ -186,6 +186,23 @@ Rudix uses one internal tool layer for both agent runtime and MCP adapters:
 4. Side-effect tools must include idempotency keys; selected side-effect tools can additionally require approval IDs.
 5. Persisted tool-call traces store sanitized payloads and hashed idempotency keys only.
 
+## Planner/Executor Loop (F102)
+
+`AgentRuntime` implements a persisted plan-act-observe loop:
+
+1. Create `agent_runs` row in `planning` state with runtime budgets.
+2. Build a typed tool plan (`PlannedToolSelection`) from objective and mode.
+3. Persist planning step and transition run to `running`.
+4. For each planned step:
+   - enforce runtime and budget constraints (steps/runtime/tool calls/tokens/cost)
+   - check cancellation signal and persisted cancellation status
+   - execute tool via `AgentToolExecutor`
+   - persist step outcome (`completed` or `failed`) with sanitized outputs/metrics
+   - accumulate usage/cost from structured tool debug usage fields
+5. Complete run with final outcome (answer + citations + confidence) or fail/cancel with safe error payload.
+
+This loop reuses the same org authorization, redaction, and audit boundaries as the tool executor.
+
 ## Configuration Example
 
 ```env

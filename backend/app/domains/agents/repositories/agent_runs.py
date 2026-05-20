@@ -166,6 +166,65 @@ class AgentRunRepository:
         result = await session.execute(statement)
         return int(result.scalar_one())
 
+    async def update_agent_run(
+        self,
+        session: AsyncSession,
+        *,
+        agent_run_id: UUID,
+        organization_id: UUID,
+        status: str | None = None,
+        objective: str | None = None,
+        budget: dict[str, Any] | None = None,
+        costs: dict[str, Any] | None = None,
+        outcome: dict[str, Any] | None = None,
+        observations: dict[str, Any] | None = None,
+        total_cost_usd: float | None = None,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+        cancelled_at: datetime | None = None,
+        error_message: str | None = None,
+        error_details: dict[str, Any] | None = None,
+    ) -> AgentRun | None:
+        run = await session.scalar(
+            select(AgentRun).where(
+                AgentRun.id == agent_run_id,
+                AgentRun.organization_id == organization_id,
+            )
+        )
+        if run is None:
+            return None
+        if status is not None:
+            run.status = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentRunStatus},
+                field_name="agent run status",
+            )
+        if objective is not None:
+            run.objective = objective
+        if budget is not None:
+            run.budget_json = _sanitize_payload(budget)
+        if costs is not None:
+            run.costs_json = _sanitize_payload(costs)
+        if outcome is not None:
+            run.outcome_json = _sanitize_payload(outcome)
+        if observations is not None:
+            run.observations_json = _sanitize_payload(observations)
+        if total_cost_usd is not None:
+            run.total_cost_usd = total_cost_usd
+        if started_at is not None:
+            run.started_at = started_at
+        if completed_at is not None:
+            run.completed_at = completed_at
+        if cancelled_at is not None:
+            run.cancelled_at = cancelled_at
+        if error_message is not None:
+            run.error_message = error_message
+        if error_details is not None:
+            run.error_details_json = _sanitize_payload(error_details)
+        await session.flush()
+        await session.refresh(run)
+        return run
+
     async def create_agent_step(
         self,
         session: AsyncSession,
@@ -229,6 +288,56 @@ class AgentRunRepository:
             .order_by(AgentStep.sequence.asc(), AgentStep.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def update_agent_step(
+        self,
+        session: AsyncSession,
+        *,
+        agent_step_id: UUID,
+        organization_id: UUID,
+        status: str | None = None,
+        outputs: dict[str, Any] | None = None,
+        metrics: dict[str, Any] | None = None,
+        observation: dict[str, Any] | None = None,
+        error_message: str | None = None,
+        error_details: dict[str, Any] | None = None,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+        duration_ms: int | None = None,
+    ) -> AgentStep | None:
+        step = await session.scalar(
+            select(AgentStep).where(
+                AgentStep.id == agent_step_id,
+                AgentStep.organization_id == organization_id,
+            )
+        )
+        if step is None:
+            return None
+        if status is not None:
+            step.status = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentStepStatus},
+                field_name="agent step status",
+            )
+        if outputs is not None:
+            step.outputs_json = _sanitize_payload(outputs)
+        if metrics is not None:
+            step.metrics_json = _sanitize_payload(metrics)
+        if observation is not None:
+            step.observation_json = _sanitize_payload(observation)
+        if error_message is not None:
+            step.error_message = error_message
+        if error_details is not None:
+            step.error_details_json = _sanitize_payload(error_details)
+        if started_at is not None:
+            step.started_at = started_at
+        if completed_at is not None:
+            step.completed_at = completed_at
+        if duration_ms is not None:
+            step.duration_ms = duration_ms
+        await session.flush()
+        await session.refresh(step)
+        return step
 
     async def create_agent_tool_call(
         self,
