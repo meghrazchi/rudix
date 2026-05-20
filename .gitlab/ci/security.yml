@@ -1,8 +1,5 @@
 container_scanning:
   stage: security
-  needs:
-    - job: build:backend-images
-      optional: true
   variables:
     CS_IMAGE: "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA"
   rules:
