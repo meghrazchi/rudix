@@ -1,6 +1,8 @@
 deploy:staging:
   stage: deploy_staging
-  image: hashicorp/terraform:1.9.8
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
   interruptible: false
   resource_group: rudix-staging
   needs:
@@ -66,7 +68,9 @@ deploy:staging:
 
 deploy:production:
   stage: deploy_production
-  image: hashicorp/terraform:1.9.8
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
   interruptible: false
   resource_group: rudix-production
   needs:
@@ -138,7 +142,9 @@ deploy:production:
 
 rollback:production:
   stage: rollback
-  image: hashicorp/terraform:1.9.8
+  image:
+    name: hashicorp/terraform:1.9.8
+    entrypoint: [""]
   interruptible: false
   resource_group: rudix-production
   when: manual
