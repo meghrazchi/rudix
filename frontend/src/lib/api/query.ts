@@ -97,6 +97,9 @@ export const queryKeys = {
     sessionMessages: (sessionId: string) =>
       ["chat", "session-messages", sessionId] as const,
   },
+  agent: {
+    run: (runId: string) => ["agent", "run", runId] as const,
+  },
   evaluations: {
     sets: ["evaluations", "sets"] as const,
     setQuestions: (evaluationSetId: string, params?: Record<string, unknown>) =>
@@ -132,6 +135,7 @@ export type FrontendMutationKind =
   | "document.delete"
   | "document.reindex"
   | "chat.query"
+  | "agent.run"
   | "evaluation.run";
 
 export async function invalidateAfterMutation(
@@ -153,7 +157,7 @@ export async function invalidateAfterMutation(
     return;
   }
 
-  if (kind === "chat.query") {
+  if (kind === "chat.query" || kind === "agent.run") {
     await queryClient.invalidateQueries({ queryKey: queryKeys.chat.sessions });
     return;
   }

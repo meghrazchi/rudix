@@ -11,6 +11,14 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import {
+  createAgentRun,
+  getAgentRun,
+  type AgentRunCreateRequest,
+  type AgentRunCreateResponse,
+  type AgentRunDetailResponse,
+  type AgentRuntimeMode,
+} from "@/lib/api/agent";
+import {
   createChatSession,
   listChatSessionMessages,
   listChatSessions,
@@ -51,6 +59,12 @@ const DEFAULT_TOP_K = Math.min(
   Math.max(parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5), MIN_TOP_K),
   MAX_TOP_K,
 );
+const AGENT_RUN_POLL_INTERVAL_MS = parsePositiveIntegerEnv(
+  process.env.NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS,
+  3_000,
+);
+const AGENTIC_CHAT_ENABLED = process.env.NEXT_PUBLIC_CHAT_AGENTIC_ENABLED !== "false";
+const DEFAULT_AGENTIC_MODE = process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
 const CHAT_FEEDBACK_ENABLED = process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
 const STREAMING_PLACEHOLDER_ENABLED = process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
@@ -59,6 +73,7 @@ type PersistedChatSettings = {
   topK: number;
   rerank: boolean;
   selectedDocumentIds: string[];
+  agenticMode?: boolean;
 };
 
 type ChatTurn = {
@@ -72,6 +87,10 @@ type ChatTurn = {
     debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
     created_at: string;
+    agent_run_id: string | null;
+    agent_run_status: string | null;
+    agent_run_error: AgentRunCreateResponse["run"]["error"] | null;
+    agent_mode: AgentRuntimeMode | null;
   };
 };
 
@@ -105,6 +124,69 @@ function confidenceBadgeClass(confidence: ChatQueryResponse["confidence_category
     return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
   }
   return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+}
+
+function agentRunStatusClass(status: string): string {
+  if (status === "completed") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "failed" || status === "cancelled") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+}
+
+function isTerminalAgentRunStatus(status: string): boolean {
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+function toObject(value: unknown): Record<string, unknown> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function toStringOrNull(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+  return value;
+}
+
+function toConfidenceCategory(value: unknown, score: number): "low" | "medium" | "high" {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+  if (score >= 0.8) {
+    return "high";
+  }
+  if (score >= 0.5) {
+    return "medium";
+  }
+  return "low";
+}
+
+function normalizeAgentCitation(citation: Record<string, unknown>): ChatCitationResponse {
+  return {
+    document_id: toStringOrNull(citation.document_id) ?? "",
+    chunk_id: toStringOrNull(citation.chunk_id) ?? "",
+    filename: toStringOrNull(citation.filename),
+    page_number: toNumberOrNull(citation.page_number),
+    score: toNumberOrNull(citation.score),
+    similarity_score: toNumberOrNull(citation.similarity_score),
+    rerank_score: toNumberOrNull(citation.rerank_score),
+    rerank_rank: toNumberOrNull(citation.rerank_rank),
+    text_snippet: toStringOrNull(citation.text_snippet) ?? toStringOrNull(citation.snippet),
+  };
 }
 
 function readDebugString(debug: ChatDebugResponse | null, key: string): string | null {
@@ -158,6 +240,10 @@ function toTurnResponseFromQuery(response: ChatQueryResponse): ChatTurn["respons
     debug: response.debug ?? null,
     citations: response.citations,
     created_at: response.created_at,
+    agent_run_id: null,
+    agent_run_status: null,
+    agent_run_error: null,
+    agent_mode: null,
   };
 }
 
@@ -171,6 +257,39 @@ function toTurnResponseFromHistoryMessage(message: ChatSessionMessageResponse): 
     debug: null,
     citations: message.citations,
     created_at: message.created_at,
+    agent_run_id: null,
+    agent_run_status: null,
+    agent_run_error: null,
+    agent_mode: null,
+  };
+}
+
+function toTurnResponseFromAgentRun(run: AgentRunCreateResponse["run"]): ChatTurn["response"] {
+  const outcome = run.outcome ?? null;
+  const confidence = toObject(outcome?.confidence ?? {});
+  const score = toNumberOrNull(confidence.score) ?? 0;
+  const answer =
+    toStringOrNull(outcome?.answer) ??
+    toStringOrNull(run.error?.message) ??
+    "No answer was generated.";
+
+  const citations = Array.isArray(outcome?.citations)
+    ? outcome.citations.map((citation) => normalizeAgentCitation(toObject(citation)))
+    : [];
+
+  return {
+    message_id: run.run_id,
+    answer,
+    confidence_score: score,
+    confidence_category: toConfidenceCategory(confidence.category, score),
+    not_found: Boolean(outcome?.not_found),
+    debug: null,
+    citations,
+    created_at: new Date().toISOString(),
+    agent_run_id: run.run_id,
+    agent_run_status: run.status,
+    agent_run_error: run.error ?? null,
+    agent_mode: outcome?.mode ?? null,
   };
 }
 
@@ -239,6 +358,7 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       topK: storedTopK,
       rerank: parsed.rerank !== false,
       selectedDocumentIds,
+      agenticMode: parsed.agenticMode === true,
     };
   } catch {
     return null;
@@ -322,6 +442,7 @@ export function ChatPage() {
   );
   const [topK, setTopK] = useState(DEFAULT_TOP_K);
   const [rerank, setRerank] = useState(true);
+  const [agenticMode, setAgenticMode] = useState(DEFAULT_AGENTIC_MODE);
   const [threadsBySession, setThreadsBySession] = useState<Record<string, ChatTurn[]>>({});
   const [selectedResponseMessageId, setSelectedResponseMessageId] = useState<string | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
@@ -453,6 +574,7 @@ export function ChatPage() {
       setTopK(persisted.topK);
       setRerank(persisted.rerank);
       setSelectedDocumentIds(persisted.selectedDocumentIds);
+      setAgenticMode(persisted.agenticMode === true);
     }
     didLoadPersistedSettingsRef.current = true;
   }, []);
@@ -465,9 +587,10 @@ export function ChatPage() {
       topK,
       rerank,
       selectedDocumentIds: filteredSelectedDocumentIds,
+      agenticMode,
     };
     window.localStorage.setItem(CHAT_SETTINGS_STORAGE_KEY, JSON.stringify(payload));
-  }, [filteredSelectedDocumentIds, rerank, topK]);
+  }, [agenticMode, filteredSelectedDocumentIds, rerank, topK]);
 
   useEffect(() => {
     const documentIdFromQuery = searchParams.get("document_id");
@@ -506,6 +629,20 @@ export function ChatPage() {
   const selectedCitationPipelineHref = selectedCitationTurn
     ? buildChatPipelineHref(selectedCitationTurn.response)
     : null;
+  const selectedAgentRunId = selectedCitationTurn?.response.agent_run_id ?? null;
+  const selectedAgentRunQuery = useQuery({
+    queryKey: queryKeys.agent.run(selectedAgentRunId ?? ""),
+    queryFn: () => getAgentRun(selectedAgentRunId ?? ""),
+    enabled: Boolean(selectedAgentRunId),
+    refetchInterval: (query) => {
+      const data = query.state.data as AgentRunDetailResponse | undefined;
+      if (!data || isTerminalAgentRunStatus(data.status)) {
+        return false;
+      }
+      return AGENT_RUN_POLL_INTERVAL_MS;
+    },
+    refetchIntervalInBackground: true,
+  });
 
   useEffect(() => {
     if (thread.length === 0) {
@@ -554,12 +691,17 @@ export function ChatPage() {
     },
   });
 
+  const agentRunMutation = useMutation({
+    mutationFn: (payload: AgentRunCreateRequest) => createAgentRun(payload),
+  });
+
   const createSessionMutation = useMutation({
     mutationFn: () => createChatSession(),
   });
 
   const isComposerDisabled =
     queryMutation.isPending ||
+    agentRunMutation.isPending ||
     createSessionMutation.isPending ||
     question.trim().length === 0 ||
     indexedDocumentsQuery.isLoading ||
@@ -567,7 +709,7 @@ export function ChatPage() {
     !hasIndexedDocuments;
 
   const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
-  const composerError = queryMutation.error ?? createSessionMutation.error;
+  const composerError = queryMutation.error ?? agentRunMutation.error ?? createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
   const showDebugDetails = isAdminLikeRole(state.session?.role ?? null) || Boolean(settingsPreferencesQuery.data?.developerMode);
 
@@ -602,7 +744,13 @@ export function ChatPage() {
 
   async function submitQuestionText(questionText: string, clearComposerOnSubmit: boolean) {
     const trimmedQuestion = questionText.trim();
-    if (!trimmedQuestion || queryMutation.isPending || createSessionMutation.isPending || !hasIndexedDocuments) {
+    if (
+      !trimmedQuestion ||
+      queryMutation.isPending ||
+      agentRunMutation.isPending ||
+      createSessionMutation.isPending ||
+      !hasIndexedDocuments
+    ) {
       return;
     }
 
@@ -610,6 +758,47 @@ export function ChatPage() {
     setPendingQuestion(trimmedQuestion);
     if (clearComposerOnSubmit) {
       setQuestion("");
+    }
+
+    if (AGENTIC_CHAT_ENABLED && agenticMode) {
+      const previousThreadKey = activeThreadKey(activeSessionId);
+      const payload: AgentRunCreateRequest = {
+        agentic_mode: true,
+        request: {
+          objective: trimmedQuestion,
+          mode: "answer",
+          question: trimmedQuestion,
+          document_ids: filteredSelectedDocumentIds.length > 0 ? filteredSelectedDocumentIds : undefined,
+          top_k: topK,
+          rerank,
+        },
+      };
+
+      try {
+        const response = await agentRunMutation.mutateAsync(payload);
+        const nextTurn: ChatTurn = {
+          question: trimmedQuestion,
+          response: toTurnResponseFromAgentRun(response.run),
+        };
+        setThreadsBySession((previous) => {
+          const sourceThread = previous[previousThreadKey] ?? [];
+          return {
+            ...previous,
+            [previousThreadKey]: [...sourceThread, nextTurn],
+          };
+        });
+        setSelectedResponseMessageId(nextTurn.response.message_id);
+        setSubmitRequestId(null);
+        setPendingQuestion(null);
+        await invalidateAfterMutation(queryClient, "agent.run");
+      } catch (error) {
+        setSubmitRequestId(extractRequestIdFromError(error));
+        if (clearComposerOnSubmit) {
+          setQuestion(trimmedQuestion);
+        }
+        setPendingQuestion(null);
+      }
+      return;
     }
 
     let targetSessionId = activeSessionId;
@@ -755,6 +944,26 @@ export function ChatPage() {
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
             <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-[#5f5a74]">Retrieval settings</h2>
+            <label className="mb-3 flex items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
+              <input
+                type="checkbox"
+                checked={agenticMode}
+                disabled={!AGENTIC_CHAT_ENABLED}
+                onChange={(event) => setAgenticMode(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Agentic mode
+                <span className="mt-1 block text-xs text-[#6a6780]">
+                  Run plan-act-observe execution with a step timeline and explicit budget handling.
+                </span>
+                {!AGENTIC_CHAT_ENABLED ? (
+                  <span className="mt-1 block text-xs text-[#8a4762]">
+                    Agentic mode is disabled for this deployment.
+                  </span>
+                ) : null}
+              </span>
+            </label>
             <label className="mb-3 grid gap-1 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
               Top K
               <input
@@ -852,6 +1061,7 @@ export function ChatPage() {
                     : filteredSelectedDocumentIds.length > 0
                     ? `${filteredSelectedDocumentIds.length} document(s) selected`
                     : "All indexed accessible documents are in scope"}
+                  {AGENTIC_CHAT_ENABLED && agenticMode ? " • agentic mode enabled" : ""}
                 </p>
                 <button
                   type="submit"
@@ -860,6 +1070,8 @@ export function ChatPage() {
                 >
                   {createSessionMutation.isPending
                     ? "Starting session..."
+                    : agentRunMutation.isPending
+                      ? "Running agent..."
                     : queryMutation.isPending
                       ? "Generating answer..."
                       : "Ask"}
@@ -876,7 +1088,12 @@ export function ChatPage() {
                       }
                       void submitQuestionText(latestTurn.question, false);
                     }}
-                    disabled={queryMutation.isPending || createSessionMutation.isPending || !hasIndexedDocuments}
+                    disabled={
+                      queryMutation.isPending ||
+                      agentRunMutation.isPending ||
+                      createSessionMutation.isPending ||
+                      !hasIndexedDocuments
+                    }
                     className="rounded-md border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Regenerate last answer
@@ -955,6 +1172,11 @@ export function ChatPage() {
                         <span className={confidenceBadgeClass(turn.response.confidence_category)}>
                           Confidence {formatPercent(turn.response.confidence_score)}
                         </span>
+                        {turn.response.agent_run_status ? (
+                          <span className={agentRunStatusClass(turn.response.agent_run_status)}>
+                            Agent run {turn.response.agent_run_status}
+                          </span>
+                        ) : null}
                         <span className="text-xs text-[#6a6780]">{formatDate(turn.response.created_at)}</span>
                         <button
                           type="button"
@@ -989,6 +1211,11 @@ export function ChatPage() {
                           {turn.response.answer}
                         </p>
                       )}
+                      {turn.response.agent_run_error ? (
+                        <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                          Agent stop reason: {turn.response.agent_run_error.message}
+                        </p>
+                      ) : null}
                       {CHAT_FEEDBACK_ENABLED ? (
                         <div className="mt-3 flex items-center gap-2">
                           <span className="text-xs text-[#6a6780]">Was this answer helpful?</span>
@@ -1135,6 +1362,86 @@ export function ChatPage() {
                     )}
                   </section>
                 ) : null}
+
+                <section className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+                    Agent timeline
+                  </h3>
+                  {!selectedAgentRunId ? (
+                    <EmptyState
+                      compact
+                      title="No agent run for this answer."
+                      description="Enable agentic mode and ask a question to inspect step timeline details."
+                    />
+                  ) : selectedAgentRunQuery.isLoading ? (
+                    <LoadingState compact title="Loading run timeline..." />
+                  ) : selectedAgentRunQuery.isError ? (
+                    <ErrorState
+                      compact
+                      title="Unable to load agent timeline"
+                      error={selectedAgentRunQuery.error}
+                      description={getApiErrorMessage(selectedAgentRunQuery.error)}
+                      requestId={extractRequestIdFromError(selectedAgentRunQuery.error)}
+                      onRetry={() => {
+                        void selectedAgentRunQuery.refetch();
+                      }}
+                    />
+                  ) : selectedAgentRunQuery.data ? (
+                    <div className="space-y-2 text-xs text-[#4f4b63]">
+                      <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-2">
+                        <span className={agentRunStatusClass(selectedAgentRunQuery.data.status)}>
+                          {selectedAgentRunQuery.data.status}
+                        </span>
+                        <span>run {selectedAgentRunQuery.data.run_id}</span>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-2 rounded border border-[#ebe8f7] px-2 py-2">
+                        <div>
+                          <dt className="font-semibold">Max steps</dt>
+                          <dd>{String(selectedAgentRunQuery.data.budget.max_steps ?? selectedAgentRunQuery.data.max_steps ?? "N/A")}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Steps used</dt>
+                          <dd>{selectedAgentRunQuery.data.steps.length}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Max tool calls</dt>
+                          <dd>{String(selectedAgentRunQuery.data.budget.max_tool_calls ?? "N/A")}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold">Tool calls used</dt>
+                          <dd>{selectedAgentRunQuery.data.tool_calls.length}</dd>
+                        </div>
+                      </dl>
+                      {selectedAgentRunQuery.data.error_message ? (
+                        <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
+                          Stop reason: {selectedAgentRunQuery.data.error_message}
+                        </p>
+                      ) : null}
+                      {selectedAgentRunQuery.data.steps.length === 0 ? (
+                        <EmptyState compact title="No timeline steps were persisted." />
+                      ) : (
+                        <ol className="space-y-1">
+                          {selectedAgentRunQuery.data.steps.map((step) => (
+                            <li key={step.step_id} className="rounded border border-[#ebe8f7] px-2 py-2">
+                              <p className="font-semibold text-[#3f3b58]">
+                                {step.sequence}. {step.step_name}
+                              </p>
+                              <p className="text-[#6a6780]">
+                                status {step.status}
+                                {step.duration_ms !== null ? ` • ${step.duration_ms} ms` : ""}
+                              </p>
+                              {step.error_message ? (
+                                <p className="mt-1 text-rose-700">{step.error_message}</p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                    </div>
+                  ) : (
+                    <EmptyState compact title="Run detail unavailable." />
+                  )}
+                </section>
               </div>
             )}
           </section>

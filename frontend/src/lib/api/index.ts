@@ -1,4 +1,5 @@
 export * from "@/lib/api/admin-usage";
+export * from "@/lib/api/agent";
 export * from "@/lib/api/chat";
 export * from "@/lib/api/documents";
 export * from "@/lib/api/errors";

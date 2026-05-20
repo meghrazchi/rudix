@@ -79,6 +79,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - admin-only usage window selector (7d / 30d / 90d) for `/admin/usage` aggregation when enabled
   - explicit loading/error states with retry actions for each KPI card
   - empty state with document/chat call-to-actions when no activity exists
+- Chat page behavior:
+  - supports one-shot RAG mode and explicit agentic mode toggle for plan-act-observe execution
+  - agentic mode calls `/agent/runs` with typed payloads and renders final cited answer in-thread
+  - context panel includes safe agent timeline (status, budgets, stop reason, and step durations)
+  - step-level raw payloads are intentionally hidden from UI to avoid sensitive data exposure
 - Evaluations page behavior:
   - evaluation set list with create flow, question management, and permission-aware controls
   - run controls for `top_k`, rerank, and optional document scope
@@ -157,6 +162,9 @@ NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT=50
 NEXT_PUBLIC_CHAT_TOP_K_MIN=1
 NEXT_PUBLIC_CHAT_TOP_K_MAX=20
 NEXT_PUBLIC_CHAT_TOP_K_DEFAULT=5
+NEXT_PUBLIC_CHAT_AGENTIC_ENABLED=true
+NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=false
+NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS=3000
 NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=25
 NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT=5
 NEXT_PUBLIC_EVALUATION_LOW_SCORE_THRESHOLD=0.5
@@ -214,6 +222,9 @@ Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and d
 Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
 Set `NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL` to enable CSV export from Admin Audit Logs.
 Set `NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS` (milliseconds) to auto-refresh `/admin/system-health`; leave empty or `0` to disable.
+Set `NEXT_PUBLIC_CHAT_AGENTIC_ENABLED=false` to hide agentic-mode execution in chat.
+Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by default.
+Set `NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS` to control timeline polling for non-terminal agent run statuses.
 Set `NEXT_PUBLIC_LANDING_*` URLs to override landing-page navigation and CTA destinations.
 
 ### 3. Start dev server

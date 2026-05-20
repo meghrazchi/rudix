@@ -5,8 +5,10 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
+import { createAgentRun, getAgentRun } from "@/lib/api/agent";
 import { createChatSession, listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
+import { ApiClientError } from "@/lib/api/errors";
 
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -25,6 +27,11 @@ vi.mock("@/lib/api/chat", () => ({
   listChatSessionMessages: vi.fn(),
   listChatSessions: vi.fn(),
   queryChat: vi.fn(),
+}));
+
+vi.mock("@/lib/api/agent", () => ({
+  createAgentRun: vi.fn(),
+  getAgentRun: vi.fn(),
 }));
 
 function renderPage() {
@@ -65,6 +72,56 @@ describe("ChatPage", () => {
       message_count: 0,
       created_at: "2026-05-14T10:00:00Z",
       updated_at: "2026-05-14T10:00:00Z",
+    });
+    vi.mocked(createAgentRun).mockResolvedValue({
+      run: {
+        run_id: "run-default",
+        status: "completed",
+        steps_executed: 1,
+        tool_calls_executed: 1,
+        total_tokens: 20,
+        total_cost_usd: 0.0004,
+        outcome: {
+          answer: "Agent answer",
+          citations: [],
+          confidence: {
+            score: 0.8,
+            category: "high",
+          },
+          not_found: false,
+          mode: "answer",
+        },
+        error: null,
+      },
+    });
+    vi.mocked(getAgentRun).mockResolvedValue({
+      run_id: "run-default",
+      organization_id: "org-1",
+      user_id: "user-1",
+      status: "completed",
+      surface: "api",
+      objective: "default objective",
+      max_steps: 12,
+      max_parallel_tool_calls: 4,
+      budget: {
+        max_steps: 12,
+        max_tool_calls: 30,
+      },
+      costs: {},
+      outcome: {},
+      observations: {},
+      total_cost_usd: 0.0004,
+      trace_request_id: "req-1",
+      error_message: null,
+      error_details: {},
+      started_at: null,
+      completed_at: null,
+      cancelled_at: null,
+      created_at: "2026-05-14T10:10:00Z",
+      updated_at: "2026-05-14T10:10:10Z",
+      steps: [],
+      tool_calls: [],
+      approvals: [],
     });
   });
 
@@ -492,6 +549,188 @@ describe("ChatPage", () => {
         }),
       );
     });
+  });
+
+  it("submits agentic runs when agentic mode is enabled and renders timeline", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(createAgentRun).mockResolvedValue({
+      run: {
+        run_id: "run-agent-1",
+        status: "completed",
+        steps_executed: 3,
+        tool_calls_executed: 2,
+        total_tokens: 180,
+        total_cost_usd: 0.0022,
+        outcome: {
+          answer: "Agent generated grounded answer.",
+          citations: [
+            {
+              document_id: "doc-indexed-a",
+              chunk_id: "chunk-a",
+              filename: "policy-a.pdf",
+              page_number: 2,
+              score: 0.88,
+              similarity_score: 0.82,
+              rerank_score: 0.8,
+              rerank_rank: 1,
+              snippet: "Grounded policy snippet",
+            },
+          ],
+          confidence: {
+            score: 0.82,
+            category: "high",
+          },
+          not_found: false,
+          mode: "answer",
+        },
+        error: null,
+      },
+    });
+    vi.mocked(getAgentRun).mockResolvedValue({
+      run_id: "run-agent-1",
+      organization_id: "org-1",
+      user_id: "user-1",
+      status: "completed",
+      surface: "api",
+      objective: "Agent objective",
+      max_steps: 12,
+      max_parallel_tool_calls: 4,
+      budget: {
+        max_steps: 12,
+        max_tool_calls: 30,
+      },
+      costs: {},
+      outcome: {},
+      observations: {},
+      total_cost_usd: 0.0022,
+      trace_request_id: "trace-agent",
+      error_message: null,
+      error_details: {},
+      started_at: null,
+      completed_at: null,
+      cancelled_at: null,
+      created_at: "2026-05-14T10:10:00Z",
+      updated_at: "2026-05-14T10:10:10Z",
+      steps: [
+        {
+          step_id: "step-1",
+          sequence: 1,
+          step_name: "discover_documents",
+          status: "completed",
+          inputs: {},
+          outputs: {},
+          metrics: {},
+          observation: {},
+          error_message: null,
+          error_details: {},
+          started_at: null,
+          completed_at: null,
+          duration_ms: 12,
+          created_at: "2026-05-14T10:10:00Z",
+          updated_at: "2026-05-14T10:10:00Z",
+        },
+      ],
+      tool_calls: [],
+      approvals: [],
+    });
+
+    renderPage();
+    await screen.findByText("policy-a.pdf");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "agentic question");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Agent generated grounded answer.")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(vi.mocked(createAgentRun)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentic_mode: true,
+          request: expect.objectContaining({
+            objective: "agentic question",
+            question: "agentic question",
+            top_k: 5,
+            rerank: true,
+          }),
+        }),
+      );
+    });
+    expect(vi.mocked(queryChat)).not.toHaveBeenCalled();
+    expect(vi.mocked(createChatSession)).not.toHaveBeenCalled();
+    expect(await screen.findByText("Agent timeline")).toBeInTheDocument();
+    expect(await screen.findByText("1. discover_documents")).toBeInTheDocument();
+  });
+
+  it("shows safe agentic error state with trace id and no secret leakage", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(createAgentRun).mockRejectedValue(
+      new ApiClientError({
+        status: 503,
+        code: "service_unavailable",
+        message: "token=top-secret",
+        details: {
+          token: "top-secret",
+        },
+        requestId: "trace-agent-err",
+        userMessage: "The service is temporarily unavailable.",
+        actionMessage: "Retry shortly.",
+        retryable: true,
+      }),
+    );
+
+    renderPage();
+    await screen.findByText("policy-a.pdf");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "agentic failing question");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Unable to complete the query.")).toBeInTheDocument();
+    expect(screen.getByText("The service is temporarily unavailable. Retry shortly.")).toBeInTheDocument();
+    expect(screen.getByText("trace-agent-err")).toBeInTheDocument();
+    expect(screen.queryByText(/top-secret/i)).not.toBeInTheDocument();
   });
 
   it("enforces top_k min and max bounds", async () => {
