@@ -1,0 +1,72 @@
+backend:ruff-mypy:
+  stage: test
+  image: python:3.12-slim
+  extends:
+    - .rules:backend-changes
+    - .cache:pip
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e "./backend[dev]"
+    - cd backend
+    - ruff format --check app tests
+    - ruff check app tests
+    - mypy app
+
+backend:pytest:
+  stage: test
+  image: python:3.12-slim
+  extends:
+    - .rules:backend-changes
+    - .cache:pip
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e "./backend[dev]"
+    - cd backend
+    - pytest --junitxml=../artifacts/backend-junit.xml --cov=app --cov-report=xml:../artifacts/backend-coverage.xml --cov-report=term
+  artifacts:
+    when: always
+    reports:
+      junit: artifacts/backend-junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: artifacts/backend-coverage.xml
+    paths:
+      - artifacts/backend-junit.xml
+      - artifacts/backend-coverage.xml
+
+backend:alembic-validate:
+  stage: test
+  image: python:3.12-slim
+  extends:
+    - .rules:backend-changes
+    - .cache:pip
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_DB: rag_app
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app"
+    API_BASE_URL: "http://localhost:8000"
+    FRONTEND_BASE_URL: "http://localhost:3000"
+    OPENAI_API_KEY: "ci-placeholder-key"
+    AUTH_PROVIDER: "app"
+    APP_AUTH_SECRET: "ci-local-secret"
+    APP_AUTH_ISSUER: "rudix-app"
+    APP_AUTH_AUDIENCE: "rudix-api"
+    MINIO_ENDPOINT: "http://localhost:9000"
+    MINIO_BUCKET: "documents"
+    MINIO_ACCESS_KEY: "minioadmin"
+    MINIO_SECRET_KEY: "minioadmin"
+    QDRANT_URL: "http://localhost:6333"
+    QDRANT_COLLECTION: "documents"
+    RABBITMQ_URL: "amqp://guest:guest@localhost:5672//"
+    REDIS_URL: "redis://localhost:6379/0"
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e "./backend[dev]"
+    - cd backend
+    - alembic upgrade head
+    - alembic downgrade -1
+    - alembic upgrade head

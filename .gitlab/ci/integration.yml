@@ -1,0 +1,96 @@
+integration:stack-smoke:
+  stage: integration
+  extends:
+    - .docker:dind
+  rules:
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - backend/**/*
+        - frontend/**/*
+        - deploy/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+        - .gitlab/ci/integration.yml
+    - when: never
+  needs:
+    - job: build:backend-images
+    - job: build:frontend-image
+  script:
+    - apk add --no-cache bash curl
+    - mkdir -p artifacts
+    - |
+      API_IMAGE_REF="$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA"
+      WORKER_IMAGE_REF="$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHA"
+      if [ -f artifacts/image-digests/api.txt ]; then
+        API_IMAGE_REF="$(cat artifacts/image-digests/api.txt)"
+      fi
+      if [ -f artifacts/image-digests/worker.txt ]; then
+        WORKER_IMAGE_REF="$(cat artifacts/image-digests/worker.txt)"
+      fi
+      export RUDIX_API_IMAGE="$API_IMAGE_REF"
+      export RUDIX_WORKER_IMAGE="$WORKER_IMAGE_REF"
+
+      cat > .env.ci.integration <<EOF
+      ENVIRONMENT=ci
+      API_BASE_URL=http://api:8000
+      FRONTEND_BASE_URL=http://frontend:3000
+      CORS_ORIGINS=http://frontend:3000
+      DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
+      POSTGRES_DB=rag_app
+      POSTGRES_USER=postgres
+      POSTGRES_PASSWORD=postgres
+      QDRANT_URL=http://qdrant:6333
+      QDRANT_COLLECTION=documents
+      QDRANT_VECTOR_SIZE=1536
+      QDRANT_BOOTSTRAP_COLLECTION=true
+      MINIO_ENDPOINT=http://minio:9000
+      MINIO_ROOT_USER=minioadmin
+      MINIO_ROOT_PASSWORD=minioadmin
+      MINIO_ACCESS_KEY=minioadmin
+      MINIO_SECRET_KEY=minioadmin
+      MINIO_BUCKET=documents
+      MINIO_BOOTSTRAP_BUCKET=true
+      RABBITMQ_DEFAULT_USER=admin
+      RABBITMQ_DEFAULT_PASS=admin123
+      RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672//
+      REDIS_URL=redis://redis:6379/0
+      OPENAI_API_KEY=${OPENAI_API_KEY:-ci-placeholder-key}
+      OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+      OPENAI_LLM_MODEL=gpt-5.4-mini
+      AUTH_PROVIDER=app
+      APP_AUTH_SECRET=ci-local-secret
+      APP_AUTH_ISSUER=rudix-app
+      APP_AUTH_AUDIENCE=rudix-api
+      FEATURE_ENABLE_AGENTS=true
+      EOF
+
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration up -d --remove-orphans
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration run --rm migrate
+
+      for _ in $(seq 1 60); do
+        if curl -fsS http://localhost:8000/api/v1/health >/dev/null; then
+          break
+        fi
+        sleep 2
+      done
+      curl -fsS http://localhost:8000/api/v1/health
+      curl -fsS http://localhost:8000/api/v1/ready
+
+      # Auth boundary behavior smoke: protected resources should reject unauthenticated requests.
+      test "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/documents)" = "401"
+
+      # Upload/chat preflight smoke.
+      test "$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS http://localhost:8000/api/v1/documents/upload)" = "200"
+      test "$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS http://localhost:8000/api/v1/chat)" = "200"
+
+      # Basic worker process check.
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps worker | grep -q "Up"
+  after_script:
+    - docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
+    - docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration down -v || true
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - artifacts/integration-compose.log

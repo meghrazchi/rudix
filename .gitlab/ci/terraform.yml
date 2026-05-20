@@ -1,0 +1,15 @@
+terraform:fmt-validate:
+  stage: validate
+  image: hashicorp/terraform:1.9.8
+  rules:
+    - changes:
+        - deploy/terraform/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/terraform.yml
+        - .gitlab/ci/deploy.yml
+    - when: never
+  script:
+    - cd deploy/terraform
+    - terraform fmt -check -diff
+    - terraform init -backend=false -input=false
+    - terraform validate

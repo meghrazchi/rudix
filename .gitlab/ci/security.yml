@@ -1,0 +1,55 @@
+container_scanning:
+  stage: security
+  needs:
+    - job: build:backend-images
+  variables:
+    CS_IMAGE: "$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA"
+  rules:
+    - changes:
+        - backend/**/*
+        - backend/Dockerfile
+        - .gitlab-ci.yml
+        - .gitlab/ci/security.yml
+        - .gitlab/ci/build.yml
+    - when: never
+
+security:severity-gate:
+  stage: security
+  image: python:3.12-slim
+  needs:
+    - job: dependency_scanning
+      optional: true
+    - job: container_scanning
+      optional: true
+  rules:
+    - if: '$CI_COMMIT_REF_PROTECTED == "true"'
+    - when: never
+  script:
+    - |
+      python - <<'PY'
+      import json
+      from pathlib import Path
+
+      report_paths = [
+        Path("gl-dependency-scanning-report.json"),
+        Path("gl-container-scanning-report.json"),
+      ]
+      critical = 0
+      high = 0
+
+      for report_path in report_paths:
+        if not report_path.exists():
+          continue
+        data = json.loads(report_path.read_text())
+        vulnerabilities = data.get("vulnerabilities", [])
+        for vuln in vulnerabilities:
+          severity = str(vuln.get("severity", "")).lower()
+          if severity == "critical":
+            critical += 1
+          elif severity == "high":
+            high += 1
+
+      print(f"security gate results -> critical={critical}, high={high}")
+      if critical > 0 or high > 0:
+        raise SystemExit("Failing pipeline: high/critical vulnerabilities found on protected ref.")
+      PY

@@ -1,0 +1,69 @@
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
+  PYTHONUNBUFFERED: "1"
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_DRIVER: "overlay2"
+  DOCKER_HOST: "tcp://docker:2376"
+  DOCKER_TLS_VERIFY: "1"
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+
+.rules:backend-changes:
+  rules:
+    - changes:
+        - backend/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/common.yml
+        - .gitlab/ci/backend.yml
+        - ci/scripts/**/*
+    - when: never
+
+.rules:frontend-changes:
+  rules:
+    - changes:
+        - frontend/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/common.yml
+        - .gitlab/ci/frontend.yml
+        - ci/scripts/**/*
+    - when: never
+
+.rules:full-stack-changes:
+  rules:
+    - changes:
+        - backend/**/*
+        - frontend/**/*
+        - docker-compose.yml
+        - deploy/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/**/*
+        - ci/scripts/**/*
+    - when: never
+
+.cache:pip:
+  cache:
+    key:
+      files:
+        - backend/pyproject.toml
+    paths:
+      - .cache/pip
+    policy: pull-push
+
+.cache:npm:
+  cache:
+    key:
+      files:
+        - frontend/package-lock.json
+    paths:
+      - .cache/npm
+      - frontend/.next/cache
+    policy: pull-push
+
+.docker:dind:
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      command: ["--tls=true"]
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
