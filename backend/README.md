@@ -101,6 +101,7 @@ curl -i http://localhost:8000/api/v1/pipeline/steps \
 Current endpoint authorization:
 
 - `pipeline/*`: any authenticated org member role (`owner|admin|member|viewer`)
+- `agent/runs*`: any authenticated org member role (`owner|admin|member|viewer`) when `FEATURE_ENABLE_AGENTS=true`
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
 - `admin/usage` and `admin/audit-logs`: `owner|admin`
@@ -259,6 +260,18 @@ curl -sS http://localhost:8000/api/v1/chat \
   -H "X-Organization-ID: $ORG_ID" \
   -H "Content-Type: application/json" \
   -d "{\"question\":\"What does this document say?\",\"chat_session_id\":\"$CHAT_SESSION_ID\",\"document_ids\":[\"$DOC_ID\"],\"top_k\":5,\"rerank\":true}" | jq
+
+# Run agentic mode (explicit switch + nested runtime request)
+AGENT_RUN_ID=$(curl -sS http://localhost:8000/api/v1/agent/runs \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" \
+  -H "Content-Type: application/json" \
+  -d "{\"agentic_mode\":true,\"request\":{\"objective\":\"Answer policy question\",\"mode\":\"answer\",\"question\":\"What does this document say?\",\"document_ids\":[\"$DOC_ID\"],\"top_k\":5,\"rerank\":true}}" | jq -r '.run.run_id')
+
+# Inspect persisted run trace (run, steps, tool calls, approvals)
+curl -sS "http://localhost:8000/api/v1/agent/runs/$AGENT_RUN_ID" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Organization-ID: $ORG_ID" | jq
 
 # Verify uploaded object exists in MinIO
 docker compose run --rm minio-init /bin/sh -lc \
