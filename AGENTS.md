@@ -97,7 +97,7 @@ If a command cannot be run in the current environment, say exactly which command
 - Keep worker jobs idempotent. Retries must not duplicate chunks, vectors, usage events, or terminal state transitions.
 - Use centralized client factories/config where available. Do not create ad-hoc Qdrant, MinIO, Redis, RabbitMQ, OpenAI, or database clients unless there is a clear reason.
 
-## Agentic core standards (F98+)
+## Agentic core standards
 
 - Agent runtime contracts must use typed primitives under `backend/app/domains/agents`:
   - `ToolSpec`
