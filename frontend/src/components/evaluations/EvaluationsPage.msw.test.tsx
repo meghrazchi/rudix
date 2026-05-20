@@ -354,10 +354,9 @@ describe("EvaluationsPage list states (MSW)", () => {
     await screen.findByRole("button", { name: "Run evaluation" });
     await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Optional backend-supported model identifier"),
-      "custom-eval-model",
-    );
+    fireEvent.change(screen.getByPlaceholderText("Optional backend-supported model identifier"), {
+      target: { value: "custom-eval-model" },
+    });
     await userEvent.click(screen.getByRole("checkbox", { name: /policy\.pdf/i }));
     fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
       target: { value: '{"faithfulness":true,"max_latency_ms":900}' },
@@ -390,10 +389,9 @@ describe("EvaluationsPage list states (MSW)", () => {
 
     await screen.findByRole("button", { name: "Run evaluation" });
     await userEvent.click(screen.getByRole("button", { name: "Run evaluation" }));
-    await userEvent.type(
-      screen.getByPlaceholderText("Optional backend-supported model identifier"),
-      "retry-model",
-    );
+    fireEvent.change(screen.getByPlaceholderText("Optional backend-supported model identifier"), {
+      target: { value: "retry-model" },
+    });
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     expect(

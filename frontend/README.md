@@ -250,12 +250,40 @@ Open `http://localhost:3000`.
 
 ## Testing
 
-Run:
+Shared test harness and fixtures:
+
+- `src/test/render.tsx`
+  - `createTestQueryClient()` and `renderWithProviders()` for reusable TanStack Query + auth session setup.
+- `src/test/navigation.ts`
+  - reusable Next.js App Router mocks (`useRouter`, `usePathname`, `useSearchParams`) for component tests.
+- `src/test/msw/fixtures.ts`
+  - stable API fixture payloads for documents, chat, evaluations, pipeline, health, and admin usage.
+- `src/test/msw/handlers.ts`
+  - reusable MSW handlers built from the shared fixtures.
+- `src/test/msw/server.ts`
+  - `createMockApiServer()` utility for test-local MSW server lifecycle.
+
+Playwright smoke coverage:
+
+- `playwright.config.ts` runs the app with test-safe auth defaults.
+- `e2e/smoke.spec.ts` covers:
+  - login + protected-route redirect flow
+  - dashboard load
+  - documents load
+  - chat load
+- e2e API calls are intercepted in-browser, so tests do not require a running backend.
+- Defaults:
+  - `PLAYWRIGHT_FRONTEND_PORT=3001`
+  - uses system Chrome channel by default for local runs
+  - set `PLAYWRIGHT_USE_BUNDLED_BROWSER=true` to use Playwright-managed browser binaries instead
+
+CI-ready commands:
 
 ```bash
 npm run typecheck
 npm run lint
 npm run test
+npm run test:e2e
 ```
 
 ## Notes
