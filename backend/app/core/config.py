@@ -186,11 +186,19 @@ class Settings(BaseSettings):
     embedding_retry_max_seconds: float = Field(default=8.0, ge=0.1, le=120.0)
     openai_embedding_cost_per_million_tokens_usd: float = Field(default=0.02, ge=0.0, le=1000.0)
     request_timeout_seconds: int = Field(default=30, ge=1, le=300)
+    agent_max_steps: int = Field(default=12, ge=1, le=200)
+    agent_max_parallel_tool_calls: int = Field(default=4, ge=1, le=50)
+    agent_tool_max_calls_per_run: int = Field(default=30, ge=1, le=500)
+    agent_tool_timeout_ms: int = Field(default=8000, ge=100, le=300000)
+    agent_tool_max_input_bytes: int = Field(default=32768, ge=512, le=10000000)
+    agent_tool_max_output_bytes: int = Field(default=65536, ge=512, le=10000000)
+    agent_tool_max_retry_attempts: int = Field(default=1, ge=0, le=10)
 
     feature_enable_embeddings: bool = True
     feature_enable_llm: bool = True
     feature_enable_evaluations: bool = True
     feature_enable_pipeline_explorer: bool = True
+    feature_enable_agents: bool = False
     feature_expose_config_snapshot: bool = True
 
     @field_validator("cors_origins", mode="before")

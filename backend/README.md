@@ -109,14 +109,30 @@ Current endpoint authorization:
 
 ## DDD layout
 
-- `app/domains/<domain>/api`: FastAPI transport adapters for that domain.
+- `app/interfaces/http`: FastAPI transport adapters (routes/controllers) organized by domain.
 - `app/domains/<domain>/repositories`: persistence adapters used by the domain/application logic.
 - `app/domains/<domain>/services`: domain/application services for business workflows.
 - `app/domains/<domain>/schemas`: transport DTOs for API request/response contracts.
+- `app/application`: cross-domain application orchestration and use-case services.
 - `app/shared`: cross-domain shared artifacts (for example health schemas).
 - `app/api/router.py`: top-level composition root wiring domain routers.
 
 Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) were removed in favor of domain-local modules.
+
+## Agentic core (F98) notes
+
+- Agent feature rollout is environment-driven:
+  - `FEATURE_ENABLE_AGENTS`
+  - `AGENT_MAX_STEPS`
+  - `AGENT_MAX_PARALLEL_TOOL_CALLS`
+  - `AGENT_TOOL_MAX_CALLS_PER_RUN`
+  - `AGENT_TOOL_TIMEOUT_MS`
+  - `AGENT_TOOL_MAX_INPUT_BYTES`
+  - `AGENT_TOOL_MAX_OUTPUT_BYTES`
+  - `AGENT_TOOL_MAX_RETRY_ATTEMPTS`
+- Agent contracts are defined under `app/domains/agents` using `ToolSpec`, `ToolCall`, and `ToolResult`.
+- Side-effect tools require idempotency keys and should remain API-only unless explicitly approved for another surface.
+- API and MCP adapters must share the same policy checks: role authorization, organization isolation, budgets, and safe output redaction.
 
 ## Development commands
 

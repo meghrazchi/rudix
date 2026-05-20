@@ -1,0 +1,174 @@
+# 13. Agentic Architecture and Capability Model
+
+## Objective
+
+Define the Rudix agent runtime shape before exposing autonomous workflows:
+
+- capability model and tool boundaries
+- state model for agent runs and tool calls
+- read-only vs side-effect policy
+- budgets, redaction, and safe error behavior
+- MCP separation while sharing reusable domain internals
+
+This document describes architecture and guardrails. It does not require MCP at runtime for core API flows.
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+  A[Frontend Agent UI] --> B[Agent Run API]
+  B --> C[Agent Orchestrator]
+  C --> D[Tool Registry]
+  D --> E[Domain Services]
+  E --> F[(PostgreSQL)]
+  E --> G[(Qdrant)]
+  E --> H[(MinIO)]
+  E --> I[(Redis/RabbitMQ)]
+  C --> J[Audit + Structured Logs]
+
+  K[MCP Adapter Layer] --> D
+  K -. no direct DB/queue access .-> E
+```
+
+## Core Concepts
+
+### ToolSpec
+
+`ToolSpec` defines:
+
+- name, capability label, and description
+- effect policy (`read_only` or `side_effect`)
+- required roles
+- organization scope requirement
+- allowed surfaces (`api`, `mcp`)
+- budget limits and redaction policy
+
+### ToolCall
+
+`ToolCall` includes:
+
+- run ID and call ID
+- tool name
+- organization and user context
+- arguments payload
+- requested effect policy (optional)
+- idempotency key (required for side-effect tools)
+
+### ToolResult
+
+`ToolResult` includes:
+
+- success/failure outcome
+- redacted output payload
+- safe error object with code, message, request ID, retryability
+- optional latency
+
+## Capability Model
+
+Initial capability map for existing Rudix internals:
+
+| Capability | Candidate tool | Effect | Surfaces |
+|---|---|---|---|
+| Document read | `documents.list`, `documents.get`, `documents.chunks.list` | read_only | api, mcp |
+| Chat retrieval/answer | `chat.answer` | side_effect | api |
+| Evaluation execution | `evaluations.run` | side_effect | api |
+| Pipeline observability | `pipeline.runs.get` | read_only | api, mcp |
+| Document lifecycle mutation | `documents.reindex`, `documents.delete` | side_effect | api |
+
+## Read-only vs Side-effect Policy
+
+1. Read-only tools may be exposed on API and MCP surfaces.
+2. Side-effect tools remain API-only by default.
+3. Side-effect calls require:
+   - idempotency key
+   - explicit authorization check
+   - org-scope check
+4. Side-effect retries must respect safe retry semantics and mutation idempotency.
+
+## State Model
+
+```mermaid
+stateDiagram-v2
+  [*] --> queued
+  queued --> planning
+  planning --> running
+  running --> waiting_approval
+  waiting_approval --> running
+  running --> completed
+  running --> failed
+  queued --> cancelled
+  planning --> cancelled
+  running --> cancelled
+  waiting_approval --> cancelled
+```
+
+## Security and Threat Model
+
+### Enforced Controls
+
+- org isolation at tool-call authorization (`principal.organization_id == call.organization_id`)
+- role checks per `ToolSpec.required_roles`
+- no raw secret/token/document content in error/log payloads
+- explicit redaction of sensitive keys and content-bearing fields
+
+### Threats and Mitigations
+
+| Threat | Mitigation |
+|---|---|
+| Cross-organization data access | organization-scoped authorization gate before tool execution |
+| Privilege escalation via tool misuse | role-gated `ToolSpec` checks |
+| Secret leakage in errors/logs | metadata sanitization + explicit key redaction |
+| Unsafe replay of mutations | required idempotency keys for side-effect tools |
+| Resource abuse | per-tool budgets (calls, payload sizes, timeout, retries) |
+
+## Budgets and Safe Errors
+
+Per-tool budget controls:
+
+- max calls per run
+- max input bytes
+- max output bytes
+- timeout (ms)
+- retry attempts
+
+Validation and execution errors must return safe errors only:
+
+- `validation_failed`
+- `authorization_failed`
+- `budget_exceeded`
+- `tool_unavailable`
+- `internal_error`
+
+Safe errors may contain a request ID and sanitized details, but never secrets or raw protected content.
+
+## MCP Separation Model
+
+MCP is an adapter surface, not the core execution boundary:
+
+1. Core agent contracts (`ToolSpec`, `ToolCall`, `ToolResult`) live in backend domain code.
+2. API runtime and MCP adapters both call the same domain services and policy checks.
+3. MCP tools do not bypass authz, org isolation, budget checks, or redaction.
+4. MCP exposure is configured per-tool via `ToolSpec.surfaces`.
+
+## Configuration Example
+
+```env
+FEATURE_ENABLE_AGENTS=false
+AGENT_MAX_STEPS=12
+AGENT_MAX_PARALLEL_TOOL_CALLS=4
+AGENT_TOOL_MAX_CALLS_PER_RUN=30
+AGENT_TOOL_TIMEOUT_MS=8000
+AGENT_TOOL_MAX_INPUT_BYTES=32768
+AGENT_TOOL_MAX_OUTPUT_BYTES=65536
+AGENT_TOOL_MAX_RETRY_ATTEMPTS=1
+```
+
+## Testing Expectations
+
+Minimum automated coverage:
+
+1. successful tool-call contract validation and redacted success output
+2. validation failure (mismatched tool spec or missing idempotency key)
+3. authorization failure (role check and cross-org isolation)
+4. safe error redaction behavior for nested sensitive payloads
+

@@ -45,6 +45,18 @@ Every Qdrant search must include payload filters:
 }
 ```
 
+## Agent tool security
+
+When agent/tool execution is enabled, enforce the same security boundary as API endpoints:
+
+1. Check role authorization per tool capability before execution.
+2. Enforce organization isolation on every tool call (`principal.organization_id == call.organization_id`).
+3. Treat side-effect tools as API-only by default and require idempotency keys.
+4. Enforce per-tool budgets (max calls, payload size, timeout, retry count).
+5. Redact sensitive fields from tool outputs, logs, and error details.
+6. Never expose tokens, secrets, or raw protected document text in tool results.
+7. Do not allow MCP adapters to bypass domain policy gates.
+
 If user selects documents, add:
 
 ```json
@@ -255,6 +267,15 @@ When deleting a document:
 - [ ] Token/cost metrics.
 - [ ] Evaluation metrics.
 - [ ] Alerts for failed jobs.
+
+### Agent tools
+
+- [ ] Agent tool role checks enforced.
+- [ ] Agent tool organization isolation enforced.
+- [ ] Side-effect tools require idempotency keys.
+- [ ] Tool input/output budgets enforced.
+- [ ] Tool output/error redaction enabled.
+- [ ] MCP adapter path uses the same policy gates as API.
 
 ## Threat model diagram
 
