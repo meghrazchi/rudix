@@ -65,7 +65,7 @@ class ToolRedactionPolicy(BaseModel):
 class ToolSpec(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9]+(\.[a-z0-9_]+)+$")
+    name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9_]+(\.[a-z0-9_]+)*$")
     description: str = Field(min_length=8, max_length=600)
     capability: str = Field(min_length=3, max_length=120)
     effect_policy: ToolEffectPolicy
@@ -107,7 +107,7 @@ class ToolCall(BaseModel):
 
     call_id: str = Field(default_factory=lambda: str(uuid4()), min_length=3, max_length=64)
     run_id: str = Field(min_length=3, max_length=64)
-    tool_name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9]+(\.[a-z0-9_]+)+$")
+    tool_name: str = Field(min_length=3, max_length=120, pattern=r"^[a-z0-9_]+(\.[a-z0-9_]+)*$")
     organization_id: str = Field(min_length=3, max_length=64)
     user_id: str = Field(min_length=3, max_length=64)
     surface: ToolSurface = ToolSurface.api

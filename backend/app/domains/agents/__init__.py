@@ -17,15 +17,18 @@ from app.domains.agents.schemas import (
 )
 from app.domains.agents.services import (
     AgentToolExecutor,
+    DocumentIntelligenceToolService,
     RegisteredTool,
     ToolHandler,
     ToolRegistry,
     build_default_tool_specs,
+    register_document_intelligence_handlers,
 )
 
 __all__ = [
     "AgentRunRepository",
     "AgentToolExecutor",
+    "DocumentIntelligenceToolService",
     "RegisteredTool",
     "ToolBudget",
     "ToolCall",
@@ -42,6 +45,7 @@ __all__ = [
     "build_default_tool_specs",
     "build_safe_tool_error_result",
     "build_tool_success_result",
+    "register_document_intelligence_handlers",
     "redact_tool_payload",
     "validate_tool_call_budget",
 ]

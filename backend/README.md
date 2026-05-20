@@ -132,6 +132,13 @@ Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) wer
   - `AGENT_TOOL_MAX_RETRY_ATTEMPTS`
 - Agent contracts are defined under `app/domains/agents` using `ToolSpec`, `ToolCall`, and `ToolResult`.
 - Internal execution is shared through `ToolRegistry` (allowlist) and `AgentToolExecutor` (auth/budget/timeout/audit wrappers).
+- Read-only document intelligence handlers are implemented in `DocumentIntelligenceToolService` and include:
+  - `search_documents`
+  - `get_document_detail`
+  - `list_document_chunks`
+  - `answer_from_context`
+  - `summarize_document`
+  - `compare_documents`
 - Agent trace persistence uses `agent_runs`, `agent_steps`, `agent_tool_calls`, and `agent_approvals`.
 - Side-effect tools require idempotency keys and should remain API-only unless explicitly approved for another surface.
 - API and MCP adapters must share the same policy checks: role authorization, organization isolation, budgets, and safe output redaction.

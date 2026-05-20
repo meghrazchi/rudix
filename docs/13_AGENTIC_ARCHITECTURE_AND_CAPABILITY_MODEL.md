@@ -70,6 +70,8 @@ Initial capability map for existing Rudix internals:
 | Capability | Candidate tool | Effect | Surfaces |
 |---|---|---|---|
 | Document read | `documents.list`, `documents.get`, `documents.chunks.list` | read_only | api, mcp |
+| Document intelligence (read-only) | `search_documents`, `get_document_detail`, `list_document_chunks` | read_only | api, mcp |
+| Grounded read-only reasoning | `answer_from_context`, `summarize_document`, `compare_documents` | read_only | api, mcp |
 | Chat retrieval/answer | `chat.answer` | side_effect | api |
 | Evaluation execution | `evaluations.run` | side_effect | api |
 | Pipeline observability | `pipeline.runs.get` | read_only | api, mcp |

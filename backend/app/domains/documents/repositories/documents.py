@@ -60,6 +60,7 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        filename_query: str | None = None,
         limit: int = 20,
         offset: int = 0,
         sort_by: str = "created_at",
@@ -68,6 +69,10 @@ class DocumentRepository:
         statement = select(Document).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
+        if filename_query is not None:
+            normalized_query = filename_query.strip()
+            if normalized_query:
+                statement = statement.where(Document.filename.ilike(f"%{normalized_query}%"))
 
         sort_columns = {
             "created_at": Document.created_at,
@@ -88,10 +93,15 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        filename_query: str | None = None,
     ) -> int:
         statement = select(func.count(Document.id)).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
+        if filename_query is not None:
+            normalized_query = filename_query.strip()
+            if normalized_query:
+                statement = statement.where(Document.filename.ilike(f"%{normalized_query}%"))
         result = await session.execute(statement)
         return int(result.scalar_one())
 

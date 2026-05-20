@@ -59,3 +59,16 @@ def test_default_tool_specs_include_approval_required_side_effect_tools() -> Non
         if spec.effect_policy is ToolEffectPolicy.side_effect and spec.approval_required
     ]
     assert {"documents.delete", "documents.reindex", "evaluations.run"}.issubset(approval_required_tools)
+
+
+def test_default_tool_specs_include_document_intelligence_read_tools() -> None:
+    specs = build_default_tool_specs()
+    tool_names = {spec.name for spec in specs}
+    assert {
+        "search_documents",
+        "get_document_detail",
+        "list_document_chunks",
+        "answer_from_context",
+        "summarize_document",
+        "compare_documents",
+    }.issubset(tool_names)
