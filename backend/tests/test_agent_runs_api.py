@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Ensure strict settings can be loaded when importing modules in tests.
@@ -38,6 +39,7 @@ from app.main import app
 from app.models.enums import AgentApprovalStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import UsageEvent
 from app.models.user import User
 
 
@@ -336,3 +338,13 @@ async def test_decide_agent_run_approval_updates_pending_approval(
     assert payload["approval_id"] == str(approval.id)
     assert payload["status"] == "approved"
     assert payload["decision_reason"] == "Reviewed and approved"
+    approval_metrics = (
+        await db_session.execute(
+            select(UsageEvent).where(
+                UsageEvent.organization_id == organization.id,
+                UsageEvent.event_type == "agent.approval",
+            )
+        )
+    ).scalars().all()
+    assert len(approval_metrics) >= 1
+    assert approval_metrics[-1].metadata_json["status"] == "approved"

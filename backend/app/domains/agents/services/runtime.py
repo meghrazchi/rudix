@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.errors import AuthorizationError
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
+from app.core.logging import log_agent_event
+from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.agents.repositories import AgentRunRepository
 from app.domains.agents.schemas import (
@@ -24,8 +26,8 @@ from app.domains.agents.schemas import (
     AgentRuntimeResult,
     PlannedToolSelection,
     ToolCall,
-    ToolErrorCode,
     ToolEffectPolicy,
+    ToolErrorCode,
 )
 from app.domains.agents.services.document_intelligence_tools import (
     register_document_intelligence_handlers,
@@ -63,6 +65,7 @@ class AgentRuntime:
         executor: AgentToolExecutor | None = None,
         audit_service: AuditLogService | None = None,
         safety_guard: PromptInjectionGuard | None = None,
+        usage_repository: UsageRepository | None = None,
     ) -> None:
         resolved_registry = registry or ToolRegistry(specs=build_default_tool_specs())
         if registry is None:
@@ -72,6 +75,7 @@ class AgentRuntime:
         self._repository = repository or AgentRunRepository()
         self._audit_service = audit_service or AuditLogService()
         self._safety_guard = safety_guard or PromptInjectionGuard()
+        self._usage_repository = usage_repository or UsageRepository()
         self._executor = executor or AgentToolExecutor(
             registry=self._registry,
             repository=self._repository,
@@ -122,6 +126,16 @@ class AgentRuntime:
             started_at=started_at,
             trace_request_id=request_id,
         )
+        log_agent_event(
+            event="agent.runtime.started",
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            run_id=str(run.id),
+            mode=context.mode.value,
+            max_steps=budget.max_steps,
+            max_runtime_ms=budget.max_runtime_ms,
+            max_tool_calls=budget.max_tool_calls,
+        )
         await self._audit_started(
             session=session,
             principal=principal,
@@ -142,6 +156,7 @@ class AgentRuntime:
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     code="prompt_injection_blocked",
@@ -184,6 +199,7 @@ class AgentRuntime:
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     code="budget_exceeded",
@@ -196,6 +212,7 @@ class AgentRuntime:
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     reason="cancelled_by_signal",
@@ -210,6 +227,7 @@ class AgentRuntime:
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     reason="cancelled_in_persistence",
@@ -225,6 +243,7 @@ class AgentRuntime:
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     code="validation_failed",
@@ -299,6 +318,29 @@ class AgentRuntime:
                             "tool_calls_executed": context.tool_calls_executed,
                         },
                     )
+                    log_agent_event(
+                        event="agent.runtime.waiting_approval",
+                        organization_id=str(organization_id),
+                        user_id=str(user_id),
+                        run_id=str(run.id),
+                        pending_approval_id=pending_approval_id,
+                        pending_tool_name=selection.tool_name,
+                        steps_executed=context.steps_executed,
+                        tool_calls_executed=context.tool_calls_executed,
+                    )
+                    await self._record_runtime_usage_event(
+                        session=session,
+                        organization_id=organization_id,
+                        user_id=user_id,
+                        run_id=run.id,
+                        request_id=request_id,
+                        context=context,
+                        status=AgentRunStatus.waiting_approval.value,
+                        confidence=None,
+                        not_found=None,
+                        error_code="approval_required",
+                        runtime_ms=int((perf_counter() - started_perf) * 1000),
+                    )
                     return AgentRuntimeResult(
                         run_id=str(run.id),
                         status=AgentRunStatus.waiting_approval.value,
@@ -327,10 +369,22 @@ class AgentRuntime:
                     completed_at=datetime.now(tz=UTC),
                     duration_ms=int((perf_counter() - step_started_perf) * 1000),
                 )
+                log_agent_event(
+                    event="agent.step.failed",
+                    organization_id=str(organization_id),
+                    user_id=str(user_id),
+                    run_id=str(run.id),
+                    tool_name=selection.tool_name,
+                    step_name=selection.step_name,
+                    sequence=sequence,
+                    error_code=tool_result.error.code.value if tool_result.error is not None else "internal_error",
+                    latency_ms=tool_result.latency_ms or 0,
+                )
                 return await self._fail_run(
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     code=tool_result.error.code.value if tool_result.error is not None else "internal_error",
@@ -368,10 +422,24 @@ class AgentRuntime:
                     completed_at=datetime.now(tz=UTC),
                     duration_ms=int((perf_counter() - step_started_perf) * 1000),
                 )
+                log_agent_event(
+                    event="agent.step.failed",
+                    organization_id=str(organization_id),
+                    user_id=str(user_id),
+                    run_id=str(run.id),
+                    tool_name=selection.tool_name,
+                    step_name=selection.step_name,
+                    sequence=sequence,
+                    error_code="budget_exceeded",
+                    latency_ms=tool_result.latency_ms or 0,
+                    total_tokens=context.total_tokens,
+                    total_cost_usd=str(context.total_cost_usd),
+                )
                 return await self._fail_run(
                     session=session,
                     run_id=run.id,
                     organization_id=organization_id,
+                    user_id=user_id,
                     context=context,
                     request_id=request_id,
                     code="budget_exceeded",
@@ -393,6 +461,20 @@ class AgentRuntime:
                 completed_at=datetime.now(tz=UTC),
                 duration_ms=int((perf_counter() - step_started_perf) * 1000),
             )
+            confidence_score = output.get("confidence", {}).get("score") if isinstance(output.get("confidence"), dict) else None
+            log_agent_event(
+                event="agent.step.completed",
+                organization_id=str(organization_id),
+                user_id=str(user_id),
+                run_id=str(run.id),
+                tool_name=selection.tool_name,
+                step_name=selection.step_name,
+                sequence=sequence,
+                latency_ms=tool_result.latency_ms or 0,
+                total_tokens=context.total_tokens,
+                total_cost_usd=str(context.total_cost_usd),
+                confidence_score=confidence_score,
+            )
 
         outcome = self._build_outcome(context=context)
         await self._repository.update_agent_run(
@@ -413,6 +495,36 @@ class AgentRuntime:
                 "tool_calls_executed": context.tool_calls_executed,
                 "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
+        )
+        confidence_score = outcome.confidence.get("score") if isinstance(outcome.confidence, dict) else None
+        confidence_category = outcome.confidence.get("category") if isinstance(outcome.confidence, dict) else None
+        log_agent_event(
+            event="agent.runtime.completed",
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            run_id=str(run.id),
+            mode=context.mode.value,
+            steps_executed=context.steps_executed,
+            tool_calls_executed=context.tool_calls_executed,
+            total_tokens=context.total_tokens,
+            total_cost_usd=str(context.total_cost_usd),
+            confidence_score=confidence_score,
+            confidence_category=confidence_category,
+            not_found=outcome.not_found,
+            blocked_document_instruction_signals=context.blocked_document_instruction_signals,
+        )
+        await self._record_runtime_usage_event(
+            session=session,
+            organization_id=organization_id,
+            user_id=user_id,
+            run_id=run.id,
+            request_id=request_id,
+            context=context,
+            status=AgentRunStatus.completed.value,
+            confidence=outcome.confidence if isinstance(outcome.confidence, dict) else None,
+            not_found=outcome.not_found,
+            error_code=None,
+            runtime_ms=int((perf_counter() - started_perf) * 1000),
         )
         await self._audit_completed(
             session=session,
@@ -681,6 +793,7 @@ class AgentRuntime:
         session: AsyncSession,
         run_id: UUID,
         organization_id: UUID,
+        user_id: UUID,
         context: _RuntimeContext,
         request_id: str | None,
         reason: str,
@@ -699,6 +812,31 @@ class AgentRuntime:
             },
             costs={"total_tokens": context.total_tokens, "total_cost_usd": str(context.total_cost_usd)},
             total_cost_usd=float(context.total_cost_usd),
+        )
+        log_agent_event(
+            event="agent.runtime.cancelled",
+            organization_id=str(organization_id),
+            run_id=str(run_id),
+            mode=context.mode.value,
+            reason=reason,
+            steps_executed=context.steps_executed,
+            tool_calls_executed=context.tool_calls_executed,
+            total_tokens=context.total_tokens,
+            total_cost_usd=str(context.total_cost_usd),
+            blocked_document_instruction_signals=context.blocked_document_instruction_signals,
+        )
+        await self._record_runtime_usage_event(
+            session=session,
+            organization_id=organization_id,
+            user_id=user_id,
+            run_id=run_id,
+            request_id=request_id,
+            context=context,
+            status=AgentRunStatus.cancelled.value,
+            confidence=None,
+            not_found=None,
+            error_code="cancelled",
+            runtime_ms=None,
         )
         return AgentRuntimeResult(
             run_id=str(run_id),
@@ -723,6 +861,7 @@ class AgentRuntime:
         session: AsyncSession,
         run_id: UUID,
         organization_id: UUID,
+        user_id: UUID,
         context: _RuntimeContext,
         request_id: str | None,
         code: str,
@@ -744,6 +883,32 @@ class AgentRuntime:
                 "tool_calls_executed": context.tool_calls_executed,
                 "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
+        )
+        log_agent_event(
+            event="agent.runtime.failed",
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            run_id=str(run_id),
+            mode=context.mode.value,
+            error_code=code,
+            steps_executed=context.steps_executed,
+            tool_calls_executed=context.tool_calls_executed,
+            total_tokens=context.total_tokens,
+            total_cost_usd=str(context.total_cost_usd),
+            blocked_document_instruction_signals=context.blocked_document_instruction_signals,
+        )
+        await self._record_runtime_usage_event(
+            session=session,
+            organization_id=organization_id,
+            user_id=user_id,
+            run_id=run_id,
+            request_id=request_id,
+            context=context,
+            status=AgentRunStatus.failed.value,
+            confidence=None,
+            not_found=None,
+            error_code=code,
+            runtime_ms=None,
         )
         await self._audit_failed(
             session=session,
@@ -769,6 +934,83 @@ class AgentRuntime:
                 details=details,
             ),
         )
+
+    async def _record_runtime_usage_event(
+        self,
+        *,
+        session: AsyncSession,
+        organization_id: UUID,
+        user_id: UUID,
+        run_id: UUID,
+        request_id: str | None,
+        context: _RuntimeContext,
+        status: str,
+        confidence: dict[str, Any] | None,
+        not_found: bool | None,
+        error_code: str | None,
+        runtime_ms: int | None,
+    ) -> None:
+        debug_usage = {}
+        if isinstance(context.latest_output, dict):
+            debug = context.latest_output.get("debug")
+            if isinstance(debug, dict):
+                usage = debug.get("usage")
+                if isinstance(usage, dict):
+                    debug_usage = usage
+        embedding_prompt_tokens = self._safe_int(debug_usage.get("embedding_prompt_tokens"))
+        llm_prompt_tokens = self._safe_int(debug_usage.get("llm_prompt_tokens"))
+        llm_completion_tokens = self._safe_int(debug_usage.get("llm_completion_tokens"))
+        input_tokens = embedding_prompt_tokens + llm_prompt_tokens
+        output_tokens = llm_completion_tokens
+        if input_tokens == 0 and output_tokens == 0 and context.total_tokens > 0:
+            input_tokens = context.total_tokens
+
+        metadata: dict[str, Any] = {
+            "run_id": str(run_id),
+            "status": status,
+            "mode": context.mode.value,
+            "steps_executed": context.steps_executed,
+            "tool_calls_executed": context.tool_calls_executed,
+            "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
+            "runtime_ms": runtime_ms,
+            "request_id": request_id,
+        }
+        if confidence is not None:
+            metadata["confidence_score"] = confidence.get("score")
+            metadata["confidence_category"] = confidence.get("category")
+        if not_found is not None:
+            metadata["not_found"] = not_found
+        if error_code is not None:
+            metadata["error_code"] = error_code
+
+        try:
+            await self._usage_repository.create_usage_event(
+                session,
+                organization_id=organization_id,
+                user_id=user_id,
+                event_type="agent.runtime",
+                model_name=settings.openai_llm_model,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=context.total_cost_usd,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            log_agent_event(
+                event="agent.metrics.write_failed",
+                organization_id=str(organization_id),
+                user_id=str(user_id),
+                run_id=str(run_id),
+                metric_type="agent.runtime",
+                error=exc.__class__.__name__,
+            )
+
+    @staticmethod
+    def _safe_int(value: Any) -> int:
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
 
     async def _audit_started(
         self,

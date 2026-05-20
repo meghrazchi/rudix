@@ -111,3 +111,22 @@ def test_redaction_masks_secrets_and_document_content() -> None:
     assert redacted["extra"]["document_text"] == "<redacted:document_text>"
     assert "hunter2" not in redacted["extra"]["debug_note"]
     assert "abc123" not in redacted["message"]
+
+
+def test_before_breadcrumb_sanitizes_data_and_message() -> None:
+    breadcrumb = {
+        "category": "agent.runtime",
+        "message": "authorization=Bearer super-secret-token",
+        "data": {
+            "tool_name": "answer_from_context",
+            "prompt_text": "sensitive document excerpt",
+            "api_key": "sk-live-key",
+        },
+    }
+
+    sanitized = sentry_module._before_breadcrumb(breadcrumb, hint={})
+    assert sanitized is not None
+    assert sanitized["data"]["tool_name"] == "answer_from_context"
+    assert sanitized["data"]["prompt_text"] == "<redacted:prompt_text>"
+    assert sanitized["data"]["api_key"] == "***"
+    assert "super-secret-token" not in sanitized["message"]

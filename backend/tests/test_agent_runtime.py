@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import AuthenticatedPrincipal
@@ -19,6 +20,7 @@ from app.domains.agents.schemas import (
 from app.domains.agents.services import AgentRuntime, ToolRegistry
 from app.models import Organization, User
 from app.models.enums import AgentRunStatus
+from app.models.usage import UsageEvent
 
 
 def _principal(*, user_id: UUID, organization_id: UUID, role: str = "viewer") -> AuthenticatedPrincipal:
@@ -183,6 +185,19 @@ async def test_agent_runtime_success_path_persists_trace(
         organization_id=org_a,
     )
     assert len(steps) == 3
+    usage_events = (
+        await db_session.execute(
+            select(UsageEvent).where(
+                UsageEvent.organization_id == org_a,
+                UsageEvent.event_type == "agent.runtime",
+            )
+        )
+    ).scalars().all()
+    assert len(usage_events) >= 1
+    latest = usage_events[-1]
+    assert latest.metadata_json.get("status") == "completed"
+    assert latest.metadata_json.get("confidence_category") == "high"
+    assert "answer" not in latest.metadata_json
 
 
 @pytest.mark.asyncio
@@ -285,6 +300,18 @@ async def test_agent_runtime_safe_error_behavior(
     assert result.error.code == "internal_error"
     # Ensure secrets are not present in safe error payloads.
     assert "token" not in str(result.error.details).lower()
+    usage_events = (
+        await db_session.execute(
+            select(UsageEvent).where(
+                UsageEvent.organization_id == org_a,
+                UsageEvent.event_type == "agent.runtime",
+            )
+        )
+    ).scalars().all()
+    assert len(usage_events) >= 1
+    latest = usage_events[-1]
+    assert latest.metadata_json.get("status") == "failed"
+    assert latest.metadata_json.get("error_code") == "internal_error"
 
 
 @pytest.mark.asyncio

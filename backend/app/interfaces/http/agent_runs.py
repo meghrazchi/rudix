@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
+from app.core.logging import log_agent_event
 from app.db.session import get_db_session
+from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.agents import (
     AgentRunRepository,
@@ -27,6 +29,7 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 agent_runtime = AgentRuntime()
 agent_run_repository = AgentRunRepository()
 audit_log_service = AuditLogService()
+usage_repository = UsageRepository()
 
 
 class AgentRunCreateRequest(BaseModel):
@@ -463,6 +466,29 @@ async def decide_agent_run_approval(
             "decision_reason": payload.reason,
         },
         required=False,
+    )
+    try:
+        await usage_repository.create_usage_event(
+            db_session,
+            organization_id=organization_id,
+            user_id=decided_by_user_id,
+            event_type="agent.approval",
+            metadata={
+                "run_id": str(run_uuid),
+                "approval_id": str(approval_uuid),
+                "status": payload.status,
+                "request_id": _request_id_from_request(request),
+            },
+        )
+    except Exception:
+        # Keep approval decision path non-blocking if observability write fails.
+        pass
+    log_agent_event(
+        event=f"agent.approval.{payload.status}",
+        organization_id=str(organization_id),
+        user_id=str(decided_by_user_id),
+        run_id=str(run_uuid),
+        approval_id=str(approval_uuid),
     )
     await db_session.commit()
     return _to_approval_response(updated)

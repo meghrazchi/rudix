@@ -59,3 +59,50 @@ class AuditLogListResponse(BaseModel):
     limit: int
     offset: int
     range: UsageSummaryRange
+
+
+class AgentDiagnosticsTotalsResponse(BaseModel):
+    runs_started: int
+    runs_completed: int
+    runs_failed: int
+    runs_waiting_approval: int
+    runs_cancelled: int
+    steps_executed: int
+    tool_calls_executed: int
+    tool_calls_succeeded: int
+    tool_calls_failed: int
+    approvals_requested: int
+    approvals_approved: int
+    approvals_rejected: int
+    total_tokens: int
+    total_cost_usd: float
+    avg_confidence: float | None = None
+
+
+class AgentDiagnosticsPointResponse(BaseModel):
+    period_start: date
+    period_end: date
+    runs_started: int
+    runs_completed: int
+    runs_failed: int
+    runs_waiting_approval: int
+    runs_cancelled: int
+    steps_executed: int
+    tool_calls_executed: int
+    tool_calls_succeeded: int
+    tool_calls_failed: int
+    approvals_requested: int
+    approvals_approved: int
+    approvals_rejected: int
+    total_tokens: int
+    total_cost_usd: float
+    avg_confidence: float | None = None
+
+
+class AgentDiagnosticsResponse(BaseModel):
+    organization_id: str
+    range: UsageSummaryRange
+    totals: AgentDiagnosticsTotalsResponse
+    series: list[AgentDiagnosticsPointResponse]
+    errors_by_code: dict[str, int] = Field(default_factory=dict)
+    audit_actions: dict[str, int] = Field(default_factory=dict)

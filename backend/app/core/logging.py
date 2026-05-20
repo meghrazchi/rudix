@@ -272,6 +272,25 @@ def log_evaluation_event(
     )
 
 
+def log_agent_event(
+    *,
+    event: str,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+    run_id: str | None = None,
+    tool_name: str | None = None,
+    **fields: Any,
+) -> None:
+    get_logger("events.agent").info(
+        event,
+        organization_id=organization_id,
+        user_id=user_id,
+        run_id=run_id,
+        tool_name=tool_name,
+        **fields,
+    )
+
+
 def log_task_failure(
     *,
     task_name: str,

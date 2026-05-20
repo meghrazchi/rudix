@@ -21,6 +21,7 @@ from app.domains.agents.schemas import (
 from app.domains.agents.services import AgentToolExecutor, ToolRegistry
 from app.models import AuditLog, Organization, User
 from app.models.enums import AgentApprovalStatus, AgentRunStatus
+from app.models.usage import UsageEvent
 
 
 def _principal(*, user_id: UUID, organization_id: UUID, role: str = "viewer") -> AuthenticatedPrincipal:
@@ -111,6 +112,17 @@ async def test_agent_tool_executor_success_persists_and_audits(
     assert len(persisted_calls) == 1
     assert persisted_calls[0].status == "succeeded"
     assert persisted_calls[0].arguments_json["authorization"] == "***"
+    tool_usage_events = (
+        await db_session.execute(
+            select(UsageEvent).where(
+                UsageEvent.organization_id == organization_id,
+                UsageEvent.event_type == "agent.tool_call",
+            )
+        )
+    ).scalars().all()
+    assert len(tool_usage_events) == 1
+    assert tool_usage_events[0].metadata_json["tool_name"] == "documents.get"
+    assert tool_usage_events[0].metadata_json["success"] is True
 
     audit_logs = (
         await db_session.execute(
@@ -179,6 +191,16 @@ async def test_agent_tool_executor_validation_and_auth_failures(
     )
     assert len(pending_approvals) == 1
     assert pending_approvals[0].status == AgentApprovalStatus.pending.value
+    approval_usage_events = (
+        await db_session.execute(
+            select(UsageEvent).where(
+                UsageEvent.organization_id == organization_a,
+                UsageEvent.event_type == "agent.approval",
+            )
+        )
+    ).scalars().all()
+    assert len(approval_usage_events) == 1
+    assert approval_usage_events[0].metadata_json["status"] == "pending"
 
     approval = await repository.create_agent_approval(
         db_session,

@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.errors import AuthorizationError
 from app.auth.models import AuthenticatedPrincipal
-from app.core.logging import get_logger
+from app.core.logging import get_logger, log_agent_event
+from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.agents.repositories import AgentRunRepository
 from app.domains.agents.schemas import (
@@ -52,10 +53,12 @@ class AgentToolExecutor:
         registry: ToolRegistry,
         repository: AgentRunRepository | None = None,
         audit_service: AuditLogService | None = None,
+        usage_repository: UsageRepository | None = None,
     ) -> None:
         self._registry = registry
         self._repository = repository or AgentRunRepository()
         self._audit_service = audit_service or AuditLogService()
+        self._usage_repository = usage_repository or UsageRepository()
         self._transient_call_counts: dict[tuple[str, str], int] = {}
 
     async def execute(
@@ -137,6 +140,24 @@ class AgentToolExecutor:
                     "success": True,
                 },
             )
+            log_agent_event(
+                event="agent.tool_call.succeeded",
+                organization_id=call.organization_id,
+                user_id=call.user_id,
+                run_id=call.run_id,
+                tool_name=call.tool_name,
+                call_id=call.call_id,
+                surface=call.surface.value,
+                latency_ms=result.latency_ms,
+            )
+            await self._record_tool_usage_event(
+                session=session,
+                call=call,
+                request_id=request_id,
+                success=True,
+                error_code=None,
+                latency_ms=result.latency_ms,
+            )
             return result
         except (ApprovalRequiredError, ValueError, AuthorizationError, TimeoutError) as exc:
             result = self._safe_failure_result(
@@ -166,6 +187,25 @@ class AgentToolExecutor:
                     "success": False,
                     "error_code": result.error.code.value if result.error else None,
                 },
+            )
+            log_agent_event(
+                event="agent.tool_call.failed",
+                organization_id=call.organization_id,
+                user_id=call.user_id,
+                run_id=call.run_id,
+                tool_name=call.tool_name,
+                call_id=call.call_id,
+                surface=call.surface.value,
+                error_code=result.error.code.value if result.error else None,
+                latency_ms=result.latency_ms,
+            )
+            await self._record_tool_usage_event(
+                session=session,
+                call=call,
+                request_id=request_id,
+                success=False,
+                error_code=result.error.code.value if result.error else None,
+                latency_ms=result.latency_ms,
             )
             return result
         except Exception as exc:
@@ -207,6 +247,25 @@ class AgentToolExecutor:
                     "success": False,
                     "error_code": result.error.code.value if result.error else None,
                 },
+            )
+            log_agent_event(
+                event="agent.tool_call.failed",
+                organization_id=call.organization_id,
+                user_id=call.user_id,
+                run_id=call.run_id,
+                tool_name=call.tool_name,
+                call_id=call.call_id,
+                surface=call.surface.value,
+                error_code=result.error.code.value if result.error else None,
+                latency_ms=result.latency_ms,
+            )
+            await self._record_tool_usage_event(
+                session=session,
+                call=call,
+                request_id=request_id,
+                success=False,
+                error_code=result.error.code.value if result.error else None,
+                latency_ms=result.latency_ms,
             )
             return result
 
@@ -305,6 +364,24 @@ class AgentToolExecutor:
                     "principal_org_id": principal.organization_id,
                 },
                 required=False,
+            )
+            log_agent_event(
+                event="agent.approval.requested",
+                organization_id=call.organization_id,
+                user_id=call.user_id,
+                run_id=call.run_id,
+                tool_name=call.tool_name,
+                approval_id=str(approval.id),
+            )
+            await self._record_approval_usage_event(
+                session=session,
+                organization_id=org_uuid,
+                user_id=user_uuid,
+                run_id=run_uuid,
+                approval_id=approval.id,
+                status=AgentApprovalStatus.pending.value,
+                request_id=request_id,
+                tool_name=call.tool_name,
             )
             raise ApprovalRequiredError(approval_id=str(approval.id))
 
@@ -437,6 +514,97 @@ class AgentToolExecutor:
             },
             required=False,
         )
+
+    async def _record_tool_usage_event(
+        self,
+        *,
+        session: AsyncSession | None,
+        call: ToolCall,
+        request_id: str | None,
+        success: bool,
+        error_code: str | None,
+        latency_ms: int | None,
+    ) -> None:
+        if session is None:
+            return
+        org_uuid = _parse_uuid(call.organization_id)
+        user_uuid = _parse_uuid(call.user_id)
+        run_uuid = _parse_uuid(call.run_id)
+        if org_uuid is None:
+            return
+        metadata: dict[str, Any] = {
+            "run_id": str(run_uuid) if run_uuid is not None else call.run_id,
+            "call_id": call.call_id,
+            "tool_name": call.tool_name,
+            "surface": call.surface.value,
+            "success": success,
+            "error_code": error_code,
+            "latency_ms": latency_ms,
+            "request_id": request_id,
+        }
+        try:
+            await self._usage_repository.create_usage_event(
+                session,
+                organization_id=org_uuid,
+                user_id=user_uuid,
+                event_type="agent.tool_call",
+                model_name=None,
+                input_tokens=0,
+                output_tokens=0,
+                cost_usd=None,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            _logger.warning(
+                "agent.tool_call.metric_write_failed",
+                tool_name=call.tool_name,
+                run_id=call.run_id,
+                call_id=call.call_id,
+                request_id=request_id,
+                error=exc.__class__.__name__,
+            )
+
+    async def _record_approval_usage_event(
+        self,
+        *,
+        session: AsyncSession | None,
+        organization_id: UUID,
+        user_id: UUID | None,
+        run_id: UUID,
+        approval_id: UUID,
+        status: str,
+        request_id: str | None,
+        tool_name: str | None,
+    ) -> None:
+        if session is None:
+            return
+        metadata: dict[str, Any] = {
+            "run_id": str(run_id),
+            "approval_id": str(approval_id),
+            "status": status,
+            "tool_name": tool_name,
+            "request_id": request_id,
+        }
+        try:
+            await self._usage_repository.create_usage_event(
+                session,
+                organization_id=organization_id,
+                user_id=user_id,
+                event_type="agent.approval",
+                model_name=None,
+                input_tokens=0,
+                output_tokens=0,
+                cost_usd=None,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            _logger.warning(
+                "agent.approval.metric_write_failed",
+                run_id=str(run_id),
+                approval_id=str(approval_id),
+                request_id=request_id,
+                error=exc.__class__.__name__,
+            )
 
     def _safe_failure_result(
         self,

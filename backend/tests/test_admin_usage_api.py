@@ -318,3 +318,198 @@ async def test_admin_usage_rejects_invalid_date_range(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "from must be less than or equal to to"
+
+
+@pytest.mark.asyncio
+async def test_admin_agent_diagnostics_aggregates_agent_events_scoped(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, other_organization = await _seed_principal(
+        db_session,
+        role=OrganizationRole.admin,
+    )
+    other_user = await _seed_user_for_org(db_session, organization=other_organization, role=OrganizationRole.admin)
+    usage_repository = UsageRepository()
+
+    completed_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.runtime",
+        input_tokens=100,
+        output_tokens=20,
+        cost_usd=Decimal("0.0500"),
+        metadata={
+            "status": "completed",
+            "steps_executed": 3,
+            "tool_calls_executed": 2,
+            "confidence_score": 0.75,
+        },
+    )
+    completed_event.created_at = datetime(2026, 5, 5, 10, 0, tzinfo=UTC)
+
+    failed_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.runtime",
+        input_tokens=0,
+        output_tokens=0,
+        cost_usd=Decimal("0"),
+        metadata={
+            "status": "failed",
+            "steps_executed": 1,
+            "tool_calls_executed": 1,
+            "error_code": "tool_unavailable",
+        },
+    )
+    failed_event.created_at = datetime(2026, 5, 5, 11, 0, tzinfo=UTC)
+
+    waiting_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.runtime",
+        metadata={
+            "status": "waiting_approval",
+            "steps_executed": 0,
+            "tool_calls_executed": 1,
+        },
+    )
+    waiting_event.created_at = datetime(2026, 5, 5, 12, 0, tzinfo=UTC)
+
+    tool_success_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.tool_call",
+        metadata={"tool_name": "answer_from_context", "success": True},
+    )
+    tool_success_event.created_at = datetime(2026, 5, 5, 12, 10, tzinfo=UTC)
+
+    tool_failed_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.tool_call",
+        metadata={
+            "tool_name": "documents.get",
+            "success": False,
+            "error_code": "validation_failed",
+        },
+    )
+    tool_failed_event.created_at = datetime(2026, 5, 5, 12, 15, tzinfo=UTC)
+
+    approval_pending_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.approval",
+        metadata={"status": "pending"},
+    )
+    approval_pending_event.created_at = datetime(2026, 5, 5, 12, 20, tzinfo=UTC)
+
+    approval_approved_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        event_type="agent.approval",
+        metadata={"status": "approved"},
+    )
+    approval_approved_event.created_at = datetime(2026, 5, 5, 12, 25, tzinfo=UTC)
+
+    _foreign_runtime_event = await usage_repository.create_usage_event(
+        db_session,
+        organization_id=other_organization.id,
+        user_id=other_user.id,
+        event_type="agent.runtime",
+        input_tokens=999,
+        output_tokens=999,
+        cost_usd=Decimal("99.0"),
+        metadata={"status": "completed", "steps_executed": 99, "tool_calls_executed": 99},
+    )
+    _foreign_runtime_event.created_at = datetime(2026, 5, 5, 13, 0, tzinfo=UTC)
+
+    own_audit_started = await usage_repository.create_audit_log(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        action="agent.runtime.started",
+        resource_type="agent_run",
+        metadata={"request_id": "req-agent-1"},
+    )
+    own_audit_started.created_at = datetime(2026, 5, 5, 12, 30, tzinfo=UTC)
+    own_audit_approved = await usage_repository.create_audit_log(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        action="agent.approval.approved",
+        resource_type="agent_approval",
+        metadata={"request_id": "req-agent-2"},
+    )
+    own_audit_approved.created_at = datetime(2026, 5, 5, 12, 35, tzinfo=UTC)
+    foreign_audit = await usage_repository.create_audit_log(
+        db_session,
+        organization_id=other_organization.id,
+        user_id=other_user.id,
+        action="agent.runtime.failed",
+        resource_type="agent_run",
+        metadata={"request_id": "req-agent-foreign"},
+    )
+    foreign_audit.created_at = datetime(2026, 5, 5, 12, 40, tzinfo=UTC)
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await admin_client.get(
+        "/api/v1/admin/agent/diagnostics",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        params={"from": "2026-05-01", "to": "2026-05-10", "granularity": "day"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["organization_id"] == str(organization.id)
+    assert payload["totals"]["runs_completed"] == 1
+    assert payload["totals"]["runs_failed"] == 1
+    assert payload["totals"]["runs_waiting_approval"] == 1
+    assert payload["totals"]["steps_executed"] == 4
+    assert payload["totals"]["tool_calls_executed"] == 4
+    assert payload["totals"]["tool_calls_succeeded"] == 1
+    assert payload["totals"]["tool_calls_failed"] == 1
+    assert payload["totals"]["approvals_requested"] == 1
+    assert payload["totals"]["approvals_approved"] == 1
+    assert payload["totals"]["total_tokens"] == 120
+    assert payload["totals"]["total_cost_usd"] == pytest.approx(0.05)
+    assert payload["totals"]["avg_confidence"] == pytest.approx(0.75)
+    assert payload["errors_by_code"]["tool_unavailable"] == 1
+    assert payload["errors_by_code"]["validation_failed"] == 1
+    assert payload["audit_actions"]["agent.runtime.started"] == 1
+    assert payload["audit_actions"]["agent.approval.approved"] == 1
+    assert len(payload["series"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_admin_agent_diagnostics_requires_admin_role(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await admin_client.get(
+        "/api/v1/admin/agent/diagnostics",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role for requested operation"

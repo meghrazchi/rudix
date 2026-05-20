@@ -231,6 +231,42 @@ Rudix uses one internal tool layer for both agent runtime and MCP adapters:
 
 This loop reuses the same org authorization, redaction, and audit boundaries as the tool executor.
 
+## Observability, Audit, and Metrics (F106)
+
+Agentic execution emits three organization-scoped usage event types:
+
+- `agent.runtime`
+- `agent.tool_call`
+- `agent.approval`
+
+Runtime and executor persist only sanitized operational metadata:
+
+- run/step/tool/approval status
+- step and tool-call counts
+- token and cost totals
+- confidence score/category
+- safe error code
+- request correlation ID
+
+Raw prompt text, document body, tokens/credentials, and full answer text are not written into usage/audit payloads.
+
+### Admin diagnostics
+
+Owners/admins can query:
+
+- `GET /api/v1/admin/agent/diagnostics`
+
+The response includes:
+
+- run lifecycle counters (`completed`, `failed`, `waiting_approval`, `cancelled`)
+- tool-call success/failure metrics
+- approval requested/approved/rejected metrics
+- total tokens, total cost, and average confidence
+- error-code breakdown (`errors_by_code`)
+- grouped agent audit action counts (`audit_actions`)
+
+Diagnostics are organization-scoped and reuse admin role guards.
+
 ## Configuration Example
 
 ```env

@@ -141,3 +141,27 @@ class UsageRepository:
 
         result = await session.execute(statement)
         return int(result.scalar_one())
+
+    async def count_audit_logs_grouped_by_action(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        action_prefix: str | None = None,
+    ) -> dict[str, int]:
+        statement = (
+            select(AuditLog.action, func.count(AuditLog.id))
+            .where(AuditLog.organization_id == organization_id)
+            .group_by(AuditLog.action)
+        )
+        if from_created_at is not None:
+            statement = statement.where(AuditLog.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(AuditLog.created_at <= to_created_at)
+        if action_prefix:
+            statement = statement.where(AuditLog.action.like(f"{action_prefix}%"))
+
+        rows = (await session.execute(statement)).all()
+        return {str(action): int(count) for action, count in rows}
