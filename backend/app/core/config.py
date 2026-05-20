@@ -200,7 +200,7 @@ class Settings(BaseSettings):
     feature_enable_llm: bool = True
     feature_enable_evaluations: bool = True
     feature_enable_pipeline_explorer: bool = True
-    feature_enable_agents: bool = False
+    feature_enable_agents: bool | None = None
     feature_expose_config_snapshot: bool = True
 
     @field_validator("cors_origins", mode="before")
@@ -283,6 +283,12 @@ class Settings(BaseSettings):
     def validate_consistency(self) -> "Settings":
         if not self.cors_origins:
             self.cors_origins = [self.frontend_base_url]
+
+        if self.feature_enable_agents is None:
+            self.feature_enable_agents = self.environment in {
+                Environment.development,
+                Environment.test,
+            }
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError("retrieval_final_top_k must be less than or equal to retrieval_initial_top_k")
@@ -510,6 +516,7 @@ class Settings(BaseSettings):
                 "llm": self.feature_enable_llm,
                 "evaluations": self.feature_enable_evaluations,
                 "pipeline_explorer": self.feature_enable_pipeline_explorer,
+                "agents": self.feature_enable_agents,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
             },
         }

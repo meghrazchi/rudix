@@ -30,6 +30,7 @@ import {
   fallbackEvaluationPipelineGraph,
   fallbackPipelineGraph,
   fetchPipelineNodeDetail,
+  resolvePipelineRun,
   fetchPipelineRunGraph,
   type PipelineNode,
   type PipelineNodeDetailResponse,
@@ -566,10 +567,56 @@ export function RagPipelinePage() {
       return;
     }
 
-    if (deepLinkContext.hasContext) {
-      setRunId("");
-      setErrorText("No pipeline run ID is available for this resource yet. Load a run ID to inspect the graph.");
+    if (!deepLinkContext.hasContext) {
+      return;
     }
+
+    setRunId("");
+    setErrorText("Resolving pipeline run from linked resource...");
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const resolved = await resolvePipelineRun({
+          run_type: deepLinkContext.runType,
+          document_id: deepLinkContext.documentId,
+          chat_message_id: deepLinkContext.chatMessageId,
+          evaluation_run_id: deepLinkContext.evaluationRunId,
+        });
+        if (cancelled) {
+          return;
+        }
+        setRunTypeFilter(normalizeRunType(resolved.pipeline_type) ?? toRunTypeFilter(deepLinkContext));
+        setRunId(resolved.pipeline_run_id);
+        await loadGraph(resolved.pipeline_run_id);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        if (isForbiddenError(error)) {
+          setForbiddenState({
+            description:
+              "You do not have permission to view this pipeline run. Check your role or organization scope.",
+            requestId: extractRequestIdFromError(error),
+          });
+          setErrorText(null);
+          return;
+        }
+        if (isApiClientError(error) && error.status === 401) {
+          setErrorText(getApiErrorMessage(error));
+          return;
+        }
+        if (isApiClientError(error) && error.status === 404) {
+          setErrorText("No pipeline run was found yet for this resource. Retry after processing completes.");
+          return;
+        }
+        setErrorText("Could not resolve pipeline run from this link. Enter a run ID to inspect the graph.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [deepLinkContext]);
 
   return (

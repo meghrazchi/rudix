@@ -162,4 +162,5 @@ def test_configz_hides_secret_values() -> None:
 
     assert payload["openai_api_key_set"] is True
     assert payload["minio_secret_key_set"] is True
+    assert payload["features"]["agents"] is False
     assert "sk-test" not in str(payload)

@@ -32,7 +32,7 @@ import {
   type ChatQueryResponse,
 } from "@/lib/api/chat";
 import { listDocuments, type DocumentListItemResponse } from "@/lib/api/documents";
-import { getApiErrorMessage } from "@/lib/api/errors";
+import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { buildPipelineExplorerHref, normalizePipelineRunType, type PipelineRunType } from "@/lib/pipeline-links";
@@ -673,7 +673,8 @@ export function ChatPage() {
   const queryMutation = useMutation({
     mutationFn: (payload: ChatQueryRequest) => queryChat(payload),
     onSuccess: async (response, payload) => {
-      const nextSessionId = response.chat_session_id;
+      const resolvedSessionId = response.chat_session_id ?? payload.chat_session_id ?? activeSessionId;
+      const nextSessionId = resolvedSessionId ?? DRAFT_SESSION_KEY;
       const previousThreadKey = activeThreadKey(payload.chat_session_id ?? null);
       const nextTurn: ChatTurn = {
         question: payload.question,
@@ -690,9 +691,9 @@ export function ChatPage() {
         return next;
       });
 
-      setActiveSessionId(nextSessionId);
+      setActiveSessionId(resolvedSessionId ?? null);
       setSelectedResponseMessageId(nextTurn.response.message_id);
-      replaceSessionParamInUrl(nextSessionId);
+      replaceSessionParamInUrl(resolvedSessionId ?? null);
       setSubmitRequestId(null);
       setPendingQuestion(null);
       await invalidateAfterMutation(queryClient, "chat.query");
@@ -802,6 +803,7 @@ export function ChatPage() {
 
     if (AGENTIC_CHAT_ENABLED && agenticMode) {
       const previousThreadKey = activeThreadKey(activeSessionId);
+      let fallbackToStandardQuery = false;
       const payload: AgentRunCreateRequest = {
         agentic_mode: true,
         request: {
@@ -831,14 +833,26 @@ export function ChatPage() {
         setSubmitRequestId(null);
         setPendingQuestion(null);
         await invalidateAfterMutation(queryClient, "agent.run");
+        return;
       } catch (error) {
-        setSubmitRequestId(extractRequestIdFromError(error));
-        if (clearComposerOnSubmit) {
-          setQuestion(trimmedQuestion);
+        if (isApiClientError(error) && error.code === "feature_not_available") {
+          // Backend agentic feature is off; fall back to standard query flow.
+          setAgenticMode(false);
+          agentRunMutation.reset();
+          setSubmitRequestId(null);
+          fallbackToStandardQuery = true;
+        } else {
+          setSubmitRequestId(extractRequestIdFromError(error));
+          if (clearComposerOnSubmit) {
+            setQuestion(trimmedQuestion);
+          }
+          setPendingQuestion(null);
+          return;
         }
-        setPendingQuestion(null);
       }
-      return;
+      if (!fallbackToStandardQuery) {
+        return;
+      }
     }
 
     let targetSessionId = activeSessionId;

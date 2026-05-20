@@ -1,10 +1,12 @@
 import {
   fetchPipelineNodeDetail as fetchPipelineNodeDetailRequest,
+  resolvePipelineRun as resolvePipelineRunRequest,
   fetchPipelineRunGraph as fetchPipelineRunGraphRequest,
   type PipelineEdge,
   type PipelineNode,
   type PipelineNodeDetailResponse,
   type PipelineNodeStatus,
+  type PipelineRunResolveResponse,
   type PipelineRunGraphResponse,
 } from "@/lib/api/pipeline";
 
@@ -13,6 +15,7 @@ export type {
   PipelineNode,
   PipelineNodeDetailResponse,
   PipelineNodeStatus,
+  PipelineRunResolveResponse,
   PipelineRunGraphResponse,
 };
 
@@ -35,6 +38,18 @@ export async function fetchPipelineNodeDetail(
   options: PipelineApiOptions = {},
 ): Promise<PipelineNodeDetailResponse> {
   return fetchPipelineNodeDetailRequest(runId, nodeId, options);
+}
+
+export async function resolvePipelineRun(
+  params: {
+    run_type?: string | null;
+    document_id?: string | null;
+    chat_message_id?: string | null;
+    evaluation_run_id?: string | null;
+  },
+  options: PipelineApiOptions = {},
+): Promise<PipelineRunResolveResponse> {
+  return resolvePipelineRunRequest(params, options);
 }
 
 export const fallbackPipelineGraph: PipelineRunGraphResponse = {

@@ -82,6 +82,14 @@ const STATUS_ERROR_META: Record<number, ApiErrorMeta> = {
   },
 };
 
+const CODE_ERROR_META: Partial<Record<ApiErrorCode, Partial<ApiErrorMeta>>> = {
+  feature_not_available: {
+    userMessage: "This feature is not enabled on the backend.",
+    actionMessage: "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
+    retryable: false,
+  },
+};
+
 export type NormalizedBackendError = {
   code: string | null;
   message: string | null;
@@ -202,16 +210,21 @@ export function normalizeApiError(params: {
 }): ApiClientError {
   const normalized = normalizeBackendError(params.payload);
   const meta = resolveErrorMeta(params.status);
+  const code = (normalized.code ?? meta.defaultCode) as ApiErrorCode;
+  const codeMeta = CODE_ERROR_META[code];
+  const userMessage = codeMeta?.userMessage ?? meta.userMessage;
+  const actionMessage = codeMeta?.actionMessage ?? meta.actionMessage;
+  const retryable = codeMeta?.retryable ?? meta.retryable;
 
   return new ApiClientError({
     status: params.status,
-    code: normalized.code ?? meta.defaultCode,
+    code,
     message: normalized.message ?? params.fallbackMessage ?? `Request failed (${params.status})`,
     details: normalized.details,
     requestId: params.requestId ?? extractRequestIdFromPayload(params.payload),
-    userMessage: meta.userMessage,
-    actionMessage: meta.actionMessage,
-    retryable: meta.retryable,
+    userMessage,
+    actionMessage,
+    retryable,
   });
 }
 

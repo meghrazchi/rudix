@@ -750,6 +750,89 @@ describe("ChatPage", () => {
     expect(screen.queryByText(/top-secret/i)).not.toBeInTheDocument();
   });
 
+  it("falls back to standard chat when agentic backend feature is unavailable", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(createAgentRun).mockRejectedValue(
+      new ApiClientError({
+        status: 404,
+        code: "feature_not_available",
+        message: "Agentic mode is not enabled for this deployment.",
+        details: { code: "feature_not_available" },
+        requestId: "trace-agent-disabled",
+        userMessage: "This feature is not enabled on the backend.",
+        actionMessage: "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
+        retryable: false,
+      }),
+    );
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-new",
+      message_id: "msg-fallback",
+      answer: "Fallback chat answer",
+      confidence_score: 0.61,
+      confidence_category: "medium",
+      confidence_explanation: {
+        top_similarity: 0.7,
+        average_similarity: 0.66,
+        top_rerank_score: 0.61,
+        citation_support_score: 0.6,
+        citation_validation_score: 0.55,
+        citation_coverage_score: 0.5,
+        retrieval_agreement_score: 0.54,
+        raw_score: 0.61,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      created_at: "2026-05-14T10:20:00Z",
+      debug: {
+        latencies_ms: {},
+        retrieval_count: 0,
+        selected_count: 0,
+        rerank_applied: false,
+        embedding_model: null,
+        llm_model: null,
+      },
+    });
+
+    renderPage();
+    await screen.findByText("policy-a.pdf");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "fallback question");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Fallback chat answer")).toBeInTheDocument();
+    expect(vi.mocked(createAgentRun)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(queryChat)).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("checkbox", { name: /Agentic mode/i })).not.toBeChecked();
+  });
+
   it("renders pending approvals in timeline and allows admin decisions", async () => {
     window.localStorage.setItem(
       "rudix.session.v1",

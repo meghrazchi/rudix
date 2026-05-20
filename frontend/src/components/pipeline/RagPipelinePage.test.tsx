@@ -9,6 +9,7 @@ import {
   fallbackPipelineGraph,
   fetchPipelineNodeDetail,
   fetchPipelineRunGraph,
+  resolvePipelineRun,
   type PipelineRunGraphResponse,
 } from "@/lib/pipeline";
 import { normalizeApiError } from "@/lib/api/errors";
@@ -59,19 +60,28 @@ vi.mock("@/lib/pipeline", async () => {
     ...actual,
     fetchPipelineRunGraph: vi.fn(),
     fetchPipelineNodeDetail: vi.fn(),
+    resolvePipelineRun: vi.fn(),
   };
 });
 
 const mockedFetchPipelineRunGraph = vi.mocked(fetchPipelineRunGraph);
 const mockedFetchPipelineNodeDetail = vi.mocked(fetchPipelineNodeDetail);
+const mockedResolvePipelineRun = vi.mocked(resolvePipelineRun);
 
 describe("RagPipelinePage", () => {
   beforeEach(() => {
     mockNavigation.searchParams = new URLSearchParams();
     mockedFetchPipelineRunGraph.mockReset();
     mockedFetchPipelineNodeDetail.mockReset();
+    mockedResolvePipelineRun.mockReset();
     mockedFetchPipelineRunGraph.mockResolvedValue(fallbackPipelineGraph);
     mockedFetchPipelineNodeDetail.mockResolvedValue(fallbackNodeDetail);
+    mockedResolvePipelineRun.mockRejectedValue(
+      normalizeApiError({
+        status: 404,
+        payload: { detail: "Pipeline run not found" },
+      }),
+    );
   });
 
   it("renders fallback graph and updates side panel when a node is clicked", async () => {
@@ -161,16 +171,24 @@ describe("RagPipelinePage", () => {
     expect(await screen.findByRole("button", { name: "Retrieve" })).toBeInTheDocument();
   });
 
-  it("shows safe deep-link empty state when run id is missing", () => {
+  it("shows safe deep-link empty state when run id is missing", async () => {
     mockNavigation.searchParams = new URLSearchParams({
       document_id: "doc-missing-run",
     });
 
     render(<RagPipelinePage />);
 
-    expect(
-      screen.getByText("No pipeline run ID is available for this resource yet. Load a run ID to inspect the graph."),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("No pipeline run was found yet for this resource. Retry after processing completes."),
+      ).toBeInTheDocument();
+    });
+    expect(mockedResolvePipelineRun).toHaveBeenCalledWith({
+      run_type: null,
+      document_id: "doc-missing-run",
+      chat_message_id: null,
+      evaluation_run_id: null,
+    });
     expect(screen.getByText("Document: doc-missing-run")).toBeInTheDocument();
   });
 
