@@ -328,6 +328,85 @@ class AgentRunRepository:
         )
         return list(result.scalars().all())
 
+    async def count_agent_tool_calls(
+        self,
+        session: AsyncSession,
+        *,
+        agent_run_id: UUID,
+        organization_id: UUID,
+        tool_name: str | None = None,
+    ) -> int:
+        statement = select(func.count(AgentToolCall.id)).where(
+            AgentToolCall.agent_run_id == agent_run_id,
+            AgentToolCall.organization_id == organization_id,
+        )
+        if tool_name is not None:
+            statement = statement.where(AgentToolCall.tool_name == tool_name)
+        result = await session.execute(statement)
+        return int(result.scalar_one())
+
+    async def update_agent_tool_call(
+        self,
+        session: AsyncSession,
+        *,
+        tool_call_id: UUID,
+        organization_id: UUID,
+        status: str | None = None,
+        output: dict[str, Any] | None = None,
+        error: dict[str, Any] | None = None,
+        output_size_bytes: int | None = None,
+        latency_ms: int | None = None,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+    ) -> AgentToolCall | None:
+        tool_call = await session.scalar(
+            select(AgentToolCall).where(
+                AgentToolCall.id == tool_call_id,
+                AgentToolCall.organization_id == organization_id,
+            )
+        )
+        if tool_call is None:
+            return None
+        if status is not None:
+            normalized_status = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentToolCallStatus},
+                field_name="agent tool call status",
+            )
+            tool_call.status = normalized_status
+        if output is not None:
+            tool_call.output_json = _sanitize_payload(output)
+        if error is not None:
+            tool_call.error_json = _sanitize_payload(error)
+        if output_size_bytes is not None:
+            tool_call.output_size_bytes = output_size_bytes
+        if latency_ms is not None:
+            tool_call.latency_ms = latency_ms
+        if started_at is not None:
+            tool_call.started_at = started_at
+        if completed_at is not None:
+            tool_call.completed_at = completed_at
+        await session.flush()
+        await session.refresh(tool_call)
+        return tool_call
+
+    async def get_agent_approval(
+        self,
+        session: AsyncSession,
+        *,
+        approval_id: UUID,
+        organization_id: UUID,
+        agent_run_id: UUID,
+    ) -> AgentApproval | None:
+        result = await session.execute(
+            select(AgentApproval).where(
+                AgentApproval.id == approval_id,
+                AgentApproval.organization_id == organization_id,
+                AgentApproval.agent_run_id == agent_run_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def create_agent_approval(
         self,
         session: AsyncSession,

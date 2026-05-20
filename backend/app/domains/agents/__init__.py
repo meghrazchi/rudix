@@ -15,16 +15,26 @@ from app.domains.agents.schemas import (
     redact_tool_payload,
     validate_tool_call_budget,
 )
-from app.domains.agents.services import build_default_tool_specs
+from app.domains.agents.services import (
+    AgentToolExecutor,
+    RegisteredTool,
+    ToolHandler,
+    ToolRegistry,
+    build_default_tool_specs,
+)
 
 __all__ = [
     "AgentRunRepository",
+    "AgentToolExecutor",
+    "RegisteredTool",
     "ToolBudget",
     "ToolCall",
     "ToolEffectPolicy",
     "ToolError",
     "ToolErrorCode",
+    "ToolHandler",
     "ToolRedactionPolicy",
+    "ToolRegistry",
     "ToolResult",
     "ToolSpec",
     "ToolSurface",

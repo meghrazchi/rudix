@@ -74,6 +74,7 @@ class ToolSpec(BaseModel):
         max_length=4,
     )
     organization_scoped: bool = True
+    approval_required: bool = False
     surfaces: list[ToolSurface] = Field(default_factory=lambda: [ToolSurface.api], max_length=2)
     budget: ToolBudget = Field(default_factory=ToolBudget)
     redaction: ToolRedactionPolicy = Field(default_factory=ToolRedactionPolicy)
@@ -113,6 +114,7 @@ class ToolCall(BaseModel):
     arguments: dict[str, Any] = Field(default_factory=dict)
     requested_effect_policy: ToolEffectPolicy | None = None
     idempotency_key: str | None = Field(default=None, min_length=8, max_length=128)
+    approval_id: str | None = Field(default=None, min_length=3, max_length=64)
 
     @field_validator("run_id", "tool_name", "organization_id", "user_id", "call_id")
     @classmethod
@@ -122,7 +124,7 @@ class ToolCall(BaseModel):
             raise ValueError("value must not be blank")
         return normalized
 
-    @field_validator("idempotency_key")
+    @field_validator("idempotency_key", "approval_id")
     @classmethod
     def trim_optional_strings(cls, value: str | None) -> str | None:
         if value is None:
@@ -192,6 +194,8 @@ def authorize_tool_call(spec: ToolSpec, call: ToolCall, principal: Authenticated
 
     if spec.effect_policy is ToolEffectPolicy.side_effect and call.idempotency_key is None:
         raise ValueError("idempotency_key is required for side-effect tools")
+    if spec.approval_required and call.approval_id is None:
+        raise ValueError("approval_id is required for this tool")
 
     principal_roles = {role.strip().lower() for role in principal.roles}
     if principal_roles.isdisjoint(spec.required_roles):
@@ -260,4 +264,3 @@ def build_safe_tool_error_result(
             details=sanitize_metadata(details),
         ),
     )
-

@@ -170,6 +170,20 @@ MCP is an adapter surface, not the core execution boundary:
 3. MCP tools do not bypass authz, org isolation, budget checks, or redaction.
 4. MCP exposure is configured per-tool via `ToolSpec.surfaces`.
 
+## Internal Execution Contract (F100)
+
+Rudix uses one internal tool layer for both agent runtime and MCP adapters:
+
+1. `ToolRegistry` is the allowlist boundary. Unknown tools are rejected as unavailable.
+2. `AgentToolExecutor` is the execution boundary and enforces:
+   - per-tool authorization and org isolation
+   - approval requirement for tools marked `approval_required=true`
+   - call budget limits (`max_calls_per_run`, payload size, timeout)
+   - structured `ToolResult` success/failure output
+3. Execution wrappers include timeout handling, safe error mapping, and audit events.
+4. Side-effect tools must include idempotency keys; selected side-effect tools can additionally require approval IDs.
+5. Persisted tool-call traces store sanitized payloads and hashed idempotency keys only.
+
 ## Configuration Example
 
 ```env

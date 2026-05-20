@@ -108,6 +108,29 @@ def test_tool_contract_validation_failure_side_effect_requires_idempotency_key()
         authorize_tool_call(spec, call, principal)
 
 
+def test_tool_contract_validation_failure_approval_required() -> None:
+    spec = ToolSpec(
+        name="documents.delete",
+        description="Delete one document and associated retrieval artifacts.",
+        capability="documents.delete",
+        effect_policy=ToolEffectPolicy.side_effect,
+        required_roles=["admin"],
+        approval_required=True,
+    )
+    call = ToolCall(
+        run_id="run-1",
+        tool_name="documents.delete",
+        organization_id="org-1",
+        user_id="user-1",
+        arguments={"document_id": "doc-1"},
+        idempotency_key="idem-12345678",
+    )
+    principal = _principal(role="admin")
+
+    with pytest.raises(ValueError, match="approval_id is required"):
+        authorize_tool_call(spec, call, principal)
+
+
 def test_authorization_failure_cross_organization_isolation() -> None:
     spec = ToolSpec(
         name="documents.get",

@@ -1,13 +1,79 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
+
+from app.auth.models import AuthenticatedPrincipal
 from app.domains.agents.schemas import (
     ToolBudget,
+    ToolCall,
     ToolEffectPolicy,
     ToolRedactionPolicy,
     ToolSpec,
     ToolSurface,
 )
 from app.models.enums import OrganizationRole
+
+ToolHandler = Callable[
+    [ToolCall, AuthenticatedPrincipal],
+    Awaitable[dict[str, Any] | None] | dict[str, Any] | None,
+]
+
+
+@dataclass(frozen=True)
+class RegisteredTool:
+    spec: ToolSpec
+    handler: ToolHandler
+
+
+class ToolRegistry:
+    """Typed allowlist registry for internal agent tool execution."""
+
+    def __init__(self, *, specs: tuple[ToolSpec, ...] | None = None) -> None:
+        self._specs: dict[str, ToolSpec] = {}
+        self._handlers: dict[str, ToolHandler] = {}
+        if specs:
+            for spec in specs:
+                self.register_spec(spec)
+
+    def register_spec(self, spec: ToolSpec) -> None:
+        if spec.name in self._specs:
+            raise ValueError(f"Duplicate tool spec registration: {spec.name}")
+        self._specs[spec.name] = spec
+
+    def register_handler(self, *, tool_name: str, handler: ToolHandler) -> None:
+        if tool_name not in self._specs:
+            raise ValueError(f"Tool handler registered for unknown spec: {tool_name}")
+        if tool_name in self._handlers:
+            raise ValueError(f"Duplicate tool handler registration: {tool_name}")
+        self._handlers[tool_name] = handler
+
+    def register_tool(self, *, spec: ToolSpec, handler: ToolHandler) -> None:
+        self.register_spec(spec)
+        self.register_handler(tool_name=spec.name, handler=handler)
+
+    def get_spec(self, tool_name: str) -> ToolSpec | None:
+        return self._specs.get(tool_name)
+
+    def get_handler(self, tool_name: str) -> ToolHandler | None:
+        return self._handlers.get(tool_name)
+
+    def resolve(self, tool_name: str) -> RegisteredTool | None:
+        spec = self.get_spec(tool_name)
+        handler = self.get_handler(tool_name)
+        if spec is None or handler is None:
+            return None
+        return RegisteredTool(spec=spec, handler=handler)
+
+    def is_allowed(self, tool_name: str) -> bool:
+        return tool_name in self._specs
+
+    def list_specs(self) -> tuple[ToolSpec, ...]:
+        return tuple(self._specs.values())
+
+    def list_tool_names(self) -> tuple[str, ...]:
+        return tuple(self._specs.keys())
 
 
 def build_default_tool_specs(
@@ -83,6 +149,7 @@ def build_default_tool_specs(
             capability="evaluations.run",
             effect_policy=ToolEffectPolicy.side_effect,
             required_roles=[OrganizationRole.owner.value, OrganizationRole.admin.value],
+            approval_required=True,
             surfaces=[ToolSurface.api],
             budget=write_budget,
             redaction=default_redaction,
@@ -103,6 +170,7 @@ def build_default_tool_specs(
             capability="documents.reindex",
             effect_policy=ToolEffectPolicy.side_effect,
             required_roles=[OrganizationRole.owner.value, OrganizationRole.admin.value],
+            approval_required=True,
             surfaces=[ToolSurface.api],
             budget=write_budget,
             redaction=default_redaction,
@@ -113,9 +181,9 @@ def build_default_tool_specs(
             capability="documents.delete",
             effect_policy=ToolEffectPolicy.side_effect,
             required_roles=[OrganizationRole.owner.value, OrganizationRole.admin.value],
+            approval_required=True,
             surfaces=[ToolSurface.api],
             budget=write_budget,
             redaction=default_redaction,
         ),
     )
-
