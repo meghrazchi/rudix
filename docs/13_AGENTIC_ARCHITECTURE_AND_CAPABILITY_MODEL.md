@@ -157,11 +157,39 @@ Validation and execution errors must return safe errors only:
 
 - `validation_failed`
 - `authorization_failed`
+- `approval_required`
 - `budget_exceeded`
 - `tool_unavailable`
 - `internal_error`
 
 Safe errors may contain a request ID and sanitized details, but never secrets or raw protected content.
+
+## Human Approval and Safety Guardrails (F105)
+
+### Approval Flow
+
+1. Tools marked `approval_required=true` cannot execute without an approved `AgentApproval` record.
+2. If a required approval is missing, the executor creates a `pending` approval and returns a safe `approval_required` error.
+3. Runtime transitions run/step to `waiting_approval` and exposes pending approval metadata through run detail.
+4. Owners/admins decide pending approvals via:
+   - `POST /api/v1/agent/runs/{run_id}/approvals/{approval_id}/decision`
+   - body: `{ "status": "approved" | "rejected", "reason"?: "...", "decision_payload"?: { ... } }`
+5. Approval request/decision events are audit logged:
+   - `agent.approval.requested`
+   - `agent.approval.approved`
+   - `agent.approval.rejected`
+
+### Prompt-Injection Defenses
+
+Runtime applies a heuristic request guard before planning/execution:
+
+- blocks known instruction-override patterns in objective/question/query
+- returns safe `prompt_injection_blocked` runtime error without echoing raw malicious prompt text
+
+### Document-Sourced Instruction Blocking
+
+When observing document search output, runtime only consumes validated UUID document IDs and indexed status for downstream selection.
+Instruction-like document payload text is treated as untrusted signal and never used as executable tool directives.
 
 ## MCP Separation Model
 
@@ -214,6 +242,8 @@ AGENT_TOOL_TIMEOUT_MS=8000
 AGENT_TOOL_MAX_INPUT_BYTES=32768
 AGENT_TOOL_MAX_OUTPUT_BYTES=65536
 AGENT_TOOL_MAX_RETRY_ATTEMPTS=1
+AGENT_PROMPT_INJECTION_GUARD_ENABLED=true
+AGENT_DOCUMENT_INSTRUCTION_GUARD_ENABLED=true
 ```
 
 ## Testing Expectations

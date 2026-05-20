@@ -12,9 +12,11 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import {
   createAgentRun,
+  decideAgentRunApproval,
   getAgentRun,
   type AgentRunCreateRequest,
   type AgentRunCreateResponse,
+  type AgentApprovalDecisionRequest,
   type AgentRunDetailResponse,
   type AgentRuntimeMode,
 } from "@/lib/api/agent";
@@ -134,6 +136,16 @@ function agentRunStatusClass(status: string): string {
     return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
   }
   return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+}
+
+function approvalStatusClass(status: string): string {
+  if (status === "approved") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "rejected" || status === "cancelled" || status === "expired") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-rose-800";
+  }
+  return "rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800";
 }
 
 function isTerminalAgentRunStatus(status: string): boolean {
@@ -695,6 +707,19 @@ export function ChatPage() {
     mutationFn: (payload: AgentRunCreateRequest) => createAgentRun(payload),
   });
 
+  const decideApprovalMutation = useMutation({
+    mutationFn: (params: {
+      runId: string;
+      approvalId: string;
+      payload: AgentApprovalDecisionRequest;
+    }) => decideAgentRunApproval(params.runId, params.approvalId, params.payload),
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.agent.run(variables.runId),
+      });
+    },
+  });
+
   const createSessionMutation = useMutation({
     mutationFn: () => createChatSession(),
   });
@@ -711,6 +736,7 @@ export function ChatPage() {
   const listForbidden = isForbiddenError(indexedDocumentsQuery.error) || isForbiddenError(sessionsQuery.error);
   const composerError = queryMutation.error ?? agentRunMutation.error ?? createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
+  const canDecideApprovals = isAdminLikeRole(state.session?.role ?? null);
   const showDebugDetails = isAdminLikeRole(state.session?.role ?? null) || Boolean(settingsPreferencesQuery.data?.developerMode);
 
   function toggleDocument(documentId: string) {
@@ -730,6 +756,20 @@ export function ChatPage() {
     setPendingQuestion(null);
     setSubmitRequestId(null);
     replaceSessionParamInUrl(null);
+  }
+
+  async function handleApprovalDecision(params: {
+    runId: string;
+    approvalId: string;
+    status: "approved" | "rejected";
+  }) {
+    await decideApprovalMutation.mutateAsync({
+      runId: params.runId,
+      approvalId: params.approvalId,
+      payload: {
+        status: params.status,
+      },
+    });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1416,6 +1456,62 @@ export function ChatPage() {
                         <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
                           Stop reason: {selectedAgentRunQuery.data.error_message}
                         </p>
+                      ) : null}
+                      {selectedAgentRunQuery.data.approvals.length > 0 ? (
+                        <section className="space-y-1 rounded border border-[#ebe8f7] px-2 py-2">
+                          <h4 className="font-semibold text-[#3f3b58]">Approvals</h4>
+                          <ol className="space-y-1">
+                            {selectedAgentRunQuery.data.approvals.map((approval) => (
+                              <li key={approval.approval_id} className="rounded border border-[#ebe8f7] bg-white px-2 py-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={approvalStatusClass(approval.status)}>{approval.status}</span>
+                                  <span className="text-[#6a6780]">{approval.request_summary ?? "Approval request"}</span>
+                                </div>
+                                <p className="mt-1 text-[#6a6780]">id {approval.approval_id}</p>
+                                {approval.decision_reason ? (
+                                  <p className="mt-1 text-[#6a6780]">reason: {approval.decision_reason}</p>
+                                ) : null}
+                                {approval.status === "pending" && canDecideApprovals ? (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void handleApprovalDecision({
+                                          runId: selectedAgentRunQuery.data.run_id,
+                                          approvalId: approval.approval_id,
+                                          status: "approved",
+                                        });
+                                      }}
+                                      disabled={decideApprovalMutation.isPending}
+                                      className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800 disabled:opacity-60"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void handleApprovalDecision({
+                                          runId: selectedAgentRunQuery.data.run_id,
+                                          approvalId: approval.approval_id,
+                                          status: "rejected",
+                                        });
+                                      }}
+                                      disabled={decideApprovalMutation.isPending}
+                                      className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-800 disabled:opacity-60"
+                                    >
+                                      Reject
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ol>
+                          {decideApprovalMutation.isError ? (
+                            <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
+                              {getApiErrorMessage(decideApprovalMutation.error)}
+                            </p>
+                          ) : null}
+                        </section>
                       ) : null}
                       {selectedAgentRunQuery.data.steps.length === 0 ? (
                         <EmptyState compact title="No timeline steps were persisted." />

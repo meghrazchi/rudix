@@ -18,6 +18,7 @@ export type AgentRuntimeRequest = {
   document_ids?: string[];
   top_k?: number;
   rerank?: boolean;
+  approval_ids?: Record<string, string>;
   budget?: AgentBudgetConfig | null;
   metadata?: Record<string, unknown>;
 };
@@ -114,6 +115,12 @@ export type AgentApprovalResponse = {
   updated_at: string;
 };
 
+export type AgentApprovalDecisionRequest = {
+  status: "approved" | "rejected";
+  reason?: string | null;
+  decision_payload?: Record<string, unknown>;
+};
+
 export type AgentRunDetailResponse = {
   run_id: string;
   organization_id: string;
@@ -153,4 +160,19 @@ export async function createAgentRun(
 
 export async function getAgentRun(runId: string): Promise<AgentRunDetailResponse> {
   return apiRequest<AgentRunDetailResponse>(`/agent/runs/${encodeURIComponent(runId)}`);
+}
+
+export async function decideAgentRunApproval(
+  runId: string,
+  approvalId: string,
+  payload: AgentApprovalDecisionRequest,
+): Promise<AgentApprovalResponse> {
+  return apiRequest<AgentApprovalResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/approvals/${encodeURIComponent(approvalId)}/decision`,
+    {
+      method: "POST",
+      json: payload,
+      authRetry: "safe",
+    },
+  );
 }

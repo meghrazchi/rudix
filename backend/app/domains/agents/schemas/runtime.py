@@ -32,6 +32,7 @@ class AgentRuntimeRequest(BaseModel):
     document_ids: list[str] = Field(default_factory=list, max_length=200)
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool | None = None
+    approval_ids: dict[str, str] = Field(default_factory=dict, max_length=64)
     budget: AgentBudgetConfig | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -63,6 +64,18 @@ class AgentRuntimeRequest(BaseModel):
             seen.add(normalized)
             normalized_values.append(normalized)
         return normalized_values
+
+    @field_validator("approval_ids")
+    @classmethod
+    def validate_approval_ids(cls, value: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for raw_tool_name, raw_approval_id in value.items():
+            tool_name = raw_tool_name.strip()
+            approval_id = raw_approval_id.strip()
+            if not tool_name or not approval_id:
+                continue
+            normalized[tool_name] = approval_id
+        return normalized
 
 
 class PlannedToolSelection(BaseModel):

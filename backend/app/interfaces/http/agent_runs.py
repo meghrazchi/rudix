@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.db.session import get_db_session
+from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.agents import (
     AgentRunRepository,
     AgentRuntime,
@@ -25,6 +26,7 @@ from app.rate_limit import RateLimitScope, enforce_rate_limit
 router = APIRouter(prefix="/agent", tags=["agent"])
 agent_runtime = AgentRuntime()
 agent_run_repository = AgentRunRepository()
+audit_log_service = AuditLogService()
 
 
 class AgentRunCreateRequest(BaseModel):
@@ -122,6 +124,20 @@ class AgentRunDetailResponse(BaseModel):
     approvals: list[AgentApprovalResponse] = Field(default_factory=list)
 
 
+class AgentApprovalDecisionRequest(BaseModel):
+    status: str = Field(pattern=r"^(approved|rejected)$")
+    reason: str | None = Field(default=None, max_length=600)
+    decision_payload: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
 def _request_id_from_request(request: Request) -> str | None:
     request_id = getattr(request.state, "request_id", None)
     if isinstance(request_id, str) and request_id.strip():
@@ -162,6 +178,16 @@ def _parse_run_id(run_id: str) -> UUID:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent run not found",
+        ) from exc
+
+
+def _parse_approval_id(approval_id: str) -> UUID:
+    try:
+        return UUID(approval_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent approval not found",
         ) from exc
 
 
@@ -365,3 +391,78 @@ async def stream_agent_run(
             "message": "Agent run streaming is not implemented yet.",
         },
     )
+
+
+@router.post("/runs/{run_id}/approvals/{approval_id}/decision", response_model=AgentApprovalResponse)
+async def decide_agent_run_approval(
+    run_id: str,
+    approval_id: str,
+    payload: AgentApprovalDecisionRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentApprovalResponse:
+    _feature_enabled()
+    organization_id, decided_by_user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+    approval_uuid = _parse_approval_id(approval_id)
+
+    run = await agent_run_repository.get_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    approval = await agent_run_repository.get_agent_approval(
+        db_session,
+        approval_id=approval_uuid,
+        organization_id=organization_id,
+        agent_run_id=run_uuid,
+    )
+    if approval is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found")
+    if approval.status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "approval_not_pending",
+                "message": "Only pending approvals can be decided.",
+            },
+        )
+
+    updated = await agent_run_repository.update_agent_approval(
+        db_session,
+        approval_id=approval_uuid,
+        organization_id=organization_id,
+        agent_run_id=run_uuid,
+        status=payload.status,
+        decided_by_user_id=decided_by_user_id,
+        decision_reason=payload.reason,
+        decision_payload=payload.decision_payload,
+        decided_at=datetime.now(tz=UTC),
+    )
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found")
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=decided_by_user_id,
+        action=f"agent.approval.{payload.status}",
+        resource_type="agent_approval",
+        resource_id=approval_uuid,
+        request_id=_request_id_from_request(request),
+        metadata={
+            "run_id": str(run_uuid),
+            "approval_id": str(approval_uuid),
+            "decision_reason": payload.reason,
+        },
+        required=False,
+    )
+    await db_session.commit()
+    return _to_approval_response(updated)

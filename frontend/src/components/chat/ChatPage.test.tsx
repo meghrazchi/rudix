@@ -5,7 +5,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 
 import { ChatPage } from "@/components/chat/ChatPage";
-import { createAgentRun, getAgentRun } from "@/lib/api/agent";
+import { createAgentRun, decideAgentRunApproval, getAgentRun } from "@/lib/api/agent";
 import { createChatSession, listChatSessionMessages, listChatSessions, queryChat } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
@@ -31,6 +31,7 @@ vi.mock("@/lib/api/chat", () => ({
 
 vi.mock("@/lib/api/agent", () => ({
   createAgentRun: vi.fn(),
+  decideAgentRunApproval: vi.fn(),
   getAgentRun: vi.fn(),
 }));
 
@@ -93,6 +94,22 @@ describe("ChatPage", () => {
         },
         error: null,
       },
+    });
+    vi.mocked(decideAgentRunApproval).mockResolvedValue({
+      approval_id: "approval-1",
+      agent_step_id: null,
+      tool_call_id: null,
+      requested_by_user_id: "user-1",
+      decided_by_user_id: "user-1",
+      status: "approved",
+      request_summary: "Approval request",
+      decision_reason: "Approved",
+      request_payload: {},
+      decision_payload: {},
+      expires_at: null,
+      decided_at: "2026-05-14T10:10:00Z",
+      created_at: "2026-05-14T10:09:00Z",
+      updated_at: "2026-05-14T10:10:00Z",
     });
     vi.mocked(getAgentRun).mockResolvedValue({
       run_id: "run-default",
@@ -731,6 +748,145 @@ describe("ChatPage", () => {
     expect(screen.getByText("The service is temporarily unavailable. Retry shortly.")).toBeInTheDocument();
     expect(screen.getByText("trace-agent-err")).toBeInTheDocument();
     expect(screen.queryByText(/top-secret/i)).not.toBeInTheDocument();
+  });
+
+  it("renders pending approvals in timeline and allows admin decisions", async () => {
+    window.localStorage.setItem(
+      "rudix.session.v1",
+      JSON.stringify({
+        userId: "user-1",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org 1",
+        accessToken: "token",
+        refreshToken: "refresh",
+      }),
+    );
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(createAgentRun).mockResolvedValue({
+      run: {
+        run_id: "run-agent-approval",
+        status: "waiting_approval",
+        steps_executed: 1,
+        tool_calls_executed: 1,
+        total_tokens: 20,
+        total_cost_usd: 0.0002,
+        outcome: null,
+        error: {
+          code: "approval_required",
+          message: "Tool execution requires human approval.",
+          retryable: false,
+          request_id: "req-approval",
+          details: {
+            approval_id: "approval-1",
+          },
+        },
+      },
+    });
+    vi.mocked(getAgentRun).mockResolvedValue({
+      run_id: "run-agent-approval",
+      organization_id: "org-1",
+      user_id: "user-1",
+      status: "waiting_approval",
+      surface: "api",
+      objective: "Approval objective",
+      max_steps: 12,
+      max_parallel_tool_calls: 4,
+      budget: {
+        max_steps: 12,
+        max_tool_calls: 30,
+      },
+      costs: {},
+      outcome: {},
+      observations: {},
+      total_cost_usd: 0.0002,
+      trace_request_id: "trace-approval",
+      error_message: "Tool execution requires human approval.",
+      error_details: {},
+      started_at: null,
+      completed_at: null,
+      cancelled_at: null,
+      created_at: "2026-05-14T10:10:00Z",
+      updated_at: "2026-05-14T10:10:10Z",
+      steps: [
+        {
+          step_id: "step-1",
+          sequence: 1,
+          step_name: "sensitive_mutation",
+          status: "waiting_approval",
+          inputs: {},
+          outputs: {},
+          metrics: {},
+          observation: {},
+          error_message: "Tool execution requires human approval.",
+          error_details: {},
+          started_at: null,
+          completed_at: null,
+          duration_ms: 10,
+          created_at: "2026-05-14T10:10:00Z",
+          updated_at: "2026-05-14T10:10:00Z",
+        },
+      ],
+      tool_calls: [],
+      approvals: [
+        {
+          approval_id: "approval-1",
+          agent_step_id: "step-1",
+          tool_call_id: null,
+          requested_by_user_id: "user-1",
+          decided_by_user_id: null,
+          status: "pending",
+          request_summary: "Approval required for documents.delete",
+          decision_reason: null,
+          request_payload: { tool_name: "documents.delete" },
+          decision_payload: {},
+          expires_at: null,
+          decided_at: null,
+          created_at: "2026-05-14T10:10:00Z",
+          updated_at: "2026-05-14T10:10:00Z",
+        },
+      ],
+    });
+
+    renderPage();
+    await screen.findByText("policy-a.pdf");
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic mode/i }));
+    await userEvent.type(screen.getByPlaceholderText("Ask a question about your selected documents..."), "approval question");
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Approvals")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(decideAgentRunApproval)).toHaveBeenCalledWith(
+        "run-agent-approval",
+        "approval-1",
+        { status: "approved" },
+      );
+    });
   });
 
   it("enforces top_k min and max bounds", async () => {

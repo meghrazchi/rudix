@@ -170,7 +170,15 @@ async def test_agent_tool_executor_validation_and_auth_failures(
     )
     assert missing_approval_result.success is False
     assert missing_approval_result.error is not None
-    assert missing_approval_result.error.code.value == "validation_failed"
+    assert missing_approval_result.error.code.value == "approval_required"
+    assert missing_approval_result.error.details.get("approval_id")
+    pending_approvals = await repository.list_agent_approvals(
+        db_session,
+        agent_run_id=run.id,
+        organization_id=organization_a,
+    )
+    assert len(pending_approvals) == 1
+    assert pending_approvals[0].status == AgentApprovalStatus.pending.value
 
     approval = await repository.create_agent_approval(
         db_session,

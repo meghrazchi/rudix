@@ -35,7 +35,7 @@ from app.domains.agents.schemas import ToolCall, ToolEffectPolicy, ToolSpec, Too
 from app.domains.agents.services import AgentRuntime, ToolRegistry
 from app.interfaces.http import agent_runs as agent_runs_api
 from app.main import app
-from app.models.enums import OrganizationRole
+from app.models.enums import AgentApprovalStatus, OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
@@ -289,3 +289,50 @@ async def test_create_agent_run_returns_safe_error_payload_on_runtime_failure(
     assert payload["detail"]["message"] == "Unable to execute agent run. Retry shortly."
     assert payload["detail"].get("request_id")
     assert "token" not in str(payload["detail"]).lower()
+
+
+@pytest.mark.asyncio
+async def test_decide_agent_run_approval_updates_pending_approval(
+    agent_runs_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session, role=OrganizationRole.admin)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    run = await agent_runs_api.agent_run_repository.create_agent_run(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        status="waiting_approval",
+        surface="api",
+        objective="Approval flow",
+    )
+    approval = await agent_runs_api.agent_run_repository.create_agent_approval(
+        db_session,
+        organization_id=organization.id,
+        agent_run_id=run.id,
+        status=AgentApprovalStatus.pending.value,
+        requested_by_user_id=user.id,
+        request_summary="Approval required for documents.delete",
+        request_payload={"tool_name": "documents.delete"},
+    )
+    await db_session.commit()
+
+    response = await agent_runs_client.post(
+        f"/api/v1/agent/runs/{run.id}/approvals/{approval.id}/decision",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "status": "approved",
+            "reason": "Reviewed and approved",
+            "decision_payload": {"source": "test"},
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["approval_id"] == str(approval.id)
+    assert payload["status"] == "approved"
+    assert payload["decision_reason"] == "Reviewed and approved"

@@ -24,11 +24,13 @@ from app.domains.agents.schemas import (
     AgentRuntimeResult,
     PlannedToolSelection,
     ToolCall,
+    ToolErrorCode,
     ToolEffectPolicy,
 )
 from app.domains.agents.services.document_intelligence_tools import (
     register_document_intelligence_handlers,
 )
+from app.domains.agents.services.safety_guardrails import PromptInjectionGuard
 from app.domains.agents.services.tool_executor import AgentToolExecutor
 from app.domains.agents.services.tool_registry import ToolRegistry, build_default_tool_specs
 from app.models.enums import AgentRunStatus, AgentStepStatus
@@ -47,6 +49,7 @@ class _RuntimeContext:
     tool_calls_executed: int = 0
     total_tokens: int = 0
     total_cost_usd: Decimal = Decimal("0")
+    blocked_document_instruction_signals: int = 0
 
 
 class AgentRuntime:
@@ -59,6 +62,7 @@ class AgentRuntime:
         repository: AgentRunRepository | None = None,
         executor: AgentToolExecutor | None = None,
         audit_service: AuditLogService | None = None,
+        safety_guard: PromptInjectionGuard | None = None,
     ) -> None:
         resolved_registry = registry or ToolRegistry(specs=build_default_tool_specs())
         if registry is None:
@@ -67,6 +71,7 @@ class AgentRuntime:
         self._registry = resolved_registry
         self._repository = repository or AgentRunRepository()
         self._audit_service = audit_service or AuditLogService()
+        self._safety_guard = safety_guard or PromptInjectionGuard()
         self._executor = executor or AgentToolExecutor(
             registry=self._registry,
             repository=self._repository,
@@ -125,6 +130,24 @@ class AgentRuntime:
             mode=context.mode.value,
             objective=request.objective,
         )
+
+        if settings.agent_prompt_injection_guard_enabled:
+            request_injection = self._safety_guard.evaluate_request(
+                objective=request.objective,
+                question=request.question,
+                document_query=request.document_query,
+            )
+            if request_injection.blocked:
+                return await self._fail_run(
+                    session=session,
+                    run_id=run.id,
+                    organization_id=organization_id,
+                    context=context,
+                    request_id=request_id,
+                    code="prompt_injection_blocked",
+                    message="Potential prompt-injection content was detected. Revise and retry.",
+                    details={"signals": request_injection.reasons},
+                )
 
         planning_step = await self._repository.create_agent_step(
             session,
@@ -236,6 +259,7 @@ class AgentRuntime:
                 user_id=str(user_id),
                 arguments=arguments,
                 idempotency_key=idempotency_key,
+                approval_id=request.approval_ids.get(selection.tool_name),
             )
             tool_result = await self._executor.execute(
                 session=session,
@@ -246,6 +270,51 @@ class AgentRuntime:
             context.tool_calls_executed += 1
 
             if not tool_result.success:
+                if (
+                    tool_result.error is not None
+                    and tool_result.error.code == ToolErrorCode.approval_required
+                ):
+                    pending_approval_id = tool_result.error.details.get("approval_id")
+                    await self._repository.update_agent_step(
+                        session,
+                        agent_step_id=step.id,
+                        organization_id=organization_id,
+                        status=AgentStepStatus.waiting_approval.value,
+                        outputs={},
+                        metrics={"latency_ms": tool_result.latency_ms or 0},
+                        error_message=tool_result.error.safe_message,
+                        error_details=tool_result.error.model_dump(),
+                        completed_at=datetime.now(tz=UTC),
+                        duration_ms=int((perf_counter() - step_started_perf) * 1000),
+                    )
+                    await self._repository.update_agent_run(
+                        session,
+                        agent_run_id=run.id,
+                        organization_id=organization_id,
+                        status=AgentRunStatus.waiting_approval.value,
+                        observations={
+                            "pending_approval_id": pending_approval_id,
+                            "pending_tool_name": selection.tool_name,
+                            "steps_executed": context.steps_executed,
+                            "tool_calls_executed": context.tool_calls_executed,
+                        },
+                    )
+                    return AgentRuntimeResult(
+                        run_id=str(run.id),
+                        status=AgentRunStatus.waiting_approval.value,
+                        steps_executed=context.steps_executed,
+                        tool_calls_executed=context.tool_calls_executed,
+                        total_tokens=context.total_tokens,
+                        total_cost_usd=context.total_cost_usd,
+                        outcome=None,
+                        error=AgentRuntimeError(
+                            code=tool_result.error.code.value,
+                            message=tool_result.error.safe_message,
+                            retryable=False,
+                            request_id=request_id,
+                            details=tool_result.error.details,
+                        ),
+                    )
                 await self._repository.update_agent_step(
                     session,
                     agent_step_id=step.id,
@@ -342,6 +411,7 @@ class AgentRuntime:
                 "selected_document_ids": context.selected_document_ids,
                 "steps_executed": context.steps_executed,
                 "tool_calls_executed": context.tool_calls_executed,
+                "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
         )
         await self._audit_completed(
@@ -494,12 +564,29 @@ class AgentRuntime:
         for item in items:
             if not isinstance(item, dict):
                 continue
+            if settings.agent_document_instruction_guard_enabled:
+                for value in item.values():
+                    if isinstance(value, str) and self._safety_guard.is_instruction_like(value):
+                        context.blocked_document_instruction_signals += 1
+                        break
             document_id = item.get("document_id")
             status = item.get("status")
-            if isinstance(document_id, str) and document_id.strip() and status == "indexed":
+            if (
+                isinstance(document_id, str)
+                and status == "indexed"
+                and self._is_uuid_string(document_id.strip())
+            ):
                 document_ids.append(document_id)
         # Keep selection bounded for downstream cost/runtime.
         context.selected_document_ids = document_ids[:10]
+
+    @staticmethod
+    def _is_uuid_string(value: str) -> bool:
+        try:
+            UUID(value)
+        except ValueError:
+            return False
+        return True
 
     def _extract_usage(self, output: dict[str, Any]) -> dict[str, Any]:
         debug = output.get("debug")
@@ -604,7 +691,12 @@ class AgentRuntime:
             organization_id=organization_id,
             status=AgentRunStatus.cancelled.value,
             cancelled_at=datetime.now(tz=UTC),
-            observations={"cancellation_reason": reason},
+            observations={
+                "cancellation_reason": reason,
+                "steps_executed": context.steps_executed,
+                "tool_calls_executed": context.tool_calls_executed,
+                "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
+            },
             costs={"total_tokens": context.total_tokens, "total_cost_usd": str(context.total_cost_usd)},
             total_cost_usd=float(context.total_cost_usd),
         )
@@ -647,7 +739,11 @@ class AgentRuntime:
             error_details={"code": code, "details": details},
             costs={"total_tokens": context.total_tokens, "total_cost_usd": str(context.total_cost_usd)},
             total_cost_usd=float(context.total_cost_usd),
-            observations={"steps_executed": context.steps_executed, "tool_calls_executed": context.tool_calls_executed},
+            observations={
+                "steps_executed": context.steps_executed,
+                "tool_calls_executed": context.tool_calls_executed,
+                "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
+            },
         )
         await self._audit_failed(
             session=session,
@@ -720,6 +816,7 @@ class AgentRuntime:
                 "not_found": outcome.not_found,
                 "total_tokens": context.total_tokens,
                 "total_cost_usd": str(context.total_cost_usd),
+                "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
         )
 

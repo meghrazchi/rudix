@@ -193,6 +193,8 @@ class Settings(BaseSettings):
     agent_tool_max_input_bytes: int = Field(default=32768, ge=512, le=10000000)
     agent_tool_max_output_bytes: int = Field(default=65536, ge=512, le=10000000)
     agent_tool_max_retry_attempts: int = Field(default=1, ge=0, le=10)
+    agent_prompt_injection_guard_enabled: bool = True
+    agent_document_instruction_guard_enabled: bool = True
 
     feature_enable_embeddings: bool = True
     feature_enable_llm: bool = True

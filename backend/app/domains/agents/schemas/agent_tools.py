@@ -33,6 +33,7 @@ class ToolSurface(StrEnum):
 class ToolErrorCode(StrEnum):
     validation_failed = "validation_failed"
     authorization_failed = "authorization_failed"
+    approval_required = "approval_required"
     budget_exceeded = "budget_exceeded"
     tool_unavailable = "tool_unavailable"
     internal_error = "internal_error"
@@ -185,7 +186,13 @@ def redact_tool_payload(
     return _apply_explicit_redaction(sanitized, spec.redaction.input_keys)
 
 
-def authorize_tool_call(spec: ToolSpec, call: ToolCall, principal: AuthenticatedPrincipal) -> None:
+def authorize_tool_call(
+    spec: ToolSpec,
+    call: ToolCall,
+    principal: AuthenticatedPrincipal,
+    *,
+    allow_missing_approval_id: bool = False,
+) -> None:
     if call.tool_name != spec.name:
         raise ValueError("Tool call does not match tool specification")
 
@@ -194,7 +201,7 @@ def authorize_tool_call(spec: ToolSpec, call: ToolCall, principal: Authenticated
 
     if spec.effect_policy is ToolEffectPolicy.side_effect and call.idempotency_key is None:
         raise ValueError("idempotency_key is required for side-effect tools")
-    if spec.approval_required and call.approval_id is None:
+    if spec.approval_required and call.approval_id is None and not allow_missing_approval_id:
         raise ValueError("approval_id is required for this tool")
 
     principal_roles = {role.strip().lower() for role in principal.roles}

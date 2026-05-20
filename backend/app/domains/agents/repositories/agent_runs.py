@@ -575,3 +575,43 @@ class AgentRunRepository:
             .order_by(AgentApproval.created_at.asc(), AgentApproval.id.asc())
         )
         return list(result.scalars().all())
+
+    async def update_agent_approval(
+        self,
+        session: AsyncSession,
+        *,
+        approval_id: UUID,
+        organization_id: UUID,
+        agent_run_id: UUID,
+        status: str | None = None,
+        decided_by_user_id: UUID | None = None,
+        decision_reason: str | None = None,
+        decision_payload: dict[str, Any] | None = None,
+        decided_at: datetime | None = None,
+    ) -> AgentApproval | None:
+        approval = await session.scalar(
+            select(AgentApproval).where(
+                AgentApproval.id == approval_id,
+                AgentApproval.organization_id == organization_id,
+                AgentApproval.agent_run_id == agent_run_id,
+            )
+        )
+        if approval is None:
+            return None
+        if status is not None:
+            approval.status = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentApprovalStatus},
+                field_name="agent approval status",
+            )
+        if decided_by_user_id is not None:
+            approval.decided_by_user_id = decided_by_user_id
+        if decision_reason is not None:
+            approval.decision_reason = decision_reason
+        if decision_payload is not None:
+            approval.decision_payload_json = _sanitize_payload(decision_payload)
+        if decided_at is not None:
+            approval.decided_at = decided_at
+        await session.flush()
+        await session.refresh(approval)
+        return approval

@@ -37,6 +37,12 @@ def _parse_uuid(value: str) -> UUID | None:
         return None
 
 
+class ApprovalRequiredError(Exception):
+    def __init__(self, *, approval_id: str, message: str = "Human approval is required before this tool can run.") -> None:
+        super().__init__(message)
+        self.approval_id = approval_id
+
+
 class AgentToolExecutor:
     """Shared internal execution contract for API runtime and MCP adapters."""
 
@@ -78,10 +84,20 @@ class AgentToolExecutor:
         started_at_perf = perf_counter()
 
         try:
-            authorize_tool_call(spec, call, principal)
+            authorize_tool_call(
+                spec,
+                call,
+                principal,
+                allow_missing_approval_id=True,
+            )
             validate_tool_call_budget(spec, call)
             await self._enforce_call_budget(session=session, call=call)
-            await self._enforce_approval_requirement(session=session, call=call)
+            await self._enforce_approval_requirement(
+                session=session,
+                call=call,
+                principal=principal,
+                request_id=request_id,
+            )
 
             persisted_call_id = await self._persist_started_tool_call(
                 session=session,
@@ -122,7 +138,7 @@ class AgentToolExecutor:
                 },
             )
             return result
-        except (ValueError, AuthorizationError, TimeoutError) as exc:
+        except (ApprovalRequiredError, ValueError, AuthorizationError, TimeoutError) as exc:
             result = self._safe_failure_result(
                 call=call,
                 exc=exc,
@@ -240,21 +256,61 @@ class AgentToolExecutor:
             raise ValueError("Tool call budget exceeded for this run")
         self._transient_call_counts[key] = existing_count + 1
 
-    async def _enforce_approval_requirement(self, *, session: AsyncSession | None, call: ToolCall) -> None:
+    async def _enforce_approval_requirement(
+        self,
+        *,
+        session: AsyncSession | None,
+        call: ToolCall,
+        principal: AuthenticatedPrincipal,
+        request_id: str | None,
+    ) -> None:
         spec = self._registry.get_spec(call.tool_name)
         if spec is None:
             raise ValueError("Tool specification is missing")
         if not spec.approval_required:
             return
-        if call.approval_id is None:
-            raise ValueError("approval_id is required for this tool")
         if session is None:
             raise AuthorizationError("Approval validation requires an active database session")
-        approval_uuid = _parse_uuid(call.approval_id)
         run_uuid = _parse_uuid(call.run_id)
         org_uuid = _parse_uuid(call.organization_id)
-        if approval_uuid is None or run_uuid is None or org_uuid is None:
-            raise AuthorizationError("approval_id/run_id/organization_id must be valid UUID values")
+        user_uuid = _parse_uuid(call.user_id)
+        if run_uuid is None or org_uuid is None:
+            raise AuthorizationError("run_id/organization_id must be valid UUID values")
+        if call.approval_id is None:
+            approval = await self._repository.create_agent_approval(
+                session,
+                organization_id=org_uuid,
+                agent_run_id=run_uuid,
+                status=AgentApprovalStatus.pending.value,
+                requested_by_user_id=user_uuid,
+                request_summary=f"Approval required for {call.tool_name}",
+                request_payload={
+                    "tool_name": call.tool_name,
+                    "surface": call.surface.value,
+                    "arguments": redact_tool_payload(spec, call.arguments, is_output=False),
+                },
+            )
+            await self._audit_service.record(
+                session,
+                organization_id=org_uuid,
+                user_id=user_uuid,
+                action="agent.approval.requested",
+                resource_type="agent_approval",
+                resource_id=approval.id,
+                request_id=request_id,
+                metadata={
+                    "tool_name": call.tool_name,
+                    "run_id": call.run_id,
+                    "principal_user_id": principal.user_id,
+                    "principal_org_id": principal.organization_id,
+                },
+                required=False,
+            )
+            raise ApprovalRequiredError(approval_id=str(approval.id))
+
+        approval_uuid = _parse_uuid(call.approval_id)
+        if approval_uuid is None:
+            raise AuthorizationError("approval_id must be a valid UUID value")
         approval = await self._repository.get_agent_approval(
             session,
             approval_id=approval_uuid,
@@ -263,6 +319,14 @@ class AgentToolExecutor:
         )
         if approval is None:
             raise AuthorizationError("Approval was not found for this organization and run")
+        if approval.status == AgentApprovalStatus.pending.value:
+            raise ApprovalRequiredError(approval_id=str(approval.id))
+        if approval.status in {
+            AgentApprovalStatus.rejected.value,
+            AgentApprovalStatus.expired.value,
+            AgentApprovalStatus.cancelled.value,
+        }:
+            raise AuthorizationError("Approval is not active")
         if approval.status != AgentApprovalStatus.approved.value:
             raise AuthorizationError("Approval is not in approved state")
 
@@ -382,6 +446,19 @@ class AgentToolExecutor:
         request_id: str | None,
         latency_ms: int,
     ) -> ToolResult:
+        if isinstance(exc, ApprovalRequiredError):
+            return build_safe_tool_error_result(
+                call,
+                code=ToolErrorCode.approval_required,
+                safe_message="Tool execution requires human approval.",
+                request_id=request_id,
+                retryable=False,
+                details={
+                    "approval_id": exc.approval_id,
+                    "tool_name": call.tool_name,
+                },
+                latency_ms=latency_ms,
+            )
         if isinstance(exc, AuthorizationError):
             return build_safe_tool_error_result(
                 call,
