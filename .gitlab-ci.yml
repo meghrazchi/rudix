@@ -25,6 +25,10 @@ default:
       - stuck_or_timeout_failure
 
 include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
   - local: .gitlab/ci/common.yml
   - local: .gitlab/ci/validate.yml
   - local: .gitlab/ci/terraform.yml
@@ -34,7 +38,3 @@ include:
   - local: .gitlab/ci/build.yml
   - local: .gitlab/ci/integration.yml
   - local: .gitlab/ci/deploy.yml
-  - template: Security/SAST.gitlab-ci.yml
-  - template: Security/Dependency-Scanning.gitlab-ci.yml
-  - template: Security/Secret-Detection.gitlab-ci.yml
-  - template: Security/Container-Scanning.gitlab-ci.yml
