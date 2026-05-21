@@ -275,6 +275,7 @@ Playwright smoke coverage:
 - Defaults:
   - `PLAYWRIGHT_FRONTEND_PORT=3001`
   - uses system Chrome channel by default for local runs
+  - automatically uses bundled Playwright Chromium in CI
   - set `PLAYWRIGHT_USE_BUNDLED_BROWSER=true` to use Playwright-managed browser binaries instead
 
 CI-ready commands:

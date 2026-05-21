@@ -5,7 +5,9 @@ const FRONTEND_PORT = Number.parseInt(
   10,
 );
 const FRONTEND_BASE_URL = `http://localhost:${FRONTEND_PORT}`;
-const useBundledBrowser = process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true";
+const useBundledBrowser =
+  process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
+  process.env.CI === "true";
 
 export default defineConfig({
   testDir: "./e2e",
