@@ -524,7 +524,9 @@ export function ChatPage() {
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
     () => persistedSettings?.selectedDocumentIds ?? [],
   );
-  const [topK, setTopK] = useState(() => persistedSettings?.topK ?? DEFAULT_TOP_K);
+  const [topK, setTopK] = useState(
+    () => persistedSettings?.topK ?? DEFAULT_TOP_K,
+  );
   const [rerank, setRerank] = useState(() => persistedSettings?.rerank ?? true);
   const [agenticMode, setAgenticMode] = useState(
     () => persistedSettings?.agenticMode === true || DEFAULT_AGENTIC_MODE,
@@ -704,7 +706,9 @@ export function ChatPage() {
     }
     if (
       selectedResponseMessageId &&
-      thread.some((turn) => turn.response.message_id === selectedResponseMessageId)
+      thread.some(
+        (turn) => turn.response.message_id === selectedResponseMessageId,
+      )
     ) {
       return selectedResponseMessageId;
     }

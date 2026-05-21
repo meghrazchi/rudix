@@ -551,61 +551,64 @@ export function RagPipelinePage() {
     deepLinkContext.evaluationRunId,
   ]);
 
-  const loadGraph = useCallback(async (runIdOverride?: string) => {
-    const effectiveRunId = (runIdOverride ?? runId).trim();
-    const currentFallbackGraph = fallbackGraphByFilter(runTypeFilter);
-    if (!effectiveRunId) {
-      setGraph(currentFallbackGraph);
-      const firstNode = currentFallbackGraph.nodes[0];
-      if (firstNode) {
-        setSelectedNodeId(firstNode.id);
-        setNodeDetail(deriveNodeDetail(firstNode));
-      }
-      setForbiddenState(null);
-      setErrorText(
-        "Showing sample graph. Enter a run id to load backend data.",
-      );
-      return;
-    }
-
-    setLoadingGraph(true);
-    setForbiddenState(null);
-    setErrorText(null);
-    try {
-      const loaded = normalizePipelineGraph(
-        await fetchPipelineRunGraph(effectiveRunId),
-      );
-      setGraph(loaded);
-      const firstNode = loaded.nodes[0];
-      if (firstNode) {
-        setSelectedNodeId(firstNode.id);
-        setNodeDetail(deriveNodeDetail(firstNode));
-      }
-    } catch (error) {
-      setGraph(currentFallbackGraph);
-      const firstNode = currentFallbackGraph.nodes[0];
-      if (firstNode) {
-        setSelectedNodeId(firstNode.id);
-        setNodeDetail(deriveNodeDetail(firstNode));
-      }
-
-      if (isForbiddenError(error)) {
-        setForbiddenState({
-          description:
-            "You do not have permission to view this pipeline run. Check your role or organization scope.",
-          requestId: extractRequestIdFromError(error),
-        });
-      } else if (isApiClientError(error) && error.status === 401) {
-        setErrorText(getApiErrorMessage(error));
-      } else {
+  const loadGraph = useCallback(
+    async (runIdOverride?: string) => {
+      const effectiveRunId = (runIdOverride ?? runId).trim();
+      const currentFallbackGraph = fallbackGraphByFilter(runTypeFilter);
+      if (!effectiveRunId) {
+        setGraph(currentFallbackGraph);
+        const firstNode = currentFallbackGraph.nodes[0];
+        if (firstNode) {
+          setSelectedNodeId(firstNode.id);
+          setNodeDetail(deriveNodeDetail(firstNode));
+        }
+        setForbiddenState(null);
         setErrorText(
-          "Could not load backend run graph. Fallback sample data is displayed.",
+          "Showing sample graph. Enter a run id to load backend data.",
         );
+        return;
       }
-    } finally {
-      setLoadingGraph(false);
-    }
-  }, [runId, runTypeFilter]);
+
+      setLoadingGraph(true);
+      setForbiddenState(null);
+      setErrorText(null);
+      try {
+        const loaded = normalizePipelineGraph(
+          await fetchPipelineRunGraph(effectiveRunId),
+        );
+        setGraph(loaded);
+        const firstNode = loaded.nodes[0];
+        if (firstNode) {
+          setSelectedNodeId(firstNode.id);
+          setNodeDetail(deriveNodeDetail(firstNode));
+        }
+      } catch (error) {
+        setGraph(currentFallbackGraph);
+        const firstNode = currentFallbackGraph.nodes[0];
+        if (firstNode) {
+          setSelectedNodeId(firstNode.id);
+          setNodeDetail(deriveNodeDetail(firstNode));
+        }
+
+        if (isForbiddenError(error)) {
+          setForbiddenState({
+            description:
+              "You do not have permission to view this pipeline run. Check your role or organization scope.",
+            requestId: extractRequestIdFromError(error),
+          });
+        } else if (isApiClientError(error) && error.status === 401) {
+          setErrorText(getApiErrorMessage(error));
+        } else {
+          setErrorText(
+            "Could not load backend run graph. Fallback sample data is displayed.",
+          );
+        }
+      } finally {
+        setLoadingGraph(false);
+      }
+    },
+    [runId, runTypeFilter],
+  );
 
   const applySampleGraph = useCallback(
     (filter: RunTypeFilter, showDefaultMessage: boolean) => {
@@ -617,7 +620,9 @@ export function RagPipelinePage() {
         setNodeDetail(deriveNodeDetail(firstNode));
       }
       if (showDefaultMessage) {
-        setErrorText("Showing sample graph. Enter a run id to load backend data.");
+        setErrorText(
+          "Showing sample graph. Enter a run id to load backend data.",
+        );
       }
     },
     [],
@@ -773,7 +778,12 @@ export function RagPipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [applyDeepLinkResolvedRun, beginDeepLinkResolution, deepLinkContext, loadGraph]);
+  }, [
+    applyDeepLinkResolvedRun,
+    beginDeepLinkResolution,
+    deepLinkContext,
+    loadGraph,
+  ]);
 
   return (
     <div className="flex h-[calc(100vh-85px)] min-h-[700px] flex-col lg:flex-row">
