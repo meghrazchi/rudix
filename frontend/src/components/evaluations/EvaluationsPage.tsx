@@ -3,7 +3,6 @@
 import {
   Fragment,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -595,7 +594,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>(
     {},
   );
-  const [latestRunSummaryBySet, setLatestRunSummaryBySet] = useState<
+  const [latestRunSummaryBySet] = useState<
     Record<string, EvaluationSetLatestRunSummary>
   >({});
   const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
@@ -626,9 +625,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
   const [resultFilterMode, setResultFilterMode] =
     useState<ResultFilterMode>("all");
-  const [resultOffset, setResultOffset] = useState(0);
-  const [expandedResultIds, setExpandedResultIds] = useState<
-    Record<string, boolean>
+  const [resultOffsetByRunId, setResultOffsetByRunId] = useState<
+    Record<string, number>
+  >({});
+  const [expandedResultIdsByRunId, setExpandedResultIdsByRunId] = useState<
+    Record<string, Record<string, boolean>>
   >({});
   const runPollIntervalMs = parseRunPollIntervalMs();
 
@@ -672,6 +673,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     (selectedEvaluationSetId
       ? (latestRunBySet[selectedEvaluationSetId] ?? null)
       : null);
+  const runResultStateKey = activeRunId ?? "__no_run__";
+  const resultOffset = resultOffsetByRunId[runResultStateKey] ?? 0;
+  const expandedResultIds = expandedResultIdsByRunId[runResultStateKey] ?? {};
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -960,44 +964,50 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   );
   const timelinePoints: TimelinePoint[] = summaryTimeline;
 
-  const results = runDetails?.results.items ?? [];
-  const matchesResultFilter = (
-    mode: ResultFilterMode,
-    item: EvaluationRunDetailResponse["results"]["items"][number],
-  ): boolean => {
-    const qualityScore = computeResultQualityScore(item);
-    const lowScore = qualityScore != null && qualityScore < lowScoreThreshold;
-    const failed = item.status === "failed";
-    const highLatency =
-      item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
-    const notFound = isNotFoundResult(item);
-    const citationIssue =
-      item.citation_accuracy_score != null &&
-      item.citation_accuracy_score < lowScoreThreshold;
+  const results = useMemo(
+    () => runDetails?.results.items ?? [],
+    [runDetails?.results.items],
+  );
+  const matchesResultFilter = useCallback(
+    (
+      mode: ResultFilterMode,
+      item: EvaluationRunDetailResponse["results"]["items"][number],
+    ): boolean => {
+      const qualityScore = computeResultQualityScore(item);
+      const lowScore = qualityScore != null && qualityScore < lowScoreThreshold;
+      const failed = item.status === "failed";
+      const highLatency =
+        item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
+      const notFound = isNotFoundResult(item);
+      const citationIssue =
+        item.citation_accuracy_score != null &&
+        item.citation_accuracy_score < lowScoreThreshold;
 
-    if (mode === "all") {
+      if (mode === "all") {
+        return true;
+      }
+      if (mode === "problematic") {
+        return failed || lowScore;
+      }
+      if (mode === "failed") {
+        return failed;
+      }
+      if (mode === "low_score") {
+        return lowScore;
+      }
+      if (mode === "high_latency") {
+        return highLatency;
+      }
+      if (mode === "not_found") {
+        return notFound;
+      }
+      if (mode === "citation_issues") {
+        return citationIssue;
+      }
       return true;
-    }
-    if (mode === "problematic") {
-      return failed || lowScore;
-    }
-    if (mode === "failed") {
-      return failed;
-    }
-    if (mode === "low_score") {
-      return lowScore;
-    }
-    if (mode === "high_latency") {
-      return highLatency;
-    }
-    if (mode === "not_found") {
-      return notFound;
-    }
-    if (mode === "citation_issues") {
-      return citationIssue;
-    }
-    return true;
-  };
+    },
+    [highLatencyThresholdMs, lowScoreThreshold],
+  );
 
   const filterCounts = useMemo(() => {
     const counts: Record<ResultFilterMode, number> = {
@@ -1030,11 +1040,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       }
     }
     return counts;
-  }, [highLatencyThresholdMs, lowScoreThreshold, results]);
+  }, [matchesResultFilter, results]);
 
   const filteredResults = useMemo(
     () => results.filter((item) => matchesResultFilter(resultFilterMode, item)),
-    [highLatencyThresholdMs, lowScoreThreshold, resultFilterMode, results],
+    [matchesResultFilter, resultFilterMode, results],
   );
 
   const currentResultsPageIndex =
@@ -1088,37 +1098,88 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     };
   }, [runDetails]);
 
-  useEffect(() => {
-    setResultOffset(0);
-    setExpandedResultIds({});
-  }, [activeRunId]);
+  function updateResultOffset(
+    updater: number | ((previous: number) => number),
+  ): void {
+    setResultOffsetByRunId((previous) => {
+      const current = previous[runResultStateKey] ?? 0;
+      const nextValue =
+        typeof updater === "function"
+          ? (updater as (previous: number) => number)(current)
+          : updater;
+      if (nextValue === current) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [runResultStateKey]: nextValue,
+      };
+    });
+  }
 
-  useEffect(() => {
-    if (!selectedEvaluationSetId || !runDetails) {
-      return;
+  function updateExpandedResultIds(
+    updater:
+      | Record<string, boolean>
+      | ((previous: Record<string, boolean>) => Record<string, boolean>),
+  ): void {
+    setExpandedResultIdsByRunId((previous) => {
+      const current = previous[runResultStateKey] ?? {};
+      const nextValue =
+        typeof updater === "function"
+          ? (
+              updater as (
+                previous: Record<string, boolean>,
+              ) => Record<string, boolean>
+            )(current)
+          : updater;
+      if (nextValue === current) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [runResultStateKey]: nextValue,
+      };
+    });
+  }
+
+  const activeRunEvaluationSetId = useMemo(() => {
+    if (!routeRunId || !runDetails?.evaluation_set_id) {
+      return null;
     }
-    setLatestRunSummaryBySet((previous) => ({
-      ...previous,
-      [selectedEvaluationSetId]: {
+    return evaluationSetItems.some(
+      (item) => item.evaluation_set_id === runDetails.evaluation_set_id,
+    )
+      ? runDetails.evaluation_set_id
+      : null;
+  }, [evaluationSetItems, routeRunId, runDetails]);
+
+  const highlightedEvaluationSetId =
+    activeRunEvaluationSetId ?? selectedEvaluationSetId;
+
+  const latestRunSummaryForDisplayBySet = useMemo(() => {
+    if (!runDetails) {
+      return latestRunSummaryBySet;
+    }
+    const targetEvaluationSetId =
+      activeRunEvaluationSetId ?? selectedEvaluationSetId;
+    if (!targetEvaluationSetId) {
+      return latestRunSummaryBySet;
+    }
+    return {
+      ...latestRunSummaryBySet,
+      [targetEvaluationSetId]: {
         status: runDetails.status,
         completedAt: runDetails.completed_at,
         qualityScore: latestRunQualityScore,
       },
-    }));
-  }, [latestRunQualityScore, runDetails, selectedEvaluationSetId]);
-
-  useEffect(() => {
-    if (!routeRunId || !runDetails?.evaluation_set_id) {
-      return;
-    }
-    if (
-      evaluationSetItems.some(
-        (item) => item.evaluation_set_id === runDetails.evaluation_set_id,
-      )
-    ) {
-      setSelectedSetId(runDetails.evaluation_set_id);
-    }
-  }, [evaluationSetItems, routeRunId, runDetails?.evaluation_set_id]);
+    };
+  }, [
+    activeRunEvaluationSetId,
+    latestRunQualityScore,
+    latestRunSummaryBySet,
+    runDetails,
+    selectedEvaluationSetId,
+  ]);
 
   const listForbidden =
     isForbiddenError(evaluationSetsQuery.error) ||
@@ -1231,14 +1292,14 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <ul className="max-h-[380px] space-y-2 overflow-auto pr-1">
                 {evaluationSetItems.map((item) => {
                   const latestSummary =
-                    latestRunSummaryBySet[item.evaluation_set_id];
+                    latestRunSummaryForDisplayBySet[item.evaluation_set_id];
                   return (
                     <li key={item.evaluation_set_id}>
                       <button
                         type="button"
                         onClick={() => setSelectedSetId(item.evaluation_set_id)}
                         className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                          item.evaluation_set_id === selectedEvaluationSetId
+                          item.evaluation_set_id === highlightedEvaluationSetId
                             ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
                             : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
                         }`}
@@ -1953,7 +2014,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                                     type="button"
                                     aria-expanded={isExpanded}
                                     onClick={() =>
-                                      setExpandedResultIds((previous) => ({
+                                      updateExpandedResultIds((previous) => ({
                                         ...previous,
                                         [item.evaluation_result_id]:
                                           !previous[item.evaluation_result_id],
@@ -2023,7 +2084,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       type="button"
                       disabled={!canLoadPreviousResultsPage}
                       onClick={() =>
-                        setResultOffset((previous) =>
+                        updateResultOffset((previous) =>
                           Math.max(0, previous - runResultsPageSize),
                         )
                       }
@@ -2035,7 +2096,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                       type="button"
                       disabled={!canLoadNextResultsPage}
                       onClick={() =>
-                        setResultOffset(
+                        updateResultOffset(
                           (previous) => previous + runResultsPageSize,
                         )
                       }

@@ -518,16 +518,17 @@ export function ChatPage() {
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
   const lastAppliedSessionIdRef = useRef<string | null>(null);
-  const lastAppliedDocumentIdRef = useRef<string | null>(null);
-  const didLoadPersistedSettingsRef = useRef(false);
+  const persistedSettings = useMemo(() => readPersistedChatSettings(), []);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
-    () => readPersistedChatSettings()?.selectedDocumentIds ?? [],
+    () => persistedSettings?.selectedDocumentIds ?? [],
   );
-  const [topK, setTopK] = useState(DEFAULT_TOP_K);
-  const [rerank, setRerank] = useState(true);
-  const [agenticMode, setAgenticMode] = useState(DEFAULT_AGENTIC_MODE);
+  const [topK, setTopK] = useState(() => persistedSettings?.topK ?? DEFAULT_TOP_K);
+  const [rerank, setRerank] = useState(() => persistedSettings?.rerank ?? true);
+  const [agenticMode, setAgenticMode] = useState(
+    () => persistedSettings?.agenticMode === true || DEFAULT_AGENTIC_MODE,
+  );
   const [threadsBySession, setThreadsBySession] = useState<
     Record<string, ChatTurn[]>
   >({});
@@ -602,34 +603,30 @@ export function ChatPage() {
 
   const sessionMessagesQuery = useQuery({
     queryKey: queryKeys.chat.sessionMessages(activeSessionId ?? ""),
-    queryFn: () =>
-      listChatSessionMessages(activeSessionId ?? "", {
+    queryFn: async () => {
+      const response = await listChatSessionMessages(activeSessionId ?? "", {
         limit: 500,
         offset: 0,
-      }),
+      });
+      if (!activeSessionId) {
+        return response;
+      }
+      const threadKey = activeThreadKey(activeSessionId);
+      const hydratedTurns = buildTurnsFromSessionMessages(response.items);
+      setThreadsBySession((previous) => {
+        const existing = previous[threadKey];
+        if (existing && existing.length > 0) {
+          return previous;
+        }
+        return {
+          ...previous,
+          [threadKey]: hydratedTurns,
+        };
+      });
+      return response;
+    },
     enabled: shouldLoadActiveSessionHistory,
   });
-
-  useEffect(() => {
-    if (!activeSessionId || !sessionMessagesQuery.data) {
-      return;
-    }
-
-    const threadKey = activeThreadKey(activeSessionId);
-    const hydratedTurns = buildTurnsFromSessionMessages(
-      sessionMessagesQuery.data.items,
-    );
-    setThreadsBySession((previous) => {
-      const existing = previous[threadKey];
-      if (existing && existing.length > 0) {
-        return previous;
-      }
-      return {
-        ...previous,
-        [threadKey]: hydratedTurns,
-      };
-    });
-  }, [activeSessionId, sessionMessagesQuery.data]);
 
   const indexedDocumentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -662,29 +659,25 @@ export function ChatPage() {
     [indexedDocuments],
   );
 
-  const filteredSelectedDocumentIds = useMemo(
-    () =>
-      selectedDocumentIds.filter((documentId) =>
-        indexedDocumentIdSet.has(documentId),
-      ),
-    [selectedDocumentIds, indexedDocumentIdSet],
-  );
+  const documentIdFromQuery = searchParams.get("document_id");
+  const filteredSelectedDocumentIds = useMemo(() => {
+    const validSelectedDocumentIds = selectedDocumentIds.filter((documentId) =>
+      indexedDocumentIdSet.has(documentId),
+    );
+    if (
+      documentIdFromQuery &&
+      indexedDocumentIdSet.has(documentIdFromQuery) &&
+      !validSelectedDocumentIds.includes(documentIdFromQuery)
+    ) {
+      return [documentIdFromQuery, ...validSelectedDocumentIds];
+    }
+    return validSelectedDocumentIds;
+  }, [documentIdFromQuery, indexedDocumentIdSet, selectedDocumentIds]);
 
   const hasIndexedDocuments = indexedDocuments.length > 0;
 
   useEffect(() => {
-    const persisted = readPersistedChatSettings();
-    if (persisted) {
-      setTopK(persisted.topK);
-      setRerank(persisted.rerank);
-      setSelectedDocumentIds(persisted.selectedDocumentIds);
-      setAgenticMode(persisted.agenticMode === true);
-    }
-    didLoadPersistedSettingsRef.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (!didLoadPersistedSettingsRef.current || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       return;
     }
     const payload: PersistedChatSettings = {
@@ -699,43 +692,27 @@ export function ChatPage() {
     );
   }, [agenticMode, filteredSelectedDocumentIds, rerank, topK]);
 
-  useEffect(() => {
-    const documentIdFromQuery = searchParams.get("document_id");
-    if (!documentIdFromQuery) {
-      lastAppliedDocumentIdRef.current = null;
-      return;
-    }
-    if (lastAppliedDocumentIdRef.current === documentIdFromQuery) {
-      return;
-    }
-    if (!indexedDocumentIdSet.has(documentIdFromQuery)) {
-      return;
-    }
-    setSelectedDocumentIds((previous) => {
-      if (previous.includes(documentIdFromQuery)) {
-        return previous;
-      }
-      return [
-        documentIdFromQuery,
-        ...previous.filter((value) => indexedDocumentIdSet.has(value)),
-      ];
-    });
-    lastAppliedDocumentIdRef.current = documentIdFromQuery;
-  }, [indexedDocumentIdSet, searchParams]);
-
-  useEffect(() => {
-    if (filteredSelectedDocumentIds.length === selectedDocumentIds.length) {
-      return;
-    }
-    setSelectedDocumentIds(filteredSelectedDocumentIds);
-  }, [filteredSelectedDocumentIds, selectedDocumentIds.length]);
-
   const activeSession =
     sessions.find((item) => item.session_id === activeSessionId) ?? null;
-  const thread = threadsBySession[activeThreadKey(activeSessionId)] ?? [];
+  const thread = useMemo(
+    () => threadsBySession[activeThreadKey(activeSessionId)] ?? [],
+    [activeSessionId, threadsBySession],
+  );
+  const effectiveSelectedResponseMessageId = useMemo(() => {
+    if (thread.length === 0) {
+      return null;
+    }
+    if (
+      selectedResponseMessageId &&
+      thread.some((turn) => turn.response.message_id === selectedResponseMessageId)
+    ) {
+      return selectedResponseMessageId;
+    }
+    return thread[thread.length - 1].response.message_id;
+  }, [selectedResponseMessageId, thread]);
   const selectedCitationTurn =
     thread.find(
-      (turn) => turn.response.message_id === selectedResponseMessageId,
+      (turn) => turn.response.message_id === effectiveSelectedResponseMessageId,
     ) ??
     thread[thread.length - 1] ??
     null;
@@ -757,22 +734,6 @@ export function ChatPage() {
     },
     refetchIntervalInBackground: true,
   });
-
-  useEffect(() => {
-    if (thread.length === 0) {
-      if (selectedResponseMessageId !== null) {
-        setSelectedResponseMessageId(null);
-      }
-      return;
-    }
-    const hasSelected = thread.some(
-      (turn) => turn.response.message_id === selectedResponseMessageId,
-    );
-    if (hasSelected) {
-      return;
-    }
-    setSelectedResponseMessageId(thread[thread.length - 1].response.message_id);
-  }, [selectedResponseMessageId, thread]);
 
   const queryMutation = useMutation({
     mutationFn: (payload: ChatQueryRequest) => queryChat(payload),

@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import Image from "next/image";
 import Link from "next/link";
@@ -57,6 +57,27 @@ function resolvePostSignupTarget(
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageContent />
+    </Suspense>
+  );
+}
+
+function SignupPageFallback() {
+  return (
+    <div
+      className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
+      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+    >
+      <main className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
+        <p className="text-sm text-[#68647b]">Loading sign-up...</p>
+      </main>
+    </div>
+  );
+}
+
+function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";

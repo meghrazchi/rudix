@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -179,7 +179,7 @@ export function DocumentsPage() {
     parseOffset(searchParams.get("offset")),
   );
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
-    null,
+    () => searchParams.get("document_id"),
   );
   const [chunksOffset, setChunksOffset] = useState(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -371,28 +371,6 @@ export function DocumentsPage() {
     const serialized = params.toString();
     return serialized ? `/documents?${serialized}` : "/documents";
   }, [offset, sortBy, sortOrder, statusFilter]);
-
-  useEffect(() => {
-    const nextStatus = parseStatusFilter(searchParams.get("status"));
-    const nextSortBy = parseSortBy(searchParams.get("sort_by"));
-    const nextSortOrder = parseSortOrder(searchParams.get("sort_order"));
-    const nextOffset = parseOffset(searchParams.get("offset"));
-    setStatusFilter(nextStatus);
-    setSortBy(nextSortBy);
-    setSortOrder(nextSortOrder);
-    setOffset(nextOffset);
-  }, [searchParams]);
-
-  useEffect(() => {
-    const documentIdFromQuery = searchParams.get("document_id");
-    if (!documentIdFromQuery) {
-      return;
-    }
-    if (documentIdFromQuery !== selectedDocumentId) {
-      setSelectedDocumentId(documentIdFromQuery);
-      setChunksOffset(0);
-    }
-  }, [searchParams, selectedDocumentId]);
 
   async function handleFileUpload(file: File): Promise<void> {
     setActionFeedback(null);

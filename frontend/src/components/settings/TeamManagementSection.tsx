@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -212,15 +212,19 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
   const membersRangeStart = membersTotal === 0 ? 0 : memberOffset + 1;
   const membersRangeEnd =
     membersTotal === 0 ? 0 : memberOffset + members.length;
+  const goToPreviousMemberPage = useCallback(() => {
+    setMemberPageIndex((previous) => Math.max(0, previous - 1));
+  }, []);
 
   useEffect(() => {
     if (!isAdmin || membersQuery.isFetching) {
       return;
     }
     if (membersTotal > 0 && members.length === 0 && memberPageIndex > 0) {
-      setMemberPageIndex((previous) => Math.max(0, previous - 1));
+      queueMicrotask(goToPreviousMemberPage);
     }
   }, [
+    goToPreviousMemberPage,
     isAdmin,
     memberPageIndex,
     members.length,

@@ -495,8 +495,14 @@ export function DashboardPage() {
   const documentsSummary = documentsQuery.data;
   const chatSummary = chatSummaryQuery.data;
   const usageSummary = usageQuery.data;
-  const latestDocuments = latestDocumentsQuery.data?.items ?? [];
-  const recentSessions = recentChatSessionsQuery.data?.items ?? [];
+  const latestDocuments = useMemo(
+    () => latestDocumentsQuery.data?.items ?? [],
+    [latestDocumentsQuery.data?.items],
+  );
+  const recentSessions = useMemo(
+    () => recentChatSessionsQuery.data?.items ?? [],
+    [recentChatSessionsQuery.data?.items],
+  );
 
   const indexingSuccess = documentsSummary
     ? computeIndexingSuccess(

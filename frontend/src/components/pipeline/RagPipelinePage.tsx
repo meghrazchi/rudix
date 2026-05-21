@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSearchParams } from "next/navigation";
 import {
@@ -551,7 +551,7 @@ export function RagPipelinePage() {
     deepLinkContext.evaluationRunId,
   ]);
 
-  async function loadGraph(runIdOverride?: string) {
+  const loadGraph = useCallback(async (runIdOverride?: string) => {
     const effectiveRunId = (runIdOverride ?? runId).trim();
     const currentFallbackGraph = fallbackGraphByFilter(runTypeFilter);
     if (!effectiveRunId) {
@@ -605,7 +605,37 @@ export function RagPipelinePage() {
     } finally {
       setLoadingGraph(false);
     }
-  }
+  }, [runId, runTypeFilter]);
+
+  const applySampleGraph = useCallback(
+    (filter: RunTypeFilter, showDefaultMessage: boolean) => {
+      const sampleGraph = fallbackGraphByFilter(filter);
+      setGraph(sampleGraph);
+      const firstNode = sampleGraph.nodes[0];
+      if (firstNode) {
+        setSelectedNodeId(firstNode.id);
+        setNodeDetail(deriveNodeDetail(firstNode));
+      }
+      if (showDefaultMessage) {
+        setErrorText("Showing sample graph. Enter a run id to load backend data.");
+      }
+    },
+    [],
+  );
+
+  const applyDeepLinkResolvedRun = useCallback(
+    (nextRunType: RunTypeFilter, nextRunId: string) => {
+      setRunTypeFilter(nextRunType);
+      setForbiddenState(null);
+      setRunId(nextRunId);
+    },
+    [],
+  );
+
+  const beginDeepLinkResolution = useCallback(() => {
+    setRunId("");
+    setErrorText("Resolving pipeline run from linked resource...");
+  }, []);
 
   async function selectNode(node: PipelineNode) {
     setSelectedNodeId(node.id);
@@ -650,21 +680,17 @@ export function RagPipelinePage() {
     if (runId.trim()) {
       return;
     }
-
-    const sampleGraph = fallbackGraphByFilter(runTypeFilter);
-    setGraph(sampleGraph);
-    const firstNode = sampleGraph.nodes[0];
-    if (firstNode) {
-      setSelectedNodeId(firstNode.id);
-      setNodeDetail(deriveNodeDetail(firstNode));
-    }
-
-    if (!deepLinkContext.hasContext) {
-      setErrorText(
-        "Showing sample graph. Enter a run id to load backend data.",
-      );
-    }
-  }, [deepLinkContext.hasContext, runId, runTypeFilter]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+      applySampleGraph(runTypeFilter, !deepLinkContext.hasContext);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [applySampleGraph, deepLinkContext.hasContext, runId, runTypeFilter]);
 
   useEffect(() => {
     const signature = JSON.stringify({
@@ -679,12 +705,13 @@ export function RagPipelinePage() {
     }
     deepLinkSignatureRef.current = signature;
 
-    setRunTypeFilter(toRunTypeFilter(deepLinkContext));
-    setForbiddenState(null);
+    const nextRunType = toRunTypeFilter(deepLinkContext);
 
     if (deepLinkContext.runId) {
-      setRunId(deepLinkContext.runId);
-      void loadGraph(deepLinkContext.runId);
+      queueMicrotask(() => {
+        applyDeepLinkResolvedRun(nextRunType, deepLinkContext.runId as string);
+        void loadGraph(deepLinkContext.runId as string);
+      });
       return;
     }
 
@@ -692,8 +719,10 @@ export function RagPipelinePage() {
       return;
     }
 
-    setRunId("");
-    setErrorText("Resolving pipeline run from linked resource...");
+    queueMicrotask(() => {
+      applyDeepLinkResolvedRun(nextRunType, "");
+      beginDeepLinkResolution();
+    });
 
     let cancelled = false;
     void (async () => {
@@ -707,11 +736,10 @@ export function RagPipelinePage() {
         if (cancelled) {
           return;
         }
-        setRunTypeFilter(
-          normalizeRunType(resolved.pipeline_type) ??
-            toRunTypeFilter(deepLinkContext),
+        applyDeepLinkResolvedRun(
+          normalizeRunType(resolved.pipeline_type) ?? nextRunType,
+          resolved.pipeline_run_id,
         );
-        setRunId(resolved.pipeline_run_id);
         await loadGraph(resolved.pipeline_run_id);
       } catch (error) {
         if (cancelled) {
@@ -745,7 +773,7 @@ export function RagPipelinePage() {
     return () => {
       cancelled = true;
     };
-  }, [deepLinkContext]);
+  }, [applyDeepLinkResolvedRun, beginDeepLinkResolution, deepLinkContext, loadGraph]);
 
   return (
     <div className="flex h-[calc(100vh-85px)] min-h-[700px] flex-col lg:flex-row">
