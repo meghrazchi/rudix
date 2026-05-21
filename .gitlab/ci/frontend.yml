@@ -43,7 +43,7 @@ frontend:build:
 
 frontend:e2e:
   stage: integration
-  image: mcr.microsoft.com/playwright:v1.59.1-noble
+  image: mcr.microsoft.com/playwright:v1.60.0-noble
   extends:
     - .rules:frontend-changes
     - .cache:npm
