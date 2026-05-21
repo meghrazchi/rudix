@@ -32,10 +32,12 @@ integration:stack-smoke:
       export RUDIX_WORKER_IMAGE="$WORKER_IMAGE_REF"
 
       cat > .env.ci.integration <<EOF
-      ENVIRONMENT=ci
+      ENVIRONMENT=test
       API_BASE_URL=http://api:8000
       FRONTEND_BASE_URL=http://frontend:3000
       CORS_ORIGINS=http://frontend:3000
+      RUDIX_API_IMAGE=${API_IMAGE_REF}
+      RUDIX_WORKER_IMAGE=${WORKER_IMAGE_REF}
       DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
       POSTGRES_DB=rag_app
       POSTGRES_USER=postgres
@@ -87,8 +89,16 @@ integration:stack-smoke:
       # Basic worker process check.
       docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps worker | grep -q "Up"
   after_script:
-    - docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
-    - docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration down -v || true
+    - |
+      if [ ! -f .env.ci.integration ]; then
+        cat > .env.ci.integration <<EOF
+        ENVIRONMENT=test
+        RUDIX_API_IMAGE=${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}
+        RUDIX_WORKER_IMAGE=${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}
+        EOF
+      fi
+    - RUDIX_API_IMAGE="${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}" RUDIX_WORKER_IMAGE="${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}" docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-compose.log || true
+    - RUDIX_API_IMAGE="${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}" RUDIX_WORKER_IMAGE="${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}" docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration down -v || true
   artifacts:
     when: always
     expire_in: 7 days
