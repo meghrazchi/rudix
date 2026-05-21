@@ -220,7 +220,7 @@ Important:
 - Do not send placeholder IDs like `PUT_DOC_UUID_HERE` or `<DOC_UUID>`.
 - `force=true` bypasses idempotency skip checks, but does not bypass UUID validation.
 - If you run both local and Docker workers, tasks can be consumed by either worker.
-- Qdrant point IDs are deterministic per chunk (`{document_id}:{index_version}:{chunk_index}`), so repeated indexing upserts overwrite safely.
+- Qdrant point IDs are deterministic UUIDv5 values derived from `{document_id}:{index_version}:{chunk_index}`, so repeated indexing upserts overwrite safely while staying compatible with Qdrant point ID constraints.
 - Status transitions are idempotent (`uploaded|failed -> processing -> indexed`), and stale failure errors are cleared when processing restarts.
 
 Docker-specific worker operations from repo root:
@@ -250,6 +250,8 @@ Valid values:
 - `test`
 - `staging`
 - `production`
+
+Note: CI integration smoke runs must use `ENVIRONMENT=test` (not `ci`), because settings validation only accepts the four values above.
 
 ### 4.2 Required production configuration
 

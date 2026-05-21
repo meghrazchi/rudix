@@ -114,7 +114,7 @@ Backend actions:
 13. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
 14. Worker generates embeddings for all chunks in provider-safe batches using the configured embedding model.
 15. Transient embedding provider failures are retried with backoff; permanent embedding failures mark document `failed`.
-16. Worker upserts embeddings to Qdrant in batches using deterministic point IDs (`{document_id}:{index_version}:{chunk_index}`).
+16. Worker upserts embeddings to Qdrant in batches using deterministic UUIDv5 point IDs derived from `{document_id}:{index_version}:{chunk_index}`.
 17. Qdrant payload includes filter/citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
 18. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
 19. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
@@ -832,50 +832,93 @@ Storage model:
 
 - `pipeline_runs` stores run-level metadata and links to `document_id`, `chat_message_id`, or `evaluation_run_id`.
 - `pipeline_events` stores ordered node events (`started|completed|failed|skipped`) with timing and sanitized payload previews.
-- Current implementation emits ingestion events; chat/evaluation pipeline emission is planned for F39 using the same schema.
+- Current implementation supports document, chat, and evaluation run types using one graph schema.
 
-### GET `/pipeline/runs/{document_id}`
+### GET `/pipeline/steps`
 
-Returns node statuses for a document processing run.
+Returns canonical pipeline step labels for UI fallback/validation.
 
 Response:
 
 ```json
 {
-  "document_id": "uuid",
+  "steps": ["extract", "clean", "chunk", "embed", "index", "retrieve", "rerank", "generate", "evaluate"]
+}
+```
+
+### GET `/pipeline/runs/resolve`
+
+Resolves the latest accessible pipeline run for one or more context identifiers.
+
+Query params:
+
+```text
+run_type=document.process|chat.answer|evaluation.run
+document_id=<uuid>
+chat_message_id=<uuid>
+evaluation_run_id=<uuid>
+```
+
+At least one context identifier is required.
+
+Response:
+
+```json
+{
+  "pipeline_run_id": "uuid",
+  "pipeline_type": "chat.answer",
+  "status": "completed"
+}
+```
+
+### GET `/pipeline/runs/{run_id}`
+
+Returns graph nodes/edges for one pipeline run scoped to the caller organization.
+
+Response:
+
+```json
+{
+  "pipeline_run_id": "uuid",
+  "pipeline_type": "document.process",
+  "status": "completed",
   "nodes": [
     {
-      "id": "upload",
-      "label": "Upload",
+      "id": "chunk",
+      "label": "Chunk",
+      "section": "ingestion",
+      "description": "Split extracted text into overlapping chunks",
       "status": "completed",
-      "started_at": "2026-05-07T10:00:00Z",
-      "completed_at": "2026-05-07T10:00:03Z"
-    },
-    {
-      "id": "chunking",
-      "label": "Chunking",
-      "status": "completed",
+      "started_at": "2026-05-20T08:41:00Z",
+      "completed_at": "2026-05-20T08:41:02Z",
+      "duration_ms": 1960,
       "metrics": {
-        "chunk_count": 92,
-        "average_tokens": 640
+        "chunk_count": 92
       }
+    }
+  ],
+  "edges": [
+    {
+      "id": "extract->chunk",
+      "source": "extract",
+      "target": "chunk"
     }
   ]
 }
 ```
 
-### GET `/pipeline/runs/{document_id}/nodes/{node_id}`
+### GET `/pipeline/runs/{run_id}/nodes/{node_id}`
 
-Returns details for one node.
+Returns node-level detail for a specific run/node pair.
 
 Response:
 
 ```json
 {
-  "node_id": "chunking",
-  "title": "Chunking",
-  "status": "completed",
+  "node_id": "chunk",
+  "title": "Chunk",
   "description": "Split extracted text into overlapping chunks.",
+  "status": "completed",
   "inputs": {
     "pages": 24
   },
@@ -884,14 +927,104 @@ Response:
   },
   "config": {
     "chunk_size_tokens": 700,
-    "chunk_overlap_tokens": 120,
-    "index_version": "v1"
+    "chunk_overlap_tokens": 120
   },
-  "logs": [
-    "Created 92 chunks from 24 pages."
-  ]
+  "logs": ["Created 92 chunks from 24 pages."],
+  "error_message": null,
+  "error_details": {},
+  "metrics": {
+    "chunk_count": 92
+  },
+  "started_at": "2026-05-20T08:41:00Z",
+  "completed_at": "2026-05-20T08:41:02Z",
+  "duration_ms": 1960
 }
 ```
+
+## Agent runs
+
+### POST `/agent/runs`
+
+Creates and executes an agent run. `agentic_mode` must be explicitly `true`.
+
+Request:
+
+```json
+{
+  "agentic_mode": true,
+  "request": {
+    "objective": "Answer the question using indexed documents with citations.",
+    "question": "What is our retention policy?",
+    "document_ids": ["uuid"],
+    "top_k": 5,
+    "rerank": true
+  }
+}
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "run": {
+    "run_id": "uuid",
+    "status": "completed",
+    "steps_executed": 4,
+    "tool_calls_executed": 5,
+    "total_tokens": 1823,
+    "total_cost_usd": 0.0012,
+    "outcome": {
+      "answer": "Retention policy is 7 years for financial records.",
+      "citations": [
+        {
+          "document_id": "uuid",
+          "chunk_id": "uuid",
+          "page_number": 4
+        }
+      ],
+      "confidence": {
+        "score": 0.84,
+        "category": "high"
+      },
+      "not_found": false,
+      "mode": "answer"
+    },
+    "error": null
+  }
+}
+```
+
+Feature-gated behavior:
+
+- If `FEATURE_ENABLE_AGENTS=false`, endpoints return `404` with `feature_not_available`.
+
+### GET `/agent/runs/{run_id}`
+
+Returns persisted run state, steps, tool calls, approvals, budget/costs, and safe error metadata.
+
+### GET `/agent/runs/{run_id}/stream`
+
+Reserved endpoint for streaming responses. Currently returns `501 Not Implemented`.
+
+### POST `/agent/runs/{run_id}/approvals/{approval_id}/decision`
+
+Owner/admin decision endpoint for pending approvals.
+
+Request:
+
+```json
+{
+  "status": "approved",
+  "reason": "Reviewed by admin",
+  "decision_payload": {}
+}
+```
+
+Notes:
+
+- `status` must be `approved` or `rejected`.
+- Non-pending approvals return `409`.
+- Cross-organization runs/approvals return safe `404`.
 
 ## Admin endpoints
 

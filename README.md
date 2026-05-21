@@ -306,6 +306,35 @@ make lint         # Run lint and type checks
 
 ---
 
+## Deployment and CI/CD
+
+Rudix uses GitLab CI/CD as a release gate:
+
+- `validate` -> `test` -> `build` -> `security` -> `integration` -> `deploy_staging` -> `deploy_production` -> `rollback`
+- Staging deploy is automatic on protected default-branch pipelines when `ENABLE_STAGING_DEPLOY=true`
+- Production deploy is manual on protected refs
+- Rollback is manual and image-based (`ROLLBACK_API_IMAGE`, `ROLLBACK_WORKER_IMAGE`, `ROLLBACK_FRONTEND_IMAGE`)
+
+For required CI variables and environment rules, see:
+
+- [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md)
+
+---
+
+## Agentic Mode Notes
+
+Chat agentic mode uses backend agent run APIs and is controlled by feature flags.
+
+- Frontend toggle visibility: `NEXT_PUBLIC_CHAT_AGENTIC_ENABLED`
+- Backend runtime gate: `FEATURE_ENABLE_AGENTS`
+- Agent run endpoints:
+  - `POST /api/v1/agent/runs`
+  - `GET /api/v1/agent/runs/{run_id}`
+
+If agentic mode is enabled in frontend but disabled in backend, requests can return `404` with a feature-not-available response.
+
+---
+
 ## Documentation
 
 Detailed documentation is available in the `docs/` directory.

@@ -91,6 +91,13 @@ Image digests are exported as artifacts and used by deploy jobs.
 - upload/chat preflight checks
 - worker process health check
 
+Implementation notes:
+
+- Integration runtime uses `ENVIRONMENT=test` (settings validation does not allow `ci`).
+- Smoke probes target `http://docker:8000` in Docker-in-Docker jobs (not `localhost:8000`).
+- OPTIONS preflight checks are executed with CORS headers and accept `200` or `204`.
+- On readiness timeout, the job emits Compose `ps` and API/worker logs before failing.
+
 ## Environments
 
 ### Staging
@@ -171,6 +178,17 @@ Each deploy job stores metadata including:
 - deploy user
 - pipeline URL
 - environment URL
+
+## Common CI Failure Patterns
+
+| Error snippet | Likely cause | Action |
+|---|---|---|
+| `Missing required CI variable for staging/production` | Deploy validation job ran without required env vars | Add variables listed in this document and scope to the correct GitLab environment |
+| `Input should be 'development', 'test', 'staging' or 'production'` | Invalid `ENVIRONMENT` value in CI | Use `ENVIRONMENT=test` for integration jobs |
+| `Failed to connect to localhost port 8000` (integration) | Docker-in-Docker network target mismatch | Use `http://docker:8000` for smoke probes |
+| `Terraform has no command named "sh"` | Terraform image entrypoint not overridden | Set `entrypoint: [""]` for Terraform CI jobs running shell scripts |
+| `Chromium distribution 'chrome' is not found` | Playwright config expects Chrome channel in CI | Use bundled Chromium in CI (`PLAYWRIGHT_USE_BUNDLED_BROWSER=true`) |
+| `Looks like Playwright was just updated ... please update docker image` | Playwright npm version and CI image mismatch | Pin CI Playwright image tag to the same version as `@playwright/test` |
 
 ## Operational Notes
 
