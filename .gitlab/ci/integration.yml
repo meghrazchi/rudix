@@ -20,6 +20,8 @@ integration:stack-smoke:
     - apk add --no-cache bash curl
     - mkdir -p artifacts
     - |
+      set -euo pipefail
+
       API_IMAGE_REF="$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA"
       WORKER_IMAGE_REF="$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHA"
       if [ -f artifacts/image-digests/api.txt ]; then
@@ -71,24 +73,64 @@ integration:stack-smoke:
       docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration run --rm migrate
 
       HEALTH_BASE_URL=http://docker:8000
-      for _ in $(seq 1 60); do
-        if curl -fsS "${HEALTH_BASE_URL}/api/v1/health" >/dev/null; then
-          break
-        fi
-        sleep 2
-      done
+      wait_for_ok() {
+        url="$1"
+        label="$2"
+        for _ in $(seq 1 60); do
+          if curl -fsS "$url" >/dev/null; then
+            return 0
+          fi
+          sleep 2
+        done
+        echo "Timed out waiting for ${label}: ${url}"
+        docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
+        docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker || true
+        return 1
+      }
+
+      wait_for_ok "${HEALTH_BASE_URL}/api/v1/health" "health"
+      wait_for_ok "${HEALTH_BASE_URL}/api/v1/ready" "ready"
+
       curl -fsS "${HEALTH_BASE_URL}/api/v1/health"
       curl -fsS "${HEALTH_BASE_URL}/api/v1/ready"
 
       # Auth boundary behavior smoke: protected resources should reject unauthenticated requests.
-      test "$(curl -s -o /dev/null -w "%{http_code}" "${HEALTH_BASE_URL}/api/v1/documents")" = "401"
+      auth_status="$(curl -s -o /dev/null -w "%{http_code}" "${HEALTH_BASE_URL}/api/v1/documents")"
+      test "${auth_status}" = "401"
 
-      # Upload/chat preflight smoke.
-      test "$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "${HEALTH_BASE_URL}/api/v1/documents/upload")" = "200"
-      test "$(curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "${HEALTH_BASE_URL}/api/v1/chat")" = "200"
+      # Upload/chat preflight smoke. Use real CORS preflight headers and accept 200/204.
+      upload_preflight_status="$(
+        curl -s -o /dev/null -w "%{http_code}" \
+          -X OPTIONS \
+          -H "Origin: http://frontend:3000" \
+          -H "Access-Control-Request-Method: POST" \
+          "${HEALTH_BASE_URL}/api/v1/documents/upload"
+      )"
+      if [ "${upload_preflight_status}" != "200" ] && [ "${upload_preflight_status}" != "204" ]; then
+        echo "Unexpected upload preflight status: ${upload_preflight_status}"
+        exit 1
+      fi
+
+      chat_preflight_status="$(
+        curl -s -o /dev/null -w "%{http_code}" \
+          -X OPTIONS \
+          -H "Origin: http://frontend:3000" \
+          -H "Access-Control-Request-Method: POST" \
+          "${HEALTH_BASE_URL}/api/v1/chat"
+      )"
+      if [ "${chat_preflight_status}" != "200" ] && [ "${chat_preflight_status}" != "204" ]; then
+        echo "Unexpected chat preflight status: ${chat_preflight_status}"
+        exit 1
+      fi
 
       # Basic worker process check.
-      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps worker | grep -q "Up"
+      for _ in $(seq 1 30); do
+        if docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running worker | grep -q "worker"; then
+          break
+        fi
+        sleep 2
+      done
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps --status running worker | grep -q "worker"
   after_script:
     - |
       if [ ! -f .env.ci.integration ]; then
