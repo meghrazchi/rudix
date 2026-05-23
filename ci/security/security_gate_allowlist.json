@@ -1,4 +1,10 @@
 {
-  "allow": []
+  "notes": "Temporary exception for python:3.12-slim / Debian trixie ncurses CVE without a security update. Remove when the base image is rebuilt with a fix.",
+  "allow": [
+    {
+      "id": "CVE-2025-69720",
+      "scanner": "container_scanning",
+      "severity": "high"
+    }
+  ]
 }
-

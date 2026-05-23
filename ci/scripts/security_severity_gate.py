@@ -24,7 +24,7 @@ class AllowRule:
     package: str | None = None
 
     def matches(self, finding: "Finding") -> bool:
-        if self.vulnerability_id != finding.vulnerability_id:
+        if self.vulnerability_id not in finding.match_ids:
             return False
         if self.scanner and self.scanner != finding.scanner:
             return False
@@ -44,6 +44,7 @@ class Finding:
     title: str
     package: str
     location: str
+    match_ids: frozenset[str]
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -90,16 +91,37 @@ def _scanner_from_report_path(report_path: Path) -> str:
     return "unknown"
 
 
+def _collect_match_ids(vuln: dict[str, Any]) -> frozenset[str]:
+    ids: set[str] = set()
+    for key in ("id", "cve"):
+        value = _normalize_text(vuln.get(key))
+        if value:
+            ids.add(value)
+
+    for key in ("name", "message"):
+        value = _normalize_text(vuln.get(key))
+        if value.upper().startswith("CVE-"):
+            ids.add(value.split()[0])
+
+    return frozenset(ids)
+
+
+def _package_name_from_location_value(package_value: Any) -> str:
+    if isinstance(package_value, dict):
+        return _normalize_text(package_value.get("name"))
+    return _normalize_text(package_value)
+
+
 def _extract_location(vuln: dict[str, Any]) -> tuple[str, str]:
     location = vuln.get("location")
     if not isinstance(location, dict):
         return "", ""
 
-    package = _normalize_text(
-        location.get("dependency", {}).get("package")
-        if isinstance(location.get("dependency"), dict)
-        else location.get("package")
-    )
+    dependency = location.get("dependency")
+    if isinstance(dependency, dict):
+        package = _package_name_from_location_value(dependency.get("package"))
+    else:
+        package = _package_name_from_location_value(location.get("package"))
 
     parts = []
     file_path = _normalize_text(location.get("file"))
@@ -129,9 +151,8 @@ def _load_findings(report_paths: list[Path]) -> list[Finding]:
             if not isinstance(vuln, dict):
                 continue
             severity = _normalize_text(vuln.get("severity")).lower()
-            vulnerability_id = _normalize_text(vuln.get("id")) or _normalize_text(vuln.get("cve"))
-            if not vulnerability_id:
-                vulnerability_id = "unknown-id"
+            match_ids = _collect_match_ids(vuln)
+            vulnerability_id = next(iter(match_ids), "unknown-id")
             title = _normalize_text(vuln.get("name")) or _normalize_text(vuln.get("message"))
             package, location = _extract_location(vuln)
             findings.append(
@@ -143,6 +164,7 @@ def _load_findings(report_paths: list[Path]) -> list[Finding]:
                     title=title or "No title",
                     package=package or "unknown-package",
                     location=location or "unknown-location",
+                    match_ids=match_ids or frozenset({vulnerability_id}),
                 )
             )
     return findings
