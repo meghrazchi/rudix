@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -167,9 +169,15 @@ async def test_reindex_requires_admin_or_owner_role(
     db_session: AsyncSession,
     fake_reindex_task: FakeReindexTask,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.member, slug_prefix="reindex-member")
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.indexed)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.member, slug_prefix="reindex-member"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.indexed
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await reindex_client.post(
         f"/api/v1/documents/{document.id}/reindex",
@@ -187,9 +195,15 @@ async def test_reindex_queues_task_and_sets_processing_status(
     db_session: AsyncSession,
     fake_reindex_task: FakeReindexTask,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="reindex-admin")
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.indexed)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="reindex-admin"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.indexed
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await reindex_client.post(
         f"/api/v1/documents/{document.id}/reindex",
@@ -226,9 +240,15 @@ async def test_reindex_blocks_concurrent_processing_requests(
     db_session: AsyncSession,
     fake_reindex_task: FakeReindexTask,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.owner, slug_prefix="reindex-owner")
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.processing)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.owner, slug_prefix="reindex-owner"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.processing
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await reindex_client.post(
         f"/api/v1/documents/{document.id}/reindex",
@@ -247,7 +267,9 @@ async def test_reindex_enqueue_failure_restores_previous_status_and_error(
     fake_reindex_task: FakeReindexTask,
 ) -> None:
     fake_reindex_task.fail_delay = True
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="reindex-fail")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="reindex-fail"
+    )
     document = await _seed_document(
         db_session,
         organization=org,
@@ -255,7 +277,9 @@ async def test_reindex_enqueue_failure_restores_previous_status_and_error(
         status=DocumentStatus.failed,
         error_message="legacy-error",
     )
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await reindex_client.post(
         f"/api/v1/documents/{document.id}/reindex",

@@ -12,7 +12,9 @@ from qdrant_client.http.models import MatchAny, MatchValue
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -133,7 +135,10 @@ def test_retrieve_candidates_applies_org_and_document_filters() -> None:
     assert query_filter.must[0].match.value == str(organization_id)
     assert query_filter.must[1].key == "document_id"
     assert isinstance(query_filter.must[1].match, MatchAny)
-    assert query_filter.must[1].match.any == [str(allowed_document_ids[0]), str(allowed_document_ids[1])]
+    assert query_filter.must[1].match.any == [
+        str(allowed_document_ids[0]),
+        str(allowed_document_ids[1]),
+    ]
 
 
 def test_retrieve_candidates_drops_cross_org_and_unauthorized_documents() -> None:

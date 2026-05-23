@@ -12,8 +12,7 @@ from app.domains.documents.services.qdrant_filters import build_organization_fil
 
 
 class EmbeddingsEndpointLike(Protocol):
-    async def create(self, *, model: str, input: list[str]) -> Any:
-        ...
+    async def create(self, *, model: str, input: list[str]) -> Any: ...
 
 
 class OpenAIClientLike(Protocol):
@@ -64,7 +63,9 @@ class QueryRetrievalService:
         if self._openai_client is None:
             if settings.openai_api_key is None:
                 raise RuntimeError("OpenAI API key is not configured")
-            timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
+            timeout_seconds = max(
+                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
+            )
             self._openai_client = AsyncOpenAI(
                 api_key=settings.openai_api_key.get_secret_value(),
                 timeout=timeout_seconds,
@@ -156,7 +157,11 @@ class QueryRetrievalService:
                 continue
 
             raw_page_number = payload.get("page_number")
-            page_number = raw_page_number if isinstance(raw_page_number, int) and raw_page_number >= 1 else None
+            page_number = (
+                raw_page_number
+                if isinstance(raw_page_number, int) and raw_page_number >= 1
+                else None
+            )
             similarity_score = float(getattr(result, "score", 0.0) or 0.0)
 
             candidates.append(

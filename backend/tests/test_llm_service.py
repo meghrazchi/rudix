@@ -99,7 +99,9 @@ async def test_generate_answer_parses_structured_output_and_metadata() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_answer_retries_invalid_json_then_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_generate_answer_retries_invalid_json_then_succeeds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = FakeOpenAIClient(
         responses=[
             FakeResponse(
@@ -132,7 +134,9 @@ async def test_generate_answer_retries_invalid_json_then_succeeds(monkeypatch: p
 
 
 @pytest.mark.asyncio
-async def test_generate_answer_disables_response_format_when_unsupported_even_with_single_retry_budget() -> None:
+async def test_generate_answer_disables_response_format_when_unsupported_even_with_single_retry_budget() -> (
+    None
+):
     class ResponseFormatUnsupportedError(Exception):
         status_code = 400
 
@@ -183,7 +187,9 @@ async def test_generate_answer_uses_fallback_parser_on_final_attempt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_answer_retries_transient_provider_error(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_generate_answer_retries_transient_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = FakeOpenAIClient(
         responses=[
             OSError("temporary network failure"),
@@ -231,7 +237,9 @@ async def test_generate_answer_raises_permanent_error_without_retry() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_answer_raises_after_transient_retry_exhaustion(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_generate_answer_raises_after_transient_retry_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     client = FakeOpenAIClient(
         responses=[
             OSError("temporary network failure"),

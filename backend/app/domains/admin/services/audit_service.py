@@ -98,10 +98,7 @@ def _sanitize_value(*, key: str, value: Any) -> Any:
 def sanitize_metadata(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
     if metadata is None:
         return {}
-    return {
-        str(key): _sanitize_value(key=str(key), value=value)
-        for key, value in metadata.items()
-    }
+    return {str(key): _sanitize_value(key=str(key), value=value) for key, value in metadata.items()}
 
 
 def _parse_resource_id(resource_id: UUID | str | None) -> UUID | None:

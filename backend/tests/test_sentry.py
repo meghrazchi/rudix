@@ -8,7 +8,9 @@ import pytest
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -46,8 +48,12 @@ def test_init_sentry_is_noop_when_dsn_missing(monkeypatch: pytest.MonkeyPatch) -
     set_tag_calls: list[tuple[str, str]] = []
 
     monkeypatch.setattr(sentry_module, "_initialized_runtimes", set())
-    monkeypatch.setattr(sentry_module.sentry_sdk, "init", lambda **kwargs: init_calls.append(kwargs))
-    monkeypatch.setattr(sentry_module.sentry_sdk, "set_tag", lambda key, value: set_tag_calls.append((key, value)))
+    monkeypatch.setattr(
+        sentry_module.sentry_sdk, "init", lambda **kwargs: init_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        sentry_module.sentry_sdk, "set_tag", lambda key, value: set_tag_calls.append((key, value))
+    )
     _patch_settings(monkeypatch, sentry_dsn=None)
 
     initialized = sentry_module.init_sentry(runtime="api")
@@ -62,8 +68,12 @@ def test_init_sentry_uses_environment_aware_sample_rates(monkeypatch: pytest.Mon
     set_tag_calls: list[tuple[str, str]] = []
 
     monkeypatch.setattr(sentry_module, "_initialized_runtimes", set())
-    monkeypatch.setattr(sentry_module.sentry_sdk, "init", lambda **kwargs: init_calls.append(kwargs))
-    monkeypatch.setattr(sentry_module.sentry_sdk, "set_tag", lambda key, value: set_tag_calls.append((key, value)))
+    monkeypatch.setattr(
+        sentry_module.sentry_sdk, "init", lambda **kwargs: init_calls.append(kwargs)
+    )
+    monkeypatch.setattr(
+        sentry_module.sentry_sdk, "set_tag", lambda key, value: set_tag_calls.append((key, value))
+    )
     _patch_settings(monkeypatch, environment=Environment.staging)
 
     initialized = sentry_module.init_sentry(runtime="worker")
@@ -78,7 +88,11 @@ def test_init_sentry_uses_environment_aware_sample_rates(monkeypatch: pytest.Mon
 
 def test_init_sentry_fails_safe_when_sdk_init_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sentry_module, "_initialized_runtimes", set())
-    monkeypatch.setattr(sentry_module.sentry_sdk, "init", lambda **kwargs: (_ for _ in ()).throw(RuntimeError("bad dsn")))
+    monkeypatch.setattr(
+        sentry_module.sentry_sdk,
+        "init",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("bad dsn")),
+    )
     monkeypatch.setattr(sentry_module.sentry_sdk, "set_tag", lambda key, value: None)
     _patch_settings(monkeypatch)
 

@@ -172,7 +172,9 @@ def resolve_sentry_sample_rates(
 ) -> tuple[float, float, float]:
     is_production_like = environment in {Environment.production, Environment.staging}
     resolved_error_sample_rate = 1.0 if error_sample_rate is None else error_sample_rate
-    resolved_traces_sample_rate = (0.2 if is_production_like else 1.0) if traces_sample_rate is None else traces_sample_rate
+    resolved_traces_sample_rate = (
+        (0.2 if is_production_like else 1.0) if traces_sample_rate is None else traces_sample_rate
+    )
     resolved_profiles_sample_rate = 0.0 if profiles_sample_rate is None else profiles_sample_rate
     return (
         resolved_error_sample_rate,

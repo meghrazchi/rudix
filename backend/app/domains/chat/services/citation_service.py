@@ -61,16 +61,22 @@ class CitationService:
         if normalized_snippet in normalized_chunk:
             return True
         matcher = SequenceMatcher(a=normalized_snippet, b=normalized_chunk)
-        longest_match = matcher.find_longest_match(0, len(normalized_snippet), 0, len(normalized_chunk)).size
+        longest_match = matcher.find_longest_match(
+            0, len(normalized_snippet), 0, len(normalized_chunk)
+        ).size
         return (longest_match / len(normalized_snippet)) >= self.fuzzy_match_threshold
 
     def _extract_answer_quotes(self, answer: str) -> list[str]:
-        return [match.group(1).strip() for match in _QUOTE_RE.finditer(answer) if match.group(1).strip()]
+        return [
+            match.group(1).strip() for match in _QUOTE_RE.finditer(answer) if match.group(1).strip()
+        ]
 
     def _default_snippet(self, chunk: CitationContextChunk) -> str:
         return chunk.text[: self.max_text_snippet_chars].strip()
 
-    def _build_response(self, *, chunk: CitationContextChunk, text_snippet: str) -> ChatCitationResponse:
+    def _build_response(
+        self, *, chunk: CitationContextChunk, text_snippet: str
+    ) -> ChatCitationResponse:
         score = chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score
         return ChatCitationResponse(
             document_id=str(chunk.document_id),
@@ -81,7 +87,8 @@ class CitationService:
             similarity_score=chunk.similarity_score,
             rerank_score=chunk.rerank_score,
             rerank_rank=chunk.rerank_rank,
-            text_snippet=text_snippet[: self.max_text_snippet_chars].strip() or self._default_snippet(chunk),
+            text_snippet=text_snippet[: self.max_text_snippet_chars].strip()
+            or self._default_snippet(chunk),
         )
 
     @staticmethod
@@ -108,7 +115,9 @@ class CitationService:
             else max(0.0, 1 - (metadata_mismatch_count / accepted_model_citation_count))
         )
         snippet_ratio = (
-            1.0 if snippet_checks_count == 0 else max(0.0, snippet_valid_count / snippet_checks_count)
+            1.0
+            if snippet_checks_count == 0
+            else max(0.0, snippet_valid_count / snippet_checks_count)
         )
         score = (0.6 * id_ratio) + (0.2 * metadata_ratio) + (0.2 * snippet_ratio)
         if used_fallback:
@@ -161,7 +170,10 @@ class CitationService:
 
             if model_citation.filename and model_citation.filename != chunk.filename:
                 metadata_mismatch_count += 1
-            if model_citation.page_number is not None and model_citation.page_number != chunk.page_number:
+            if (
+                model_citation.page_number is not None
+                and model_citation.page_number != chunk.page_number
+            ):
                 metadata_mismatch_count += 1
 
             snippet_candidate = (model_citation.text_snippet or "").strip()

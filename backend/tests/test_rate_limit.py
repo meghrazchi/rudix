@@ -13,7 +13,9 @@ from starlette.requests import Request
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -113,7 +115,9 @@ async def rate_limit_client(
     app.dependency_overrides.clear()
 
 
-async def _seed_principal(db_session: AsyncSession, *, role: OrganizationRole) -> tuple[User, Organization]:
+async def _seed_principal(
+    db_session: AsyncSession, *, role: OrganizationRole
+) -> tuple[User, Organization]:
     organization = Organization(name="Rate Limit Org", slug=f"rl-org-{uuid4().hex[:8]}")
     db_session.add(organization)
     await db_session.flush()

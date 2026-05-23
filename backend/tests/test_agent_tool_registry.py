@@ -58,7 +58,9 @@ def test_default_tool_specs_include_approval_required_side_effect_tools() -> Non
         for spec in specs
         if spec.effect_policy is ToolEffectPolicy.side_effect and spec.approval_required
     ]
-    assert {"documents.delete", "documents.reindex", "evaluations.run"}.issubset(approval_required_tools)
+    assert {"documents.delete", "documents.reindex", "evaluations.run"}.issubset(
+        approval_required_tools
+    )
 
 
 def test_default_tool_specs_include_document_intelligence_read_tools() -> None:

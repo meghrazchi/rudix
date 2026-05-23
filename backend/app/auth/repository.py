@@ -19,7 +19,9 @@ class AuthRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_user_by_external_auth_id(self, session: AsyncSession, *, external_auth_id: str) -> User | None:
+    async def get_user_by_external_auth_id(
+        self, session: AsyncSession, *, external_auth_id: str
+    ) -> User | None:
         result = await session.execute(
             select(User)
             .where(User.external_auth_id == external_auth_id)

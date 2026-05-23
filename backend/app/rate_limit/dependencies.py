@@ -44,7 +44,9 @@ def _route_path_template(request: Request) -> str:
     return request.url.path
 
 
-def _build_key(*, scope: RateLimitScope, endpoint: str, user_id: str, organization_id: str, window: int) -> str:
+def _build_key(
+    *, scope: RateLimitScope, endpoint: str, user_id: str, organization_id: str, window: int
+) -> str:
     sanitized_endpoint = endpoint.replace(" ", "_")
     return (
         f"rate_limit:v1:{scope.value}:{sanitized_endpoint}:"
@@ -56,7 +58,9 @@ def _rate_limit_disabled() -> bool:
     return not settings.is_rate_limit_active
 
 
-def _http_429(*, scope: RateLimitScope, limit: int, retry_after: int, remaining: int) -> HTTPException:
+def _http_429(
+    *, scope: RateLimitScope, limit: int, retry_after: int, remaining: int
+) -> HTTPException:
     reset_epoch = int(time()) + retry_after
     return HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -84,7 +88,9 @@ def _http_503_rate_limiter_unavailable() -> HTTPException:
     )
 
 
-async def _consume(scope: RateLimitScope, request: Request, principal: AuthenticatedPrincipal) -> None:
+async def _consume(
+    scope: RateLimitScope, request: Request, principal: AuthenticatedPrincipal
+) -> None:
     if _rate_limit_disabled():
         return
 
@@ -165,7 +171,9 @@ async def _consume(scope: RateLimitScope, request: Request, principal: Authentic
         )
 
 
-def enforce_rate_limit(scope: RateLimitScope) -> Callable[[Request, AuthenticatedPrincipal], Awaitable[None]]:
+def enforce_rate_limit(
+    scope: RateLimitScope,
+) -> Callable[[Request, AuthenticatedPrincipal], Awaitable[None]]:
     async def dependency(
         request: Request,
         principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],

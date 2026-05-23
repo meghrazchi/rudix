@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -889,7 +891,9 @@ async def test_post_chat_repairs_invalid_llm_snippet_with_context_snippet(
     assert response.status_code == 200
     payload = response.json()
     assert payload["not_found"] is False
-    assert payload["citations"][0]["text_snippet"] == "Employees receive twenty days of annual leave."
+    assert (
+        payload["citations"][0]["text_snippet"] == "Employees receive twenty days of annual leave."
+    )
 
 
 @pytest.mark.asyncio

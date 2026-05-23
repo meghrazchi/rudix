@@ -269,7 +269,9 @@ class _AgentDiagnosticsAccumulator:
                 self.runs_started += 1
             self.steps_executed += max(0, int(metadata.get("steps_executed", 0) or 0))
             self.tool_calls_executed += max(0, int(metadata.get("tool_calls_executed", 0) or 0))
-            self.total_tokens += max(0, int(event.input_tokens or 0) + int(event.output_tokens or 0))
+            self.total_tokens += max(
+                0, int(event.input_tokens or 0) + int(event.output_tokens or 0)
+            )
             self.total_cost_usd += event.cost_usd or Decimal("0")
             confidence = _extract_numeric(metadata, CONFIDENCE_KEYS)
             if confidence is not None:
@@ -430,7 +432,9 @@ async def get_admin_agent_diagnostics(
         user_id=user_id,
     )
     filtered_events = [event for event in events if event.event_type in AGENT_EVENT_TYPES]
-    totals, series, errors_by_code = _aggregate_agent_diagnostics(filtered_events, granularity=granularity)
+    totals, series, errors_by_code = _aggregate_agent_diagnostics(
+        filtered_events, granularity=granularity
+    )
     audit_actions = await usage_repository.count_audit_logs_grouped_by_action(
         db_session,
         organization_id=organization_id,

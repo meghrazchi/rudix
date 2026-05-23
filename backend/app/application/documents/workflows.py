@@ -75,7 +75,9 @@ async def upload_document_workflow(
     except ValueError as exc:
         message = str(exc)
         if message in {"unsupported file extension", "unsupported mime type"}:
-            raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=message) from exc
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=message
+            ) from exc
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
 
     document_id = uuid4()
@@ -294,7 +296,9 @@ async def delete_document_workflow(
             request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
-        return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleted.value)
+        return DeleteDocumentResponse(
+            document_id=str(document.id), status=DocumentStatus.deleted.value
+        )
 
     if document.status == DocumentStatus.deleting.value:
         wrote_audit = await audit_log_service.record(
@@ -316,7 +320,9 @@ async def delete_document_workflow(
             request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
-        return DeleteDocumentResponse(document_id=str(document.id), status=DocumentStatus.deleting.value)
+        return DeleteDocumentResponse(
+            document_id=str(document.id), status=DocumentStatus.deleting.value
+        )
 
     updated = await document_repository.update_document_status(
         db_session,
@@ -423,11 +429,17 @@ async def reindex_document_workflow(
     reindex_document_task: Any,
 ) -> ReindexDocumentResponse:
     if document.status == DocumentStatus.deleted.value:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Deleted documents cannot be re-indexed")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Deleted documents cannot be re-indexed"
+        )
     if document.status == DocumentStatus.deleting.value:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is currently being deleted")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Document is currently being deleted"
+        )
     if document.status == DocumentStatus.processing.value:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is already being processed")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Document is already being processed"
+        )
 
     previous_status = document.status
     previous_error_message = document.error_message
@@ -532,4 +544,3 @@ async def reindex_document_workflow(
         status=DocumentStatus.processing.value,
         queue_status="queued",
     )
-

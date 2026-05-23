@@ -24,9 +24,9 @@ from app.domains.chat.schemas.chat import (
     ChatMessageResponse,
     ChatQueryRequest,
     ChatQueryResponse,
+    ChatSessionListResponse,
     ChatSessionMessageListResponse,
     ChatSessionMessageResponse,
-    ChatSessionListResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
 )
@@ -102,7 +102,9 @@ def _get_openai_client() -> AsyncOpenAI:
     if _openai_client is None:
         if settings.openai_api_key is None:
             raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
+        timeout_seconds = max(
+            float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
+        )
         _openai_client = AsyncOpenAI(
             api_key=settings.openai_api_key.get_secret_value(),
             timeout=timeout_seconds,
@@ -202,7 +204,9 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
     )
 
 
-def _to_confidence_signals(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> list[ConfidenceChunkSignal]:
+def _to_confidence_signals(
+    *, chunks: list[RetrievedChunk], rerank_applied: bool
+) -> list[ConfidenceChunkSignal]:
     return [
         ConfidenceChunkSignal(
             similarity_score=chunk.similarity_score,
@@ -350,7 +354,9 @@ async def get_chat_session(
     try:
         chat_session_id = UUID(session_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
 
     chat_session = await chat_repository.get_chat_session(
         db_session,
@@ -404,7 +410,9 @@ async def list_chat_session_messages(
     try:
         chat_session_id = UUID(session_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
 
     chat_session = await chat_repository.get_chat_session(
         db_session,
@@ -440,7 +448,9 @@ async def list_chat_session_messages(
                     chunk_id=str(citation.chunk_id),
                     filename=filename,
                     page_number=citation.page_number,
-                    score=citation.rerank_score if citation.rerank_score is not None else citation.similarity_score,
+                    score=citation.rerank_score
+                    if citation.rerank_score is not None
+                    else citation.similarity_score,
                     similarity_score=citation.similarity_score,
                     rerank_score=citation.rerank_score,
                     rerank_rank=None,
@@ -636,7 +646,9 @@ async def query_chat(
     llm_model: str | None = None
     llm_cost_usd = None
 
-    confidence_signals = _to_confidence_signals(chunks=selected_chunks, rerank_applied=payload.rerank)
+    confidence_signals = _to_confidence_signals(
+        chunks=selected_chunks, rerank_applied=payload.rerank
+    )
     confidence_result = _confidence_service.score(
         chunks=confidence_signals,
         citation_count=0,
@@ -646,7 +658,9 @@ async def query_chat(
     confidence_score = confidence_result.score
     confidence_category = confidence_result.category
     confidence_explanation = confidence_result.explanation
-    not_found = len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+    not_found = (
+        len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+    )
 
     if not_found:
         confidence_result = _confidence_service.score(
@@ -660,7 +674,9 @@ async def query_chat(
         confidence_explanation = confidence_result.explanation
 
     prompt_started = perf_counter()
-    prompt = _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
+    prompt = (
+        _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
+    )
     latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
 
     answer = _NOT_FOUND_ANSWER

@@ -7,7 +7,9 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -22,6 +24,7 @@ os.environ.setdefault("CLERK_JWKS_URL", "https://example.com/.well-known/jwks.js
 os.environ.setdefault("CLERK_JWT_ISSUER", "https://clerk.example.com")
 os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
+from app.core.config import settings
 from app.main import app
 from app.shared.schemas.common import HealthDependency
 
@@ -63,7 +66,9 @@ def test_healthz_alias_returns_ok() -> None:
     assert payload["status"] == "ok"
 
 
-def test_ready_returns_ok_when_all_dependencies_are_healthy(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ready_returns_ok_when_all_dependencies_are_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _patch_ready_all_ok(monkeypatch)
     client = TestClient(app)
 
@@ -89,7 +94,11 @@ def test_ready_returns_ok_when_all_dependencies_are_healthy(monkeypatch: pytest.
         ("rabbitmq", "app.api.health.check_rabbitmq_health", False),
         ("qdrant", "app.api.health.check_qdrant_health", False),
         ("minio", "app.api.health.check_minio_health", False),
-        ("openai_config", "app.api.health._openai_configuration_health", HealthDependency(ok=False, detail="openai_api_key_missing")),
+        (
+            "openai_config",
+            "app.api.health._openai_configuration_health",
+            HealthDependency(ok=False, detail="openai_api_key_missing"),
+        ),
     ],
 )
 def test_ready_returns_503_with_failed_dependency_list(
@@ -105,6 +114,7 @@ def test_ready_returns_503_with_failed_dependency_list(
     elif "check_qdrant_health" in patch_target or "check_minio_health" in patch_target:
         monkeypatch.setattr(patch_target, lambda: patch_value)
     else:
+
         async def _failing_async() -> bool:
             return bool(patch_value)
 
@@ -162,5 +172,5 @@ def test_configz_hides_secret_values() -> None:
 
     assert payload["openai_api_key_set"] is True
     assert payload["minio_secret_key_set"] is True
-    assert payload["features"]["agents"] is False
+    assert payload["features"]["agents"] is settings.feature_enable_agents
     assert "sk-test" not in str(payload)

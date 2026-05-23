@@ -240,8 +240,7 @@ class JwtJwksAuthProvider(BaseAuthProvider):
             raise AuthorizationError("No organization membership found for principal")
 
         organization_roles = {
-            str(membership.organization_id): membership.role
-            for membership in user.memberships
+            str(membership.organization_id): membership.role for membership in user.memberships
         }
         requested_org = self._resolve_requested_org(request)
         active_org, active_role = self._select_active_organization(

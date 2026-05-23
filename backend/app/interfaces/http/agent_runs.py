@@ -242,8 +242,12 @@ def _to_approval_response(approval: Any) -> AgentApprovalResponse:
         approval_id=str(approval.id),
         agent_step_id=str(approval.agent_step_id) if approval.agent_step_id is not None else None,
         tool_call_id=str(approval.tool_call_id) if approval.tool_call_id is not None else None,
-        requested_by_user_id=str(approval.requested_by_user_id) if approval.requested_by_user_id is not None else None,
-        decided_by_user_id=str(approval.decided_by_user_id) if approval.decided_by_user_id is not None else None,
+        requested_by_user_id=str(approval.requested_by_user_id)
+        if approval.requested_by_user_id is not None
+        else None,
+        decided_by_user_id=str(approval.decided_by_user_id)
+        if approval.decided_by_user_id is not None
+        else None,
         status=approval.status,
         request_summary=approval.request_summary,
         decision_reason=approval.decision_reason,
@@ -383,7 +387,17 @@ async def get_agent_run(
 @router.get("/runs/{run_id}/stream")
 async def stream_agent_run(
     run_id: str,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value, OrganizationRole.member.value, OrganizationRole.viewer.value))],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
 ) -> dict[str, str]:
     del run_id, principal
     _feature_enabled()
@@ -396,7 +410,9 @@ async def stream_agent_run(
     )
 
 
-@router.post("/runs/{run_id}/approvals/{approval_id}/decision", response_model=AgentApprovalResponse)
+@router.post(
+    "/runs/{run_id}/approvals/{approval_id}/decision", response_model=AgentApprovalResponse
+)
 async def decide_agent_run_approval(
     run_id: str,
     approval_id: str,
@@ -428,7 +444,9 @@ async def decide_agent_run_approval(
         agent_run_id=run_uuid,
     )
     if approval is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
+        )
     if approval.status != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -450,7 +468,9 @@ async def decide_agent_run_approval(
         decided_at=datetime.now(tz=UTC),
     )
     if updated is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
+        )
 
     await audit_log_service.record(
         db_session,

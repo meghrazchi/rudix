@@ -70,8 +70,9 @@ def _safe_document_error(document: Document) -> tuple[str | None, object | None]
 def _ensure_iso(value: Any) -> str | None:
     if value is None:
         return None
-    if hasattr(value, "isoformat"):
-        return value.isoformat()
+    isoformat_method = getattr(value, "isoformat", None)
+    if callable(isoformat_method):
+        return str(isoformat_method())
     return str(value)
 
 
@@ -194,16 +195,28 @@ class DocumentIntelligenceToolService:
         arguments = call.arguments
         query = _coerce_optional_string(arguments.get("query"), field_name="query")
         status_filter = _coerce_optional_string(arguments.get("status"), field_name="status")
-        if status_filter is not None and status_filter not in {status.value for status in DocumentStatus}:
-            raise ValueError("status must be one of uploaded|processing|indexed|failed|deleting|deleted")
-        sort_by = _coerce_optional_string(arguments.get("sort_by"), field_name="sort_by") or "updated_at"
+        if status_filter is not None and status_filter not in {
+            status.value for status in DocumentStatus
+        }:
+            raise ValueError(
+                "status must be one of uploaded|processing|indexed|failed|deleting|deleted"
+            )
+        sort_by = (
+            _coerce_optional_string(arguments.get("sort_by"), field_name="sort_by") or "updated_at"
+        )
         if sort_by not in {"created_at", "updated_at", "filename", "status"}:
             raise ValueError("sort_by must be one of created_at|updated_at|filename|status")
-        sort_order = _coerce_optional_string(arguments.get("sort_order"), field_name="sort_order") or "desc"
+        sort_order = (
+            _coerce_optional_string(arguments.get("sort_order"), field_name="sort_order") or "desc"
+        )
         if sort_order not in {"asc", "desc"}:
             raise ValueError("sort_order must be one of asc|desc")
-        limit = _coerce_int(arguments.get("limit"), field_name="limit", default=20, minimum=1, maximum=200)
-        offset = _coerce_int(arguments.get("offset"), field_name="offset", default=0, minimum=0, maximum=100000)
+        limit = _coerce_int(
+            arguments.get("limit"), field_name="limit", default=20, minimum=1, maximum=200
+        )
+        offset = _coerce_int(
+            arguments.get("offset"), field_name="offset", default=0, minimum=0, maximum=100000
+        )
 
         async with self._session_factory() as session:
             documents = await self._document_repository.list_documents(
@@ -263,7 +276,9 @@ class DocumentIntelligenceToolService:
         principal: AuthenticatedPrincipal,
     ) -> dict[str, Any]:
         organization_id = self._organization_uuid(principal)
-        document_id = self._parse_document_id(call.arguments.get("document_id"), field_name="document_id")
+        document_id = self._parse_document_id(
+            call.arguments.get("document_id"), field_name="document_id"
+        )
 
         async with self._session_factory() as session:
             document = await self._get_accessible_document(
@@ -301,9 +316,15 @@ class DocumentIntelligenceToolService:
     ) -> dict[str, Any]:
         organization_id = self._organization_uuid(principal)
         arguments = call.arguments
-        document_id = self._parse_document_id(arguments.get("document_id"), field_name="document_id")
-        limit = _coerce_int(arguments.get("limit"), field_name="limit", default=20, minimum=1, maximum=200)
-        offset = _coerce_int(arguments.get("offset"), field_name="offset", default=0, minimum=0, maximum=100000)
+        document_id = self._parse_document_id(
+            arguments.get("document_id"), field_name="document_id"
+        )
+        limit = _coerce_int(
+            arguments.get("limit"), field_name="limit", default=20, minimum=1, maximum=200
+        )
+        offset = _coerce_int(
+            arguments.get("offset"), field_name="offset", default=0, minimum=0, maximum=100000
+        )
 
         async with self._session_factory() as session:
             document = await self._get_accessible_document(
@@ -380,7 +401,9 @@ class DocumentIntelligenceToolService:
         principal: AuthenticatedPrincipal,
     ) -> dict[str, Any]:
         arguments = call.arguments
-        document_id = self._parse_document_id(arguments.get("document_id"), field_name="document_id")
+        document_id = self._parse_document_id(
+            arguments.get("document_id"), field_name="document_id"
+        )
         top_k = _coerce_int(
             arguments.get("top_k"),
             field_name="top_k",
@@ -454,7 +477,10 @@ class DocumentIntelligenceToolService:
             "Compare these documents. Include key similarities, key differences, contradictions, "
             "and a concise risk summary."
         )
-        question = _coerce_optional_string(arguments.get("question"), field_name="question") or default_question
+        question = (
+            _coerce_optional_string(arguments.get("question"), field_name="question")
+            or default_question
+        )
         result = await self._run_grounded_answer(
             question=question,
             principal=principal,
@@ -540,7 +566,9 @@ class DocumentIntelligenceToolService:
         if self._openai_client is None:
             if settings.openai_api_key is None:
                 raise RuntimeError("OpenAI API key is not configured")
-            timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
+            timeout_seconds = max(
+                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
+            )
             self._openai_client = AsyncOpenAI(
                 api_key=settings.openai_api_key.get_secret_value(),
                 timeout=timeout_seconds,
@@ -624,12 +652,16 @@ class DocumentIntelligenceToolService:
             openai_client=retrieval_openai_client,
             qdrant_client=retrieval_qdrant_client,
         )
-        retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates]
-        selected_chunks = self._rerank_chunks(chunks=retrieved_chunks, enabled=rerank, final_top_k=top_k)
+        retrieved_chunks = [
+            _to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates
+        ]
+        selected_chunks = self._rerank_chunks(
+            chunks=retrieved_chunks, enabled=rerank, final_top_k=top_k
+        )
         embedding_tokens = retrieval_result.embedding_prompt_tokens
         embedding_cost_usd = (
-            (embedding_tokens / 1_000_000) * settings.openai_embedding_cost_per_million_tokens_usd
-        )
+            embedding_tokens / 1_000_000
+        ) * settings.openai_embedding_cost_per_million_tokens_usd
 
         confidence_signals = [
             ConfidenceChunkSignal(
@@ -710,7 +742,9 @@ class DocumentIntelligenceToolService:
             raise RuntimeError("LLM answer generation failed") from exc
 
         response_text = llm_result.answer.strip()
-        llm_not_found = llm_result.not_found or not response_text or response_text == _NOT_FOUND_RESPONSE
+        llm_not_found = (
+            llm_result.not_found or not response_text or response_text == _NOT_FOUND_RESPONSE
+        )
         if llm_not_found:
             confidence_result = self._confidence_service.score(
                 chunks=confidence_signals,
@@ -740,7 +774,8 @@ class DocumentIntelligenceToolService:
                         "total_tokens": embedding_tokens + llm_result.total_tokens,
                         "embedding_cost_usd": embedding_cost_usd,
                         "llm_cost_usd": float(llm_result.approximate_cost_usd),
-                        "total_cost_usd": embedding_cost_usd + float(llm_result.approximate_cost_usd),
+                        "total_cost_usd": embedding_cost_usd
+                        + float(llm_result.approximate_cost_usd),
                     },
                     "latency_ms_total": int((perf_counter() - started_total) * 1000),
                 },
@@ -820,10 +855,22 @@ def register_document_intelligence_handlers(
     service: DocumentIntelligenceToolService | None = None,
 ) -> DocumentIntelligenceToolService:
     resolved_service = service or DocumentIntelligenceToolService()
-    registry.register_handler(tool_name="search_documents", handler=resolved_service.search_documents)
-    registry.register_handler(tool_name="get_document_detail", handler=resolved_service.get_document_detail)
-    registry.register_handler(tool_name="list_document_chunks", handler=resolved_service.list_document_chunks)
-    registry.register_handler(tool_name="answer_from_context", handler=resolved_service.answer_from_context)
-    registry.register_handler(tool_name="summarize_document", handler=resolved_service.summarize_document)
-    registry.register_handler(tool_name="compare_documents", handler=resolved_service.compare_documents)
+    registry.register_handler(
+        tool_name="search_documents", handler=resolved_service.search_documents
+    )
+    registry.register_handler(
+        tool_name="get_document_detail", handler=resolved_service.get_document_detail
+    )
+    registry.register_handler(
+        tool_name="list_document_chunks", handler=resolved_service.list_document_chunks
+    )
+    registry.register_handler(
+        tool_name="answer_from_context", handler=resolved_service.answer_from_context
+    )
+    registry.register_handler(
+        tool_name="summarize_document", handler=resolved_service.summarize_document
+    )
+    registry.register_handler(
+        tool_name="compare_documents", handler=resolved_service.compare_documents
+    )
     return resolved_service

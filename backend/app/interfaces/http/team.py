@@ -60,7 +60,9 @@ def _parse_member_id(member_id: str) -> UUID:
     try:
         return UUID(member_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Member not found"
+        ) from exc
 
 
 def _request_id_from_request(request: Request) -> str | None:
@@ -123,7 +125,9 @@ async def list_team_members(
     )
 
 
-@router.post("/members/invite", response_model=InviteTeamMemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/members/invite", response_model=InviteTeamMemberResponse, status_code=status.HTTP_201_CREATED
+)
 async def invite_team_member(
     request: Request,
     payload: InviteTeamMemberRequest,
@@ -322,4 +326,3 @@ async def remove_team_member(
         member_id=member_id,
     )
     return TeamMemberRemoveResponse(removed=True)
-

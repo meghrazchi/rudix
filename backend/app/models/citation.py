@@ -9,9 +9,7 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
 class Citation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "citations"
-    __table_args__ = (
-        Index("idx_citations_message", "chat_message_id"),
-    )
+    __table_args__ = (Index("idx_citations_message", "chat_message_id"),)
 
     chat_message_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

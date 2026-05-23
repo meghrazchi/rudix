@@ -13,7 +13,9 @@ from starlette.requests import Request
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -83,7 +85,9 @@ def _create_jwt(
 
 
 @pytest.mark.asyncio
-async def test_app_provider_authenticates_valid_token(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) -> None:
+async def test_app_provider_authenticates_valid_token(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
     monkeypatch.setattr(settings, "app_auth_secret", SecretStr("test-secret"))
     monkeypatch.setattr(settings, "app_auth_issuer", "rudix-test")
     monkeypatch.setattr(settings, "app_auth_audience", "rudix-test-audience")
@@ -125,7 +129,9 @@ async def test_app_provider_authenticates_valid_token(monkeypatch: pytest.Monkey
 
 
 @pytest.mark.asyncio
-async def test_app_provider_rejects_invalid_token(monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession) -> None:
+async def test_app_provider_rejects_invalid_token(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
     monkeypatch.setattr(settings, "app_auth_secret", SecretStr("test-secret"))
     monkeypatch.setattr(settings, "app_auth_issuer", "rudix-test")
     monkeypatch.setattr(settings, "app_auth_audience", "rudix-test-audience")
@@ -151,7 +157,9 @@ async def test_clerk_provider_authenticates_valid_token(
     db_session: AsyncSession,
 ) -> None:
     monkeypatch.setattr(settings, "auth_provider", AuthProvider.clerk)
-    monkeypatch.setattr(settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json")
+    monkeypatch.setattr(
+        settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json"
+    )
     monkeypatch.setattr(settings, "clerk_jwt_issuer", "https://clerk.example.com")
     monkeypatch.setattr(settings, "clerk_jwt_audience", "rudix-api")
     monkeypatch.setattr(settings, "auth_jwks_cache_ttl_seconds", 300)
@@ -208,7 +216,9 @@ async def test_clerk_provider_rejects_expired_token(
     db_session: AsyncSession,
 ) -> None:
     monkeypatch.setattr(settings, "auth_provider", AuthProvider.clerk)
-    monkeypatch.setattr(settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json")
+    monkeypatch.setattr(
+        settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json"
+    )
     monkeypatch.setattr(settings, "clerk_jwt_issuer", "https://clerk.example.com")
     monkeypatch.setattr(settings, "clerk_jwt_audience", "rudix-api")
 
@@ -258,7 +268,9 @@ async def test_clerk_provider_rejects_wrong_issuer_or_audience(
     db_session: AsyncSession,
 ) -> None:
     monkeypatch.setattr(settings, "auth_provider", AuthProvider.clerk)
-    monkeypatch.setattr(settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json")
+    monkeypatch.setattr(
+        settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json"
+    )
     monkeypatch.setattr(settings, "clerk_jwt_issuer", "https://clerk.example.com")
     monkeypatch.setattr(settings, "clerk_jwt_audience", "rudix-api")
 
@@ -300,7 +312,9 @@ async def test_clerk_provider_rejects_wrong_issuer_or_audience(
         expires_in_seconds=600,
     )
     with pytest.raises(AuthenticationError, match="Invalid token issuer"):
-        await provider.authenticate(_auth_request(wrong_issuer_token, str(organization.id)), db_session)
+        await provider.authenticate(
+            _auth_request(wrong_issuer_token, str(organization.id)), db_session
+        )
 
     wrong_audience_token = _create_jwt(
         private_key=private_key,
@@ -311,7 +325,9 @@ async def test_clerk_provider_rejects_wrong_issuer_or_audience(
         expires_in_seconds=600,
     )
     with pytest.raises(AuthenticationError, match="Invalid token audience"):
-        await provider.authenticate(_auth_request(wrong_audience_token, str(organization.id)), db_session)
+        await provider.authenticate(
+            _auth_request(wrong_audience_token, str(organization.id)), db_session
+        )
 
 
 @pytest.mark.asyncio
@@ -320,7 +336,9 @@ async def test_clerk_provider_refreshes_jwks_when_kid_changes(
     db_session: AsyncSession,
 ) -> None:
     monkeypatch.setattr(settings, "auth_provider", AuthProvider.clerk)
-    monkeypatch.setattr(settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json")
+    monkeypatch.setattr(
+        settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json"
+    )
     monkeypatch.setattr(settings, "clerk_jwt_issuer", "https://clerk.example.com")
     monkeypatch.setattr(settings, "clerk_jwt_audience", "rudix-api")
     monkeypatch.setattr(settings, "auth_jwks_cache_ttl_seconds", 300)

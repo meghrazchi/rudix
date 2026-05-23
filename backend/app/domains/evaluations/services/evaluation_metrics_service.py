@@ -109,13 +109,14 @@ class EvaluationMetricsService:
             default=False,
         )
         provider = (
-            EvaluationMetricsService._normalize_metric_option_string(raw_options.get("judge_provider"))
+            EvaluationMetricsService._normalize_metric_option_string(
+                raw_options.get("judge_provider")
+            )
             or "llm_judge"
         )
-        judge_model_name = (
-            EvaluationMetricsService._normalize_metric_option_string(raw_options.get("judge_model_name"))
-            or EvaluationMetricsService._normalize_metric_option_string(raw_options.get("model_name"))
-        )
+        judge_model_name = EvaluationMetricsService._normalize_metric_option_string(
+            raw_options.get("judge_model_name")
+        ) or EvaluationMetricsService._normalize_metric_option_string(raw_options.get("model_name"))
         return EvaluationMetricOptions(
             faithfulness_enabled=faithfulness_enabled,
             answer_relevance_enabled=answer_relevance_enabled,
@@ -130,7 +131,9 @@ class EvaluationMetricsService:
         expected_document_id: UUID | None,
         expected_page_number: int | None,
     ) -> tuple[int, bool]:
-        has_expected_reference = expected_document_id is not None or expected_page_number is not None
+        has_expected_reference = (
+            expected_document_id is not None or expected_page_number is not None
+        )
         if not has_expected_reference:
             return 0, False
         relevant = 0
@@ -174,7 +177,11 @@ class EvaluationMetricsService:
         citation_accuracy = citation_accuracy_score if citation_accuracy_score is not None else 0.0
         coverage_denominator = max(1, min(2, selected_chunk_count))
         coverage = min(1.0, citation_count / coverage_denominator)
-        retrieval_signal = retrieval_hit_rate if retrieval_hit_rate is not None else (1.0 if selected_chunk_count > 0 else 0.0)
+        retrieval_signal = (
+            retrieval_hit_rate
+            if retrieval_hit_rate is not None
+            else (1.0 if selected_chunk_count > 0 else 0.0)
+        )
         return (0.55 * citation_accuracy) + (0.25 * coverage) + (0.20 * retrieval_signal)
 
     def score_question(
@@ -282,7 +289,9 @@ class EvaluationMetricsService:
         total_input_tokens = sum(item.token_input_count for item in metrics)
         total_output_tokens = sum(item.token_output_count for item in metrics)
         total_latency_ms = sum(item.latency_ms for item in metrics)
-        average_latency_ms = round(total_latency_ms / success_count, 2) if success_count > 0 else None
+        average_latency_ms = (
+            round(total_latency_ms / success_count, 2) if success_count > 0 else None
+        )
         average_cost_usd = round(total_cost_usd / success_count, 6) if success_count > 0 else None
 
         summary = {
@@ -293,8 +302,12 @@ class EvaluationMetricsService:
             "context_precision": self._mean_or_none([item.context_precision for item in metrics]),
             "context_recall": self._mean_or_none([item.context_recall for item in metrics]),
             "faithfulness_score": self._mean_or_none([item.faithfulness_score for item in metrics]),
-            "answer_relevance_score": self._mean_or_none([item.answer_relevance_score for item in metrics]),
-            "citation_accuracy_score": self._mean_or_none([item.citation_accuracy_score for item in metrics]),
+            "answer_relevance_score": self._mean_or_none(
+                [item.answer_relevance_score for item in metrics]
+            ),
+            "citation_accuracy_score": self._mean_or_none(
+                [item.citation_accuracy_score for item in metrics]
+            ),
             "refusal_accuracy": self._mean_or_none([item.refusal_accuracy for item in metrics]),
             "latency_ms_total": total_latency_ms,
             "latency_ms_average": average_latency_ms,

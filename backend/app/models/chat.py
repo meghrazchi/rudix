@@ -11,9 +11,7 @@ from app.models.enums import ChatRole
 
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "chat_sessions"
-    __table_args__ = (
-        Index("idx_chat_sessions_user", "user_id", "created_at"),
-    )
+    __table_args__ = (Index("idx_chat_sessions_user", "user_id", "created_at"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -39,10 +37,20 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "role IN ('user', 'assistant', 'system')",
             name="chat_messages_role_allowed",
         ),
-        CheckConstraint("latency_ms IS NULL OR latency_ms >= 0", name="chat_messages_latency_non_negative"),
-        CheckConstraint("token_input_count IS NULL OR token_input_count >= 0", name="chat_messages_input_tokens_non_negative"),
-        CheckConstraint("token_output_count IS NULL OR token_output_count >= 0", name="chat_messages_output_tokens_non_negative"),
-        CheckConstraint("cost_usd IS NULL OR cost_usd >= 0", name="chat_messages_cost_non_negative"),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0", name="chat_messages_latency_non_negative"
+        ),
+        CheckConstraint(
+            "token_input_count IS NULL OR token_input_count >= 0",
+            name="chat_messages_input_tokens_non_negative",
+        ),
+        CheckConstraint(
+            "token_output_count IS NULL OR token_output_count >= 0",
+            name="chat_messages_output_tokens_non_negative",
+        ),
+        CheckConstraint(
+            "cost_usd IS NULL OR cost_usd >= 0", name="chat_messages_cost_non_negative"
+        ),
         Index("idx_chat_messages_session", "chat_session_id", "created_at"),
     )
 
@@ -61,5 +69,7 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
 
     session = relationship("ChatSession", back_populates="messages")
-    citations = relationship("Citation", back_populates="chat_message", cascade="all, delete-orphan")
+    citations = relationship(
+        "Citation", back_populates="chat_message", cascade="all, delete-orphan"
+    )
     pipeline_runs = relationship("PipelineRun", back_populates="chat_message")

@@ -12,7 +12,9 @@ from app.db.session import SessionLocal
 
 
 def _build_request_from_headers(headers: dict[str, str]) -> Request:
-    raw_headers = [(key.lower().encode("latin-1"), value.encode("latin-1")) for key, value in headers.items()]
+    raw_headers = [
+        (key.lower().encode("latin-1"), value.encode("latin-1")) for key, value in headers.items()
+    ]
     scope = {
         "type": "http",
         "asgi": {"version": "3.0", "spec_version": "2.3"},
@@ -53,7 +55,9 @@ async def resolve_mcp_principal(headers: dict[str, str] | None = None) -> Authen
 
     if not settings.mcp_require_bearer_auth and "authorization" not in normalized_headers:
         if settings.environment in {Environment.production, Environment.staging}:
-            raise AuthenticationError("Bearer token is required for MCP in non-development environments")
+            raise AuthenticationError(
+                "Bearer token is required for MCP in non-development environments"
+            )
         return _principal_from_dev_settings()
 
     if "authorization" not in normalized_headers:

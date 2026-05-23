@@ -13,8 +13,7 @@ from app.core.config import settings
 
 
 class ChatCompletionsEndpointLike(Protocol):
-    async def create(self, **kwargs: object) -> Any:
-        ...
+    async def create(self, **kwargs: object) -> Any: ...
 
 
 class ChatEndpointLike(Protocol):
@@ -178,7 +177,10 @@ class LLMService:
             request_payload: dict[str, object] = {
                 "model": self.model_name,
                 "messages": [
-                    {"role": "system", "content": "Answer questions only from retrieved document context."},
+                    {
+                        "role": "system",
+                        "content": "Answer questions only from retrieved document context.",
+                    },
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0,
@@ -198,7 +200,9 @@ class LLMService:
                 if attempt >= self.retry_max_attempts:
                     raise TransientLLMServiceError("LLM request failed after retries") from exc
                 retries += 1
-                backoff = min(self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds)
+                backoff = min(
+                    self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
+                )
                 await asyncio.sleep(backoff)
                 attempt += 1
                 continue
@@ -209,7 +213,9 @@ class LLMService:
                 if attempt >= self.retry_max_attempts:
                     raise PermanentLLMServiceError("LLM response contained no choices")
                 retries += 1
-                backoff = min(self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds)
+                backoff = min(
+                    self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
+                )
                 await asyncio.sleep(backoff)
                 attempt += 1
                 continue
@@ -221,7 +227,9 @@ class LLMService:
             except (json.JSONDecodeError, ValidationError):
                 if attempt < self.retry_max_attempts:
                     retries += 1
-                    backoff = min(self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds)
+                    backoff = min(
+                        self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
+                    )
                     await asyncio.sleep(backoff)
                     attempt += 1
                     continue
@@ -240,7 +248,9 @@ class LLMService:
 
             usage = getattr(response, "usage", None)
             prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-            completion_tokens = int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
+            completion_tokens = (
+                int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
+            )
             total_tokens = (
                 int(getattr(usage, "total_tokens", prompt_tokens + completion_tokens))
                 if usage is not None

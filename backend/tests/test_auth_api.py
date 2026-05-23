@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -222,7 +224,9 @@ async def test_authorization_rejects_cross_organization_access(
     auth_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.member)
+    user, primary_org, secondary_org = await _seed_principal(
+        db_session, role=OrganizationRole.member
+    )
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(primary_org.id),
@@ -295,7 +299,9 @@ async def test_document_guard_hides_cross_organization_document(
     auth_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.member)
+    user, primary_org, secondary_org = await _seed_principal(
+        db_session, role=OrganizationRole.member
+    )
     secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
     foreign_document = await _seed_document(
         db_session,
@@ -325,7 +331,9 @@ async def test_document_guard_allows_same_organization_document(
     db_session: AsyncSession,
 ) -> None:
     user, org, _ = await _seed_principal(db_session, role=OrganizationRole.member)
-    document = await _seed_document(db_session, organization=org, uploader=user, filename="same-org.pdf")
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, filename="same-org.pdf"
+    )
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),
@@ -346,7 +354,9 @@ async def test_chat_document_guard_rejects_cross_organization_document_ids(
     auth_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.member)
+    user, primary_org, secondary_org = await _seed_principal(
+        db_session, role=OrganizationRole.member
+    )
     secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
     foreign_document = await _seed_document(
         db_session,
@@ -381,7 +391,9 @@ async def test_evaluation_document_guard_rejects_cross_organization_document_id(
     db_session: AsyncSession,
 ) -> None:
     evaluation_repository = EvaluationRepository()
-    user, primary_org, secondary_org = await _seed_principal(db_session, role=OrganizationRole.admin)
+    user, primary_org, secondary_org = await _seed_principal(
+        db_session, role=OrganizationRole.admin
+    )
     secondary_user = await _seed_user_for_org(db_session, organization=secondary_org)
     foreign_document = await _seed_document(
         db_session,

@@ -179,7 +179,9 @@ class MCPToolRuntime:
     def registry(self) -> ToolRegistry:
         return self._registry
 
-    async def execute_tool(self, *, tool_name: str, arguments: dict[str, Any] | None) -> dict[str, Any]:
+    async def execute_tool(
+        self, *, tool_name: str, arguments: dict[str, Any] | None
+    ) -> dict[str, Any]:
         request_id = str(uuid4())
         spec = self._registry.get_spec(tool_name)
         if spec is None:
@@ -289,8 +291,7 @@ def _register_tools(server: Any, runtime: MCPToolRuntime) -> None:
 
         tool_handler.__name__ = f"tool_{bound_tool_name.replace('.', '_')}"
         tool_handler.__doc__ = (
-            f"{description}\n\n"
-            "Provide tool parameters in the `arguments` object."
+            f"{description}\n\nProvide tool parameters in the `arguments` object."
         )
         return tool_handler
 
@@ -343,7 +344,9 @@ def create_mcp_http_app() -> FastAPI:
 
 def run_stdio_server() -> None:
     if not settings.feature_enable_mcp:
-        raise RuntimeError("MCP runtime is disabled. Set FEATURE_ENABLE_MCP=true to start the MCP server.")
+        raise RuntimeError(
+            "MCP runtime is disabled. Set FEATURE_ENABLE_MCP=true to start the MCP server."
+        )
     if settings.mcp_transport != MCPTransport.stdio:
         _logger.warning(
             "mcp.run.stdio.override",
@@ -356,7 +359,9 @@ def run_stdio_server() -> None:
 
 def run_streamable_http_server() -> None:
     if not settings.feature_enable_mcp:
-        raise RuntimeError("MCP runtime is disabled. Set FEATURE_ENABLE_MCP=true to start the MCP server.")
+        raise RuntimeError(
+            "MCP runtime is disabled. Set FEATURE_ENABLE_MCP=true to start the MCP server."
+        )
     import uvicorn
 
     app = create_mcp_http_app()

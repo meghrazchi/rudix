@@ -56,7 +56,9 @@ def _parse_evaluation_run_id(evaluation_run_id: str) -> UUID:
     try:
         return UUID(evaluation_run_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation run not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation run not found"
+        ) from exc
 
 
 def _normalize_mapping(value: object) -> dict[str, object]:
@@ -134,7 +136,9 @@ async def get_evaluation_run_detail(
         organization_id=organization_id,
     )
     if evaluation_run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation run not found"
+        )
 
     rows = await evaluation_repository.list_evaluation_results_for_run(
         db_session,
@@ -193,7 +197,9 @@ async def get_evaluation_run_detail(
                 run_failure_type = item.failure_type
                 break
         if run_failure_reason is None:
-            run_failure_reason = "Evaluation run failed. Inspect question-level results for details."
+            run_failure_reason = (
+                "Evaluation run failed. Inspect question-level results for details."
+            )
             run_failure_type = "EvaluationRunFailed"
 
     log_evaluation_event(

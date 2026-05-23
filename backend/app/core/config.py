@@ -117,9 +117,15 @@ class Settings(BaseSettings):
     rabbitmq_connect_timeout_seconds: float = Field(default=2.0, ge=0.1, le=30.0)
     celery_result_backend_enabled: bool = True
     celery_task_default_queue: str = Field(default="default", min_length=1, max_length=64)
-    celery_queue_documents_processing: str = Field(default="documents.processing", min_length=1, max_length=64)
-    celery_queue_documents_deletion: str = Field(default="documents.deletion", min_length=1, max_length=64)
-    celery_queue_documents_reindex: str = Field(default="documents.reindex", min_length=1, max_length=64)
+    celery_queue_documents_processing: str = Field(
+        default="documents.processing", min_length=1, max_length=64
+    )
+    celery_queue_documents_deletion: str = Field(
+        default="documents.deletion", min_length=1, max_length=64
+    )
+    celery_queue_documents_reindex: str = Field(
+        default="documents.reindex", min_length=1, max_length=64
+    )
     celery_queue_evaluations: str = Field(default="evaluations", min_length=1, max_length=64)
     celery_task_max_retries: int = Field(default=5, ge=0, le=20)
     celery_retry_backoff_seconds: int = Field(default=2, ge=1, le=300)
@@ -146,7 +152,9 @@ class Settings(BaseSettings):
     dependency_max_retries: int = Field(default=0, ge=0, le=10)
 
     openai_api_key: SecretStr | None = None
-    openai_embedding_model: str = Field(default="text-embedding-3-small", min_length=3, max_length=128)
+    openai_embedding_model: str = Field(
+        default="text-embedding-3-small", min_length=3, max_length=128
+    )
     openai_llm_model: str = Field(default="gpt-5.4-mini", min_length=3, max_length=128)
     llm_retry_max_attempts: int = Field(default=2, ge=1, le=10)
     llm_retry_base_seconds: float = Field(default=0.4, ge=0.1, le=30.0)
@@ -227,12 +235,22 @@ class Settings(BaseSettings):
     mcp_http_path: str = Field(default="/mcp", pattern=r"^/[a-zA-Z0-9/_-]*$")
     mcp_require_bearer_auth: bool = True
     mcp_dev_principal_user_id: str | None = Field(default=None, min_length=3, max_length=128)
-    mcp_dev_principal_organization_id: str | None = Field(default=None, min_length=3, max_length=128)
+    mcp_dev_principal_organization_id: str | None = Field(
+        default=None, min_length=3, max_length=128
+    )
     mcp_dev_principal_roles: Annotated[list[str], NoDecode] = Field(default_factory=list)
-    mcp_capabilities_owner: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
-    mcp_capabilities_admin: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
-    mcp_capabilities_member: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
-    mcp_capabilities_viewer: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_VIEWER_CAPABILITIES))
+    mcp_capabilities_owner: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES)
+    )
+    mcp_capabilities_admin: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES)
+    )
+    mcp_capabilities_member: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES)
+    )
+    mcp_capabilities_viewer: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: list(_DEFAULT_MCP_VIEWER_CAPABILITIES)
+    )
     mcp_rate_limit_enabled: bool = True
     mcp_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     mcp_rate_limit_requests: int = Field(default=30, ge=1, le=10000)
@@ -254,7 +272,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_qdrant_collection(cls, value: str) -> str:
         if not value.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("qdrant_collection must contain only letters, numbers, underscores, or hyphens")
+            raise ValueError(
+                "qdrant_collection must contain only letters, numbers, underscores, or hyphens"
+            )
         return value
 
     @field_validator("minio_bucket")
@@ -284,7 +304,9 @@ class Settings(BaseSettings):
         if not cleaned:
             raise ValueError("document_index_version must not be empty")
         if not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
-            raise ValueError("document_index_version may contain only letters, numbers, '.', '-', and '_'")
+            raise ValueError(
+                "document_index_version may contain only letters, numbers, '.', '-', and '_'"
+            )
         return cleaned
 
     @field_validator("sentry_release")
@@ -365,7 +387,9 @@ class Settings(BaseSettings):
         if not cleaned:
             raise ValueError("celery queue names must not be empty")
         if not cleaned.replace(".", "").replace("-", "").replace("_", "").isalnum():
-            raise ValueError("celery queue names may contain only letters, numbers, '.', '-', and '_'")
+            raise ValueError(
+                "celery queue names may contain only letters, numbers, '.', '-', and '_'"
+            )
         return cleaned
 
     @model_validator(mode="after")
@@ -381,22 +405,28 @@ class Settings(BaseSettings):
 
         if self.feature_enable_mcp and self.mcp_transport == MCPTransport.stdio:
             if self.environment in {Environment.production, Environment.staging}:
-                raise ValueError("mcp_transport=stdio is only allowed in development or test environments")
+                raise ValueError(
+                    "mcp_transport=stdio is only allowed in development or test environments"
+                )
             if self.mcp_dev_principal_user_id is None:
                 raise ValueError("mcp_dev_principal_user_id is required when mcp_transport=stdio")
             if self.mcp_dev_principal_organization_id is None:
-                raise ValueError("mcp_dev_principal_organization_id is required when mcp_transport=stdio")
+                raise ValueError(
+                    "mcp_dev_principal_organization_id is required when mcp_transport=stdio"
+                )
             if not self.mcp_dev_principal_roles:
                 raise ValueError("mcp_dev_principal_roles is required when mcp_transport=stdio")
 
         if self.feature_enable_mcp and self.mcp_transport == MCPTransport.streamable_http:
             self.mcp_http_host = self.mcp_http_host.strip()
             if not self.mcp_http_host:
-                raise ValueError("mcp_http_host must not be empty when mcp transport is streamable_http")
-            if (
-                not self.mcp_require_bearer_auth
-                and self.environment in {Environment.production, Environment.staging}
-            ):
+                raise ValueError(
+                    "mcp_http_host must not be empty when mcp transport is streamable_http"
+                )
+            if not self.mcp_require_bearer_auth and self.environment in {
+                Environment.production,
+                Environment.staging,
+            }:
                 raise ValueError(
                     "mcp_require_bearer_auth=false is only allowed in development or test environments"
                 )
@@ -415,7 +445,9 @@ class Settings(BaseSettings):
                     )
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
-            raise ValueError("retrieval_final_top_k must be less than or equal to retrieval_initial_top_k")
+            raise ValueError(
+                "retrieval_final_top_k must be less than or equal to retrieval_initial_top_k"
+            )
 
         if self.rerank_mmr_candidate_count < self.retrieval_final_top_k:
             raise ValueError("rerank_mmr_candidate_count must be >= retrieval_final_top_k")
@@ -424,7 +456,9 @@ class Settings(BaseSettings):
             raise ValueError("confidence_high_threshold must be >= confidence_medium_threshold")
 
         if self.confidence_not_found_threshold > self.confidence_medium_threshold:
-            raise ValueError("confidence_not_found_threshold must be <= confidence_medium_threshold")
+            raise ValueError(
+                "confidence_not_found_threshold must be <= confidence_medium_threshold"
+            )
 
         confidence_weight_sum = (
             self.confidence_weight_top_similarity
@@ -449,12 +483,19 @@ class Settings(BaseSettings):
             raise ValueError("embedding_batch_max_tokens must be >= chunk_size_tokens")
 
         if self.redis_socket_timeout_seconds < self.redis_socket_connect_timeout_seconds:
-            raise ValueError("redis_socket_timeout_seconds must be >= redis_socket_connect_timeout_seconds")
+            raise ValueError(
+                "redis_socket_timeout_seconds must be >= redis_socket_connect_timeout_seconds"
+            )
 
         if self.dependency_read_timeout_seconds < self.dependency_connect_timeout_seconds:
-            raise ValueError("dependency_read_timeout_seconds must be >= dependency_connect_timeout_seconds")
+            raise ValueError(
+                "dependency_read_timeout_seconds must be >= dependency_connect_timeout_seconds"
+            )
 
-        if self.auth_provider == AuthProvider.app and not self.app_auth_secret.get_secret_value().strip():
+        if (
+            self.auth_provider == AuthProvider.app
+            and not self.app_auth_secret.get_secret_value().strip()
+        ):
             raise ValueError("app_auth_secret is required when auth_provider=app")
 
         if self.auth_provider == AuthProvider.clerk and self.clerk_jwks_url is None:
@@ -471,7 +512,11 @@ class Settings(BaseSettings):
         if self.auth_provider == AuthProvider.supabase and self.supabase_jwt_audience is None:
             raise ValueError("supabase_jwt_audience is required when auth_provider=supabase")
 
-        needs_openai = self.feature_enable_embeddings or self.feature_enable_llm or self.feature_enable_evaluations
+        needs_openai = (
+            self.feature_enable_embeddings
+            or self.feature_enable_llm
+            or self.feature_enable_evaluations
+        )
         if needs_openai and self.openai_api_key is None:
             raise ValueError(
                 "openai_api_key is required when embeddings, llm, or evaluations are enabled"
@@ -482,7 +527,10 @@ class Settings(BaseSettings):
                 raise ValueError("sentry_dsn is required in production")
             if self.sentry_test_event_enabled:
                 raise ValueError("sentry_test_event_enabled must be false in production")
-            if self.auth_provider == AuthProvider.app and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me":
+            if (
+                self.auth_provider == AuthProvider.app
+                and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me"
+            ):
                 raise ValueError("app_auth_secret must be overridden in production")
             if self.auth_provider == AuthProvider.app:
                 self.app_auth_auto_provision_users = False
@@ -594,14 +642,18 @@ class Settings(BaseSettings):
             "app_auth_refresh_token_ttl_seconds": self.app_auth_refresh_token_ttl_seconds,
             "app_auth_issuer": self.app_auth_issuer,
             "app_auth_audience": self.app_auth_audience,
-            "app_auth_login_password_set": bool(self.app_auth_login_password and self.app_auth_login_password.get_secret_value()),
+            "app_auth_login_password_set": bool(
+                self.app_auth_login_password and self.app_auth_login_password.get_secret_value()
+            ),
             "app_auth_auto_provision_users": self.app_auth_auto_provision_users,
             "auth_jwks_cache_ttl_seconds": self.auth_jwks_cache_ttl_seconds,
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
             "clerk_jwt_issuer": str(self.clerk_jwt_issuer) if self.clerk_jwt_issuer else None,
             "clerk_jwt_audience": self.clerk_jwt_audience,
             "supabase_jwks_url": str(self.supabase_jwks_url) if self.supabase_jwks_url else None,
-            "supabase_jwt_issuer": str(self.supabase_jwt_issuer) if self.supabase_jwt_issuer else None,
+            "supabase_jwt_issuer": str(self.supabase_jwt_issuer)
+            if self.supabase_jwt_issuer
+            else None,
             "supabase_jwt_audience": self.supabase_jwt_audience,
             "sentry_dsn_set": self.sentry_dsn is not None,
             "sentry_release": self.sentry_release,
@@ -652,7 +704,8 @@ class Settings(BaseSettings):
                 "http_path": self.mcp_http_path,
                 "require_bearer_auth": self.mcp_require_bearer_auth,
                 "dev_principal_user_id_set": self.mcp_dev_principal_user_id is not None,
-                "dev_principal_organization_id_set": self.mcp_dev_principal_organization_id is not None,
+                "dev_principal_organization_id_set": self.mcp_dev_principal_organization_id
+                is not None,
                 "dev_principal_roles": self.mcp_dev_principal_roles,
                 "capabilities_owner": self.mcp_capabilities_owner,
                 "capabilities_admin": self.mcp_capabilities_admin,

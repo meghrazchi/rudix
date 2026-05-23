@@ -45,7 +45,9 @@ def _parse_document_id(document_id: str) -> UUID:
     try:
         return UUID(document_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        ) from exc
 
 
 async def get_current_principal(
@@ -63,7 +65,9 @@ async def get_current_principal(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
 
-def require_roles(*allowed_roles: str) -> Callable[[AuthenticatedPrincipal], Awaitable[AuthenticatedPrincipal]]:
+def require_roles(
+    *allowed_roles: str,
+) -> Callable[[AuthenticatedPrincipal], Awaitable[AuthenticatedPrincipal]]:
     normalized_allowed_roles = {role.strip() for role in allowed_roles if role.strip()}
 
     async def dependency(

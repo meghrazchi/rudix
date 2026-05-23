@@ -8,7 +8,9 @@ import pytest
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -46,10 +48,21 @@ def eager_celery() -> None:
 
 def test_celery_configuration_and_routes_are_wired() -> None:
     assert celery_app.conf.task_default_queue == settings.celery_task_default_queue
-    assert celery_app.conf.task_routes["documents.process"]["queue"] == settings.celery_queue_documents_processing
-    assert celery_app.conf.task_routes["documents.delete"]["queue"] == settings.celery_queue_documents_deletion
-    assert celery_app.conf.task_routes["documents.reindex"]["queue"] == settings.celery_queue_documents_reindex
-    assert celery_app.conf.task_routes["evaluations.run"]["queue"] == settings.celery_queue_evaluations
+    assert (
+        celery_app.conf.task_routes["documents.process"]["queue"]
+        == settings.celery_queue_documents_processing
+    )
+    assert (
+        celery_app.conf.task_routes["documents.delete"]["queue"]
+        == settings.celery_queue_documents_deletion
+    )
+    assert (
+        celery_app.conf.task_routes["documents.reindex"]["queue"]
+        == settings.celery_queue_documents_reindex
+    )
+    assert (
+        celery_app.conf.task_routes["evaluations.run"]["queue"] == settings.celery_queue_evaluations
+    )
 
     registered = set(celery_app.tasks.keys())
     assert "documents.process" in registered
@@ -74,7 +87,9 @@ def test_retry_policy_retries_transient_failures(eager_celery: None) -> None:
     assert attempts["count"] == 3
 
 
-def test_process_document_is_idempotent_when_already_indexed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_process_document_is_idempotent_when_already_indexed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         document_tasks,
         "get_document_status",
@@ -90,7 +105,9 @@ def test_process_document_is_idempotent_when_already_indexed(monkeypatch: pytest
     assert result["status"] == "skipped"
 
 
-def test_process_document_is_idempotent_when_already_processing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_process_document_is_idempotent_when_already_processing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         document_tasks,
         "get_document_status",
@@ -115,7 +132,9 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
         lambda _: DocumentStatus.uploaded.value,
     )
 
-    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
         del error_message
         status_calls.append((document_id, status.value))
         return True
@@ -148,7 +167,9 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
         return 4, 9, _Stats(), _EmbeddingResult()
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
-    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
 
     result = document_tasks.process_document.run("doc-1")
     assert result["status"] == DocumentStatus.indexed.value
@@ -160,10 +181,14 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
     assert status_calls == [("doc-1", DocumentStatus.processing.value)]
 
 
-def test_document_task_terminal_failure_marks_document_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_document_task_terminal_failure_marks_document_failed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured: dict[str, str] = {}
 
-    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
         captured["document_id"] = document_id
         captured["status"] = status.value
         captured["error_message"] = error_message or ""
@@ -198,7 +223,9 @@ def test_process_document_retries_transient_failures_without_failing_status(
         lambda _: DocumentStatus.uploaded.value,
     )
 
-    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
         del error_message
         status_calls.append((document_id, status.value))
         return True
@@ -240,12 +267,17 @@ def test_process_document_retries_transient_failures_without_failing_status(
         return 1, 1, _Stats(), _EmbeddingResult()
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
-    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
 
     result = document_tasks.process_document.delay("doc-1").get(timeout=5)
     assert result["status"] == DocumentStatus.indexed.value
     assert attempts["count"] == 2
-    assert status_calls == [("doc-1", DocumentStatus.processing.value), ("doc-1", DocumentStatus.processing.value)]
+    assert status_calls == [
+        ("doc-1", DocumentStatus.processing.value),
+        ("doc-1", DocumentStatus.processing.value),
+    ]
 
 
 def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -257,7 +289,9 @@ def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.Mo
         lambda _: DocumentStatus.indexed.value,
     )
 
-    def _set_document_status(document_id: str, *, status: DocumentStatus, error_message: str | None = None) -> bool:
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
         del error_message
         status_calls.append((document_id, status.value))
         return True
@@ -290,7 +324,9 @@ def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.Mo
         return 2, 3, _Stats(), _EmbeddingResult()
 
     monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
-    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
 
     result = document_tasks.reindex_document.run("doc-1")
     assert result["status"] == DocumentStatus.indexed.value
@@ -300,7 +336,9 @@ def test_reindex_document_runs_pipeline_and_emits_metrics(monkeypatch: pytest.Mo
     assert status_calls == [("doc-1", DocumentStatus.processing.value)]
 
 
-def test_reindex_document_continues_when_already_processing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_reindex_document_continues_when_already_processing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         document_tasks,
         "get_document_status",
@@ -309,7 +347,9 @@ def test_reindex_document_continues_when_already_processing(monkeypatch: pytest.
     monkeypatch.setattr(
         document_tasks,
         "set_document_status",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("should not set status again")),
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("should not set status again")
+        ),
     )
 
     async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
@@ -339,7 +379,9 @@ def test_reindex_document_continues_when_already_processing(monkeypatch: pytest.
 
         return 1, 1, _Stats(), _EmbeddingResult()
 
-    monkeypatch.setattr(document_tasks, "_extract_and_store_document_pages_async", _extract_and_store)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
 
     result = document_tasks.reindex_document.run("doc-1")
     assert result["status"] == DocumentStatus.indexed.value
@@ -399,7 +441,9 @@ def test_evaluation_run_transitions_status(monkeypatch: pytest.MonkeyPatch) -> N
     assert transitions == [EvaluationRunStatus.running.value, EvaluationRunStatus.completed.value]
 
 
-def test_evaluation_run_marks_failed_when_all_questions_fail(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_evaluation_run_marks_failed_when_all_questions_fail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     transitions: list[str] = []
     monkeypatch.setattr(
         evaluation_tasks,

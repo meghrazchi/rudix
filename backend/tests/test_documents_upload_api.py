@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -176,7 +178,9 @@ async def test_upload_accepts_supported_document_types(
     content: bytes,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -235,7 +239,9 @@ async def test_upload_rejects_unsupported_extension(
     fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -258,7 +264,9 @@ async def test_upload_rejects_unsupported_mime_type(
     fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -283,7 +291,9 @@ async def test_upload_rejects_oversized_file(
 ) -> None:
     monkeypatch.setattr(settings, "max_upload_size_mb", 1)
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -305,7 +315,9 @@ async def test_upload_rejects_empty_file(
     fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -328,7 +340,9 @@ async def test_upload_allows_duplicate_files_as_distinct_documents(
     fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     file_payload = ("duplicate.txt", b"same content", "text/plain")
 
     first_response = await upload_client.post(
@@ -352,7 +366,10 @@ async def test_upload_allows_duplicate_files_as_distinct_documents(
     assert len(fake_minio.put_calls) == 2
     assert fake_minio.put_calls[0]["Key"] != fake_minio.put_calls[1]["Key"]
     assert len(fake_process_document_task.delay_calls) == 2
-    assert fake_process_document_task.delay_calls[0]["document_id"] != fake_process_document_task.delay_calls[1]["document_id"]
+    assert (
+        fake_process_document_task.delay_calls[0]["document_id"]
+        != fake_process_document_task.delay_calls[1]["document_id"]
+    )
     assert await _document_count(db_session) == 2
 
 
@@ -365,7 +382,9 @@ async def test_upload_returns_503_when_storage_upload_fails(
 ) -> None:
     fake_minio.fail_put = True
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -392,10 +411,14 @@ async def test_upload_deletes_uploaded_object_when_metadata_persist_fails(
     async def _raise_create_document(*_: Any, **__: Any) -> None:
         raise RuntimeError("metadata failure")
 
-    monkeypatch.setattr(documents_api.document_repository, "create_document", _raise_create_document)
+    monkeypatch.setattr(
+        documents_api.document_repository, "create_document", _raise_create_document
+    )
 
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",
@@ -422,7 +445,9 @@ async def test_upload_returns_503_when_enqueue_fails_and_document_stays_uploaded
 ) -> None:
     fake_process_document_task.fail_delay = True
     user, org = await _seed_principal(db_session)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await upload_client.post(
         "/api/v1/documents/upload",

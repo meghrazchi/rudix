@@ -52,6 +52,7 @@ def build_streamable_http_app(*, server: Any, path: str) -> Any:
     Newer SDK variants expose `http_app(path=...)`, while older ones expose
     `streamable_http_app(path=...)`.
     """
+
     def _mount_with_path(app: Any) -> Any:
         if path in {"", "/"}:
             return app
@@ -73,6 +74,4 @@ def build_streamable_http_app(*, server: Any, path: str) -> Any:
         except TypeError:
             return _mount_with_path(fallback_factory())
 
-    raise MCPSDKUnavailableError(
-        "Installed MCP SDK does not expose a Streamable HTTP app factory."
-    )
+    raise MCPSDKUnavailableError("Installed MCP SDK does not expose a Streamable HTTP app factory.")

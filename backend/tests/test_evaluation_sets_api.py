@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -210,7 +212,9 @@ async def test_list_evaluation_sets_scoped_to_organization_with_question_counts(
     db_session: AsyncSession,
 ) -> None:
     repository = EvaluationRepository()
-    user, organization, other_organization = await _seed_principal(db_session, role=OrganizationRole.member)
+    user, organization, other_organization = await _seed_principal(
+        db_session, role=OrganizationRole.member
+    )
     other_user = await _seed_user_for_org(db_session, organization=other_organization)
 
     own_set_old = await repository.create_evaluation_set(
@@ -282,7 +286,9 @@ async def test_create_evaluation_question_validates_expected_document_access(
     db_session: AsyncSession,
 ) -> None:
     repository = EvaluationRepository()
-    user, organization, other_organization = await _seed_principal(db_session, role=OrganizationRole.admin)
+    user, organization, other_organization = await _seed_principal(
+        db_session, role=OrganizationRole.admin
+    )
     other_user = await _seed_user_for_org(db_session, organization=other_organization)
 
     evaluation_set = await repository.create_evaluation_set(
@@ -348,7 +354,9 @@ async def test_list_evaluation_questions_scoped_to_set_and_paginates(
     db_session: AsyncSession,
 ) -> None:
     repository = EvaluationRepository()
-    user, organization, other_organization = await _seed_principal(db_session, role=OrganizationRole.member)
+    user, organization, other_organization = await _seed_principal(
+        db_session, role=OrganizationRole.member
+    )
     other_user = await _seed_user_for_org(db_session, organization=other_organization)
 
     own_set = await repository.create_evaluation_set(

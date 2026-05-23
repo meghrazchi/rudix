@@ -20,8 +20,14 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "usage_events"
     __table_args__ = (
-        CheckConstraint("input_tokens IS NULL OR input_tokens >= 0", name="usage_events_input_tokens_non_negative"),
-        CheckConstraint("output_tokens IS NULL OR output_tokens >= 0", name="usage_events_output_tokens_non_negative"),
+        CheckConstraint(
+            "input_tokens IS NULL OR input_tokens >= 0",
+            name="usage_events_input_tokens_non_negative",
+        ),
+        CheckConstraint(
+            "output_tokens IS NULL OR output_tokens >= 0",
+            name="usage_events_output_tokens_non_negative",
+        ),
         CheckConstraint("cost_usd IS NULL OR cost_usd >= 0", name="usage_events_cost_non_negative"),
         Index("idx_usage_org_created", "organization_id", "created_at"),
     )
@@ -49,9 +55,7 @@ class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 class AuditLog(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "audit_logs"
-    __table_args__ = (
-        Index("idx_audit_logs_org_created", "organization_id", "created_at"),
-    )
+    __table_args__ = (Index("idx_audit_logs_org_created", "organization_id", "created_at"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

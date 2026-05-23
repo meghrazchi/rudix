@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -55,7 +57,9 @@ def test_sentry_test_endpoint_returns_event_id(monkeypatch: pytest.MonkeyPatch) 
     assert payload["event_id"] == "evt_123"
 
 
-def test_sentry_test_endpoint_returns_503_when_sentry_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sentry_test_endpoint_returns_503_when_sentry_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(health, "settings", SimpleNamespace(is_sentry_test_event_enabled=True))
     monkeypatch.setattr(health, "capture_sentry_test_event", lambda runtime="api": None)
     client = _test_client()

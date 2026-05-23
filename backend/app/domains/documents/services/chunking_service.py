@@ -44,7 +44,9 @@ class ChunkingService:
         self.chunk_overlap_tokens = chunk_overlap_tokens or settings.chunk_overlap_tokens
         self.embedding_model = (embedding_model or settings.openai_embedding_model).strip()
         self.index_version = (index_version or settings.document_index_version).strip()
-        self.tiny_chunk_min_tokens = tiny_chunk_min_tokens or max(1, min(32, self.chunk_size_tokens // 8))
+        self.tiny_chunk_min_tokens = tiny_chunk_min_tokens or max(
+            1, min(32, self.chunk_size_tokens // 8)
+        )
 
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
@@ -117,11 +119,7 @@ class ChunkingService:
                 cursor += stride
                 continue
 
-            if (
-                is_last_window
-                and chunks
-                and token_count < self.tiny_chunk_min_tokens
-            ):
+            if is_last_window and chunks and token_count < self.tiny_chunk_min_tokens:
                 break
 
             chunks.append(

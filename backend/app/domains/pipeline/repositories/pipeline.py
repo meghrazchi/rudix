@@ -52,7 +52,9 @@ class PipelineRepository:
         await session.refresh(pipeline_run)
         return pipeline_run
 
-    async def get_pipeline_run(self, session: AsyncSession, *, pipeline_run_id: UUID) -> PipelineRun | None:
+    async def get_pipeline_run(
+        self, session: AsyncSession, *, pipeline_run_id: UUID
+    ) -> PipelineRun | None:
         result = await session.execute(select(PipelineRun).where(PipelineRun.id == pipeline_run_id))
         return result.scalar_one_or_none()
 

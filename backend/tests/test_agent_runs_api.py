@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -72,8 +74,12 @@ async def _seed_principal(
     *,
     role: OrganizationRole = OrganizationRole.viewer,
 ) -> tuple[User, Organization, Organization]:
-    primary_org = Organization(name="Agent API Primary", slug=f"agent-api-primary-{uuid4().hex[:8]}")
-    secondary_org = Organization(name="Agent API Secondary", slug=f"agent-api-secondary-{uuid4().hex[:8]}")
+    primary_org = Organization(
+        name="Agent API Primary", slug=f"agent-api-primary-{uuid4().hex[:8]}"
+    )
+    secondary_org = Organization(
+        name="Agent API Secondary", slug=f"agent-api-secondary-{uuid4().hex[:8]}"
+    )
     db_session.add_all([primary_org, secondary_org])
     await db_session.flush()
 
@@ -128,20 +134,26 @@ def _auth_headers(*, token: str, organization_id: str) -> dict[str, str]:
 
 
 def _build_test_runtime() -> AgentRuntime:
-    async def _search_documents(call: ToolCall, principal: AuthenticatedPrincipal) -> dict[str, object]:
+    async def _search_documents(
+        call: ToolCall, principal: AuthenticatedPrincipal
+    ) -> dict[str, object]:
         del principal
         return {
             "total": 1,
             "items": [
                 {
-                    "document_id": str(call.arguments.get("document_id", "11111111-1111-1111-1111-111111111111")),
+                    "document_id": str(
+                        call.arguments.get("document_id", "11111111-1111-1111-1111-111111111111")
+                    ),
                     "filename": "Policy.pdf",
                     "status": "indexed",
                 }
             ],
         }
 
-    async def _answer_from_context(call: ToolCall, principal: AuthenticatedPrincipal) -> dict[str, object]:
+    async def _answer_from_context(
+        call: ToolCall, principal: AuthenticatedPrincipal
+    ) -> dict[str, object]:
         del call, principal
         return {
             "response": "Grounded answer",
@@ -339,12 +351,16 @@ async def test_decide_agent_run_approval_updates_pending_approval(
     assert payload["status"] == "approved"
     assert payload["decision_reason"] == "Reviewed and approved"
     approval_metrics = (
-        await db_session.execute(
-            select(UsageEvent).where(
-                UsageEvent.organization_id == organization.id,
-                UsageEvent.event_type == "agent.approval",
+        (
+            await db_session.execute(
+                select(UsageEvent).where(
+                    UsageEvent.organization_id == organization.id,
+                    UsageEvent.event_type == "agent.approval",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(approval_metrics) >= 1
     assert approval_metrics[-1].metadata_json["status"] == "approved"

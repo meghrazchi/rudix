@@ -10,7 +10,9 @@ from qdrant_client.http.models import Distance
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -86,7 +88,9 @@ def test_get_rabbitmq_host_port_resolves_default_ports() -> None:
     assert factory.get_rabbitmq_host_port(amqps_settings) == ("rabbitmq", 5671)
 
 
-def test_create_minio_client_builds_shared_timeout_and_retry_config(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_create_minio_client_builds_shared_timeout_and_retry_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     captured: dict[str, Any] = {}
     sentinel = object()
 
@@ -165,7 +169,9 @@ def test_ensure_minio_bucket_does_not_create_when_exists(monkeypatch: pytest.Mon
     assert calls == ["head_bucket"]
 
 
-def test_ensure_qdrant_collection_creates_collection_if_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensure_qdrant_collection_creates_collection_if_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls: list[str] = []
 
     class FakeQdrant:
@@ -192,7 +198,9 @@ def test_ensure_qdrant_collection_creates_collection_if_missing(monkeypatch: pyt
     assert calls == ["collection_exists", "create_collection"]
 
 
-def test_ensure_qdrant_collection_raises_on_schema_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ensure_qdrant_collection_raises_on_schema_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class FakeVectors:
         size = 1024
         distance = Distance.DOT

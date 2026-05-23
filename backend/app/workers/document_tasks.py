@@ -218,7 +218,9 @@ class PipelineRunRecorder:
                         pipeline_run_id=self.run_id,
                         status=status,
                         completed_at=completed_at,
-                        duration_ms=_safe_duration_ms(started_at=self.run_started_at, ended_at=completed_at),
+                        duration_ms=_safe_duration_ms(
+                            started_at=self.run_started_at, ended_at=completed_at
+                        ),
                         outputs=sanitize_pipeline_payload(outputs or {}),
                         logs=sanitize_pipeline_payload(logs or []),
                         error_message=sanitize_pipeline_payload(error_message),
@@ -435,7 +437,9 @@ async def _extract_and_store_document_pages_async(
         ) from exc
 
     async with SessionLocal() as session:
-        document = await _document_repository.get_document_by_id(session, document_id=parsed_document_id)
+        document = await _document_repository.get_document_by_id(
+            session, document_id=parsed_document_id
+        )
         if document is None:
             raise DocumentPipelinePermanentError(
                 stage="resolve_document",
@@ -484,10 +488,15 @@ async def _extract_and_store_document_pages_async(
             await pipeline_recorder.emit_stage(
                 stage="extract",
                 stage_status="started",
-                inputs={"bucket": document.storage_bucket, "object_key": document.storage_object_key},
+                inputs={
+                    "bucket": document.storage_bucket,
+                    "object_key": document.storage_object_key,
+                },
             )
             try:
-                content = _read_object_bytes(bucket=document.storage_bucket, object_key=document.storage_object_key)
+                content = _read_object_bytes(
+                    bucket=document.storage_bucket, object_key=document.storage_object_key
+                )
             except PermanentTaskError as exc:
                 raise DocumentPipelinePermanentError(
                     stage="extract",
@@ -611,7 +620,9 @@ async def _extract_and_store_document_pages_async(
                         "index_version": settings.document_index_version,
                     },
                 )
-                await _document_repository.delete_document_pages(session, document_id=parsed_document_id)
+                await _document_repository.delete_document_pages(
+                    session, document_id=parsed_document_id
+                )
                 for section in cleaned_sections:
                     await _document_repository.create_document_page(
                         session,
@@ -620,7 +631,9 @@ async def _extract_and_store_document_pages_async(
                         text=section.text,
                         char_count=section.char_count,
                     )
-                chunks = await _chunking_service.chunk(document_id=parsed_document_id, pages=cleaned_sections)
+                chunks = await _chunking_service.chunk(
+                    document_id=parsed_document_id, pages=cleaned_sections
+                )
                 if not chunks:
                     raise DocumentPipelinePermanentError(
                         stage="chunk",
@@ -896,7 +909,9 @@ async def _delete_document_assets_async(
         ) from exc
 
     async with SessionLocal() as session:
-        document = await _document_repository.get_document_by_id(session, document_id=parsed_document_id)
+        document = await _document_repository.get_document_by_id(
+            session, document_id=parsed_document_id
+        )
         if document is None:
             raise DocumentPipelinePermanentError(
                 stage="resolve_document",
@@ -980,7 +995,10 @@ async def _delete_document_assets_async(
             await pipeline_recorder.emit_stage(
                 stage="delete_storage",
                 stage_status="started",
-                inputs={"bucket": document.storage_bucket, "object_key": document.storage_object_key},
+                inputs={
+                    "bucket": document.storage_bucket,
+                    "object_key": document.storage_object_key,
+                },
             )
             object_prefix = _object_key_prefix(document.storage_object_key)
             if not object_prefix:
@@ -1070,7 +1088,10 @@ async def _delete_document_assets_async(
             await pipeline_recorder.emit_stage(
                 stage="delete_metadata",
                 stage_status="completed",
-                outputs={"deleted_chunk_count": deleted_chunks, "deleted_page_count": deleted_pages},
+                outputs={
+                    "deleted_chunk_count": deleted_chunks,
+                    "deleted_page_count": deleted_pages,
+                },
             )
             await pipeline_recorder.finalize_run(
                 status="completed",
@@ -1095,7 +1116,10 @@ async def _delete_document_assets_async(
                 status="failed",
                 error_message=details.get("message", str(exc)),
                 error_details=details,
-                outputs={"deleted_chunk_count": deleted_chunks, "deleted_page_count": deleted_pages},
+                outputs={
+                    "deleted_chunk_count": deleted_chunks,
+                    "deleted_page_count": deleted_pages,
+                },
             )
             raise
 

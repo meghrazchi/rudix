@@ -41,7 +41,9 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
-    async def get_document(self, session: AsyncSession, *, document_id: UUID, organization_id: UUID) -> Document | None:
+    async def get_document(
+        self, session: AsyncSession, *, document_id: UUID, organization_id: UUID
+    ) -> Document | None:
         result = await session.execute(
             select(Document).where(
                 Document.id == document_id,
@@ -50,7 +52,9 @@ class DocumentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_document_by_id(self, session: AsyncSession, *, document_id: UUID) -> Document | None:
+    async def get_document_by_id(
+        self, session: AsyncSession, *, document_id: UUID
+    ) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         return result.scalar_one_or_none()
 
@@ -95,7 +99,9 @@ class DocumentRepository:
         status: str | None = None,
         filename_query: str | None = None,
     ) -> int:
-        statement = select(func.count(Document.id)).where(Document.organization_id == organization_id)
+        statement = select(func.count(Document.id)).where(
+            Document.organization_id == organization_id
+        )
         if status is not None:
             statement = statement.where(Document.status == status)
         if filename_query is not None:
@@ -147,10 +153,14 @@ class DocumentRepository:
         return page
 
     async def delete_document_pages(self, session: AsyncSession, *, document_id: UUID) -> int:
-        result = await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
+        result = await session.execute(
+            delete(DocumentPage).where(DocumentPage.document_id == document_id)
+        )
         return int(result.rowcount or 0)
 
-    async def list_document_pages(self, session: AsyncSession, *, document_id: UUID) -> list[DocumentPage]:
+    async def list_document_pages(
+        self, session: AsyncSession, *, document_id: UUID
+    ) -> list[DocumentPage]:
         result = await session.execute(
             select(DocumentPage)
             .where(DocumentPage.document_id == document_id)
@@ -235,7 +245,9 @@ class DocumentRepository:
         document_id: UUID,
         index_version: str | None = None,
     ) -> int:
-        statement = select(func.count(DocumentChunk.id)).where(DocumentChunk.document_id == document_id)
+        statement = select(func.count(DocumentChunk.id)).where(
+            DocumentChunk.document_id == document_id
+        )
         if index_version is not None:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement)

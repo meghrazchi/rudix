@@ -1,4 +1,5 @@
 import os
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -11,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -330,7 +333,7 @@ async def test_list_chat_session_messages_returns_history_for_accessible_session
         user_id=user.id,
         title="History Session",
     )
-    await repository.create_chat_message(
+    user_message = await repository.create_chat_message(
         db_session,
         chat_session_id=chat_session.id,
         role="user",
@@ -343,13 +346,18 @@ async def test_list_chat_session_messages_returns_history_for_accessible_session
         content="The policy was updated in May 2026.",
         confidence_score=0.81,
     )
-    await repository.create_chat_message(
+    secondary_assistant_message = await repository.create_chat_message(
         db_session,
         chat_session_id=chat_session.id,
         role="assistant",
         content="Secondary note",
         confidence_score=0.55,
     )
+    base_created_at = datetime.now(UTC)
+    user_message.created_at = base_created_at
+    assistant_message.created_at = base_created_at + timedelta(seconds=1)
+    secondary_assistant_message.created_at = base_created_at + timedelta(seconds=2)
+    await db_session.flush()
     await db_session.commit()
 
     token = create_app_access_token(

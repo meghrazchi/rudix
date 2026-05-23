@@ -51,7 +51,9 @@ def _parse_pipeline_run_id(pipeline_run_id: str) -> UUID:
     try:
         return UUID(pipeline_run_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline run not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Pipeline run not found"
+        ) from exc
 
 
 def _resolve_pipeline_type_filters(run_type: str | None) -> list[str] | None:
@@ -91,10 +93,10 @@ async def list_pipeline_steps() -> PipelineStepListResponse:
 async def resolve_pipeline_run(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
-    run_type: str | None = Query(default=None),
-    document_id: UUID | None = Query(default=None),
-    chat_message_id: UUID | None = Query(default=None),
-    evaluation_run_id: UUID | None = Query(default=None),
+    run_type: Annotated[str | None, Query()] = None,
+    document_id: Annotated[UUID | None, Query()] = None,
+    chat_message_id: Annotated[UUID | None, Query()] = None,
+    evaluation_run_id: Annotated[UUID | None, Query()] = None,
 ) -> PipelineRunResolveResponse:
     if document_id is None and chat_message_id is None and evaluation_run_id is None:
         raise HTTPException(

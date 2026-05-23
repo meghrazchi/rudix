@@ -4,7 +4,9 @@ import os
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -37,7 +39,9 @@ def test_mcp_main_runs_streamable_http_transport(
     called = {"streamable": False}
     monkeypatch.setattr(settings, "feature_enable_mcp", True)
     monkeypatch.setattr(settings, "mcp_transport", MCPTransport.streamable_http)
-    monkeypatch.setattr("app.mcp.main.run_streamable_http_server", lambda: called.__setitem__("streamable", True))
+    monkeypatch.setattr(
+        "app.mcp.main.run_streamable_http_server", lambda: called.__setitem__("streamable", True)
+    )
 
     exit_code = main([])
 
@@ -55,4 +59,3 @@ def test_mcp_main_rejects_stdio_transport_in_production(
     exit_code = main(["--transport", "stdio"])
 
     assert exit_code == 2
-

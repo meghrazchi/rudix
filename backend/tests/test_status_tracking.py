@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -45,7 +47,11 @@ async def seeded_document(db_session: AsyncSession) -> Document:
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value))
+    db_session.add(
+        OrganizationMember(
+            organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value
+        )
+    )
     await db_session.flush()
 
     repository = DocumentRepository()
@@ -70,7 +76,9 @@ async def test_set_document_status_is_idempotent_when_values_unchanged(
     seeded_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(status_tracking, "SessionLocal", session_factory)
 
     updated = await status_tracking._set_document_status_async(
@@ -87,7 +95,9 @@ async def test_set_document_status_is_idempotent_when_values_unchanged(
         calls["count"] += 1
         return await original_update(*args, **kwargs)
 
-    monkeypatch.setattr(status_tracking._document_repository, "update_document_status", _update_wrapper)
+    monkeypatch.setattr(
+        status_tracking._document_repository, "update_document_status", _update_wrapper
+    )
 
     second_update = await status_tracking._set_document_status_async(
         str(seeded_document.id),
@@ -105,7 +115,9 @@ async def test_set_document_status_clears_stale_error_on_processing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     document_id = seeded_document.id
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(status_tracking, "SessionLocal", session_factory)
 
     repository = DocumentRepository()

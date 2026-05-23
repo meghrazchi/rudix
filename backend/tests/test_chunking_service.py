@@ -10,7 +10,9 @@ import pytest
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -76,7 +78,9 @@ async def test_chunking_service_handles_cross_page_chunks() -> None:
     assert any(chunk.page_number == 1 for chunk in chunks)
     assert any(chunk.page_number == 2 for chunk in chunks)
 
-    boundary_chunk = next((chunk for chunk in chunks if "alpha" in chunk.text and "beta" in chunk.text), None)
+    boundary_chunk = next(
+        (chunk for chunk in chunks if "alpha" in chunk.text and "beta" in chunk.text), None
+    )
     assert boundary_chunk is not None
     assert boundary_chunk.page_number in {1, 2}
 

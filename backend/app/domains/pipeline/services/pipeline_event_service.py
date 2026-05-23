@@ -88,10 +88,11 @@ def sanitize_pipeline_payload(value: object, *, key: str | None = None) -> objec
         return sanitized
 
     if isinstance(value, (list, tuple, set)):
-        sanitized_items = [sanitize_pipeline_payload(item, key=key) for item in list(value)[:_MAX_LIST_ITEMS]]
+        sanitized_items = [
+            sanitize_pipeline_payload(item, key=key) for item in list(value)[:_MAX_LIST_ITEMS]
+        ]
         if len(value) > _MAX_LIST_ITEMS:
             sanitized_items.append(f"... {len(value) - _MAX_LIST_ITEMS} more items")
         return sanitized_items
 
     return _truncate(str(value), limit=_MAX_STRING_CHARS)
-

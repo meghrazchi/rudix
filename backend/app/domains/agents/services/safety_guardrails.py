@@ -23,7 +23,9 @@ class InjectionCheckResult:
 class PromptInjectionGuard:
     """Lightweight heuristic guard for unsafe instruction-like content."""
 
-    def evaluate_request(self, *, objective: str, question: str | None, document_query: str | None) -> InjectionCheckResult:
+    def evaluate_request(
+        self, *, objective: str, question: str | None, document_query: str | None
+    ) -> InjectionCheckResult:
         reasons: list[str] = []
         for field_name, value in (
             ("objective", objective),

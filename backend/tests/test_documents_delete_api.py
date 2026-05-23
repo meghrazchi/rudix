@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -165,8 +167,12 @@ async def test_delete_document_marks_deleting_and_enqueues_task(
         role=OrganizationRole.member,
         org_slug_prefix="delete-primary",
     )
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.indexed)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.indexed
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await delete_client.delete(
         f"/api/v1/documents/{document.id}",
@@ -204,8 +210,12 @@ async def test_delete_document_returns_403_for_viewer(
         role=OrganizationRole.viewer,
         org_slug_prefix="delete-viewer",
     )
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.indexed)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.indexed
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await delete_client.delete(
         f"/api/v1/documents/{document.id}",
@@ -266,8 +276,12 @@ async def test_delete_document_is_idempotent_for_already_deleted_records(
         role=OrganizationRole.member,
         org_slug_prefix="delete-already",
     )
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.deleted)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.deleted
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await delete_client.delete(
         f"/api/v1/documents/{document.id}",
@@ -292,8 +306,12 @@ async def test_delete_document_does_not_requeue_when_already_deleting(
         role=OrganizationRole.member,
         org_slug_prefix="delete-in-flight",
     )
-    document = await _seed_document(db_session, organization=org, uploader=user, status=DocumentStatus.deleting)
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.deleting
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await delete_client.delete(
         f"/api/v1/documents/{document.id}",

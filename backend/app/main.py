@@ -28,7 +28,9 @@ def _normalize_cors_origin(origin: str) -> str:
     return origin.rstrip("/")
 
 
-normalized_cors_origins = sorted({_normalize_cors_origin(str(origin)) for origin in settings.cors_origins})
+normalized_cors_origins = sorted(
+    {_normalize_cors_origin(str(origin)) for origin in settings.cors_origins}
+)
 
 app.add_middleware(
     CORSMiddleware,

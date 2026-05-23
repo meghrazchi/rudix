@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -35,7 +37,9 @@ async def test_mcp_runtime_returns_safe_error_when_feature_is_disabled(
     runtime = MCPToolRuntime()
     monkeypatch.setattr(settings, "feature_enable_mcp", False)
 
-    payload = await runtime.execute_tool(tool_name="search_documents", arguments={"query": "policy"})
+    payload = await runtime.execute_tool(
+        tool_name="search_documents", arguments={"query": "policy"}
+    )
 
     assert payload["success"] is False
     assert payload["tool_name"] == "search_documents"
@@ -52,10 +56,14 @@ async def test_mcp_runtime_returns_safe_auth_error(
     async def _raise_auth_failure(_: dict[str, str]) -> AuthenticatedPrincipal:
         raise AuthenticationError("bad token")
 
-    monkeypatch.setattr("app.mcp.server.get_http_headers_from_context", lambda: {"authorization": "Bearer secret"})
+    monkeypatch.setattr(
+        "app.mcp.server.get_http_headers_from_context", lambda: {"authorization": "Bearer secret"}
+    )
     monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _raise_auth_failure)
 
-    payload = await runtime.execute_tool(tool_name="search_documents", arguments={"query": "policy"})
+    payload = await runtime.execute_tool(
+        tool_name="search_documents", arguments={"query": "policy"}
+    )
 
     assert payload["success"] is False
     assert payload["error"]["code"] == ToolErrorCode.authorization_failed.value
@@ -103,7 +111,9 @@ async def test_mcp_runtime_executes_read_only_tool_with_org_scoped_principal(
     monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
     monkeypatch.setattr(runtime._executor, "execute", _fake_execute)
 
-    payload = await runtime.execute_tool(tool_name="search_documents", arguments={"query": "policy"})
+    payload = await runtime.execute_tool(
+        tool_name="search_documents", arguments={"query": "policy"}
+    )
 
     assert payload["success"] is True
     assert payload["tool_name"] == "search_documents"
@@ -151,7 +161,9 @@ async def test_mcp_runtime_denies_tool_when_capability_is_not_allowed(
     monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
     monkeypatch.setattr(runtime._executor, "execute", _fake_execute)
 
-    payload = await runtime.execute_tool(tool_name="answer_from_context", arguments={"question": "hello"})
+    payload = await runtime.execute_tool(
+        tool_name="answer_from_context", arguments={"question": "hello"}
+    )
 
     assert payload["success"] is False
     assert payload["error"]["code"] == ToolErrorCode.authorization_failed.value
@@ -182,7 +194,9 @@ async def test_mcp_runtime_returns_safe_rate_limit_error(
     monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
     monkeypatch.setattr("app.mcp.server.enforce_mcp_rate_limit", _raise_rate_limit)
 
-    payload = await runtime.execute_tool(tool_name="search_documents", arguments={"query": "policy"})
+    payload = await runtime.execute_tool(
+        tool_name="search_documents", arguments={"query": "policy"}
+    )
 
     assert payload["success"] is False
     assert payload["error"]["code"] == ToolErrorCode.rate_limit_exceeded.value
@@ -204,7 +218,9 @@ async def test_mcp_runtime_returns_safe_rate_limiter_unavailable_error(
             auth_provider="app",
         )
 
-    async def _raise_limiter_unavailable(*, principal: AuthenticatedPrincipal, tool_name: str) -> None:
+    async def _raise_limiter_unavailable(
+        *, principal: AuthenticatedPrincipal, tool_name: str
+    ) -> None:
         _ = (principal, tool_name)
         raise MCPRateLimiterUnavailableError("rate-limiter-offline")
 
@@ -212,7 +228,9 @@ async def test_mcp_runtime_returns_safe_rate_limiter_unavailable_error(
     monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
     monkeypatch.setattr("app.mcp.server.enforce_mcp_rate_limit", _raise_limiter_unavailable)
 
-    payload = await runtime.execute_tool(tool_name="search_documents", arguments={"query": "policy"})
+    payload = await runtime.execute_tool(
+        tool_name="search_documents", arguments={"query": "policy"}
+    )
 
     assert payload["success"] is False
     assert payload["error"]["code"] == ToolErrorCode.rate_limiter_unavailable.value

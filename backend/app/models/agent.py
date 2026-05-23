@@ -30,12 +30,17 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="agent_runs_status_allowed",
         ),
         CheckConstraint("surface IN ('api', 'mcp')", name="agent_runs_surface_allowed"),
-        CheckConstraint("max_steps IS NULL OR max_steps >= 0", name="agent_runs_max_steps_non_negative"),
+        CheckConstraint(
+            "max_steps IS NULL OR max_steps >= 0", name="agent_runs_max_steps_non_negative"
+        ),
         CheckConstraint(
             "max_parallel_tool_calls IS NULL OR max_parallel_tool_calls >= 0",
             name="agent_runs_max_parallel_tool_calls_non_negative",
         ),
-        CheckConstraint("total_cost_usd IS NULL OR total_cost_usd >= 0", name="agent_runs_total_cost_non_negative"),
+        CheckConstraint(
+            "total_cost_usd IS NULL OR total_cost_usd >= 0",
+            name="agent_runs_total_cost_non_negative",
+        ),
         Index("idx_agent_runs_org_status", "organization_id", "status"),
         Index("idx_agent_runs_org_user_created", "organization_id", "user_id", "created_at"),
         Index("idx_agent_runs_trace_request_id", "trace_request_id"),
@@ -59,20 +64,28 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     budget_json: Mapped[dict] = mapped_column("budget", JSON, nullable=False, default=dict)
     costs_json: Mapped[dict] = mapped_column("costs", JSON, nullable=False, default=dict)
     outcome_json: Mapped[dict] = mapped_column("outcome", JSON, nullable=False, default=dict)
-    observations_json: Mapped[dict] = mapped_column("observations", JSON, nullable=False, default=dict)
+    observations_json: Mapped[dict] = mapped_column(
+        "observations", JSON, nullable=False, default=dict
+    )
     total_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(nullable=True)
     trace_request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    error_details_json: Mapped[dict] = mapped_column("error_details", JSON, nullable=False, default=dict)
+    error_details_json: Mapped[dict] = mapped_column(
+        "error_details", JSON, nullable=False, default=dict
+    )
 
     organization = relationship("Organization", back_populates="agent_runs")
     user = relationship("User", back_populates="agent_runs")
     steps = relationship("AgentStep", back_populates="agent_run", cascade="all, delete-orphan")
-    tool_calls = relationship("AgentToolCall", back_populates="agent_run", cascade="all, delete-orphan")
-    approvals = relationship("AgentApproval", back_populates="agent_run", cascade="all, delete-orphan")
+    tool_calls = relationship(
+        "AgentToolCall", back_populates="agent_run", cascade="all, delete-orphan"
+    )
+    approvals = relationship(
+        "AgentApproval", back_populates="agent_run", cascade="all, delete-orphan"
+    )
 
 
 class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -84,7 +97,9 @@ class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="agent_steps_status_allowed",
         ),
         CheckConstraint("sequence >= 0", name="agent_steps_sequence_non_negative"),
-        CheckConstraint("duration_ms IS NULL OR duration_ms >= 0", name="agent_steps_duration_non_negative"),
+        CheckConstraint(
+            "duration_ms IS NULL OR duration_ms >= 0", name="agent_steps_duration_non_negative"
+        ),
         Index("idx_agent_steps_org_status", "organization_id", "status"),
         Index("idx_agent_steps_run_sequence", "agent_run_id", "sequence"),
     )
@@ -110,9 +125,13 @@ class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     inputs_json: Mapped[dict] = mapped_column("inputs", JSON, nullable=False, default=dict)
     outputs_json: Mapped[dict] = mapped_column("outputs", JSON, nullable=False, default=dict)
     metrics_json: Mapped[dict] = mapped_column("metrics", JSON, nullable=False, default=dict)
-    observation_json: Mapped[dict] = mapped_column("observation", JSON, nullable=False, default=dict)
+    observation_json: Mapped[dict] = mapped_column(
+        "observation", JSON, nullable=False, default=dict
+    )
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    error_details_json: Mapped[dict] = mapped_column("error_details", JSON, nullable=False, default=dict)
+    error_details_json: Mapped[dict] = mapped_column(
+        "error_details", JSON, nullable=False, default=dict
+    )
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -146,7 +165,9 @@ class AgentToolCall(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "output_size_bytes IS NULL OR output_size_bytes >= 0",
             name="agent_tool_calls_output_size_non_negative",
         ),
-        CheckConstraint("latency_ms IS NULL OR latency_ms >= 0", name="agent_tool_calls_latency_non_negative"),
+        CheckConstraint(
+            "latency_ms IS NULL OR latency_ms >= 0", name="agent_tool_calls_latency_non_negative"
+        ),
         Index("idx_agent_tool_calls_org_status", "organization_id", "status"),
         Index("idx_agent_tool_calls_run_status", "agent_run_id", "status"),
         Index("idx_agent_tool_calls_tool_name", "tool_name"),
@@ -239,8 +260,12 @@ class AgentApproval(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     request_summary: Mapped[str | None] = mapped_column(Text(), nullable=True)
     decision_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    request_payload_json: Mapped[dict] = mapped_column("request_payload", JSON, nullable=False, default=dict)
-    decision_payload_json: Mapped[dict] = mapped_column("decision_payload", JSON, nullable=False, default=dict)
+    request_payload_json: Mapped[dict] = mapped_column(
+        "request_payload", JSON, nullable=False, default=dict
+    )
+    decision_payload_json: Mapped[dict] = mapped_column(
+        "decision_payload", JSON, nullable=False, default=dict
+    )
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     decided_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
@@ -248,5 +273,9 @@ class AgentApproval(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     agent_run = relationship("AgentRun", back_populates="approvals")
     agent_step = relationship("AgentStep", back_populates="approvals")
     tool_call = relationship("AgentToolCall", back_populates="approvals")
-    requested_by_user = relationship("User", foreign_keys=[requested_by_user_id], back_populates="agent_approvals_requested")
-    decided_by_user = relationship("User", foreign_keys=[decided_by_user_id], back_populates="agent_approvals_decided")
+    requested_by_user = relationship(
+        "User", foreign_keys=[requested_by_user_id], back_populates="agent_approvals_requested"
+    )
+    decided_by_user = relationship(
+        "User", foreign_keys=[decided_by_user_id], back_populates="agent_approvals_decided"
+    )

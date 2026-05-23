@@ -36,7 +36,9 @@ def encode_document_error(details: DocumentErrorDetails) -> str:
     return f"{_ERROR_STORAGE_PREFIX}{json.dumps(details, separators=(',', ':'), sort_keys=True)}"
 
 
-def decode_document_error(raw_error_message: str | None) -> tuple[str | None, DocumentErrorDetails | None]:
+def decode_document_error(
+    raw_error_message: str | None,
+) -> tuple[str | None, DocumentErrorDetails | None]:
     if raw_error_message is None:
         return None, None
     if not raw_error_message.startswith(_ERROR_STORAGE_PREFIX):

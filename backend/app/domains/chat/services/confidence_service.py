@@ -65,9 +65,13 @@ class ConfidenceService:
         )
         self.weights = self._normalize_weights(configured_weights)
         self.medium_threshold = (
-            medium_threshold if medium_threshold is not None else settings.confidence_medium_threshold
+            medium_threshold
+            if medium_threshold is not None
+            else settings.confidence_medium_threshold
         )
-        self.high_threshold = high_threshold if high_threshold is not None else settings.confidence_high_threshold
+        self.high_threshold = (
+            high_threshold if high_threshold is not None else settings.confidence_high_threshold
+        )
         self.not_found_penalty_multiplier = (
             not_found_penalty_multiplier
             if not_found_penalty_multiplier is not None

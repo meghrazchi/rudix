@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -114,7 +116,9 @@ async def clerk_auth_client(
     db_session: AsyncSession,
 ) -> AsyncClient:
     monkeypatch.setattr(settings, "auth_provider", AuthProvider.clerk)
-    monkeypatch.setattr(settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json")
+    monkeypatch.setattr(
+        settings, "clerk_jwks_url", "https://clerk.example.com/.well-known/jwks.json"
+    )
     monkeypatch.setattr(settings, "clerk_jwt_issuer", "https://clerk.example.com")
     monkeypatch.setattr(settings, "clerk_jwt_audience", "rudix-api")
     monkeypatch.setattr(settings, "auth_jwks_cache_ttl_seconds", 300)
@@ -134,7 +138,9 @@ async def clerk_auth_client(
 
 
 @pytest.mark.asyncio
-async def test_clerk_protected_route_rejects_missing_credentials(clerk_auth_client: AsyncClient) -> None:
+async def test_clerk_protected_route_rejects_missing_credentials(
+    clerk_auth_client: AsyncClient,
+) -> None:
     response = await clerk_auth_client.get("/api/v1/pipeline/steps")
 
     assert response.status_code == 401

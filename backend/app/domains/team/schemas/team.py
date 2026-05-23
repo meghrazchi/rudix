@@ -57,4 +57,3 @@ class UpdateTeamMemberRoleRequest(BaseModel):
 
 class TeamMemberRemoveResponse(BaseModel):
     removed: bool = True
-

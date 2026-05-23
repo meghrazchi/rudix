@@ -39,7 +39,12 @@ def _parse_uuid(value: str) -> UUID | None:
 
 
 class ApprovalRequiredError(Exception):
-    def __init__(self, *, approval_id: str, message: str = "Human approval is required before this tool can run.") -> None:
+    def __init__(
+        self,
+        *,
+        approval_id: str,
+        message: str = "Human approval is required before this tool can run.",
+    ) -> None:
         super().__init__(message)
         self.approval_id = approval_id
 
@@ -110,7 +115,9 @@ class AgentToolExecutor:
                 started_at=started_at_dt,
             )
 
-            raw_output = await self._run_with_timeout(handler=handler, call=call, principal=principal, timeout_ms=spec.budget.timeout_ms)
+            raw_output = await self._run_with_timeout(
+                handler=handler, call=call, principal=principal, timeout_ms=spec.budget.timeout_ms
+            )
             safe_output = redact_tool_payload(spec, raw_output or {}, is_output=True)
             result = build_tool_success_result(
                 spec,
@@ -388,23 +395,23 @@ class AgentToolExecutor:
         approval_uuid = _parse_uuid(call.approval_id)
         if approval_uuid is None:
             raise AuthorizationError("approval_id must be a valid UUID value")
-        approval = await self._repository.get_agent_approval(
+        existing_approval = await self._repository.get_agent_approval(
             session,
             approval_id=approval_uuid,
             organization_id=org_uuid,
             agent_run_id=run_uuid,
         )
-        if approval is None:
+        if existing_approval is None:
             raise AuthorizationError("Approval was not found for this organization and run")
-        if approval.status == AgentApprovalStatus.pending.value:
-            raise ApprovalRequiredError(approval_id=str(approval.id))
-        if approval.status in {
+        if existing_approval.status == AgentApprovalStatus.pending.value:
+            raise ApprovalRequiredError(approval_id=str(existing_approval.id))
+        if existing_approval.status in {
             AgentApprovalStatus.rejected.value,
             AgentApprovalStatus.expired.value,
             AgentApprovalStatus.cancelled.value,
         }:
             raise AuthorizationError("Approval is not active")
-        if approval.status != AgentApprovalStatus.approved.value:
+        if existing_approval.status != AgentApprovalStatus.approved.value:
             raise AuthorizationError("Approval is not in approved state")
 
     async def _persist_started_tool_call(
@@ -477,7 +484,9 @@ class AgentToolExecutor:
             status=status,
             output=result.output or {},
             error=result.error.model_dump(mode="json") if result.error else {},
-            output_size_bytes=len(json.dumps(result.output or {}, ensure_ascii=False, default=str).encode("utf-8")),
+            output_size_bytes=len(
+                json.dumps(result.output or {}, ensure_ascii=False, default=str).encode("utf-8")
+            ),
             latency_ms=result.latency_ms,
             completed_at=completed_at,
         )
@@ -648,7 +657,11 @@ class AgentToolExecutor:
                 latency_ms=latency_ms,
             )
         message = str(exc)
-        if "max_input_bytes" in message or "max_output_bytes" in message or "budget exceeded" in message:
+        if (
+            "max_input_bytes" in message
+            or "max_output_bytes" in message
+            or "budget exceeded" in message
+        ):
             code = ToolErrorCode.budget_exceeded
         else:
             code = ToolErrorCode.validation_failed

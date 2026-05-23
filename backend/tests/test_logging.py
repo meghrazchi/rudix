@@ -19,10 +19,14 @@ def test_configure_logging_does_not_duplicate_handlers() -> None:
     _clear_rudix_handlers()
 
     configure_logging("INFO", environment="test", log_format="json")
-    first_count = sum(1 for handler in logging.getLogger().handlers if getattr(handler, _HANDLER_MARKER, False))
+    first_count = sum(
+        1 for handler in logging.getLogger().handlers if getattr(handler, _HANDLER_MARKER, False)
+    )
 
     configure_logging("DEBUG", environment="test", log_format="json")
-    second_count = sum(1 for handler in logging.getLogger().handlers if getattr(handler, _HANDLER_MARKER, False))
+    second_count = sum(
+        1 for handler in logging.getLogger().handlers if getattr(handler, _HANDLER_MARKER, False)
+    )
 
     assert first_count == 1
     assert second_count == 1
@@ -69,7 +73,9 @@ def test_access_log_contains_request_id_and_latency(caplog: pytest.LogCaptureFix
     assert isinstance(payload["latency_ms"], (int, float))
 
 
-def test_exception_log_contains_traceback_and_masks_secrets(caplog: pytest.LogCaptureFixture) -> None:
+def test_exception_log_contains_traceback_and_masks_secrets(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     configure_logging("INFO", environment="test", log_format="json")
 
     app = FastAPI()

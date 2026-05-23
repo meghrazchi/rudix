@@ -9,9 +9,7 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (
-        Index("idx_users_organization_id", "organization_id"),
-    )
+    __table_args__ = (Index("idx_users_organization_id", "organization_id"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -23,7 +21,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     organization = relationship("Organization", back_populates="users")
-    memberships = relationship("OrganizationMember", back_populates="user", cascade="all, delete-orphan")
+    memberships = relationship(
+        "OrganizationMember", back_populates="user", cascade="all, delete-orphan"
+    )
     documents = relationship("Document", back_populates="uploader")
     chat_sessions = relationship("ChatSession", back_populates="user")
     usage_events = relationship("UsageEvent", back_populates="user")

@@ -42,7 +42,9 @@ def _session_factory(session: AsyncSession) -> Callable[[], _SessionScope]:
     return factory
 
 
-def _principal(*, user_id: UUID, organization_id: UUID, role: str = "viewer") -> AuthenticatedPrincipal:
+def _principal(
+    *, user_id: UUID, organization_id: UUID, role: str = "viewer"
+) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=str(user_id),
         organization_id=str(organization_id),
@@ -171,7 +173,9 @@ async def test_document_intelligence_read_only_tools_success(
             "offset": 0,
         },
     )
-    search_result = await executor.execute(session=db_session, call=search_call, principal=principal)
+    search_result = await executor.execute(
+        session=db_session, call=search_call, principal=principal
+    )
     assert search_result.success is True
     assert search_result.output is not None
     assert search_result.output["total"] == 1
@@ -184,7 +188,9 @@ async def test_document_intelligence_read_only_tools_success(
         user_id=str(seeded_documents["user_a_id"]),
         arguments={"document_id": str(seeded_documents["doc_a_id"])},
     )
-    detail_result = await executor.execute(session=db_session, call=detail_call, principal=principal)
+    detail_result = await executor.execute(
+        session=db_session, call=detail_call, principal=principal
+    )
     assert detail_result.success is True
     assert detail_result.output is not None
     assert detail_result.output["document"]["chunk_count"] == 1
@@ -196,7 +202,9 @@ async def test_document_intelligence_read_only_tools_success(
         user_id=str(seeded_documents["user_a_id"]),
         arguments={"document_id": str(seeded_documents["doc_a_id"]), "limit": 10, "offset": 0},
     )
-    chunks_result = await executor.execute(session=db_session, call=chunks_call, principal=principal)
+    chunks_result = await executor.execute(
+        session=db_session, call=chunks_call, principal=principal
+    )
     assert chunks_result.success is True
     assert chunks_result.output is not None
     assert chunks_result.output["total"] == 1

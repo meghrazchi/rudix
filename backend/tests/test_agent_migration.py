@@ -6,10 +6,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 INITIAL_MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "alembic"
-    / "versions"
-    / "20260507_0001_initial_schema.py"
+    Path(__file__).resolve().parents[1] / "alembic" / "versions" / "20260507_0001_initial_schema.py"
 )
 AGENT_MIGRATION_PATH = (
     Path(__file__).resolve().parents[1]

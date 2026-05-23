@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -141,7 +142,9 @@ class AgentRunRepository:
             )
             statement = statement.where(AgentRun.status == normalized_status)
         result = await session.execute(
-            statement.order_by(AgentRun.created_at.desc(), AgentRun.id.desc()).offset(offset).limit(limit)
+            statement.order_by(AgentRun.created_at.desc(), AgentRun.id.desc())
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars().all())
 
@@ -153,7 +156,9 @@ class AgentRunRepository:
         user_id: UUID | None = None,
         status: str | None = None,
     ) -> int:
-        statement = select(func.count(AgentRun.id)).where(AgentRun.organization_id == organization_id)
+        statement = select(func.count(AgentRun.id)).where(
+            AgentRun.organization_id == organization_id
+        )
         if user_id is not None:
             statement = statement.where(AgentRun.user_id == user_id)
         if status is not None:
@@ -210,7 +215,7 @@ class AgentRunRepository:
         if observations is not None:
             run.observations_json = _sanitize_payload(observations)
         if total_cost_usd is not None:
-            run.total_cost_usd = total_cost_usd
+            run.total_cost_usd = Decimal(str(total_cost_usd))
         if started_at is not None:
             run.started_at = started_at
         if completed_at is not None:

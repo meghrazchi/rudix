@@ -6,10 +6,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 MIGRATION_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "alembic"
-    / "versions"
-    / "20260507_0001_initial_schema.py"
+    Path(__file__).resolve().parents[1] / "alembic" / "versions" / "20260507_0001_initial_schema.py"
 )
 
 
@@ -60,10 +57,14 @@ def test_initial_migration_upgrade_and_downgrade_smoke() -> None:
             assert "idx_chunks_document_id" in chunk_indexes
             assert "idx_chunks_qdrant_point_id" in chunk_indexes
 
-            pipeline_run_indexes = {index["name"] for index in inspector.get_indexes("pipeline_runs")}
+            pipeline_run_indexes = {
+                index["name"] for index in inspector.get_indexes("pipeline_runs")
+            }
             assert "idx_pipeline_runs_org_created" in pipeline_run_indexes
 
-            pipeline_event_indexes = {index["name"] for index in inspector.get_indexes("pipeline_events")}
+            pipeline_event_indexes = {
+                index["name"] for index in inspector.get_indexes("pipeline_events")
+            }
             assert "idx_pipeline_events_run_sequence" in pipeline_event_indexes
 
             migration_module.downgrade()

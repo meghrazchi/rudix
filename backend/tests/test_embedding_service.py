@@ -10,7 +10,9 @@ import pytest
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -77,19 +79,22 @@ class FakeOpenAIClient:
 
 @pytest.mark.asyncio
 async def test_embed_chunks_batches_and_tracks_usage() -> None:
-    chunks = [
-        FakeChunk(id=uuid4(), text=f"chunk-{index}", token_count=50)
-        for index in range(5)
-    ]
+    chunks = [FakeChunk(id=uuid4(), text=f"chunk-{index}", token_count=50) for index in range(5)]
 
     client = FakeOpenAIClient(
         responses=[
             FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.1, 0.2]), FakeEmbedding(index=1, embedding=[0.3, 0.4])],
+                data=[
+                    FakeEmbedding(index=0, embedding=[0.1, 0.2]),
+                    FakeEmbedding(index=1, embedding=[0.3, 0.4]),
+                ],
                 usage=FakeUsage(prompt_tokens=100, total_tokens=100),
             ),
             FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.5, 0.6]), FakeEmbedding(index=1, embedding=[0.7, 0.8])],
+                data=[
+                    FakeEmbedding(index=0, embedding=[0.5, 0.6]),
+                    FakeEmbedding(index=1, embedding=[0.7, 0.8]),
+                ],
                 usage=FakeUsage(prompt_tokens=100, total_tokens=100),
             ),
             FakeResponse(
@@ -132,7 +137,10 @@ async def test_embed_chunks_respects_token_batch_budget() -> None:
     client = FakeOpenAIClient(
         responses=[
             FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.1]), FakeEmbedding(index=1, embedding=[0.2])],
+                data=[
+                    FakeEmbedding(index=0, embedding=[0.1]),
+                    FakeEmbedding(index=1, embedding=[0.2]),
+                ],
                 usage=FakeUsage(prompt_tokens=240, total_tokens=240),
             ),
             FakeResponse(
@@ -175,7 +183,9 @@ async def test_embed_chunks_retries_transient_errors(monkeypatch: pytest.MonkeyP
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr(
+        "app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep
+    )
 
     service = EmbeddingService(
         retry_max_attempts=3,
@@ -192,7 +202,9 @@ async def test_embed_chunks_retries_transient_errors(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_embed_chunks_raises_transient_after_retry_exhaustion(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_embed_chunks_raises_transient_after_retry_exhaustion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     chunks = [FakeChunk(id=uuid4(), text="chunk", token_count=10)]
 
     client = FakeOpenAIClient(
@@ -208,7 +220,9 @@ async def test_embed_chunks_raises_transient_after_retry_exhaustion(monkeypatch:
     async def _fake_sleep(seconds: float) -> None:
         sleep_calls.append(seconds)
 
-    monkeypatch.setattr("app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep)
+    monkeypatch.setattr(
+        "app.domains.documents.services.embedding_service.asyncio.sleep", _fake_sleep
+    )
 
     service = EmbeddingService(
         retry_max_attempts=3,

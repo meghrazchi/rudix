@@ -25,8 +25,7 @@ class ChunkLike(Protocol):
 
 
 class EmbeddingsEndpointLike(Protocol):
-    async def create(self, *, model: str, input: list[str]) -> Any:
-        ...
+    async def create(self, *, model: str, input: list[str]) -> Any: ...
 
 
 class OpenAIClientLike(Protocol):
@@ -78,7 +77,9 @@ class EmbeddingService:
         self.retry_base_seconds = retry_base_seconds or settings.embedding_retry_base_seconds
         self.retry_max_seconds = retry_max_seconds or settings.embedding_retry_max_seconds
         self.cost_per_million_tokens_usd = Decimal(
-            str(cost_per_million_tokens_usd or settings.openai_embedding_cost_per_million_tokens_usd)
+            str(
+                cost_per_million_tokens_usd or settings.openai_embedding_cost_per_million_tokens_usd
+            )
         )
         self._openai_client = openai_client
 
@@ -87,7 +88,9 @@ class EmbeddingService:
         if self._openai_client is None:
             if settings.openai_api_key is None:
                 raise PermanentEmbeddingError("openai_api_key is not configured")
-            timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
+            timeout_seconds = max(
+                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
+            )
             self._openai_client = AsyncOpenAI(
                 api_key=settings.openai_api_key.get_secret_value(),
                 timeout=timeout_seconds,
@@ -106,7 +109,9 @@ class EmbeddingService:
                 raise PermanentEmbeddingError(f"chunk {chunk.id} has empty text")
 
             exceeds_items = len(current_batch) >= self.batch_max_items
-            exceeds_tokens = current_batch and (current_tokens + chunk_tokens > self.batch_max_tokens)
+            exceeds_tokens = current_batch and (
+                current_tokens + chunk_tokens > self.batch_max_tokens
+            )
             if exceeds_items or exceeds_tokens:
                 batches.append(current_batch)
                 current_batch = []
@@ -136,7 +141,9 @@ class EmbeddingService:
             ),
         )
 
-    async def _embed_single_batch(self, *, batch: list[ChunkLike]) -> tuple[list[list[float]], int, int, int, int]:
+    async def _embed_single_batch(
+        self, *, batch: list[ChunkLike]
+    ) -> tuple[list[list[float]], int, int, int, int]:
         texts = [chunk.text for chunk in batch]
         fallback_tokens = sum(max(0, chunk.token_count) for chunk in batch)
         attempts = 0
@@ -145,14 +152,18 @@ class EmbeddingService:
             attempts += 1
             started = perf_counter()
             try:
-                response = await self.openai_client.embeddings.create(model=self.model_name, input=texts)
+                response = await self.openai_client.embeddings.create(
+                    model=self.model_name, input=texts
+                )
                 latency_ms = int((perf_counter() - started) * 1000)
 
                 vectors: list[list[float] | None] = [None] * len(batch)
                 for item in response.data:
                     index = int(item.index)
                     if index < 0 or index >= len(batch):
-                        raise PermanentEmbeddingError(f"embedding response index out of range: {index}")
+                        raise PermanentEmbeddingError(
+                            f"embedding response index out of range: {index}"
+                        )
                     vectors[index] = [float(value) for value in item.embedding]
 
                 if any(vector is None for vector in vectors):
@@ -161,12 +172,22 @@ class EmbeddingService:
                 prompt_tokens = int(getattr(response.usage, "prompt_tokens", fallback_tokens))
                 total_tokens = int(getattr(response.usage, "total_tokens", prompt_tokens))
                 retries_used = attempts - 1
-                return [vector for vector in vectors if vector is not None], prompt_tokens, total_tokens, latency_ms, retries_used
+                return (
+                    [vector for vector in vectors if vector is not None],
+                    prompt_tokens,
+                    total_tokens,
+                    latency_ms,
+                    retries_used,
+                )
             except Exception as exc:
                 if not self._is_transient_error(exc):
-                    raise PermanentEmbeddingError(f"embedding request failed permanently: {exc}") from exc
+                    raise PermanentEmbeddingError(
+                        f"embedding request failed permanently: {exc}"
+                    ) from exc
                 if attempts >= self.retry_max_attempts:
-                    raise TransientEmbeddingError(f"embedding request failed after retries: {exc}") from exc
+                    raise TransientEmbeddingError(
+                        f"embedding request failed after retries: {exc}"
+                    ) from exc
                 backoff_seconds = min(
                     self.retry_max_seconds,
                     self.retry_base_seconds * (2 ** (attempts - 1)),
@@ -198,7 +219,13 @@ class EmbeddingService:
         total_retries = 0
 
         for batch in batches:
-            vectors, batch_input_tokens, batch_total_tokens, latency_ms, retries_used = await self._embed_single_batch(batch=batch)
+            (
+                vectors,
+                batch_input_tokens,
+                batch_total_tokens,
+                latency_ms,
+                retries_used,
+            ) = await self._embed_single_batch(batch=batch)
             for chunk, vector in zip(batch, vectors, strict=True):
                 vectors_by_chunk_id[chunk.id] = vector
             total_input_tokens += batch_input_tokens

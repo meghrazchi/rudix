@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -211,7 +213,11 @@ async def seeded_txt_document(db_session: AsyncSession) -> Document:
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value))
+    db_session.add(
+        OrganizationMember(
+            organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value
+        )
+    )
     await db_session.flush()
 
     repository = DocumentRepository()
@@ -236,18 +242,27 @@ async def test_worker_extracts_text_and_persists_document_pages(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     fake_minio = FakeMinioReader(b"line one\nline two")
     fake_qdrant = FakeQdrantService()
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
-    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size),
+    )
     monkeypatch.setattr(document_tasks, "_qdrant_service", fake_qdrant)
     document_id = seeded_txt_document.id
 
-    page_count, chunk_count, cleaning_stats, embedding_result = await document_tasks._extract_and_store_document_pages_async(
-        str(document_id)
-    )
+    (
+        page_count,
+        chunk_count,
+        cleaning_stats,
+        embedding_result,
+    ) = await document_tasks._extract_and_store_document_pages_async(str(document_id))
     assert page_count == 1
     assert chunk_count >= 1
     assert embedding_result.batch_count == 1
@@ -305,12 +320,16 @@ async def test_worker_extracts_text_and_persists_document_pages(
                 .where(PipelineEvent.pipeline_run_id == pipeline_run.id)
                 .order_by(PipelineEvent.sequence.asc())
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     assert len(pipeline_events) >= 8
     assert pipeline_events[0].node_name == "extract"
     assert pipeline_events[0].status == "started"
-    assert any(event.node_name == "index" and event.status == "completed" for event in pipeline_events)
+    assert any(
+        event.node_name == "index" and event.status == "completed" for event in pipeline_events
+    )
 
     db_session.expire_all()
     result = await db_session.execute(select(Document).where(Document.id == UUID(str(document_id))))
@@ -325,10 +344,16 @@ async def test_worker_fails_on_empty_extraction(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b" \n\t "))
-    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size),
+    )
     monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
 
     with pytest.raises(PermanentTaskError, match="extracted document contains no text"):
@@ -341,10 +366,18 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
-    monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two\nline three"))
-    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(
+        minio_module, "minio_client", FakeMinioReader(b"line one\nline two\nline three")
+    )
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size),
+    )
     fake_qdrant = FakeQdrantService()
     monkeypatch.setattr(document_tasks, "_qdrant_service", fake_qdrant)
 
@@ -392,7 +425,10 @@ async def test_worker_replaces_chunks_idempotently_for_same_index_version(
     assert first_snapshot
     assert second_snapshot == first_snapshot
     assert len(fake_qdrant.delete_calls) == 2
-    assert all(call["index_version"] == settings.document_index_version for call in fake_qdrant.delete_calls)
+    assert all(
+        call["index_version"] == settings.document_index_version
+        for call in fake_qdrant.delete_calls
+    )
 
 
 @pytest.mark.asyncio
@@ -401,7 +437,9 @@ async def test_worker_fails_when_embedding_dimension_is_invalid(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two"))
     monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
@@ -421,10 +459,16 @@ async def test_worker_fails_when_qdrant_upsert_fails(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two"))
-    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size),
+    )
     monkeypatch.setattr(document_tasks, "_qdrant_service", FailingQdrantService())
 
     with pytest.raises(TransientTaskError, match="qdrant upsert failed"):
@@ -437,11 +481,17 @@ async def test_worker_fails_when_chunking_produces_no_chunks(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(minio_module, "minio_client", FakeMinioReader(b"line one\nline two"))
     monkeypatch.setattr(document_tasks, "_chunking_service", EmptyChunkingService())
-    monkeypatch.setattr(document_tasks, "_embedding_service", FakeEmbeddingService(dimension=settings.qdrant_vector_size))
+    monkeypatch.setattr(
+        document_tasks,
+        "_embedding_service",
+        FakeEmbeddingService(dimension=settings.qdrant_vector_size),
+    )
     monkeypatch.setattr(document_tasks, "_qdrant_service", FakeQdrantService())
 
     with pytest.raises(PermanentTaskError, match="cleaned document produced no chunks"):
@@ -460,7 +510,9 @@ async def test_delete_worker_removes_vectors_storage_and_local_metadata(
     storage_bucket = seeded_txt_document.storage_bucket
     storage_object_key = seeded_txt_document.storage_object_key
 
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
 
     repository = DocumentRepository()
@@ -561,7 +613,9 @@ async def test_document_worker_audit_helper_writes_log(
     seeded_txt_document: Document,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(document_tasks, "SessionLocal", session_factory)
 
     await document_tasks._record_worker_audit_async(

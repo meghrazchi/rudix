@@ -80,7 +80,9 @@ class UsageRepository:
         if user_id is not None:
             statement = statement.where(UsageEvent.user_id == user_id)
 
-        result = await session.execute(statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc()))
+        result = await session.execute(
+            statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc())
+        )
         return list(result.scalars().all())
 
     async def list_audit_logs(
@@ -127,7 +129,9 @@ class UsageRepository:
         action: str | None = None,
         resource_type: str | None = None,
     ) -> int:
-        statement = select(func.count(AuditLog.id)).where(AuditLog.organization_id == organization_id)
+        statement = select(func.count(AuditLog.id)).where(
+            AuditLog.organization_id == organization_id
+        )
         if from_created_at is not None:
             statement = statement.where(AuditLog.created_at >= from_created_at)
         if to_created_at is not None:

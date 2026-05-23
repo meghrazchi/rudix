@@ -20,9 +20,7 @@ from app.models.enums import EvaluationRunStatus
 
 class EvaluationSet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "evaluation_sets"
-    __table_args__ = (
-        Index("idx_evaluation_sets_organization_id", "organization_id"),
-    )
+    __table_args__ = (Index("idx_evaluation_sets_organization_id", "organization_id"),)
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -33,15 +31,17 @@ class EvaluationSet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     organization = relationship("Organization", back_populates="evaluation_sets")
-    questions = relationship("EvaluationQuestion", back_populates="evaluation_set", cascade="all, delete-orphan")
-    runs = relationship("EvaluationRun", back_populates="evaluation_set", cascade="all, delete-orphan")
+    questions = relationship(
+        "EvaluationQuestion", back_populates="evaluation_set", cascade="all, delete-orphan"
+    )
+    runs = relationship(
+        "EvaluationRun", back_populates="evaluation_set", cascade="all, delete-orphan"
+    )
 
 
 class EvaluationQuestion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "evaluation_questions"
-    __table_args__ = (
-        Index("idx_evaluation_questions_set_id", "evaluation_set_id"),
-    )
+    __table_args__ = (Index("idx_evaluation_questions_set_id", "evaluation_set_id"),)
 
     evaluation_set_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -78,21 +78,23 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("evaluation_sets.id", ondelete="CASCADE"),
         nullable=False,
     )
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=EvaluationRunStatus.queued.value)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=EvaluationRunStatus.queued.value
+    )
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     evaluation_set = relationship("EvaluationSet", back_populates="runs")
-    results = relationship("EvaluationResult", back_populates="evaluation_run", cascade="all, delete-orphan")
+    results = relationship(
+        "EvaluationResult", back_populates="evaluation_run", cascade="all, delete-orphan"
+    )
     pipeline_runs = relationship("PipelineRun", back_populates="evaluation_run")
 
 
 class EvaluationResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "evaluation_results"
-    __table_args__ = (
-        Index("idx_evaluation_results_run_id", "evaluation_run_id"),
-    )
+    __table_args__ = (Index("idx_evaluation_results_run_id", "evaluation_run_id"),)
 
     evaluation_run_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),

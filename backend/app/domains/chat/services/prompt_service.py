@@ -58,11 +58,11 @@ class PromptService:
             "Return format:\n"
             "Return ONLY a valid JSON object with keys: answer, not_found, citations.\n"
             "JSON schema:\n"
-            '{\n'
+            "{\n"
             '  "answer": "string",\n'
             '  "not_found": true,\n'
             '  "citations": [\n'
-            '    {\n'
+            "    {\n"
             '      "document_id": "uuid",\n'
             '      "chunk_id": "uuid",\n'
             '      "filename": "string",\n'

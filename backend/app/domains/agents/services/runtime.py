@@ -117,7 +117,9 @@ class AgentRuntime:
                 "max_runtime_ms": budget.max_runtime_ms,
                 "max_tool_calls": budget.max_tool_calls,
                 "max_total_tokens": budget.max_total_tokens,
-                "max_total_cost_usd": str(budget.max_total_cost_usd) if budget.max_total_cost_usd is not None else None,
+                "max_total_cost_usd": str(budget.max_total_cost_usd)
+                if budget.max_total_cost_usd is not None
+                else None,
             },
             observations={
                 "request_metadata": request.metadata,
@@ -364,8 +366,12 @@ class AgentRuntime:
                     status=AgentStepStatus.failed.value,
                     outputs={},
                     metrics={"latency_ms": tool_result.latency_ms or 0},
-                    error_message=tool_result.error.safe_message if tool_result.error is not None else None,
-                    error_details=tool_result.error.model_dump() if tool_result.error is not None else {},
+                    error_message=tool_result.error.safe_message
+                    if tool_result.error is not None
+                    else None,
+                    error_details=tool_result.error.model_dump()
+                    if tool_result.error is not None
+                    else {},
                     completed_at=datetime.now(tz=UTC),
                     duration_ms=int((perf_counter() - step_started_perf) * 1000),
                 )
@@ -377,7 +383,9 @@ class AgentRuntime:
                     tool_name=selection.tool_name,
                     step_name=selection.step_name,
                     sequence=sequence,
-                    error_code=tool_result.error.code.value if tool_result.error is not None else "internal_error",
+                    error_code=tool_result.error.code.value
+                    if tool_result.error is not None
+                    else "internal_error",
                     latency_ms=tool_result.latency_ms or 0,
                 )
                 return await self._fail_run(
@@ -387,8 +395,12 @@ class AgentRuntime:
                     user_id=user_id,
                     context=context,
                     request_id=request_id,
-                    code=tool_result.error.code.value if tool_result.error is not None else "internal_error",
-                    message=tool_result.error.safe_message if tool_result.error is not None else "Tool execution failed",
+                    code=tool_result.error.code.value
+                    if tool_result.error is not None
+                    else "internal_error",
+                    message=tool_result.error.safe_message
+                    if tool_result.error is not None
+                    else "Tool execution failed",
                     details=tool_result.error.details if tool_result.error is not None else {},
                 )
 
@@ -461,7 +473,11 @@ class AgentRuntime:
                 completed_at=datetime.now(tz=UTC),
                 duration_ms=int((perf_counter() - step_started_perf) * 1000),
             )
-            confidence_score = output.get("confidence", {}).get("score") if isinstance(output.get("confidence"), dict) else None
+            confidence_score = (
+                output.get("confidence", {}).get("score")
+                if isinstance(output.get("confidence"), dict)
+                else None
+            )
             log_agent_event(
                 event="agent.step.completed",
                 organization_id=str(organization_id),
@@ -496,8 +512,12 @@ class AgentRuntime:
                 "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
         )
-        confidence_score = outcome.confidence.get("score") if isinstance(outcome.confidence, dict) else None
-        confidence_category = outcome.confidence.get("category") if isinstance(outcome.confidence, dict) else None
+        confidence_score = (
+            outcome.confidence.get("score") if isinstance(outcome.confidence, dict) else None
+        )
+        confidence_category = (
+            outcome.confidence.get("category") if isinstance(outcome.confidence, dict) else None
+        )
         log_agent_event(
             event="agent.runtime.completed",
             organization_id=str(organization_id),
@@ -651,7 +671,10 @@ class AgentRuntime:
         if arguments.get("document_ids") == _SELECTED_DOCUMENT_IDS:
             if not context.selected_document_ids:
                 raise ValueError("No accessible indexed documents were found for this request")
-            if selection.tool_name == "compare_documents" and len(context.selected_document_ids) < 2:
+            if (
+                selection.tool_name == "compare_documents"
+                and len(context.selected_document_ids) < 2
+            ):
                 raise ValueError("At least two documents are required for compare mode")
             arguments["document_ids"] = context.selected_document_ids
         if arguments.get("document_id") == _SELECTED_DOCUMENT_ID:
@@ -737,10 +760,15 @@ class AgentRuntime:
             return "Runtime budget exceeded"
         return None
 
-    def _check_budget_after_step(self, *, budget: AgentBudgetConfig, context: _RuntimeContext) -> str | None:
+    def _check_budget_after_step(
+        self, *, budget: AgentBudgetConfig, context: _RuntimeContext
+    ) -> str | None:
         if budget.max_total_tokens is not None and context.total_tokens > budget.max_total_tokens:
             return "Token budget exceeded"
-        if budget.max_total_cost_usd is not None and context.total_cost_usd > budget.max_total_cost_usd:
+        if (
+            budget.max_total_cost_usd is not None
+            and context.total_cost_usd > budget.max_total_cost_usd
+        ):
             return "Cost budget exceeded"
         return None
 
@@ -766,23 +794,35 @@ class AgentRuntime:
             answer = str(output.get("response", ""))
             return AgentRuntimeOutcome(
                 answer=answer,
-                citations=output.get("citations", []) if isinstance(output.get("citations"), list) else [],
-                confidence=output.get("confidence", {}) if isinstance(output.get("confidence"), dict) else {},
+                citations=output.get("citations", [])
+                if isinstance(output.get("citations"), list)
+                else [],
+                confidence=output.get("confidence", {})
+                if isinstance(output.get("confidence"), dict)
+                else {},
                 not_found=bool(output.get("not_found", False)),
                 mode=context.mode,
             )
         if context.mode is AgentRuntimeMode.summarize:
             return AgentRuntimeOutcome(
                 answer=str(output.get("summary", "")),
-                citations=output.get("citations", []) if isinstance(output.get("citations"), list) else [],
-                confidence=output.get("confidence", {}) if isinstance(output.get("confidence"), dict) else {},
+                citations=output.get("citations", [])
+                if isinstance(output.get("citations"), list)
+                else [],
+                confidence=output.get("confidence", {})
+                if isinstance(output.get("confidence"), dict)
+                else {},
                 not_found=bool(output.get("not_found", False)),
                 mode=context.mode,
             )
         return AgentRuntimeOutcome(
             answer=str(output.get("comparison", "")),
-            citations=output.get("citations", []) if isinstance(output.get("citations"), list) else [],
-            confidence=output.get("confidence", {}) if isinstance(output.get("confidence"), dict) else {},
+            citations=output.get("citations", [])
+            if isinstance(output.get("citations"), list)
+            else [],
+            confidence=output.get("confidence", {})
+            if isinstance(output.get("confidence"), dict)
+            else {},
             not_found=bool(output.get("not_found", False)),
             mode=context.mode,
         )
@@ -810,7 +850,10 @@ class AgentRuntime:
                 "tool_calls_executed": context.tool_calls_executed,
                 "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
             },
-            costs={"total_tokens": context.total_tokens, "total_cost_usd": str(context.total_cost_usd)},
+            costs={
+                "total_tokens": context.total_tokens,
+                "total_cost_usd": str(context.total_cost_usd),
+            },
             total_cost_usd=float(context.total_cost_usd),
         )
         log_agent_event(
@@ -876,7 +919,10 @@ class AgentRuntime:
             completed_at=datetime.now(tz=UTC),
             error_message=message,
             error_details={"code": code, "details": details},
-            costs={"total_tokens": context.total_tokens, "total_cost_usd": str(context.total_cost_usd)},
+            costs={
+                "total_tokens": context.total_tokens,
+                "total_cost_usd": str(context.total_cost_usd),
+            },
             total_cost_usd=float(context.total_cost_usd),
             observations={
                 "steps_executed": context.steps_executed,

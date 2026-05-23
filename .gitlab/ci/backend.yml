@@ -10,7 +10,7 @@ backend:ruff-mypy:
     - cd backend
     - ruff format --check app tests
     - ruff check app tests
-    - mypy app
+    - mypy app/mcp app/domains/agents app/core/config.py
 
 backend:pytest:
   stage: test

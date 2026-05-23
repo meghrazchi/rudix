@@ -88,7 +88,9 @@ def clean_page_text(text: str) -> tuple[str, TextCleaningStats]:
     without_invalid_chars, invalid_removed = _strip_invalid_characters(newline_normalized)
     stats.invalid_characters_removed = invalid_removed
 
-    cleaned_text, whitespace_collapsed, blank_lines_collapsed = _normalize_whitespace(without_invalid_chars)
+    cleaned_text, whitespace_collapsed, blank_lines_collapsed = _normalize_whitespace(
+        without_invalid_chars
+    )
     stats.whitespace_runs_collapsed = whitespace_collapsed
     stats.blank_lines_collapsed = blank_lines_collapsed
     stats.chars_after = len(cleaned_text)

@@ -55,10 +55,14 @@ def _parse_evaluation_set_id(evaluation_set_id: str) -> UUID:
     try:
         return UUID(evaluation_set_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+        ) from exc
 
 
-def _normalize_question_payload(question: EvaluationQuestion) -> tuple[list[str], dict[str, object]]:
+def _normalize_question_payload(
+    question: EvaluationQuestion,
+) -> tuple[list[str], dict[str, object]]:
     raw_metadata = dict(question.metadata_json or {})
     raw_tags = raw_metadata.pop("tags", [])
     if not isinstance(raw_tags, list):
@@ -97,7 +101,9 @@ def _to_question_response(question: EvaluationQuestion) -> EvaluationQuestionRes
         evaluation_set_id=str(question.evaluation_set_id),
         question=question.question,
         expected_answer=question.expected_answer,
-        expected_document_id=str(question.expected_document_id) if question.expected_document_id is not None else None,
+        expected_document_id=str(question.expected_document_id)
+        if question.expected_document_id is not None
+        else None,
         expected_page_number=question.expected_page_number,
         tags=tags,
         metadata=metadata,
@@ -126,7 +132,9 @@ async def _get_evaluation_set_or_404(
         organization_id=organization_id,
     )
     if evaluation_set is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+        )
     return evaluation_set
 
 
@@ -236,7 +244,11 @@ async def list_evaluation_sets(
     )
 
 
-@router.post("/{evaluation_set_id}/questions", response_model=EvaluationQuestionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{evaluation_set_id}/questions",
+    response_model=EvaluationQuestionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_evaluation_question(
     request: Request,
     evaluation_set_id: str,
@@ -294,7 +306,9 @@ async def create_evaluation_question(
         request_id=request_id,
         metadata={
             "evaluation_set_id": str(evaluation_set.id),
-            "expected_document_id": str(expected_document_id) if expected_document_id is not None else None,
+            "expected_document_id": str(expected_document_id)
+            if expected_document_id is not None
+            else None,
             "expected_page_number": payload.expected_page_number,
             "tag_count": len(payload.tags),
             "has_expected_answer": bool(payload.expected_answer),

@@ -24,7 +24,9 @@ from app.models.enums import AgentApprovalStatus, AgentRunStatus
 from app.models.usage import UsageEvent
 
 
-def _principal(*, user_id: UUID, organization_id: UUID, role: str = "viewer") -> AuthenticatedPrincipal:
+def _principal(
+    *, user_id: UUID, organization_id: UUID, role: str = "viewer"
+) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=str(user_id),
         organization_id=str(organization_id),
@@ -113,25 +115,33 @@ async def test_agent_tool_executor_success_persists_and_audits(
     assert persisted_calls[0].status == "succeeded"
     assert persisted_calls[0].arguments_json["authorization"] == "***"
     tool_usage_events = (
-        await db_session.execute(
-            select(UsageEvent).where(
-                UsageEvent.organization_id == organization_id,
-                UsageEvent.event_type == "agent.tool_call",
+        (
+            await db_session.execute(
+                select(UsageEvent).where(
+                    UsageEvent.organization_id == organization_id,
+                    UsageEvent.event_type == "agent.tool_call",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(tool_usage_events) == 1
     assert tool_usage_events[0].metadata_json["tool_name"] == "documents.get"
     assert tool_usage_events[0].metadata_json["success"] is True
 
     audit_logs = (
-        await db_session.execute(
-            select(AuditLog).where(
-                AuditLog.organization_id == organization_id,
-                AuditLog.action.in_(("agent.tool_call.started", "agent.tool_call.succeeded")),
+        (
+            await db_session.execute(
+                select(AuditLog).where(
+                    AuditLog.organization_id == organization_id,
+                    AuditLog.action.in_(("agent.tool_call.started", "agent.tool_call.succeeded")),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(audit_logs) >= 2
 
 
@@ -192,13 +202,17 @@ async def test_agent_tool_executor_validation_and_auth_failures(
     assert len(pending_approvals) == 1
     assert pending_approvals[0].status == AgentApprovalStatus.pending.value
     approval_usage_events = (
-        await db_session.execute(
-            select(UsageEvent).where(
-                UsageEvent.organization_id == organization_a,
-                UsageEvent.event_type == "agent.approval",
+        (
+            await db_session.execute(
+                select(UsageEvent).where(
+                    UsageEvent.organization_id == organization_a,
+                    UsageEvent.event_type == "agent.approval",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(approval_usage_events) == 1
     assert approval_usage_events[0].metadata_json["status"] == "pending"
 
@@ -247,7 +261,9 @@ async def test_agent_tool_executor_budget_timeout_and_safe_error(
         await asyncio.sleep(0.2)
         return {"status": "late"}
 
-    async def _failing_handler(call: ToolCall, principal: AuthenticatedPrincipal) -> dict[str, object]:
+    async def _failing_handler(
+        call: ToolCall, principal: AuthenticatedPrincipal
+    ) -> dict[str, object]:
         del call, principal
         raise RuntimeError("token=secret-value")
 

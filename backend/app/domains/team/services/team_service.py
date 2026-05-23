@@ -50,4 +50,3 @@ class TeamService:
         if user is not None and user.external_auth_id.startswith(_INVITED_SUBJECT_PREFIX):
             return "invited"
         return "active"
-

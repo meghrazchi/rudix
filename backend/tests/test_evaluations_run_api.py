@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -157,8 +159,12 @@ async def test_run_evaluation_queues_run_and_persists_config(
     fake_run_evaluation_task: FakeRunEvaluationTask,
 ) -> None:
     evaluation_repository = EvaluationRepository()
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="eval-run-admin")
-    document = await _seed_document(db_session, organization=org, uploader=user, filename="local.pdf")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="eval-run-admin"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, filename="local.pdf"
+    )
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=org.id,
@@ -166,7 +172,9 @@ async def test_run_evaluation_queues_run_and_persists_config(
     )
     await db_session.commit()
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",
         headers=_headers(token=token, organization_id=str(org.id)),
@@ -215,8 +223,12 @@ async def test_run_evaluation_rejects_invalid_evaluation_set(
     evaluations_run_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="eval-run-invalid-set")
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="eval-run-invalid-set"
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",
@@ -234,14 +246,18 @@ async def test_run_evaluation_rejects_invalid_config(
     db_session: AsyncSession,
 ) -> None:
     evaluation_repository = EvaluationRepository()
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="eval-run-invalid-config")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="eval-run-invalid-config"
+    )
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=org.id,
         name="Validation Set",
     )
     await db_session.commit()
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",
@@ -263,14 +279,18 @@ async def test_run_evaluation_rejects_member_role(
     db_session: AsyncSession,
 ) -> None:
     evaluation_repository = EvaluationRepository()
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.member, slug_prefix="eval-run-member")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.member, slug_prefix="eval-run-member"
+    )
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=org.id,
         name="Member Role Set",
     )
     await db_session.commit()
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",
@@ -289,7 +309,9 @@ async def test_run_evaluation_blocks_duplicate_active_run_for_set(
     fake_run_evaluation_task: FakeRunEvaluationTask,
 ) -> None:
     evaluation_repository = EvaluationRepository()
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.owner, slug_prefix="eval-run-duplicate")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.owner, slug_prefix="eval-run-duplicate"
+    )
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=org.id,
@@ -302,7 +324,9 @@ async def test_run_evaluation_blocks_duplicate_active_run_for_set(
     )
     await db_session.commit()
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",
         headers=_headers(token=token, organization_id=str(org.id)),
@@ -310,7 +334,9 @@ async def test_run_evaluation_blocks_duplicate_active_run_for_set(
     )
 
     assert response.status_code == 409
-    assert response.json()["detail"] == "An evaluation run is already active for this evaluation set"
+    assert (
+        response.json()["detail"] == "An evaluation run is already active for this evaluation set"
+    )
     assert fake_run_evaluation_task.delay_calls == []
 
 
@@ -322,14 +348,18 @@ async def test_run_evaluation_enqueue_failure_marks_run_failed(
 ) -> None:
     fake_run_evaluation_task.fail_delay = True
     evaluation_repository = EvaluationRepository()
-    user, org = await _seed_org_user(db_session, role=OrganizationRole.admin, slug_prefix="eval-run-enqueue-fail")
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="eval-run-enqueue-fail"
+    )
     evaluation_set = await evaluation_repository.create_evaluation_set(
         db_session,
         organization_id=org.id,
         name="Enqueue Failure Set",
     )
     await db_session.commit()
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await evaluations_run_client.post(
         "/api/v1/evaluations/run",

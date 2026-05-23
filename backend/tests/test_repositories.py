@@ -131,7 +131,9 @@ async def test_document_repository_crud(
         index_version="v1",
     )
     assert removed == 1
-    chunks_after_delete = await document_repository.list_document_chunks(db_session, document_id=document.id)
+    chunks_after_delete = await document_repository.list_document_chunks(
+        db_session, document_id=document.id
+    )
     assert len(chunks_after_delete) == 1
     assert chunks_after_delete[0].index_version == "v2"
 

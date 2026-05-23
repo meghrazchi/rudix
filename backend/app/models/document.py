@@ -28,7 +28,9 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "status IN ('uploaded', 'processing', 'indexed', 'failed', 'deleting', 'deleted')",
             name="documents_status_allowed",
         ),
-        CheckConstraint("page_count IS NULL OR page_count >= 0", name="documents_page_count_non_negative"),
+        CheckConstraint(
+            "page_count IS NULL OR page_count >= 0", name="documents_page_count_non_negative"
+        ),
         Index("idx_documents_org_status", "organization_id", "status"),
         Index("idx_documents_uploaded_by", "uploaded_by_user_id"),
     )
@@ -91,7 +93,9 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", "index_version"),
         UniqueConstraint("qdrant_point_id"),
-        CheckConstraint("page_number IS NULL OR page_number >= 1", name="document_chunks_page_number_positive"),
+        CheckConstraint(
+            "page_number IS NULL OR page_number >= 1", name="document_chunks_page_number_positive"
+        ),
         CheckConstraint("chunk_index >= 0", name="document_chunks_chunk_index_non_negative"),
         CheckConstraint("token_count >= 0", name="document_chunks_token_count_non_negative"),
         Index("idx_chunks_document_id", "document_id"),

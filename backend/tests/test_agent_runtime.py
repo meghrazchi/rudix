@@ -23,7 +23,9 @@ from app.models.enums import AgentRunStatus
 from app.models.usage import UsageEvent
 
 
-def _principal(*, user_id: UUID, organization_id: UUID, role: str = "viewer") -> AuthenticatedPrincipal:
+def _principal(
+    *, user_id: UUID, organization_id: UUID, role: str = "viewer"
+) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         user_id=str(user_id),
         organization_id=str(organization_id),
@@ -62,20 +64,26 @@ def _build_runtime(
     answer_effect_policy: ToolEffectPolicy = ToolEffectPolicy.read_only,
     answer_approval_required: bool = False,
 ) -> AgentRuntime:
-    async def _search_documents(call: ToolCall, principal: AuthenticatedPrincipal) -> dict[str, object]:
+    async def _search_documents(
+        call: ToolCall, principal: AuthenticatedPrincipal
+    ) -> dict[str, object]:
         del principal
         return {
             "total": 1,
             "items": [
                 {
-                    "document_id": str(call.arguments.get("document_id", "11111111-1111-1111-1111-111111111111")),
+                    "document_id": str(
+                        call.arguments.get("document_id", "11111111-1111-1111-1111-111111111111")
+                    ),
                     "filename": "Policy.pdf",
                     "status": "indexed",
                 }
             ],
         }
 
-    async def _answer_from_context(call: ToolCall, principal: AuthenticatedPrincipal) -> dict[str, object]:
+    async def _answer_from_context(
+        call: ToolCall, principal: AuthenticatedPrincipal
+    ) -> dict[str, object]:
         del call, principal
         if answer_raises:
             raise RuntimeError("token=super-secret")
@@ -186,13 +194,17 @@ async def test_agent_runtime_success_path_persists_trace(
     )
     assert len(steps) == 3
     usage_events = (
-        await db_session.execute(
-            select(UsageEvent).where(
-                UsageEvent.organization_id == org_a,
-                UsageEvent.event_type == "agent.runtime",
+        (
+            await db_session.execute(
+                select(UsageEvent).where(
+                    UsageEvent.organization_id == org_a,
+                    UsageEvent.event_type == "agent.runtime",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(usage_events) >= 1
     latest = usage_events[-1]
     assert latest.metadata_json.get("status") == "completed"
@@ -301,13 +313,17 @@ async def test_agent_runtime_safe_error_behavior(
     # Ensure secrets are not present in safe error payloads.
     assert "token" not in str(result.error.details).lower()
     usage_events = (
-        await db_session.execute(
-            select(UsageEvent).where(
-                UsageEvent.organization_id == org_a,
-                UsageEvent.event_type == "agent.runtime",
+        (
+            await db_session.execute(
+                select(UsageEvent).where(
+                    UsageEvent.organization_id == org_a,
+                    UsageEvent.event_type == "agent.runtime",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(usage_events) >= 1
     latest = usage_events[-1]
     assert latest.metadata_json.get("status") == "failed"

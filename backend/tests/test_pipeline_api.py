@@ -1,5 +1,5 @@
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -36,7 +38,6 @@ from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 pipeline_repository = PipelineRepository()
 
@@ -69,7 +70,9 @@ async def _seed_principal(
     role: OrganizationRole = OrganizationRole.member,
 ) -> tuple[User, Organization, Organization]:
     primary_org = Organization(name="Pipeline Primary", slug=f"pipeline-primary-{uuid4().hex[:8]}")
-    secondary_org = Organization(name="Pipeline Secondary", slug=f"pipeline-secondary-{uuid4().hex[:8]}")
+    secondary_org = Organization(
+        name="Pipeline Secondary", slug=f"pipeline-secondary-{uuid4().hex[:8]}"
+    )
     db_session.add_all([primary_org, secondary_org])
     await db_session.flush()
 
@@ -323,13 +326,14 @@ async def test_pipeline_run_resolve_by_document_id_returns_latest_match(
         uploaded_by_user_id=user.id,
         suffix=uuid4().hex[:8],
     )
+    base_started_at = datetime.now(UTC)
     first_run = await pipeline_repository.create_pipeline_run(
         db_session,
         organization_id=organization.id,
         pipeline_type="document.process",
         status="completed",
         document_id=document.id,
-        started_at=datetime.now(UTC),
+        started_at=base_started_at,
     )
     second_run = await pipeline_repository.create_pipeline_run(
         db_session,
@@ -337,8 +341,11 @@ async def test_pipeline_run_resolve_by_document_id_returns_latest_match(
         pipeline_type="document.reindex",
         status="running",
         document_id=document.id,
-        started_at=datetime.now(UTC),
+        started_at=base_started_at + timedelta(seconds=1),
     )
+    first_run.created_at = base_started_at
+    second_run.created_at = base_started_at + timedelta(seconds=1)
+    await db_session.flush()
     await db_session.commit()
 
     token = create_app_access_token(

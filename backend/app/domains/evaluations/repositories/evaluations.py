@@ -48,7 +48,9 @@ class EvaluationRepository:
         *,
         evaluation_set_id: UUID,
     ) -> EvaluationSet | None:
-        result = await session.execute(select(EvaluationSet).where(EvaluationSet.id == evaluation_set_id))
+        result = await session.execute(
+            select(EvaluationSet).where(EvaluationSet.id == evaluation_set_id)
+        )
         return result.scalar_one_or_none()
 
     async def list_evaluation_sets(
@@ -75,7 +77,9 @@ class EvaluationRepository:
         organization_id: UUID,
     ) -> int:
         result = await session.execute(
-            select(func.count(EvaluationSet.id)).where(EvaluationSet.organization_id == organization_id)
+            select(func.count(EvaluationSet.id)).where(
+                EvaluationSet.organization_id == organization_id
+            )
         )
         return int(result.scalar_one())
 
@@ -140,7 +144,9 @@ class EvaluationRepository:
         evaluation_set_id: UUID,
     ) -> int:
         result = await session.execute(
-            select(func.count(EvaluationQuestion.id)).where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+            select(func.count(EvaluationQuestion.id)).where(
+                EvaluationQuestion.evaluation_set_id == evaluation_set_id
+            )
         )
         return int(result.scalar_one())
 
@@ -188,7 +194,9 @@ class EvaluationRepository:
         *,
         evaluation_run_id: UUID,
     ) -> EvaluationRun | None:
-        result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
+        result = await session.execute(
+            select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id)
+        )
         return result.scalar_one_or_none()
 
     async def get_evaluation_run_for_organization(
@@ -217,7 +225,9 @@ class EvaluationRepository:
         mark_started: bool = False,
         mark_completed: bool = False,
     ) -> EvaluationRun | None:
-        result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
+        result = await session.execute(
+            select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id)
+        )
         evaluation_run = result.scalar_one_or_none()
         if evaluation_run is None:
             return None
@@ -239,7 +249,9 @@ class EvaluationRepository:
         evaluation_run_id: UUID,
         config_patch: dict[str, object],
     ) -> EvaluationRun | None:
-        result = await session.execute(select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id))
+        result = await session.execute(
+            select(EvaluationRun).where(EvaluationRun.id == evaluation_run_id)
+        )
         evaluation_run = result.scalar_one_or_none()
         if evaluation_run is None:
             return None
@@ -292,7 +304,9 @@ class EvaluationRepository:
     ) -> list[tuple[EvaluationResult, EvaluationQuestion]]:
         result = await session.execute(
             select(EvaluationResult, EvaluationQuestion)
-            .join(EvaluationQuestion, EvaluationQuestion.id == EvaluationResult.evaluation_question_id)
+            .join(
+                EvaluationQuestion, EvaluationQuestion.id == EvaluationResult.evaluation_question_id
+            )
             .where(EvaluationResult.evaluation_run_id == evaluation_run_id)
             .order_by(EvaluationResult.created_at.asc(), EvaluationResult.id.asc())
             .offset(offset)
@@ -307,7 +321,9 @@ class EvaluationRepository:
         evaluation_run_id: UUID,
     ) -> int:
         result = await session.execute(
-            select(func.count(EvaluationResult.id)).where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+            select(func.count(EvaluationResult.id)).where(
+                EvaluationResult.evaluation_run_id == evaluation_run_id
+            )
         )
         return int(result.scalar_one())
 

@@ -36,7 +36,9 @@ def test_no_legacy_layer_imports_remain() -> None:
 
 def test_domain_layer_has_no_http_api_modules() -> None:
     offenders = sorted((APP_DIR / "domains").glob("*/api/*.py"))
-    assert not offenders, "HTTP modules should live under app/interfaces/http, not app/domains/*/api"
+    assert not offenders, (
+        "HTTP modules should live under app/interfaces/http, not app/domains/*/api"
+    )
 
 
 def test_api_router_uses_interface_routers() -> None:

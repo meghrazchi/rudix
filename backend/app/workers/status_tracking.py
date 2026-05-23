@@ -95,9 +95,7 @@ def set_document_status(
     status: DocumentStatus,
     error_message: str | None = None,
 ) -> bool:
-    return _run(
-        _set_document_status_async(document_id, status=status, error_message=error_message)
-    )
+    return _run(_set_document_status_async(document_id, status=status, error_message=error_message))
 
 
 def get_evaluation_status(evaluation_run_id: str) -> str | None:

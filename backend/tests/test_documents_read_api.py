@@ -11,7 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -241,11 +243,19 @@ async def test_documents_list_filters_by_org_and_status_with_pagination(
         page_count=8,
     )
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await documents_client.get(
         "/api/v1/documents",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
-        params={"status": "indexed", "limit": 1, "offset": 0, "sort_by": "filename", "sort_order": "asc"},
+        params={
+            "status": "indexed",
+            "limit": 1,
+            "offset": 0,
+            "sort_by": "filename",
+            "sort_order": "asc",
+        },
     )
 
     assert response.status_code == 200
@@ -296,7 +306,9 @@ async def test_document_detail_returns_metadata_and_safe_error_summary(
         ),
     )
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     plain_response = await documents_client.get(
         f"/api/v1/documents/{plain_error_doc.id}",
@@ -335,7 +347,9 @@ async def test_document_chunks_endpoint_paginates_and_hides_full_text_by_default
     )
     await _seed_chunks(db_session, document_id=document.id, count=5)
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
 
     response = await documents_client.get(
         f"/api/v1/documents/{document.id}/chunks",
@@ -371,7 +385,9 @@ async def test_document_download_streams_file_for_authorized_user(
     fake_minio = FakeMinioForDownload(content=b"%PDF-1.7\nmock")
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await documents_client.get(
         f"/api/v1/documents/{document.id}/download",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
@@ -406,7 +422,9 @@ async def test_document_download_returns_503_when_storage_unavailable(
     fake_minio.raise_error = True
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await documents_client.get(
         f"/api/v1/documents/{document.id}/download",
         headers=_auth_headers(token=token, organization_id=str(org.id)),
@@ -431,7 +449,9 @@ async def test_document_chunks_rejects_cross_organization_access(
         status=DocumentStatus.indexed,
     )
 
-    token = create_app_access_token(subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
     response = await documents_client.get(
         f"/api/v1/documents/{foreign_document.id}/chunks",
         headers=_auth_headers(token=token, organization_id=str(org.id)),

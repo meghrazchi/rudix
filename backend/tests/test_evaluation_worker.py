@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -201,7 +203,9 @@ async def test_evaluation_worker_persists_results_and_continues_on_question_fail
         selected_document_ids=[],
     )
 
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(evaluation_tasks, "LLMService", FakeLLMService)
     monkeypatch.setattr(
@@ -235,7 +239,9 @@ async def test_evaluation_worker_persists_results_and_continues_on_question_fail
             await db_session.execute(
                 select(EvaluationResult).where(EvaluationResult.evaluation_run_id == UUID(run_id))
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     assert len(rows) == 2
     completed = next(row for row in rows if row.details.get("status") == "completed")
@@ -280,7 +286,9 @@ async def test_evaluation_worker_marks_failed_when_all_questions_fail(
         selected_document_ids=[],
     )
 
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
     monkeypatch.setattr(evaluation_tasks, "LLMService", FakeLLMService)
     monkeypatch.setattr(
@@ -302,7 +310,9 @@ async def test_evaluation_worker_marks_failed_when_all_questions_fail(
             await db_session.execute(
                 select(EvaluationResult).where(EvaluationResult.evaluation_run_id == UUID(run_id))
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     assert len(rows) == 1
     assert rows[0].details["status"] == "failed"
@@ -329,7 +339,9 @@ async def test_evaluation_worker_audit_helper_writes_log(
         selected_document_ids=[],
     )
 
-    session_factory = async_sessionmaker(bind=db_session.bind, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
     monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
 
     await evaluation_tasks._record_worker_audit_async(

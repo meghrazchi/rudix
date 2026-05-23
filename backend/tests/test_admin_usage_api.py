@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -131,7 +133,9 @@ async def test_admin_usage_summary_aggregates_scoped_events(
         db_session,
         role=OrganizationRole.admin,
     )
-    other_user = await _seed_user_for_org(db_session, organization=other_organization, role=OrganizationRole.admin)
+    other_user = await _seed_user_for_org(
+        db_session, organization=other_organization, role=OrganizationRole.admin
+    )
 
     usage_repository = UsageRepository()
     own_event_a = await usage_repository.create_usage_event(
@@ -232,7 +236,9 @@ async def test_admin_audit_logs_list_scoped_with_filters(
         db_session,
         role=OrganizationRole.owner,
     )
-    other_user = await _seed_user_for_org(db_session, organization=other_organization, role=OrganizationRole.owner)
+    other_user = await _seed_user_for_org(
+        db_session, organization=other_organization, role=OrganizationRole.owner
+    )
     usage_repository = UsageRepository()
 
     _own_audit = await usage_repository.create_audit_log(
@@ -329,7 +335,9 @@ async def test_admin_agent_diagnostics_aggregates_agent_events_scoped(
         db_session,
         role=OrganizationRole.admin,
     )
-    other_user = await _seed_user_for_org(db_session, organization=other_organization, role=OrganizationRole.admin)
+    other_user = await _seed_user_for_org(
+        db_session, organization=other_organization, role=OrganizationRole.admin
+    )
     usage_repository = UsageRepository()
 
     completed_event = await usage_repository.create_usage_event(

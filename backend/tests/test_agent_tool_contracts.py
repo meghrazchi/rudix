@@ -242,10 +242,14 @@ def test_default_registry_separates_mcp_from_side_effect_tools() -> None:
     assert specs
 
     read_only_with_mcp = [
-        spec for spec in specs if spec.effect_policy is ToolEffectPolicy.read_only and ToolSurface.mcp in spec.surfaces
+        spec
+        for spec in specs
+        if spec.effect_policy is ToolEffectPolicy.read_only and ToolSurface.mcp in spec.surfaces
     ]
     side_effect_with_mcp = [
-        spec for spec in specs if spec.effect_policy is ToolEffectPolicy.side_effect and ToolSurface.mcp in spec.surfaces
+        spec
+        for spec in specs
+        if spec.effect_policy is ToolEffectPolicy.side_effect and ToolSurface.mcp in spec.surfaces
     ]
 
     assert read_only_with_mcp, "Expected read-only tools to be exposed to MCP"

@@ -407,7 +407,9 @@ async def download_document(
     )
 
 
-@router.delete("/{document_id}", response_model=DeleteDocumentResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.delete(
+    "/{document_id}", response_model=DeleteDocumentResponse, status_code=status.HTTP_202_ACCEPTED
+)
 async def delete_document_endpoint(
     request: Request,
     document_id: str,
@@ -440,7 +442,11 @@ async def delete_document_endpoint(
     )
 
 
-@router.post("/{document_id}/reindex", response_model=ReindexDocumentResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{document_id}/reindex",
+    response_model=ReindexDocumentResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def reindex_document_endpoint(
     request: Request,
     document_id: str,

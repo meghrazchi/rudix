@@ -91,8 +91,12 @@ def _create_signed_token(
     if email is not None:
         payload["email"] = email
 
-    encoded_header = _b64url_encode(json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8"))
-    encoded_payload = _b64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    encoded_header = _b64url_encode(
+        json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
+    encoded_payload = _b64url_encode(
+        json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    )
     signing_input = f"{encoded_header}.{encoded_payload}"
     signature = _sign(signing_input, settings.app_auth_secret.get_secret_value())
     return f"{signing_input}.{signature}"

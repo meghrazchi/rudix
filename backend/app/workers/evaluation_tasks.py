@@ -164,7 +164,9 @@ def _get_openai_client() -> AsyncOpenAI:
     if _openai_client is None:
         if settings.openai_api_key is None:
             raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds)
+        timeout_seconds = max(
+            float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
+        )
         _openai_client = AsyncOpenAI(
             api_key=settings.openai_api_key.get_secret_value(),
             timeout=timeout_seconds,
@@ -215,7 +217,11 @@ async def _evaluate_with_llm_judge_async(
             f"{chunk.text[:1200]}"
         )
     context_block = "\n\n".join(context_lines) if context_lines else "(no context)"
-    expected_block = expected_answer.strip() if isinstance(expected_answer, str) and expected_answer.strip() else "(none)"
+    expected_block = (
+        expected_answer.strip()
+        if isinstance(expected_answer, str) and expected_answer.strip()
+        else "(none)"
+    )
     prompt = (
         "Score the assistant answer for a RAG evaluation.\n"
         "Return strict JSON with keys: faithfulness_score, answer_relevance_score.\n"
@@ -329,7 +335,9 @@ def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
     )
 
 
-def _to_confidence_signals(*, chunks: list[RetrievedChunk], rerank_applied: bool) -> list[ConfidenceChunkSignal]:
+def _to_confidence_signals(
+    *, chunks: list[RetrievedChunk], rerank_applied: bool
+) -> list[ConfidenceChunkSignal]:
     return [
         ConfidenceChunkSignal(
             similarity_score=chunk.similarity_score,
@@ -346,7 +354,9 @@ def _serialize_chunk(chunk: RetrievedChunk) -> dict[str, Any]:
         "filename": chunk.filename,
         "page_number": chunk.page_number,
         "similarity_score": round(float(chunk.similarity_score), 6),
-        "rerank_score": round(float(chunk.rerank_score), 6) if chunk.rerank_score is not None else None,
+        "rerank_score": round(float(chunk.rerank_score), 6)
+        if chunk.rerank_score is not None
+        else None,
         "rerank_rank": chunk.rerank_rank,
         "text_snippet": chunk.text[:400],
     }
@@ -388,7 +398,9 @@ def _parse_run_config(raw_config: dict[str, Any]) -> EvaluationRunConfig:
         try:
             parsed_document_id = UUID(raw_document_id.strip())
         except ValueError as exc:
-            raise PermanentTaskError("Invalid evaluation run config: selected_document_ids") from exc
+            raise PermanentTaskError(
+                "Invalid evaluation run config: selected_document_ids"
+            ) from exc
         if parsed_document_id in seen_document_ids:
             continue
         seen_document_ids.add(parsed_document_id)
@@ -403,9 +415,7 @@ def _parse_run_config(raw_config: dict[str, Any]) -> EvaluationRunConfig:
         rerank=rerank,
         model_name=model_name,
         selected_document_ids=selected_document_ids,
-        metric_options=_evaluation_metrics_service.parse_metric_options(
-            dict(raw_metric_options)
-        ),
+        metric_options=_evaluation_metrics_service.parse_metric_options(dict(raw_metric_options)),
     )
 
 
@@ -456,13 +466,14 @@ async def _evaluate_question_pipeline_async(
     llm_completion_tokens = 0
     llm_model: str | None = None
     llm_cost_usd: Decimal | None = None
-    embedding_cost_usd = (
-        (Decimal(embedding_prompt_tokens) / Decimal(1_000_000))
-        * Decimal(str(settings.openai_embedding_cost_per_million_tokens_usd))
+    embedding_cost_usd = (Decimal(embedding_prompt_tokens) / Decimal(1_000_000)) * Decimal(
+        str(settings.openai_embedding_cost_per_million_tokens_usd)
     )
     citation_validation_score = 1.0
 
-    confidence_signals = _to_confidence_signals(chunks=selected_chunks, rerank_applied=config.rerank)
+    confidence_signals = _to_confidence_signals(
+        chunks=selected_chunks, rerank_applied=config.rerank
+    )
     confidence_result = _confidence_service.score(
         chunks=confidence_signals,
         citation_count=0,
@@ -472,7 +483,9 @@ async def _evaluate_question_pipeline_async(
     confidence_score = confidence_result.score
     confidence_category = confidence_result.category
     confidence_explanation = confidence_result.explanation
-    not_found = len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+    not_found = (
+        len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+    )
     if not_found:
         confidence_result = _confidence_service.score(
             chunks=confidence_signals,
@@ -543,9 +556,9 @@ async def _evaluate_question_pipeline_async(
             confidence_category = confidence_result.category
             confidence_explanation = confidence_result.explanation
 
-        if (
-            not not_found
-            and (config.metric_options.faithfulness_enabled or config.metric_options.answer_relevance_enabled)
+        if not not_found and (
+            config.metric_options.faithfulness_enabled
+            or config.metric_options.answer_relevance_enabled
         ):
             judge_model_name = config.metric_options.judge_model_name or config.model_name
             try:
@@ -608,7 +621,9 @@ async def _evaluate_question_pipeline_async(
         "status": "completed",
         "question": question_text,
         "expected_answer": expected_answer,
-        "expected_document_id": str(expected_document_id) if expected_document_id is not None else None,
+        "expected_document_id": str(expected_document_id)
+        if expected_document_id is not None
+        else None,
         "expected_page_number": expected_page_number,
         "not_found": not_found,
         "confidence_score": confidence_score,
@@ -677,7 +692,9 @@ async def _run_evaluation_async(
             session,
             evaluation_set_id=evaluation_set.id,
         )
-        run_config = _parse_run_config(evaluation_run.config if isinstance(evaluation_run.config, dict) else {})
+        run_config = _parse_run_config(
+            evaluation_run.config if isinstance(evaluation_run.config, dict) else {}
+        )
         llm_service = LLMService(model_name=run_config.model_name)
 
         # Idempotent retry behavior: replace previous results for this run.
@@ -919,7 +936,9 @@ def run_evaluation(
         mark_started=True,
     )
     if not running_updated:
-        raise TransientTaskError(f"Unable to move evaluation run to running state: {evaluation_run_id}")
+        raise TransientTaskError(
+            f"Unable to move evaluation run to running state: {evaluation_run_id}"
+        )
 
     log_evaluation_event(
         event="evaluation.run.started",
@@ -950,7 +969,9 @@ def run_evaluation(
         mark_completed=True,
     )
     if not completed_updated:
-        raise TransientTaskError(f"Unable to move evaluation run to final state: {evaluation_run_id}")
+        raise TransientTaskError(
+            f"Unable to move evaluation run to final state: {evaluation_run_id}"
+        )
 
     log_evaluation_event(
         event="evaluation.run.completed",

@@ -37,7 +37,9 @@ async def trigger_evaluation_workflow(
     try:
         evaluation_set_id = UUID(payload.evaluation_set_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+        ) from exc
 
     evaluation_set = await evaluation_repository.get_evaluation_set(
         db_session,
@@ -45,7 +47,9 @@ async def trigger_evaluation_workflow(
         organization_id=organization_id,
     )
     if evaluation_set is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+        )
 
     selected_document_ids = await ensure_document_ids_access(
         document_ids=payload.config.selected_document_ids,
@@ -66,7 +70,9 @@ async def trigger_evaluation_workflow(
             )
 
     config_payload: dict[str, object] = {
-        "top_k": payload.config.top_k if payload.config.top_k is not None else settings.retrieval_final_top_k,
+        "top_k": payload.config.top_k
+        if payload.config.top_k is not None
+        else settings.retrieval_final_top_k,
         "rerank": payload.config.rerank,
         "model_name": payload.config.model_name or settings.openai_llm_model,
         "selected_document_ids": selected_document_ids_as_strings,
@@ -166,4 +172,3 @@ async def trigger_evaluation_workflow(
         evaluation_run_id=str(evaluation_run.id),
         status="queued",
     )
-

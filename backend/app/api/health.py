@@ -50,9 +50,8 @@ def _openai_configuration_health() -> HealthDependency:
     evaluations_enabled = settings.feature_enable_evaluations
     requires_openai = embeddings_enabled or llm_enabled or evaluations_enabled
 
-    missing_model = (
-        (embeddings_enabled and not settings.openai_embedding_model.strip())
-        or (llm_enabled and not settings.openai_llm_model.strip())
+    missing_model = (embeddings_enabled and not settings.openai_embedding_model.strip()) or (
+        llm_enabled and not settings.openai_llm_model.strip()
     )
 
     ok = (not requires_openai or key_set) and not missing_model
@@ -178,17 +177,23 @@ async def readyz(response: Response) -> HealthResponse:
 @router.get("/configz")
 async def configz() -> dict:
     if not settings.feature_expose_config_snapshot:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Configuration snapshot is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Configuration snapshot is disabled"
+        )
     return settings.sanitized_snapshot()
 
 
 @router.post("/sentry-test", include_in_schema=False)
 async def sentry_test_event() -> dict[str, str | bool | None]:
     if not settings.is_sentry_test_event_enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sentry test endpoint is disabled")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Sentry test endpoint is disabled"
+        )
 
     event_id = capture_sentry_test_event(runtime="api")
     if event_id is None:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sentry is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Sentry is not configured"
+        )
 
     return {"status": "accepted", "event_id": event_id, "sentry_enabled": True}

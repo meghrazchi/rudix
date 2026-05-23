@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from app.models.pipeline import PipelineEvent, PipelineRun
-
+from app.models.pipeline import PipelineEvent
 
 _NODE_LABELS: dict[str, str] = {
     "resolve_document": "Resolve document",
@@ -130,7 +129,9 @@ class AggregatedPipelineNode:
     metrics: dict[str, object]
 
 
-def aggregate_pipeline_nodes(*, pipeline_type: str, events: list[PipelineEvent]) -> list[AggregatedPipelineNode]:
+def aggregate_pipeline_nodes(
+    *, pipeline_type: str, events: list[PipelineEvent]
+) -> list[AggregatedPipelineNode]:
     by_node_name: dict[str, list[PipelineEvent]] = {}
     first_sequence: dict[str, int] = {}
 
@@ -141,17 +142,25 @@ def aggregate_pipeline_nodes(*, pipeline_type: str, events: list[PipelineEvent])
             first_sequence[node_name] = event.sequence
 
     section = pipeline_section_for_type(pipeline_type)
-    ordered_node_names = sorted(first_sequence.keys(), key=lambda node_name: first_sequence[node_name])
+    ordered_node_names = sorted(
+        first_sequence.keys(), key=lambda node_name: first_sequence[node_name]
+    )
 
     nodes: list[AggregatedPipelineNode] = []
     for node_name in ordered_node_names:
         node_events = by_node_name[node_name]
         latest_event = node_events[-1]
-        started_candidates = [item.started_at for item in node_events if item.started_at is not None]
-        completed_candidates = [item.completed_at for item in node_events if item.completed_at is not None]
+        started_candidates = [
+            item.started_at for item in node_events if item.started_at is not None
+        ]
+        completed_candidates = [
+            item.completed_at for item in node_events if item.completed_at is not None
+        ]
 
         started_at = min(started_candidates) if started_candidates else latest_event.started_at
-        completed_at = max(completed_candidates) if completed_candidates else latest_event.completed_at
+        completed_at = (
+            max(completed_candidates) if completed_candidates else latest_event.completed_at
+        )
         duration_ms = latest_event.duration_ms
         if duration_ms is None and started_at is not None and completed_at is not None:
             duration_ms = max(int((completed_at - started_at).total_seconds() * 1000), 0)

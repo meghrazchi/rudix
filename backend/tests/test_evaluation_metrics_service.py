@@ -109,7 +109,11 @@ def test_run_metrics_summary_aggregates_latency_cost_and_rates() -> None:
         expected_answer="A",
         generated_answer="A",
         not_found=False,
-        retrieved_chunks=[RetrievedMetricChunk(document_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), page_number=3)],
+        retrieved_chunks=[
+            RetrievedMetricChunk(
+                document_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), page_number=3
+            )
+        ],
         selected_chunk_count=1,
         citation_count=1,
         citation_accuracy_score=1.0,

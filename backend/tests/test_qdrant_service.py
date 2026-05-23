@@ -8,7 +8,9 @@ import pytest
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app")
+os.environ.setdefault(
+    "DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_app"
+)
 os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 os.environ.setdefault("QDRANT_COLLECTION", "documents")
 os.environ.setdefault("MINIO_ENDPOINT", "http://localhost:9000")
@@ -71,7 +73,9 @@ class FakeQdrantClient:
 
 
 @pytest.mark.asyncio
-async def test_upsert_chunks_includes_required_payload_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_upsert_chunks_includes_required_payload_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = FakeQdrantClient()
     ensure_calls = {"count": 0}
 
@@ -144,7 +148,9 @@ async def test_upsert_chunks_includes_required_payload_fields(monkeypatch: pytes
 
 
 @pytest.mark.asyncio
-async def test_upsert_chunks_is_idempotent_for_same_point_id(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_upsert_chunks_is_idempotent_for_same_point_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = FakeQdrantClient()
     monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
     monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
@@ -206,7 +212,9 @@ async def test_upsert_chunks_is_idempotent_for_same_point_id(monkeypatch: pytest
 
 
 @pytest.mark.asyncio
-async def test_upsert_chunks_regenerates_legacy_point_id_format(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_upsert_chunks_regenerates_legacy_point_id_format(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = FakeQdrantClient()
     monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
     monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
@@ -263,7 +271,9 @@ def test_build_point_id_is_deterministic() -> None:
 
 
 @pytest.mark.asyncio
-async def test_delete_document_points_uses_org_and_document_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_delete_document_points_uses_org_and_document_filter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = FakeQdrantClient()
     ensure_calls = {"count": 0}
 
@@ -293,16 +303,15 @@ async def test_delete_document_points_uses_org_and_document_filter(monkeypatch: 
     must_conditions = getattr(selector, "must", None)
     assert isinstance(must_conditions, list)
     assert len(must_conditions) == 2
-    condition_map = {
-        condition.key: condition.match.value
-        for condition in must_conditions
-    }
+    condition_map = {condition.key: condition.match.value for condition in must_conditions}
     assert condition_map["organization_id"] == str(organization_id)
     assert condition_map["document_id"] == str(document_id)
 
 
 @pytest.mark.asyncio
-async def test_delete_document_points_can_scope_to_index_version(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_delete_document_points_can_scope_to_index_version(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = FakeQdrantClient()
     monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
     monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
@@ -321,10 +330,7 @@ async def test_delete_document_points_can_scope_to_index_version(monkeypatch: py
     must_conditions = getattr(selector, "must", None)
     assert isinstance(must_conditions, list)
     assert len(must_conditions) == 3
-    condition_map = {
-        condition.key: condition.match.value
-        for condition in must_conditions
-    }
+    condition_map = {condition.key: condition.match.value for condition in must_conditions}
     assert condition_map["organization_id"] == str(organization_id)
     assert condition_map["document_id"] == str(document_id)
     assert condition_map["index_version"] == "v-next"

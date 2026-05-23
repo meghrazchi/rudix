@@ -60,7 +60,9 @@ def test_sanitize_metadata_redacts_sensitive_and_content_fields() -> None:
 
 
 @pytest.mark.asyncio
-async def test_audit_service_persists_audit_log_with_sanitized_metadata(db_session: AsyncSession) -> None:
+async def test_audit_service_persists_audit_log_with_sanitized_metadata(
+    db_session: AsyncSession,
+) -> None:
     organization_id, user_id = await _seed_org_user(db_session)
     service = AuditLogService()
 
