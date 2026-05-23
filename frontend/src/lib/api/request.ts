@@ -14,6 +14,10 @@ import {
   normalizeApiError,
   normalizeNetworkError,
 } from "@/lib/api/errors";
+import {
+  addFrontendBreadcrumb,
+  captureFrontendException,
+} from "@/lib/observability";
 
 const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
 const DEFAULT_RETRYABLE_STATUS_CODES = new Set([429, 503]);
@@ -395,6 +399,113 @@ function resolveResponseRequestId(response: Response): string | null {
   );
 }
 
+function extractPathname(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+
+function matchesPath(pathname: string, pattern: RegExp): boolean {
+  return pattern.test(pathname);
+}
+
+function buildActionBreadcrumb(
+  pathname: string,
+  method: string,
+): {
+  category: string;
+  message: string;
+} | null {
+  if (method === "POST" && pathname.endsWith("/documents/upload")) {
+    return {
+      category: "documents.lifecycle",
+      message: "Document upload started",
+    };
+  }
+  if (method === "DELETE" && matchesPath(pathname, /\/documents\/[^/]+$/)) {
+    return {
+      category: "documents.lifecycle",
+      message: "Document delete requested",
+    };
+  }
+  if (
+    method === "POST" &&
+    matchesPath(pathname, /\/documents\/[^/]+\/reindex$/)
+  ) {
+    return {
+      category: "documents.lifecycle",
+      message: "Document re-index requested",
+    };
+  }
+  if (method === "POST" && pathname.endsWith("/chat")) {
+    return {
+      category: "chat.query",
+      message: "Chat question submitted",
+    };
+  }
+  if (method === "POST" && pathname.endsWith("/evaluations/run")) {
+    return {
+      category: "evaluations.run",
+      message: "Evaluation run requested",
+    };
+  }
+  if (
+    method === "GET" &&
+    (pathname.endsWith("/pipeline/runs/resolve") ||
+      matchesPath(pathname, /\/pipeline\/runs\/[^/]+$/))
+  ) {
+    return {
+      category: "pipeline.graph",
+      message: "Pipeline graph load requested",
+    };
+  }
+  if (method === "GET" && pathname.includes("/admin/")) {
+    return {
+      category: "admin.view",
+      message: "Admin data requested",
+    };
+  }
+  return null;
+}
+
+function captureApiFailure(params: {
+  error: ApiClientError;
+  method: string;
+  pathname: string;
+}): void {
+  const { error, method, pathname } = params;
+
+  addFrontendBreadcrumb({
+    category: "api.error",
+    message: `${method} ${pathname} failed`,
+    level: "warning",
+    data: {
+      status: error.status,
+      code: error.code,
+      request_id: error.requestId,
+    },
+  });
+
+  void captureFrontendException(error, {
+    feature: "api.request",
+    level: "error",
+    requestId: error.requestId,
+    tags: {
+      method,
+      status_code: error.status,
+      api_error_code: String(error.code),
+    },
+    extra: {
+      endpoint: pathname,
+      user_message: error.userMessage,
+      action_message: error.actionMessage,
+      retryable: error.retryable,
+    },
+  });
+}
+
 async function parseJsonOrText(response: Response): Promise<unknown> {
   const rawBody = await response.text();
   if (!rawBody) {
@@ -772,6 +883,19 @@ export async function apiRequest<T>(
     toAbsoluteUrl(path, options.apiBaseUrl),
     options.query,
   );
+  const pathname = extractPathname(url);
+  const actionBreadcrumb = buildActionBreadcrumb(pathname, method);
+  if (actionBreadcrumb) {
+    addFrontendBreadcrumb({
+      category: actionBreadcrumb.category,
+      message: actionBreadcrumb.message,
+      level: "info",
+      data: {
+        method,
+        endpoint: pathname,
+      },
+    });
+  }
   const shouldAttachAuth = options.attachAuth ?? true;
   const authRetryPolicy = options.authRetry ?? "safe";
 
@@ -856,7 +980,13 @@ export async function apiRequest<T>(
               continue;
             }
 
-            throw buildRefreshFailureError();
+            const replayError = buildRefreshFailureError();
+            captureApiFailure({
+              error: replayError,
+              method,
+              pathname,
+            });
+            throw replayError;
           }
 
           if (
@@ -883,6 +1013,11 @@ export async function apiRequest<T>(
             continue;
           }
 
+          captureApiFailure({
+            error,
+            method,
+            pathname,
+          });
           throw error;
         }
 
@@ -918,6 +1053,11 @@ export async function apiRequest<T>(
           continue;
         }
 
+        captureApiFailure({
+          error: normalizedError,
+          method,
+          pathname,
+        });
         throw normalizedError;
       }
     }

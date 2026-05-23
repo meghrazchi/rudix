@@ -11,6 +11,7 @@ import {
   findRouteMeta,
   resolveProtectedRouteRedirect,
 } from "@/lib/app-routes";
+import { addFrontendBreadcrumb } from "@/lib/observability";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 type ProtectedAppLayoutProps = {
@@ -64,6 +65,7 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
     }
     return resolveProtectedRouteRedirect(pathname, state);
   }, [boundaryEvent?.redirectTo, pathname, state]);
+  const sessionRole = state.session?.role ?? null;
 
   useEffect(() => {
     if (!redirectTarget) {
@@ -71,6 +73,22 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
     }
     router.replace(redirectTarget);
   }, [redirectTarget, router]);
+
+  useEffect(() => {
+    if (state.status !== "authenticated" || !sessionRole || !pathname) {
+      return;
+    }
+
+    addFrontendBreadcrumb({
+      category: "route.transition",
+      message: "Navigated within authenticated workspace",
+      level: "info",
+      data: {
+        route: pathname,
+        role: sessionRole,
+      },
+    });
+  }, [pathname, sessionRole, state.status]);
 
   if (state.status === "loading") {
     return (

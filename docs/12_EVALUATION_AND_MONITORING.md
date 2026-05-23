@@ -270,6 +270,19 @@ Create alerts for:
 - High latency.
 - High cost.
 
+## Frontend observability notes
+
+- Frontend monitoring is opt-in via `NEXT_PUBLIC_SENTRY_DSN`.
+- When enabled, the UI emits sanitized breadcrumbs for:
+  - document upload/delete/re-index actions
+  - chat question submissions
+  - evaluation run requests
+  - pipeline graph loads
+  - admin data views
+- Route-level rendering errors are captured with safe context, including request/trace IDs when available from backend error responses.
+- Redaction rules remove secrets and high-risk content fields (tokens, passwords, prompt/question/answer/content text) before transport.
+- If DSN is not configured, monitoring calls are no-op and do not affect user flows.
+
 ## Production SLOs
 
 Suggested targets:

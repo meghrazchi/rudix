@@ -6,6 +6,7 @@ import {
   writeSessionToStorage,
 } from "@/lib/auth-session";
 import { ApiClientError } from "@/lib/api/errors";
+import { resetFrontendBreadcrumbsForTesting } from "@/lib/observability";
 import { apiRequest, getJwtExpirationTimeMs } from "@/lib/api/request";
 
 function createJwt(expSeconds: number): string {
@@ -313,5 +314,80 @@ describe("apiRequest refresh handling", () => {
     expect(refreshCalls).toBe(1);
     expect(mutationCalls).toBe(1);
     expect(readSessionFromStorage()?.accessToken).toBe("new-token");
+  });
+});
+
+describe("apiRequest observability integration", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    clearSessionStorage();
+    vi.stubGlobal("fetch", fetchMock);
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearSessionStorage();
+    process.env = { ...originalEnv };
+  });
+
+  it("forwards backend request_id into frontend monitoring context", async () => {
+    process.env.NEXT_PUBLIC_SENTRY_DSN = "https://public@sentry.example.com/77";
+    process.env.NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE = "1";
+    process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT = "test";
+    resetFrontendBreadcrumbsForTesting();
+
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.includes("/api/77/store/")) {
+        return new Response(null, { status: 200 });
+      }
+
+      return new Response(
+        JSON.stringify({
+          detail: {
+            message: "broken request",
+            request_id: "req-backend-body",
+          },
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Request-ID": "req-backend-header",
+          },
+        },
+      );
+    });
+
+    await expect(
+      apiRequest("/broken", {
+        apiBaseUrl: "http://api.test",
+        retry: false,
+      }),
+    ).rejects.toMatchObject({
+      status: 500,
+      requestId: "req-backend-header",
+    } satisfies Partial<ApiClientError>);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    const sentryCall = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/api/77/store/"),
+    );
+
+    expect(sentryCall).toBeTruthy();
+    const sentryPayload = JSON.parse(
+      String((sentryCall?.[1] as RequestInit).body),
+    ) as Record<string, unknown>;
+    const tags = sentryPayload.tags as Record<string, unknown>;
+
+    expect(tags.request_id).toBe("req-backend-header");
   });
 });

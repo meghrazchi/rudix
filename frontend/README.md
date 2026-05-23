@@ -209,6 +209,10 @@ NEXT_PUBLIC_LANDING_DEMO_URL=
 NEXT_PUBLIC_LANDING_STATUS_URL=
 NEXT_PUBLIC_LANDING_CONTACT_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
+NEXT_PUBLIC_SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_RELEASE=
+NEXT_PUBLIC_SENTRY_ENVIRONMENT=
+NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=1
 NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL=
 NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL=
 NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS=
@@ -224,6 +228,8 @@ If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, se
 If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` and `NEXT_PUBLIC_AUTH_LOGOUT_URL`; otherwise refresh can still use `/auth/token/refresh` when a refresh token is present.
 Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
+Set `NEXT_PUBLIC_SENTRY_DSN` to enable frontend observability event capture (breadcrumbs + sanitized exceptions). Leave it empty to keep monitoring disabled.
+Set `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` to control client-side error sampling (`0` to disable transport, `1` for full sampling).
 Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
 Set `NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL` to enable CSV export from Admin Audit Logs.
 Set `NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS` (milliseconds) to auto-refresh `/admin/system-health`; leave empty or `0` to disable.
