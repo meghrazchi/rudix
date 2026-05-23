@@ -205,6 +205,8 @@ Relevant settings:
 - `MCP_RATE_LIMIT_ENABLED`
 - `MCP_RATE_LIMIT_WINDOW_SECONDS`
 - `MCP_RATE_LIMIT_REQUESTS`
+- `FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS`
+- `MCP_EXTERNAL_SERVERS`
 
 Security defaults:
 
@@ -243,6 +245,26 @@ Resource payload policy:
 - Responses are intentionally compact for model context efficiency.
 - Resource pagination is capped server-side (`limit` is clamped to max 50).
 - Citation/snippet text is truncated to concise preview length.
+
+### External MCP connector for agent runtime (F112)
+
+Rudix agents can register approved external MCP tools into the shared internal
+`ToolRegistry` when explicitly enabled.
+
+- Disabled by default via `FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS=false`.
+- Server registry is environment-driven through `MCP_EXTERNAL_SERVERS` (JSON array).
+- Tool exposure is allowlist-based (`allow_tools`) and role-scoped (`required_roles`).
+- External tools default to side-effect policy unless listed in `read_only_tools`;
+  side-effect tools require approval by default.
+- Discovery failures or schema drift are handled safely: the run continues without
+  registering the broken external server.
+
+Minimal example:
+
+```env
+FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS=true
+MCP_EXTERNAL_SERVERS=[{"server_id":"acme_tools","enabled":true,"transport":"streamable_http","base_url":"https://mcp.example.com/mcp","auth_type":"bearer","auth_token":"replace-me","allow_tools":["lookup_customer"],"read_only_tools":["lookup_customer"],"required_roles":["owner","admin"]}]
+```
 
 Run via Docker from repository root:
 

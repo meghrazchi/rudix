@@ -56,6 +56,8 @@ When agent/tool execution is enabled, enforce the same security boundary as API 
 5. Redact sensitive fields from tool outputs, logs, and error details.
 6. Never expose tokens, secrets, or raw protected document text in tool results.
 7. Do not allow MCP adapters to bypass domain policy gates.
+8. For external MCP connectors, keep allowlist-only exposure and require authenticated
+   upstream transport in staging/production.
 
 If user selects documents, add:
 

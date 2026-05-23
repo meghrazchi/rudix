@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from pydantic import ValidationError
 
@@ -90,6 +92,8 @@ ENV_KEYS = [
     "MCP_RATE_LIMIT_ENABLED",
     "MCP_RATE_LIMIT_WINDOW_SECONDS",
     "MCP_RATE_LIMIT_REQUESTS",
+    "FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS",
+    "MCP_EXTERNAL_SERVERS",
 ]
 
 
@@ -432,3 +436,54 @@ def test_mcp_capabilities_parse_and_normalize() -> None:
     parsed = Settings(_env_file=None, **payload)
 
     assert parsed.mcp_capabilities_viewer == ["documents.read", "pipeline.read"]
+
+
+def test_external_mcp_servers_parse_from_json() -> None:
+    payload = valid_settings_kwargs()
+    payload["feature_enable_external_mcp_connectors"] = True
+    payload["mcp_external_servers"] = json.dumps(
+        [
+            {
+                "server_id": "acme_tools",
+                "enabled": True,
+                "transport": "streamable_http",
+                "base_url": "https://mcp.example.com/mcp",
+                "auth_type": "bearer",
+                "auth_token": "external-token",
+                "allow_tools": ["lookup_customer", "lookup_invoice"],
+                "read_only_tools": ["lookup_customer"],
+                "required_roles": ["owner", "admin"],
+            }
+        ]
+    )
+
+    parsed = Settings(_env_file=None, **payload)
+
+    assert parsed.feature_enable_external_mcp_connectors is True
+    assert len(parsed.mcp_external_servers) == 1
+    server = parsed.mcp_external_servers[0]
+    assert server.server_id == "acme_tools"
+    assert server.allow_tools == ["lookup_customer", "lookup_invoice"]
+    assert server.read_only_tools == ["lookup_customer"]
+    assert server.required_roles == ["owner", "admin"]
+
+
+def test_external_mcp_requires_auth_in_production() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["feature_enable_external_mcp_connectors"] = True
+    payload["mcp_external_servers"] = [
+        {
+            "server_id": "acme_tools",
+            "enabled": True,
+            "transport": "streamable_http",
+            "base_url": "https://mcp.example.com/mcp",
+            "auth_type": "none",
+            "allow_tools": ["lookup_customer"],
+            "required_roles": ["owner"],
+        }
+    ]
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)

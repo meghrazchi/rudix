@@ -17,6 +17,23 @@ The diagrams in this document follow the standard **Model Context Protocol (MCP)
 
 Rudix implements that model as a **read-only, organization-scoped adapter** on top of shared domain tool contracts. For agent runtime boundaries and capability tables, see [13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md](./13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md).
 
+## External MCP client connector (F112)
+
+In addition to exposing Rudix as an MCP server, agent runtime can optionally act
+as an MCP client to approved external servers.
+
+Key constraints:
+
+- disabled by default (`FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS=false`)
+- registry is environment-driven (`MCP_EXTERNAL_SERVERS`)
+- allowlist-only tool exposure (`allow_tools`)
+- side-effect tools require approval by default
+- discovery schema drift fails safely (server skipped, runtime continues)
+- external call traces are sanitized and organization-scoped
+
+This keeps inbound MCP server behavior and outbound MCP client behavior separate
+while reusing the same `ToolRegistry`/`ToolSpec`/`AgentToolExecutor` boundaries.
+
 ---
 
 ## Standard MCP architecture (conceptual)

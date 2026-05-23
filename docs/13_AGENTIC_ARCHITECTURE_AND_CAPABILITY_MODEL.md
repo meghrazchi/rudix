@@ -248,6 +248,24 @@ Rudix uses one internal tool layer for both agent runtime and MCP adapters:
 4. Side-effect tools must include idempotency keys; selected side-effect tools can additionally require approval IDs.
 5. Persisted tool-call traces store sanitized payloads and hashed idempotency keys only.
 
+### External MCP client connector (F112)
+
+Rudix can optionally register approved tools from external MCP servers into the
+same internal `ToolRegistry` used by agent runtime:
+
+1. Server registry is environment-driven (`MCP_EXTERNAL_SERVERS`) and disabled by default.
+2. Only `allow_tools` entries are exposed; non-allowlisted remote tools are ignored.
+3. Tool policy is explicit:
+   - names in `read_only_tools` map to `read_only`
+   - all other allowlisted tools map to `side_effect`
+4. Side-effect external tools require approval by default
+   (`approval_required_for_side_effect=true`).
+5. External discovery schema drift fails safely:
+   - broken servers are skipped
+   - agent runtime continues with internal tools only
+6. External call traces are logged as sanitized operational events
+   (`agent.external_mcp.*`) without raw tokens or protected text.
+
 ## Planner/Executor Loop (F102)
 
 `AgentRuntime` implements a persisted plan-act-observe loop:
@@ -314,6 +332,8 @@ AGENT_TOOL_MAX_OUTPUT_BYTES=65536
 AGENT_TOOL_MAX_RETRY_ATTEMPTS=1
 AGENT_PROMPT_INJECTION_GUARD_ENABLED=true
 AGENT_DOCUMENT_INSTRUCTION_GUARD_ENABLED=true
+FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS=false
+MCP_EXTERNAL_SERVERS=[]
 ```
 
 ## Testing Expectations

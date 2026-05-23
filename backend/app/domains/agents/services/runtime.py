@@ -32,6 +32,7 @@ from app.domains.agents.schemas import (
 from app.domains.agents.services.document_intelligence_tools import (
     register_document_intelligence_handlers,
 )
+from app.domains.agents.services.external_mcp import ExternalMCPToolManager
 from app.domains.agents.services.safety_guardrails import PromptInjectionGuard
 from app.domains.agents.services.tool_executor import AgentToolExecutor
 from app.domains.agents.services.tool_registry import ToolRegistry, build_default_tool_specs
@@ -66,6 +67,7 @@ class AgentRuntime:
         audit_service: AuditLogService | None = None,
         safety_guard: PromptInjectionGuard | None = None,
         usage_repository: UsageRepository | None = None,
+        external_mcp_tool_manager: ExternalMCPToolManager | None = None,
     ) -> None:
         resolved_registry = registry or ToolRegistry(specs=build_default_tool_specs())
         if registry is None:
@@ -76,6 +78,7 @@ class AgentRuntime:
         self._audit_service = audit_service or AuditLogService()
         self._safety_guard = safety_guard or PromptInjectionGuard()
         self._usage_repository = usage_repository or UsageRepository()
+        self._external_mcp_tool_manager = external_mcp_tool_manager or ExternalMCPToolManager()
         self._executor = executor or AgentToolExecutor(
             registry=self._registry,
             repository=self._repository,
@@ -102,6 +105,9 @@ class AgentRuntime:
             question=request.question or request.objective,
             selected_document_ids=list(request.document_ids),
         )
+        external_mcp_summary = await self._external_mcp_tool_manager.ensure_registered(
+            registry=self._registry
+        )
 
         run = await self._repository.create_agent_run(
             session,
@@ -124,6 +130,13 @@ class AgentRuntime:
             observations={
                 "request_metadata": request.metadata,
                 "mode": context.mode.value,
+                "external_mcp": {
+                    "enabled": external_mcp_summary.enabled,
+                    "configured_servers": external_mcp_summary.configured_servers,
+                    "discovered_servers": external_mcp_summary.discovered_servers,
+                    "registered_tools": list(external_mcp_summary.registered_tools),
+                    "warning_count": len(external_mcp_summary.warnings),
+                },
             },
             started_at=started_at,
             trace_request_id=request_id,

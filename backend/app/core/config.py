@@ -1,3 +1,4 @@
+import json
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +9,7 @@ from pydantic import (
     AmqpDsn,
     AnyHttpUrl,
     AnyUrl,
+    BaseModel,
     Field,
     PostgresDsn,
     RedisDsn,
@@ -73,6 +75,139 @@ class QdrantDistance(StrEnum):
 class MCPTransport(StrEnum):
     streamable_http = "streamable_http"
     stdio = "stdio"
+
+
+class MCPExternalTransport(StrEnum):
+    streamable_http = "streamable_http"
+
+
+class MCPExternalAuthType(StrEnum):
+    none = "none"
+    bearer = "bearer"
+    header = "header"
+
+
+class MCPExternalServerSettings(BaseModel):
+    server_id: str = Field(
+        min_length=2,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9._-]*$",
+    )
+    enabled: bool = True
+    transport: MCPExternalTransport = MCPExternalTransport.streamable_http
+    base_url: AnyHttpUrl
+    timeout_seconds: float = Field(default=8.0, ge=0.1, le=120.0)
+    auth_type: MCPExternalAuthType = MCPExternalAuthType.none
+    auth_token: SecretStr | None = None
+    auth_header_name: str | None = Field(default=None, min_length=1, max_length=100)
+    auth_header_value: SecretStr | None = None
+    allow_tools: list[str] = Field(default_factory=list, max_length=200)
+    allow_resources: list[str] = Field(default_factory=list, max_length=200)
+    read_only_tools: list[str] = Field(default_factory=list, max_length=200)
+    side_effect_tools: list[str] = Field(default_factory=list, max_length=200)
+    required_roles: list[str] = Field(
+        default_factory=lambda: ["owner", "admin"],
+        max_length=4,
+    )
+    capability_prefix: str = Field(
+        default="external_mcp",
+        min_length=2,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9._-]*$",
+    )
+    expose_on_mcp_surface: bool = False
+    approval_required_for_side_effect: bool = True
+    budget_max_calls_per_run: int | None = Field(default=None, ge=1, le=500)
+    budget_max_input_bytes: int | None = Field(default=None, ge=512, le=10_000_000)
+    budget_max_output_bytes: int | None = Field(default=None, ge=512, le=10_000_000)
+    budget_timeout_ms: int | None = Field(default=None, ge=100, le=300_000)
+    budget_max_retry_attempts: int | None = Field(default=None, ge=0, le=10)
+
+    @field_validator(
+        "allow_tools",
+        "allow_resources",
+        "read_only_tools",
+        "side_effect_tools",
+        mode="before",
+    )
+    @classmethod
+    def validate_string_list(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = [item.strip() for item in value.split(",")]
+        elif isinstance(value, list):
+            raw_items = [str(item).strip() for item in value]
+        else:
+            raise ValueError("value must be a comma-separated string or list")
+
+        normalized_values: list[str] = []
+        for item in raw_items:
+            if not item:
+                continue
+            if item not in normalized_values:
+                normalized_values.append(item)
+        return normalized_values
+
+    @field_validator("required_roles", mode="before")
+    @classmethod
+    def validate_required_roles(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = [item.strip() for item in value.split(",")]
+        elif isinstance(value, list):
+            raw_items = [str(item).strip() for item in value]
+        else:
+            raise ValueError("required_roles must be a comma-separated string or list")
+
+        normalized_roles: list[str] = []
+        for role in raw_items:
+            if not role:
+                continue
+            normalized = role.lower()
+            if normalized not in _ALLOWED_ORG_ROLES:
+                raise ValueError(f"unsupported required role: {role}")
+            if normalized not in normalized_roles:
+                normalized_roles.append(normalized)
+        if not normalized_roles:
+            raise ValueError("required_roles must contain at least one role")
+        return normalized_roles
+
+    @model_validator(mode="after")
+    def validate_consistency(self) -> "MCPExternalServerSettings":
+        if self.auth_type == MCPExternalAuthType.bearer:
+            if self.auth_token is None or not self.auth_token.get_secret_value().strip():
+                raise ValueError("auth_token is required when auth_type=bearer")
+        if self.auth_type == MCPExternalAuthType.header:
+            if self.auth_header_name is None:
+                raise ValueError("auth_header_name is required when auth_type=header")
+            if (
+                self.auth_header_value is None
+                or not self.auth_header_value.get_secret_value().strip()
+            ):
+                raise ValueError("auth_header_value is required when auth_type=header")
+
+        if self.read_only_tools and self.side_effect_tools:
+            overlap = set(self.read_only_tools).intersection(self.side_effect_tools)
+            if overlap:
+                overlap_text = ", ".join(sorted(overlap))
+                raise ValueError(
+                    f"tool names cannot appear in both read_only_tools and side_effect_tools: {overlap_text}"
+                )
+
+        if self.read_only_tools or self.side_effect_tools:
+            allowlist = set(self.allow_tools)
+            out_of_scope = {
+                *[name for name in self.read_only_tools if name not in allowlist],
+                *[name for name in self.side_effect_tools if name not in allowlist],
+            }
+            if out_of_scope:
+                out_of_scope_text = ", ".join(sorted(out_of_scope))
+                raise ValueError(
+                    f"policy tools must also exist in allow_tools allowlist: {out_of_scope_text}"
+                )
+        return self
 
 
 class Settings(BaseSettings):
@@ -227,6 +362,7 @@ class Settings(BaseSettings):
     feature_enable_pipeline_explorer: bool = True
     feature_enable_agents: bool | None = None
     feature_enable_mcp: bool = False
+    feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
     mcp_server_name: str = Field(default="Rudix MCP Server", min_length=3, max_length=120)
     mcp_transport: MCPTransport = MCPTransport.streamable_http
@@ -254,6 +390,9 @@ class Settings(BaseSettings):
     mcp_rate_limit_enabled: bool = True
     mcp_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
     mcp_rate_limit_requests: int = Field(default=30, ge=1, le=10000)
+    mcp_external_servers: Annotated[list[MCPExternalServerSettings], NoDecode] = Field(
+        default_factory=list
+    )
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -374,6 +513,40 @@ class Settings(BaseSettings):
             raise ValueError("MCP capability list must contain at least one capability")
         return normalized_capabilities
 
+    @field_validator("mcp_external_servers", mode="before")
+    @classmethod
+    def validate_external_mcp_servers(
+        cls, value: object
+    ) -> list[MCPExternalServerSettings] | list[dict[str, Any]]:
+        if value is None:
+            return []
+        raw_items: list[object]
+        if isinstance(value, str):
+            normalized_text = value.strip()
+            if not normalized_text:
+                return []
+            try:
+                parsed = json.loads(normalized_text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("mcp_external_servers must be valid JSON") from exc
+            if not isinstance(parsed, list):
+                raise ValueError("mcp_external_servers JSON value must be an array")
+            raw_items = list(parsed)
+        elif isinstance(value, list):
+            raw_items = list(value)
+        else:
+            raise ValueError("mcp_external_servers must be a JSON array or list")
+
+        normalized_items: list[MCPExternalServerSettings] = []
+        seen_ids: set[str] = set()
+        for item in raw_items:
+            server_config = MCPExternalServerSettings.model_validate(item)
+            if server_config.server_id in seen_ids:
+                raise ValueError(f"duplicate external MCP server_id: {server_config.server_id}")
+            seen_ids.add(server_config.server_id)
+            normalized_items.append(server_config)
+        return normalized_items
+
     @field_validator(
         "celery_task_default_queue",
         "celery_queue_documents_processing",
@@ -443,6 +616,19 @@ class Settings(BaseSettings):
                     raise ValueError(
                         "mcp_dev_principal_roles is required when mcp_require_bearer_auth=false"
                     )
+
+        if self.feature_enable_external_mcp_connectors:
+            enabled_servers = [server for server in self.mcp_external_servers if server.enabled]
+            if not enabled_servers:
+                raise ValueError(
+                    "feature_enable_external_mcp_connectors=true requires at least one enabled mcp_external_servers entry"
+                )
+            if self.environment in {Environment.production, Environment.staging}:
+                for server in enabled_servers:
+                    if server.auth_type == MCPExternalAuthType.none:
+                        raise ValueError(
+                            "external MCP servers require auth_type=bearer or auth_type=header in staging/production"
+                        )
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError(
@@ -694,6 +880,7 @@ class Settings(BaseSettings):
                 "pipeline_explorer": self.feature_enable_pipeline_explorer,
                 "agents": self.feature_enable_agents,
                 "mcp": self.feature_enable_mcp,
+                "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
             },
             "mcp": {
@@ -714,6 +901,25 @@ class Settings(BaseSettings):
                 "rate_limit_enabled": self.mcp_rate_limit_enabled,
                 "rate_limit_window_seconds": self.mcp_rate_limit_window_seconds,
                 "rate_limit_requests": self.mcp_rate_limit_requests,
+                "external_connectors_enabled": self.feature_enable_external_mcp_connectors,
+                "external_servers": [
+                    {
+                        "server_id": server.server_id,
+                        "enabled": server.enabled,
+                        "transport": server.transport.value,
+                        "base_url": str(server.base_url),
+                        "auth_type": server.auth_type.value,
+                        "auth_token_set": server.auth_token is not None,
+                        "auth_header_name": server.auth_header_name,
+                        "auth_header_value_set": server.auth_header_value is not None,
+                        "allow_tools_count": len(server.allow_tools),
+                        "allow_resources_count": len(server.allow_resources),
+                        "required_roles": server.required_roles,
+                        "capability_prefix": server.capability_prefix,
+                        "expose_on_mcp_surface": server.expose_on_mcp_surface,
+                    }
+                    for server in self.mcp_external_servers
+                ],
             },
         }
 
