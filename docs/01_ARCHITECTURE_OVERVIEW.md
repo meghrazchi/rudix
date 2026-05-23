@@ -54,6 +54,12 @@ flowchart TD
 Rudix exposes MCP as a separate adapter service when enabled. It reuses the
 same domain tool contracts and authorization boundaries as the API runtime.
 
+For full MCP diagrams (standard host/client/server model, Rudix module map,
+tool/resource/prompt flows, and deployment topology), see
+[15_MCP_SERVER_DEPLOYMENT_MODE.md](./15_MCP_SERVER_DEPLOYMENT_MODE.md) and the
+reference discussion in
+[MCP Architecture and Components](https://chatgpt.com/share/6a117df8-0808-83eb-9e15-78dff162d648).
+
 ```mermaid
 flowchart LR
     C[MCP Client] --> M[MCP Server Adapter]

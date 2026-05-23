@@ -201,6 +201,11 @@ Instruction-like document payload text is treated as untrusted signal and never 
 
 ## MCP Separation Model
 
+Diagrams for standard MCP host/client/server components, Rudix module mapping,
+tool/resource/prompt sequences, and deployment modes are in
+[15_MCP_SERVER_DEPLOYMENT_MODE.md](./15_MCP_SERVER_DEPLOYMENT_MODE.md)
+(reference: [MCP Architecture and Components](https://chatgpt.com/share/6a117df8-0808-83eb-9e15-78dff162d648)).
+
 MCP is an adapter surface, not the core execution boundary:
 
 1. Core agent contracts (`ToolSpec`, `ToolCall`, `ToolResult`) live in backend domain code.

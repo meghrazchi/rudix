@@ -1,38 +1,171 @@
 # 15. Standalone MCP Server Deployment Mode
 
+- **Owner:** Platform / Backend
+- **Status:** Approved
+- **Last Updated:** 2026-05-23
+- **Related Docs:** [13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md](./13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md), [01_ARCHITECTURE_OVERVIEW.md](./01_ARCHITECTURE_OVERVIEW.md), [11_SECURITY_AND_PRODUCTION_CHECKLIST.md](./11_SECURITY_AND_PRODUCTION_CHECKLIST.md)
+
 ## Objective
 
 Expose Rudix capabilities to MCP clients through a standalone server package without coupling MCP transport to the REST chat API runtime.
 
-## Design Summary
+## Reference: MCP architecture and components
 
-MCP is implemented as a separate module:
+The diagrams in this document follow the standard **Model Context Protocol (MCP)** mental model (host, client, server, transports, tools, resources, prompts) described in this external reference:
 
-- `backend/app/mcp/dependencies.py`
-- `backend/app/mcp/auth.py`
-- `backend/app/mcp/server.py`
-- `backend/app/mcp/main.py`
+**[MCP Architecture and Components (ChatGPT share)](https://chatgpt.com/share/6a117df8-0808-83eb-9e15-78dff162d648)**
 
-MCP uses the same shared internal tool contracts as the agent/API runtime:
+Rudix implements that model as a **read-only, organization-scoped adapter** on top of shared domain tool contracts. For agent runtime boundaries and capability tables, see [13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md](./13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md).
 
-- `ToolSpec`
-- `ToolCall`
-- `ToolResult`
-- `ToolRegistry`
-- `AgentToolExecutor`
+---
 
-This avoids duplicated business logic while keeping transport boundaries separate.
+## Standard MCP architecture (conceptual)
 
-## Transport Modes
+At the protocol level, MCP separates the **host application** from **servers** that expose context and actions to the model.
 
-Supported modes:
+```mermaid
+flowchart TB
+  subgraph Host["MCP host (IDE, agent app, automation)"]
+    LLM[LLM / agent runtime]
+    subgraph Clients["MCP clients (one per server connection)"]
+      C1[MCP client A]
+      C2[MCP client B]
+    end
+    LLM <--> Clients
+  end
 
-- `streamable_http` for network deployment
-- `stdio` for local development/testing
+  subgraph Servers["MCP servers"]
+    S1[Rudix MCP server]
+    S2[Other MCP server]
+  end
 
-`stdio` is blocked in `staging` and `production`.
+  C1 <-->|transport| S1
+  C2 <-->|transport| S2
 
-## Disabled-by-Default Behavior
+  subgraph Surfaces["MCP server surfaces"]
+    T[Tools — callable actions]
+    R[Resources — readable context URIs]
+    P[Prompts — reusable workflow templates]
+  end
+
+  S1 --> Surfaces
+```
+
+| MCP component | Role | Rudix implementation |
+|---|---|---|
+| **Host** | Runs the agent/LLM and orchestrates client connections | Cursor, Claude Desktop, custom agents, CI bots |
+| **Client** | Speaks MCP over a transport; forwards tool/resource/prompt requests | Provided by the host SDK |
+| **Server** | Advertises capabilities and executes protocol operations | `backend/app/mcp/server.py` (FastMCP) |
+| **Transport** | Wire protocol between client and server | `stdio` (dev) or `streamable_http` (network) via `app/mcp/main.py` |
+| **Tools** | Structured actions with JSON arguments and results | Public MCP tools → `AgentToolExecutor` |
+| **Resources** | Addressable, read-only context (often URI templates) | `rudix://…` templates → `MCPResourceRuntime` |
+| **Prompts** | Parameterized workflow instructions for the host | `backend/app/mcp/prompts.py` |
+
+---
+
+## Rudix MCP component map
+
+MCP is a **transport adapter**, not a second business-logic stack. Domain rules live under `app/domains/agents` and shared services; MCP modules only handle protocol, auth, rate limits, and mapping.
+
+```mermaid
+flowchart TB
+  subgraph ClientSide["MCP client (in host)"]
+    HC[Host connector]
+  end
+
+  subgraph RudixMCP["Rudix MCP package — backend/app/mcp/"]
+    MAIN[main.py — transport bootstrap]
+    DEP[dependencies.py — FastMCP / HTTP wiring]
+    AUTH[auth.py — bearer principal resolution]
+    POL[policy.py — capability checks]
+    RL[rate_limit.py — per-user/org limits]
+    SRV[server.py — tools + health/ready]
+    RES[resources.py + resource_runtime.py]
+    PRM[prompts.py — workflow templates]
+    CAT[tool_catalog.py — public ↔ internal names]
+  end
+
+  subgraph SharedDomain["Shared agent domain — app/domains/agents/"]
+    REG[ToolRegistry + ToolSpec]
+    EXE[AgentToolExecutor]
+    DIS[DocumentIntelligenceToolService]
+  end
+
+  subgraph DataPlane["Data plane (org-scoped)"]
+    PG[(PostgreSQL)]
+    QD[(Qdrant)]
+    MO[(MinIO)]
+    RD[(Redis)]
+  end
+
+  HC -->|stdio or streamable HTTP| MAIN
+  MAIN --> SRV
+  SRV --> AUTH
+  SRV --> POL
+  SRV --> RL
+  SRV --> CAT
+  CAT --> EXE
+  RES --> AUTH
+  RES --> DIS
+  PRM --> AUTH
+  EXE --> REG
+  EXE --> DIS
+  DIS --> PG
+  DIS --> QD
+  DIS --> MO
+  RL --> RD
+```
+
+Entry points:
+
+- `backend/app/mcp/dependencies.py` — SDK and HTTP integration
+- `backend/app/mcp/auth.py` — authentication
+- `backend/app/mcp/server.py` — tool registration and execution
+- `backend/app/mcp/main.py` — process entry (`python -m app.mcp.main`)
+
+Shared contracts (same as API/agent runtime):
+
+- `ToolSpec`, `ToolCall`, `ToolResult`
+- `ToolRegistry`, `AgentToolExecutor`
+
+---
+
+## Deployment topology
+
+MCP runs as a **separate process** from the REST API. Both can share the backend container image but use different commands and ports.
+
+```mermaid
+flowchart LR
+  subgraph DevLocal["Development"]
+    IDE[IDE / MCP host] -->|stdio| STDIO[MCP process\npython -m app.mcp.main --transport stdio]
+  end
+
+  subgraph Network["Staging / production (compose profile: mcp)"]
+    AGENT[MCP host / gateway] -->|HTTPS + bearer| ING[Ingress / TLS]
+    ING --> HTTP[MCP HTTP service\n:8010 default]
+    HTTP --> HC[GET /health · GET /ready]
+    HTTP --> EP[MCP protocol path\nMCP_HTTP_PATH default /mcp]
+  end
+
+  subgraph SharedBackend["Shared backend image"]
+    API[api service\nuvicorn :8000]
+    MCP[mcp service\napp.mcp.main]
+    WRK[worker service\ncelery]
+  end
+
+  HTTP -.-> MCP
+```
+
+### Transport modes
+
+| Mode | Use case | Rudix constraint |
+|---|---|---|
+| `streamable_http` | Network deployment, remote agents | Default for compose/staging/production |
+| `stdio` | Local IDE integration | **Blocked** in `staging` and `production` |
+
+`stdio` requires dev principal settings (`MCP_DEV_PRINCIPAL_*`) when bearer auth is relaxed.
+
+### Disabled-by-default behavior
 
 MCP is feature-gated:
 
@@ -40,49 +173,84 @@ MCP is feature-gated:
 
 If disabled, MCP startup exits safely and readiness reports the feature gate as not enabled.
 
-## Tool Surface Policy
+---
 
-Default MCP exposure is read-only only. Public MCP tool names:
+## Tool call flow (sequence)
 
-- `search_documents`
-- `ask_documents`
-- `get_document_chunks`
-- `summarize`
-- `compare`
+Every MCP tool call follows the same guardrails as API-side tool execution: authenticate, scope to organization, check capability and rate limit, validate arguments, execute via `AgentToolExecutor`, return redacted `ToolResult`.
 
-Compatibility aliases are also registered for existing clients:
+```mermaid
+sequenceDiagram
+  autonumber
+  participant H as MCP host
+  participant C as MCP client
+  participant S as Rudix MCP server
+  participant A as auth + policy + rate limit
+  participant E as AgentToolExecutor
+  participant D as Domain services
 
-- `get_document_detail`
-- `list_document_chunks` (alias for `get_document_chunks`)
-- `answer_from_context` (alias for `ask_documents`)
-- `summarize_document` (alias for `summarize`)
-- `compare_documents` (alias for `compare`)
+  H->>C: plan tool use
+  C->>S: tools/call (public name + args)
+  S->>S: resolve MCPToolBinding
+  S->>A: resolve bearer principal
+  A-->>S: AuthenticatedPrincipal (org required)
+  S->>A: ensure_mcp_tool_capability
+  S->>A: enforce_mcp_rate_limit
+  S->>S: normalize_arguments
+  S->>E: ToolCall (surface=mcp, internal tool name)
+  E->>D: authorized handler
+  D-->>E: domain result
+  E-->>S: ToolResult (redacted)
+  S-->>C: JSON payload (safe errors on failure)
+  C-->>H: model context update
+```
 
-Side-effect tools remain API-only unless explicitly allowed later.
-MCP does not expose mutation tools such as delete/re-index/evaluation-run.
+Public MCP tool names and internal mappings:
 
-## MCP Tool Contract Mapping
+| Public MCP tool | Internal handler | Effect |
+|---|---|---|
+| `search_documents` | `search_documents` | read_only |
+| `ask_documents` | `answer_from_context` | read_only |
+| `get_document_chunks` | `list_document_chunks` | read_only |
+| `summarize` | `summarize_document` | read_only |
+| `compare` | `compare_documents` | read_only |
 
-MCP validates per-tool input arguments before calling internal handlers.
-Each public MCP tool is bound to an internal `ToolSpec` and internal tool name:
+Compatibility aliases: `get_document_detail`, `list_document_chunks`, `answer_from_context`, `summarize_document`, `compare_documents`.
 
-- `search_documents` -> `search_documents`
-- `ask_documents` -> `answer_from_context`
-- `get_document_chunks` -> `list_document_chunks`
-- `summarize` -> `summarize_document`
-- `compare` -> `compare_documents`
+`ask_documents` returns a structured grounded payload: `answer`, `citations`, `confidence`, `not_found`.
 
-`ask_documents` returns a structured grounded payload including:
+Side-effect tools (delete, re-index, evaluation runs, etc.) remain **API-only** unless explicitly approved for MCP later.
 
-- `answer`
-- `citations`
-- `confidence`
-- `not_found`
+---
 
-## Resource Surface Policy
+## Resource and prompt surfaces
 
-Rudix MCP also exposes read-only resources and templates for citation-friendly
-document context:
+### Resources (read-only context URIs)
+
+Resources provide **compact, citation-friendly** document context without exposing full raw document text by default.
+
+```mermaid
+flowchart LR
+  C[MCP client] -->|resources/read| RR[MCPResourceRuntime]
+  RR --> AUTH[Auth + org scope]
+  RR --> RL[Rate limit]
+  RR --> DIS[DocumentIntelligenceToolService]
+  DIS --> PG[(PostgreSQL)]
+  DIS --> QD[(Qdrant)]
+
+  subgraph URIs["rudix:// URI templates"]
+    U1[documents]
+    U2[documents/{id}]
+    U3[documents/{id}/status]
+    U4[documents/{id}/chunks]
+    U5[search/{query}]
+    U6[citations/{query}]
+  end
+
+  C --> URIs
+```
+
+Templates:
 
 - `rudix://documents{?status,sort_by,sort_order,limit,offset,query}`
 - `rudix://documents/{document_id}`
@@ -91,22 +259,26 @@ document context:
 - `rudix://search/{query}{?status,sort_by,sort_order,limit,offset}`
 - `rudix://citations/{query}{?document_id,top_k,rerank}`
 
-Resource reads enforce the same bearer auth, organization scope, capability
-mapping, and MCP rate-limit controls as tool calls.
+Resource policy:
 
-Resource payload size controls:
+- Same bearer auth, organization scope, capability mapping, and MCP rate limits as tools
+- Server-side pagination caps (`limit` max 50)
+- Trimmed query text and truncated snippets
 
-- Resource responses are deliberately concise and citation-friendly.
-- Pagination inputs are bounded server-side (`limit` max 50).
-- Query text is trimmed to a safe length and snippets are truncated.
+### Prompts (workflow templates)
 
-## Prompt Surface Policy
+Prompts do **not** execute business logic. They return validated instructions that guide the host to call safe read-only tools/resources.
 
-Rudix MCP publishes provider-neutral workflow prompt templates for grounded
-document tasks. These templates do not execute business logic directly; they
-guide clients to call safe read-only MCP tools.
+```mermaid
+flowchart TB
+  C[MCP client] -->|prompts/get| P[MCP prompt registry]
+  P --> AUTH[Auth + org + capability]
+  P --> TPL[Workflow template text]
+  TPL --> H[MCP host plans tool/resource calls]
+  H --> C
+```
 
-Prompt templates:
+Templates:
 
 - `grounded_qa`
 - `summarize_workflow`
@@ -114,85 +286,98 @@ Prompt templates:
 - `obligations_action_items`
 - `evidence_lookup`
 
-Prompt parameters include query/document IDs/style/output format and are
-validated server-side. Prompt access enforces the same bearer auth, active
-organization context, capability checks, and MCP rate limits as tools/resources.
+---
 
-## Authentication and Organization Isolation
+## Security and policy boundary
 
-HTTP mode:
+MCP must never bypass organization isolation, role checks, budgets, or redaction.
 
-- uses bearer token auth from existing auth providers
-- requires organization context via authenticated principal
-- enforces org-scoped execution through shared tool authorization
+```mermaid
+flowchart TB
+  subgraph Allowed["Allowed path"]
+    REQ[MCP request] --> AUTHZ[AuthN + org principal]
+    AUTHZ --> CAP[Capability + role gate]
+    CAP --> BUD[Budget + rate limit]
+    BUD --> EXEC[ToolRegistry / Executor]
+    EXEC --> OUT[Redacted ToolResult]
+  end
 
-Development fallback:
+  subgraph Blocked["Blocked by design"]
+    MCP2[MCP adapter] -.->|no bypass| RAW[(Raw secrets / tokens)]
+    MCP2 -.->|no bypass| MUT[Side-effect mutations by default]
+    MCP2 -.->|no direct access| DB[(PostgreSQL / queues)]
+  end
 
-- optional dev principal fallback when `MCP_REQUIRE_BEARER_AUTH=false`
-- configured by:
-  - `MCP_DEV_PRINCIPAL_USER_ID`
-  - `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`
-  - `MCP_DEV_PRINCIPAL_ROLES`
-- disabled for staging/production deployments
+  EXEC --> SVC[Domain services only]
+  SVC --> DB
+```
 
-## Capability Mapping (Least Privilege)
+### Authentication and organization isolation
 
-MCP tools enforce both role authorization and capability authorization.
+**HTTP mode:**
 
-Role-to-capability mapping is configurable:
+- Bearer token from existing auth providers
+- Active organization on `AuthenticatedPrincipal`
+- Org-scoped execution: `principal.organization_id == call.organization_id`
+
+**Development fallback** (non-production only):
+
+- Optional when `MCP_REQUIRE_BEARER_AUTH=false`
+- `MCP_DEV_PRINCIPAL_USER_ID`, `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`, `MCP_DEV_PRINCIPAL_ROLES`
+
+### Capability mapping (least privilege)
+
+Configurable role → capability lists:
 
 - `MCP_CAPABILITIES_OWNER`
 - `MCP_CAPABILITIES_ADMIN`
 - `MCP_CAPABILITIES_MEMBER`
 - `MCP_CAPABILITIES_VIEWER`
 
-Default behavior keeps MCP read-focused. Viewer role excludes `chat.answer` by default.
+Default: MCP stays read-focused; viewer excludes `chat.answer` by default.
 
-## MCP Rate Limits
+### MCP rate limits
 
-MCP calls are rate-limited per organization, user, tool, and time window.
-
-Relevant settings:
+Per organization, user, tool, and time window:
 
 - `MCP_RATE_LIMIT_ENABLED`
 - `MCP_RATE_LIMIT_WINDOW_SECONDS`
 - `MCP_RATE_LIMIT_REQUESTS`
 
-Redis failure behavior follows the shared rate-limit mode (`RATE_LIMIT_REDIS_FAILURE_MODE`).
+Redis failure behavior follows `RATE_LIMIT_REDIS_FAILURE_MODE`.
 
-## Safety and Redaction
+### Safety and redaction
 
-MCP execution returns structured `ToolResult` payloads with safe errors:
+Structured `ToolResult` with safe errors only — no raw tokens, secrets, or protected document text in failures.
 
-- validation/auth/tool-availability failures are surfaced without secret leakage
-- raw tokens, raw protected document text, and sensitive keys remain redacted by shared policy
+---
 
-## Runtime Endpoints (HTTP mode)
+## Runtime endpoints (HTTP mode)
 
-- `GET /health`
-- `GET /ready`
-- MCP protocol endpoint at `MCP_HTTP_PATH` (default `/mcp`)
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Liveness |
+| `GET /ready` | Dependency readiness (DB, Qdrant, SDK, feature flags) |
+| `MCP_HTTP_PATH` (default `/mcp`) | MCP protocol |
 
-Default local URL:
+Default local URL: `http://localhost:8010`
 
-- `http://localhost:8010`
+---
 
 ## Configuration
 
-Key environment variables:
+| Variable | Purpose |
+|---|---|
+| `FEATURE_ENABLE_MCP` | Master feature gate |
+| `MCP_SERVER_NAME` | Server advertisement name |
+| `MCP_TRANSPORT` | `streamable_http` or `stdio` |
+| `MCP_HTTP_HOST` / `MCP_HTTP_PORT` / `MCP_HTTP_PATH` | HTTP binding |
+| `MCP_REQUIRE_BEARER_AUTH` | Require bearer in HTTP mode |
+| `MCP_DEV_PRINCIPAL_*` | Dev-only principal for stdio |
 
-- `FEATURE_ENABLE_MCP`
-- `MCP_SERVER_NAME`
-- `MCP_TRANSPORT`
-- `MCP_HTTP_HOST`
-- `MCP_HTTP_PORT`
-- `MCP_HTTP_PATH`
-- `MCP_REQUIRE_BEARER_AUTH`
-- `MCP_DEV_PRINCIPAL_USER_ID`
-- `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`
-- `MCP_DEV_PRINCIPAL_ROLES`
+---
 
-## Local Commands
+## Local commands
 
 From `backend/`:
 
@@ -209,17 +394,16 @@ make logs-mcp
 make down-mcp
 ```
 
-`up-mcp` uses the compose `mcp` profile, so MCP service startup is explicit.
+`up-mcp` uses the compose `mcp` profile so MCP startup is explicit.
 
-## Deployment Notes
+---
+
+## Deployment notes
 
 - Staging/production compose includes an optional `mcp` service profile.
-- MCP service reuses backend image and starts with `python -m app.mcp.main`.
-- Readiness/health endpoints are available on the MCP port for operators.
+- MCP reuses the backend image: `python -m app.mcp.main`.
+- Health/readiness use Python `urllib` probes (no `curl` in the runtime image).
+- Keep MCP behind authenticated ingress and TLS in remote environments.
+- Forward `Authorization` and optional `x-organization-id`; do not log tokens or raw document text.
 
-## Protected Resource Metadata Notes (Remote Deployments)
-
-- Keep MCP endpoints behind authenticated ingress and TLS.
-- Preserve `Authorization` header and optional `x-organization-id` forwarding.
-- Do not emit raw document text, bearer tokens, or secrets in proxy/access logs.
-- Restrict network exposure to trusted clients and internal subnets where possible.
+See also [10_DEPLOYMENT_DOCKER.md](./10_DEPLOYMENT_DOCKER.md) for compose layout and image build details.

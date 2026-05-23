@@ -356,7 +356,7 @@ Start here:
 - [`docs/12_EVALUATION_AND_MONITORING.md`](docs/12_EVALUATION_AND_MONITORING.md) — Evaluation and monitoring
 - [`docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md`](docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md) — Agentic architecture and capability model
 - [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md) — GitLab CI/CD and release flow
-- [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — Standalone MCP runtime and deployment mode
+- [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
 - `ci/security/security_gate_allowlist.json` — tracked temporary allowlist for CI severity gate exceptions
 
 Frontend-specific details are available in:
