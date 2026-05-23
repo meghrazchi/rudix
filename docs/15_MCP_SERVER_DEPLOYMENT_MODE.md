@@ -42,16 +42,42 @@ If disabled, MCP startup exits safely and readiness reports the feature gate as 
 
 ## Tool Surface Policy
 
-Default MCP exposure is read-only only:
+Default MCP exposure is read-only only. Public MCP tool names:
 
 - `search_documents`
+- `ask_documents`
+- `get_document_chunks`
+- `summarize`
+- `compare`
+
+Compatibility aliases are also registered for existing clients:
+
 - `get_document_detail`
-- `list_document_chunks`
-- `answer_from_context`
-- `summarize_document`
-- `compare_documents`
+- `list_document_chunks` (alias for `get_document_chunks`)
+- `answer_from_context` (alias for `ask_documents`)
+- `summarize_document` (alias for `summarize`)
+- `compare_documents` (alias for `compare`)
 
 Side-effect tools remain API-only unless explicitly allowed later.
+MCP does not expose mutation tools such as delete/re-index/evaluation-run.
+
+## MCP Tool Contract Mapping
+
+MCP validates per-tool input arguments before calling internal handlers.
+Each public MCP tool is bound to an internal `ToolSpec` and internal tool name:
+
+- `search_documents` -> `search_documents`
+- `ask_documents` -> `answer_from_context`
+- `get_document_chunks` -> `list_document_chunks`
+- `summarize` -> `summarize_document`
+- `compare` -> `compare_documents`
+
+`ask_documents` returns a structured grounded payload including:
+
+- `answer`
+- `citations`
+- `confidence`
+- `not_found`
 
 ## Resource Surface Policy
 

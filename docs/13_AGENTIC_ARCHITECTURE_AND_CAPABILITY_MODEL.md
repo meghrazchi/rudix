@@ -72,6 +72,14 @@ Initial capability map for existing Rudix internals:
 | Document read | `documents.list`, `documents.get`, `documents.chunks.list` | read_only | api, mcp |
 | Document intelligence (read-only) | `search_documents`, `get_document_detail`, `list_document_chunks` | read_only | api, mcp |
 | Grounded read-only reasoning | `answer_from_context`, `summarize_document`, `compare_documents` | read_only | api, mcp |
+
+MCP public naming may expose aliases for client ergonomics while keeping the
+same internal ToolSpec boundaries. Current MCP aliases:
+
+- `ask_documents` -> `answer_from_context`
+- `get_document_chunks` -> `list_document_chunks`
+- `summarize` -> `summarize_document`
+- `compare` -> `compare_documents`
 | Chat retrieval/answer | `chat.answer` | side_effect | api |
 | Evaluation execution | `evaluations.run` | side_effect | api |
 | Pipeline observability | `pipeline.runs.get` | read_only | api, mcp |

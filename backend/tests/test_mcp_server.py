@@ -121,6 +121,63 @@ async def test_mcp_runtime_executes_read_only_tool_with_org_scoped_principal(
     assert payload["latency_ms"] == 7
 
 
+async def test_mcp_runtime_public_alias_maps_to_internal_tool(
+    monkeypatch,
+) -> None:
+    runtime = MCPToolRuntime()
+    monkeypatch.setattr(settings, "feature_enable_mcp", True)
+
+    async def _resolve_principal(_: dict[str, str]) -> AuthenticatedPrincipal:
+        return AuthenticatedPrincipal(
+            user_id="user-123",
+            organization_id="org-123",
+            email="user@example.com",
+            roles=["member"],
+            auth_provider="app",
+        )
+
+    async def _fake_execute(
+        *,
+        session: Any,
+        call: ToolCall,
+        principal: AuthenticatedPrincipal,
+        request_id: str | None,
+    ) -> ToolResult:
+        _ = (session, principal, request_id)
+        assert call.tool_name == "answer_from_context"
+        assert call.arguments["question"] == "What changed in policy?"
+        assert call.arguments["top_k"] == 4
+        assert call.arguments["rerank"] is True
+        return ToolResult(
+            call_id=call.call_id,
+            tool_name=call.tool_name,
+            success=True,
+            output={
+                "response": "The policy changed in section 3.",
+                "not_found": False,
+                "confidence": {"score": 0.81, "category": "high"},
+                "citations": [{"chunk_id": "c-1", "snippet": "Section 3 was updated."}],
+            },
+            error=None,
+            latency_ms=12,
+        )
+
+    monkeypatch.setattr("app.mcp.server.get_http_headers_from_context", lambda: {})
+    monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
+    monkeypatch.setattr(runtime._executor, "execute", _fake_execute)
+
+    payload = await runtime.execute_tool(
+        tool_name="ask_documents",
+        arguments={"question": "What changed in policy?"},
+    )
+
+    assert payload["success"] is True
+    assert payload["tool_name"] == "ask_documents"
+    assert payload["output"]["answer"] == "The policy changed in section 3."
+    assert payload["output"]["confidence"]["category"] == "high"
+    assert payload["output"]["citations"][0]["chunk_id"] == "c-1"
+
+
 async def test_mcp_runtime_denies_tool_when_capability_is_not_allowed(
     monkeypatch,
 ) -> None:
@@ -235,6 +292,47 @@ async def test_mcp_runtime_returns_safe_rate_limiter_unavailable_error(
     assert payload["success"] is False
     assert payload["error"]["code"] == ToolErrorCode.rate_limiter_unavailable.value
     assert "rate limiter unavailable" in payload["error"]["safe_message"].lower()
+
+
+async def test_mcp_runtime_argument_schema_validation_failure(
+    monkeypatch,
+) -> None:
+    runtime = MCPToolRuntime()
+    monkeypatch.setattr(settings, "feature_enable_mcp", True)
+
+    async def _resolve_principal(_: dict[str, str]) -> AuthenticatedPrincipal:
+        return AuthenticatedPrincipal(
+            user_id="user-123",
+            organization_id="org-123",
+            email="user@example.com",
+            roles=["viewer"],
+            auth_provider="app",
+        )
+
+    monkeypatch.setattr("app.mcp.server.get_http_headers_from_context", lambda: {})
+    monkeypatch.setattr("app.mcp.server.resolve_mcp_principal", _resolve_principal)
+
+    payload = await runtime.execute_tool(
+        tool_name="get_document_chunks",
+        arguments={"document_id": "doc-id", "limit": 0},
+    )
+
+    assert payload["success"] is False
+    assert payload["tool_name"] == "get_document_chunks"
+    assert payload["error"]["code"] == ToolErrorCode.validation_failed.value
+
+
+def test_mcp_runtime_exposes_public_read_only_tools_only() -> None:
+    runtime = MCPToolRuntime()
+    names = {spec.name for spec in runtime.list_public_specs()}
+    assert "search_documents" in names
+    assert "ask_documents" in names
+    assert "get_document_chunks" in names
+    assert "summarize" in names
+    assert "compare" in names
+    assert "documents.delete" not in names
+    assert "documents.reindex" not in names
+    assert "chat.answer" not in names
 
 
 def test_mcp_http_app_exposes_health_and_ready_routes(monkeypatch) -> None:

@@ -19,6 +19,7 @@ from app.domains.agents.schemas import (
     ToolError,
     ToolErrorCode,
     ToolResult,
+    ToolSpec,
     ToolSurface,
 )
 from app.domains.agents.services import (
@@ -41,10 +42,11 @@ from app.mcp.rate_limit import (
     enforce_mcp_rate_limit,
 )
 from app.mcp.resources import register_mcp_resources
+from app.mcp.tool_catalog import MCPToolBinding, build_mcp_tool_bindings
 
 _logger = get_logger("mcp.server")
 
-_SUPPORTED_MCP_TOOL_NAMES = {
+_SUPPORTED_INTERNAL_MCP_TOOL_NAMES = {
     "search_documents",
     "get_document_detail",
     "list_document_chunks",
@@ -162,7 +164,7 @@ def _build_mcp_registry() -> ToolRegistry:
             max_output_bytes=settings.agent_tool_max_output_bytes,
             timeout_ms=settings.agent_tool_timeout_ms,
         )
-        if spec.name in _SUPPORTED_MCP_TOOL_NAMES
+        if spec.name in _SUPPORTED_INTERNAL_MCP_TOOL_NAMES
         and ToolSurface.mcp in spec.surfaces
         and spec.effect_policy is ToolEffectPolicy.read_only
     )
@@ -174,22 +176,43 @@ def _build_mcp_registry() -> ToolRegistry:
 class MCPToolRuntime:
     def __init__(self) -> None:
         self._registry = _build_mcp_registry()
+        self._bindings = build_mcp_tool_bindings(internal_specs=self._registry.list_specs())
         self._executor = AgentToolExecutor(registry=self._registry)
 
     @property
     def registry(self) -> ToolRegistry:
         return self._registry
 
+    @property
+    def bindings(self) -> dict[str, MCPToolBinding]:
+        return self._bindings
+
+    def list_public_specs(self) -> tuple[ToolSpec, ...]:
+        return tuple(
+            sorted(
+                (binding.public_spec for binding in self._bindings.values()),
+                key=lambda spec: spec.name,
+            )
+        )
+
     async def execute_tool(
         self, *, tool_name: str, arguments: dict[str, Any] | None
     ) -> dict[str, Any]:
         request_id = str(uuid4())
-        spec = self._registry.get_spec(tool_name)
-        if spec is None:
+        binding = self._bindings.get(tool_name)
+        if binding is None:
             return _safe_tool_error_payload(
                 tool_name=tool_name,
                 code=ToolErrorCode.tool_unavailable,
                 message="Tool is not registered for this MCP server.",
+                request_id=request_id,
+            )
+        spec = self._registry.get_spec(binding.internal_name)
+        if spec is None:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.tool_unavailable,
+                message="Mapped internal tool is unavailable for this MCP server.",
                 request_id=request_id,
             )
 
@@ -227,7 +250,7 @@ class MCPToolRuntime:
             )
 
         try:
-            ensure_mcp_tool_capability(principal=principal, tool_spec=spec)
+            ensure_mcp_tool_capability(principal=principal, tool_spec=binding.public_spec)
         except AuthorizationError:
             return _safe_tool_error_payload(
                 tool_name=tool_name,
@@ -253,13 +276,23 @@ class MCPToolRuntime:
                 request_id=request_id,
             )
 
+        try:
+            normalized_arguments = binding.normalize_arguments(arguments)
+        except Exception:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.validation_failed,
+                message="Tool arguments failed validation for this MCP tool.",
+                request_id=request_id,
+            )
+
         call = ToolCall(
             run_id=str(uuid4()),
-            tool_name=tool_name,
+            tool_name=binding.internal_name,
             organization_id=principal.organization_id,
             user_id=principal.user_id,
             surface=ToolSurface.mcp,
-            arguments=arguments or {},
+            arguments=normalized_arguments,
         )
 
         result = await self._executor.execute(
@@ -273,11 +306,16 @@ class MCPToolRuntime:
             organization_id=principal.organization_id,
             user_id=principal.user_id,
             run_id=call.run_id,
-            tool_name=tool_name,
+            tool_name=binding.internal_name,
+            mcp_tool_name=tool_name,
             success=result.success,
             request_id=request_id,
         )
-        return result.model_dump(mode="json")
+        payload = result.model_dump(mode="json")
+        payload["tool_name"] = tool_name
+        if result.success and isinstance(payload.get("output"), dict):
+            payload["output"] = binding.normalize_output(payload["output"])
+        return payload
 
 
 @lru_cache(maxsize=1)
@@ -296,7 +334,7 @@ def _register_tools(server: Any, runtime: MCPToolRuntime) -> None:
         )
         return tool_handler
 
-    for spec in runtime.registry.list_specs():
+    for spec in runtime.list_public_specs():
         tool_name = spec.name
         handler = _build_handler(tool_name, spec.description)
         try:

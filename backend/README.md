@@ -159,6 +159,15 @@ Key behavior:
 - MCP is disabled by default via `FEATURE_ENABLE_MCP=false`.
 - MCP is a separate adapter surface and does not route through `app.main`.
 - Only read-only tools are exposed by default.
+- Public MCP tool names are:
+  - `search_documents`
+  - `ask_documents`
+  - `get_document_chunks`
+  - `summarize`
+  - `compare`
+- Compatibility aliases are preserved (`answer_from_context`,
+  `list_document_chunks`, `summarize_document`, `compare_documents`,
+  `get_document_detail`).
 - Read-only MCP resources/templates are exposed for document metadata, status,
   chunks, search context, and citations.
 - Tool execution reuses the shared `ToolRegistry` + `AgentToolExecutor` contract.
