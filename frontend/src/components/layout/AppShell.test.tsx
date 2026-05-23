@@ -1,19 +1,26 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { APP_ROUTES, type AppNavigationItem } from "@/lib/app-routes";
 import type { AuthenticatedSession } from "@/lib/auth-session";
+import * as chatApi from "@/lib/api/chat";
+import * as documentsApi from "@/lib/api/documents";
 
-function buildNavItems(activeKey: string): AppNavigationItem[] {
+function buildNavItems(
+  activeKey: string,
+  session: AuthenticatedSession,
+): AppNavigationItem[] {
   return APP_ROUTES.map((route) => ({
     ...route,
     isActive: route.key === activeKey,
     hidden: false,
-    disabled: false,
-    disabledReason: null,
+    disabled: !route.allowedRoles.includes(session.role),
+    disabledReason: route.allowedRoles.includes(session.role)
+      ? null
+      : "insufficient_role",
   }));
 }
 
@@ -33,7 +40,7 @@ function renderShell({
 
   const activeRoute =
     APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
-  const navItems = buildNavItems(activeRoute.key);
+  const navItems = buildNavItems(activeRoute.key, session);
 
   return render(
     <QueryClientProvider client={queryClient}>
@@ -61,10 +68,47 @@ describe("AppShell top bar menus", () => {
       NEXT_PUBLIC_HELP_README_URL: "https://github.com/example/project#readme",
       NEXT_PUBLIC_TOPBAR_NOTIFICATIONS_URL: "",
     };
+    vi.spyOn(documentsApi, "listDocuments").mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "Retention Policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 12,
+          chunk_count: 40,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-20T10:00:00Z",
+          updated_at: "2026-05-20T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 80,
+      offset: 0,
+      status: null,
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.spyOn(chatApi, "listChatSessions").mockResolvedValue({
+      items: [
+        {
+          session_id: "session-1",
+          title: "Retention policy questions",
+          message_count: 6,
+          created_at: "2026-05-20T09:00:00Z",
+          updated_at: "2026-05-20T09:30:00Z",
+        },
+      ],
+      total: 1,
+      limit: 40,
+      offset: 0,
+    });
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    vi.restoreAllMocks();
   });
 
   it("shows profile context and runs logout action from profile menu", async () => {
@@ -162,5 +206,68 @@ describe("AppShell top bar menus", () => {
         screen.queryByRole("dialog", { name: "Navigation menu" }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("opens command menu via keyboard shortcut and renders quick results", async () => {
+    renderShell({
+      session: {
+        userId: "user-4",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-4",
+      },
+    });
+
+    fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Global search and quick navigation",
+      }),
+    ).toBeInTheDocument();
+
+    expect(
+      await screen.findByRole("link", { name: /Dashboard/i }),
+    ).toHaveAttribute("href", "/dashboard");
+    expect(
+      screen.getByRole("link", { name: /Retention Policy\.pdf/i }),
+    ).toHaveAttribute("href", "/documents/doc-1");
+    expect(
+      screen.getByRole("link", { name: /Retention policy questions/i }),
+    ).toHaveAttribute("href", "/chat?session_id=session-1");
+  });
+
+  it("hides admin quick navigation results for non-admin users", async () => {
+    renderShell({
+      session: {
+        userId: "user-5",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-5",
+      },
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open global search" }),
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", {
+        name: "Search across pages, documents, and chats",
+      }),
+      "admin",
+    );
+
+    expect(
+      screen.queryByRole("link", { name: /^Admin$/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No matching results. Try a filename, status, chat title, or page name.",
+      ),
+    ).toBeInTheDocument();
   });
 });

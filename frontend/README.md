@@ -50,6 +50,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - profile menu shows safe user and organization context with settings + sign-out actions
   - help menu links to configured docs/support/shortcuts/README resources
   - notifications menu consumes optional backend feed and shows loading, empty, and unavailable states
+  - global search command menu (`Cmd/Ctrl + K`) provides:
+    - quick page navigation (Dashboard, Documents, Chat, Evaluations, Pipeline Explorer, Settings, Admin when permitted)
+    - document search by filename/status from organization-scoped document list data
+    - recent chat session shortcuts
+    - permission-aware route filtering and helpful empty states
   - menu actions are permission-aware (e.g., admin links only for owner/admin roles)
 - Login behavior:
   - validates credentials using React Hook Form + Zod

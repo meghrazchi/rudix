@@ -12,6 +12,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { listChatSessions } from "@/lib/api/chat";
+import { listDocuments, type DocumentStatus } from "@/lib/api/documents";
 import { getTopBarNotifications } from "@/lib/api/notifications";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
@@ -143,6 +145,79 @@ function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
 
 type TopBarMenuKey = "notifications" | "help" | "profile";
 
+type CommandResultSection = "navigation" | "documents" | "chat";
+
+const COMMAND_DOCUMENT_LIMIT = 80;
+const COMMAND_CHAT_LIMIT = 40;
+const COMMAND_MAX_RESULTS_PER_SECTION = 8;
+const DOCUMENT_STATUSES: DocumentStatus[] = [
+  "uploaded",
+  "processing",
+  "indexed",
+  "failed",
+  "deleting",
+  "deleted",
+];
+
+function toSearchTokens(value: string): string[] {
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((token) => token.length > 0);
+}
+
+function matchesAllTokens(
+  tokens: string[],
+  values: Array<string | null>,
+): boolean {
+  if (tokens.length === 0) {
+    return true;
+  }
+  const normalizedValues = values
+    .map((value) => value?.trim().toLowerCase() ?? "")
+    .filter((value) => value.length > 0);
+
+  return tokens.every((token) =>
+    normalizedValues.some((value) => value.includes(token)),
+  );
+}
+
+function statusFilterFromTokens(tokens: string[]): DocumentStatus | null {
+  if (tokens.length !== 1) {
+    return null;
+  }
+  const token = tokens[0];
+  return (
+    DOCUMENT_STATUSES.find(
+      (status) => status === token || status.startsWith(token),
+    ) ?? null
+  );
+}
+
+function commandSectionLabel(section: CommandResultSection): string {
+  if (section === "navigation") {
+    return "Pages";
+  }
+  if (section === "documents") {
+    return "Documents";
+  }
+  return "Recent chats";
+}
+
+function documentStatusBadgeClass(status: DocumentStatus): string {
+  if (status === "indexed") {
+    return "bg-emerald-100 text-emerald-800";
+  }
+  if (status === "failed" || status === "deleted") {
+    return "bg-rose-100 text-rose-800";
+  }
+  if (status === "deleting") {
+    return "bg-fuchsia-100 text-fuchsia-800";
+  }
+  return "bg-amber-100 text-amber-800";
+}
+
 function notificationSeverityClass(
   severity: "info" | "warning" | "error",
 ): string {
@@ -225,7 +300,10 @@ export function AppShell({
 }: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<TopBarMenuKey | null>(null);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const mobileSidebarRef = useRef<HTMLElement | null>(null);
+  const commandMenuRef = useRef<HTMLElement | null>(null);
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
   const helpMenuRef = useRef<HTMLDivElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
@@ -256,15 +334,123 @@ export function AppShell({
   const notificationCount = visibleNotifications.length;
   const showNotificationUnavailable =
     !notificationsEndpoint || notificationsQuery.isError;
+  const searchTokens = useMemo(
+    () => toSearchTokens(commandQuery),
+    [commandQuery],
+  );
+  const statusFilter = useMemo(
+    () => statusFilterFromTokens(searchTokens),
+    [searchTokens],
+  );
+
+  const commandDocumentsQuery = useQuery({
+    queryKey: queryKeys.documents.list({
+      scope: "topbar-command",
+      limit: COMMAND_DOCUMENT_LIMIT,
+      sort_by: "updated_at",
+      sort_order: "desc",
+      status: statusFilter,
+    }),
+    queryFn: () =>
+      listDocuments({
+        limit: COMMAND_DOCUMENT_LIMIT,
+        sort_by: "updated_at",
+        sort_order: "desc",
+        status: statusFilter ?? undefined,
+      }),
+    enabled: commandMenuOpen,
+  });
+
+  const commandChatSessionsQuery = useQuery({
+    queryKey: [
+      "top-bar",
+      "command",
+      "chat-sessions",
+      { limit: COMMAND_CHAT_LIMIT },
+    ],
+    queryFn: () =>
+      listChatSessions({
+        limit: COMMAND_CHAT_LIMIT,
+        offset: 0,
+      }),
+    enabled: commandMenuOpen,
+  });
+
+  const accessibleNavigationItems = useMemo(
+    () =>
+      navItems.filter((item) => !item.hidden && !item.disabled).slice(0, 12),
+    [navItems],
+  );
+
+  const navigationResults = useMemo(
+    () =>
+      accessibleNavigationItems
+        .filter((item) =>
+          matchesAllTokens(searchTokens, [item.label, item.description]),
+        )
+        .slice(0, COMMAND_MAX_RESULTS_PER_SECTION),
+    [accessibleNavigationItems, searchTokens],
+  );
+
+  const documentResults = useMemo(
+    () =>
+      (commandDocumentsQuery.data?.items ?? [])
+        .filter((item) =>
+          matchesAllTokens(searchTokens, [item.filename, item.status]),
+        )
+        .slice(0, COMMAND_MAX_RESULTS_PER_SECTION),
+    [commandDocumentsQuery.data?.items, searchTokens],
+  );
+
+  const chatResults = useMemo(
+    () =>
+      (commandChatSessionsQuery.data?.items ?? [])
+        .filter((item) => {
+          const sessionLabel =
+            item.title && item.title.trim().length > 0
+              ? item.title
+              : "Untitled session";
+          return matchesAllTokens(searchTokens, [sessionLabel]);
+        })
+        .slice(0, COMMAND_MAX_RESULTS_PER_SECTION),
+    [commandChatSessionsQuery.data?.items, searchTokens],
+  );
+
+  const hasCommandQuery = searchTokens.length > 0;
+  const commandMenuLoading =
+    commandDocumentsQuery.isLoading || commandChatSessionsQuery.isLoading;
+  const commandMenuError =
+    commandDocumentsQuery.error ?? commandChatSessionsQuery.error;
+  const hasCommandResults =
+    navigationResults.length > 0 ||
+    documentResults.length > 0 ||
+    chatResults.length > 0;
 
   const closeMobileSidebar = useCallback(() => {
     setMobileSidebarOpen(false);
   }, [setMobileSidebarOpen]);
 
+  const closeCommandMenu = useCallback(() => {
+    setCommandMenuOpen(false);
+    setCommandQuery("");
+  }, []);
+
+  const openCommandMenu = useCallback(() => {
+    setOpenMenu(null);
+    setCommandMenuOpen(true);
+  }, []);
+
   useOverlayFocus({
     isOpen: mobileSidebarOpen,
     containerRef: mobileSidebarRef,
     onClose: closeMobileSidebar,
+  });
+
+  useOverlayFocus({
+    isOpen: commandMenuOpen,
+    containerRef: commandMenuRef,
+    onClose: closeCommandMenu,
+    autofocusSelector: "[data-command-autofocus='true']",
   });
 
   useEffect(() => {
@@ -305,6 +491,27 @@ export function AppShell({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    function onGlobalCommandShortcut(event: KeyboardEvent): void {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (!event.metaKey && !event.ctrlKey) {
+        return;
+      }
+      if (event.key.toLowerCase() !== "k") {
+        return;
+      }
+      event.preventDefault();
+      openCommandMenu();
+    }
+
+    document.addEventListener("keydown", onGlobalCommandShortcut);
+    return () => {
+      document.removeEventListener("keydown", onGlobalCommandShortcut);
+    };
+  }, [openCommandMenu]);
 
   useEffect(() => {
     if (!openMenu) {
@@ -415,6 +622,185 @@ export function AppShell({
           </div>
         ) : null}
 
+        {commandMenuOpen ? (
+          <div
+            className="fixed inset-0 z-50 bg-[#17172a]/40 px-3 py-6 sm:px-6"
+            onClick={closeCommandMenu}
+          >
+            <section
+              ref={commandMenuRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Global search and quick navigation"
+              className="mx-auto max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 border-b border-[#ebe8f7] px-3 py-3 sm:px-4">
+                <input
+                  data-command-autofocus="true"
+                  value={commandQuery}
+                  onChange={(event) => setCommandQuery(event.target.value)}
+                  placeholder="Search pages, documents, chats, or status (indexed, failed...)"
+                  aria-label="Search across pages, documents, and chats"
+                  className="h-11 w-full rounded-lg border border-[#d9d4f0] bg-[#faf9ff] px-3 text-sm text-[#1f1e2a] placeholder:text-[#7d7896] focus:border-[#6355d5] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={closeCommandMenu}
+                  className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Esc
+                </button>
+              </div>
+
+              <div className="max-h-[68vh] overflow-auto px-3 py-3 sm:px-4 sm:py-4">
+                <p className="mb-3 text-xs text-[#6f6a86]">
+                  Quick navigation and organization-scoped search. Use{" "}
+                  <span className="font-semibold">Cmd/Ctrl + K</span> anytime.
+                </p>
+
+                {commandMenuLoading ? (
+                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
+                    Loading search results...
+                  </p>
+                ) : commandMenuError ? (
+                  <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                    <p className="text-sm text-rose-700">
+                      {getApiErrorMessage(commandMenuError)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void commandDocumentsQuery.refetch();
+                        void commandChatSessionsQuery.refetch();
+                      }}
+                      className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : hasCommandResults ? (
+                  <div className="space-y-4">
+                    {navigationResults.length > 0 ? (
+                      <section>
+                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                          {commandSectionLabel("navigation")}
+                        </p>
+                        <ul className="space-y-1">
+                          {navigationResults.map((item) => (
+                            <li key={item.key}>
+                              <Link
+                                href={item.href}
+                                onClick={closeCommandMenu}
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                              >
+                                <span>
+                                  <span className="block text-sm font-semibold text-[#2f2a46]">
+                                    {item.label}
+                                  </span>
+                                  <span className="block text-xs text-[#67637d]">
+                                    {item.description}
+                                  </span>
+                                </span>
+                                <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
+                                  Page
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+
+                    {documentResults.length > 0 ? (
+                      <section>
+                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                          {hasCommandQuery
+                            ? commandSectionLabel("documents")
+                            : "Recent documents"}
+                        </p>
+                        <ul className="space-y-1">
+                          {documentResults.map((document) => (
+                            <li key={document.document_id}>
+                              <Link
+                                href={`/documents/${encodeURIComponent(document.document_id)}`}
+                                onClick={closeCommandMenu}
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-semibold text-[#2f2a46]">
+                                    {document.filename}
+                                  </span>
+                                  <span className="block text-xs text-[#67637d]">
+                                    {document.file_type.toUpperCase()} • Updated{" "}
+                                    {new Date(
+                                      document.updated_at,
+                                    ).toLocaleString()}
+                                  </span>
+                                </span>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${documentStatusBadgeClass(document.status)}`}
+                                >
+                                  {document.status}
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+
+                    {chatResults.length > 0 ? (
+                      <section>
+                        <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
+                          {hasCommandQuery
+                            ? commandSectionLabel("chat")
+                            : "Recent chats"}
+                        </p>
+                        <ul className="space-y-1">
+                          {chatResults.map((sessionItem) => (
+                            <li key={sessionItem.session_id}>
+                              <Link
+                                href={`/chat?session_id=${encodeURIComponent(sessionItem.session_id)}`}
+                                onClick={closeCommandMenu}
+                                className="flex items-start justify-between gap-3 rounded-lg border border-[#e6e3f2] bg-[#fcfbff] px-3 py-2 hover:bg-[#f3f0ff]"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-semibold text-[#2f2a46]">
+                                    {sessionItem.title?.trim().length
+                                      ? sessionItem.title
+                                      : "Untitled session"}
+                                  </span>
+                                  <span className="block text-xs text-[#67637d]">
+                                    {sessionItem.message_count} messages •
+                                    Updated{" "}
+                                    {new Date(
+                                      sessionItem.updated_at,
+                                    ).toLocaleString()}
+                                  </span>
+                                </span>
+                                <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
+                                  Chat
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
+                    {hasCommandQuery
+                      ? "No matching results. Try a filename, status, chat title, or page name."
+                      : "No recent documents or chats yet. Upload a document or ask your first question."}
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : null}
+
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-[#d7d4e7] bg-white px-4 py-4 lg:px-8">
             <div className="flex items-center justify-between gap-3">
@@ -436,6 +822,19 @@ export function AppShell({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openCommandMenu}
+                  aria-label="Open global search"
+                  className="inline-flex items-center gap-2 rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  <span className="hidden sm:inline">Search</span>
+                  <span className="inline sm:hidden">Find</span>
+                  <span className="hidden rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 md:inline">
+                    ⌘/Ctrl K
+                  </span>
+                </button>
+
                 <span className="hidden rounded bg-[#edf1ff] px-2 py-1 text-xs font-semibold text-slate-700 sm:inline">
                   {roleLabel(session.role)}
                 </span>
