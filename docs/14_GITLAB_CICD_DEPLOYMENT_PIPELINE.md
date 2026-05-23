@@ -64,7 +64,27 @@ Pipeline includes GitLab templates for:
 - Secret Detection
 - Container Scanning
 
-`security:severity-gate` fails protected refs when dependency/container scan reports include `high` or `critical` vulnerabilities.
+`security:severity-gate` fails protected refs when dependency/container scan reports
+exceed configured severity thresholds.
+
+Default policy:
+
+- fail on any `critical` (`SECURITY_GATE_MAX_CRITICAL=0`)
+- fail on any `high` (`SECURITY_GATE_MAX_HIGH=0`)
+
+The gate supports a tracked allowlist for temporary risk acceptance:
+
+- `ci/security/security_gate_allowlist.json` via `SECURITY_GATE_ALLOWLIST_PATH`
+
+Each allowlist entry should be tightly scoped (id, scanner, optional package) and
+time-boxed through normal review process (do not keep permanent blanket exceptions).
+
+Useful CI controls:
+
+- `SECURITY_GATE_FAIL_ON_CRITICAL` (default `true`)
+- `SECURITY_GATE_FAIL_ON_HIGH` (default `true`)
+- `SECURITY_GATE_MAX_CRITICAL` (default `0`)
+- `SECURITY_GATE_MAX_HIGH` (default `0`)
 
 ## Image Build and Publish
 
