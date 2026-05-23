@@ -150,6 +150,62 @@ Legacy horizontal layers (`app/services`, `app/repositories`, `app/schemas`) wer
 - Side-effect tools require idempotency keys and should remain API-only unless explicitly approved for another surface.
 - API and MCP adapters must share the same policy checks: role authorization, organization isolation, budgets, and safe output redaction.
 
+## Standalone MCP server (F107)
+
+Rudix now includes a standalone MCP server module under `app/mcp`.
+
+Key behavior:
+
+- MCP is disabled by default via `FEATURE_ENABLE_MCP=false`.
+- MCP is a separate adapter surface and does not route through `app.main`.
+- Only read-only tools are exposed by default.
+- Tool execution reuses the shared `ToolRegistry` + `AgentToolExecutor` contract.
+- Authorization, organization isolation, budget checks, and redaction rules are enforced identically for API and MCP surfaces.
+
+Supported transports:
+
+- `streamable_http` (recommended for deployment)
+- `stdio` (development/test only)
+
+Relevant settings:
+
+- `FEATURE_ENABLE_MCP`
+- `MCP_SERVER_NAME`
+- `MCP_TRANSPORT`
+- `MCP_HTTP_HOST`
+- `MCP_HTTP_PORT`
+- `MCP_HTTP_PATH`
+- `MCP_REQUIRE_BEARER_AUTH`
+- `MCP_DEV_PRINCIPAL_USER_ID`
+- `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`
+- `MCP_DEV_PRINCIPAL_ROLES`
+
+Run locally from `backend/`:
+
+```bash
+make run-mcp-http
+# or
+make run-mcp-stdio
+```
+
+Standalone MCP health endpoints (HTTP mode):
+
+- `GET http://localhost:8010/health`
+- `GET http://localhost:8010/ready`
+
+The MCP protocol endpoint defaults to:
+
+- `POST/GET http://localhost:8010/mcp`
+
+Run via Docker from repository root:
+
+```bash
+make up-mcp
+make logs-mcp
+```
+
+`docker-compose.yml` uses a dedicated `mcp` profile so the service is not started unless explicitly requested.
+
 ## Development commands
 
 ```bash

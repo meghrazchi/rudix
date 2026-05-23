@@ -58,6 +58,14 @@ Update `.env` before first start:
   - `EMBEDDING_RETRY_BASE_SECONDS`
   - `EMBEDDING_RETRY_MAX_SECONDS`
   - `OPENAI_EMBEDDING_COST_PER_MILLION_TOKENS_USD`
+- MCP settings (optional, disabled by default):
+  - `FEATURE_ENABLE_MCP`
+  - `MCP_TRANSPORT` (`streamable_http` or `stdio`)
+  - `MCP_HTTP_HOST`
+  - `MCP_HTTP_PORT`
+  - `MCP_HTTP_PATH`
+  - `MCP_REQUIRE_BEARER_AUTH`
+  - `MCP_DEV_PRINCIPAL_USER_ID` / `MCP_DEV_PRINCIPAL_ORGANIZATION_ID` / `MCP_DEV_PRINCIPAL_ROLES` (for stdio/dev fallback)
 
 `Settings` loads `.env` from either:
 
@@ -162,6 +170,8 @@ make logs
 make logs-api
 make logs-worker
 make logs-infra
+make up-mcp
+make logs-mcp
 make migrate
 make test
 ```

@@ -23,6 +23,7 @@ ENV_FILES = (
     str(BACKEND_DIR / ".env"),
     str(PROJECT_ROOT_DIR / ".env"),
 )
+_ALLOWED_ORG_ROLES = {"owner", "admin", "member", "viewer"}
 
 
 class Environment(StrEnum):
@@ -56,6 +57,11 @@ class QdrantDistance(StrEnum):
     dot = "dot"
     euclid = "euclid"
     manhattan = "manhattan"
+
+
+class MCPTransport(StrEnum):
+    streamable_http = "streamable_http"
+    stdio = "stdio"
 
 
 class Settings(BaseSettings):
@@ -201,7 +207,17 @@ class Settings(BaseSettings):
     feature_enable_evaluations: bool = True
     feature_enable_pipeline_explorer: bool = True
     feature_enable_agents: bool | None = None
+    feature_enable_mcp: bool = False
     feature_expose_config_snapshot: bool = True
+    mcp_server_name: str = Field(default="Rudix MCP Server", min_length=3, max_length=120)
+    mcp_transport: MCPTransport = MCPTransport.streamable_http
+    mcp_http_host: str = Field(default="0.0.0.0", min_length=1, max_length=255)
+    mcp_http_port: int = Field(default=8010, ge=1, le=65535)
+    mcp_http_path: str = Field(default="/mcp", pattern=r"^/[a-zA-Z0-9/_-]*$")
+    mcp_require_bearer_auth: bool = True
+    mcp_dev_principal_user_id: str | None = Field(default=None, min_length=3, max_length=128)
+    mcp_dev_principal_organization_id: str | None = Field(default=None, min_length=3, max_length=128)
+    mcp_dev_principal_roles: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -263,6 +279,29 @@ class Settings(BaseSettings):
             return None
         return cleaned
 
+    @field_validator("mcp_dev_principal_roles", mode="before")
+    @classmethod
+    def validate_mcp_dev_principal_roles(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = [item.strip() for item in value.split(",")]
+        elif isinstance(value, list):
+            raw_items = [str(item).strip() for item in value]
+        else:
+            raise ValueError("mcp_dev_principal_roles must be a comma-separated string or list")
+
+        normalized_roles: list[str] = []
+        for role in raw_items:
+            if not role:
+                continue
+            normalized = role.lower()
+            if normalized not in _ALLOWED_ORG_ROLES:
+                raise ValueError(f"unsupported mcp_dev_principal_role: {role}")
+            if normalized not in normalized_roles:
+                normalized_roles.append(normalized)
+        return normalized_roles
+
     @field_validator(
         "celery_task_default_queue",
         "celery_queue_documents_processing",
@@ -289,6 +328,21 @@ class Settings(BaseSettings):
                 Environment.development,
                 Environment.test,
             }
+
+        if self.feature_enable_mcp and self.mcp_transport == MCPTransport.stdio:
+            if self.environment in {Environment.production, Environment.staging}:
+                raise ValueError("mcp_transport=stdio is only allowed in development or test environments")
+            if self.mcp_dev_principal_user_id is None:
+                raise ValueError("mcp_dev_principal_user_id is required when mcp_transport=stdio")
+            if self.mcp_dev_principal_organization_id is None:
+                raise ValueError("mcp_dev_principal_organization_id is required when mcp_transport=stdio")
+            if not self.mcp_dev_principal_roles:
+                raise ValueError("mcp_dev_principal_roles is required when mcp_transport=stdio")
+
+        if self.feature_enable_mcp and self.mcp_transport == MCPTransport.streamable_http:
+            self.mcp_http_host = self.mcp_http_host.strip()
+            if not self.mcp_http_host:
+                raise ValueError("mcp_http_host must not be empty when mcp transport is streamable_http")
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError("retrieval_final_top_k must be less than or equal to retrieval_initial_top_k")
@@ -517,7 +571,19 @@ class Settings(BaseSettings):
                 "evaluations": self.feature_enable_evaluations,
                 "pipeline_explorer": self.feature_enable_pipeline_explorer,
                 "agents": self.feature_enable_agents,
+                "mcp": self.feature_enable_mcp,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
+            },
+            "mcp": {
+                "server_name": self.mcp_server_name,
+                "transport": self.mcp_transport.value,
+                "http_host": self.mcp_http_host,
+                "http_port": self.mcp_http_port,
+                "http_path": self.mcp_http_path,
+                "require_bearer_auth": self.mcp_require_bearer_auth,
+                "dev_principal_user_id_set": self.mcp_dev_principal_user_id is not None,
+                "dev_principal_organization_id_set": self.mcp_dev_principal_organization_id is not None,
+                "dev_principal_roles": self.mcp_dev_principal_roles,
             },
         }
 

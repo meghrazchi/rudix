@@ -1,4 +1,4 @@
-.PHONY: install venv lint test run-api run-worker format migrate downgrade seed-dev
+.PHONY: install venv lint test run-api run-worker run-mcp-http run-mcp-stdio format migrate downgrade seed-dev
 
 PYTHON := python3
 VENV_DIR := .venv
@@ -31,6 +31,12 @@ run-api:
 
 run-worker:
 	$(CELERY) -A app.workers.celery_app:celery_app worker --loglevel=INFO
+
+run-mcp-http:
+	$(PYTHON_VENV) -m app.mcp.main --transport streamable_http
+
+run-mcp-stdio:
+	$(PYTHON_VENV) -m app.mcp.main --transport stdio
 
 format:
 	$(RUFF) check app tests --fix

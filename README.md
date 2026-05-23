@@ -73,6 +73,7 @@ Supported document types include:
 - Source-grounded responses
 - Citations and confidence scoring
 - Audit logs for upload/delete/query/evaluation/admin actions (with sensitive metadata redaction)
+- Standalone MCP server mode for read-only context tools (disabled by default)
 - Background processing with Celery
 - PostgreSQL metadata storage
 - MinIO object storage
@@ -256,6 +257,8 @@ make lint        # Run backend lint checks
 make check-backend   # Run backend lint + tests
 make check-frontend  # Run frontend lint + typecheck + tests
 make check-all       # Run backend checks, then frontend checks
+make up-mcp          # Start standalone MCP server profile
+make logs-mcp        # Tail MCP service logs
 make frontend-dev    # Start frontend dev server from repo root
 make frontend-build  # Build frontend from repo root
 make frontend-lint   # Run frontend ESLint from repo root
@@ -297,6 +300,7 @@ make lint         # Run lint and type checks
 |---|---|
 | Frontend | `http://localhost:3000` |
 | Backend API | `http://localhost:8000` |
+| MCP Server (optional profile) | `http://localhost:8010` |
 | API Health | `http://localhost:8000/api/v1/health` |
 | MinIO Console | `http://localhost:9001` |
 | RabbitMQ UI | `http://localhost:15672` |
@@ -352,6 +356,7 @@ Start here:
 - [`docs/12_EVALUATION_AND_MONITORING.md`](docs/12_EVALUATION_AND_MONITORING.md) — Evaluation and monitoring
 - [`docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md`](docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md) — Agentic architecture and capability model
 - [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md) — GitLab CI/CD and release flow
+- [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — Standalone MCP runtime and deployment mode
 
 Frontend-specific details are available in:
 

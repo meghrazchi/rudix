@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import AuthProvider, Environment, Settings
+from app.core.config import AuthProvider, Environment, MCPTransport, Settings
 
 ENV_KEYS = [
     "ENVIRONMENT",
@@ -73,6 +73,16 @@ ENV_KEYS = [
     "SENTRY_TRACES_SAMPLE_RATE",
     "SENTRY_PROFILES_SAMPLE_RATE",
     "SENTRY_TEST_EVENT_ENABLED",
+    "FEATURE_ENABLE_MCP",
+    "MCP_SERVER_NAME",
+    "MCP_TRANSPORT",
+    "MCP_HTTP_HOST",
+    "MCP_HTTP_PORT",
+    "MCP_HTTP_PATH",
+    "MCP_REQUIRE_BEARER_AUTH",
+    "MCP_DEV_PRINCIPAL_USER_ID",
+    "MCP_DEV_PRINCIPAL_ORGANIZATION_ID",
+    "MCP_DEV_PRINCIPAL_ROLES",
 ]
 
 
@@ -302,6 +312,10 @@ def test_snapshot_redacts_secrets_and_credentials() -> None:
     payload = valid_settings_kwargs()
     payload["database_url"] = "postgresql+asyncpg://user:secret@db.internal:5432/rag_app"
     payload["rabbitmq_url"] = "amqp://guest:secret@mq.internal:5672//"
+    payload["feature_enable_mcp"] = True
+    payload["mcp_dev_principal_user_id"] = "user-dev-001"
+    payload["mcp_dev_principal_organization_id"] = "org-dev-001"
+    payload["mcp_dev_principal_roles"] = "owner"
 
     settings = Settings(_env_file=None, **payload)
     snapshot = settings.sanitized_snapshot()
@@ -310,6 +324,8 @@ def test_snapshot_redacts_secrets_and_credentials() -> None:
     assert snapshot["minio_secret_key_set"] is True
     assert "secret" not in snapshot["database_url"]
     assert "secret" not in snapshot["rabbitmq_url"]
+    assert snapshot["features"]["mcp"] is True
+    assert snapshot["mcp"]["dev_principal_user_id_set"] is True
 
 
 def test_rate_limit_disabled_by_default_in_development() -> None:
@@ -336,3 +352,41 @@ def test_rate_limit_can_be_enabled_in_test_environment() -> None:
     settings = Settings(_env_file=None, **payload)
 
     assert settings.is_rate_limit_active is True
+
+
+def test_mcp_stdio_requires_dev_principal_configuration() -> None:
+    payload = valid_settings_kwargs()
+    payload["feature_enable_mcp"] = True
+    payload["mcp_transport"] = MCPTransport.stdio
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_mcp_stdio_is_rejected_in_production() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["feature_enable_mcp"] = True
+    payload["mcp_transport"] = MCPTransport.stdio
+    payload["mcp_dev_principal_user_id"] = "user-dev-001"
+    payload["mcp_dev_principal_organization_id"] = "org-dev-001"
+    payload["mcp_dev_principal_roles"] = "owner"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_mcp_stdio_accepts_valid_dev_principal_configuration() -> None:
+    payload = valid_settings_kwargs()
+    payload["feature_enable_mcp"] = True
+    payload["mcp_transport"] = MCPTransport.stdio
+    payload["mcp_dev_principal_user_id"] = "user-dev-001"
+    payload["mcp_dev_principal_organization_id"] = "org-dev-001"
+    payload["mcp_dev_principal_roles"] = "owner,viewer"
+
+    parsed = Settings(_env_file=None, **payload)
+
+    assert parsed.feature_enable_mcp is True
+    assert parsed.mcp_transport == MCPTransport.stdio
+    assert parsed.mcp_dev_principal_roles == ["owner", "viewer"]
