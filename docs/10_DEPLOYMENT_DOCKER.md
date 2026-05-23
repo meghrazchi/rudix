@@ -145,24 +145,12 @@ make ps
 
 ## Backend Dockerfile
 
-```dockerfile
-FROM python:3.12-slim
+Production images use a multi-stage build (`backend/Dockerfile`):
 
-WORKDIR /app
+- **builder** stage installs `build-essential` and runs `pip install .`
+- **runtime** stage copies installed packages only (no compiler toolchain or `curl`)
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+Compose healthchecks for `api` and `mcp` probe health endpoints with `python` + `urllib.request`, not `curl`.
 
 ## Backend requirements
 
