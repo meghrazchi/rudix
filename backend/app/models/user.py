@@ -41,3 +41,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         foreign_keys="AgentApproval.decided_by_user_id",
         back_populates="decided_by_user",
     )
+    governance_policies_updated = relationship(
+        "OrganizationGovernancePolicy",
+        back_populates="updated_by_user",
+    )

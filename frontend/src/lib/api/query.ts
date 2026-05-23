@@ -123,6 +123,7 @@ export const queryKeys = {
       ["admin", "usage", params ?? {}] as const,
     auditLogs: (params?: Record<string, unknown>) =>
       ["admin", "audit-logs", params ?? {}] as const,
+    governance: ["admin", "governance"] as const,
   },
   topBar: {
     notifications: (endpoint: string) =>

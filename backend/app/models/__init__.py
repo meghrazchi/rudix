@@ -3,6 +3,7 @@ from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
+from app.models.governance import OrganizationGovernancePolicy
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
@@ -26,6 +27,7 @@ __all__ = [
     "EvaluationRun",
     "EvaluationSet",
     "Organization",
+    "OrganizationGovernancePolicy",
     "OrganizationMember",
     "PipelineEvent",
     "PipelineRun",

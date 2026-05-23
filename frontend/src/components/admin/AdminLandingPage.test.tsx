@@ -53,6 +53,9 @@ describe("AdminLandingPage", () => {
       screen.getByRole("link", { name: "Open System health" }),
     ).toHaveAttribute("href", "/admin/system-health");
     expect(
+      screen.getByRole("link", { name: "Open Agent governance" }),
+    ).toHaveAttribute("href", "/admin/governance");
+    expect(
       screen.getByText("Unavailable in this deployment"),
     ).toBeInTheDocument();
     expect(

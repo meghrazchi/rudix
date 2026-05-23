@@ -266,6 +266,22 @@ same internal `ToolRegistry` used by agent runtime:
 6. External call traces are logged as sanitized operational events
    (`agent.external_mcp.*`) without raw tokens or protected text.
 
+### Admin governance control plane (F113)
+
+Rudix exposes an organization-scoped admin control plane for agent/MCP policy:
+
+1. `GET /api/v1/admin/governance` returns:
+   - effective org policy (agentic mode, MCP exposure, allowlisted tools, budgets)
+   - external MCP server metadata (secret references only)
+   - MCP endpoint status snapshot from deployment settings
+   - policy warnings and tool catalog metadata
+2. `PATCH /api/v1/admin/governance` updates policy under `owner|admin` guardrails.
+3. Side-effect tools require explicit warning acknowledgment in update requests.
+4. All policy mutations emit sanitized audit events:
+   - `action=admin.governance.policy.updated`
+   - no raw credentials/tokens in metadata.
+5. Policy APIs are organization-scoped and follow safe 403/404 boundaries for unauthorized/cross-org access.
+
 ## Planner/Executor Loop (F102)
 
 `AgentRuntime` implements a persisted plan-act-observe loop:

@@ -7,7 +7,7 @@ import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 type AdminSurfaceCard = {
-  id: "usage" | "audit" | "system-health" | "monitoring";
+  id: "usage" | "audit" | "system-health" | "monitoring" | "governance";
   title: string;
   description: string;
   href: string;
@@ -65,6 +65,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       availabilityNote: monitoringUrl
         ? "Available"
         : "Unavailable in this deployment",
+    },
+    {
+      id: "governance",
+      title: "Agent governance",
+      description:
+        "Manage agent mode, MCP exposure, tool allowlists, and runtime budgets.",
+      href: "/admin/governance",
+      available: true,
+      availabilityNote: "Available",
     },
   ];
 }

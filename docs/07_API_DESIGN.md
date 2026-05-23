@@ -1041,6 +1041,36 @@ Returns usage statistics.
 }
 ```
 
+### GET `/admin/governance`
+
+Returns organization-scoped governance policy for agent and MCP controls.
+
+Response includes:
+
+- effective policy toggles (`agentic_mode_enabled`, `mcp_exposure_enabled`)
+- side-effect guard posture (`allow_side_effect_tools`)
+- allowlisted tool names
+- runtime budget limits
+- external MCP server policy entries (metadata + secret references only)
+- global MCP endpoint status and deployment warnings
+
+Notes:
+
+- Endpoint is role-protected (`owner|admin`).
+- Payload excludes raw secrets and tokens by design.
+
+### PATCH `/admin/governance`
+
+Updates organization-scoped governance policy fields.
+
+Safe update semantics:
+
+- unknown tool names are rejected (`422`)
+- side-effect tool changes require explicit acknowledgment (`side_effect_warning_acknowledged=true`)
+- policy changes are audit-logged as `admin.governance.policy.updated`
+
+The endpoint returns the updated effective policy, changed field names, and whether an audit record was written.
+
 ## Rate limits
 
 Recommended:
