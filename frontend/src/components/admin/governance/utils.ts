@@ -67,7 +67,9 @@ export function parseDecimal(value: string): number | null {
   return parsed;
 }
 
-export function clonePolicy(policy: GovernancePolicyState): GovernancePolicyState {
+export function clonePolicy(
+  policy: GovernancePolicyState,
+): GovernancePolicyState {
   return {
     ...policy,
     allowed_tool_names: [...policy.allowed_tool_names],

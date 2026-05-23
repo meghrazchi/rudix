@@ -31,7 +31,10 @@ export function PolicyTogglesSection({
             type="checkbox"
             checked={policy.agentic_mode_enabled}
             onChange={(event) =>
-              onTogglePolicyBoolean("agentic_mode_enabled", event.target.checked)
+              onTogglePolicyBoolean(
+                "agentic_mode_enabled",
+                event.target.checked,
+              )
             }
           />
         </label>
@@ -43,7 +46,10 @@ export function PolicyTogglesSection({
             type="checkbox"
             checked={policy.mcp_exposure_enabled}
             onChange={(event) =>
-              onTogglePolicyBoolean("mcp_exposure_enabled", event.target.checked)
+              onTogglePolicyBoolean(
+                "mcp_exposure_enabled",
+                event.target.checked,
+              )
             }
           />
         </label>

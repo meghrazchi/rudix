@@ -25,7 +25,9 @@ export function ExternalServersSection({
   return (
     <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-[#2a2640]">External MCP servers</h2>
+        <h2 className="text-lg font-bold text-[#2a2640]">
+          External MCP servers
+        </h2>
         <span className="text-sm font-semibold text-[#6a6780]">
           {policy.external_mcp_servers.length} configured
         </span>
@@ -60,8 +62,9 @@ export function ExternalServersSection({
                 </button>
               </div>
               <p className="mt-2 text-xs text-[#6a6780]">
-                auth={server.auth_type} secret_ref={server.auth_secret_ref ?? "n/a"}{" "}
-                allow_tools={formatCommaList(server.allow_tools)}
+                auth={server.auth_type} secret_ref=
+                {server.auth_secret_ref ?? "n/a"} allow_tools=
+                {formatCommaList(server.allow_tools)}
               </p>
             </article>
           ))}
@@ -75,7 +78,9 @@ export function ExternalServersSection({
       )}
 
       <div className="mt-4 rounded-lg border border-dashed border-[#d2cee6] p-3">
-        <h3 className="text-sm font-bold text-[#3d3953]">Add external server</h3>
+        <h3 className="text-sm font-bold text-[#3d3953]">
+          Add external server
+        </h3>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <input
             value={newServer.server_id}
@@ -104,7 +109,8 @@ export function ExternalServersSection({
             onChange={(event) =>
               onNewServerChange({
                 ...newServer,
-                auth_type: event.target.value as ExternalMcpServerPolicy["auth_type"],
+                auth_type: event.target
+                  .value as ExternalMcpServerPolicy["auth_type"],
               })
             }
             className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm"
