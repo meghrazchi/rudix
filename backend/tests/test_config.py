@@ -83,6 +83,13 @@ ENV_KEYS = [
     "MCP_DEV_PRINCIPAL_USER_ID",
     "MCP_DEV_PRINCIPAL_ORGANIZATION_ID",
     "MCP_DEV_PRINCIPAL_ROLES",
+    "MCP_CAPABILITIES_OWNER",
+    "MCP_CAPABILITIES_ADMIN",
+    "MCP_CAPABILITIES_MEMBER",
+    "MCP_CAPABILITIES_VIEWER",
+    "MCP_RATE_LIMIT_ENABLED",
+    "MCP_RATE_LIMIT_WINDOW_SECONDS",
+    "MCP_RATE_LIMIT_REQUESTS",
 ]
 
 
@@ -390,3 +397,38 @@ def test_mcp_stdio_accepts_valid_dev_principal_configuration() -> None:
     assert parsed.feature_enable_mcp is True
     assert parsed.mcp_transport == MCPTransport.stdio
     assert parsed.mcp_dev_principal_roles == ["owner", "viewer"]
+
+
+def test_streamable_mcp_optional_auth_requires_dev_principal() -> None:
+    payload = valid_settings_kwargs()
+    payload["feature_enable_mcp"] = True
+    payload["mcp_transport"] = MCPTransport.streamable_http
+    payload["mcp_require_bearer_auth"] = False
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_streamable_mcp_optional_auth_is_rejected_in_production() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["feature_enable_mcp"] = True
+    payload["mcp_transport"] = MCPTransport.streamable_http
+    payload["mcp_require_bearer_auth"] = False
+    payload["mcp_dev_principal_user_id"] = "user-dev-001"
+    payload["mcp_dev_principal_organization_id"] = "org-dev-001"
+    payload["mcp_dev_principal_roles"] = "viewer"
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_mcp_capabilities_parse_and_normalize() -> None:
+    payload = valid_settings_kwargs()
+    payload["feature_enable_mcp"] = True
+    payload["mcp_capabilities_viewer"] = "documents.read,pipeline.read,documents.read"
+
+    parsed = Settings(_env_file=None, **payload)
+
+    assert parsed.mcp_capabilities_viewer == ["documents.read", "pipeline.read"]

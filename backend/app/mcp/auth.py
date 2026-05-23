@@ -7,7 +7,7 @@ from starlette.requests import Request
 from app.auth.errors import AuthenticationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
-from app.core.config import MCPTransport, settings
+from app.core.config import Environment, MCPTransport, settings
 from app.db.session import SessionLocal
 
 
@@ -52,6 +52,8 @@ async def resolve_mcp_principal(headers: dict[str, str] | None = None) -> Authen
         return _principal_from_dev_settings()
 
     if not settings.mcp_require_bearer_auth and "authorization" not in normalized_headers:
+        if settings.environment in {Environment.production, Environment.staging}:
+            raise AuthenticationError("Bearer token is required for MCP in non-development environments")
         return _principal_from_dev_settings()
 
     if "authorization" not in normalized_headers:

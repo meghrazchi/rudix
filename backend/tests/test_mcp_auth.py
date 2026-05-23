@@ -20,7 +20,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.errors import AuthenticationError
-from app.core.config import MCPTransport, settings
+from app.core.config import Environment, MCPTransport, settings
 from app.mcp.auth import resolve_mcp_principal
 
 
@@ -65,3 +65,16 @@ async def test_streamable_http_can_fallback_to_dev_principal_when_auth_is_option
     assert principal.organization_id == "org-dev-optional"
     assert principal.roles == ["viewer"]
 
+
+async def test_streamable_http_optional_auth_is_blocked_in_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "environment", Environment.staging)
+    monkeypatch.setattr(settings, "mcp_transport", MCPTransport.streamable_http)
+    monkeypatch.setattr(settings, "mcp_require_bearer_auth", False)
+    monkeypatch.setattr(settings, "mcp_dev_principal_user_id", "user-dev-optional")
+    monkeypatch.setattr(settings, "mcp_dev_principal_organization_id", "org-dev-optional")
+    monkeypatch.setattr(settings, "mcp_dev_principal_roles", ["viewer"])
+
+    with pytest.raises(AuthenticationError, match="Bearer token is required"):
+        await resolve_mcp_principal(headers={})

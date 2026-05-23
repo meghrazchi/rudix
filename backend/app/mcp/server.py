@@ -34,6 +34,12 @@ from app.mcp.dependencies import (
     get_http_headers_from_context,
     load_fastmcp_class,
 )
+from app.mcp.policy import ensure_mcp_tool_capability
+from app.mcp.rate_limit import (
+    MCPRateLimiterUnavailableError,
+    MCPRateLimitExceededError,
+    enforce_mcp_rate_limit,
+)
 
 _logger = get_logger("mcp.server")
 
@@ -175,6 +181,14 @@ class MCPToolRuntime:
 
     async def execute_tool(self, *, tool_name: str, arguments: dict[str, Any] | None) -> dict[str, Any]:
         request_id = str(uuid4())
+        spec = self._registry.get_spec(tool_name)
+        if spec is None:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.tool_unavailable,
+                message="Tool is not registered for this MCP server.",
+                request_id=request_id,
+            )
 
         if not settings.feature_enable_mcp:
             return _safe_tool_error_payload(
@@ -206,6 +220,33 @@ class MCPToolRuntime:
                 tool_name=tool_name,
                 code=ToolErrorCode.authorization_failed,
                 message="No active organization context for principal.",
+                request_id=request_id,
+            )
+
+        try:
+            ensure_mcp_tool_capability(principal=principal, tool_spec=spec)
+        except AuthorizationError:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.authorization_failed,
+                message="MCP principal capability is not authorized for this tool.",
+                request_id=request_id,
+            )
+
+        try:
+            await enforce_mcp_rate_limit(principal=principal, tool_name=tool_name)
+        except MCPRateLimitExceededError:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.rate_limit_exceeded,
+                message="MCP rate limit exceeded. Retry later.",
+                request_id=request_id,
+            )
+        except MCPRateLimiterUnavailableError:
+            return _safe_tool_error_payload(
+                tool_name=tool_name,
+                code=ToolErrorCode.rate_limiter_unavailable,
+                message="MCP rate limiter unavailable for this deployment.",
                 request_id=request_id,
             )
 
@@ -285,6 +326,8 @@ def create_mcp_http_app() -> FastAPI:
             "transport": settings.mcp_transport.value,
             "mcp_path": settings.mcp_http_path,
             "feature_enable_mcp": settings.feature_enable_mcp,
+            "auth_required": settings.mcp_require_bearer_auth,
+            "rate_limit_enabled": settings.mcp_rate_limit_enabled and settings.is_rate_limit_active,
         }
 
     @app.get("/ready")

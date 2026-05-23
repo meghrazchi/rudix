@@ -68,6 +68,32 @@ Development fallback:
   - `MCP_DEV_PRINCIPAL_USER_ID`
   - `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`
   - `MCP_DEV_PRINCIPAL_ROLES`
+- disabled for staging/production deployments
+
+## Capability Mapping (Least Privilege)
+
+MCP tools enforce both role authorization and capability authorization.
+
+Role-to-capability mapping is configurable:
+
+- `MCP_CAPABILITIES_OWNER`
+- `MCP_CAPABILITIES_ADMIN`
+- `MCP_CAPABILITIES_MEMBER`
+- `MCP_CAPABILITIES_VIEWER`
+
+Default behavior keeps MCP read-focused. Viewer role excludes `chat.answer` by default.
+
+## MCP Rate Limits
+
+MCP calls are rate-limited per organization, user, tool, and time window.
+
+Relevant settings:
+
+- `MCP_RATE_LIMIT_ENABLED`
+- `MCP_RATE_LIMIT_WINDOW_SECONDS`
+- `MCP_RATE_LIMIT_REQUESTS`
+
+Redis failure behavior follows the shared rate-limit mode (`RATE_LIMIT_REDIS_FAILURE_MODE`).
 
 ## Safety and Redaction
 
@@ -126,3 +152,9 @@ make down-mcp
 - MCP service reuses backend image and starts with `python -m app.mcp.main`.
 - Readiness/health endpoints are available on the MCP port for operators.
 
+## Protected Resource Metadata Notes (Remote Deployments)
+
+- Keep MCP endpoints behind authenticated ingress and TLS.
+- Preserve `Authorization` header and optional `x-organization-id` forwarding.
+- Do not emit raw document text, bearer tokens, or secrets in proxy/access logs.
+- Restrict network exposure to trusted clients and internal subnets where possible.

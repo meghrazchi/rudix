@@ -35,6 +35,8 @@ class ToolErrorCode(StrEnum):
     authorization_failed = "authorization_failed"
     approval_required = "approval_required"
     budget_exceeded = "budget_exceeded"
+    rate_limit_exceeded = "rate_limit_exceeded"
+    rate_limiter_unavailable = "rate_limiter_unavailable"
     tool_unavailable = "tool_unavailable"
     internal_error = "internal_error"
 

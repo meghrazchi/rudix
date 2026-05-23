@@ -179,6 +179,19 @@ Relevant settings:
 - `MCP_DEV_PRINCIPAL_USER_ID`
 - `MCP_DEV_PRINCIPAL_ORGANIZATION_ID`
 - `MCP_DEV_PRINCIPAL_ROLES`
+- `MCP_CAPABILITIES_OWNER`
+- `MCP_CAPABILITIES_ADMIN`
+- `MCP_CAPABILITIES_MEMBER`
+- `MCP_CAPABILITIES_VIEWER`
+- `MCP_RATE_LIMIT_ENABLED`
+- `MCP_RATE_LIMIT_WINDOW_SECONDS`
+- `MCP_RATE_LIMIT_REQUESTS`
+
+Security defaults:
+
+- Bearer auth is required by default for `streamable_http`.
+- `MCP_REQUIRE_BEARER_AUTH=false` is intended for development/test only and requires a configured dev principal.
+- MCP capability enforcement is role-scoped and least-privilege by default (viewer excludes `chat.answer`).
 
 Run locally from `backend/`:
 

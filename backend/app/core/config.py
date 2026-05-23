@@ -24,6 +24,17 @@ ENV_FILES = (
     str(PROJECT_ROOT_DIR / ".env"),
 )
 _ALLOWED_ORG_ROLES = {"owner", "admin", "member", "viewer"}
+_DEFAULT_MCP_VIEWER_CAPABILITIES = [
+    "documents.read",
+    "documents.chunks.read",
+    "documents.summary.read",
+    "documents.compare.read",
+    "pipeline.read",
+]
+_DEFAULT_MCP_ELEVATED_CAPABILITIES = [
+    *_DEFAULT_MCP_VIEWER_CAPABILITIES,
+    "chat.answer",
+]
 
 
 class Environment(StrEnum):
@@ -218,6 +229,13 @@ class Settings(BaseSettings):
     mcp_dev_principal_user_id: str | None = Field(default=None, min_length=3, max_length=128)
     mcp_dev_principal_organization_id: str | None = Field(default=None, min_length=3, max_length=128)
     mcp_dev_principal_roles: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    mcp_capabilities_owner: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
+    mcp_capabilities_admin: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
+    mcp_capabilities_member: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_ELEVATED_CAPABILITIES))
+    mcp_capabilities_viewer: Annotated[list[str], NoDecode] = Field(default_factory=lambda: list(_DEFAULT_MCP_VIEWER_CAPABILITIES))
+    mcp_rate_limit_enabled: bool = True
+    mcp_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    mcp_rate_limit_requests: int = Field(default=30, ge=1, le=10000)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -303,6 +321,38 @@ class Settings(BaseSettings):
         return normalized_roles
 
     @field_validator(
+        "mcp_capabilities_owner",
+        "mcp_capabilities_admin",
+        "mcp_capabilities_member",
+        "mcp_capabilities_viewer",
+        mode="before",
+    )
+    @classmethod
+    def validate_mcp_capability_list(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = [item.strip() for item in value.split(",")]
+        elif isinstance(value, list):
+            raw_items = [str(item).strip() for item in value]
+        else:
+            raise ValueError("MCP capabilities must be a comma-separated string or list")
+
+        normalized_capabilities: list[str] = []
+        for capability in raw_items:
+            if not capability:
+                continue
+            normalized = capability.lower()
+            if not normalized.replace(".", "").replace("_", "").replace("-", "").isalnum():
+                raise ValueError(f"invalid MCP capability identifier: {capability}")
+            if normalized not in normalized_capabilities:
+                normalized_capabilities.append(normalized)
+
+        if not normalized_capabilities:
+            raise ValueError("MCP capability list must contain at least one capability")
+        return normalized_capabilities
+
+    @field_validator(
         "celery_task_default_queue",
         "celery_queue_documents_processing",
         "celery_queue_documents_deletion",
@@ -343,6 +393,26 @@ class Settings(BaseSettings):
             self.mcp_http_host = self.mcp_http_host.strip()
             if not self.mcp_http_host:
                 raise ValueError("mcp_http_host must not be empty when mcp transport is streamable_http")
+            if (
+                not self.mcp_require_bearer_auth
+                and self.environment in {Environment.production, Environment.staging}
+            ):
+                raise ValueError(
+                    "mcp_require_bearer_auth=false is only allowed in development or test environments"
+                )
+            if not self.mcp_require_bearer_auth:
+                if self.mcp_dev_principal_user_id is None:
+                    raise ValueError(
+                        "mcp_dev_principal_user_id is required when mcp_require_bearer_auth=false"
+                    )
+                if self.mcp_dev_principal_organization_id is None:
+                    raise ValueError(
+                        "mcp_dev_principal_organization_id is required when mcp_require_bearer_auth=false"
+                    )
+                if not self.mcp_dev_principal_roles:
+                    raise ValueError(
+                        "mcp_dev_principal_roles is required when mcp_require_bearer_auth=false"
+                    )
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError("retrieval_final_top_k must be less than or equal to retrieval_initial_top_k")
@@ -584,6 +654,13 @@ class Settings(BaseSettings):
                 "dev_principal_user_id_set": self.mcp_dev_principal_user_id is not None,
                 "dev_principal_organization_id_set": self.mcp_dev_principal_organization_id is not None,
                 "dev_principal_roles": self.mcp_dev_principal_roles,
+                "capabilities_owner": self.mcp_capabilities_owner,
+                "capabilities_admin": self.mcp_capabilities_admin,
+                "capabilities_member": self.mcp_capabilities_member,
+                "capabilities_viewer": self.mcp_capabilities_viewer,
+                "rate_limit_enabled": self.mcp_rate_limit_enabled,
+                "rate_limit_window_seconds": self.mcp_rate_limit_window_seconds,
+                "rate_limit_requests": self.mcp_rate_limit_requests,
             },
         }
 
