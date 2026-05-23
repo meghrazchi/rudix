@@ -36,6 +36,7 @@ from app.mcp.dependencies import (
     load_fastmcp_class,
 )
 from app.mcp.policy import ensure_mcp_tool_capability
+from app.mcp.prompts import register_mcp_prompts
 from app.mcp.rate_limit import (
     MCPRateLimiterUnavailableError,
     MCPRateLimitExceededError,
@@ -349,6 +350,7 @@ def build_mcp_server() -> Any:
     server = FastMCP(name=settings.mcp_server_name)
     _register_tools(server, _build_mcp_tool_runtime())
     register_mcp_resources(server)
+    register_mcp_prompts(server)
     return server
 
 

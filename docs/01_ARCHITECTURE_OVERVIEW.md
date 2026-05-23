@@ -49,6 +49,29 @@ flowchart TD
     CELERY --> SENTRY
 ```
 
+## MCP adapter architecture (optional)
+
+Rudix exposes MCP as a separate adapter service when enabled. It reuses the
+same domain tool contracts and authorization boundaries as the API runtime.
+
+```mermaid
+flowchart LR
+    C[MCP Client] --> M[MCP Server Adapter]
+    M --> T[Tool Registry and Executor]
+    M --> R[MCP Resources]
+    M --> P[MCP Prompt Templates]
+
+    T --> API[FastAPI Domain Services]
+    R --> API
+    P --> T
+```
+
+Design constraints:
+
+- MCP is disabled by default and enabled explicitly per environment.
+- MCP tools are read-only by default; side-effect actions remain API-only unless approved.
+- MCP prompt templates are provider-neutral workflows that guide tool usage; they do not bypass authorization.
+
 ## Service responsibilities
 
 | Service | Responsibility |

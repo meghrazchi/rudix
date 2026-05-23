@@ -100,6 +100,24 @@ Resource payload size controls:
 - Pagination inputs are bounded server-side (`limit` max 50).
 - Query text is trimmed to a safe length and snippets are truncated.
 
+## Prompt Surface Policy
+
+Rudix MCP publishes provider-neutral workflow prompt templates for grounded
+document tasks. These templates do not execute business logic directly; they
+guide clients to call safe read-only MCP tools.
+
+Prompt templates:
+
+- `grounded_qa`
+- `summarize_workflow`
+- `compare_workflow`
+- `obligations_action_items`
+- `evidence_lookup`
+
+Prompt parameters include query/document IDs/style/output format and are
+validated server-side. Prompt access enforces the same bearer auth, active
+organization context, capability checks, and MCP rate limits as tools/resources.
+
 ## Authentication and Organization Isolation
 
 HTTP mode:

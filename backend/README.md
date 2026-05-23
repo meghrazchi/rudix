@@ -170,6 +170,14 @@ Key behavior:
   `get_document_detail`).
 - Read-only MCP resources/templates are exposed for document metadata, status,
   chunks, search context, and citations.
+- Provider-neutral MCP prompt workflow templates are also exposed:
+  - `grounded_qa`
+  - `summarize_workflow`
+  - `compare_workflow`
+  - `obligations_action_items`
+  - `evidence_lookup`
+- Prompt templates are parameterized (query/document_ids/style/output_format) and
+  enforce the same MCP auth, capability, and rate-limit boundaries.
 - Tool execution reuses the shared `ToolRegistry` + `AgentToolExecutor` contract.
 - Authorization, organization isolation, budget checks, and redaction rules are enforced identically for API and MCP surfaces.
 

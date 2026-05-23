@@ -208,6 +208,27 @@ MCP is an adapter surface, not the core execution boundary:
 3. MCP tools do not bypass authz, org isolation, budget checks, or redaction.
 4. MCP exposure is configured per-tool via `ToolSpec.surfaces`.
 
+### MCP Prompt Template Layer (F111)
+
+MCP prompt templates are a separate surface that provides reusable,
+provider-neutral workflow instructions for common grounded tasks:
+
+- grounded Q&A
+- summarization
+- comparison
+- obligations/action-item extraction
+- evidence lookup
+
+Prompt templates are not executable tools by themselves. They:
+
+1. accept validated, typed parameters (query/document_ids/style/format)
+2. require MCP authentication, organization context, capability checks, and rate limits
+3. guide clients to call safe read-only MCP tools/resources
+4. avoid exposing tokens, raw protected document text, or secret values
+
+This keeps prompt ergonomics high while preserving the same security and policy
+boundaries used for MCP tool execution.
+
 ## Internal Execution Contract (F100)
 
 Rudix uses one internal tool layer for both agent runtime and MCP adapters:
