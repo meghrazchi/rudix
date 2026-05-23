@@ -70,6 +70,9 @@ A change is not done until:
 
 - Relevant tests have been added or updated.
 - The smallest relevant verification commands have passed.
+- Code is formatted before final handoff using repo-standard tools:
+  - Backend: `cd backend && ruff format app tests` (and verify with `ruff check app tests`).
+  - Frontend: `cd frontend && npm run format:write` (and verify with `npm run lint`).
 - Backend changes pass `cd backend && make lint && make test`, unless the change is docs-only or clearly unrelated.
 - Frontend changes pass `cd frontend && npm run typecheck && npm run lint && npm run test`, unless the change is docs-only or clearly unrelated.
 - End-to-end or build checks are run when UI routes, app shell behavior, auth flows, uploads, or deployment behavior are affected.
