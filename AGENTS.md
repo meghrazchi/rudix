@@ -124,6 +124,11 @@ If a command cannot be run in the current environment, say exactly which command
   - API and MCP adapters share the same domain-level policies
   - MCP exposure is explicit per-tool via `ToolSpec.surfaces`
   - Side-effect operations remain API-only unless explicitly approved
+- MCP resources must stay compact by default:
+  - always paginate and enforce server-side `limit` caps
+  - return citation-friendly summaries instead of full raw payloads
+  - truncate long snippets/text fields and avoid redundant nested blobs
+  - prefer stable, minimal fields needed for retrieval, citation, and navigation
 - Keep agent feature rollout environment-driven:
   - `FEATURE_ENABLE_AGENTS`
   - `AGENT_MAX_STEPS`
@@ -214,6 +219,13 @@ Frontend:
 ## Agent behavior rules
 
 - Prefer small, reviewable patches.
+- Keep files modular and avoid oversized files:
+  - prefer extracting helpers/runtime/registry layers when a file grows large
+  - avoid adding substantial new logic to files that are already very long
+  - as a default guardrail, split code before a file exceeds roughly 500 lines when practical
+- Apply the same modularity rule repo-wide (backend, frontend, docs, tests), not only MCP modules.
+- Keep lines reasonably short and formatter-friendly; do not introduce unnecessarily long lines when
+  wrapping can keep readability and lint/format stability.
 - Before editing, identify the relevant backend/frontend/docs area and read nearby files.
 - Do not overwrite user changes. If the working tree has unexpected edits, stop and explain.
 - Do not remove tests or weaken security checks to make tests pass.

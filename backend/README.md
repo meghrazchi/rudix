@@ -159,6 +159,8 @@ Key behavior:
 - MCP is disabled by default via `FEATURE_ENABLE_MCP=false`.
 - MCP is a separate adapter surface and does not route through `app.main`.
 - Only read-only tools are exposed by default.
+- Read-only MCP resources/templates are exposed for document metadata, status,
+  chunks, search context, and citations.
 - Tool execution reuses the shared `ToolRegistry` + `AgentToolExecutor` contract.
 - Authorization, organization isolation, budget checks, and redaction rules are enforced identically for API and MCP surfaces.
 
@@ -209,6 +211,21 @@ Standalone MCP health endpoints (HTTP mode):
 The MCP protocol endpoint defaults to:
 
 - `POST/GET http://localhost:8010/mcp`
+
+Default MCP resource/template URIs:
+
+- `rudix://documents{?status,sort_by,sort_order,limit,offset,query}`
+- `rudix://documents/{document_id}`
+- `rudix://documents/{document_id}/status`
+- `rudix://documents/{document_id}/chunks{?limit,offset}`
+- `rudix://search/{query}{?status,sort_by,sort_order,limit,offset}`
+- `rudix://citations/{query}{?document_id,top_k,rerank}`
+
+Resource payload policy:
+
+- Responses are intentionally compact for model context efficiency.
+- Resource pagination is capped server-side (`limit` is clamped to max 50).
+- Citation/snippet text is truncated to concise preview length.
 
 Run via Docker from repository root:
 

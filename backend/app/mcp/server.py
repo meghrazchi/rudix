@@ -40,6 +40,7 @@ from app.mcp.rate_limit import (
     MCPRateLimitExceededError,
     enforce_mcp_rate_limit,
 )
+from app.mcp.resources import register_mcp_resources
 
 _logger = get_logger("mcp.server")
 
@@ -309,6 +310,7 @@ def build_mcp_server() -> Any:
     FastMCP = load_fastmcp_class()
     server = FastMCP(name=settings.mcp_server_name)
     _register_tools(server, _build_mcp_tool_runtime())
+    register_mcp_resources(server)
     return server
 
 

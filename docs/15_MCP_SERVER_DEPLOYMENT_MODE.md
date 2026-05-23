@@ -53,6 +53,27 @@ Default MCP exposure is read-only only:
 
 Side-effect tools remain API-only unless explicitly allowed later.
 
+## Resource Surface Policy
+
+Rudix MCP also exposes read-only resources and templates for citation-friendly
+document context:
+
+- `rudix://documents{?status,sort_by,sort_order,limit,offset,query}`
+- `rudix://documents/{document_id}`
+- `rudix://documents/{document_id}/status`
+- `rudix://documents/{document_id}/chunks{?limit,offset}`
+- `rudix://search/{query}{?status,sort_by,sort_order,limit,offset}`
+- `rudix://citations/{query}{?document_id,top_k,rerank}`
+
+Resource reads enforce the same bearer auth, organization scope, capability
+mapping, and MCP rate-limit controls as tool calls.
+
+Resource payload size controls:
+
+- Resource responses are deliberately concise and citation-friendly.
+- Pagination inputs are bounded server-side (`limit` max 50).
+- Query text is trimmed to a safe length and snippets are truncated.
+
 ## Authentication and Organization Isolation
 
 HTTP mode:
