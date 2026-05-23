@@ -154,10 +154,19 @@ class MCPResourceRuntime:
             return principal_or_error
 
         principal = principal_or_error
+        organization_id = principal.organization_id
+        if organization_id is None:
+            return safe_resource_error_payload(
+                resource=resource,
+                code=ToolErrorCode.authorization_failed,
+                message="No active organization context for principal.",
+                request_id=request_id,
+            )
+
         call = ToolCall(
             run_id=str(uuid4()),
             tool_name=tool_name,
-            organization_id=principal.organization_id,
+            organization_id=organization_id,
             user_id=principal.user_id,
             surface=ToolSurface.mcp,
             arguments=arguments,
@@ -203,7 +212,7 @@ class MCPResourceRuntime:
 
         log_agent_event(
             event="mcp.resource.read.completed",
-            organization_id=principal.organization_id,
+            organization_id=organization_id,
             user_id=principal.user_id,
             run_id=call.run_id,
             tool_name=tool_name,
