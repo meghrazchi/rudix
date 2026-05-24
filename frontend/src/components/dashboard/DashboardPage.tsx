@@ -40,9 +40,10 @@ import { useAuthSession } from "@/lib/use-auth-session";
 
 const DOCUMENT_PAGE_SIZE = 200;
 const CHAT_SESSION_PAGE_SIZE = 200;
-const LATEST_DOCUMENTS_LIMIT = 8;
-const RECENT_ACTIVITY_LIMIT = 10;
-const AUDIT_ACTIVITY_LIMIT = 20;
+const LATEST_DOCUMENTS_PAGE_SIZE = 5;
+const RECENT_ACTIVITY_PAGE_SIZE = 5;
+const RECENT_ACTIVITY_FETCH_LIMIT = 50;
+const AUDIT_ACTIVITY_FETCH_LIMIT = 50;
 
 function parsePositiveIntegerEnv(
   value: string | undefined,
@@ -314,7 +315,7 @@ function resolveAuditActivityLink(
 function buildDocumentActivityItems(
   documents: DocumentListItemResponse[],
 ): DashboardRecentActivityItem[] {
-  return documents.slice(0, RECENT_ACTIVITY_LIMIT).map((document) => {
+  return documents.map((document) => {
     if (document.status === "uploaded") {
       return {
         id: `doc-upload:${document.document_id}`,
@@ -361,7 +362,6 @@ function buildChatActivityItems(
 ): DashboardRecentActivityItem[] {
   return sessions
     .filter((session) => session.message_count > 0)
-    .slice(0, RECENT_ACTIVITY_LIMIT)
     .map((session) => ({
       id: `chat:${session.session_id}`,
       category: "chat" as const,
@@ -375,7 +375,7 @@ function buildChatActivityItems(
 function buildAuditActivityItems(
   items: AuditLogListItemResponse[],
 ): DashboardRecentActivityItem[] {
-  return items.slice(0, RECENT_ACTIVITY_LIMIT).map((item) => {
+  return items.map((item) => {
     const action = item.action.toLowerCase();
     let category: DashboardRecentActivityItem["category"] = "admin";
     if (action.includes("evaluation")) {
@@ -395,15 +395,66 @@ function buildAuditActivityItems(
   });
 }
 
-function sortAndLimitActivities(
+function sortActivities(
   items: DashboardRecentActivityItem[],
 ): DashboardRecentActivityItem[] {
-  return items
-    .sort(
-      (left, right) =>
-        safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp),
-    )
-    .slice(0, RECENT_ACTIVITY_LIMIT);
+  return items.sort(
+    (left, right) =>
+      safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp),
+  );
+}
+
+type DashboardPaginationProps = {
+  offset: number;
+  pageSize: number;
+  total: number;
+  visibleCount: number;
+  itemLabel: string;
+  onPrevious: () => void;
+  onNext: () => void;
+};
+
+function DashboardPagination({
+  offset,
+  pageSize,
+  total,
+  visibleCount,
+  itemLabel,
+  onPrevious,
+  onNext,
+}: DashboardPaginationProps) {
+  if (total <= pageSize) {
+    return null;
+  }
+
+  const canGoPrevious = offset > 0;
+  const canGoNext = offset + visibleCount < total;
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3">
+      <p className="text-xs text-[#6e6a86]">
+        Showing {offset + 1}-{offset + visibleCount} of {total} {itemLabel}.
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={!canGoPrevious}
+          onClick={onPrevious}
+          className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          disabled={!canGoNext}
+          onClick={onNext}
+          className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function DashboardPage() {
@@ -416,6 +467,8 @@ export function DashboardPage() {
   const documentCapabilities = resolveDocumentCapabilities(role);
 
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
+  const [latestDocumentsOffset, setLatestDocumentsOffset] = useState(0);
+  const [recentActivityOffset, setRecentActivityOffset] = useState(0);
   const usageRange = useMemo(
     () => resolveUsageDateRange(rangePreset),
     [rangePreset],
@@ -448,14 +501,32 @@ export function DashboardPage() {
 
   const latestDocumentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
-      limit: LATEST_DOCUMENTS_LIMIT,
-      offset: 0,
+      limit: LATEST_DOCUMENTS_PAGE_SIZE,
+      offset: latestDocumentsOffset,
       sort_by: "updated_at",
       sort_order: "desc",
+      scope: "dashboard-latest",
     }),
     queryFn: () =>
       listDocuments({
-        limit: LATEST_DOCUMENTS_LIMIT,
+        limit: LATEST_DOCUMENTS_PAGE_SIZE,
+        offset: latestDocumentsOffset,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+  });
+
+  const activityDocumentsQuery = useQuery({
+    queryKey: queryKeys.documents.list({
+      limit: RECENT_ACTIVITY_FETCH_LIMIT,
+      offset: 0,
+      sort_by: "updated_at",
+      sort_order: "desc",
+      scope: "dashboard-activity",
+    }),
+    queryFn: () =>
+      listDocuments({
+        limit: RECENT_ACTIVITY_FETCH_LIMIT,
         offset: 0,
         sort_by: "updated_at",
         sort_order: "desc",
@@ -466,11 +537,11 @@ export function DashboardPage() {
     queryKey: [
       "dashboard",
       "recent-chat-sessions",
-      { limit: RECENT_ACTIVITY_LIMIT },
+      { limit: RECENT_ACTIVITY_FETCH_LIMIT },
     ],
     queryFn: () =>
       listChatSessions({
-        limit: RECENT_ACTIVITY_LIMIT,
+        limit: RECENT_ACTIVITY_FETCH_LIMIT,
         offset: 0,
       }),
   });
@@ -479,14 +550,14 @@ export function DashboardPage() {
     queryKey: queryKeys.admin.auditLogs({
       from: usageRange.from,
       to: usageRange.to,
-      limit: AUDIT_ACTIVITY_LIMIT,
+      limit: AUDIT_ACTIVITY_FETCH_LIMIT,
       offset: 0,
     }),
     queryFn: () =>
       listAuditLogs({
         from: usageRange.from,
         to: usageRange.to,
-        limit: AUDIT_ACTIVITY_LIMIT,
+        limit: AUDIT_ACTIVITY_FETCH_LIMIT,
         offset: 0,
       }),
     enabled: showAdminUsage,
@@ -498,6 +569,10 @@ export function DashboardPage() {
   const latestDocuments = useMemo(
     () => latestDocumentsQuery.data?.items ?? [],
     [latestDocumentsQuery.data?.items],
+  );
+  const activityDocuments = useMemo(
+    () => activityDocumentsQuery.data?.items ?? [],
+    [activityDocumentsQuery.data?.items],
   );
   const recentSessions = useMemo(
     () => recentChatSessionsQuery.data?.items ?? [],
@@ -553,20 +628,28 @@ export function DashboardPage() {
 
   const recentActivityItems = useMemo(
     () =>
-      sortAndLimitActivities([
-        ...buildDocumentActivityItems(latestDocuments),
+      sortActivities([
+        ...buildDocumentActivityItems(activityDocuments),
         ...buildChatActivityItems(recentSessions),
         ...buildAuditActivityItems(auditActivityBundle.items),
       ]),
-    [latestDocuments, recentSessions, auditActivityBundle.items],
+    [activityDocuments, recentSessions, auditActivityBundle.items],
+  );
+  const paginatedRecentActivityItems = useMemo(
+    () =>
+      recentActivityItems.slice(
+        recentActivityOffset,
+        recentActivityOffset + RECENT_ACTIVITY_PAGE_SIZE,
+      ),
+    [recentActivityItems, recentActivityOffset],
   );
 
   const recentActivityLoading =
-    latestDocumentsQuery.isLoading ||
+    activityDocumentsQuery.isLoading ||
     recentChatSessionsQuery.isLoading ||
     (showAdminUsage && auditActivityQuery.isLoading);
-  const recentActivityError = latestDocumentsQuery.isError
-    ? getApiErrorMessage(latestDocumentsQuery.error)
+  const recentActivityError = activityDocumentsQuery.isError
+    ? getApiErrorMessage(activityDocumentsQuery.error)
     : recentChatSessionsQuery.isError
       ? getApiErrorMessage(recentChatSessionsQuery.error)
       : null;
@@ -831,7 +914,9 @@ export function DashboardPage() {
                     <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3">Chunks</th>
                     <th className="px-3 py-3">Updated</th>
-                    <th className="px-3 py-3">Action</th>
+                    <th className="w-[1%] px-3 py-3 whitespace-nowrap">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0edf8]">
@@ -855,10 +940,10 @@ export function DashboardPage() {
                       <td className="px-3 py-3 text-xs text-[#6a6780]">
                         {formatDateTime(document.updated_at)}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-3 whitespace-nowrap">
                         <Link
                           href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
-                          className="rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                          className="inline-flex rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold whitespace-nowrap text-[#3e376f] hover:bg-[#f5f3ff]"
                         >
                           View document
                         </Link>
@@ -868,6 +953,25 @@ export function DashboardPage() {
                 </tbody>
               </table>
             </div>
+          ) : null}
+          {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
+            <DashboardPagination
+              offset={latestDocumentsOffset}
+              pageSize={LATEST_DOCUMENTS_PAGE_SIZE}
+              total={latestDocumentsQuery.data?.total ?? latestDocuments.length}
+              visibleCount={latestDocuments.length}
+              itemLabel="documents"
+              onPrevious={() =>
+                setLatestDocumentsOffset((current) =>
+                  Math.max(0, current - LATEST_DOCUMENTS_PAGE_SIZE),
+                )
+              }
+              onNext={() =>
+                setLatestDocumentsOffset(
+                  (current) => current + LATEST_DOCUMENTS_PAGE_SIZE,
+                )
+              }
+            />
           ) : null}
         </section>
 
@@ -886,7 +990,7 @@ export function DashboardPage() {
                 compact
                 description={recentActivityError}
                 onRetry={() => {
-                  void latestDocumentsQuery.refetch();
+                  void activityDocumentsQuery.refetch();
                   void recentChatSessionsQuery.refetch();
                   if (showAdminUsage) {
                     void auditActivityQuery.refetch();
@@ -907,37 +1011,56 @@ export function DashboardPage() {
           {!recentActivityLoading &&
           !recentActivityError &&
           recentActivityItems.length > 0 ? (
-            <ul className="mt-4 space-y-2">
-              {recentActivityItems.map((item) => (
-                <li
-                  key={item.id}
-                  className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
-                >
-                  <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                    {item.category}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-[#2f2a46]">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-sm text-[#5f5a74]">
-                    {item.description}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="text-xs text-[#6a6780]">
-                      {formatDateTime(item.timestamp)}
+            <>
+              <ul className="mt-4 space-y-2">
+                {paginatedRecentActivityItems.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                  >
+                    <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                      {item.category}
                     </p>
-                    {item.href ? (
-                      <Link
-                        href={item.href}
-                        className="text-xs font-semibold text-[#3525cd] hover:underline"
-                      >
-                        Open
-                      </Link>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                    <p className="mt-1 text-sm font-semibold text-[#2f2a46]">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 text-sm text-[#5f5a74]">
+                      {item.description}
+                    </p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <p className="text-xs text-[#6a6780]">
+                        {formatDateTime(item.timestamp)}
+                      </p>
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          className="text-xs font-semibold text-[#3525cd] hover:underline"
+                        >
+                          Open
+                        </Link>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <DashboardPagination
+                offset={recentActivityOffset}
+                pageSize={RECENT_ACTIVITY_PAGE_SIZE}
+                total={recentActivityItems.length}
+                visibleCount={paginatedRecentActivityItems.length}
+                itemLabel="events"
+                onPrevious={() =>
+                  setRecentActivityOffset((current) =>
+                    Math.max(0, current - RECENT_ACTIVITY_PAGE_SIZE),
+                  )
+                }
+                onNext={() =>
+                  setRecentActivityOffset(
+                    (current) => current + RECENT_ACTIVITY_PAGE_SIZE,
+                  )
+                }
+              />
+            </>
           ) : null}
           {!recentActivityLoading &&
           !recentActivityError &&

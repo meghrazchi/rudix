@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
@@ -291,6 +292,99 @@ describe("DashboardPage", () => {
       link.getAttribute("href"),
     );
     expect(activityHrefs).toContain("/chat?session_id=s-1");
+  });
+
+  it("paginates latest documents and keeps view action on one line", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-1",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    };
+
+    const allDocuments = Array.from({ length: 6 }, (_, index) => ({
+      document_id: `doc-${index + 1}`,
+      filename: `file-${index + 1}.pdf`,
+      file_type: "pdf",
+      status: "indexed" as const,
+      page_count: 1,
+      chunk_count: 1,
+      error_message: null,
+      error_details: null,
+      created_at: "2026-05-14T00:00:00Z",
+      updated_at: "2026-05-14T00:00:00Z",
+    }));
+
+    mockApi.listDocuments.mockImplementation(
+      (options?: ListDocumentsOptions) => {
+        if (options?.status === "indexed") {
+          return Promise.resolve({
+            items: [],
+            total: allDocuments.length,
+            limit: 1,
+            offset: 0,
+            status: "indexed",
+            sort_by: "created_at",
+            sort_order: "desc",
+          });
+        }
+
+        const limit = options?.limit ?? 5;
+        const offset = options?.offset ?? 0;
+        const items = allDocuments.slice(offset, offset + limit);
+
+        return Promise.resolve({
+          items,
+          total: allDocuments.length,
+          limit,
+          offset,
+          status: options?.status ?? null,
+          sort_by: options?.sort_by ?? "updated_at",
+          sort_order: options?.sort_order ?? "desc",
+        });
+      },
+    );
+
+    renderPage();
+
+    const latestDocumentsSection = screen
+      .getByText("Latest documents")
+      .closest("section");
+    if (!latestDocumentsSection) {
+      throw new Error("Latest documents section is missing");
+    }
+
+    await waitFor(() => {
+      expect(
+        within(latestDocumentsSection).getByText("file-1.pdf"),
+      ).toBeInTheDocument();
+    });
+
+    const viewButton = within(latestDocumentsSection).getAllByRole("link", {
+      name: "View document",
+    })[0];
+    expect(viewButton).toHaveClass("whitespace-nowrap");
+    expect(
+      within(latestDocumentsSection).getByRole("button", { name: "Next" }),
+    ).toBeEnabled();
+
+    await userEvent.click(
+      within(latestDocumentsSection).getByRole("button", { name: "Next" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(latestDocumentsSection).getByText("file-6.pdf"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      within(latestDocumentsSection).getByText("Showing 6-6 of 6 documents."),
+    ).toBeInTheDocument();
   });
 
   it("hides admin-only estimated cost field for non-admin roles", async () => {
