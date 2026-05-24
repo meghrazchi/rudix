@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Changelog | Rudix Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#c9c5cd",
+                    "tertiary-fixed": "#91f8ae",
+                    "background": "#faf9ff",
+                    "surface-container-highest": "#e3e2e8",
+                    "on-tertiary-container": "#8af1a8",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#e2dee6",
+                    "primary-container": "#4f46e5",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "tertiary-container": "#006f3a",
+                    "surface-dim": "#dad9df",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#faf9ff",
+                    "on-tertiary-fixed": "#00210d",
+                    "success-green": "#108548",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "surface-container-low": "#f4f3f9",
+                    "secondary": "#5f5d64",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eeedf3",
+                    "on-surface-variant": "#464555",
+                    "outline-variant": "#c7c4d8",
+                    "on-secondary-container": "#646169",
+                    "on-primary-fixed": "#001069",
+                    "enterprise-navy": "#0A0A0F",
+                    "inverse-on-surface": "#f1f0f6",
+                    "primary": "#3525cd",
+                    "git-orange": "#E24329",
+                    "surface-tint": "#4d44e3",
+                    "surface-variant": "#e3e2e8",
+                    "glass-border": "rgba(255, 255, 255, 0.1)",
+                    "surface-container-high": "#e8e7ed",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1a1b20",
+                    "outline": "#777587",
+                    "on-background": "#1a1b20",
+                    "surface": "#faf9ff",
+                    "on-tertiary-fixed-variant": "#005229",
+                    "inverse-surface": "#2f3035",
+                    "on-secondary-fixed-variant": "#47464d",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "tertiary": "#00542a",
+                    "tertiary-fixed-dim": "#75db94",
+                    "secondary-fixed": "#e5e1e9",
+                    "on-primary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#1c1b21",
+                    "primary-fixed": "#e2dfff",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "max-width": "1440px",
+                    "base": "4px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "code-sm": ["JetBrains Mono"],
+                    "display-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["30px", {"lineHeight": "38px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid #E2E2E9;
+        }
+        .timeline-gradient {
+            background: linear-gradient(180deg, #3525cd 0%, #E2E2E9 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="sticky top-0 w-full z-50 bg-surface/80 backdrop-blur-md dark:bg-enterprise-navy/80 border-b border-outline-variant/30 shadow-sm transition-all duration-300">
+<div class="flex justify-between items-center max-w-max-width mx-auto px-margin-desktop h-20">
+<div class="flex items-center gap-8">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy dark:text-surface" href="/">Rudix</a>
+<nav class="hidden md:flex gap-6">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Product</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Solutions</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="font-body-md text-body-md text-primary font-semibold border-b-2 border-primary pb-1" href="#">Docs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="font-body-md text-body-md text-on-surface-variant hover:opacity-80 active:scale-95 transition-all">Sign in</button>
+<button class="bg-primary-container text-on-primary font-semibold px-6 py-2 rounded-lg hover:opacity-90 active:scale-95 transition-all">Speak to us</button>
+</div>
+</div>
+</header>
+<main class="max-w-max-width mx-auto px-margin-desktop py-16 md:py-24">
+<!-- Hero Section -->
+<section class="mb-24">
+<div class="max-w-3xl">
+<h1 class="font-display-lg text-display-lg mb-6 text-enterprise-navy">Rudix changelog.</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-10">
+                    Precision updates for the high-fidelity enterprise. Track the evolution of our RAG infrastructure, security protocols, and platform capabilities.
+                </p>
+<div class="flex gap-4">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container border border-outline-variant rounded-full font-label-caps text-label-caps uppercase tracking-wider hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">rss_feed</span>
+                        RSS Feed
+                    </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container border border-outline-variant rounded-full font-label-caps text-label-caps uppercase tracking-wider hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">mail</span>
+                        Subscribe
+                    </button>
+</div>
+</div>
+</section>
+<!-- Changelog Timeline -->
+<div class="relative">
+<!-- Central Line -->
+<div class="absolute left-0 md:left-1/2 md:-translate-x-px top-0 bottom-0 w-0.5 timeline-gradient opacity-20"></div>
+<!-- v0.5.0 Entry -->
+<div class="relative mb-24 md:flex md:justify-between items-start">
+<div class="md:w-5/12 mb-8 md:mb-0 md:text-right">
+<span class="inline-block px-3 py-1 bg-primary/10 text-primary font-code-sm text-code-sm rounded-full mb-4">LATEST RELEASE</span>
+<h2 class="font-headline-md text-headline-md text-enterprise-navy">v0.5.0</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">November 12, 2024</p>
+</div>
+<div class="absolute left-[-6px] md:left-1/2 md:-translate-x-[7px] top-2 w-3.5 h-3.5 rounded-full bg-primary border-4 border-background z-10"></div>
+<div class="md:w-5/12 pl-8 md:pl-0">
+<div class="glass-card p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary">explore</span>
+<h3 class="font-headline-sm text-headline-sm">Pipeline Explorer</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">
+                            A complete overhaul of the trace visualization engine. Developers can now step through RAG retrieval chains with sub-millisecond granularity.
+                        </p>
+<div class="space-y-4">
+<div class="flex items-start gap-3">
+<span class="mt-1 px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed font-label-caps text-[10px] rounded uppercase">Infrastructure</span>
+<p class="text-on-surface-variant">Distributed vector cache for 3x faster retrieval in multi-region clusters.</p>
+</div>
+<div class="flex items-start gap-3">
+<span class="mt-1 px-2 py-0.5 bg-secondary-container text-on-secondary-container font-label-caps text-[10px] rounded uppercase">Product</span>
+<p class="text-on-surface-variant">New Dark Mode UI for the administrative dashboard.</p>
+</div>
+</div>
+<div class="mt-8 rounded-lg overflow-hidden border border-outline-variant">
+<img class="w-full h-48 object-cover" data-alt="A clean, high-fidelity user interface showing a complex RAG pipeline visualization with nodes and glowing connection lines. The design is minimalist with a light mode aesthetic, featuring soft shadows, indigo accents, and precise typography. The mood is technical and sophisticated, suggesting enterprise-grade infrastructure." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBOb8B5b0194z_T-9trU7slZ6sZail5dxoa4JEzO1W4NKn5S_1yF-nFPn5-rwaeZxpUPjI0X0P3qaq36Koqj8mzN4IiULJKYg9IBP5_gADD9B2UQCi9m84Ad4jrB1d0IMdh0ryB0fMv_gWx0dE9Z0r9g3o-YUciww_7zQriA1APoJQJhPn_onPtwy2e8PpJg0YWwlFOLJzCulvHqkRmRiVnwEg3lFFPZ_yxo2o5tqEk2QD1CVaX9d66djDK56xBbaIyaNmbFWaIAEg"/>
+</div>
+</div>
+</div>
+</div>
+<!-- v0.4.0 Entry -->
+<div class="relative mb-24 md:flex md:flex-row-reverse md:justify-between items-start">
+<div class="md:w-5/12 mb-8 md:mb-0">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy">v0.4.0</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">October 28, 2024</p>
+</div>
+<div class="absolute left-[-6px] md:left-1/2 md:-translate-x-[7px] top-2 w-3.5 h-3.5 rounded-full bg-outline-variant border-4 border-background z-10"></div>
+<div class="md:w-5/12 md:text-right pr-0 md:pr-8 pl-8 md:pl-0">
+<div class="glass-card p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-end gap-2 mb-4">
+<h3 class="font-headline-sm text-headline-sm">Evaluations</h3>
+<span class="material-symbols-outlined text-primary">analytics</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">
+                            Native testing framework for RAG accuracy. Benchmark different LLM providers and embedding models side-by-side with ground-truth datasets.
+                        </p>
+<div class="space-y-4">
+<div class="flex flex-row-reverse items-start gap-3">
+<span class="mt-1 px-2 py-0.5 bg-primary-container/20 text-primary font-label-caps text-[10px] rounded uppercase">RAG</span>
+<p class="text-on-surface-variant">Semantic chunking engine for better context retention.</p>
+</div>
+<div class="flex flex-row-reverse items-start gap-3">
+<span class="mt-1 px-2 py-0.5 bg-error-container text-on-error-container font-label-caps text-[10px] rounded uppercase">Security</span>
+<p class="text-on-surface-variant">SOC2 Type II compliance controls integrated into the API.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- v0.3.0 Entry -->
+<div class="relative mb-24 md:flex md:justify-between items-start">
+<div class="md:w-5/12 mb-8 md:mb-0 md:text-right">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy">v0.3.0</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">October 05, 2024</p>
+</div>
+<div class="absolute left-[-6px] md:left-1/2 md:-translate-x-[7px] top-2 w-3.5 h-3.5 rounded-full bg-outline-variant border-4 border-background z-10"></div>
+<div class="md:w-5/12 pl-8 md:pl-0">
+<div class="glass-card p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary">chat_bubble</span>
+<h3 class="font-headline-sm text-headline-sm">Document Chat</h3>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">
+                            Interactive playground to test your indexed knowledge bases instantly. Includes citation tracking and source attribution out of the box.
+                        </p>
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant/30">
+<div class="font-code-sm text-code-sm text-primary mb-1">Product</div>
+<div class="text-on-surface text-sm">Rich text citations in responses.</div>
+</div>
+<div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant/30">
+<div class="font-code-sm text-code-sm text-primary mb-1">RAG</div>
+<div class="text-on-surface text-sm">Hybrid search (Vector + Keyword).</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- v0.2.0 Entry -->
+<div class="relative md:flex md:flex-row-reverse md:justify-between items-start">
+<div class="md:w-5/12 mb-8 md:mb-0">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy">v0.2.0</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">September 14, 2024</p>
+</div>
+<div class="absolute left-[-6px] md:left-1/2 md:-translate-x-[7px] top-2 w-3.5 h-3.5 rounded-full bg-outline-variant border-4 border-background z-10"></div>
+<div class="md:w-5/12 md:text-right pr-0 md:pr-8 pl-8 md:pl-0">
+<div class="glass-card p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+<div class="flex items-center justify-end gap-2 mb-4">
+<h3 class="font-headline-sm text-headline-sm">Document Upload</h3>
+<span class="material-symbols-outlined text-primary">upload_file</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">
+                            Direct S3 and Google Drive integration. Automatically sync and index corporate wikis and internal documentation hubs.
+                        </p>
+<div class="space-y-2">
+<div class="text-sm font-label-caps text-on-surface-variant">INFRASTRUCTURE UPDATE</div>
+<div class="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary w-full"></div>
+</div>
+<p class="text-xs text-on-surface-variant">Automated OCR for PDF tables and scanned documents now live.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- CTA Section -->
+<section class="mt-32 p-12 bg-enterprise-navy rounded-2xl text-center relative overflow-hidden">
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+<div class="absolute top-[-50%] left-[-20%] w-[140%] h-[200%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/40 via-transparent to-transparent"></div>
+</div>
+<h2 class="font-headline-md text-headline-md text-surface mb-4 relative z-10">Stay updated on our progress.</h2>
+<p class="text-on-surface-variant mb-8 max-w-xl mx-auto relative z-10">Join 5,000+ architects receiving technical deep-dives and product updates every week.</p>
+<div class="flex flex-col sm:flex-row justify-center gap-4 max-w-md mx-auto relative z-10">
+<input class="flex-grow px-4 py-3 bg-white/10 border border-white/20 text-surface rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="work@company.com" type="email"/>
+<button class="bg-primary text-on-primary font-semibold px-8 py-3 rounded-lg hover:opacity-90 active:scale-95 transition-all">Join Waitlist</button>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-surface-container-lowest border-t border-outline-variant py-16">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-gutter max-w-max-width mx-auto px-margin-desktop">
+<div class="col-span-2 lg:col-span-2">
+<div class="font-headline-sm text-headline-sm font-bold text-enterprise-navy mb-4">Rudix</div>
+<p class="text-on-secondary-container max-w-sm font-body-md text-body-md">
+                    Infrastructure for the high-fidelity enterprise. Built for the next generation of RAG applications.
+                </p>
+<p class="mt-8 text-on-secondary-container opacity-60 text-sm">
+                    © 2024 Rudix. All rights reserved.
+                </p>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps uppercase tracking-widest text-on-surface mb-6">Product</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Features</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors text-primary font-semibold" href="#">Changelog</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Integrations</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps uppercase tracking-widest text-on-surface mb-6">Resources</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Documentation</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">API Reference</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Support</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps uppercase tracking-widest text-on-surface mb-6">Company</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">About Us</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Security</a></li>
+<li><a class="text-on-secondary-container hover:text-primary transition-colors" href="#">Contact</a></li>
+</ul>
+</div>
+</div>
+</footer>
+<script>
+        // Simple intersection observer for scroll reveal effects
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-8');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-8');
+            observer.observe(card);
+        });
+    </script>
+</body></html>

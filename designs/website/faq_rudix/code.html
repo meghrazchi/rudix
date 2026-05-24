@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FAQ | Rudix Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#c9c5cd",
+                    "tertiary-fixed": "#91f8ae",
+                    "background": "#faf9ff",
+                    "surface-container-highest": "#e3e2e8",
+                    "on-tertiary-container": "#8af1a8",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#e2dee6",
+                    "primary-container": "#4f46e5",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "tertiary-container": "#006f3a",
+                    "surface-dim": "#dad9df",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#faf9ff",
+                    "on-tertiary-fixed": "#00210d",
+                    "success-green": "#108548",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "surface-container-low": "#f4f3f9",
+                    "secondary": "#5f5d64",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eeedf3",
+                    "on-surface-variant": "#464555",
+                    "outline-variant": "#c7c4d8",
+                    "on-secondary-container": "#646169",
+                    "on-primary-fixed": "#0f0069",
+                    "enterprise-navy": "#0A0A0F",
+                    "inverse-on-surface": "#f1f0f6",
+                    "primary": "#3525cd",
+                    "git-orange": "#E24329",
+                    "surface-tint": "#4d44e3",
+                    "surface-variant": "#e3e2e8",
+                    "glass-border": "rgba(255, 255, 255, 0.1)",
+                    "surface-container-high": "#e8e7ed",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1a1b20",
+                    "outline": "#777587",
+                    "on-background": "#1a1b20",
+                    "surface": "#faf9ff",
+                    "on-tertiary-fixed-variant": "#005229",
+                    "inverse-surface": "#2f3035",
+                    "on-secondary-fixed-variant": "#47464d",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "tertiary": "#00542a",
+                    "tertiary-fixed-dim": "#75db94",
+                    "secondary-fixed": "#e5e1e9",
+                    "on-primary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#1c1b21",
+                    "primary-fixed": "#e2dfff",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "max-width": "1440px",
+                    "base": "4px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "code-sm": ["JetBrains Mono"],
+                    "display-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["30px", {"lineHeight": "38px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(226, 226, 233, 0.5);
+        }
+        .technical-card {
+            background: #1F1E24;
+            color: #eeedf3;
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease;
+        }
+        .accordion-item.active .accordion-content {
+            max-height: 500px;
+            padding-bottom: 24px;
+        }
+        .accordion-item.active .rotate-icon {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-primary-fixed-dim selection:text-primary">
+<!-- TopNavBar Component -->
+<nav class="sticky top-0 w-full z-50 bg-surface/80 backdrop-blur-md dark:bg-enterprise-navy/80 border-b border-outline-variant/30 dark:border-glass-border shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center max-w-max-width mx-auto px-margin-desktop h-20">
+<div class="flex items-center gap-10">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy dark:text-surface" href="/">Rudix</a>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-body-md text-body-md" href="#">Product</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-body-md text-body-md" href="#">Solutions</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-body-md text-body-md" href="#">Security</a>
+<a class="text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-body-md text-body-md" href="#">Pricing</a>
+<a class="text-primary dark:text-primary-fixed font-semibold border-b-2 border-primary pb-1 font-body-md text-body-md" href="#">Docs</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden sm:block text-on-surface font-body-md text-body-md hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200">Sign in</button>
+<button class="bg-primary-container text-on-primary font-body-md text-body-md px-6 py-2.5 rounded-lg hover:opacity-80 transition-opacity active:scale-95 transition-transform duration-200">Speak to us</button>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<header class="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+<div class="absolute inset-0 -z-10 pointer-events-none">
+<div class="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px]"></div>
+<div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-tertiary/5 rounded-full blur-[80px]"></div>
+</div>
+<div class="max-w-max-width mx-auto px-margin-desktop text-center">
+<p class="font-label-caps text-label-caps text-primary tracking-widest uppercase mb-4">Support Center</p>
+<h1 class="font-display-lg text-display-lg mb-6 text-on-surface">Frequently asked questions.</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">
+                Everything you need to know about the Rudix RAG infrastructure, enterprise security, and our high-fidelity data pipelines.
+            </p>
+</div>
+</header>
+<!-- FAQ Search (Custom) -->
+<section class="mb-16">
+<div class="max-w-3xl mx-auto px-margin-mobile">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors" data-icon="search">search</span>
+<input class="w-full pl-12 pr-6 py-4 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-body-md text-body-md outline-none" placeholder="Search for answers..." type="text"/>
+</div>
+</div>
+</section>
+<!-- Main FAQ Grid -->
+<main class="max-w-max-width mx-auto px-margin-desktop pb-32">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+<!-- Sidebar Navigation -->
+<aside class="lg:col-span-3">
+<nav class="sticky top-32 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary-container/10 text-primary font-semibold transition-all" href="#general">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+                        General
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all" href="#product">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+                        Product
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all" href="#security">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+                        Security
+                    </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container transition-all" href="#technical">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                        Technical
+                    </a>
+</nav>
+</aside>
+<!-- FAQ Content -->
+<div class="lg:col-span-9 space-y-24">
+<!-- General Section -->
+<section class="scroll-mt-32" id="general">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="info">info</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">General</h2>
+</div>
+<div class="space-y-4">
+<!-- Accordion Item -->
+<div class="accordion-item border-b border-outline-variant/50">
+<button class="w-full flex justify-between items-center py-6 text-left focus:outline-none group" onclick="toggleAccordion(this)">
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">What is Rudix?</span>
+<span class="material-symbols-outlined rotate-icon transition-transform duration-300" data-icon="expand_more">expand_more</span>
+</button>
+<div class="accordion-content">
+<p class="text-on-surface-variant font-body-md text-body-md">
+                                    Rudix is an enterprise-grade Infrastructure-as-Code platform specifically designed for high-fidelity Retrieval-Augmented Generation (RAG). We provide the backbone for companies to build, deploy, and scale LLM applications with deterministic data retrieval and surgical precision.
+                                </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Product Section -->
+<section class="scroll-mt-32" id="product">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="inventory_2">inventory_2</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Product</h2>
+</div>
+<div class="space-y-4">
+<div class="accordion-item border-b border-outline-variant/50">
+<button class="w-full flex justify-between items-center py-6 text-left focus:outline-none group" onclick="toggleAccordion(this)">
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Does Rudix require internet access?</span>
+<span class="material-symbols-outlined rotate-icon transition-transform duration-300" data-icon="expand_more">expand_more</span>
+</button>
+<div class="accordion-content">
+<p class="text-on-surface-variant font-body-md text-body-md mb-4">
+                                    No. Rudix can be deployed in fully air-gapped environments or private VPCs. Our architecture supports on-premise hardware and sovereign cloud deployments for maximum data isolation.
+                                </p>
+<div class="bg-surface-container p-4 rounded-lg flex items-center gap-4">
+<span class="material-symbols-outlined text-success-green" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-on-surface font-body-md text-body-md">Compatible with AWS Outposts, Azure Stack, and bare metal.</span>
+</div>
+</div>
+</div>
+<div class="accordion-item border-b border-outline-variant/50">
+<button class="w-full flex justify-between items-center py-6 text-left focus:outline-none group" onclick="toggleAccordion(this)">
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">How do you reduce hallucinations?</span>
+<span class="material-symbols-outlined rotate-icon transition-transform duration-300" data-icon="expand_more">expand_more</span>
+</button>
+<div class="accordion-content">
+<p class="text-on-surface-variant font-body-md text-body-md">
+                                    We use a multi-stage retrieval process involving hybrid search (Vector + Keyword) and a sophisticated re-ranking layer. By providing LLMs with precisely relevant context and strict instruction templates, we reduce groundless generations by up to 94% in production environments.
+                                </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Security Section -->
+<section class="scroll-mt-32" id="security">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="security">security</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Security</h2>
+</div>
+<div class="space-y-4">
+<div class="accordion-item border-b border-outline-variant/50">
+<button class="w-full flex justify-between items-center py-6 text-left focus:outline-none group" onclick="toggleAccordion(this)">
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Can I restrict access to specific data?</span>
+<span class="material-symbols-outlined rotate-icon transition-transform duration-300" data-icon="expand_more">expand_more</span>
+</button>
+<div class="accordion-content">
+<p class="text-on-surface-variant font-body-md text-body-md">
+                                    Yes. Rudix features granular RBAC (Role-Based Access Control) at the document and vector collection level. You can sync permissions directly from your existing IAM or Identity Provider (Okta, Azure AD) to ensure users only retrieve data they are authorized to see.
+                                </p>
+</div>
+</div>
+<div class="accordion-item border-b border-outline-variant/50">
+<button class="w-full flex justify-between items-center py-6 text-left focus:outline-none group" onclick="toggleAccordion(this)">
+<span class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors">Instructions vs Evidence: What's the difference?</span>
+<span class="material-symbols-outlined rotate-icon transition-transform duration-300" data-icon="expand_more">expand_more</span>
+</button>
+<div class="accordion-content">
+<p class="text-on-surface-variant font-body-md text-body-md">
+                                    In the Rudix framework, "Instructions" guide the model's behavior and persona, while "Evidence" consists of the retrieved chunks from your knowledge base. We keep these strictly separated in the prompt engineering layer to prevent prompt injection and context contamination.
+                                </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Section -->
+<section class="scroll-mt-32" id="technical">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Technical</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Bento Style Tech Cards -->
+<div class="technical-card p-8 rounded-xl flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm mb-4">What is the core stack?</h3>
+<p class="text-surface-variant/70 font-body-md text-body-md mb-6">
+                                    Built for performance and reliability.
+                                </p>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="bg-white/10 px-3 py-1 rounded text-xs font-code-sm">Rust Core</span>
+<span class="bg-white/10 px-3 py-1 rounded text-xs font-code-sm">PostgreSQL (pgvector)</span>
+<span class="bg-white/10 px-3 py-1 rounded text-xs font-code-sm">gRPC</span>
+<span class="bg-white/10 px-3 py-1 rounded text-xs font-code-sm">Kubernetes</span>
+</div>
+</div>
+<div class="glass-card p-8 rounded-xl">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-4">Pipeline Debugger</h3>
+<p class="text-on-surface-variant font-body-md text-body-md mb-6">
+                                How do I debug retrieval issues?
+                            </p>
+<p class="text-on-surface-variant font-body-md text-body-md">
+                                Every query includes a trace ID that can be inspected in the Rudix Observability Dashboard. See cosine similarity scores, rerank confidence, and token usage for every single step in real-time.
+                            </p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Support CTA Section -->
+<section class="max-w-max-width mx-auto px-margin-desktop mb-32">
+<div class="relative bg-enterprise-navy rounded-[2rem] p-12 md:p-24 overflow-hidden text-center">
+<div class="absolute inset-0 opacity-20 pointer-events-none">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary via-transparent to-transparent"></div>
+</div>
+<div class="relative z-10 max-w-2xl mx-auto">
+<h2 class="font-display-lg text-display-lg text-white mb-6">Still have questions?</h2>
+<p class="text-surface-variant font-body-lg text-body-lg mb-10">
+                    Our technical architects are available for deep-dive calls to discuss your specific infrastructure needs.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-primary-container text-on-primary font-body-md text-body-md px-8 py-4 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="mail">mail</span>
+                        Contact Support
+                    </button>
+<button class="bg-white/10 text-white font-body-md text-body-md px-8 py-4 rounded-xl hover:bg-white/20 transition-all border border-glass-border flex items-center justify-center gap-2 backdrop-blur-sm">
+<span class="material-symbols-outlined" data-icon="book">book</span>
+                        View Documentation
+                    </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Component -->
+<footer class="bg-surface-container-lowest dark:bg-enterprise-navy border-t border-outline-variant dark:border-glass-border">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-gutter max-w-max-width mx-auto px-margin-desktop py-16">
+<div class="col-span-2 lg:col-span-1">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy dark:text-surface" href="/">Rudix</a>
+<p class="mt-4 text-on-surface-variant font-body-md text-body-md max-w-xs">
+                    Infrastructure for the high-fidelity enterprise. Precision RAG at scale.
+                </p>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface mb-6 font-body-md text-body-md">Product</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Platform</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Security</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Pricing</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface mb-6 font-body-md text-body-md">Solutions</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Enterprise RAG</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Data Sovereignty</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Compliance</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface mb-6 font-body-md text-body-md">Resources</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Documentation</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">API Reference</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Status</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-semibold text-on-surface mb-6 font-body-md text-body-md">Company</h4>
+<ul class="space-y-4">
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">About</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Careers</a></li>
+<li><a class="text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors font-body-md text-body-md" href="#">Privacy</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-max-width mx-auto px-margin-desktop py-8 border-t border-outline-variant/30 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-on-surface-variant font-body-md text-body-md">© 2024 Rudix. Infrastructure for the high-fidelity enterprise.</p>
+<div class="flex gap-6">
+<a class="text-outline hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined" data-icon="terminal">terminal</span></a>
+<a class="text-outline hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined" data-icon="public">public</span></a>
+</div>
+</div>
+</footer>
+<script>
+        function toggleAccordion(button) {
+            const item = button.parentElement;
+            const isActive = item.classList.contains('active');
+            
+            // Close all items in the same section if needed, 
+            // but here we allow multiple open sections for better UX
+            item.classList.toggle('active');
+        }
+
+        // Add some scroll reveal effects for tech cards
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('opacity-100', 'translate-y-0');
+                    entry.target.classList.remove('opacity-0', 'translate-y-8');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section').forEach(section => {
+            section.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-8');
+            observer.observe(section);
+        });
+
+        // Smooth scroll highlighting for sidebar
+        window.addEventListener('scroll', () => {
+            let current = "";
+            const sections = document.querySelectorAll("section[id]");
+            sections.forEach((section) => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute("id");
+                }
+            });
+
+            document.querySelectorAll("aside nav a").forEach((a) => {
+                a.classList.remove("bg-primary-container/10", "text-primary", "font-semibold");
+                a.classList.add("text-on-surface-variant");
+                if (a.getAttribute("href") === `#${current}`) {
+                    a.classList.add("bg-primary-container/10", "text-primary", "font-semibold");
+                    a.classList.remove("text-on-surface-variant");
+                }
+            });
+        });
+    </script>
+</body></html>

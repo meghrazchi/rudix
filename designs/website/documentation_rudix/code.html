@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rudix Documentation | Enterprise Infrastructure</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#c9c5cd",
+                    "tertiary-fixed": "#91f8ae",
+                    "background": "#faf9ff",
+                    "surface-container-highest": "#e3e2e8",
+                    "on-tertiary-container": "#8af1a8",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#e2dee6",
+                    "primary-container": "#4f46e5",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "tertiary-container": "#006f3a",
+                    "surface-dim": "#dad9df",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#faf9ff",
+                    "on-tertiary-fixed": "#00210d",
+                    "success-green": "#108548",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "surface-container-low": "#f4f3f9",
+                    "secondary": "#5f5d64",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eeedf3",
+                    "on-surface-variant": "#464555",
+                    "outline-variant": "#c7c4d8",
+                    "on-secondary-container": "#646169",
+                    "on-primary-fixed": "#0f0069",
+                    "enterprise-navy": "#0A0A0F",
+                    "inverse-on-surface": "#f1f0f6",
+                    "primary": "#3525cd",
+                    "git-orange": "#E24329",
+                    "surface-tint": "#4d44e3",
+                    "surface-variant": "#e3e2e8",
+                    "glass-border": "rgba(255, 255, 255, 0.1)",
+                    "surface-container-high": "#e8e7ed",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1a1b20",
+                    "outline": "#777587",
+                    "on-background": "#1a1b20",
+                    "surface": "#faf9ff",
+                    "on-tertiary-fixed-variant": "#005229",
+                    "inverse-surface": "#2f3035",
+                    "on-secondary-fixed-variant": "#47464d",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "tertiary": "#00542a",
+                    "tertiary-fixed-dim": "#75db94",
+                    "secondary-fixed": "#e5e1e9",
+                    "on-primary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#1c1b21",
+                    "primary-fixed": "#e2dfff",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "max-width": "1440px",
+                    "base": "4px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "code-sm": ["JetBrains Mono"],
+                    "display-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["30px", {"lineHeight": "38px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 226, 233, 0.6);
+        }
+        .code-block {
+            background-color: #1F1E24;
+            color: #E2E2E9;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .technical-gradient {
+            background: radial-gradient(circle at 50% 50%, #4f46e50a 0%, transparent 100%);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c7c4d8; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="sticky top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
+<div class="flex justify-between items-center max-w-max-width mx-auto px-margin-desktop h-20">
+<div class="flex items-center gap-8">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy" href="#">Rudix</a>
+<nav class="hidden md:flex gap-6">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Product</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Solutions</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="font-body-md text-body-md text-primary font-semibold border-b-2 border-primary pb-1" href="#">Docs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="font-body-md text-body-md text-on-surface-variant hover:opacity-80 active:scale-95 transition-all">Sign in</button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-lg font-body-md text-body-md hover:opacity-90 active:scale-95 transition-all">Speak to us</button>
+</div>
+</div>
+</header>
+<main class="relative overflow-hidden technical-gradient">
+<!-- Hero Section -->
+<section class="max-w-max-width mx-auto px-margin-desktop pt-24 pb-16">
+<div class="flex flex-col gap-6 max-w-3xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-primary-fixed text-on-primary-fixed rounded-full text-label-caps font-label-caps">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                    v2.4.0 Release
+                </div>
+<h1 class="font-display-lg text-display-lg text-enterprise-navy leading-tight">Rudix documentation.</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">
+                    Enterprise-grade infrastructure for high-fidelity RAG workflows. Deep-dive into technical specifications, API references, and deployment guides.
+                </p>
+<div class="flex gap-4 pt-4">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full pl-12 pr-4 py-3 bg-surface-container-low border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="Search documentation..." type="text"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Documentation Navigation -->
+<section class="max-w-max-width mx-auto px-margin-desktop py-12">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- Getting Started - Featured -->
+<a class="md:col-span-8 group relative overflow-hidden glass-card rounded-xl p-8 hover:shadow-lg transition-all border-l-4 border-l-primary" href="#">
+<div class="flex flex-col h-full justify-between gap-12">
+<div class="flex justify-between items-start">
+<div class="p-3 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined text-[32px]" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy mb-2">Getting started</h3>
+<p class="text-on-surface-variant">The quick-start guide to initialize your first enterprise node in under 5 minutes.</p>
+</div>
+</div>
+</a>
+<!-- Architecture -->
+<a class="md:col-span-4 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">Architecture</h3>
+<p class="text-on-surface-variant font-body-md">High-level overview of the Rudix engine and data flow patterns.</p>
+</div>
+</a>
+<!-- RAG Workflow -->
+<a class="md:col-span-4 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">hub</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">RAG workflow</h3>
+<p class="text-on-surface-variant font-body-md">Optimizing retrieval accuracy and context injection strategies.</p>
+</div>
+</a>
+<!-- API Design -->
+<a class="md:col-span-4 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">api</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">API design</h3>
+<p class="text-on-surface-variant font-body-md">RESTful endpoints, GraphQL schemas, and WebSocket events.</p>
+</div>
+</a>
+<!-- Frontend UI -->
+<a class="md:col-span-4 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">web</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">Frontend UI</h3>
+<p class="text-on-surface-variant font-body-md">Building with our React and Vue SDKs for high-fidelity displays.</p>
+</div>
+</a>
+<!-- Security Checklist -->
+<a class="md:col-span-3 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-tertiary-container/10 rounded-lg w-fit text-tertiary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">Security</h3>
+<p class="text-on-surface-variant font-body-md">Compliance and RBAC settings.</p>
+</div>
+</a>
+<!-- Deployment -->
+<a class="md:col-span-3 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">cloud_upload</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">Deployment</h3>
+<p class="text-on-surface-variant font-body-md">K8s, Terraform, and AWS.</p>
+</div>
+</a>
+<!-- CI/CD -->
+<a class="md:col-span-3 group glass-card rounded-xl p-8 hover:shadow-lg transition-all" href="#">
+<div class="flex flex-col h-full gap-4">
+<div class="p-3 bg-surface-container-highest rounded-lg w-fit">
+<span class="material-symbols-outlined text-on-surface" style="font-variation-settings: 'FILL' 1;">sync_alt</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-enterprise-navy">CI/CD</h3>
+<p class="text-on-surface-variant font-body-md">Automating high-fidelity pipelines.</p>
+</div>
+</a>
+<!-- MCP Mode -->
+<a class="md:col-span-3 group bg-enterprise-navy rounded-xl p-8 hover:shadow-xl transition-all relative overflow-hidden" href="#">
+<div class="absolute inset-0 opacity-20 technical-gradient"></div>
+<div class="relative flex flex-col h-full gap-4">
+<div class="p-3 bg-primary rounded-lg w-fit text-white">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">memory</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-white">MCP mode</h3>
+<p class="text-outline-variant font-body-md">Multi-Core Processing for scale.</p>
+</div>
+</a>
+</div>
+</section>
+<!-- Developer CTA / Run Locally -->
+<section class="max-w-max-width mx-auto px-margin-desktop py-24">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+<div>
+<h2 class="font-display-lg text-display-lg text-enterprise-navy mb-6">Developer Quick Start</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-8">
+                        Ready to ship? Run the core engine locally and start indexing your data in minutes. Follow our surgical 4-step setup.
+                    </p>
+<div class="space-y-6">
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-caps">1</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-enterprise-navy text-[18px]">Clone the repository</h4>
+<p class="text-on-surface-variant">Access the source on GitLab to get the latest stable build.</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-caps">2</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-enterprise-navy text-[18px]">Configure Environment</h4>
+<p class="text-on-surface-variant">Set your `.env` variables for database and API authentication.</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-caps">3</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-enterprise-navy text-[18px]">Docker Compose</h4>
+<p class="text-on-surface-variant">Spin up the required services including Postgres and Redis.</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-caps">4</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-enterprise-navy text-[18px]">Run Migrations</h4>
+<p class="text-on-surface-variant">Prepare your schema and start the developer server.</p>
+</div>
+</div>
+</div>
+<div class="mt-10 flex flex-wrap gap-4">
+<a class="flex items-center gap-2 bg-git-orange text-white px-8 py-3 rounded-xl font-semibold hover:opacity-90 active:scale-95 transition-all" href="#">
+<img alt="GitLab" class="w-5 h-5" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnaFvHEyHZ5G4k10edv7Mek_JbP42BXjLZhivzBL15w_ANMxmaIpvJD-sSlssQKSzNiPBghHYSPOEc9Y7-HULVGJ-mXNWZXDzgOHEv2S2kQ2VPWWqVVz8cArdJtiToPzU9-xhQAdZtMEU0yFzAF6in0dSUk3tQHnbWV0e9M6AmN02yAwcGvZae3rx1-unskx4R6o0n7-Ce_4n3cFrspBFGdtEZoEyVll_P5v_OERPI93nUgDlc6T5EQMf7chZcaEeaznShkr_bWR8"/>
+                            View on GitLab
+                        </a>
+<a class="flex items-center gap-2 border border-outline px-8 py-3 rounded-xl font-semibold hover:bg-surface-container-low active:scale-95 transition-all" href="#">
+<span class="material-symbols-outlined">library_books</span>
+                            Full Guides
+                        </a>
+</div>
+</div>
+<!-- Code Terminal -->
+<div class="code-block rounded-2xl p-6 shadow-2xl relative">
+<div class="flex gap-2 mb-6">
+<div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+</div>
+<div class="space-y-4 font-code-sm text-code-sm">
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">1</span>
+<span class="text-primary-fixed-dim">git clone</span>
+<span class="text-secondary-fixed-dim">https://gitlab.com/rudix/core.git</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">2</span>
+<span class="text-primary-fixed-dim">cd</span>
+<span class="text-secondary-fixed-dim">rudix-core</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">3</span>
+<span class="text-primary-fixed-dim">cp</span>
+<span class="text-secondary-fixed-dim">.env.example .env</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">4</span>
+<span class="text-primary-fixed-dim">docker-compose</span>
+<span class="text-on-tertiary-container">up -d</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">5</span>
+<span class="text-primary-fixed-dim">npm</span>
+<span class="text-secondary-fixed-dim">install &amp;&amp; npm run migrate</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline-variant select-none">6</span>
+<span class="text-primary-fixed-dim">npm</span>
+<span class="text-secondary-fixed-dim">run dev</span>
+</div>
+<div class="pt-4 border-t border-outline-variant/20 mt-4">
+<div class="text-success-green flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+                                Server running on http://localhost:3000
+                            </div>
+</div>
+</div>
+<div class="absolute bottom-4 right-6 opacity-30">
+<span class="material-symbols-outlined text-6xl">code</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest border-t border-outline-variant">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-gutter max-w-max-width mx-auto px-margin-desktop py-16">
+<div class="col-span-2">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy block mb-4" href="#">Rudix</a>
+<p class="font-body-md text-body-md text-on-secondary-container max-w-xs">
+                    Infrastructure for the high-fidelity enterprise. Built for the future of data-driven intelligence.
+                </p>
+<p class="mt-8 text-label-caps text-outline">© 2024 Rudix. All rights reserved.</p>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy mb-6">Product</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Core Engine</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Integrations</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Status</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy mb-6">Resources</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-primary font-semibold" href="#">Documentation</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Changelog</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Support</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy mb-6">Company</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">About</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Careers</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container hover:text-primary transition-colors" href="#">Privacy</a></li>
+</ul>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions for doc cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+
+        // Search bar highlight
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.02]');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.02]');
+        });
+    </script>
+</body></html>

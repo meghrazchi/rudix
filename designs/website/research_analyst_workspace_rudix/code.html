@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Rudix | Research &amp; Analyst Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-fixed-dim": "#c9c5cd",
+                    "tertiary-fixed": "#91f8ae",
+                    "background": "#faf9ff",
+                    "surface-container-highest": "#e3e2e8",
+                    "on-tertiary-container": "#8af1a8",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#e2dee6",
+                    "primary-container": "#4f46e5",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "tertiary-container": "#006f3a",
+                    "surface-dim": "#dad9df",
+                    "on-secondary": "#ffffff",
+                    "surface-bright": "#faf9ff",
+                    "on-tertiary-fixed": "#00210d",
+                    "success-green": "#108548",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "surface-container-low": "#f4f3f9",
+                    "secondary": "#5f5d64",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container": "#eeedf3",
+                    "on-surface-variant": "#464555",
+                    "outline-variant": "#c7c4d8",
+                    "on-secondary-container": "#646169",
+                    "on-primary-fixed": "#0f0069",
+                    "enterprise-navy": "#0A0A0F",
+                    "inverse-on-surface": "#f1f0f6",
+                    "primary": "#3525cd",
+                    "git-orange": "#E24329",
+                    "surface-tint": "#4d44e3",
+                    "surface-variant": "#e3e2e8",
+                    "glass-border": "rgba(255, 255, 255, 0.1)",
+                    "surface-container-high": "#e8e7ed",
+                    "on-error-container": "#93000a",
+                    "on-surface": "#1a1b20",
+                    "outline": "#777587",
+                    "on-background": "#1a1b20",
+                    "surface": "#faf9ff",
+                    "on-tertiary-fixed-variant": "#005229",
+                    "inverse-surface": "#2f3035",
+                    "on-secondary-fixed-variant": "#47464d",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "tertiary": "#00542a",
+                    "tertiary-fixed-dim": "#75db94",
+                    "secondary-fixed": "#e5e1e9",
+                    "on-primary": "#ffffff",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed": "#1c1b21",
+                    "primary-fixed": "#e2dfff",
+                    "error": "#ba1a1a"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "max-width": "1440px",
+                    "base": "4px",
+                    "gutter": "24px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "display-lg-mobile": ["Inter"],
+                    "code-sm": ["JetBrains Mono"],
+                    "display-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "display-lg-mobile": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "code-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["30px", {"lineHeight": "38px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .glass-effect {
+        backdrop-filter: blur(20px);
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(226, 226, 233, 0.5);
+      }
+      .gradient-subtle {
+        background: radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.05) 0%, transparent 70%);
+      }
+      .elevated-line {
+        box-shadow: 0 0 15px rgba(53, 37, 205, 0.2);
+      }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="sticky top-0 w-full z-50 bg-surface/80 backdrop-blur-md dark:bg-enterprise-navy/80 border-b border-outline-variant/30 dark:border-glass-border shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center max-w-max-width mx-auto px-margin-desktop h-20">
+<div class="flex items-center gap-10">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy dark:text-surface" href="/">Rudix</a>
+<div class="hidden md:flex items-center gap-6">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Product</a>
+<a class="font-body-md text-body-md text-primary font-semibold border-b-2 border-primary pb-1" href="#">Solutions</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Pricing</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Docs</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="font-body-md text-body-md text-on-surface-variant hover:opacity-80 transition-opacity active:scale-95 px-4">Sign in</button>
+<button class="bg-primary text-on-primary font-body-md text-body-md px-6 py-2.5 rounded-lg hover:opacity-90 active:scale-95 transition-all">Speak to us</button>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<header class="relative pt-24 pb-32 overflow-hidden gradient-subtle">
+<div class="max-w-max-width mx-auto px-margin-desktop grid lg:grid-cols-2 gap-gutter items-center">
+<div class="z-10">
+<span class="inline-block px-3 py-1 bg-primary-fixed text-primary font-label-caps text-label-caps rounded-full mb-6">SOLUTIONS / RESEARCH</span>
+<h1 class="font-display-lg text-display-lg text-enterprise-navy mb-6 tracking-tight">
+                    Explore reports and research with <span class="text-primary">cited answers.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-10 max-w-xl">
+                    The intelligence layer for modern analysts. Transform dense PDF reports and market papers into a high-fidelity workspace where every answer is linked to its source.
+                </p>
+<div class="flex flex-wrap gap-4">
+<button class="bg-primary text-on-primary px-8 py-4 rounded-xl font-body-md text-body-md flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+                        Start Researching
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+<button class="border border-outline px-8 py-4 rounded-xl font-body-md text-body-md flex items-center gap-2 hover:bg-surface-container transition-all">
+                        View Demo
+                    </button>
+</div>
+</div>
+<div class="relative lg:block hidden">
+<div class="glass-effect p-6 rounded-2xl shadow-2xl relative z-10 border border-outline-variant">
+<div class="bg-enterprise-navy rounded-lg p-4 mb-4">
+<div class="flex gap-2 mb-4">
+<div class="w-3 h-3 rounded-full bg-error"></div>
+<div class="w-3 h-3 rounded-full bg-git-orange"></div>
+<div class="w-3 h-3 rounded-full bg-success-green"></div>
+</div>
+<div class="font-code-sm text-code-sm text-tertiary-fixed">
+<span class="text-on-primary-container">query:</span> "What are the main findings regarding edge AI growth?"<br/>
+<span class="text-on-primary-container">context:</span> retrieving from 12 indexed research_papers...<br/>
+<span class="text-on-primary-container">status:</span> <span class="bg-tertiary/20 text-tertiary-fixed px-1 rounded">CITING SOURCES</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 flex items-start gap-3">
+<span class="material-symbols-outlined text-primary">description</span>
+<div>
+<p class="font-body-md font-semibold text-enterprise-navy">Morgan Stanley Tech Trends 2024</p>
+<p class="text-label-caps text-on-surface-variant">Page 42 • Section 3.1: Market Projections</p>
+</div>
+</div>
+<div class="p-4 bg-white rounded-lg shadow-sm border border-outline-variant/50">
+<p class="font-body-md text-on-surface leading-relaxed">
+                                "The edge AI market is expected to grow by <span class="bg-primary-fixed/50 px-1 border-b border-primary">28.4% CAGR</span> through 2028, driven primarily by the decentralization of large language models."
+                            </p>
+</div>
+</div>
+</div>
+<!-- Decorative elements -->
+<div class="absolute -top-12 -right-12 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10"></div>
+<div class="absolute -bottom-8 -left-8 w-48 h-48 bg-tertiary/10 rounded-full blur-3xl -z-10"></div>
+</div>
+</div>
+</header>
+<!-- Problem Section -->
+<section class="py-24 bg-surface-container-lowest">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<div class="text-center max-w-2xl mx-auto mb-16">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy mb-4">The Analyst's Dilemma</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">High-fidelity research shouldn't feel like searching for a needle in a haystack. Insights are too often buried under mountains of manual labor.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<div class="p-8 rounded-2xl bg-surface border border-outline-variant hover:shadow-xl transition-all group">
+<div class="w-12 h-12 bg-error-container text-on-error-container rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">visibility_off</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm mb-3">Buried Insights</h3>
+<p class="font-body-md text-on-surface-variant">Critical data is often hidden in 200-page PDFs, lost in appendices, or tucked away in obscure market report sub-sections.</p>
+</div>
+<div class="p-8 rounded-2xl bg-surface border border-outline-variant hover:shadow-xl transition-all group">
+<div class="w-12 h-12 bg-primary-fixed text-primary rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">link_off</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm mb-3">Broken Lineage</h3>
+<p class="font-body-md text-on-surface-variant">Moving findings from a report to a brief often breaks the link to the original data, making verification a manual nightmare.</p>
+</div>
+<div class="p-8 rounded-2xl bg-surface border border-outline-variant hover:shadow-xl transition-all group">
+<div class="w-12 h-12 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined">hourglass_empty</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm mb-3">Latency to Insight</h3>
+<p class="font-body-md text-on-surface-variant">Hours spent summarizing and cross-referencing documents instead of synthesizing strategy and higher-order analysis.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Documents to Upload Section (Bento Grid) -->
+<section class="py-24">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<div class="mb-12">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy mb-2">Omnivorous Data Ingestion</h2>
+<p class="font-body-md text-on-surface-variant">Rudix digests any technical format with surgical precision.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 h-auto md:h-[500px]">
+<div class="md:col-span-2 bg-enterprise-navy rounded-2xl p-10 relative overflow-hidden flex flex-col justify-end group">
+<img class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="A sophisticated home office or analyst workspace with multiple high-resolution monitors displaying complex data visualizations and research papers. The room is filled with soft, warm morning light, creating a professional yet inviting atmosphere. The desk is clean, featuring a sleek laptop and high-end peripherals. The overall aesthetic is minimal and modern with a focus on deep blue and neutral tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnKhSj0yyv76RgclteUll18V92Ve8d67-Q5V-VDHFuWQnilLP0mIGXjcSZeYW8ZlF1GZUnd3mm8B64Yzk-q7OXdOeBZvI5ikGIFwxsk4luL6CDLr0dz3ZLLjRdOOcVHU1tKJrgL-u54A3HPjSkKPHZijRk15Ma2KOU_aUEq0SUXHh6iXfcqBFrmOXFjk3Kn0IVVRjjZSmcFV0Uw9lcMdka0JqDIOGniCXSJMqAbLPBebf7WFWXVQAS1rAV0ldXPouyolOgxyXxCxg"/>
+<div class="relative z-10">
+<span class="bg-primary px-3 py-1 rounded text-label-caps text-on-primary mb-4 inline-block">CORE CAPABILITY</span>
+<h3 class="font-display-lg text-headline-md text-white mb-2">Market Reports &amp; Whitepapers</h3>
+<p class="text-on-primary-container max-w-md">Index entire libraries of analyst research from Gartner, IDC, or proprietary internal databases in seconds.</p>
+</div>
+</div>
+<div class="bg-surface-container-high rounded-2xl p-10 flex flex-col justify-between border border-outline-variant group">
+<div class="w-16 h-16 bg-white rounded-xl shadow-sm flex items-center justify-center group-hover:bg-primary transition-colors duration-300">
+<span class="material-symbols-outlined text-primary text-4xl group-hover:text-white">science</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-enterprise-navy mb-2">Research Papers</h3>
+<p class="text-on-surface-variant">ArXiv, PubMed, or internal R&amp;D documentation. Rudix handles complex equations and citations natively.</p>
+</div>
+</div>
+<div class="bg-primary-container rounded-2xl p-10 flex flex-col justify-between group">
+<div class="w-16 h-16 bg-on-primary-container/20 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-4xl">edit_note</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-white mb-2">Analyst Notes</h3>
+<p class="text-on-primary-container">Voice memos, messy meeting notes, and unstructured field reports transformed into structured knowledge.</p>
+</div>
+</div>
+<div class="md:col-span-2 bg-surface-container rounded-2xl p-10 border border-outline-variant flex items-center gap-10">
+<div class="hidden sm:block">
+<div class="grid grid-cols-2 gap-2">
+<div class="w-12 h-12 bg-white rounded-lg shadow-sm border border-outline-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-git-orange">picture_as_pdf</span>
+</div>
+<div class="w-12 h-12 bg-white rounded-lg shadow-sm border border-outline-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">csv</span>
+</div>
+<div class="w-12 h-12 bg-white rounded-lg shadow-sm border border-outline-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary">article</span>
+</div>
+<div class="w-12 h-12 bg-white rounded-lg shadow-sm border border-outline-variant/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary">database</span>
+</div>
+</div>
+</div>
+<div>
+<h3 class="font-headline-sm text-enterprise-navy mb-2">Enterprise Formats</h3>
+<p class="text-on-surface-variant max-w-lg">From complex JSON schemas to nested Excel workbooks, our parser maintains the structural integrity of your source data.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Example Questions Section -->
+<section class="py-24 bg-enterprise-navy text-surface overflow-hidden">
+<div class="max-w-max-width mx-auto px-margin-desktop grid lg:grid-cols-2 gap-16 items-center">
+<div class="relative">
+<div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-[100px]"></div>
+<div class="space-y-6 relative z-10">
+<div class="p-6 bg-white/5 border border-glass-border rounded-2xl flex items-start gap-4 hover:bg-white/10 transition-all cursor-pointer">
+<div class="mt-1 w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white text-sm">question_mark</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-white">"What are the main findings of the Q3 report?"</p>
+<p class="text-label-caps text-on-surface-variant mt-2">Suggested for Strategic Alignment</p>
+</div>
+</div>
+<div class="p-6 bg-white/5 border border-glass-border rounded-2xl flex items-start gap-4 hover:bg-white/10 transition-all cursor-pointer">
+<div class="mt-1 w-8 h-8 rounded-full bg-tertiary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white text-sm">manage_search</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-white">"Which source mentions market growth over 15%?"</p>
+<p class="text-label-caps text-on-surface-variant mt-2">Suggested for Cross-Reference</p>
+</div>
+</div>
+<div class="p-6 bg-white/5 border border-glass-border rounded-2xl flex items-start gap-4 hover:bg-white/10 transition-all cursor-pointer">
+<div class="mt-1 w-8 h-8 rounded-full bg-git-orange flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-white text-sm">warning</span>
+</div>
+<div>
+<p class="font-body-md font-semibold text-white">"Are there any contradictory projections for 2025?"</p>
+<p class="text-label-caps text-on-surface-variant mt-2">Suggested for Conflict Detection</p>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h2 class="font-display-lg text-headline-md text-white mb-6">Ask the Impossible.</h2>
+<p class="font-body-lg text-body-lg text-on-primary-container mb-8">
+                    Rudix isn't just a search engine; it's a reasoning partner. Query across your entire library and get synthesized answers that point directly to the page and paragraph where the data lives.
+                </p>
+<ul class="space-y-4">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-success-green">check_circle</span>
+<span class="font-body-md text-surface-container-highest">Zero-hallucination citation protocol</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-success-green">check_circle</span>
+<span class="font-body-md text-surface-container-highest">Multi-hop reasoning across 50+ docs</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-success-green">check_circle</span>
+<span class="font-body-md text-surface-container-highest">Real-time graph visualization of findings</span>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- Technical RAG Flow Diagram -->
+<section class="py-24">
+<div class="max-w-max-width mx-auto px-margin-desktop text-center">
+<h2 class="font-headline-md text-headline-md text-enterprise-navy mb-16">The Engine of Trust</h2>
+<div class="relative flex flex-col md:flex-row justify-between items-center gap-8 px-12 py-12 bg-surface-container-low rounded-[2rem] border border-outline-variant/50">
+<div class="flex flex-col items-center gap-4 z-10">
+<div class="w-24 h-24 bg-white rounded-2xl shadow-lg border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-primary">upload_file</span>
+</div>
+<span class="font-label-caps text-enterprise-navy">Ingestion</span>
+</div>
+<div class="hidden md:block flex-1 h-[2px] bg-outline-variant relative">
+<div class="absolute top-1/2 left-0 -translate-y-1/2 h-[4px] bg-primary w-full elevated-line animate-pulse"></div>
+</div>
+<div class="flex flex-col items-center gap-4 z-10">
+<div class="w-24 h-24 bg-white rounded-2xl shadow-lg border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-primary">memory</span>
+</div>
+<span class="font-label-caps text-enterprise-navy">Vector Indexing</span>
+</div>
+<div class="hidden md:block flex-1 h-[2px] bg-outline-variant relative">
+<div class="absolute top-1/2 left-0 -translate-y-1/2 h-[4px] bg-primary w-1/2 elevated-line"></div>
+</div>
+<div class="flex flex-col items-center gap-4 z-10">
+<div class="w-24 h-24 bg-enterprise-navy rounded-2xl shadow-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-4xl text-tertiary-fixed" style="font-variation-settings: 'FILL' 1;">shield_with_heart</span>
+</div>
+<span class="font-label-caps text-enterprise-navy">Citations Layer</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="py-24">
+<div class="max-w-max-width mx-auto px-margin-desktop">
+<div class="bg-primary rounded-[2.5rem] p-16 relative overflow-hidden text-center">
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.15),_transparent)]"></div>
+<div class="relative z-10 max-w-3xl mx-auto">
+<h2 class="font-display-lg text-white mb-6">Build the future of research with high-fidelity infrastructure.</h2>
+<p class="font-body-lg text-on-primary-container mb-10 opacity-90">Join 500+ research teams using Rudix to accelerate their intelligence gathering by 10x.</p>
+<div class="flex flex-wrap justify-center gap-4">
+<button class="bg-white text-primary px-10 py-5 rounded-xl font-headline-sm text-body-lg hover:bg-surface-container-lowest transition-all shadow-xl active:scale-95">
+                            Get Started for Free
+                        </button>
+<button class="bg-primary-fixed-dim/20 backdrop-blur-sm border border-white/20 text-white px-10 py-5 rounded-xl font-headline-sm text-body-lg hover:bg-white/10 transition-all active:scale-95">
+                            Talk to Sales
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest dark:bg-enterprise-navy border-t border-outline-variant dark:border-glass-border">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-gutter max-w-max-width mx-auto px-margin-desktop py-16">
+<div class="col-span-2 lg:col-span-1">
+<a class="font-headline-sm text-headline-sm font-bold text-enterprise-navy dark:text-surface mb-6 block" href="#">Rudix</a>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-xs mb-8">
+                    Infrastructure for the high-fidelity enterprise.
+                </p>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy dark:text-surface mb-6">Product</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Platform</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">RAG Engine</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">API Docs</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy dark:text-surface mb-6">Solutions</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-primary font-semibold" href="#">Research</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Legal</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Finance</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy dark:text-surface mb-6">Resources</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Case Studies</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Whitepapers</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Security</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-label-caps text-label-caps text-enterprise-navy dark:text-surface mb-6">Company</h4>
+<ul class="space-y-4">
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">About Us</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Careers</a></li>
+<li><a class="font-body-md text-body-md text-on-secondary-container dark:text-on-secondary-container hover:text-primary transition-colors" href="#">Contact</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-max-width mx-auto px-margin-desktop py-8 border-t border-outline-variant/30 flex justify-between items-center text-label-caps text-on-surface-variant">
+<span>© 2024 Rudix. Infrastructure for the high-fidelity enterprise.</span>
+<div class="flex gap-6">
+<a class="hover:text-primary" href="#">Privacy Policy</a>
+<a class="hover:text-primary" href="#">Terms of Service</a>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interaction for question items
+        document.querySelectorAll('.cursor-pointer').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.style.transform = 'translateY(-4px)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>
