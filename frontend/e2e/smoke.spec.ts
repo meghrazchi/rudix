@@ -301,6 +301,14 @@ test.describe("frontend e2e smoke (no real backend)", () => {
       }),
     ).toBeVisible();
 
+    await page.goto("/demo");
+    await expect(page).toHaveURL(/\/contact$/);
+    await expect(
+      page.getByRole("heading", {
+        name: "Speak with us about your document workflow",
+      }),
+    ).toBeVisible();
+
     const productLink = primaryNavigation.getByRole("link", {
       name: "Product",
       exact: true,

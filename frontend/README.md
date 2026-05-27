@@ -22,7 +22,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/solutions`
   - `/security`
   - `/pricing` (configurable/contact-placeholder packaging)
-  - `/contact`
+  - `/contact` (validated contact/demo form)
+  - `/demo` (alias redirect to `/contact`)
   - `/status`
 - `/login` credential-based sign-in form with auth-provider entry points
 - `/signup` account creation form with workspace create/join entry points
@@ -231,6 +232,12 @@ NEXT_PUBLIC_PUBLIC_CONTACT_URL=
 NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL=
 NEXT_PUBLIC_PUBLIC_STATUS_URL=
 NEXT_PUBLIC_PUBLIC_LOGIN_URL=
+NEXT_PUBLIC_CONTACT_SUBMIT_API_URL=
+NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO=
+NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL=
+NEXT_PUBLIC_CONTACT_SCHEDULER_URL=
+NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER=
+NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
 NEXT_PUBLIC_SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_RELEASE=
@@ -261,6 +268,11 @@ Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by def
 Set `NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS` to control timeline polling for non-terminal agent run statuses.
 Set `NEXT_PUBLIC_PUBLIC_*` URLs to override public marketing navigation and CTA destinations.
 Set `NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL` to route security-review CTAs to a dedicated contact endpoint or mailbox.
+Set `NEXT_PUBLIC_CONTACT_SUBMIT_API_URL` to post validated `/contact` form submissions directly to your endpoint.
+Set `NEXT_PUBLIC_CONTACT_SUBMIT_MAILTO` to use a `mailto:` fallback when no API endpoint is configured.
+Set `NEXT_PUBLIC_CONTACT_SUBMIT_EXTERNAL_URL` to route form submissions to a CRM/scheduling page when needed.
+Set `NEXT_PUBLIC_CONTACT_SCHEDULER_URL` to show a secondary direct scheduling CTA on the contact page.
+Set `NEXT_PUBLIC_CONTACT_CAPTCHA_PROVIDER` and `NEXT_PUBLIC_CONTACT_CAPTCHA_SITE_KEY` to enable CAPTCHA placeholder inputs for provider integration.
 
 ### 3. Start dev server
 
