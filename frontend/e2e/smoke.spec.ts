@@ -264,6 +264,17 @@ test.describe("frontend e2e smoke (no real backend)", () => {
       page.getByRole("heading", { name: /Scale Precision AI/i }),
     ).toBeVisible();
 
+    await page.getByRole("link", { name: "Solutions" }).first().click();
+    await expect(page).toHaveURL(/\/solutions$/);
+    await expect(
+      page.getByRole("heading", {
+        name: "Trusted AI answers for every document-driven team",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Request Demo" }).first(),
+    ).toBeVisible();
+
     await page.getByRole("link", { name: "Product" }).first().click();
     await expect(page).toHaveURL(/\/product$/);
     await expect(

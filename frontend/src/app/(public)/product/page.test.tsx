@@ -9,34 +9,41 @@ describe("Product public page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "AI Document Q&A for trusted enterprise decisions",
+        name: /The Infrastructure for High-Fidelity/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "How Rudix Works" }),
+      screen.getByRole("heading", { name: "The Rudix Engine Workflow" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Capabilities Across the Product" }),
+      screen.getByRole("heading", { name: "Precision Document Management" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "Operator and Admin Control Center",
+        name: "Grounded Answers with Citations",
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "API-first, integration-ready foundation",
+        name: "Pipeline Explorer Visualizer",
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Product FAQ" }),
+      screen.getByRole("heading", {
+        name: "Unified Admin Control",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Product FAQ",
+      }),
     ).toBeInTheDocument();
 
     expect(
       screen.getAllByRole("link", { name: "Request Demo" }).length,
     ).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("link", { name: "Start Trial or Log In" }),
+      screen.getByRole("link", { name: "View Pipeline Explorer" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "View Security Page" }),
