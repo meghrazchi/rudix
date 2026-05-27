@@ -268,7 +268,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await expect(page).toHaveURL(/\/product$/);
     await expect(
       page.getByRole("heading", {
-        name: "Enterprise RAG platform for production teams",
+        name: "AI Document Q&A for trusted enterprise decisions",
       }),
     ).toBeVisible();
 
