@@ -541,10 +541,10 @@ export function AppShell({
 
   return (
     <div
-      className="min-h-screen bg-[#f5f4ff] text-[#1b1b24]"
+      className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
+      <div className="mx-auto flex h-full w-full max-w-[1600px]">
         <aside className="hidden w-64 shrink-0 border-r border-[#d7d4e7] bg-[#f7f5ff] px-5 py-8 lg:block">
           <div className="mb-6">
             <div className="flex items-center gap-2">

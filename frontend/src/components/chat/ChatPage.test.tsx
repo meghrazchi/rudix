@@ -1496,11 +1496,11 @@ describe("ChatPage", () => {
     expect(await screen.findByText("Session two")).toBeInTheDocument();
     expect(vi.mocked(listChatSessions)).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ limit: 50, offset: 0 }),
+      expect.objectContaining({ limit: 10, offset: 0 }),
     );
     expect(vi.mocked(listChatSessions)).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ limit: 50, offset: 1 }),
+      expect.objectContaining({ limit: 10, offset: 1 }),
     );
   });
 

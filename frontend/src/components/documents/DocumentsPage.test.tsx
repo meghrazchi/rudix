@@ -40,7 +40,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/documents", () => ({
-  uploadDocument: (file: File) => mockApi.uploadDocument(file),
+  uploadDocument: (file: File, signal?: AbortSignal) =>
+    mockApi.uploadDocument(file, signal),
   listDocuments: (options?: unknown) => mockApi.listDocuments(options),
   getDocument: (documentId: string) => mockApi.getDocument(documentId),
   getDocumentStatus: (documentId: string) =>
@@ -380,7 +381,84 @@ describe("DocumentsPage", () => {
     await waitFor(() => {
       expect(mockApi.uploadDocument).toHaveBeenCalledTimes(1);
     });
-    expect(mockApi.uploadDocument).toHaveBeenCalledWith(expect.any(File));
+    expect(mockApi.uploadDocument).toHaveBeenCalledWith(
+      expect.any(File),
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("uploads multiple files sequentially and shows queue progress", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-3",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+    mockApi.uploadDocument
+      .mockResolvedValueOnce({
+        document_id: "doc-2",
+        filename: "guide-a.pdf",
+        status: "uploaded",
+        queue_status: "queued",
+        checksum: "xyz-a",
+        message: "Document uploaded and queued for processing.",
+      })
+      .mockResolvedValueOnce({
+        document_id: "doc-3",
+        filename: "guide-b.pdf",
+        status: "uploaded",
+        queue_status: "queued",
+        checksum: "xyz-b",
+        message: "Document uploaded and queued for processing.",
+      });
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
+
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    const firstFile = new File(["alpha"], "guide-a.pdf", {
+      type: "application/pdf",
+    });
+    const secondFile = new File(["beta"], "guide-b.pdf", {
+      type: "application/pdf",
+    });
+    await userEvent.upload(uploadInput as HTMLInputElement, [
+      firstFile,
+      secondFile,
+    ]);
+
+    await waitFor(() => {
+      expect(mockApi.uploadDocument).toHaveBeenCalledTimes(2);
+    });
+    expect(mockApi.uploadDocument).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ name: "guide-a.pdf" }),
+      expect.any(AbortSignal),
+    );
+    expect(mockApi.uploadDocument).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ name: "guide-b.pdf" }),
+      expect.any(AbortSignal),
+    );
+    expect(await screen.findByText("Progress: 2/2")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        /Uploaded 2\/2 file\(s\)\. Processing has been queued\./i,
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("rejects unsupported mime type before calling upload api", async () => {
@@ -410,10 +488,12 @@ describe("DocumentsPage", () => {
     const file = new File(["hello"], "guide.pdf", { type: "application/json" });
     await userEvent.upload(uploadInput as HTMLInputElement, file);
 
-    expect(mockApi.uploadDocument).not.toHaveBeenCalled();
-    expect(
-      screen.getAllByText(/Unsupported MIME type/i).length,
-    ).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(mockApi.uploadDocument).not.toHaveBeenCalled();
+      expect(
+        screen.getAllByText(/Unsupported MIME type/i).length,
+      ).toBeGreaterThan(0);
+    });
   });
 
   it("shows safe 413 and 415 upload errors", async () => {
@@ -459,6 +539,97 @@ describe("DocumentsPage", () => {
         screen.getAllByText(/file type is not supported/i).length,
       ).toBeGreaterThan(0);
     });
+  });
+
+  it("cancels active and pending uploads when modal closes", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "user-3",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-3",
+      },
+    };
+
+    const resolveFirstRef: { current: (() => void) | null } = {
+      current: null,
+    };
+    let activeSignal: AbortSignal | undefined;
+    mockApi.uploadDocument
+      .mockImplementationOnce(
+        (_file: File, signal?: AbortSignal) =>
+          new Promise((resolve) => {
+            activeSignal = signal;
+            resolveFirstRef.current = () => {
+              resolve({
+                document_id: "doc-2",
+                filename: "guide-a.pdf",
+                status: "uploaded",
+                queue_status: "queued",
+                checksum: "xyz-a",
+                message: "Document uploaded and queued for processing.",
+              });
+            };
+          }),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          document_id: "doc-3",
+          filename: "guide-b.pdf",
+          status: "uploaded",
+          queue_status: "queued",
+          checksum: "xyz-b",
+          message: "Document uploaded and queued for processing.",
+        }),
+      );
+
+    renderPage();
+    await screen.findByText("policy.pdf");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open upload modal" }),
+    );
+
+    const uploadInput = screen
+      .getByRole("dialog")
+      .querySelector('input[type="file"]');
+    expect(uploadInput).toBeTruthy();
+
+    const firstFile = new File(["alpha"], "guide-a.pdf", {
+      type: "application/pdf",
+    });
+    const secondFile = new File(["beta"], "guide-b.pdf", {
+      type: "application/pdf",
+    });
+    await userEvent.upload(uploadInput as HTMLInputElement, [
+      firstFile,
+      secondFile,
+    ]);
+
+    await waitFor(() => {
+      expect(mockApi.uploadDocument).toHaveBeenCalledTimes(1);
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Close upload modal" }),
+    );
+
+    if (typeof resolveFirstRef.current === "function") {
+      resolveFirstRef.current();
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/Upload queue canceled by user\./i),
+      ).toBeInTheDocument();
+    });
+
+    expect(activeSignal?.aborted).toBe(true);
+    expect(mockApi.uploadDocument).toHaveBeenCalledTimes(1);
   });
 
   it("downloads a document file from list actions", async () => {

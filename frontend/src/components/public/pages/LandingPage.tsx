@@ -174,7 +174,7 @@ export function LandingPage() {
           <div className="relative lg:col-span-6">
             <div className="rudix-landing-glass rounded-3xl p-2 shadow-2xl">
               <Image
-                src="/images/pipeline-rag-sample.png"
+                src="/images/chat-sample-2.png"
                 alt="Rudix product interface showing document retrieval and grounded answers"
                 width={1200}
                 height={780}

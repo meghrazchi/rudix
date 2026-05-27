@@ -55,7 +55,13 @@ build:frontend-image:
     - when: never
   script:
     - mkdir -p artifacts/image-digests
-    - docker build -f frontend/Dockerfile -t "$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA" frontend
+    - >
+      docker build
+      --build-arg NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}"
+      --build-arg NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL:-http://localhost:3000}"
+      -f frontend/Dockerfile
+      -t "$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA"
+      frontend
     - docker push "$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA"
     - |
       if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then

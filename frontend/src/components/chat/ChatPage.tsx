@@ -75,7 +75,7 @@ const MAX_INDEXED_DOCS = parsePositiveIntegerEnv(
 );
 const SESSION_LIST_LIMIT = parsePositiveIntegerEnv(
   process.env.NEXT_PUBLIC_CHAT_SESSION_LIST_LIMIT,
-  50,
+  10,
 );
 const CONTEXT_MODAL_PAGE_SIZE = parsePositiveIntegerEnv(
   process.env.NEXT_PUBLIC_CHAT_CONTEXT_MODAL_PAGE_SIZE,
@@ -1208,7 +1208,7 @@ export function ChatPage() {
         </header>
 
         <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-          <aside className="min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
+          <aside className="hide-scrollbar min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-[#f5f2ff] p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
                 Sessions
@@ -1303,7 +1303,7 @@ export function ChatPage() {
                 </p>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4">
+              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4">
                 {sessionMessagesQuery.isLoading &&
                 activeSession &&
                 thread.length === 0 &&
@@ -1346,7 +1346,7 @@ export function ChatPage() {
                           <div className="flex justify-end">
                             <article className="max-w-[85%] rounded-xl rounded-tr-none border border-[#d8d5e8] bg-[#f5f2ff] px-4 py-3 shadow-sm">
                               <p className="sr-only">Question</p>
-                              <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                              <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
                                 {turn.question}
                               </p>
                             </article>
@@ -1424,7 +1424,7 @@ export function ChatPage() {
                                   </p>
                                 </div>
                               ) : (
-                                <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                                <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
                                   {turn.response.answer}
                                 </p>
                               )}
@@ -1535,7 +1535,7 @@ export function ChatPage() {
                         <div className="flex justify-end">
                           <article className="max-w-[85%] rounded-xl rounded-tr-none border border-[#d8d5e8] bg-[#f5f2ff] px-4 py-3 shadow-sm">
                             <p className="sr-only">Question</p>
-                            <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                            <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
                               {pendingQuestion}
                             </p>
                           </article>
@@ -1766,7 +1766,7 @@ export function ChatPage() {
                   Context & citations
                 </h2>
               </div>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="hide-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 {!selectedCitationTurn ? (
                   <p className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
                     Select an answer in the conversation to inspect citations
@@ -2182,7 +2182,7 @@ export function ChatPage() {
                 />
               </div>
             </div>
-            <div className="max-h-[52vh] overflow-y-auto px-4 py-3">
+            <div className="hide-scrollbar max-h-[52vh] overflow-y-auto px-4 py-3">
               {indexedDocumentsQuery.isLoading ? (
                 <LoadingState compact title="Loading indexed documents..." />
               ) : indexedDocumentsQuery.isError ? (

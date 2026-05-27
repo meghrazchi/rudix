@@ -67,6 +67,40 @@ const server = setupServer(
   http.get(`${apiBaseUrl}/documents`, async () =>
     HttpResponse.json(listDocumentsResponse),
   ),
+  http.get(`${apiBaseUrl}/documents/:documentId`, async ({ params }) =>
+    HttpResponse.json({
+      document_id: String(params.documentId),
+      filename: "guide.pdf",
+      file_type: "pdf",
+      status: "uploaded",
+      page_count: 1,
+      chunk_count: 0,
+      checksum: "xyz",
+      error_message: null,
+      error_details: null,
+      created_at: "2026-05-14T00:00:00Z",
+      updated_at: "2026-05-14T00:00:00Z",
+    }),
+  ),
+  http.get(`${apiBaseUrl}/documents/:documentId/status`, async ({ params }) =>
+    HttpResponse.json({
+      document_id: String(params.documentId),
+      status: "uploaded",
+      error_message: null,
+      error_details: null,
+      updated_at: "2026-05-14T00:00:00Z",
+    }),
+  ),
+  http.get(`${apiBaseUrl}/documents/:documentId/chunks`, async ({ params }) =>
+    HttpResponse.json({
+      document_id: String(params.documentId),
+      items: [],
+      total: 0,
+      limit: 8,
+      offset: 0,
+      include_full_text: false,
+    }),
+  ),
   http.post(`${apiBaseUrl}/documents/upload`, async () =>
     HttpResponse.json(
       {
@@ -142,7 +176,11 @@ describe("DocumentsPage upload states (MSW)", () => {
     await userEvent.upload(uploadInput as HTMLInputElement, file);
 
     await waitFor(() => {
-      expect(screen.getByText(/queued successfully/i)).toBeInTheDocument();
+      expect(
+        screen.getAllByText(
+          /Uploaded 1\/1 file\(s\)\. Processing has been queued\./i,
+        ).length,
+      ).toBeGreaterThan(0);
     });
   });
 
