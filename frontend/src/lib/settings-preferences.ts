@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiRequest } from "@/lib/api/request";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 function trimToNull(value: string | null | undefined): string | null {
   if (!value) {
@@ -133,10 +134,12 @@ function toSettingsPreferencesConfig(): SettingsPreferencesConfig {
 }
 
 export function createDefaultSettingsPreferences(): SettingsPreferences {
+  const runtimeConfig = getFrontendRuntimeConfig();
+
   return {
     defaultTopK: TOP_K_DEFAULT,
     rerankEnabled: true,
-    developerMode: false,
+    developerMode: runtimeConfig.features.developerMode,
     notifications: {
       productUpdates: true,
       securityAlerts: true,

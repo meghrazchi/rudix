@@ -48,6 +48,7 @@ import {
   normalizePipelineRunType,
   type PipelineRunType,
 } from "@/lib/pipeline-links";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -100,8 +101,7 @@ const AGENTIC_CHAT_ENABLED =
 const DEFAULT_AGENTIC_MODE =
   process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
-const CHAT_FEEDBACK_ENABLED =
-  process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
+const CHAT_FEEDBACK_ENABLED = getFrontendRuntimeConfig().features.feedback;
 const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 

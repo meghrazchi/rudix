@@ -3,6 +3,7 @@ import type {
   AuthenticatedSession,
   SessionState,
 } from "@/lib/auth-session";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 export type AppRouteKey =
   | "dashboard"
@@ -120,8 +121,7 @@ function hasOrganizationContext(session: AuthenticatedSession): boolean {
     return true;
   }
 
-  const provider =
-    process.env.NEXT_PUBLIC_AUTH_PROVIDER?.trim().toLowerCase() ?? "";
+  const provider = getFrontendRuntimeConfig().authProvider;
   if (
     provider === "app" &&
     (session.accessToken?.trim() || session.refreshToken?.trim())

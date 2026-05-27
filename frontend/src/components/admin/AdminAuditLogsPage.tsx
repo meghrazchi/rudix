@@ -35,6 +35,7 @@ import {
   isForbiddenError,
   sanitizeRequestId,
 } from "@/lib/forbidden";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { isExternalHref } from "@/lib/top-bar";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -61,6 +62,9 @@ function formatTimestamp(value: string): string {
 }
 
 function resolveAuditExportUrl(): string | null {
+  if (!getFrontendRuntimeConfig().features.exports) {
+    return null;
+  }
   const configured = process.env.NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL?.trim();
   if (!configured) {
     return null;

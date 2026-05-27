@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AppQueryProvider } from "@/components/providers/AppQueryProvider";
+import { getFrontendRuntimeConfigErrors } from "@/lib/runtime-config";
 
 import "./globals.css";
 
@@ -33,6 +34,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const runtimeConfigErrors = getFrontendRuntimeConfigErrors();
+
   return (
     <html
       lang="en"
@@ -45,7 +48,29 @@ export default function RootLayout({
         />
       </head>
       <body className="flex min-h-full flex-col">
-        <AppQueryProvider>{children}</AppQueryProvider>
+        {runtimeConfigErrors.length > 0 ? (
+          <main className="flex min-h-screen items-center justify-center bg-[#f5f4ff] px-6 py-10">
+            <section className="w-full max-w-2xl rounded-2xl border border-[#dad8ef] bg-white p-8 shadow-sm">
+              <p className="mb-2 text-xs font-bold tracking-[0.16em] text-[#5d58a8] uppercase">
+                Rudix startup check
+              </p>
+              <h1 className="text-2xl font-bold text-[#29263f]">
+                Frontend configuration is incomplete
+              </h1>
+              <p className="mt-3 text-sm text-[#5f5b76]">
+                Required public environment values are missing or invalid.
+                Update your frontend environment file and restart the app.
+              </p>
+              <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-[#5f5b76]">
+                {runtimeConfigErrors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            </section>
+          </main>
+        ) : (
+          <AppQueryProvider>{children}</AppQueryProvider>
+        )}
       </body>
     </html>
   );

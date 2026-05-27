@@ -18,8 +18,8 @@ import {
   addFrontendBreadcrumb,
   captureFrontendException,
 } from "@/lib/observability";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
-const DEFAULT_API_BASE = "http://localhost:8000/api/v1";
 const DEFAULT_RETRYABLE_STATUS_CODES = new Set([429, 503]);
 const DEFAULT_RETRY_DELAY_MS = 250;
 const DEFAULT_REFRESH_PATH = "/auth/token/refresh";
@@ -89,10 +89,6 @@ function trimToNull(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function normalizeAuthProvider(value: string | undefined): string {
-  return value?.trim().toLowerCase() ?? "";
-}
-
 function shouldAttachOrganizationHeader(
   organizationId: string | null,
 ): boolean {
@@ -100,7 +96,7 @@ function shouldAttachOrganizationHeader(
     return false;
   }
 
-  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  const provider = getFrontendRuntimeConfig().authProvider;
   if (provider !== "app") {
     return true;
   }
@@ -114,8 +110,7 @@ function isSafeMethod(method: string): boolean {
 }
 
 function resolveApiBaseUrl(apiBaseUrl?: string): string {
-  const resolved =
-    apiBaseUrl ?? process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_API_BASE;
+  const resolved = apiBaseUrl ?? getFrontendRuntimeConfig().apiUrl;
   return resolved.replace(/\/$/, "");
 }
 
@@ -196,7 +191,7 @@ function resolveLogoutUrl(apiBaseUrl?: string): string | null {
     return toAbsoluteUrl(configured, apiBaseUrl);
   }
 
-  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  const provider = getFrontendRuntimeConfig().authProvider;
   if (provider === "app") {
     return toAbsoluteUrl(DEFAULT_LOGOUT_PATH, apiBaseUrl);
   }
@@ -311,7 +306,7 @@ function canAttemptRefresh(session: AuthenticatedSession | null): boolean {
     return true;
   }
 
-  const provider = normalizeAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
+  const provider = getFrontendRuntimeConfig().authProvider;
   if (provider === "app") {
     return true;
   }

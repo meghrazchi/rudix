@@ -32,6 +32,7 @@ import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { buildPipelineExplorerHref } from "@/lib/pipeline-links";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -587,8 +588,10 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   );
   const highLatencyThresholdMs = parseHighLatencyThresholdMs();
   const runResultsPageSize = parseResultsPageSize();
-  const exportEndpointTemplate =
-    process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "";
+  const exportFeatureEnabled = getFrontendRuntimeConfig().features.exports;
+  const exportEndpointTemplate = exportFeatureEnabled
+    ? (process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "")
+    : "";
 
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>(

@@ -193,6 +193,9 @@ NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB=25
 NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT=5
 NEXT_PUBLIC_EVALUATION_LOW_SCORE_THRESHOLD=0.5
 NEXT_PUBLIC_AUTH_PROVIDER=app
+NEXT_PUBLIC_FEATURE_DEVELOPER_MODE=false
+NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED=true
+NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=true
 NEXT_PUBLIC_AUTH_LOGIN_URL=
 NEXT_PUBLIC_AUTH_SSO_URL=
 NEXT_PUBLIC_AUTH_FORGOT_PASSWORD_URL=
@@ -254,8 +257,18 @@ NEXT_PUBLIC_SUPPORT_URL=
 NEXT_PUBLIC_SUPPORT_EMAIL=
 ```
 
+`NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_APP_URL` are required and validated at startup/build time.  
+Missing or invalid values stop production builds and render a safe startup error in runtime environments.
+
+Do not place private secrets (API keys, service tokens, signing secrets) in any `NEXT_PUBLIC_*` variable.  
+Only non-sensitive values intended for browser exposure should use the `NEXT_PUBLIC_` prefix.
+
 If `NEXT_PUBLIC_AUTH_PROVIDER=app` and `NEXT_PUBLIC_AUTH_LOGIN_URL` is empty, set `NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN` (and optionally `NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN`) to valid backend app tokens.  
 If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` and `NEXT_PUBLIC_AUTH_LOGOUT_URL`; otherwise refresh can still use `/auth/token/refresh` when a refresh token is present.
+Set `NEXT_PUBLIC_FEATURE_DEVELOPER_MODE=true` to default the Settings preference toggle to developer mode.
+Set `NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED=true` to show chat feedback controls.
+Set `NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED=false` to hide CSV export actions globally, even when export URLs are configured.
+Set `NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false` to require full backend endpoint coverage before enabling team-management endpoint actions.
 Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
 Set `NEXT_PUBLIC_SENTRY_DSN` to enable frontend observability event capture (breadcrumbs + sanitized exceptions). Leave it empty to keep monitoring disabled.

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isApiClientError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole, AuthenticatedSession } from "@/lib/auth-session";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 const APP_ROLES: AppRole[] = ["owner", "admin", "member", "viewer"];
 
@@ -105,12 +106,18 @@ function deriveUserIdFromEmail(email: string): string {
 }
 
 export function getAuthClientConfig(): AuthClientConfig {
+  const runtimeConfig = getFrontendRuntimeConfig();
   const defaultRole = toRole(
     process.env.NEXT_PUBLIC_AUTH_DEFAULT_ROLE,
     "member",
   );
-  const providerName = trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER);
-  const normalizedProvider = normalizeProviderName(providerName);
+  const providerName =
+    trimToNull(process.env.NEXT_PUBLIC_AUTH_PROVIDER) ??
+    runtimeConfig.authProviderRaw;
+  const normalizedProvider =
+    runtimeConfig.authProvider === "other"
+      ? normalizeProviderName(providerName)
+      : runtimeConfig.authProvider;
   const configuredLoginUrl = trimToNull(process.env.NEXT_PUBLIC_AUTH_LOGIN_URL);
 
   return {

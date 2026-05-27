@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { AppRole } from "@/lib/auth-session";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 export type TeamMemberRole = AppRole;
 export type TeamInviteRole = Exclude<AppRole, "owner">;
@@ -210,6 +211,24 @@ function getTeamEndpoints() {
 
 export function getTeamCapabilities(): TeamCapabilities {
   const endpoints = getTeamEndpoints();
+  const allowUnavailableEndpoints =
+    getFrontendRuntimeConfig().features.unavailableBackendEndpoints;
+
+  if (!allowUnavailableEndpoints) {
+    const allConfigured = Boolean(
+      endpoints.listMembersUrl &&
+      endpoints.inviteUrl &&
+      endpoints.updateRoleTemplate &&
+      endpoints.removeMemberTemplate,
+    );
+    return {
+      listMembersEnabled: allConfigured,
+      inviteEnabled: allConfigured,
+      updateRoleEnabled: allConfigured,
+      removeMemberEnabled: allConfigured,
+    };
+  }
+
   return {
     listMembersEnabled: Boolean(endpoints.listMembersUrl),
     inviteEnabled: Boolean(endpoints.inviteUrl),

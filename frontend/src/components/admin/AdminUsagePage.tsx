@@ -24,6 +24,7 @@ import {
   type DashboardRangePreset,
 } from "@/lib/dashboard";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { isExternalHref } from "@/lib/top-bar";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -44,6 +45,9 @@ function formatPeriodLabel(start: string, end: string): string {
 }
 
 function resolveUsageExportUrl(): string | null {
+  if (!getFrontendRuntimeConfig().features.exports) {
+    return null;
+  }
   const configured = process.env.NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL?.trim();
   if (!configured) {
     return null;

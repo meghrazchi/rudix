@@ -1,3 +1,5 @@
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
+
 export const PUBLIC_ROUTE_PATHS = {
   home: "/",
   product: "/product",
@@ -30,8 +32,6 @@ export type PublicNavItem = {
   label: string;
   href: string;
 };
-
-const FALLBACK_SITE_URL = "http://localhost:3000";
 
 function trimToNull(value: string | undefined): string | null {
   if (!value) {
@@ -70,8 +70,8 @@ function normalizeContactHref(value: string): string {
 
 export function resolvePublicSiteBaseUrl(): string {
   return (
-    resolveEnv("NEXT_PUBLIC_PUBLIC_SITE_URL", "NEXT_PUBLIC_APP_URL") ??
-    FALLBACK_SITE_URL
+    resolveEnv("NEXT_PUBLIC_PUBLIC_SITE_URL") ??
+    getFrontendRuntimeConfig().appUrl
   );
 }
 

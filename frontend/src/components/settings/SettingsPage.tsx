@@ -12,6 +12,7 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
 import {
   createDefaultSettingsPreferences,
@@ -121,7 +122,7 @@ export function SettingsPage() {
     () => [
       {
         label: "Auth provider",
-        value: formatAuthProvider(process.env.NEXT_PUBLIC_AUTH_PROVIDER),
+        value: formatAuthProvider(getFrontendRuntimeConfig().authProviderRaw),
       },
       {
         label: "Access token attached",
