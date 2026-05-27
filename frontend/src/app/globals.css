@@ -90,3 +90,41 @@ body {
   box-shadow: 0 0 6px rgba(53, 37, 205, 0.25);
   animation: workflow-packet-flow 1.9s linear infinite;
 }
+
+.rudix-landing-glass {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(226, 226, 233, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+@keyframes rudix-landing-line-pulse {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 18px;
+  }
+}
+
+.rudix-landing-flow-line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(199, 196, 216, 1) 0,
+    rgba(199, 196, 216, 1) 5px,
+    rgba(199, 196, 216, 0) 5px,
+    rgba(199, 196, 216, 0) 10px
+  );
+  background-size: 100% 18px;
+}
+
+.rudix-landing-flow-line--active {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(79, 70, 229, 1) 0,
+    rgba(79, 70, 229, 1) 5px,
+    rgba(79, 70, 229, 0) 5px,
+    rgba(79, 70, 229, 0) 10px
+  );
+  animation: rudix-landing-line-pulse 0.9s linear infinite;
+}

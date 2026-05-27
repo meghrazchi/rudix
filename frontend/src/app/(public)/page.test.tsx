@@ -34,32 +34,41 @@ describe("Public Landing Page", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("heading", { name: /Scale Precision AI/i }),
+      screen.getByRole("heading", { name: /Ask your documents/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Native RAG Capabilities" }),
+      screen.getByRole("heading", {
+        name: /Your team has the answers\. They are just buried\./i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Built for Engineering Excellence" }),
+      screen.getByRole("heading", { name: "Upload. Ask. Verify." }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Security First Infrastructure" }),
+      screen.getByRole("heading", { name: "Built for every team." }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Deploy Production RAG Today" }),
+      screen.getByRole("heading", {
+        name: "Designed for private document workflows.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        name: "Ready to turn your documents into an AI assistant?",
+      }),
     ).toBeInTheDocument();
 
     expect(
       screen.getAllByRole("link", { name: "Login" }).length,
     ).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getAllByRole("link", { name: "Request Demo" }).length,
+      screen.getAllByRole("link", { name: "Speak to us" }).length,
     ).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByRole("link", { name: "Start Free Trial" }),
+      screen.getByRole("link", { name: "Try the demo" }),
     ).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: "Read Documentation" }).length,
+      screen.getAllByRole("link", { name: "View documentation" }).length,
     ).toBeGreaterThanOrEqual(1);
   });
 
@@ -80,14 +89,15 @@ describe("Public Landing Page", () => {
       "href",
       "/pricing",
     );
+    expect(screen.getByRole("link", { name: "Try the demo" })).toHaveAttribute(
+      "href",
+      "/signup",
+    );
     expect(
-      screen.getByRole("link", { name: "Start Free Trial" }),
-    ).toHaveAttribute("href", "/signup");
-    expect(
-      screen.getAllByRole("link", { name: "Request Demo" })[0],
+      screen.getAllByRole("link", { name: "Speak to us" })[0],
     ).toHaveAttribute("href", "/contact");
     expect(
-      screen.getAllByRole("link", { name: "Read Documentation" })[0],
+      screen.getAllByRole("link", { name: "View documentation" })[0],
     ).toHaveAttribute("href", "/documents");
   });
 
@@ -116,14 +126,15 @@ describe("Public Landing Page", () => {
       "href",
       "/pricing-overview",
     );
+    expect(screen.getByRole("link", { name: "Try the demo" })).toHaveAttribute(
+      "href",
+      "https://trial.example.com",
+    );
     expect(
-      screen.getByRole("link", { name: "Start Free Trial" }),
-    ).toHaveAttribute("href", "https://trial.example.com");
-    expect(
-      screen.getAllByRole("link", { name: "Request Demo" })[0],
+      screen.getAllByRole("link", { name: "Speak to us" })[0],
     ).toHaveAttribute("href", "https://demo.example.com");
     expect(
-      screen.getAllByRole("link", { name: "Read Documentation" })[0],
+      screen.getAllByRole("link", { name: "View documentation" })[0],
     ).toHaveAttribute("href", "https://docs.example.com");
   });
 });
