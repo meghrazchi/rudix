@@ -291,6 +291,16 @@ test.describe("frontend e2e smoke (no real backend)", () => {
       }),
     ).toBeVisible();
 
+    await primaryNavigation
+      .getByRole("link", { name: "Pricing", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/pricing$/);
+    await expect(
+      page.getByRole("heading", {
+        name: "Choose a plan for trusted document AI operations",
+      }),
+    ).toBeVisible();
+
     const productLink = primaryNavigation.getByRole("link", {
       name: "Product",
       exact: true,

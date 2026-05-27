@@ -21,7 +21,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/product`
   - `/solutions`
   - `/security`
-  - `/pricing`
+  - `/pricing` (configurable/contact-placeholder packaging)
   - `/contact`
   - `/status`
 - `/login` credential-based sign-in form with auth-provider entry points

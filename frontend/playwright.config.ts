@@ -54,6 +54,13 @@ export default defineConfig({
       NEXT_PUBLIC_AUTH_DEFAULT_ROLE: "admin",
       NEXT_PUBLIC_CHAT_AGENTIC_ENABLED: "true",
       NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT: "false",
+      NEXT_PUBLIC_PUBLIC_PRODUCT_URL: "/product",
+      NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL: "/solutions",
+      NEXT_PUBLIC_PUBLIC_SECURITY_URL: "/security",
+      NEXT_PUBLIC_PUBLIC_PRICING_URL: "/pricing",
+      NEXT_PUBLIC_PUBLIC_TRIAL_URL: "/signup",
+      NEXT_PUBLIC_PUBLIC_DEMO_URL: "/contact",
+      NEXT_PUBLIC_PUBLIC_LOGIN_URL: "/login",
     },
   },
 });
