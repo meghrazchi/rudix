@@ -130,9 +130,7 @@ export function ContactMainSection({
 
 export function ContactMapSection() {
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-24">
-      
-    </section>
+    <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-24"></section>
     // <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-24">
     //   <div className="overflow-hidden rounded-xl border border-[#d8dce8] shadow-sm">
     //     <div className="relative h-56 bg-[radial-gradient(circle_at_top,#e4e7f4,#cfd4e7)] md:h-64">
