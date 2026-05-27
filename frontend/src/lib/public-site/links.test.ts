@@ -27,17 +27,29 @@ describe("public site links", () => {
     expect(links.security).toBe(PUBLIC_ROUTE_PATHS.security);
     expect(links.pricing).toBe(PUBLIC_ROUTE_PATHS.pricing);
     expect(links.contact).toBe(PUBLIC_ROUTE_PATHS.contact);
+    expect(links.securityContact).toBe(PUBLIC_ROUTE_PATHS.contact);
     expect(links.status).toBe(PUBLIC_ROUTE_PATHS.status);
   });
 
   it("prefers new NEXT_PUBLIC_PUBLIC_* overrides", () => {
     process.env.NEXT_PUBLIC_PUBLIC_PRODUCT_URL = "/product-custom";
     process.env.NEXT_PUBLIC_PUBLIC_DEMO_URL = "https://demo.example.com";
+    process.env.NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL =
+      "https://security.example.com/review";
 
     const links = resolvePublicSiteLinks();
 
     expect(links.product).toBe("/product-custom");
     expect(links.requestDemo).toBe("https://demo.example.com");
+    expect(links.securityContact).toBe("https://security.example.com/review");
+  });
+
+  it("normalizes support email into a mailto security contact link", () => {
+    process.env.NEXT_PUBLIC_SUPPORT_EMAIL = "security@example.com";
+
+    const links = resolvePublicSiteLinks();
+
+    expect(links.securityContact).toBe("mailto:security@example.com");
   });
 
   it("builds a full primary nav and footer link groups", () => {

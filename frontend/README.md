@@ -228,6 +228,7 @@ NEXT_PUBLIC_PUBLIC_DOCS_URL=
 NEXT_PUBLIC_PUBLIC_TRIAL_URL=
 NEXT_PUBLIC_PUBLIC_DEMO_URL=
 NEXT_PUBLIC_PUBLIC_CONTACT_URL=
+NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL=
 NEXT_PUBLIC_PUBLIC_STATUS_URL=
 NEXT_PUBLIC_PUBLIC_LOGIN_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
@@ -259,6 +260,7 @@ Set `NEXT_PUBLIC_CHAT_AGENTIC_ENABLED=false` to hide agentic-mode execution in c
 Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by default.
 Set `NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS` to control timeline polling for non-terminal agent run statuses.
 Set `NEXT_PUBLIC_PUBLIC_*` URLs to override public marketing navigation and CTA destinations.
+Set `NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL` to route security-review CTAs to a dedicated contact endpoint or mailbox.
 
 ### 3. Start dev server
 

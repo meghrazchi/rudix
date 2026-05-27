@@ -21,6 +21,7 @@ export type PublicSiteLinks = {
   startTrial: string;
   docs: string;
   contact: string;
+  securityContact: string;
   status: string;
   app: string;
 };
@@ -55,6 +56,18 @@ export function isExternalHref(href: string): boolean {
   return /^(https?:\/\/|mailto:|tel:)/i.test(href);
 }
 
+function normalizeContactHref(value: string): string {
+  if (isExternalHref(value)) {
+    return value;
+  }
+
+  if (value.includes("@")) {
+    return `mailto:${value}`;
+  }
+
+  return value;
+}
+
 export function resolvePublicSiteBaseUrl(): string {
   return (
     resolveEnv("NEXT_PUBLIC_PUBLIC_SITE_URL", "NEXT_PUBLIC_APP_URL") ??
@@ -83,6 +96,11 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
   const contact =
     resolveEnv("NEXT_PUBLIC_PUBLIC_CONTACT_URL", "NEXT_PUBLIC_SUPPORT_URL") ??
     PUBLIC_ROUTE_PATHS.contact;
+  const securityContactRaw =
+    resolveEnv(
+      "NEXT_PUBLIC_PUBLIC_SECURITY_CONTACT_URL",
+      "NEXT_PUBLIC_SUPPORT_EMAIL",
+    ) ?? contact;
   const status =
     resolveEnv("NEXT_PUBLIC_PUBLIC_STATUS_URL") ?? PUBLIC_ROUTE_PATHS.status;
   const app = resolveEnv("NEXT_PUBLIC_PUBLIC_APP_URL") ?? "/dashboard";
@@ -98,6 +116,7 @@ export function resolvePublicSiteLinks(): PublicSiteLinks {
     startTrial,
     docs,
     contact,
+    securityContact: normalizeContactHref(securityContactRaw),
     status,
     app,
   };
