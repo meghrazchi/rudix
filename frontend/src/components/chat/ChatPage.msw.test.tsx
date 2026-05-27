@@ -222,14 +222,17 @@ describe("ChatPage sessions (MSW)", () => {
 
     await screen.findByText("MSW Session");
     await userEvent.click(
+      screen.getByRole("button", { name: /Select context/i }),
+    );
+    await screen.findByRole("dialog", { name: /Select context/i });
+    await userEvent.click(
       screen.getByRole("checkbox", { name: /indexed\.pdf/i }),
     );
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
 
     const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
     fireEvent.change(topKInput, { target: { value: "8" } });
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Enable rerank/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
 
     const textarea = screen.getByPlaceholderText(
       "Ask a question about your selected documents...",

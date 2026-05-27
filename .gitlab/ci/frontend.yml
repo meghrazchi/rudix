@@ -30,6 +30,9 @@ frontend:build:
   extends:
     - .rules:frontend-changes
     - .cache:npm
+  variables:
+    NEXT_PUBLIC_API_URL: "http://localhost:8000/api/v1"
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000"
   before_script:
     - cd frontend
     - npm ci --cache "$NPM_CONFIG_CACHE"

@@ -65,6 +65,13 @@ function renderPage() {
   );
 }
 
+async function openContextSelector() {
+  await userEvent.click(
+    screen.getByRole("button", { name: /Select context/i }),
+  );
+  return screen.findByRole("dialog", { name: /Select context/i });
+}
+
 describe("ChatPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -206,11 +213,19 @@ describe("ChatPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
+        "Chat is disabled until at least one document is indexed.",
+      ),
+    ).toBeInTheDocument();
+    const contextDialog = await openContextSelector();
+    expect(
+      within(contextDialog).getByText(
         "No indexed documents available. Upload and index documents first.",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Go to documents upload" }),
+      within(contextDialog).getByRole("link", {
+        name: "Go to documents upload",
+      }),
     ).toHaveAttribute("href", "/documents");
   });
 
@@ -287,7 +302,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText("policy.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -298,6 +313,9 @@ describe("ChatPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
     expect(vi.mocked(createChatSession)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createChatSession)).toHaveBeenCalledWith({
+      title: "When is the policy active?",
+    });
 
     expect(
       await screen.findByText("The policy is active as of May 2026."),
@@ -379,7 +397,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("policy.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
     await userEvent.type(
       screen.getByPlaceholderText(
         "Ask a question about your selected documents...",
@@ -465,7 +483,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("policy.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
     await userEvent.type(
       screen.getByPlaceholderText(
         "Ask a question about your selected documents...",
@@ -527,8 +545,61 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("indexed.pdf")).toBeInTheDocument();
-    expect(screen.queryByText("failed.pdf")).not.toBeInTheDocument();
+    const contextDialog = await openContextSelector();
+    expect(
+      await within(contextDialog).findByText("indexed.pdf"),
+    ).toBeInTheDocument();
+    expect(
+      within(contextDialog).queryByText("failed.pdf"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("paginates the context selector modal", async () => {
+    const docs = Array.from({ length: 10 }, (_, index) => ({
+      document_id: `doc-indexed-${index + 1}`,
+      filename: `policy-${index + 1}.pdf`,
+      file_type: "pdf" as const,
+      status: "indexed" as const,
+      page_count: 1,
+      chunk_count: index + 1,
+      error_message: null,
+      error_details: null,
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: `2026-05-14T10:${String(index).padStart(2, "0")}:00Z`,
+    }));
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: docs,
+      total: docs.length,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const contextDialog = await openContextSelector();
+    expect(
+      await within(contextDialog).findByText("policy-1.pdf"),
+    ).toBeInTheDocument();
+    expect(
+      within(contextDialog).queryByText("policy-9.pdf"),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Next" }),
+    );
+
+    expect(
+      await within(contextDialog).findByText("policy-9.pdf"),
+    ).toBeInTheDocument();
+    expect(
+      within(contextDialog).queryByText("policy-1.pdf"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(contextDialog).getByText("Showing 9-10 of 10"),
+    ).toBeInTheDocument();
   });
 
   it("submits selected document_ids with top_k and rerank payload", async () => {
@@ -603,20 +674,22 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    const firstDocRow = (await screen.findByText("policy-a.pdf")).closest(
-      "label",
-    );
+    const contextDialog = await openContextSelector();
+    const firstDocRow = (
+      await within(contextDialog).findByText("policy-a.pdf")
+    ).closest("label");
     expect(firstDocRow).not.toBeNull();
     await userEvent.click(
       within(firstDocRow as HTMLLabelElement).getByRole("checkbox"),
+    );
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Done" }),
     );
 
     const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
     fireEvent.change(topKInput, { target: { value: "9" } });
 
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Enable rerank/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
     await userEvent.type(
       screen.getByPlaceholderText(
         "Ask a question about your selected documents...",
@@ -742,7 +815,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("policy-a.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic mode/i }),
@@ -818,7 +891,7 @@ describe("ChatPage", () => {
     );
 
     renderPage();
-    await screen.findByText("policy-a.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic mode/i }),
@@ -915,7 +988,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("policy-a.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic mode/i }),
@@ -1057,7 +1130,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("policy-a.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic mode/i }),
@@ -1143,7 +1216,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText("indexed.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
     await userEvent.type(
       screen.getByPlaceholderText(
         "Ask a question about your selected documents...",
@@ -1223,7 +1296,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText("indexed.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
     const textarea = screen.getByPlaceholderText(
       "Ask a question about your selected documents...",
     );
@@ -1303,6 +1376,74 @@ describe("ChatPage", () => {
     expect(
       screen.getByText("The policy date is May 2026."),
     ).toBeInTheDocument();
+  });
+
+  it("uses the first question as session label when title is missing", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "session-untitled",
+          title: null,
+          message_count: 2,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:10:00Z",
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    vi.mocked(listChatSessionMessages).mockResolvedValue({
+      items: [
+        {
+          message_id: "user-untitled-1",
+          role: "user",
+          content: "How many days of leave are allowed?",
+          confidence_score: null,
+          confidence_category: null,
+          citations: [],
+          created_at: "2026-05-14T10:00:00Z",
+        },
+        {
+          message_id: "assistant-untitled-1",
+          role: "assistant",
+          content: "Up to 10 days are allowed.",
+          confidence_score: 0.8,
+          confidence_category: "high",
+          citations: [],
+          created_at: "2026-05-14T10:00:02Z",
+        },
+      ],
+      total: 2,
+      limit: 500,
+      offset: 0,
+    });
+
+    renderPage();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Untitled session/i }),
+    );
+
+    expect(
+      await screen.findByText("Up to 10 days are allowed."),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: /How many days of leave are allowed\?/i,
+        }),
+      ).toBeInTheDocument();
+    });
   });
 
   it("supports incremental loading of sessions", async () => {
@@ -1531,7 +1672,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText("indexed.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
     await userEvent.type(
       screen.getByPlaceholderText(
         "Ask a question about your selected documents...",
@@ -1618,7 +1759,7 @@ describe("ChatPage", () => {
       .mockRejectedValueOnce(new Error("Temporary failure"));
 
     renderPage();
-    await screen.findByText("indexed.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -1739,7 +1880,7 @@ describe("ChatPage", () => {
       });
 
     renderPage();
-    await screen.findByText("indexed.pdf");
+    await screen.findByText(/All indexed accessible documents are in scope/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -1750,9 +1891,7 @@ describe("ChatPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
     expect(await screen.findByText("Initial answer")).toBeInTheDocument();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Regenerate last answer" }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: "Regenerate" }));
     expect(await screen.findByText("Regenerated answer")).toBeInTheDocument();
     expect(vi.mocked(queryChat)).toHaveBeenNthCalledWith(
       2,
