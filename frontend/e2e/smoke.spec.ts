@@ -259,31 +259,55 @@ async function waitForSessionBootstrap(page: Page): Promise<void> {
 test.describe("frontend e2e smoke (no real backend)", () => {
   test("navigates public marketing routes and login CTA", async ({ page }) => {
     await page.goto("/");
+    const primaryNavigation = page.getByRole("navigation", {
+      name: "Primary navigation",
+    });
+    const headerActions = page.locator("header");
 
     await expect(
       page.getByRole("heading", { name: /Scale Precision AI/i }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Solutions" }).first().click();
+    await primaryNavigation
+      .getByRole("link", { name: "Solutions", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/solutions$/);
     await expect(
       page.getByRole("heading", {
-        name: "Trusted AI answers for every document-driven team",
+        name: "AI document Q&A for every team.",
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Request Demo" }).first(),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Product" }).first().click();
-    await expect(page).toHaveURL(/\/product$/);
+    const productLink = primaryNavigation.getByRole("link", {
+      name: "Product",
+      exact: true,
+    });
+    const configuredProductHref = await productLink.getAttribute("href");
+    const configuredProductPath = new URL(
+      configuredProductHref ?? "/product",
+      "http://localhost:3001",
+    ).pathname;
+    const escapedConfiguredProductPath = configuredProductPath.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+
+    await productLink.click();
+    await expect(page).toHaveURL(
+      new RegExp(`${escapedConfiguredProductPath}$`),
+    );
     await expect(
       page.getByRole("heading", {
-        name: "AI Document Q&A for trusted enterprise decisions",
+        name: /The Infrastructure for High-Fidelity/i,
       }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Login" }).first().click();
+    await headerActions
+      .getByRole("link", { name: "Login", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/login/);
   });
 
