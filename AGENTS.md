@@ -161,6 +161,15 @@ If a command cannot be run in the current environment, say exactly which command
 - Always handle loading, empty, error, forbidden, and rate-limit states for data-driven screens.
 - Render safe request IDs or trace IDs when available, but never expose tokens, raw secrets, or sensitive document content.
 - Keep the existing visual language: shared authenticated shell, consistent spacing/card treatment, Tailwind utilities, and permission-aware navigation.
+- For public marketing pages (`/`, product/solutions/security/pricing/contact/status), keep copy positive, professional, and audience-appropriate:
+  - focus on outcomes, trust, and product value
+  - keep wording clear for mixed audiences (technical and non-technical)
+  - avoid dense jargon, deep implementation detail, and internal system terminology unless essential
+  - keep claims specific, relevant to the page topic, and consistent with Rudix positioning
+  - ensure pages are crawlable and indexable for search engines and AI crawlers unless a route is intentionally private
+  - use strong SEO fundamentals: unique titles/descriptions, canonical URLs, semantic headings/landmarks, descriptive link text, and meaningful alt text
+  - avoid accidental SEO blockers on public pages (for example unintended `noindex`, robots blocks, or JS-only critical content)
+  - favor clear, intent-aligned wording that improves discoverability and search result quality without keyword stuffing
 - Do not introduce new component libraries or state libraries without approval.
 
 ## Security standards
@@ -208,6 +217,11 @@ Frontend:
 - Do not silently upgrade major framework versions.
 - Include migration, rollback, and data-safety notes for database changes.
 - Do not modify generated lockfiles unless dependency changes require it.
+- Keep backward compatibility as the default for upcoming features, even before public launch:
+  - prefer additive changes over breaking changes for APIs, env vars, routes, and payload shapes
+  - when renaming/removing behavior, keep compatibility aliases/fallbacks for at least one planned milestone when practical
+  - gate breaking behavior behind explicit feature flags during transition
+  - document migration steps and deprecation notes in the same change
 
 ## Git and merge request expectations
 

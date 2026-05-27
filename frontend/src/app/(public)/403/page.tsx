@@ -1,4 +1,4 @@
-import ForbiddenPage from "@/app/forbidden/page";
+import ForbiddenPage from "../forbidden/page";
 
 type ForbiddenAliasPageProps = {
   searchParams?: Promise<{ from?: string; rid?: string; request_id?: string }>;

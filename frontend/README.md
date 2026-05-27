@@ -16,7 +16,14 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 
 ## Implemented Pages
 
-- `/` public landing page with entry points to login and protected routes
+- Public marketing routes (outside the authenticated app shell):
+  - `/` landing page
+  - `/product`
+  - `/solutions`
+  - `/security`
+  - `/pricing`
+  - `/contact`
+  - `/status`
 - `/login` credential-based sign-in form with auth-provider entry points
 - `/signup` account creation form with workspace create/join entry points
 - `/organization-onboarding` authenticated workspace setup flow (workspace, domain allowlist, access defaults, invites)
@@ -118,6 +125,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - node status visualization
   - node detail side panel
   - loading/error and permission-aware states
+- Public marketing foundation:
+  - reusable marketing header, mobile navigation, footer, and CTA components
+  - centralized public link resolution with environment-driven overrides
+  - shared public SEO metadata helper (title, description, canonical, Open Graph, social cards)
+  - skip-to-content link and semantic landmarks for accessibility
 
 ## Dashboard Design Sample
 
@@ -206,14 +218,18 @@ NEXT_PUBLIC_HELP_DOCS_URL=
 NEXT_PUBLIC_HELP_SUPPORT_URL=
 NEXT_PUBLIC_HELP_SHORTCUTS_URL=
 NEXT_PUBLIC_HELP_README_URL=
-NEXT_PUBLIC_LANDING_PRODUCT_URL=
-NEXT_PUBLIC_LANDING_SOLUTIONS_URL=
-NEXT_PUBLIC_LANDING_PRICING_URL=
-NEXT_PUBLIC_LANDING_DOCUMENTATION_URL=
-NEXT_PUBLIC_LANDING_TRIAL_URL=
-NEXT_PUBLIC_LANDING_DEMO_URL=
-NEXT_PUBLIC_LANDING_STATUS_URL=
-NEXT_PUBLIC_LANDING_CONTACT_URL=
+NEXT_PUBLIC_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_PUBLIC_APP_URL=
+NEXT_PUBLIC_PUBLIC_PRODUCT_URL=
+NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL=
+NEXT_PUBLIC_PUBLIC_SECURITY_URL=
+NEXT_PUBLIC_PUBLIC_PRICING_URL=
+NEXT_PUBLIC_PUBLIC_DOCS_URL=
+NEXT_PUBLIC_PUBLIC_TRIAL_URL=
+NEXT_PUBLIC_PUBLIC_DEMO_URL=
+NEXT_PUBLIC_PUBLIC_CONTACT_URL=
+NEXT_PUBLIC_PUBLIC_STATUS_URL=
+NEXT_PUBLIC_PUBLIC_LOGIN_URL=
 NEXT_PUBLIC_ADMIN_MONITORING_URL=
 NEXT_PUBLIC_SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_RELEASE=
@@ -242,7 +258,7 @@ Set `NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS` (milliseconds) to auto-refres
 Set `NEXT_PUBLIC_CHAT_AGENTIC_ENABLED=false` to hide agentic-mode execution in chat.
 Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by default.
 Set `NEXT_PUBLIC_AGENT_RUN_POLL_INTERVAL_MS` to control timeline polling for non-terminal agent run statuses.
-Set `NEXT_PUBLIC_LANDING_*` URLs to override landing-page navigation and CTA destinations.
+Set `NEXT_PUBLIC_PUBLIC_*` URLs to override public marketing navigation and CTA destinations.
 
 ### 3. Start dev server
 

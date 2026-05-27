@@ -257,6 +257,25 @@ async function waitForSessionBootstrap(page: Page): Promise<void> {
 }
 
 test.describe("frontend e2e smoke (no real backend)", () => {
+  test("navigates public marketing routes and login CTA", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(
+      page.getByRole("heading", { name: /Scale Precision AI/i }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Product" }).first().click();
+    await expect(page).toHaveURL(/\/product$/);
+    await expect(
+      page.getByRole("heading", {
+        name: "Enterprise RAG platform for production teams",
+      }),
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "Login" }).first().click();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
   test("redirects protected route to login and signs in successfully", async ({
     page,
   }) => {

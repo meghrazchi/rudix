@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import SignupPage from "@/app/signup/page";
+import SignupPage from "./page";
 import * as authSignup from "@/lib/auth-signup";
 import type { SessionState } from "@/lib/auth-session";
 

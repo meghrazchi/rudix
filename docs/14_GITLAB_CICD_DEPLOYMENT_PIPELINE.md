@@ -181,6 +181,25 @@ Set `ENABLE_STAGING_VALIDATION=true` to run only the staging variable validation
 Production variable validation runs automatically on protected release tags.  
 Set `ENABLE_PRODUCTION_VALIDATION=true` to force the validation job on other pipelines.
 
+### Runtime `.env` Content Guidance (Staging + Production)
+
+When setting `STAGING_ENV_FILE` or `PRODUCTION_ENV_FILE`, use the current root
+`.env.example` as the source-of-truth key list and include the public-site keys
+used by the marketing pages:
+
+- `NEXT_PUBLIC_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_PUBLIC_PRODUCT_URL`
+- `NEXT_PUBLIC_PUBLIC_SOLUTIONS_URL`
+- `NEXT_PUBLIC_PUBLIC_SECURITY_URL`
+- `NEXT_PUBLIC_PUBLIC_PRICING_URL`
+- `NEXT_PUBLIC_PUBLIC_DOCS_URL`
+- `NEXT_PUBLIC_PUBLIC_TRIAL_URL`
+- `NEXT_PUBLIC_PUBLIC_DEMO_URL`
+- `NEXT_PUBLIC_PUBLIC_CONTACT_URL`
+- `NEXT_PUBLIC_PUBLIC_STATUS_URL`
+- `NEXT_PUBLIC_PUBLIC_LOGIN_URL`
+
 ### Optional Sentry Release Tagging
 
 - `SENTRY_DSN`

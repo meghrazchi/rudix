@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import ForbiddenAliasPage from "@/app/403/page";
+import ForbiddenAliasPage from "./page";
 
 describe("ForbiddenAliasPage", () => {
   it("renders the forbidden page alias with safe request id support", async () => {

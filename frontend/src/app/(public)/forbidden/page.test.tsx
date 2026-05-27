@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import ForbiddenPage from "@/app/forbidden/page";
+import ForbiddenPage from "./page";
 
 describe("ForbiddenPage", () => {
   it("renders a safe forbidden view without leaking requested route details", async () => {
