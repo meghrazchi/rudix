@@ -51,6 +51,28 @@ function roleLabel(role: AuthenticatedSession["role"]): string {
   return "Viewer";
 }
 
+function profileDisplayName(session: AuthenticatedSession): string {
+  if (session.email && session.email.includes("@")) {
+    return session.email.split("@")[0] ?? "User";
+  }
+  return session.email ?? session.userId;
+}
+
+function profileInitials(displayName: string): string {
+  const parts = displayName
+    .split(/[\s._-]+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  if (parts.length === 0) {
+    return "U";
+  }
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
 function routeDisabledReason(
   reason: AppNavigationItem["disabledReason"],
 ): string {
@@ -539,12 +561,15 @@ export function AppShell({
     setOpenMenu(null);
   }
 
+  const displayName = profileDisplayName(session);
+  const displayInitials = profileInitials(displayName);
+
   return (
     <div
       className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
-      <div className="mx-auto flex h-full w-full max-w-[1600px]">
+      <div className="flex h-full w-full">
         <aside className="hidden w-64 shrink-0 border-r border-[#d7d4e7] bg-[#f7f5ff] px-5 py-8 lg:block">
           <div className="mb-6">
             <div className="flex items-center gap-2">
@@ -802,7 +827,7 @@ export function AppShell({
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-[#d7d4e7] bg-white px-4 py-4 lg:px-8">
+          <header className="border-b border-[#e5e3f1] bg-white px-4 py-3 lg:px-8">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <button
@@ -812,32 +837,30 @@ export function AppShell({
                 >
                   Menu
                 </button>
-                <div className="min-w-0">
-                  <h1 className="truncate text-xl font-semibold text-[#3525cd] lg:text-2xl">
-                    {activeRoute.label}
-                  </h1>
-                  <p className="truncate text-xs text-[#6b6880]">
-                    {activeRoute.description}
-                  </p>
-                </div>
+                <h1 className="truncate text-xl font-semibold text-[#3525cd] lg:text-2xl">
+                  {activeRoute.label}
+                </h1>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={openCommandMenu}
                   aria-label="Open global search"
-                  className="inline-flex items-center gap-2 rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                  className="relative inline-flex h-11 min-w-[220px] items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pl-10 pr-2 text-left text-sm font-medium text-[#4a4662] outline-none transition hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:w-80 lg:w-[26rem]"
                 >
-                  <span className="hidden sm:inline">Search</span>
-                  <span className="inline sm:hidden">Find</span>
-                  <span className="hidden rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 md:inline">
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined absolute left-3 text-[20px] text-[#777587]"
+                  >
+                    search
+                  </span>
+                  <span className="mr-2 flex-1 truncate">
+                    Search knowledge base...
+                  </span>
+                  <span className="ml-2 hidden shrink-0 whitespace-nowrap rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-[#6f6b87] sm:inline">
                     ⌘/Ctrl K
                   </span>
                 </button>
-
-                <span className="hidden rounded bg-[#edf1ff] px-2 py-1 text-xs font-semibold text-slate-700 sm:inline">
-                  {roleLabel(session.role)}
-                </span>
 
                 <div className="relative" ref={notificationsMenuRef}>
                   <button
@@ -846,11 +869,16 @@ export function AppShell({
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "notifications"}
                     aria-label="Notifications"
-                    className="relative rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
-                    Notifications
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[20px]"
+                    >
+                      notifications
+                    </span>
                     {notificationCount > 0 ? (
-                      <span className="ml-2 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="absolute -right-1 -top-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                         {notificationCount}
                       </span>
                     ) : null}
@@ -989,9 +1017,14 @@ export function AppShell({
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "help"}
                     aria-label="Help"
-                    className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
-                    Help
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[20px]"
+                    >
+                      help_outline
+                    </span>
                   </button>
 
                   {openMenu === "help" ? (
@@ -1040,6 +1073,8 @@ export function AppShell({
                   ) : null}
                 </div>
 
+                <span className="hidden h-8 w-px bg-[#e5e3f1] md:block" />
+
                 <div className="relative" ref={profileMenuRef}>
                   <button
                     type="button"
@@ -1047,9 +1082,19 @@ export function AppShell({
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "profile"}
                     aria-label="Profile menu"
-                    className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#e5e3f1] px-2 py-1.5 text-[#4a4662] transition hover:bg-[#f3f1ff]"
                   >
-                    Profile
+                    <span className="hidden text-right xl:block">
+                      <span className="block text-sm font-semibold">
+                        {displayName}
+                      </span>
+                      <span className="block text-[10px] font-semibold tracking-wide text-[#7b7793] uppercase">
+                        {roleLabel(session.role)}
+                      </span>
+                    </span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d9d6e8] bg-[#f4f2ff] text-xs font-bold text-[#3525cd]">
+                      {displayInitials}
+                    </span>
                   </button>
 
                   {openMenu === "profile" ? (
