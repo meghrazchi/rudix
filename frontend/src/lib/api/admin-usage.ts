@@ -11,6 +11,7 @@ export type UsageSummaryPoint = {
   event_count: number;
   avg_confidence?: number | null;
   avg_latency_ms?: number | null;
+  latency_score?: number | null;
 };
 
 export type UsageSummaryResponse = {
@@ -27,6 +28,7 @@ export type UsageSummaryResponse = {
     event_count: number;
     avg_confidence?: number | null;
     avg_latency_ms?: number | null;
+    latency_score?: number | null;
   };
   series: UsageSummaryPoint[];
 };

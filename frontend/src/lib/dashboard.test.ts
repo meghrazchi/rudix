@@ -7,6 +7,7 @@ import {
   estimateQuestionsAsked,
   extractAverageConfidence,
   extractAverageLatencyMs,
+  extractLatencyScore,
   formatInteger,
   formatLatencyMs,
   formatPercentage,
@@ -94,6 +95,7 @@ describe("dashboard helpers", () => {
 
     expect(extractAverageConfidence(totalsUsage)).toBe(0.73);
     expect(extractAverageLatencyMs(totalsUsage)).toBe(480);
+    expect(extractLatencyScore(totalsUsage)).toBe(60);
 
     const seriesUsage = usageFixture({
       totals: {
@@ -128,5 +130,20 @@ describe("dashboard helpers", () => {
 
     expect(extractAverageConfidence(seriesUsage)).toBe(0.7);
     expect(extractAverageLatencyMs(seriesUsage)).toBe(450);
+    expect(extractLatencyScore(seriesUsage)).toBe(62.5);
+  });
+
+  it("extracts latency score directly when provided", () => {
+    const usage = usageFixture({
+      totals: {
+        input_tokens: 100,
+        output_tokens: 25,
+        cost_usd: 1.2,
+        event_count: 10,
+        latency_score: 72,
+      } as UsageSummaryResponse["totals"],
+    });
+
+    expect(extractLatencyScore(usage)).toBe(72);
   });
 });

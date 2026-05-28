@@ -206,3 +206,35 @@ export function extractAverageLatencyMs(
     seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length
   );
 }
+
+export function extractLatencyScore(
+  usage: UsageSummaryResponse,
+): number | null {
+  const totals = usage.totals as unknown as Record<string, unknown>;
+  const direct = extractNumericValue(totals, [
+    "latency_score",
+    "avg_latency_score",
+  ]);
+  if (direct !== null) {
+    return Math.max(0, Math.min(100, direct));
+  }
+
+  const series = usage.series as unknown as Array<Record<string, unknown>>;
+  const seriesValues = series
+    .map((point) =>
+      extractNumericValue(point, ["latency_score", "avg_latency_score"]),
+    )
+    .filter((value): value is number => value !== null);
+
+  if (seriesValues.length > 0) {
+    const average =
+      seriesValues.reduce((sum, value) => sum + value, 0) / seriesValues.length;
+    return Math.max(0, Math.min(100, average));
+  }
+
+  const averageLatencyMs = extractAverageLatencyMs(usage);
+  if (averageLatencyMs === null) {
+    return null;
+  }
+  return Math.max(0, Math.min(100, 100 - averageLatencyMs / 12));
+}

@@ -1034,12 +1034,42 @@ Returns usage statistics.
 
 ```json
 {
-  "total_questions": 1200,
-  "total_documents": 84,
-  "total_tokens": 950000,
-  "estimated_cost_usd": 12.45
+  "organization_id": "uuid",
+  "range": {
+    "from": "2026-05-01",
+    "to": "2026-05-30"
+  },
+  "granularity": "day",
+  "totals": {
+    "input_tokens": 84000,
+    "output_tokens": 21000,
+    "cost_usd": 12.45,
+    "event_count": 1200,
+    "avg_confidence": 0.81,
+    "avg_latency_ms": 480.0,
+    "latency_score": 60.0
+  },
+  "series": [
+    {
+      "period_start": "2026-05-01",
+      "period_end": "2026-05-01",
+      "input_tokens": 3100,
+      "output_tokens": 740,
+      "cost_usd": 0.42,
+      "event_count": 44,
+      "avg_confidence": 0.82,
+      "avg_latency_ms": 460.0,
+      "latency_score": 61.67
+    }
+  ]
 }
 ```
+
+Notes:
+
+- `avg_confidence` is derived from usage-event metadata confidence fields when present.
+- `avg_latency_ms` is derived from usage-event latency metadata fields when present.
+- `latency_score` is computed server-side from average latency (0-100, higher is better).
 
 ### GET `/admin/governance`
 

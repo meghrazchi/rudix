@@ -20,6 +20,7 @@ class UsageSummaryTotalsResponse(BaseModel):
     event_count: int
     avg_confidence: float | None = None
     avg_latency_ms: float | None = None
+    latency_score: float | None = None
 
 
 class UsageSummaryPointResponse(BaseModel):
@@ -31,6 +32,7 @@ class UsageSummaryPointResponse(BaseModel):
     event_count: int
     avg_confidence: float | None = None
     avg_latency_ms: float | None = None
+    latency_score: float | None = None
 
 
 class UsageSummaryResponse(BaseModel):

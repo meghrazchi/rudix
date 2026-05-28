@@ -28,6 +28,7 @@ import {
   estimateQuestionsAsked,
   extractAverageConfidence,
   extractAverageLatencyMs,
+  extractLatencyScore,
   formatInteger,
   formatLatencyMs,
   formatPercentage,
@@ -44,35 +45,6 @@ const LATEST_DOCUMENTS_PAGE_SIZE = 5;
 const RECENT_ACTIVITY_PAGE_SIZE = 5;
 const RECENT_ACTIVITY_FETCH_LIMIT = 50;
 const AUDIT_ACTIVITY_FETCH_LIMIT = 50;
-
-function parsePositiveIntegerEnv(
-  value: string | undefined,
-  fallback: number,
-): number {
-  if (!value) {
-    return fallback;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
-}
-
-function isTruthyEnv(value: string | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-  const normalized = value.trim().toLowerCase();
-  return (
-    normalized === "1" ||
-    normalized === "true" ||
-    normalized === "yes" ||
-    normalized === "on"
-  );
-}
 
 type DashboardDocumentSummary = {
   totalDocuments: number;
@@ -106,6 +78,36 @@ type DashboardAuditActivityBundle = {
   items: AuditLogListItemResponse[];
   unavailableReason: string | null;
 };
+
+function parsePositiveIntegerEnv(
+  value: string | undefined,
+  fallback: number,
+): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized === "1" ||
+    normalized === "true" ||
+    normalized === "yes" ||
+    normalized === "on"
+  );
+}
 
 async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummary> {
   const maxDocumentRows = parsePositiveIntegerEnv(
@@ -177,7 +179,7 @@ async function fetchDashboardChatSummary(): Promise<DashboardChatSummary> {
   let offset = 0;
   let fetchedRows = 0;
   let totalSessions = 0;
-  const sessions = [];
+  const sessions: ChatSessionResponse[] = [];
 
   while (fetchedRows < maxSessionRows) {
     const pageLimit = Math.min(
@@ -212,77 +214,12 @@ async function fetchDashboardChatSummary(): Promise<DashboardChatSummary> {
   };
 }
 
-type KpiCardProps = {
-  title: string;
-  value: string;
-  caption: string;
-  loading?: boolean;
-  error?: string | null;
-  onRetry?: () => void;
-};
-
-function KpiCard({
-  title,
-  value,
-  caption,
-  loading = false,
-  error = null,
-  onRetry,
-}: KpiCardProps) {
-  return (
-    <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
-        {title}
-      </p>
-      {loading ? (
-        <p className="text-2xl font-extrabold text-[#2a2640]">Loading...</p>
-      ) : error ? (
-        <div>
-          <p className="text-sm font-semibold text-rose-700">Unable to load</p>
-          <p className="mt-1 text-xs text-rose-700">{error}</p>
-          {onRetry ? (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="mt-2 rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
-            >
-              Retry
-            </button>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
-      )}
-      <p className="mt-2 text-xs text-[#6a6780]">{caption}</p>
-    </article>
-  );
-}
-
 function formatDateTime(value: string): string {
   const timestamp = Date.parse(value);
   if (Number.isNaN(timestamp)) {
     return value;
   }
   return new Date(timestamp).toLocaleString();
-}
-
-function getDocumentStatusBadgeClass(status: DocumentStatus): string {
-  if (status === "indexed") {
-    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
-  }
-  if (status === "processing") {
-    return "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-blue-800";
-  }
-  if (status === "uploaded") {
-    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
-  }
-  if (status === "failed") {
-    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
-  }
-  if (status === "deleting") {
-    return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
-  }
-  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
 
 function safeTimestamp(value: string): number {
@@ -378,6 +315,7 @@ function buildAuditActivityItems(
   return items.map((item) => {
     const action = item.action.toLowerCase();
     let category: DashboardRecentActivityItem["category"] = "admin";
+
     if (action.includes("evaluation")) {
       category = "evaluation";
     } else if (action.includes("failed") || action.includes("error")) {
@@ -401,6 +339,150 @@ function sortActivities(
   return items.sort(
     (left, right) =>
       safeTimestamp(right.timestamp) - safeTimestamp(left.timestamp),
+  );
+}
+
+function activityVisual(category: DashboardRecentActivityItem["category"]): {
+  icon: string;
+  toneClass: string;
+} {
+  if (category === "upload") {
+    return {
+      icon: "upload_file",
+      toneClass: "bg-emerald-100 text-emerald-700",
+    };
+  }
+  if (category === "processing") {
+    return {
+      icon: "sync",
+      toneClass: "bg-sky-100 text-sky-700",
+    };
+  }
+  if (category === "chat") {
+    return {
+      icon: "forum",
+      toneClass: "bg-indigo-100 text-indigo-700",
+    };
+  }
+  if (category === "evaluation") {
+    return {
+      icon: "fact_check",
+      toneClass: "bg-violet-100 text-violet-700",
+    };
+  }
+  if (category === "failure") {
+    return {
+      icon: "error",
+      toneClass: "bg-rose-100 text-rose-700",
+    };
+  }
+  if (category === "admin") {
+    return {
+      icon: "admin_panel_settings",
+      toneClass: "bg-slate-100 text-slate-700",
+    };
+  }
+  return {
+    icon: "description",
+    toneClass: "bg-purple-100 text-purple-700",
+  };
+}
+
+function documentStatusBadgeClass(status: DocumentStatus): string {
+  if (status === "indexed") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold tracking-wide text-emerald-800 uppercase";
+  }
+  if (status === "processing") {
+    return "rounded-full bg-blue-100 px-2 py-1 text-[10px] font-bold tracking-wide text-blue-800 uppercase";
+  }
+  if (status === "uploaded") {
+    return "rounded-full bg-amber-100 px-2 py-1 text-[10px] font-bold tracking-wide text-amber-800 uppercase";
+  }
+  if (status === "failed") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-[10px] font-bold tracking-wide text-rose-800 uppercase";
+  }
+  if (status === "deleting") {
+    return "rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold tracking-wide text-slate-700 uppercase";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold tracking-wide text-slate-600 uppercase";
+}
+
+type MaterialIconProps = {
+  name: string;
+  className?: string;
+  filled?: boolean;
+};
+
+function MaterialIcon({ name, className, filled = false }: MaterialIconProps) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className ?? ""}`.trim()}
+      style={
+        filled
+          ? {
+              fontVariationSettings: "'FILL' 1",
+            }
+          : undefined
+      }
+    >
+      {name}
+    </span>
+  );
+}
+
+type DashboardKpiCardProps = {
+  title: string;
+  value: string;
+  caption: string;
+  icon: string;
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+};
+
+function DashboardKpiCard({
+  title,
+  value,
+  caption,
+  icon,
+  loading = false,
+  error = null,
+  onRetry,
+}: DashboardKpiCardProps) {
+  return (
+    <article className="flex h-full flex-col justify-between rounded-xl border border-[#d8d5e8] bg-white p-4 shadow-sm">
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-[#6d6986] uppercase">
+            {title}
+          </p>
+          <MaterialIcon name={icon} className="text-[20px] text-[#5b4bcb]" />
+        </div>
+        {loading ? (
+          <p className="text-3xl font-black text-[#2d2a44]">Loading...</p>
+        ) : error ? (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-rose-700">
+              Unable to load
+            </p>
+            <p className="text-xs text-rose-700">{error}</p>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-3xl font-black text-[#2d2a44]">{value}</p>
+        )}
+      </div>
+      <p className="mt-3 text-xs text-[#64617a]">{caption}</p>
+    </article>
   );
 }
 
@@ -429,31 +511,96 @@ function DashboardPagination({
 
   const canGoPrevious = offset > 0;
   const canGoNext = offset + visibleCount < total;
+  const currentPage = Math.floor(offset / pageSize) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="mt-3 flex items-center justify-between gap-3">
-      <p className="text-xs text-[#6e6a86]">
-        Showing {offset + 1}-{offset + visibleCount} of {total} {itemLabel}.
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={!canGoPrevious}
-          onClick={onPrevious}
-          className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          disabled={!canGoNext}
-          onClick={onNext}
-          className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Next
-        </button>
+    <div className="flex items-center justify-between gap-2 border-t border-[#e0ddef] bg-[#f8f6ff] px-3 py-2">
+      <button
+        type="button"
+        disabled={!canGoPrevious}
+        onClick={onPrevious}
+        className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#5e5a77] transition hover:bg-[#ece8fb] hover:text-[#3d3770] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <MaterialIcon name="chevron_left" className="text-[18px]" />
+        Previous
+      </button>
+      <div className="text-center">
+        <p className="text-[10px] font-semibold tracking-wide text-[#6f6a86] uppercase">
+          Page {currentPage} of {totalPages}
+        </p>
+        <p className="text-[11px] text-[#6f6a86]">
+          Showing {offset + 1}-{offset + visibleCount} of {total} {itemLabel}.
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={!canGoNext}
+        onClick={onNext}
+        className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#5e5a77] transition hover:bg-[#ece8fb] hover:text-[#3d3770] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Next
+        <MaterialIcon name="chevron_right" className="text-[18px]" />
+      </button>
+    </div>
+  );
+}
+
+function TrendBar({ label, value }: { label: string; value: number | null }) {
+  const percentage = value === null ? null : Math.max(0, Math.min(100, value));
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold tracking-wide text-[#6d6986] uppercase">
+          {label}
+        </p>
+        <p className="text-xs font-semibold text-[#2f2b47]">
+          {percentage === null ? "N/A" : `${Math.round(percentage)}%`}
+        </p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-[#ece9f9]">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#6152d7] to-[#3e2cc9]"
+          style={{ width: `${percentage ?? 0}%` }}
+        />
       </div>
     </div>
+  );
+}
+
+function QuickActionLink({
+  href,
+  icon,
+  label,
+  primary = false,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        primary
+          ? "inline-flex items-center gap-2 rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2d1fb1]"
+          : "inline-flex items-center gap-2 rounded-lg border border-[#d3d0e5] bg-white px-4 py-2 text-sm font-semibold text-[#3a3569] transition hover:bg-[#f4f1ff]"
+      }
+    >
+      <MaterialIcon name={icon} className="text-[18px]" />
+      {label}
+    </Link>
+  );
+}
+
+function DisabledQuickAction({ icon, label }: { icon: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 rounded-lg border border-[#d8d5e8] bg-[#f7f6fc] px-4 py-2 text-sm font-semibold text-[#87839d]">
+      <MaterialIcon name={icon} className="text-[18px]" />
+      {label}
+    </span>
   );
 }
 
@@ -469,6 +616,7 @@ export function DashboardPage() {
   const [rangePreset, setRangePreset] = useState<DashboardRangePreset>("30d");
   const [latestDocumentsOffset, setLatestDocumentsOffset] = useState(0);
   const [recentActivityOffset, setRecentActivityOffset] = useState(0);
+
   const usageRange = useMemo(
     () => resolveUsageDateRange(rangePreset),
     [rangePreset],
@@ -566,6 +714,7 @@ export function DashboardPage() {
   const documentsSummary = documentsQuery.data;
   const chatSummary = chatSummaryQuery.data;
   const usageSummary = usageQuery.data;
+
   const latestDocuments = useMemo(
     () => latestDocumentsQuery.data?.items ?? [],
     [latestDocumentsQuery.data?.items],
@@ -589,7 +738,6 @@ export function DashboardPage() {
   const questionsAsked =
     usageSummary?.totals.event_count ??
     (chatSummary ? chatSummary.questionsAsked : null);
-
   const averageConfidence = usageSummary
     ? extractAverageConfidence(usageSummary)
     : null;
@@ -597,6 +745,8 @@ export function DashboardPage() {
     ? extractAverageLatencyMs(usageSummary)
     : null;
   const estimatedCost = usageSummary?.totals.cost_usd ?? null;
+
+  const latencyScore = usageSummary ? extractLatencyScore(usageSummary) : null;
 
   const showEmptyState =
     !documentsQuery.isLoading &&
@@ -635,6 +785,7 @@ export function DashboardPage() {
       ]),
     [activityDocuments, recentSessions, auditActivityBundle.items],
   );
+
   const paginatedRecentActivityItems = useMemo(
     () =>
       recentActivityItems.slice(
@@ -648,42 +799,76 @@ export function DashboardPage() {
     activityDocumentsQuery.isLoading ||
     recentChatSessionsQuery.isLoading ||
     (showAdminUsage && auditActivityQuery.isLoading);
+
   const recentActivityError = activityDocumentsQuery.isError
     ? getApiErrorMessage(activityDocumentsQuery.error)
     : recentChatSessionsQuery.isError
       ? getApiErrorMessage(recentChatSessionsQuery.error)
       : null;
+
   const viewDocumentHref =
     latestDocuments.length > 0
       ? `/documents?document_id=${encodeURIComponent(latestDocuments[0].document_id)}`
       : null;
 
+  const tokenUsageRatio = useMemo(() => {
+    if (!usageSummary) {
+      return null;
+    }
+
+    const inputTokens = Math.max(0, usageSummary.totals.input_tokens ?? 0);
+    const outputTokens = Math.max(0, usageSummary.totals.output_tokens ?? 0);
+    const totalTokens = inputTokens + outputTokens;
+    if (totalTokens <= 0) {
+      return null;
+    }
+
+    return Math.round((inputTokens / totalTokens) * 100);
+  }, [usageSummary]);
+
+  const apiInstanceStatus =
+    documentsQuery.isError || chatSummaryQuery.isError
+      ? "Degraded"
+      : documentsQuery.isLoading || chatSummaryQuery.isLoading
+        ? "Checking"
+        : "Healthy";
+
+  const ingestionStatus = (() => {
+    const processingCount = activityDocuments.filter(
+      (item) => item.status === "processing",
+    ).length;
+    if (processingCount > 0) {
+      return `${processingCount} running`;
+    }
+    return "Idle";
+  })();
+
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
-      <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-[#d8d5e8] bg-white p-4 shadow-sm lg:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
+            <p className="mb-1 text-xs font-semibold tracking-[0.14em] text-[#5e57ad] uppercase">
               Rudix Dashboard
             </p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Organization Metrics Overview
-            </h1>
-            <p className="max-w-3xl text-sm text-[#68647b]">
-              Monitor document indexing, retrieval performance, and usage trends
-              with permission-aware KPI cards.
+            <h2 className="text-2xl font-black text-[#2d2a44]">
+              Enterprise RAG Command Center
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm text-[#67637d]">
+              Track ingestion throughput, retrieval quality, and chat activity
+              in one workspace-aware view.
             </p>
           </div>
 
           {showAdminUsage ? (
-            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            <label className="grid gap-1 text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase">
               Usage range
               <select
                 value={rangePreset}
                 onChange={(event) =>
                   setRangePreset(event.target.value as DashboardRangePreset)
                 }
-                className="h-9 min-w-[150px] rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
+                className="h-9 min-w-[160px] rounded-lg border border-[#d3d0e6] bg-white px-2 text-sm font-semibold text-[#2f2b47]"
               >
                 {DASHBOARD_RANGE_PRESETS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -694,13 +879,47 @@ export function DashboardPage() {
             </label>
           ) : null}
         </div>
-      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
+        <div className="mt-4 flex flex-wrap gap-2">
+          {documentCapabilities.canUpload ? (
+            <QuickActionLink
+              href="/documents"
+              icon="upload_file"
+              label="Upload document"
+              primary
+            />
+          ) : (
+            <DisabledQuickAction icon="upload_file" label="Upload document" />
+          )}
+          <QuickActionLink href="/chat" icon="chat" label="New chat" />
+          {viewDocumentHref ? (
+            <QuickActionLink
+              href={viewDocumentHref}
+              icon="visibility"
+              label="View document"
+            />
+          ) : (
+            <DisabledQuickAction icon="visibility" label="View document" />
+          )}
+          <QuickActionLink
+            href="/evaluations"
+            icon="play_circle"
+            label="Evaluation run"
+          />
+          <QuickActionLink
+            href="/rag-pipeline"
+            icon="account_tree"
+            label="Pipeline explorer"
+          />
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <DashboardKpiCard
           title="Total documents"
           value={formatInteger(documentsSummary?.totalDocuments)}
           caption="Documents currently scoped to your organization."
+          icon="description"
           loading={documentsQuery.isLoading}
           error={
             documentsQuery.isError
@@ -711,10 +930,11 @@ export function DashboardPage() {
             void documentsQuery.refetch();
           }}
         />
-        <KpiCard
+        <DashboardKpiCard
           title="Indexed documents"
           value={formatInteger(documentsSummary?.indexedDocuments)}
-          caption="Documents ready for retrieval and chat."
+          caption="Documents available for retrieval and chat."
+          icon="task_alt"
           loading={documentsQuery.isLoading}
           error={
             documentsQuery.isError
@@ -725,7 +945,7 @@ export function DashboardPage() {
             void documentsQuery.refetch();
           }}
         />
-        <KpiCard
+        <DashboardKpiCard
           title="Total chunks"
           value={
             documentsSummary
@@ -735,8 +955,9 @@ export function DashboardPage() {
           caption={
             documentsSummary?.chunksEstimated
               ? "Chunk count is estimated from sampled documents."
-              : "Total indexed chunks across fetched organization documents."
+              : "Indexed chunks across fetched organization documents."
           }
+          icon="layers"
           loading={documentsQuery.isLoading}
           error={
             documentsQuery.isError
@@ -747,10 +968,11 @@ export function DashboardPage() {
             void documentsQuery.refetch();
           }}
         />
-        <KpiCard
+        <DashboardKpiCard
           title="Questions asked"
           value={formatInteger(questionsAsked)}
           caption="Estimated from chat activity and usage events."
+          icon="quiz"
           loading={
             chatSummaryQuery.isLoading ||
             (showAdminUsage && usageQuery.isLoading)
@@ -770,222 +992,200 @@ export function DashboardPage() {
             }
           }}
         />
-        <KpiCard
-          title="Average confidence"
-          value={formatPercentage(averageConfidence)}
-          caption="Mean answer confidence from usage analytics, when exposed."
-          loading={showAdminUsage && usageQuery.isLoading}
-          error={
-            showAdminUsage && usageQuery.isError
-              ? getApiErrorMessage(usageQuery.error)
-              : null
-          }
-          onRetry={() => {
-            void usageQuery.refetch();
-          }}
-        />
-        <KpiCard
-          title="Average latency"
-          value={formatLatencyMs(averageLatencyMs)}
-          caption="Average end-to-end response latency, if reported by usage metrics."
-          loading={showAdminUsage && usageQuery.isLoading}
-          error={
-            showAdminUsage && usageQuery.isError
-              ? getApiErrorMessage(usageQuery.error)
-              : null
-          }
-          onRetry={() => {
-            void usageQuery.refetch();
-          }}
-        />
-        <KpiCard
-          title="Indexing success"
-          value={formatPercentage(indexingSuccess)}
-          caption="Indexed documents divided by total documents."
-          loading={documentsQuery.isLoading}
-          error={
-            documentsQuery.isError
-              ? getApiErrorMessage(documentsQuery.error)
-              : null
-          }
-          onRetry={() => {
-            void documentsQuery.refetch();
-          }}
-        />
-        {showAdminUsage ? (
-          <KpiCard
-            title="Estimated cost"
-            value={formatUsd(estimatedCost)}
-            caption="Aggregated LLM usage cost in the selected range."
-            loading={usageQuery.isLoading}
-            error={
-              usageQuery.isError ? getApiErrorMessage(usageQuery.error) : null
-            }
-            onRetry={() => {
-              void usageQuery.refetch();
-            }}
-          />
-        ) : null}
-      </div>
+      </section>
 
-      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-[#2a2640]">Quick actions</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {documentCapabilities.canUpload ? (
-            <Link
-              href="/documents"
-              className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
-            >
-              Upload document
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
-              Upload document
-            </span>
-          )}
-          <Link
-            href="/chat"
-            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-          >
-            New chat
-          </Link>
-          {viewDocumentHref ? (
-            <Link
-              href={viewDocumentHref}
-              className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              View document
-            </Link>
-          ) : (
-            <span className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
-              View document
-            </span>
-          )}
-          <Link
-            href="/evaluations"
-            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-          >
-            Evaluation run
-          </Link>
-          <Link
-            href="/rag-pipeline"
-            className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-          >
-            Pipeline explorer
-          </Link>
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <article className="overflow-hidden rounded-2xl border border-[#d8d5e8] bg-white shadow-sm lg:col-span-9">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#ebe8f7] px-5 py-4">
+            <div>
+              <h3 className="text-xl font-bold text-[#2d2a44]">
+                System performance
+              </h3>
+              <p className="text-sm text-[#69657f]">
+                Retrieval quality and response efficiency across the selected
+                window.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#f2effe] px-2 py-1 text-[10px] font-semibold tracking-wide text-[#5649bf] uppercase">
+                <span className="h-2 w-2 rounded-full bg-[#4f46e5]" />
+                Quality
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#f4f3fb] px-2 py-1 text-[10px] font-semibold tracking-wide text-[#5f5b74] uppercase">
+                <span className="h-2 w-2 rounded-full bg-[#6e687f]" />
+                Efficiency
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-5 md:grid-cols-[2fr_1fr]">
+            <div className="rounded-xl border border-[#e3dff1] bg-[#fbfaff] p-4">
+              {showAdminUsage && usageQuery.isLoading ? (
+                <LoadingState
+                  compact
+                  className="rounded-lg border border-[#e3dff1] bg-white px-3 py-2 text-sm text-[#64617a]"
+                  title="Loading performance metrics..."
+                />
+              ) : null}
+              {showAdminUsage && usageQuery.isError ? (
+                <ErrorState
+                  compact
+                  description={getApiErrorMessage(usageQuery.error)}
+                  onRetry={() => {
+                    void usageQuery.refetch();
+                  }}
+                />
+              ) : null}
+              {!showAdminUsage || usageQuery.isSuccess ? (
+                <div className="space-y-4">
+                  <TrendBar
+                    label="Average confidence"
+                    value={
+                      averageConfidence == null ? null : averageConfidence * 100
+                    }
+                  />
+                  <TrendBar
+                    label="Indexing success"
+                    value={
+                      indexingSuccess == null ? null : indexingSuccess * 100
+                    }
+                  />
+                  <TrendBar label="Latency score" value={latencyScore} />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-4 border-t border-[#ebe8f7] pt-4 md:border-t-0 md:border-l md:border-[#ebe8f7] md:pt-0 md:pl-4">
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
+                  Average confidence
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#4d44e3]">
+                  {formatPercentage(averageConfidence)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
+                  Average latency
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#2f2b47]">
+                  {formatLatencyMs(averageLatencyMs)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
+                  Indexing success
+                </p>
+                <p className="mt-1 text-3xl font-black text-[#2f2b47]">
+                  {formatPercentage(indexingSuccess)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div className="space-y-4 lg:col-span-3">
+          <article className="relative overflow-hidden rounded-2xl bg-[#3525cd] p-5 text-white shadow-lg shadow-[#4d44e3]/25">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-[#dad7ff] uppercase">
+              Token usage cost
+            </p>
+            {showAdminUsage ? (
+              <p className="mt-1 text-[10px] font-semibold tracking-[0.12em] text-[#c7c2ff] uppercase">
+                Estimated cost
+              </p>
+            ) : null}
+            <p className="mt-2 text-4xl font-black">
+              {formatUsd(estimatedCost)}
+            </p>
+            <p className="mt-1 text-sm text-[#dad7ff]">
+              {showAdminUsage
+                ? `Window: ${usageRange.from} to ${usageRange.to}`
+                : "Enable admin usage metrics to see cost analytics."}
+            </p>
+
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold tracking-wide uppercase">
+                <span>Input token share</span>
+                <span>
+                  {tokenUsageRatio == null ? "N/A" : `${tokenUsageRatio}%`}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-white/20">
+                <div
+                  className="h-full rounded-full bg-white"
+                  style={{ width: `${tokenUsageRatio ?? 0}%` }}
+                />
+              </div>
+            </div>
+
+            <MaterialIcon
+              name="payments"
+              className="absolute -right-3 -bottom-4 text-[96px] text-white/15"
+            />
+          </article>
+
+          <article className="rounded-2xl border border-[#d8d5e8] bg-white p-4 shadow-sm">
+            <h4 className="text-sm font-bold text-[#2f2b47]">
+              Active instances
+            </h4>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      apiInstanceStatus === "Healthy"
+                        ? "bg-emerald-500"
+                        : apiInstanceStatus === "Checking"
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                    }`}
+                  />
+                  <span className="text-sm text-[#3b3760]">Rudix API</span>
+                </div>
+                <span className="font-mono text-xs text-[#68647d]">
+                  {apiInstanceStatus}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      ingestionStatus === "Idle"
+                        ? "bg-emerald-500"
+                        : "bg-sky-500"
+                    }`}
+                  />
+                  <span className="text-sm text-[#3b3760]">Ingestion jobs</span>
+                </div>
+                <span className="font-mono text-xs text-[#68647d]">
+                  {ingestionStatus}
+                </span>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[#2a2640]">Latest documents</h2>
-          {latestDocumentsQuery.isLoading ? (
-            <LoadingState
-              compact
-              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-              title="Loading latest documents..."
-            />
-          ) : null}
-          {latestDocumentsQuery.isError ? (
-            <div className="mt-3">
-              <ErrorState
-                compact
-                error={latestDocumentsQuery.error}
-                description={getApiErrorMessage(latestDocumentsQuery.error)}
-                onRetry={() => {
-                  void latestDocumentsQuery.refetch();
-                }}
-              />
-            </div>
-          ) : null}
-          {latestDocumentsQuery.isSuccess && latestDocuments.length === 0 ? (
-            <EmptyState
-              compact
-              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-              title="No documents have been uploaded yet."
-            />
-          ) : null}
-          {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
-            <div className="mt-4 overflow-x-auto rounded-xl border border-[#e4e1f2]">
-              <table className="min-w-full divide-y divide-[#e7e4f4] text-sm">
-                <thead className="bg-[#faf9ff]">
-                  <tr className="text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                    <th className="px-3 py-3">Filename</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">Chunks</th>
-                    <th className="px-3 py-3">Updated</th>
-                    <th className="w-[1%] px-3 py-3 whitespace-nowrap">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#f0edf8]">
-                  {latestDocuments.map((document) => (
-                    <tr key={document.document_id} className="text-[#2a2640]">
-                      <td className="px-3 py-3 font-semibold">
-                        {document.filename}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={getDocumentStatusBadgeClass(
-                            document.status,
-                          )}
-                        >
-                          {document.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        {formatInteger(document.chunk_count)}
-                      </td>
-                      <td className="px-3 py-3 text-xs text-[#6a6780]">
-                        {formatDateTime(document.updated_at)}
-                      </td>
-                      <td className="px-3 py-3 whitespace-nowrap">
-                        <Link
-                          href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
-                          className="inline-flex rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold whitespace-nowrap text-[#3e376f] hover:bg-[#f5f3ff]"
-                        >
-                          View document
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-          {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
-            <DashboardPagination
-              offset={latestDocumentsOffset}
-              pageSize={LATEST_DOCUMENTS_PAGE_SIZE}
-              total={latestDocumentsQuery.data?.total ?? latestDocuments.length}
-              visibleCount={latestDocuments.length}
-              itemLabel="documents"
-              onPrevious={() =>
-                setLatestDocumentsOffset((current) =>
-                  Math.max(0, current - LATEST_DOCUMENTS_PAGE_SIZE),
-                )
-              }
-              onNext={() =>
-                setLatestDocumentsOffset(
-                  (current) => current + LATEST_DOCUMENTS_PAGE_SIZE,
-                )
-              }
-            />
-          ) : null}
-        </section>
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-10">
+        <article className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#d8d5e8] bg-white shadow-sm lg:col-span-6">
+          <div className="flex items-center justify-between gap-2 border-b border-[#ebe8f7] px-5 py-4">
+            <h3 className="text-xl font-bold text-[#2d2a44]">
+              Recent activity
+            </h3>
+            <span className="text-[11px] font-semibold tracking-[0.12em] text-[#6d6986] uppercase">
+              Timeline
+            </span>
+          </div>
 
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[#2a2640]">Recent activity</h2>
-          {recentActivityLoading ? (
-            <LoadingState
-              compact
-              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-              title="Loading recent activity..."
-            />
-          ) : null}
-          {recentActivityError ? (
-            <div className="mt-3">
+          <div className="hide-scrollbar flex-1 overflow-y-auto px-5 py-4">
+            {recentActivityLoading ? (
+              <LoadingState
+                compact
+                className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+                title="Loading recent activity..."
+              />
+            ) : null}
+            {recentActivityError ? (
               <ErrorState
                 compact
                 description={recentActivityError}
@@ -997,91 +1197,243 @@ export function DashboardPage() {
                   }
                 }}
               />
-            </div>
-          ) : null}
-          {!recentActivityLoading &&
-          !recentActivityError &&
-          recentActivityItems.length === 0 ? (
-            <EmptyState
-              compact
-              className="mt-3 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-              title="No recent activity available yet."
-            />
-          ) : null}
+            ) : null}
+            {!recentActivityLoading &&
+            !recentActivityError &&
+            recentActivityItems.length === 0 ? (
+              <EmptyState
+                compact
+                className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+                title="No recent activity available yet."
+              />
+            ) : null}
+            {!recentActivityLoading &&
+            !recentActivityError &&
+            recentActivityItems.length > 0 ? (
+              <ul className="space-y-3">
+                {paginatedRecentActivityItems.map((item) => {
+                  const visual = activityVisual(item.category);
+                  return (
+                    <li
+                      key={item.id}
+                      className="flex gap-3 rounded-lg border border-[#e7e4f4] bg-[#fcfbff] p-3"
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${visual.toneClass}`}
+                      >
+                        <MaterialIcon
+                          name={visual.icon}
+                          className="text-[20px]"
+                          filled
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-[#2f2a46]">
+                            {item.title}
+                          </p>
+                          <p className="text-[11px] text-[#6d6985]">
+                            {formatDateTime(item.timestamp)}
+                          </p>
+                        </div>
+                        <p className="mt-1 text-sm text-[#5f5a74]">
+                          {item.description}
+                        </p>
+                        {item.href ? (
+                          <Link
+                            href={item.href}
+                            className="mt-2 inline-block text-xs font-semibold text-[#3525cd] hover:underline"
+                          >
+                            Open
+                          </Link>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+            {!recentActivityLoading &&
+            !recentActivityError &&
+            auditActivityBundle.unavailableReason ? (
+              <p className="mt-3 text-xs text-[#6a6780]">
+                {auditActivityBundle.unavailableReason}
+              </p>
+            ) : null}
+          </div>
+
           {!recentActivityLoading &&
           !recentActivityError &&
           recentActivityItems.length > 0 ? (
-            <>
-              <ul className="mt-4 space-y-2">
-                {paginatedRecentActivityItems.map((item) => (
-                  <li
-                    key={item.id}
-                    className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
-                  >
-                    <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      {item.category}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#2f2a46]">
-                      {item.title}
-                    </p>
-                    <p className="mt-1 text-sm text-[#5f5a74]">
-                      {item.description}
-                    </p>
-                    <div className="mt-2 flex items-center justify-between gap-2">
-                      <p className="text-xs text-[#6a6780]">
-                        {formatDateTime(item.timestamp)}
-                      </p>
-                      {item.href ? (
-                        <Link
-                          href={item.href}
-                          className="text-xs font-semibold text-[#3525cd] hover:underline"
-                        >
-                          Open
-                        </Link>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
+            <DashboardPagination
+              offset={recentActivityOffset}
+              pageSize={RECENT_ACTIVITY_PAGE_SIZE}
+              total={recentActivityItems.length}
+              visibleCount={paginatedRecentActivityItems.length}
+              itemLabel="events"
+              onPrevious={() =>
+                setRecentActivityOffset((current) =>
+                  Math.max(0, current - RECENT_ACTIVITY_PAGE_SIZE),
+                )
+              }
+              onNext={() =>
+                setRecentActivityOffset(
+                  (current) => current + RECENT_ACTIVITY_PAGE_SIZE,
+                )
+              }
+            />
+          ) : null}
+        </article>
+
+        <article className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#d8d5e8] bg-white shadow-sm lg:col-span-4">
+          <div className="flex items-center justify-between gap-2 border-b border-[#ebe8f7] px-5 py-4">
+            <h3 className="text-xl font-bold text-[#2d2a44]">
+              Latest documents
+            </h3>
+            <Link
+              href="/documents"
+              className="rounded p-1 text-[#6d6986] transition hover:bg-[#f1eefc] hover:text-[#3525cd]"
+              aria-label="Manage documents"
+            >
+              <MaterialIcon name="filter_list" className="text-[20px]" />
+            </Link>
+          </div>
+
+          {latestDocumentsQuery.isLoading ? (
+            <div className="px-5 py-4">
+              <LoadingState
+                compact
+                className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+                title="Loading latest documents..."
+              />
+            </div>
+          ) : null}
+
+          {latestDocumentsQuery.isError ? (
+            <div className="px-5 py-4">
+              <ErrorState
+                compact
+                error={latestDocumentsQuery.error}
+                description={getApiErrorMessage(latestDocumentsQuery.error)}
+                onRetry={() => {
+                  void latestDocumentsQuery.refetch();
+                }}
+              />
+            </div>
+          ) : null}
+
+          {latestDocumentsQuery.isSuccess && latestDocuments.length === 0 ? (
+            <div className="px-5 py-4">
+              <EmptyState
+                compact
+                className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
+                title="No documents have been uploaded yet."
+              />
+            </div>
+          ) : null}
+
+          {latestDocumentsQuery.isSuccess && latestDocuments.length > 0 ? (
+            <div className="flex flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-auto">
+                <table className="min-w-full divide-y divide-[#ebe8f7]">
+                  <thead className="bg-[#f7f5ff]">
+                    <tr className="text-left text-[11px] font-semibold tracking-wide text-[#6d6986] uppercase">
+                      <th className="px-4 py-2">Filename</th>
+                      <th className="px-4 py-2">Status</th>
+                      <th className="w-[1%] px-4 py-2 whitespace-nowrap">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1eefa]">
+                    {latestDocuments.map((document) => (
+                      <tr
+                        key={document.document_id}
+                        className="hover:bg-[#faf9ff]"
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-[#2f2b47]">
+                            <MaterialIcon
+                              name={
+                                document.file_type === "pdf"
+                                  ? "picture_as_pdf"
+                                  : "description"
+                              }
+                              className="text-[18px] text-[#5d57c4]"
+                            />
+                            <span className="max-w-[180px] truncate">
+                              {document.filename}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={documentStatusBadgeClass(
+                              document.status,
+                            )}
+                          >
+                            {document.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <Link
+                            href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
+                            className="inline-flex rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold whitespace-nowrap text-[#3e376f] hover:bg-[#f5f3ff]"
+                          >
+                            View document
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
               <DashboardPagination
-                offset={recentActivityOffset}
-                pageSize={RECENT_ACTIVITY_PAGE_SIZE}
-                total={recentActivityItems.length}
-                visibleCount={paginatedRecentActivityItems.length}
-                itemLabel="events"
+                offset={latestDocumentsOffset}
+                pageSize={LATEST_DOCUMENTS_PAGE_SIZE}
+                total={
+                  latestDocumentsQuery.data?.total ?? latestDocuments.length
+                }
+                visibleCount={latestDocuments.length}
+                itemLabel="documents"
                 onPrevious={() =>
-                  setRecentActivityOffset((current) =>
-                    Math.max(0, current - RECENT_ACTIVITY_PAGE_SIZE),
+                  setLatestDocumentsOffset((current) =>
+                    Math.max(0, current - LATEST_DOCUMENTS_PAGE_SIZE),
                   )
                 }
                 onNext={() =>
-                  setRecentActivityOffset(
-                    (current) => current + RECENT_ACTIVITY_PAGE_SIZE,
+                  setLatestDocumentsOffset(
+                    (current) => current + LATEST_DOCUMENTS_PAGE_SIZE,
                   )
                 }
               />
-            </>
+
+              <div className="border-t border-[#e0ddef] bg-[#f8f6ff] px-3 py-2">
+                <Link
+                  href="/documents"
+                  className="block text-center text-sm font-semibold text-[#615b7a] transition hover:text-[#3525cd]"
+                >
+                  Manage all{" "}
+                  {formatInteger(latestDocumentsQuery.data?.total ?? 0)}{" "}
+                  documents
+                </Link>
+              </div>
+            </div>
           ) : null}
-          {!recentActivityLoading &&
-          !recentActivityError &&
-          auditActivityBundle.unavailableReason ? (
-            <p className="mt-3 text-xs text-[#6a6780]">
-              {auditActivityBundle.unavailableReason}
-            </p>
-          ) : null}
-        </section>
-      </div>
+        </article>
+      </section>
 
       {showEmptyState ? (
         <EmptyState
-          className="rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-sm"
+          className="rounded-2xl border border-[#d8d5e8] bg-white p-6 shadow-sm"
           title="No activity yet"
           description="No documents or chat questions were found for this workspace. Upload documents or start a chat to populate dashboard metrics."
           action={
             <div className="flex flex-wrap justify-center gap-3">
               <Link
                 href="/documents"
-                className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
+                className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2d1fb1]"
               >
                 Upload documents
               </Link>
@@ -1097,9 +1449,9 @@ export function DashboardPage() {
       ) : null}
 
       {showAdminUsage ? (
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-[#2a2640]">Usage window</h2>
-          <p className="mt-2 text-sm text-[#68647b]">
+        <section className="rounded-2xl border border-[#d8d5e8] bg-white p-5 shadow-sm">
+          <h3 className="text-lg font-bold text-[#2d2a44]">Usage window</h3>
+          <p className="mt-2 text-sm text-[#67637d]">
             Showing usage from{" "}
             <span className="font-semibold">{usageRange.from}</span> to{" "}
             <span className="font-semibold">{usageRange.to}</span>.

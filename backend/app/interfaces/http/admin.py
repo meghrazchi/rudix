@@ -123,6 +123,13 @@ def _extract_text(metadata: dict[str, object], key: str) -> str | None:
     return None
 
 
+def _latency_score_from_average(avg_latency_ms: float | None) -> float | None:
+    if avg_latency_ms is None:
+        return None
+    # Keep the existing dashboard scoring model stable while moving computation server-side.
+    return max(0.0, min(100.0, 100.0 - (avg_latency_ms / 12.0)))
+
+
 def _bucket_period_start(value: datetime, granularity: UsageGranularity) -> date:
     value_date = value.astimezone(UTC).date()
     if granularity == "day":
@@ -206,27 +213,34 @@ def _aggregate_usage(
         bucket.add_event(event)
         total.add_event(event)
 
-    series = [
-        UsageSummaryPointResponse(
-            period_start=bucket.period_start,
-            period_end=bucket.period_end,
-            input_tokens=bucket.input_tokens,
-            output_tokens=bucket.output_tokens,
-            cost_usd=float(bucket.cost_usd),
-            event_count=bucket.event_count,
-            avg_confidence=bucket.average_confidence(),
-            avg_latency_ms=bucket.average_latency_ms(),
+    series: list[UsageSummaryPointResponse] = []
+    for _, bucket in sorted(buckets.items(), key=lambda item: item[0]):
+        avg_confidence = bucket.average_confidence()
+        avg_latency_ms = bucket.average_latency_ms()
+        series.append(
+            UsageSummaryPointResponse(
+                period_start=bucket.period_start,
+                period_end=bucket.period_end,
+                input_tokens=bucket.input_tokens,
+                output_tokens=bucket.output_tokens,
+                cost_usd=float(bucket.cost_usd),
+                event_count=bucket.event_count,
+                avg_confidence=avg_confidence,
+                avg_latency_ms=avg_latency_ms,
+                latency_score=_latency_score_from_average(avg_latency_ms),
+            )
         )
-        for bucket_start, bucket in sorted(buckets.items(), key=lambda item: item[0])
-    ]
 
+    total_avg_confidence = total.average_confidence()
+    total_avg_latency_ms = total.average_latency_ms()
     totals = UsageSummaryTotalsResponse(
         input_tokens=total.input_tokens,
         output_tokens=total.output_tokens,
         cost_usd=float(total.cost_usd),
         event_count=total.event_count,
-        avg_confidence=total.average_confidence(),
-        avg_latency_ms=total.average_latency_ms(),
+        avg_confidence=total_avg_confidence,
+        avg_latency_ms=total_avg_latency_ms,
+        latency_score=_latency_score_from_average(total_avg_latency_ms),
     )
 
     return totals, series

@@ -199,11 +199,14 @@ async def test_admin_usage_summary_aggregates_scoped_events(
     assert payload["totals"]["cost_usd"] == pytest.approx(0.0225)
     assert payload["totals"]["avg_confidence"] == pytest.approx(0.7)
     assert payload["totals"]["avg_latency_ms"] == pytest.approx(400)
+    assert payload["totals"]["latency_score"] == pytest.approx(66.6666666667)
     assert len(payload["series"]) == 2
     assert payload["series"][0]["period_start"] == "2026-05-01"
     assert payload["series"][0]["event_count"] == 1
+    assert payload["series"][0]["latency_score"] == pytest.approx(75)
     assert payload["series"][1]["period_start"] == "2026-05-02"
     assert payload["series"][1]["event_count"] == 1
+    assert payload["series"][1]["latency_score"] == pytest.approx(58.3333333333)
 
 
 @pytest.mark.asyncio
