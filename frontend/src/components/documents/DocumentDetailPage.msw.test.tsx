@@ -73,6 +73,21 @@ const server = setupServer(
           retryable: false,
           message: "qdrant upsert failed",
         },
+        lifecycle_timeline: [
+          {
+            step: "index",
+            label: "Index",
+            description: "Upsert embedded chunks into vector storage.",
+            status: "failed",
+            document_id: "doc-failed",
+            pipeline_run_id: "run-failed",
+            pipeline_type: "document.process",
+            started_at: "2026-05-15T10:58:00Z",
+            completed_at: "2026-05-15T11:00:00Z",
+            duration_ms: 120000,
+            logs: ["qdrant upsert failed"],
+          },
+        ],
         created_at: "2026-05-14T10:00:00Z",
         updated_at: "2026-05-15T11:00:00Z",
       });
@@ -88,6 +103,21 @@ const server = setupServer(
       checksum: "sum-indexed",
       error_message: null,
       error_details: null,
+      lifecycle_timeline: [
+        {
+          step: "index",
+          label: "Index",
+          description: "Upsert embedded chunks into vector storage.",
+          status: "completed",
+          document_id: "doc-indexed",
+          pipeline_run_id: "run-indexed",
+          pipeline_type: "document.process",
+          started_at: "2026-05-15T10:55:00Z",
+          completed_at: "2026-05-15T11:00:00Z",
+          duration_ms: 300000,
+          logs: ["upserted 80 chunks"],
+        },
+      ],
       created_at: "2026-05-14T10:00:00Z",
       updated_at: "2026-05-15T11:00:00Z",
     });
@@ -205,8 +235,14 @@ describe("DocumentDetailPage MSW", () => {
   it("loads indexed document detail metadata", async () => {
     renderPage("doc-indexed");
 
-    expect(await screen.findByText("indexed.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "indexed.pdf" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
+    expect(screen.getByText("upserted 80 chunks")).toBeInTheDocument();
+    expect(screen.getByText("Document preview")).toBeInTheDocument();
+    expect(screen.getByText("View Original PDF")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(await screen.findByText("Preview 1")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ask in Chat" })).toHaveAttribute(
@@ -218,7 +254,9 @@ describe("DocumentDetailPage MSW", () => {
   it("loads failed document safe message and structured details", async () => {
     renderPage("doc-failed");
 
-    expect(await screen.findByText("failed.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "failed.pdf" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Processing error")).toBeInTheDocument();
     expect(screen.getByText(/QDRANT_UPSERT_ERROR/)).toBeInTheDocument();
     expect(
@@ -229,6 +267,8 @@ describe("DocumentDetailPage MSW", () => {
   it("paginates chunk preview results", async () => {
     renderPage("doc-indexed");
 
+    await screen.findByRole("heading", { name: "indexed.pdf" });
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(screen.getByText("Chunk #8")).toBeInTheDocument();
 
@@ -245,6 +285,8 @@ describe("DocumentDetailPage MSW", () => {
   it("refetches and shows full chunk text when toggle is enabled", async () => {
     renderPage("doc-indexed");
 
+    await screen.findByRole("heading", { name: "indexed.pdf" });
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Preview 1")).toBeInTheDocument();
     await userEvent.click(
       screen.getByRole("checkbox", { name: /include full chunk text/i }),

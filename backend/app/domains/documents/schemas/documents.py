@@ -92,6 +92,20 @@ class DocumentListResponse(BaseModel):
     sort_order: SortOrder
 
 
+class DocumentLifecycleTimelineStepResponse(BaseModel):
+    step: str
+    label: str
+    description: str
+    status: Literal["pending", "running", "completed", "failed", "skipped"]
+    document_id: str
+    pipeline_run_id: str | None = None
+    pipeline_type: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+    logs: list[str] = Field(default_factory=list)
+
+
 class DocumentDetailResponse(BaseModel):
     document_id: str
     filename: str
@@ -102,6 +116,7 @@ class DocumentDetailResponse(BaseModel):
     checksum: str | None = None
     error_message: str | None = None
     error_details: DocumentErrorDetails | None = None
+    lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

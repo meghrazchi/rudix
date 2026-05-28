@@ -190,6 +190,21 @@ Response:
   "checksum": "sha256:...",
   "error_message": null,
   "error_details": null,
+  "lifecycle_timeline": [
+    {
+      "step": "extract",
+      "label": "Extract",
+      "description": "Extract raw text and metadata from source files.",
+      "status": "completed",
+      "document_id": "uuid",
+      "pipeline_run_id": "uuid",
+      "pipeline_type": "document.process",
+      "started_at": "2026-05-07T10:01:00Z",
+      "completed_at": "2026-05-07T10:01:03Z",
+      "duration_ms": 3000,
+      "logs": ["extracted 24 pages"]
+    }
+  ],
   "created_at": "2026-05-07T10:00:00Z",
   "updated_at": "2026-05-07T10:04:00Z"
 }

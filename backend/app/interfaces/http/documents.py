@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import quote
 from uuid import UUID
 
@@ -13,6 +13,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.documents.workflows import (
@@ -36,6 +37,7 @@ from app.domains.documents.schemas.documents import (
     DocumentChunkPreviewResponse,
     DocumentChunksResponse,
     DocumentDetailResponse,
+    DocumentLifecycleTimelineStepResponse,
     DocumentListItemResponse,
     DocumentListResponse,
     DocumentSortBy,
@@ -44,8 +46,16 @@ from app.domains.documents.schemas.documents import (
     SortOrder,
     UploadDocumentResponse,
 )
+from app.domains.pipeline.repositories.pipeline import PipelineRepository
+from app.domains.pipeline.services.pipeline_graph_service import (
+    canonical_pipeline_type,
+    pipeline_event_status_to_node_status,
+    pipeline_node_description,
+    pipeline_node_label,
+)
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.pipeline import PipelineEvent, PipelineRun
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import (
     delete_document as delete_document_task,
@@ -59,6 +69,7 @@ from app.workers.document_tasks import (
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
+pipeline_repository = PipelineRepository()
 audit_log_service = AuditLogService()
 
 
@@ -99,6 +110,112 @@ def _request_id_from_request(request: Request) -> str | None:
     if isinstance(request_id, str) and request_id.strip():
         return request_id
     return request.headers.get("x-request-id")
+
+
+def _safe_log_lines(
+    value: object,
+    *,
+    max_lines: int = 4,
+    max_chars: int = 240,
+) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    lines: list[str] = []
+    for raw_line in value:
+        line = str(raw_line).strip()
+        if not line:
+            continue
+        if len(line) > max_chars:
+            line = f"{line[: max_chars - 1].rstrip()}…"
+        lines.append(line)
+        if len(lines) >= max_lines:
+            break
+    return lines
+
+
+def _duration_from_event(event: PipelineEvent) -> int | None:
+    if event.duration_ms is not None and event.duration_ms >= 0:
+        return event.duration_ms
+    if event.started_at is None or event.completed_at is None:
+        return None
+    return max(int((event.completed_at - event.started_at).total_seconds() * 1000), 0)
+
+
+def _timeline_status_from_event(
+    event_status: str,
+) -> Literal["pending", "running", "completed", "failed", "skipped"]:
+    mapped_status = pipeline_event_status_to_node_status(event_status)
+    if mapped_status == "running":
+        return "running"
+    if mapped_status == "completed":
+        return "completed"
+    if mapped_status == "failed":
+        return "failed"
+    if mapped_status == "skipped":
+        return "skipped"
+    return "pending"
+
+
+def _is_pipeline_tables_missing_error(error: ProgrammingError) -> bool:
+    sqlstate = getattr(getattr(error, "orig", None), "sqlstate", None)
+    if sqlstate == "42P01":
+        return True
+    lowered = str(error).lower()
+    return (
+        'relation "pipeline_runs" does not exist' in lowered
+        or 'relation "pipeline_events" does not exist' in lowered
+    )
+
+
+def _build_lifecycle_timeline_from_pipeline(
+    *,
+    document: Document,
+    pipeline_run: PipelineRun,
+    events: list[PipelineEvent],
+) -> list[DocumentLifecycleTimelineStepResponse]:
+    if not events:
+        return []
+
+    ordered_node_names: list[str] = []
+    grouped_events: dict[str, list[PipelineEvent]] = {}
+    for event in events:
+        if event.node_name not in grouped_events:
+            grouped_events[event.node_name] = []
+            ordered_node_names.append(event.node_name)
+        grouped_events[event.node_name].append(event)
+
+    timeline: list[DocumentLifecycleTimelineStepResponse] = []
+    for node_name in ordered_node_names:
+        node_events = grouped_events[node_name]
+        latest_event = node_events[-1]
+        started_candidates = [
+            item.started_at for item in node_events if item.started_at is not None
+        ]
+        completed_candidates = [
+            item.completed_at for item in node_events if item.completed_at is not None
+        ]
+        started_at = min(started_candidates) if started_candidates else latest_event.started_at
+        completed_at = (
+            max(completed_candidates) if completed_candidates else latest_event.completed_at
+        )
+
+        timeline.append(
+            DocumentLifecycleTimelineStepResponse(
+                step=node_name,
+                label=pipeline_node_label(node_name),
+                description=pipeline_node_description(node_name),
+                status=_timeline_status_from_event(latest_event.status),
+                document_id=str(document.id),
+                pipeline_run_id=str(pipeline_run.id),
+                pipeline_type=canonical_pipeline_type(pipeline_run.pipeline_type),
+                started_at=started_at,
+                completed_at=completed_at,
+                duration_ms=_duration_from_event(latest_event),
+                logs=_safe_log_lines(latest_event.logs_json),
+            )
+        )
+
+    return timeline
 
 
 def _download_media_type(file_type: str) -> str:
@@ -314,32 +431,73 @@ async def get_document(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentDetailResponse:
     del document_id
+    _, organization_id = _principal_user_and_org(principal)
+    document_uuid = document.id
+    document_id_text = str(document_uuid)
+    filename = document.filename
+    file_type = document.file_type
+    document_status = document.status
+    page_count = document.page_count
+    checksum = document.checksum
+    created_at = document.created_at
+    updated_at = document.updated_at
+
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
         db_session,
-        document_id=document.id,
+        document_id=document_uuid,
         index_version=settings.document_index_version,
     )
+    lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = []
+    try:
+        pipeline_run = await pipeline_repository.resolve_latest_pipeline_run(
+            db_session,
+            organization_id=organization_id,
+            pipeline_types=["document.process", "document.reindex", "document.delete"],
+            document_id=document_uuid,
+        )
+        if pipeline_run is not None:
+            pipeline_events = await pipeline_repository.list_pipeline_events_for_run(
+                db_session,
+                pipeline_run_id=pipeline_run.id,
+            )
+            lifecycle_timeline = _build_lifecycle_timeline_from_pipeline(
+                document=document,
+                pipeline_run=pipeline_run,
+                events=pipeline_events,
+            )
+    except ProgrammingError as exc:
+        if not _is_pipeline_tables_missing_error(exc):
+            raise
+        await db_session.rollback()
+        log_document_event(
+            event="document.detail.timeline.unavailable",
+            document_id=document_id_text,
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            reason="pipeline_tables_missing",
+        )
     log_document_event(
         event="document.detail.requested",
-        document_id=str(document.id),
+        document_id=document_id_text,
         organization_id=principal.organization_id,
         user_id=principal.user_id,
         status_code=status.HTTP_200_OK,
-        document_status=document.status,
+        document_status=document_status,
     )
     return DocumentDetailResponse(
-        document_id=str(document.id),
-        filename=document.filename,
-        file_type=document.file_type,
-        status=document.status,
-        page_count=document.page_count,
+        document_id=document_id_text,
+        filename=filename,
+        file_type=file_type,
+        status=document_status,
+        page_count=page_count,
         chunk_count=chunk_count,
-        checksum=document.checksum,
+        checksum=checksum,
         error_message=safe_error_message,
         error_details=safe_error_details,
-        created_at=document.created_at,
-        updated_at=document.updated_at,
+        lifecycle_timeline=lifecycle_timeline,
+        created_at=created_at,
+        updated_at=updated_at,
     )
 
 

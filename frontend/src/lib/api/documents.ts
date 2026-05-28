@@ -84,8 +84,23 @@ export type DocumentDetailResponse = {
   checksum: string | null;
   error_message: string | null;
   error_details: DocumentErrorDetails | null;
+  lifecycle_timeline?: DocumentLifecycleTimelineStepResponse[];
   created_at: string;
   updated_at: string;
+};
+
+export type DocumentLifecycleTimelineStepResponse = {
+  step: string;
+  label: string;
+  description: string;
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  document_id: string;
+  pipeline_run_id: string | null;
+  pipeline_type: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_ms: number | null;
+  logs: string[];
 };
 
 export type DocumentChunkPreviewResponse = {

@@ -25,6 +25,7 @@ const mockApi = vi.hoisted(() => ({
   getDocumentChunks: vi.fn(),
   deleteDocument: vi.fn(),
   reindexDocument: vi.fn(),
+  downloadDocumentFile: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -43,6 +44,8 @@ vi.mock("@/lib/api/documents", () => ({
     mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
+  downloadDocumentFile: (documentId: string) =>
+    mockApi.downloadDocumentFile(documentId),
 }));
 
 function renderPage(documentId = "doc-1") {
@@ -79,9 +82,16 @@ describe("DocumentDetailPage", () => {
     mockApi.getDocumentChunks.mockReset();
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
+    mockApi.downloadDocumentFile.mockReset();
     Object.defineProperty(window, "confirm", {
       writable: true,
       value: vi.fn(() => true),
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
     });
 
     mockApi.getDocument.mockResolvedValue({
@@ -94,6 +104,21 @@ describe("DocumentDetailPage", () => {
       checksum: "abc123",
       error_message: null,
       error_details: null,
+      lifecycle_timeline: [
+        {
+          step: "extract",
+          label: "Extract",
+          description: "Extract raw text and metadata from source files.",
+          status: "completed",
+          document_id: "doc-1",
+          pipeline_run_id: "run-1",
+          pipeline_type: "document.process",
+          started_at: "2026-05-15T09:59:00Z",
+          completed_at: "2026-05-15T10:00:00Z",
+          duration_ms: 1000,
+          logs: ["extracted 12 pages"],
+        },
+      ],
       created_at: "2026-05-14T10:00:00Z",
       updated_at: "2026-05-15T10:00:00Z",
     });
@@ -133,6 +158,9 @@ describe("DocumentDetailPage", () => {
       status: "processing",
       queue_status: "queued",
     });
+    mockApi.downloadDocumentFile.mockResolvedValue(
+      new Blob(["fake file payload"], { type: "application/pdf" }),
+    );
   });
 
   it("renders indexed metadata and actions with preserved back link", async () => {
@@ -142,8 +170,13 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "policy.pdf" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/Document ID:/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/doc-1/).length).toBeGreaterThan(0);
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
+    expect(screen.getByText("extracted 12 pages")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to documents" }),
     ).toHaveAttribute(
@@ -158,8 +191,10 @@ describe("DocumentDetailPage", () => {
       "href",
       "/rag-pipeline?run_type=document.process&document_id=doc-1",
     );
+    await userEvent.click(screen.getByText("More actions"));
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(
       await screen.findByText("Model text-embedding-3-small"),
@@ -167,9 +202,51 @@ describe("DocumentDetailPage", () => {
     expect(
       await screen.findByText("Preview text for the first chunk."),
     ).toBeInTheDocument();
+    expect(screen.getByText("Document preview")).toBeInTheDocument();
+    expect(screen.getByText("View Original PDF")).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", { name: /include full chunk text/i }),
     ).toBeInTheDocument();
+  });
+
+  it("downloads the original file from the preview card", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "policy.pdf" });
+    await userEvent.click(
+      screen.getByRole("button", { name: /download original file/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockApi.downloadDocumentFile).toHaveBeenCalledWith("doc-1");
+    });
+  });
+
+  it("shows inline copied feedback that fades out for document metadata", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "policy.pdf" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Copy document id" }),
+    );
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith("doc-1");
+    const copiedLabel = await screen.findByText("Copied");
+    expect(copiedLabel).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(copiedLabel).toHaveClass("opacity-0");
+      },
+      { timeout: 2000 },
+    );
+
+    await waitFor(
+      () => {
+        expect(screen.queryByText("Copied")).not.toBeInTheDocument();
+      },
+      { timeout: 2500 },
+    );
   });
 
   it("fetches full chunk text when full-text toggle is enabled", async () => {
@@ -216,6 +293,8 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
+    await screen.findByRole("heading", { name: "policy.pdf" });
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(
       await screen.findByText("Preview text for the first chunk."),
     ).toBeInTheDocument();
@@ -303,7 +382,9 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "policy.pdf" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Document not found")).not.toBeInTheDocument();
   });
 
@@ -314,7 +395,9 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "policy.pdf" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to documents" }),
     ).toHaveAttribute("href", "/chat");
@@ -335,13 +418,16 @@ describe("DocumentDetailPage", () => {
 
     renderPage();
 
-    expect(await screen.findByText("policy.pdf")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "policy.pdf" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Delete" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Re-index" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("More actions")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: /include full chunk text/i }),
     ).not.toBeInTheDocument();
@@ -349,14 +435,16 @@ describe("DocumentDetailPage", () => {
 
   it("requires confirmation before delete and supports delete success flow", async () => {
     renderPage();
-    await screen.findByText("policy.pdf");
+    await screen.findByRole("heading", { name: "policy.pdf" });
 
     const confirmMock = vi.mocked(window.confirm);
     confirmMock.mockReturnValueOnce(false);
+    await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(mockApi.deleteDocument).not.toHaveBeenCalled();
 
     confirmMock.mockReturnValueOnce(true);
+    await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => {
       expect(mockApi.deleteDocument).toHaveBeenCalledWith("doc-1");
@@ -381,8 +469,9 @@ describe("DocumentDetailPage", () => {
     );
 
     renderPage();
-    await screen.findByText("policy.pdf");
+    await screen.findByRole("heading", { name: "policy.pdf" });
 
+    await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(
       await screen.findByText(
@@ -390,6 +479,7 @@ describe("DocumentDetailPage", () => {
       ),
     ).toBeInTheDocument();
 
+    await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
     expect(
       await screen.findByText(
@@ -400,8 +490,9 @@ describe("DocumentDetailPage", () => {
 
   it("supports successful re-index mutation flow", async () => {
     renderPage();
-    await screen.findByText("policy.pdf");
+    await screen.findByRole("heading", { name: "policy.pdf" });
 
+    await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
     await waitFor(() => {
       expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1");

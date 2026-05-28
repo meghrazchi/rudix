@@ -1,10 +1,12 @@
 import os
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Ensure strict settings can be loaded when importing modules in tests.
@@ -33,6 +35,8 @@ from app.core.config import AuthProvider, settings
 from app.core.document_errors import build_document_error_details, encode_document_error
 from app.db.session import get_db_session
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.pipeline.repositories.pipeline import PipelineRepository
+from app.interfaces.http import documents as documents_http
 from app.main import app
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
@@ -67,6 +71,9 @@ class FakeMinioForDownload:
         body = FakeObjectBody(self.content)
         self.last_body = body
         return {"Body": body}
+
+
+pipeline_repository = PipelineRepository()
 
 
 @pytest_asyncio.fixture
@@ -329,6 +336,120 @@ async def test_document_detail_returns_metadata_and_safe_error_summary(
     structured_payload = structured_response.json()
     assert structured_payload["error_message"] == "qdrant upsert failed"
     assert structured_payload["error_details"]["code"] == "QDRANT_UPSERT_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_document_detail_includes_backend_lifecycle_timeline_logs(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    document = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="timeline.pdf",
+        status=DocumentStatus.processing,
+        page_count=2,
+    )
+    started_at = datetime.now(UTC)
+    run = await pipeline_repository.create_pipeline_run(
+        db_session,
+        organization_id=org.id,
+        pipeline_type="document.process",
+        status="running",
+        document_id=document.id,
+        started_at=started_at,
+    )
+    await pipeline_repository.create_pipeline_event(
+        db_session,
+        pipeline_run_id=run.id,
+        sequence=0,
+        node_name="extract",
+        status="started",
+        started_at=started_at,
+    )
+    await pipeline_repository.create_pipeline_event(
+        db_session,
+        pipeline_run_id=run.id,
+        sequence=1,
+        node_name="extract",
+        status="completed",
+        started_at=started_at,
+        completed_at=started_at,
+        duration_ms=8,
+        logs=["extracted 2 pages", "normalized text"],
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    response = await documents_client.get(
+        f"/api/v1/documents/{document.id}",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    timeline = payload["lifecycle_timeline"]
+    assert isinstance(timeline, list)
+    assert len(timeline) == 1
+    step = timeline[0]
+    assert step["step"] == "extract"
+    assert step["status"] == "completed"
+    assert step["document_id"] == str(document.id)
+    assert step["pipeline_run_id"] == str(run.id)
+    assert step["pipeline_type"] == "document.process"
+    assert step["logs"] == ["extracted 2 pages", "normalized text"]
+
+
+@pytest.mark.asyncio
+async def test_document_detail_returns_metadata_when_pipeline_tables_are_missing(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    document = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="timeline-missing-table.pdf",
+        status=DocumentStatus.indexed,
+        page_count=1,
+    )
+    document_id_text = str(document.id)
+
+    class _UndefinedTableError(Exception):
+        sqlstate = "42P01"
+
+    async def _raise_missing_pipeline_tables(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise ProgrammingError("SELECT ...", {}, _UndefinedTableError("undefined table"))
+
+    monkeypatch.setattr(
+        documents_http.pipeline_repository,
+        "resolve_latest_pipeline_run",
+        _raise_missing_pipeline_tables,
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    response = await documents_client.get(
+        f"/api/v1/documents/{document_id_text}",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_id"] == document_id_text
+    assert payload["lifecycle_timeline"] == []
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -11,11 +11,13 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import type {
   DocumentDetailResponse,
+  DocumentLifecycleTimelineStepResponse,
   DocumentStatus,
   DocumentStatusResponse,
 } from "@/lib/api/documents";
 import {
   deleteDocument,
+  downloadDocumentFile,
   getDocument,
   getDocumentChunks,
   reindexDocument,
@@ -45,6 +47,24 @@ type TimelineStep = {
   description: string;
   state: TimelineStepState;
   timestamp: string | null;
+  documentId: string | null;
+  logs: string[];
+  pipelineRunId: string | null;
+  pipelineType: string | null;
+  durationMs: number | null;
+  status: DocumentLifecycleTimelineStepResponse["status"] | null;
+};
+
+type DetailTab = "overview" | "chunks" | "errors";
+type MetadataCopyField = "document-id" | "checksum";
+
+type ErrorRow = {
+  key: string;
+  type: string;
+  severity: "critical" | "warning";
+  message: string;
+  timestamp: string | null;
+  code: string | null;
 };
 
 const CHUNK_PAGE_SIZE = 8;
@@ -81,6 +101,28 @@ function noChunksMessage(status: DocumentStatus): string {
   return "No chunks are available for this document.";
 }
 
+function documentTypeIcon(fileType: string): string {
+  if (fileType === "pdf") {
+    return "picture_as_pdf";
+  }
+  if (fileType === "docx") {
+    return "description";
+  }
+  return "notes";
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
 function statusBadge(status: DocumentStatus): string {
   if (status === "indexed") {
     return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
@@ -105,33 +147,58 @@ function statusBadge(status: DocumentStatus): string {
 
 function timelineStepClass(state: TimelineStepState): string {
   if (state === "completed") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-900";
+    return "border-[#3525cd] bg-[#3525cd] text-white";
   }
   if (state === "active") {
-    return "border-blue-200 bg-blue-50 text-blue-900";
+    return "border-[#4f46e5] bg-[#4f46e5] text-white";
   }
   if (state === "failed") {
-    return "border-rose-200 bg-rose-50 text-rose-900";
+    return "border-rose-300 bg-rose-100 text-rose-700";
   }
-  return "border-[#e4e1f2] bg-[#faf9ff] text-[#5f5a74]";
+  return "border-[#d4d1df] bg-white text-[#777587]";
+}
+
+function timelineStepGlyph(state: TimelineStepState): string {
+  if (state === "failed") {
+    return "!";
+  }
+  if (state === "pending") {
+    return "·";
+  }
+  return "✓";
 }
 
 function buildLifecycleTimeline(
   status: DocumentStatus,
   detail: DocumentDetailResponse,
 ): TimelineStep[] {
+  if (
+    Array.isArray(detail.lifecycle_timeline) &&
+    detail.lifecycle_timeline.length > 0
+  ) {
+    return detail.lifecycle_timeline
+      .map((step) => fromBackendLifecycleTimelineStep(step))
+      .filter((step) => step.state !== "pending");
+  }
+
   const createdAt = detail.created_at;
   const updatedAt = detail.updated_at;
   const isTerminal =
     status === "indexed" || status === "failed" || status === "deleted";
 
-  return [
+  const fallbackTimeline: TimelineStep[] = [
     {
       key: "uploaded",
       label: "Uploaded",
       description: "Document metadata accepted and queued for processing.",
       state: "completed",
       timestamp: createdAt,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
     {
       key: "processing",
@@ -144,6 +211,12 @@ function buildLifecycleTimeline(
             ? "pending"
             : "completed",
       timestamp: status === "processing" || isTerminal ? updatedAt : null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
     {
       key: "indexed",
@@ -153,7 +226,7 @@ function buildLifecycleTimeline(
         status === "indexed"
           ? "completed"
           : status === "failed"
-            ? "failed"
+            ? "pending"
             : status === "deleted" || status === "deleting"
               ? "completed"
               : "pending",
@@ -161,6 +234,12 @@ function buildLifecycleTimeline(
         status === "indexed" || status === "deleted" || status === "deleting"
           ? updatedAt
           : null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
     {
       key: "failed",
@@ -168,6 +247,12 @@ function buildLifecycleTimeline(
       description: "Processing stopped due to a recoverable or terminal error.",
       state: status === "failed" ? "failed" : "pending",
       timestamp: status === "failed" ? updatedAt : null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
     {
       key: "deleting",
@@ -181,6 +266,12 @@ function buildLifecycleTimeline(
             : "pending",
       timestamp:
         status === "deleting" || status === "deleted" ? updatedAt : null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
     {
       key: "deleted",
@@ -188,8 +279,43 @@ function buildLifecycleTimeline(
       description: "Document removed from active organization access.",
       state: status === "deleted" ? "completed" : "pending",
       timestamp: status === "deleted" ? updatedAt : null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: null,
     },
   ];
+
+  return fallbackTimeline.filter((step) => step.state !== "pending");
+}
+
+function fromBackendLifecycleTimelineStep(
+  step: DocumentLifecycleTimelineStepResponse,
+): TimelineStep {
+  let state: TimelineStepState = "pending";
+  if (step.status === "completed" || step.status === "skipped") {
+    state = "completed";
+  } else if (step.status === "running") {
+    state = "active";
+  } else if (step.status === "failed") {
+    state = "failed";
+  }
+
+  return {
+    key: step.step,
+    label: step.label,
+    description: step.description,
+    state,
+    timestamp: step.completed_at ?? step.started_at,
+    documentId: step.document_id,
+    logs: Array.isArray(step.logs) ? step.logs : [],
+    pipelineRunId: step.pipeline_run_id,
+    pipelineType: step.pipeline_type,
+    durationMs: step.duration_ms,
+    status: step.status,
+  };
 }
 
 function deriveDetailStatus(
@@ -206,6 +332,88 @@ function isSafeNotFoundError(error: unknown): boolean {
   return error.status === 403 || error.status === 404;
 }
 
+function buildErrorRows(
+  detail: DocumentDetailResponse,
+  timeline: TimelineStep[],
+): ErrorRow[] {
+  const rows: ErrorRow[] = [];
+
+  if (detail.error_message) {
+    rows.push({
+      key: "document-error",
+      type: detail.error_details?.stage ?? "Document processing",
+      severity: "critical",
+      message: detail.error_details?.message ?? detail.error_message,
+      timestamp: detail.updated_at,
+      code: detail.error_details?.code ?? null,
+    });
+  }
+
+  timeline.forEach((step) => {
+    step.logs.forEach((line, index) => {
+      const normalizedLine = line.trim();
+      if (!normalizedLine) {
+        return;
+      }
+      const isCritical =
+        step.state === "failed" || /error|failed|fatal/i.test(normalizedLine);
+      rows.push({
+        key: `${step.key}-${index}`,
+        type: step.label,
+        severity: isCritical ? "critical" : "warning",
+        message: normalizedLine,
+        timestamp: step.timestamp,
+        code: null,
+      });
+    });
+  });
+
+  return rows;
+}
+
+function severityBadgeClass(value: ErrorRow["severity"]): string {
+  if (value === "critical") {
+    return "bg-rose-100 text-rose-700";
+  }
+  return "bg-amber-100 text-amber-700";
+}
+
+function deriveRecommendations(
+  detail: DocumentDetailResponse,
+  timeline: TimelineStep[],
+): string[] {
+  const recommendations: string[] = [];
+
+  if (detail.error_details?.retryable) {
+    recommendations.push(
+      "Retry indexing after validating provider availability and queue health.",
+    );
+  }
+  if (
+    timeline.some(
+      (step) =>
+        step.state === "failed" ||
+        step.logs.some((line) => /error|failed|timeout/i.test(line)),
+    )
+  ) {
+    recommendations.push(
+      "Open Pipeline Explorer to inspect the related run logs for the failing lifecycle step.",
+    );
+  }
+  if (detail.page_count && detail.page_count > 100) {
+    recommendations.push(
+      "Use re-indexing with smaller chunk size for very large documents to improve retrieval quality.",
+    );
+  }
+  if (recommendations.length === 0) {
+    recommendations.push(
+      "No active blocking errors were detected. The current index is healthy for retrieval.",
+    );
+  }
+
+  return recommendations;
+}
+
 export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -213,8 +421,63 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const capabilities = resolveDocumentCapabilities(state.session?.role);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<{
+    field: MetadataCopyField;
+    fading: boolean;
+  } | null>(null);
+  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [chunksOffset, setChunksOffset] = useState(0);
   const [includeFullText, setIncludeFullText] = useState(false);
+  const copyFadeTimeoutRef = useRef<number | null>(null);
+  const copyClearTimeoutRef = useRef<number | null>(null);
+
+  const clearCopyFeedbackTimers = (): void => {
+    if (copyFadeTimeoutRef.current !== null) {
+      window.clearTimeout(copyFadeTimeoutRef.current);
+      copyFadeTimeoutRef.current = null;
+    }
+    if (copyClearTimeoutRef.current !== null) {
+      window.clearTimeout(copyClearTimeoutRef.current);
+      copyClearTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearCopyFeedbackTimers();
+    };
+  }, []);
+
+  const copyMetadataValue = async (
+    value: string | null,
+    label: "Document ID" | "Checksum",
+    field: MetadataCopyField,
+  ): Promise<void> => {
+    if (!value || !value.trim()) {
+      return;
+    }
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+        throw new Error("clipboard_unavailable");
+      }
+      await navigator.clipboard.writeText(value);
+      clearCopyFeedbackTimers();
+      setCopyFeedback({ field, fading: false });
+      copyFadeTimeoutRef.current = window.setTimeout(() => {
+        setCopyFeedback((previous) =>
+          previous?.field === field ? { ...previous, fading: true } : previous,
+        );
+      }, 900);
+      copyClearTimeoutRef.current = window.setTimeout(() => {
+        setCopyFeedback((previous) =>
+          previous?.field === field ? null : previous,
+        );
+      }, 1450);
+    } catch {
+      setActionFeedback(`Unable to copy ${label.toLowerCase()}.`);
+      setActionRequestId(null);
+    }
+  };
 
   const detailQuery = useQuery({
     queryKey: queryKeys.documents.detail(documentId),
@@ -278,6 +541,24 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     },
   });
 
+  const downloadMutation = useMutation({
+    mutationFn: async () => {
+      const blob = await downloadDocumentFile(documentId);
+      return blob;
+    },
+    onSuccess: (blob) => {
+      const fallbackFilename = `document-${documentId}`;
+      const filename = detail?.filename?.trim() || fallbackFilename;
+      triggerBlobDownload(blob, filename);
+      setActionFeedback(null);
+      setActionRequestId(null);
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
   const safeBackHrefRaw = searchParams.get("back");
   const safeBackHref =
     safeBackHrefRaw &&
@@ -299,6 +580,21 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
         : [],
     [currentStatus, detail],
   );
+  const errorRows = useMemo(
+    () => (detail ? buildErrorRows(detail, lifecycle) : []),
+    [detail, lifecycle],
+  );
+  const errorSummary = useMemo(
+    () => ({
+      critical: errorRows.filter((row) => row.severity === "critical").length,
+      warnings: errorRows.filter((row) => row.severity === "warning").length,
+    }),
+    [errorRows],
+  );
+  const recommendations = useMemo(
+    () => (detail ? deriveRecommendations(detail, lifecycle) : []),
+    [detail, lifecycle],
+  );
 
   const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error);
   const canDelete = Boolean(
@@ -310,6 +606,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     canReindexDocument(currentStatus),
   );
   const canAskInChat = currentStatus === "indexed";
+  const canShowMoreActions = capabilities.canDelete || capabilities.canReindex;
+  const canDownloadOriginal =
+    currentStatus !== "deleted" && currentStatus !== "deleting";
   const canGoPrevChunks = chunksOffset > 0;
   const canGoNextChunks = Boolean(
     selectedChunks && chunksOffset + CHUNK_PAGE_SIZE < selectedChunks.total,
@@ -322,35 +621,25 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
           Rudix Document Detail
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Document Metadata and Lifecycle
+          Document Details
         </h1>
         <p className="text-sm text-[#68647b]">
-          Review document processing status, metadata, structured errors, and
-          lifecycle actions.
+          Review metadata, lifecycle events, chunk payloads, and processing
+          errors from backend state.
         </p>
       </header>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-[#2a2640]">Overview</h2>
-          <Link
-            href={safeBackHref}
-            className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
-          >
-            Back to documents
-          </Link>
-        </div>
-
         {detailQuery.isLoading ? (
           <LoadingState
-            className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]"
+            className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-4 text-sm text-[#5f5b72]"
             title="Loading document detail..."
           />
         ) : null}
 
         {notFoundOrInaccessible ? (
           <EmptyState
-            className="mt-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-6 text-center"
+            className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-4 py-6 text-center"
             title="Document not found"
             description="The requested document was not found or is not accessible in your current organization context."
           />
@@ -359,20 +648,18 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
         {!detailQuery.isLoading &&
         detailQuery.isError &&
         !notFoundOrInaccessible ? (
-          <div className="mt-4">
-            <ErrorState
-              error={detailQuery.error}
-              description={getApiErrorMessage(detailQuery.error)}
-              onRetry={() => {
-                void detailQuery.refetch();
-                void statusQuery.refetch();
-              }}
-            />
-          </div>
+          <ErrorState
+            error={detailQuery.error}
+            description={getApiErrorMessage(detailQuery.error)}
+            onRetry={() => {
+              void detailQuery.refetch();
+              void statusQuery.refetch();
+            }}
+          />
         ) : null}
 
         {detail && currentStatus && !notFoundOrInaccessible ? (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-5">
             {actionFeedback ? (
               <p
                 role="status"
@@ -383,260 +670,677 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
               </p>
             ) : null}
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricCard label="Filename" value={detail.filename} />
-              <MetricCard
-                label="File type"
-                value={detail.file_type.toUpperCase()}
-              />
-              <MetricCard
-                label="Status"
-                value={currentStatus}
-                valueClass={statusBadge(currentStatus)}
-                plain={false}
-              />
-              <MetricCard
-                label="Checksum"
-                value={detail.checksum ?? "-"}
-                mono
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <MetricCard label="Pages" value={detail.page_count ?? "-"} />
-              <MetricCard label="Chunks" value={detail.chunk_count} />
-              <MetricCard
-                label="Created"
-                value={formatDate(detail.created_at)}
-              />
-              <MetricCard
-                label="Updated"
-                value={formatDate(detail.updated_at)}
-              />
-            </div>
-
-            {detail.error_message ? (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
-                <p className="font-semibold">Processing error</p>
-                <p className="mt-1">{detail.error_message}</p>
-                {detail.error_details ? (
-                  <ul className="mt-2 space-y-1 text-xs">
-                    <li>
-                      <span className="font-semibold">Stage:</span>{" "}
-                      {detail.error_details.stage}
-                    </li>
-                    <li>
-                      <span className="font-semibold">Code:</span>{" "}
-                      {detail.error_details.code}
-                    </li>
-                    <li>
-                      <span className="font-semibold">Category:</span>{" "}
-                      {detail.error_details.category}
-                    </li>
-                    <li>
-                      <span className="font-semibold">Retryable:</span>{" "}
-                      {detail.error_details.retryable ? "yes" : "no"}
-                    </li>
-                    <li>
-                      <span className="font-semibold">Message:</span>{" "}
-                      {detail.error_details.message}
-                    </li>
-                  </ul>
-                ) : null}
-              </div>
-            ) : null}
-
-            <section>
-              <h3 className="mb-2 text-base font-bold text-[#2a2640]">
-                Lifecycle timeline
-              </h3>
-              <ol className="space-y-2">
-                {lifecycle.map((step) => (
-                  <li
-                    key={step.key}
-                    className={`rounded-lg border px-3 py-3 text-sm ${timelineStepClass(step.state)}`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold">{step.label}</p>
-                      <p className="text-xs">
-                        {step.timestamp ? formatDate(step.timestamp) : "-"}
-                      </p>
-                    </div>
-                    <p className="mt-1 text-xs">{step.description}</p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-
-            <section>
-              <h3 className="mb-2 text-base font-bold text-[#2a2640]">
-                Actions
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {canAskInChat ? (
-                  <Link
-                    href={`/chat?document_id=${encodeURIComponent(documentId)}`}
-                    className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
-                  >
-                    Ask in Chat
-                  </Link>
-                ) : (
-                  <span className="rounded border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-500">
-                    Ask in Chat
-                  </span>
-                )}
-                <Link
-                  href={buildPipelineExplorerHref({
-                    runType: "document.process",
-                    documentId,
-                  })}
-                  className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
-                >
-                  View Pipeline
-                </Link>
-                {capabilities.canDelete ? (
-                  <button
-                    type="button"
-                    disabled={!canDelete || deleteMutation.isPending}
-                    onClick={() => {
-                      const confirmed = window.confirm(
-                        `Delete document \"${detail.filename}\"? This action cannot be undone.`,
-                      );
-                      if (!confirmed) {
-                        return;
-                      }
-                      setActionFeedback(null);
-                      setActionRequestId(null);
-                      deleteMutation.mutate();
-                    }}
-                    className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                  </button>
-                ) : null}
-                {capabilities.canReindex ? (
-                  <button
-                    type="button"
-                    disabled={!canReindex || reindexMutation.isPending}
-                    onClick={() => {
-                      setActionFeedback(null);
-                      setActionRequestId(null);
-                      reindexMutation.mutate();
-                    }}
-                    className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {reindexMutation.isPending ? "Queueing..." : "Re-index"}
-                  </button>
-                ) : null}
-              </div>
-            </section>
-
-            <section>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-[#2a2640]">
-                  Chunk preview
-                </h3>
-                <div className="flex items-center gap-3">
-                  {capabilities.canViewChunkFullText ? (
-                    <label className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
-                      <input
-                        type="checkbox"
-                        checked={includeFullText}
-                        onChange={(event) => {
-                          setChunksOffset(0);
-                          setIncludeFullText(event.target.checked);
-                        }}
-                        className="h-4 w-4 rounded border-[#c9c4de]"
-                      />
-                      Include full chunk text
-                    </label>
-                  ) : null}
-                  {chunksQuery.isFetching ? (
-                    <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Refreshing...
+            <section className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-xl font-bold text-[#2a2640]">
+                      {detail.filename}
+                    </h2>
+                    <span className={statusBadge(currentStatus)}>
+                      {currentStatus}
                     </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {chunksQuery.isLoading ? (
-                <LoadingState compact title="Loading chunks..." />
-              ) : null}
-
-              {chunksQuery.isError ? (
-                <ErrorState
-                  compact
-                  error={chunksQuery.error}
-                  description={getApiErrorMessage(chunksQuery.error)}
-                  onRetry={() => {
-                    void chunksQuery.refetch();
-                  }}
-                  retryLabel="Retry chunk load"
-                />
-              ) : null}
-
-              {selectedChunks &&
-              selectedChunks.items.length === 0 &&
-              chunkStatus ? (
-                <EmptyState compact title={noChunksMessage(chunkStatus)} />
-              ) : null}
-
-              {selectedChunks && selectedChunks.items.length > 0 ? (
-                <div className="space-y-2">
-                  {selectedChunks.items.map((chunk) => (
-                    <article
-                      key={chunk.chunk_id}
-                      className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[#5c5874]">
+                    <span className="break-all">
+                      Document ID: {detail.document_id}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Copy document id"
+                      onClick={() => {
+                        void copyMetadataValue(
+                          detail.document_id,
+                          "Document ID",
+                          "document-id",
+                        );
+                      }}
+                      className="inline-flex h-3 w-3 cursor-pointer items-center justify-center text-[#5b5484] hover:text-[#2f2a52]"
                     >
-                      <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        <span>Chunk #{chunk.chunk_index}</span>
-                        <span>Page {chunk.page_number ?? "-"}</span>
-                        <span>{chunk.token_count} tokens</span>
-                        <span>Model {chunk.embedding_model}</span>
-                        <span>Index {chunk.index_version}</span>
-                        <span>Created {formatDate(chunk.created_at)}</span>
-                      </div>
-                      <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
-                        {includeFullText && chunk.text
-                          ? chunk.text
-                          : truncateChunkPreview(chunk.text_preview)}
-                      </p>
-                    </article>
-                  ))}
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="text-xs text-[#6e6a86]">
-                      Showing {selectedChunks.items.length} of{" "}
-                      {selectedChunks.total} chunks.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={!canGoPrevChunks}
-                        onClick={() =>
-                          setChunksOffset((current) =>
-                            Math.max(0, current - CHUNK_PAGE_SIZE),
-                          )
-                        }
-                        className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[9px] leading-none"
                       >
-                        Previous
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!canGoNextChunks}
-                        onClick={() =>
-                          setChunksOffset(
-                            (current) => current + CHUNK_PAGE_SIZE,
-                          )
-                        }
-                        className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                        content_copy
+                      </span>
+                    </button>
+                    {copyFeedback?.field === "document-id" ? (
+                      <span
+                        className={`text-[10px] text-[#6b6594] transition-opacity duration-300 ${
+                          copyFeedback.fading ? "opacity-0" : "opacity-100"
+                        }`}
                       >
-                        Next
-                      </button>
-                    </div>
+                        Copied
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[#5c5874]">
+                    <span className="break-all">
+                      Checksum: {detail.checksum ?? "-"}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Copy checksum"
+                      disabled={!detail.checksum}
+                      onClick={() => {
+                        void copyMetadataValue(
+                          detail.checksum,
+                          "Checksum",
+                          "checksum",
+                        );
+                      }}
+                      className="inline-flex h-3 w-3 cursor-pointer items-center justify-center text-[#5b5484] hover:text-[#2f2a52] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[9px] leading-none"
+                      >
+                        content_copy
+                      </span>
+                    </button>
+                    {copyFeedback?.field === "checksum" ? (
+                      <span
+                        className={`text-[10px] text-[#6b6594] transition-opacity duration-300 ${
+                          copyFeedback.fading ? "opacity-0" : "opacity-100"
+                        }`}
+                      >
+                        Copied
+                      </span>
+                    ) : null}
                   </div>
                 </div>
-              ) : null}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Link
+                    href={safeBackHref}
+                    className="inline-flex items-center gap-1.5 rounded border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[16px]"
+                    >
+                      arrow_back
+                    </span>
+                    Back to documents
+                  </Link>
+                  {canAskInChat ? (
+                    <Link
+                      href={`/chat?document_id=${encodeURIComponent(documentId)}`}
+                      className="inline-flex items-center gap-1.5 rounded border border-[#cbc5e6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[16px]"
+                      >
+                        forum
+                      </span>
+                      Ask in Chat
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-500">
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[16px]"
+                      >
+                        forum
+                      </span>
+                      Ask in Chat
+                    </span>
+                  )}
+                  <Link
+                    href={buildPipelineExplorerHref({
+                      runType: "document.process",
+                      documentId,
+                    })}
+                    className="inline-flex items-center gap-1.5 rounded border border-[#cbc5e6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[16px]"
+                    >
+                      account_tree
+                    </span>
+                    View Pipeline
+                  </Link>
+                  {canShowMoreActions ? (
+                    <details className="relative">
+                      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded border border-[#cbc5e6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] [&::-webkit-details-marker]:hidden">
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[16px]"
+                        >
+                          more_horiz
+                        </span>
+                        More actions
+                      </summary>
+                      <div className="absolute right-0 z-20 mt-1 flex min-w-[10.5rem] flex-col gap-1 rounded-lg border border-[#d8d3ea] bg-white p-1 shadow-lg">
+                        {capabilities.canReindex ? (
+                          <button
+                            type="button"
+                            disabled={!canReindex || reindexMutation.isPending}
+                            onClick={(event) => {
+                              (
+                                event.currentTarget.closest(
+                                  "details",
+                                ) as HTMLDetailsElement | null
+                              )?.removeAttribute("open");
+                              setActionFeedback(null);
+                              setActionRequestId(null);
+                              reindexMutation.mutate();
+                            }}
+                            className="inline-flex w-full items-center gap-2 rounded-md border border-[#cbc5e6] bg-white px-2.5 py-2 text-left text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="material-symbols-outlined text-[15px]"
+                            >
+                              refresh
+                            </span>
+                            {reindexMutation.isPending
+                              ? "Queueing..."
+                              : "Re-index"}
+                          </button>
+                        ) : null}
+                        {capabilities.canDelete ? (
+                          <button
+                            type="button"
+                            disabled={!canDelete || deleteMutation.isPending}
+                            onClick={(event) => {
+                              const confirmed = window.confirm(
+                                `Delete document \"${detail.filename}\"? This action cannot be undone.`,
+                              );
+                              if (!confirmed) {
+                                return;
+                              }
+                              (
+                                event.currentTarget.closest(
+                                  "details",
+                                ) as HTMLDetailsElement | null
+                              )?.removeAttribute("open");
+                              setActionFeedback(null);
+                              setActionRequestId(null);
+                              deleteMutation.mutate();
+                            }}
+                            className="inline-flex w-full items-center gap-2 rounded-md border border-rose-200 bg-rose-50 px-2.5 py-2 text-left text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="material-symbols-outlined text-[15px]"
+                            >
+                              delete
+                            </span>
+                            {deleteMutation.isPending
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </details>
+                  ) : null}
+                </div>
+              </div>
+            </section>
+
+            <div className="grid items-start gap-4 lg:grid-cols-12">
+              <div className="grid gap-3 sm:grid-cols-2 lg:col-span-8 lg:grid-cols-4">
+                <MetricCard
+                  label="Page count"
+                  value={detail.page_count ?? "-"}
+                />
+                <MetricCard label="Chunk count" value={detail.chunk_count} />
+                <MetricCard
+                  label="File type"
+                  value={detail.file_type.toUpperCase()}
+                />
+                <MetricCard
+                  label="Updated"
+                  value={formatDate(detail.updated_at)}
+                />
+              </div>
+              <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm lg:col-span-4">
+                <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Lifecycle timeline
+                </h3>
+                <ol className="relative space-y-3">
+                  <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
+                  {lifecycle.map((step) => (
+                    <li
+                      key={step.key}
+                      className="relative z-10 flex items-start gap-3"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${timelineStepClass(step.state)}`}
+                      >
+                        {timelineStepGlyph(step.state)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-[#2a2640]">
+                            {step.label}
+                          </p>
+                          <p className="text-[11px] text-[#68647b]">
+                            {step.timestamp ? formatDate(step.timestamp) : "-"}
+                          </p>
+                        </div>
+                        <p className="mt-0.5 text-xs text-[#5f5a74]">
+                          {step.description}
+                        </p>
+                        {step.logs.slice(0, 1).map((line, index) => (
+                          <p
+                            key={`${step.key}-timeline-${index}`}
+                            className="mt-1 text-xs break-words text-[#4c4970]"
+                          >
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </div>
+
+            <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
+              <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
+                {(["overview", "chunks", "errors"] as const).map((tabKey) => (
+                  <button
+                    key={tabKey}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tabKey}
+                    onClick={() => setActiveTab(tabKey)}
+                    className={`px-4 py-3 text-sm font-semibold capitalize transition-colors ${
+                      activeTab === tabKey
+                        ? "border-b-2 border-[#3525cd] text-[#3525cd]"
+                        : "text-[#69637f] hover:text-[#2a2640]"
+                    }`}
+                  >
+                    {tabKey}
+                    {tabKey === "errors" ? (
+                      <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                        {errorRows.length}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4 p-4">
+                {activeTab === "overview" ? (
+                  <div className="space-y-4">
+                    {detail.error_message ? (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
+                        <p className="font-semibold">Processing error</p>
+                        <p className="mt-1">{detail.error_message}</p>
+                        {detail.error_details ? (
+                          <ul className="mt-2 space-y-1 text-xs">
+                            <li>
+                              <span className="font-semibold">Stage:</span>{" "}
+                              {detail.error_details.stage}
+                            </li>
+                            <li>
+                              <span className="font-semibold">Code:</span>{" "}
+                              {detail.error_details.code}
+                            </li>
+                            <li>
+                              <span className="font-semibold">Category:</span>{" "}
+                              {detail.error_details.category}
+                            </li>
+                            <li>
+                              <span className="font-semibold">Retryable:</span>{" "}
+                              {detail.error_details.retryable ? "yes" : "no"}
+                            </li>
+                            <li>
+                              <span className="font-semibold">Message:</span>{" "}
+                              {detail.error_details.message}
+                            </li>
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          File summary
+                        </h4>
+                        <div className="space-y-2 text-sm text-[#2a2640]">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">Filename</span>
+                            <span className="font-semibold">
+                              {detail.filename}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">File type</span>
+                            <span className="font-semibold">
+                              {detail.file_type.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">Created</span>
+                            <span className="font-semibold">
+                              {formatDate(detail.created_at)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">Updated</span>
+                            <span className="font-semibold">
+                              {formatDate(detail.updated_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          Indexing intelligence
+                        </h4>
+                        <div className="space-y-2 text-sm text-[#2a2640]">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">Status</span>
+                            <span className={statusBadge(currentStatus)}>
+                              {currentStatus}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">
+                              Embedding model
+                            </span>
+                            <span className="font-semibold">
+                              {selectedChunks?.items[0]?.embedding_model ?? "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">
+                              Index version
+                            </span>
+                            <span className="font-semibold">
+                              {selectedChunks?.items[0]?.index_version ?? "-"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[#69637f]">
+                              Pipeline surface
+                            </span>
+                            <span className="font-semibold">
+                              Backend worker
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                        AI summary
+                      </h4>
+                      <p className="text-sm leading-relaxed text-[#2a2640]">
+                        Document is currently <strong>{currentStatus}</strong>{" "}
+                        with {detail.chunk_count} indexed chunks
+                        {detail.page_count !== null
+                          ? ` across ${detail.page_count} pages`
+                          : ""}{" "}
+                        and checksum persisted for ingestion integrity checks.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {activeTab === "chunks" ? (
+                  <section className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-base font-bold text-[#2a2640]">
+                        Chunk preview
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        {capabilities.canViewChunkFullText ? (
+                          <label className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
+                            <input
+                              type="checkbox"
+                              checked={includeFullText}
+                              onChange={(event) => {
+                                setChunksOffset(0);
+                                setIncludeFullText(event.target.checked);
+                              }}
+                              className="h-4 w-4 rounded border-[#c9c4de]"
+                            />
+                            Include full chunk text
+                          </label>
+                        ) : null}
+                        {chunksQuery.isFetching ? (
+                          <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Refreshing...
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {chunksQuery.isLoading ? (
+                      <LoadingState compact title="Loading chunks..." />
+                    ) : null}
+
+                    {chunksQuery.isError ? (
+                      <ErrorState
+                        compact
+                        error={chunksQuery.error}
+                        description={getApiErrorMessage(chunksQuery.error)}
+                        onRetry={() => {
+                          void chunksQuery.refetch();
+                        }}
+                        retryLabel="Retry chunk load"
+                      />
+                    ) : null}
+
+                    {selectedChunks &&
+                    selectedChunks.items.length === 0 &&
+                    chunkStatus ? (
+                      <EmptyState
+                        compact
+                        title={noChunksMessage(chunkStatus)}
+                      />
+                    ) : null}
+
+                    {selectedChunks && selectedChunks.items.length > 0 ? (
+                      <div className="space-y-2">
+                        {selectedChunks.items.map((chunk) => (
+                          <article
+                            key={chunk.chunk_id}
+                            className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                          >
+                            <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              <span>Chunk #{chunk.chunk_index}</span>
+                              <span>Page {chunk.page_number ?? "-"}</span>
+                              <span>{chunk.token_count} tokens</span>
+                              <span>Model {chunk.embedding_model}</span>
+                              <span>Index {chunk.index_version}</span>
+                              <span>
+                                Created {formatDate(chunk.created_at)}
+                              </span>
+                            </div>
+                            <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
+                              {includeFullText && chunk.text
+                                ? chunk.text
+                                : truncateChunkPreview(chunk.text_preview)}
+                            </p>
+                          </article>
+                        ))}
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <p className="text-xs text-[#6e6a86]">
+                            Showing {selectedChunks.items.length} of{" "}
+                            {selectedChunks.total} chunks.
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={!canGoPrevChunks}
+                              onClick={() =>
+                                setChunksOffset((current) =>
+                                  Math.max(0, current - CHUNK_PAGE_SIZE),
+                                )
+                              }
+                              className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Previous
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!canGoNextChunks}
+                              onClick={() =>
+                                setChunksOffset(
+                                  (current) => current + CHUNK_PAGE_SIZE,
+                                )
+                              }
+                              className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {activeTab === "errors" ? (
+                  <section className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                        <p className="text-2xl font-bold text-[#2a2640]">
+                          {errorSummary.critical}
+                        </p>
+                        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          Critical errors
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                        <p className="text-2xl font-bold text-[#2a2640]">
+                          {errorSummary.warnings}
+                        </p>
+                        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          Warnings
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-hidden rounded-lg border border-[#e9e6f5]">
+                      <div className="border-b border-[#e9e6f5] bg-[#faf9ff] px-3 py-2 text-sm font-semibold text-[#2a2640]">
+                        Error log
+                      </div>
+                      {errorRows.length === 0 ? (
+                        <p className="px-3 py-4 text-sm text-[#69637f]">
+                          No backend error entries were reported for this
+                          document.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-sm">
+                            <thead className="bg-[#f7f5ff] text-xs tracking-wide text-[#69637f] uppercase">
+                              <tr>
+                                <th className="px-3 py-2 font-semibold">
+                                  Type
+                                </th>
+                                <th className="px-3 py-2 font-semibold">
+                                  Severity
+                                </th>
+                                <th className="px-3 py-2 font-semibold">
+                                  Message
+                                </th>
+                                <th className="px-3 py-2 font-semibold">
+                                  Timestamp
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {errorRows.map((row) => (
+                                <tr
+                                  key={row.key}
+                                  className="border-t border-[#ece9f8]"
+                                >
+                                  <td className="px-3 py-3 text-[#2a2640]">
+                                    {row.type}
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    <span
+                                      className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${severityBadgeClass(row.severity)}`}
+                                    >
+                                      {row.severity}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 text-[#2a2640]">
+                                    {row.message}
+                                    {row.code ? (
+                                      <span className="ml-1 font-mono text-xs text-[#69637f]">
+                                        ({row.code})
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-3 py-3 font-mono text-xs text-[#69637f]">
+                                    {formatDate(row.timestamp)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-[#d9d4f1] bg-[#f5f3ff] px-4 py-3">
+                      <p className="mb-2 text-sm font-semibold text-[#2a2640]">
+                        Re-indexing recommendations
+                      </p>
+                      <ul className="list-disc space-y-1 pl-4 text-sm text-[#4d4868]">
+                        {recommendations.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-base font-bold text-[#2a2640]">
+                Document preview
+              </h3>
+              <div className="rounded-2xl border border-dashed border-[#d7d4e8] bg-white p-4">
+                <div className="flex flex-col items-center gap-4 text-center">
+                  <div className="flex h-32 w-24 items-center justify-center rounded-lg border border-[#ddd7f6] bg-[#faf9ff] shadow-sm">
+                    <span className="material-symbols-outlined text-[44px] text-[#3525cd]">
+                      {documentTypeIcon(detail.file_type)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-[#2a2640]">
+                      View Original {detail.file_type.toUpperCase()}
+                    </p>
+                    <p className="font-mono text-xs break-all text-[#6e6a86]">
+                      Source endpoint: /api/v1/documents/{detail.document_id}
+                      /download
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={
+                      !canDownloadOriginal || downloadMutation.isPending
+                    }
+                    onClick={() => {
+                      setActionFeedback(null);
+                      setActionRequestId(null);
+                      downloadMutation.mutate();
+                    }}
+                    className="inline-flex items-center gap-2 rounded border border-[#cbc5e6] bg-white px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">
+                      download
+                    </span>
+                    {downloadMutation.isPending
+                      ? "Preparing download..."
+                      : "Download original file"}
+                  </button>
+                </div>
+              </div>
             </section>
           </div>
         ) : null}
@@ -651,16 +1355,18 @@ function MetricCard({
   valueClass,
   plain = true,
   mono = false,
+  wrap = false,
 }: {
   label: string;
   value: string | number;
   valueClass?: string;
   plain?: boolean;
   mono?: boolean;
+  wrap?: boolean;
 }) {
   if (!plain && valueClass) {
     return (
-      <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
+      <div className="flex h-[92px] flex-col rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
         <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
           {label}
         </p>
@@ -670,12 +1376,13 @@ function MetricCard({
   }
 
   return (
-    <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
+    <div className="flex h-[92px] flex-col rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
       <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
         {label}
       </p>
       <p
-        className="text-sm font-semibold text-[#2a2640]"
+        className={`text-sm font-semibold text-[#2a2640] ${wrap ? "leading-relaxed break-all" : ""}`}
+        title={typeof value === "string" ? value : undefined}
         style={
           mono
             ? {
