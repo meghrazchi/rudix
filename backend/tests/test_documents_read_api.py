@@ -449,7 +449,13 @@ async def test_document_detail_returns_metadata_when_pipeline_tables_are_missing
     assert response.status_code == 200
     payload = response.json()
     assert payload["document_id"] == document_id_text
-    assert payload["lifecycle_timeline"] == []
+    timeline = payload["lifecycle_timeline"]
+    assert isinstance(timeline, list)
+    assert len(timeline) >= 2
+    assert timeline[0]["step"] == "uploaded"
+    assert timeline[0]["status"] == "completed"
+    assert timeline[1]["step"] == "virus_scan"
+    assert timeline[1]["status"] == "completed"
 
 
 @pytest.mark.asyncio

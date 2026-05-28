@@ -75,6 +75,14 @@ ENV_KEYS = [
     "SENTRY_TRACES_SAMPLE_RATE",
     "SENTRY_PROFILES_SAMPLE_RATE",
     "SENTRY_TEST_EVENT_ENABLED",
+    "MALWARE_SCAN_ENABLED",
+    "MALWARE_SCAN_REQUIRED",
+    "MALWARE_SCAN_BYPASS_ON_UNAVAILABLE",
+    "MALWARE_SCAN_CLAMAV_HOST",
+    "MALWARE_SCAN_CLAMAV_PORT",
+    "MALWARE_SCAN_TIMEOUT_SECONDS",
+    "MALWARE_SCAN_MAX_BYTES",
+    "MALWARE_SCAN_STREAM_CHUNK_SIZE_BYTES",
     "FEATURE_ENABLE_MCP",
     "MCP_SERVER_NAME",
     "MCP_TRANSPORT",
@@ -158,6 +166,15 @@ def test_malformed_url_fails_fast() -> None:
 def test_invalid_numeric_limit_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["max_upload_size_mb"] = 0
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_malware_scan_size_limit_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["max_upload_size_mb"] = 1
+    payload["malware_scan_max_bytes"] = 2 * 1024 * 1024
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)
@@ -277,6 +294,26 @@ def test_production_rejects_sentry_test_endpoint_flag() -> None:
     payload["environment"] = Environment.production
     payload["sentry_dsn"] = "https://public@example.com/1"
     payload["sentry_test_event_enabled"] = True
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_production_rejects_malware_scan_bypass_when_required() -> None:
+    payload = valid_settings_kwargs()
+    payload["environment"] = Environment.production
+    payload["sentry_dsn"] = "https://public@example.com/1"
+    payload["malware_scan_required"] = True
+    payload["malware_scan_bypass_on_unavailable"] = True
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_malware_scan_required_requires_enabled_flag() -> None:
+    payload = valid_settings_kwargs()
+    payload["malware_scan_enabled"] = False
+    payload["malware_scan_required"] = True
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

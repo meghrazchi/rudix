@@ -33,6 +33,7 @@ from app.auth.token_codec import create_app_access_token
 from app.clients import minio_client as minio_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.documents.services.malware_scan import MalwareScanResult
 from app.interfaces.http import documents as documents_api
 from app.main import app
 from app.models.document import Document
@@ -75,6 +76,16 @@ class FakeProcessDocumentTask:
         return FakeTaskResult(task_id=f"task-{len(self.delay_calls)}")
 
 
+class FakeMalwareScanService:
+    def __init__(self) -> None:
+        self.next_result = MalwareScanResult(status="clean", duration_ms=2)
+        self.calls: list[int] = []
+
+    async def scan_bytes(self, *, content: bytes) -> MalwareScanResult:
+        self.calls.append(len(content))
+        return self.next_result
+
+
 @pytest_asyncio.fixture
 async def upload_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -110,6 +121,13 @@ def fake_minio(monkeypatch: pytest.MonkeyPatch) -> FakeMinio:
 def fake_process_document_task(monkeypatch: pytest.MonkeyPatch) -> FakeProcessDocumentTask:
     fake = FakeProcessDocumentTask()
     monkeypatch.setattr(documents_api, "process_document", fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def fake_malware_scan_service(monkeypatch: pytest.MonkeyPatch) -> FakeMalwareScanService:
+    fake = FakeMalwareScanService()
+    monkeypatch.setattr(documents_api, "malware_scan_service", fake)
     return fake
 
 
@@ -173,6 +191,7 @@ async def test_upload_accepts_supported_document_types(
     db_session: AsyncSession,
     fake_minio: FakeMinio,
     fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
     filename: str,
     content_type: str,
     content: bytes,
@@ -194,6 +213,7 @@ async def test_upload_accepts_supported_document_types(
     assert payload["status"] == "uploaded"
     assert payload["queue_status"] == "queued"
     assert payload["checksum"]
+    assert fake_malware_scan_service.calls == [len(content)]
     assert len(fake_minio.put_calls) == 1
     put_call = fake_minio.put_calls[0]
     assert put_call["Bucket"] == settings.minio_bucket
@@ -469,3 +489,118 @@ async def test_upload_returns_503_when_enqueue_fails_and_document_stays_uploaded
     assert len(audit_logs) == 2
     actions = {row.action for row in audit_logs}
     assert actions == {"document.upload.accepted", "document.upload.enqueue_failed"}
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_malware_and_does_not_persist_or_enqueue(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
+) -> None:
+    fake_malware_scan_service.next_result = MalwareScanResult(
+        status="infected",
+        signature="Eicar-Test-Signature",
+        duration_ms=5,
+    )
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "File failed security scan"
+    assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
+    assert await _document_count(db_session) == 0
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "document.upload.rejected_malware"
+    assert audit_logs[0].metadata_json["scanner"] == "clamav"
+    assert audit_logs[0].metadata_json["scanner_result"] == "infected"
+    assert audit_logs[0].metadata_json["signature"] == "Eicar-Test-Signature"
+
+
+@pytest.mark.asyncio
+async def test_upload_fails_closed_when_scan_required_and_scanner_unavailable(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "malware_scan_required", True)
+    monkeypatch.setattr(settings, "malware_scan_bypass_on_unavailable", False)
+    fake_malware_scan_service.next_result = MalwareScanResult(
+        status="error",
+        error_type="unavailable",
+        duration_ms=7,
+    )
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "File security scan unavailable"
+    assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
+    assert await _document_count(db_session) == 0
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "document.upload.scan_unavailable_rejected"
+    assert audit_logs[0].metadata_json["scanner_result"] == "error"
+    assert audit_logs[0].metadata_json["error_type"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_upload_bypasses_unavailable_scanner_when_explicitly_enabled_in_non_production(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "malware_scan_required", True)
+    monkeypatch.setattr(settings, "malware_scan_bypass_on_unavailable", True)
+    fake_malware_scan_service.next_result = MalwareScanResult(
+        status="error",
+        error_type="unavailable",
+        duration_ms=4,
+    )
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["status"] == "uploaded"
+    assert payload["queue_status"] == "queued"
+    assert len(fake_minio.put_calls) == 1
+    assert len(fake_process_document_task.delay_calls) == 1
+    assert await _document_count(db_session) == 1
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.upload.scan_unavailable_bypassed", "document.upload.accepted"}

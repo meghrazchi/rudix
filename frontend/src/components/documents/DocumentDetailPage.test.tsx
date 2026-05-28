@@ -176,6 +176,7 @@ describe("DocumentDetailPage", () => {
     expect(screen.getAllByText(/Document ID:/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/doc-1/).length).toBeGreaterThan(0);
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
+    expect(screen.getByText("Extracted")).toBeInTheDocument();
     expect(screen.getByText("extracted 12 pages")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to documents" }),

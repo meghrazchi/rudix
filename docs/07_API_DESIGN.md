@@ -104,29 +104,40 @@ Backend actions:
 3. Validate file extension and MIME type.
 4. Validate file size and reject empty payloads.
 5. Compute SHA-256 checksum.
-6. Generate a `document_id` and MinIO object key: `uploads/{organization_id}/{user_id}/{document_id}.{ext}`.
-7. Upload to MinIO.
-8. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
-9. Publish `documents.process` task with `document_id`, `organization_id`, `user_id`, and `request_id`.
-10. Worker extracts text by file type and normalizes page text (null-byte/control-char cleanup and whitespace normalization).
-11. Worker stores `document_pages(page_number, text, char_count)` with page boundaries preserved.
-12. Worker chunks cleaned pages with configured token size/overlap and stores `document_chunks` metadata (`page_number`, `chunk_index`, `token_count`, `embedding_model`, `index_version`).
-13. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
-14. Worker generates embeddings for all chunks in provider-safe batches using the configured embedding model.
-15. Transient embedding provider failures are retried with backoff; permanent embedding failures mark document `failed`.
-16. Worker upserts embeddings to Qdrant in batches using deterministic UUIDv5 point IDs derived from `{document_id}:{index_version}:{chunk_index}`.
-17. Qdrant payload includes filter/citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
-18. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
-19. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
-20. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
-21. Worker persists `pipeline_runs` + `pipeline_events` rows for node-level lifecycle visibility (`extract`, `index_cleanup`, `chunk`, `embed`, `index`).
-22. Event payloads store sanitized previews (`inputs`, `outputs`, `config`, `logs`, `error_details`) and redact secret-like fields.
-23. Terminal failures persist a safe `error_message` and structured `error_details` for frontend status polling.
+6. Scan upload bytes with ClamAV (`clamd` INSTREAM) before persistence.
+7. If scan status is `infected`, return `422` with safe message `File failed security scan`, emit structured log, and write audit action `document.upload.rejected_malware`.
+8. If scanner is unavailable:
+   - When `MALWARE_SCAN_REQUIRED=true`, fail closed with `503` and safe message `File security scan unavailable`.
+   - In non-production only, bypass is allowed when `MALWARE_SCAN_BYPASS_ON_UNAVAILABLE=true` and unavailability category is transient.
+9. Generate a `document_id` and MinIO object key: `uploads/{organization_id}/{user_id}/{document_id}.{ext}`.
+10. Upload to MinIO.
+11. Insert `documents` row with status `uploaded`, bucket/object key, and checksum.
+12. Publish `documents.process` task with `document_id`, `organization_id`, `user_id`, and `request_id`.
+13. Worker extracts text by file type and normalizes page text (null-byte/control-char cleanup and whitespace normalization).
+14. Worker stores `document_pages(page_number, text, char_count)` with page boundaries preserved.
+15. Worker chunks cleaned pages with configured token size/overlap and stores `document_chunks` metadata (`page_number`, `chunk_index`, `token_count`, `embedding_model`, `index_version`).
+16. If chunk windows span page boundaries, chunk `page_number` is attributed to the dominant page in the window for citation safety.
+17. Worker generates embeddings for all chunks in provider-safe batches using the configured embedding model.
+18. Transient embedding provider failures are retried with backoff; permanent embedding failures mark document `failed`.
+19. Worker upserts embeddings to Qdrant in batches using deterministic UUIDv5 point IDs derived from `{document_id}:{index_version}:{chunk_index}`.
+20. Qdrant payload includes filter/citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
+21. Worker records embedding usage telemetry (`input_tokens`, `latency_ms`, approximate `cost_usd`) in `usage_events` for downstream billing/analytics integration.
+22. On successful extraction/chunking/embedding/index upsert, document status becomes `indexed`; empty/malformed extraction marks document `failed`.
+23. Worker logs cleaning/chunking/embedding stats (`cleaning_*`, `chunk_count`, `index_version`, `embedding_*`) for pipeline observability.
+24. Worker persists `pipeline_runs` + `pipeline_events` rows for node-level lifecycle visibility (`extract`, `index_cleanup`, `chunk`, `embed`, `index`).
+25. Event payloads store sanitized previews (`inputs`, `outputs`, `config`, `logs`, `error_details`) and redact secret-like fields.
+26. Terminal failures persist a safe `error_message` and structured `error_details` for frontend status polling.
 
 Queue publish failure behavior:
 
 - Upload remains persisted with document status `uploaded` so processing can be retried.
 - API returns `503` with a safe enqueue-failure message.
+
+Security scan failure behavior:
+
+- Malware detection returns `422` and does not persist the object or document row.
+- Scan-unavailable failures use safe `503` responses when required mode is enabled.
+- Audit metadata remains safe-only (`filename`, `file_type`, `file_size_bytes`, `checksum`, scanner fields, request/user/org IDs).
 
 Duplicate policy:
 

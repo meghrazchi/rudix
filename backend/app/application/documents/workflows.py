@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -13,9 +14,12 @@ from app.domains.documents.schemas.documents import (
     ReindexDocumentResponse,
     UploadDocumentResponse,
 )
+from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
 from app.models.document import Document
 from app.models.enums import DocumentStatus
+
+_SAFE_SIGNATURE_PATTERN = re.compile(r"^[A-Za-z0-9._:+\- ]+$")
 
 
 def _object_key(
@@ -42,6 +46,28 @@ async def _safe_commit_audit_only(db_session: AsyncSession, *, wrote_audit: bool
         await db_session.rollback()
 
 
+def _safe_signature_name(signature: str | None) -> str | None:
+    if signature is None:
+        return None
+    cleaned = " ".join(signature.strip().split())
+    if not cleaned:
+        return None
+    cleaned = cleaned[:120]
+    if not _SAFE_SIGNATURE_PATTERN.fullmatch(cleaned):
+        return None
+    return cleaned
+
+
+def _should_bypass_scan_error(scan_result: MalwareScanResult) -> bool:
+    if not settings.malware_scan_required:
+        return True
+    if settings.is_production:
+        return False
+    if not settings.malware_scan_bypass_on_unavailable:
+        return False
+    return scan_result.error_type in {"unavailable", "timeout"}
+
+
 async def upload_document_workflow(
     *,
     request_id: str | None,
@@ -51,6 +77,7 @@ async def upload_document_workflow(
     db_session: AsyncSession,
     document_repository: DocumentRepository,
     audit_log_service: AuditLogService,
+    malware_scan_service: MalwareScanService,
     process_document_task: Any,
     minio_client: Any,
 ) -> UploadDocumentResponse:
@@ -87,6 +114,91 @@ async def upload_document_workflow(
         document_id=document_id,
         extension=validated.extension,
     )
+
+    scan_result = await malware_scan_service.scan_bytes(content=content)
+    safe_signature = _safe_signature_name(scan_result.signature)
+    scan_metadata = {
+        "filename": validated.normalized_filename,
+        "file_type": validated.extension,
+        "file_size_bytes": validated.file_size_bytes,
+        "checksum": validated.checksum_sha256,
+        "scanner": scan_result.scanner,
+        "scanner_result": scan_result.status,
+        "signature": safe_signature,
+        "duration_ms": scan_result.duration_ms,
+        "error_type": scan_result.error_type,
+    }
+
+    if scan_result.status == "infected":
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="document.upload.rejected_malware",
+            resource_type="document",
+            resource_id=document_id,
+            request_id=request_id,
+            metadata=scan_metadata,
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
+        log_document_event(
+            event="document.upload.scan.rejected",
+            document_id=str(document_id),
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            request_id=request_id,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            scanner=scan_result.scanner,
+            scanner_result=scan_result.status,
+            signature=safe_signature,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="File failed security scan",
+        )
+
+    if scan_result.status == "error":
+        bypass_scan_error = _should_bypass_scan_error(scan_result)
+        action = (
+            "document.upload.scan_unavailable_bypassed"
+            if bypass_scan_error
+            else "document.upload.scan_unavailable_rejected"
+        )
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=action,
+            resource_type="document",
+            resource_id=document_id,
+            request_id=request_id,
+            metadata=scan_metadata,
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
+        log_document_event(
+            event=(
+                "document.upload.scan.unavailable_bypassed"
+                if bypass_scan_error
+                else "document.upload.scan.unavailable_rejected"
+            ),
+            document_id=str(document_id),
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            request_id=request_id,
+            status_code=(
+                status.HTTP_201_CREATED
+                if bypass_scan_error
+                else status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            scanner=scan_result.scanner,
+            scanner_result=scan_result.status,
+            error_type=scan_result.error_type,
+        )
+        if not bypass_scan_error:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="File security scan unavailable",
+            )
 
     if minio_client is None:
         raise HTTPException(

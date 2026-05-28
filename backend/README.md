@@ -9,7 +9,7 @@ This folder contains a production-ready backend skeleton for the AI Document Q&A
 - Strict environment-based configuration and fail-fast validation.
 - SQLAlchemy async database foundation and Alembic scaffold.
 - Celery worker scaffold with RabbitMQ/Redis wiring.
-- Client scaffolds for Qdrant and MinIO.
+- Client scaffolds for Qdrant, MinIO, and ClamAV.
 - Dockerfile for API and worker images.
 
 ## Does not include
@@ -65,6 +65,7 @@ make seed-dev
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`).
+- Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
 - Production profile requires `SENTRY_DSN`.
 - Sentry runtime settings are environment-driven (`SENTRY_*`), including optional per-env sampling controls.
 - Non-production test event endpoint is available at `POST /api/v1/sentry-test` when enabled.
@@ -478,6 +479,8 @@ Notes:
 - `force=true` does not bypass UUID validation.
 - If local and Docker workers run together, either worker may consume tasks.
 - Duplicate file uploads are currently accepted and stored as separate document records (each with a unique `document_id` and object key).
+- Uploads are malware-scanned before persistence; infected files are rejected with safe `422` responses and are not stored/queued.
+- Scanner-unavailable behavior is controlled via `MALWARE_SCAN_REQUIRED` and `MALWARE_SCAN_BYPASS_ON_UNAVAILABLE`.
 - Each successful upload immediately enqueues `documents.process`; if enqueue fails, API returns `503` and the document remains in `uploaded` state.
 - Worker extraction currently supports PDF (page-by-page via PyMuPDF), TXT (UTF-8 with fallback), and DOCX (paragraphs + tables).
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and records `cleaning_*` stats in processing logs.

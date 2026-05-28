@@ -8,15 +8,17 @@ This file describes the full Retrieval-Augmented Generation workflow.
 flowchart TD
     subgraph Ingestion["Ingestion Pipeline — Offline / On Upload"]
         A[Upload PDF / TXT / DOCX]
-        B[Store File in MinIO]
-        C[Create Document Record]
-        D[Start Celery Job]
-        E[Extract Text]
-        F[Clean Text]
-        G[Chunk Text]
-        H[Embed Chunks]
-        I[Store Metadata in PostgreSQL]
-        J[Store Vectors in Qdrant]
+        B[Validate File Type and Size]
+        C[ClamAV Malware Scan]
+        D[Store File in MinIO]
+        E[Create Document Record]
+        F[Start Celery Job]
+        G[Extract Text]
+        H[Clean Text]
+        I[Chunk Text]
+        J[Embed Chunks]
+        K[Store Metadata in PostgreSQL]
+        L[Store Vectors in Qdrant]
     end
 
     subgraph Query["Query Pipeline — Real Time"]
@@ -41,10 +43,10 @@ flowchart TD
         Z[Store Evaluation Results]
     end
 
-    A --> B --> C --> D --> E --> F --> G --> H --> I --> J
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L
     K --> L --> M --> N --> O --> P --> Q --> R --> S --> T
     U --> V --> W --> X --> Y --> Z
-    J -. used by .-> N
+    L -. used by .-> N
 ```
 
 ## Ingestion pipeline
@@ -55,23 +57,26 @@ The ingestion pipeline runs when a user uploads a document.
 
 1. User uploads a file from the Next.js frontend.
 2. FastAPI validates file type and size.
-3. Backend uploads the file to MinIO.
-4. Backend creates a `documents` row with status `uploaded`.
-5. Backend enqueues a Celery task.
-6. Worker extracts text.
-7. Worker cleans and normalizes text.
-8. Worker chunks text.
-9. Worker stores chunk metadata in PostgreSQL.
-10. Worker calls embedding model for each chunk.
-11. Worker stores vectors and payload metadata in Qdrant.
-12. Worker updates document status to `indexed`.
+3. FastAPI scans upload bytes with ClamAV before persistence.
+4. Backend uploads clean files to MinIO.
+5. Backend creates a `documents` row with status `uploaded`.
+6. Backend enqueues a Celery task.
+7. Worker extracts text.
+8. Worker cleans and normalizes text.
+9. Worker chunks text.
+10. Worker stores chunk metadata in PostgreSQL.
+11. Worker calls embedding model for each chunk.
+12. Worker stores vectors and payload metadata in Qdrant.
+13. Worker updates document status to `indexed`.
 
 ### Ingestion Mermaid diagram
 
 ```mermaid
 flowchart LR
     Upload[Upload File] --> Validate[Validate Type and Size]
-    Validate --> MinIO[Store Original in MinIO]
+    Validate --> MalwareScan[ClamAV Scan]
+    MalwareScan -->|clean| MinIO[Store Original in MinIO]
+    MalwareScan -->|infected or blocked| Reject[Return Safe Upload Error]
     MinIO --> DocRow[Create documents Row]
     DocRow --> Queue[Publish Celery Task]
     Queue --> Worker[Celery Worker]

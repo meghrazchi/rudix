@@ -239,6 +239,7 @@ describe("DocumentDetailPage MSW", () => {
       await screen.findByRole("heading", { name: "indexed.pdf" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Lifecycle timeline")).toBeInTheDocument();
+    expect(screen.getByText("Upserted to Qdrant")).toBeInTheDocument();
     expect(screen.getByText("upserted 80 chunks")).toBeInTheDocument();
     expect(screen.getByText("Document preview")).toBeInTheDocument();
     expect(screen.getByText("View Original PDF")).toBeInTheDocument();

@@ -78,11 +78,18 @@ Implement:
 - Allowed extensions.
 - Maximum file size.
 - Maximum page count.
-- Virus/malware scanning if public production.
+- Virus/malware scanning via ClamAV before object storage persistence.
 - Checksum calculation.
 - Duplicate detection.
 - Safe file names.
 - Never execute uploaded files.
+
+Upload malware scan policy:
+
+- Scan the exact upload bytes after file validation and before MinIO persistence.
+- `MALWARE_SCAN_REQUIRED=true` must fail closed on scanner unavailability.
+- In non-production only, temporary scanner-unavailable bypass may be enabled with `MALWARE_SCAN_BYPASS_ON_UNAVAILABLE=true`.
+- Never return raw scanner daemon output, internal endpoints, stack traces, or file content to the API caller.
 
 Allowed types:
 

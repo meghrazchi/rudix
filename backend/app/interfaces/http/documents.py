@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 from urllib.parse import quote
 from uuid import UUID
@@ -23,6 +24,7 @@ from app.application.documents.workflows import (
 )
 from app.auth.dependencies import get_current_principal, require_document_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.clients import clamav_client as clamav_module
 from app.clients import minio_client as minio_module
 from app.core.config import settings
 from app.core.document_errors import decode_document_error
@@ -46,6 +48,7 @@ from app.domains.documents.schemas.documents import (
     SortOrder,
     UploadDocumentResponse,
 )
+from app.domains.documents.services.malware_scan import MalwareScanService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_graph_service import (
     canonical_pipeline_type,
@@ -71,6 +74,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 document_repository = DocumentRepository()
 pipeline_repository = PipelineRepository()
 audit_log_service = AuditLogService()
+malware_scan_service = MalwareScanService(clamav_client_provider=clamav_module.get_clamav_client)
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -218,6 +222,198 @@ def _build_lifecycle_timeline_from_pipeline(
     return timeline
 
 
+def _lifecycle_step(
+    *,
+    document_id: str,
+    step: str,
+    label: str,
+    description: str,
+    status: Literal["pending", "running", "completed", "failed", "skipped"],
+    started_at: datetime | None = None,
+    completed_at: datetime | None = None,
+) -> DocumentLifecycleTimelineStepResponse:
+    return DocumentLifecycleTimelineStepResponse(
+        step=step,
+        label=label,
+        description=description,
+        status=status,
+        document_id=document_id,
+        pipeline_run_id=None,
+        pipeline_type=None,
+        started_at=started_at,
+        completed_at=completed_at,
+        duration_ms=None,
+        logs=[],
+    )
+
+
+def _build_lifecycle_timeline_from_document_state(
+    *,
+    document_id: str,
+    document_status: str,
+    created_at: datetime,
+    updated_at: datetime,
+    page_count: int | None,
+    chunk_count: int,
+) -> list[DocumentLifecycleTimelineStepResponse]:
+    timeline: list[DocumentLifecycleTimelineStepResponse] = [
+        _lifecycle_step(
+            document_id=document_id,
+            step="uploaded",
+            label="Uploaded",
+            description="Document metadata accepted and queued for processing.",
+            status="completed",
+            started_at=created_at,
+            completed_at=created_at,
+        ),
+        _lifecycle_step(
+            document_id=document_id,
+            step="virus_scan",
+            label="Virus scanned",
+            description="Security scan completed before storage and indexing.",
+            status="completed",
+            started_at=created_at,
+            completed_at=created_at,
+        ),
+    ]
+
+    if document_status == DocumentStatus.processing.value:
+        timeline.append(
+            _lifecycle_step(
+                document_id=document_id,
+                step="processing",
+                label="Processing",
+                description="Extraction, chunking, and embedding generation in progress.",
+                status="running",
+                started_at=updated_at,
+            )
+        )
+        return timeline
+
+    if document_status in {
+        DocumentStatus.indexed.value,
+        DocumentStatus.failed.value,
+        DocumentStatus.deleting.value,
+        DocumentStatus.deleted.value,
+    } and (page_count is None or page_count > 0):
+        timeline.append(
+            _lifecycle_step(
+                document_id=document_id,
+                step="extract",
+                label="Extracted",
+                description="Extract raw text and metadata from source files.",
+                status="completed",
+                started_at=updated_at,
+                completed_at=updated_at,
+            )
+        )
+
+    if chunk_count > 0:
+        timeline.extend(
+            [
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="chunk",
+                    label="Chunked",
+                    description="Split text into retrieval-sized chunks.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="embed",
+                    label="Embedded",
+                    description="Generate vector embeddings for chunks.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="index",
+                    label="Upserted to Qdrant",
+                    description="Upsert embedded chunks into vector storage.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+            ]
+        )
+
+    if document_status == DocumentStatus.indexed.value:
+        timeline.extend(
+            [
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="indexed",
+                    label="Indexed",
+                    description="Document indexing lifecycle completed.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="ready_for_chat",
+                    label="Ready for chat",
+                    description="Document is available for retrieval-backed chat queries.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+            ]
+        )
+    elif document_status == DocumentStatus.failed.value:
+        timeline.append(
+            _lifecycle_step(
+                document_id=document_id,
+                step="failed",
+                label="Failed",
+                description="Processing stopped due to a recoverable or terminal error.",
+                status="failed",
+                started_at=updated_at,
+                completed_at=updated_at,
+            )
+        )
+    elif document_status == DocumentStatus.deleting.value:
+        timeline.append(
+            _lifecycle_step(
+                document_id=document_id,
+                step="deleting",
+                label="Deleting",
+                description="Deletion queued or currently in progress.",
+                status="running",
+                started_at=updated_at,
+            )
+        )
+    elif document_status == DocumentStatus.deleted.value:
+        timeline.extend(
+            [
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="deleting",
+                    label="Deleting",
+                    description="Deletion queued or currently in progress.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+                _lifecycle_step(
+                    document_id=document_id,
+                    step="deleted",
+                    label="Deleted",
+                    description="Document removed from active organization access.",
+                    status="completed",
+                    started_at=updated_at,
+                    completed_at=updated_at,
+                ),
+            ]
+        )
+
+    return timeline
+
+
 def _download_media_type(file_type: str) -> str:
     if file_type == "pdf":
         return "application/pdf"
@@ -255,6 +451,7 @@ async def upload_document(
         db_session=db_session,
         document_repository=document_repository,
         audit_log_service=audit_log_service,
+        malware_scan_service=malware_scan_service,
         process_document_task=process_document,
         minio_client=minio_module.get_minio_client(),
     )
@@ -476,6 +673,15 @@ async def get_document(
             organization_id=principal.organization_id,
             user_id=principal.user_id,
             reason="pipeline_tables_missing",
+        )
+    if not lifecycle_timeline:
+        lifecycle_timeline = _build_lifecycle_timeline_from_document_state(
+            document_id=document_id_text,
+            document_status=document_status,
+            created_at=created_at,
+            updated_at=updated_at,
+            page_count=page_count,
+            chunk_count=chunk_count,
         )
     log_document_event(
         event="document.detail.requested",

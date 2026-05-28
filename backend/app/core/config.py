@@ -321,6 +321,14 @@ class Settings(BaseSettings):
     sentry_test_event_enabled: bool | None = None
 
     max_upload_size_mb: int = Field(default=25, ge=1, le=512)
+    malware_scan_enabled: bool = True
+    malware_scan_required: bool = False
+    malware_scan_bypass_on_unavailable: bool = False
+    malware_scan_clamav_host: str = Field(default="localhost", min_length=1, max_length=255)
+    malware_scan_clamav_port: int = Field(default=3310, ge=1, le=65535)
+    malware_scan_timeout_seconds: float = Field(default=10.0, ge=0.1, le=120.0)
+    malware_scan_max_bytes: int | None = Field(default=None, ge=1, le=536_870_912)
+    malware_scan_stream_chunk_size_bytes: int = Field(default=65_536, ge=1024, le=4_194_304)
     retrieval_initial_top_k: int = Field(default=20, ge=1, le=200)
     retrieval_final_top_k: int = Field(default=5, ge=1, le=50)
     rerank_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
@@ -668,6 +676,24 @@ class Settings(BaseSettings):
         if self.embedding_batch_max_tokens < self.chunk_size_tokens:
             raise ValueError("embedding_batch_max_tokens must be >= chunk_size_tokens")
 
+        if (
+            self.malware_scan_max_bytes is not None
+            and self.malware_scan_max_bytes > self.max_upload_size_mb * 1024 * 1024
+        ):
+            raise ValueError("malware_scan_max_bytes must be <= configured upload size limit")
+
+        if self.malware_scan_required and not self.malware_scan_enabled:
+            raise ValueError("malware_scan_enabled must be true when malware_scan_required is true")
+
+        if (
+            self.environment == Environment.production
+            and self.malware_scan_required
+            and self.malware_scan_bypass_on_unavailable
+        ):
+            raise ValueError(
+                "malware_scan_bypass_on_unavailable must be false in production when scanning is required"
+            )
+
         if self.redis_socket_timeout_seconds < self.redis_socket_connect_timeout_seconds:
             raise ValueError(
                 "redis_socket_timeout_seconds must be >= redis_socket_connect_timeout_seconds"
@@ -848,6 +874,16 @@ class Settings(BaseSettings):
             "sentry_profiles_sample_rate": self.sentry_profiles_sample_rate,
             "sentry_test_event_enabled": self.is_sentry_test_event_enabled,
             "max_upload_size_mb": self.max_upload_size_mb,
+            "malware_scan": {
+                "enabled": self.malware_scan_enabled,
+                "required": self.malware_scan_required,
+                "bypass_on_unavailable": self.malware_scan_bypass_on_unavailable,
+                "clamav_host": self.malware_scan_clamav_host,
+                "clamav_port": self.malware_scan_clamav_port,
+                "timeout_seconds": self.malware_scan_timeout_seconds,
+                "max_bytes": self.malware_scan_max_bytes,
+                "stream_chunk_size_bytes": self.malware_scan_stream_chunk_size_bytes,
+            },
             "retrieval_initial_top_k": self.retrieval_initial_top_k,
             "retrieval_final_top_k": self.retrieval_final_top_k,
             "rerank_mmr_lambda": self.rerank_mmr_lambda,

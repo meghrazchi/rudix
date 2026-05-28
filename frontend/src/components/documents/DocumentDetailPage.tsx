@@ -168,127 +168,13 @@ function timelineStepGlyph(state: TimelineStepState): string {
   return "✓";
 }
 
-function buildLifecycleTimeline(
-  status: DocumentStatus,
-  detail: DocumentDetailResponse,
-): TimelineStep[] {
-  if (
-    Array.isArray(detail.lifecycle_timeline) &&
-    detail.lifecycle_timeline.length > 0
-  ) {
-    return detail.lifecycle_timeline
-      .map((step) => fromBackendLifecycleTimelineStep(step))
-      .filter((step) => step.state !== "pending");
-  }
-
-  const createdAt = detail.created_at;
-  const updatedAt = detail.updated_at;
-  const isTerminal =
-    status === "indexed" || status === "failed" || status === "deleted";
-
-  const fallbackTimeline: TimelineStep[] = [
-    {
-      key: "uploaded",
-      label: "Uploaded",
-      description: "Document metadata accepted and queued for processing.",
-      state: "completed",
-      timestamp: createdAt,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-    {
-      key: "processing",
-      label: "Processing",
-      description: "Extraction, chunking, and embedding generation.",
-      state:
-        status === "processing"
-          ? "active"
-          : status === "uploaded"
-            ? "pending"
-            : "completed",
-      timestamp: status === "processing" || isTerminal ? updatedAt : null,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-    {
-      key: "indexed",
-      label: "Indexed",
-      description: "Ready for retrieval and chat queries.",
-      state:
-        status === "indexed"
-          ? "completed"
-          : status === "failed"
-            ? "pending"
-            : status === "deleted" || status === "deleting"
-              ? "completed"
-              : "pending",
-      timestamp:
-        status === "indexed" || status === "deleted" || status === "deleting"
-          ? updatedAt
-          : null,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-    {
-      key: "failed",
-      label: "Failed",
-      description: "Processing stopped due to a recoverable or terminal error.",
-      state: status === "failed" ? "failed" : "pending",
-      timestamp: status === "failed" ? updatedAt : null,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-    {
-      key: "deleting",
-      label: "Deleting",
-      description: "Deletion queued or currently in progress.",
-      state:
-        status === "deleting"
-          ? "active"
-          : status === "deleted"
-            ? "completed"
-            : "pending",
-      timestamp:
-        status === "deleting" || status === "deleted" ? updatedAt : null,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-    {
-      key: "deleted",
-      label: "Deleted",
-      description: "Document removed from active organization access.",
-      state: status === "deleted" ? "completed" : "pending",
-      timestamp: status === "deleted" ? updatedAt : null,
-      documentId: detail.document_id,
-      logs: [],
-      pipelineRunId: null,
-      pipelineType: null,
-      durationMs: null,
-      status: null,
-    },
-  ];
-
-  return fallbackTimeline.filter((step) => step.state !== "pending");
+function buildLifecycleTimeline(detail: DocumentDetailResponse): TimelineStep[] {
+  const backendTimeline = Array.isArray(detail.lifecycle_timeline)
+    ? detail.lifecycle_timeline.map((step) =>
+        fromBackendLifecycleTimelineStep(step),
+      )
+    : [];
+  return backendTimeline.filter((step) => step.state !== "pending");
 }
 
 function fromBackendLifecycleTimelineStep(
@@ -305,7 +191,7 @@ function fromBackendLifecycleTimelineStep(
 
   return {
     key: step.step,
-    label: step.label,
+    label: normalizeLifecycleLabel(step.step, step.label),
     description: step.description,
     state,
     timestamp: step.completed_at ?? step.started_at,
@@ -316,6 +202,22 @@ function fromBackendLifecycleTimelineStep(
     durationMs: step.duration_ms,
     status: step.status,
   };
+}
+
+function normalizeLifecycleLabel(stepKey: string, label: string): string {
+  if (stepKey === "extract") {
+    return "Extracted";
+  }
+  if (stepKey === "chunk") {
+    return "Chunked";
+  }
+  if (stepKey === "embed") {
+    return "Embedded";
+  }
+  if (stepKey === "index") {
+    return "Upserted to Qdrant";
+  }
+  return label;
 }
 
 function deriveDetailStatus(
@@ -430,6 +332,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [includeFullText, setIncludeFullText] = useState(false);
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
+  const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
 
   const clearCopyFeedbackTimers = (): void => {
     if (copyFadeTimeoutRef.current !== null) {
@@ -489,6 +392,41 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     initialStatus: detailQuery.data?.status ?? null,
     refetchInBackground: true,
   });
+  const detailData = detailQuery.data;
+  const isDetailFetching = detailQuery.isFetching;
+  const refetchDetail = detailQuery.refetch;
+  const liveStatus = statusQuery.data;
+  const statusSnapshotUpdatedAt = statusQuery.dataUpdatedAt;
+
+  useEffect(() => {
+    if (!detailData || !liveStatus || statusSnapshotUpdatedAt <= 0) {
+      return;
+    }
+
+    const isOutOfSync =
+      detailData.status !== liveStatus.status ||
+      (detailData.updated_at ?? null) !== (liveStatus.updated_at ?? null);
+    if (!isOutOfSync) {
+      lastLifecycleSyncAttemptRef.current = statusSnapshotUpdatedAt;
+      return;
+    }
+
+    if (
+      isDetailFetching ||
+      lastLifecycleSyncAttemptRef.current === statusSnapshotUpdatedAt
+    ) {
+      return;
+    }
+
+    lastLifecycleSyncAttemptRef.current = statusSnapshotUpdatedAt;
+    void refetchDetail();
+  }, [
+    detailData,
+    isDetailFetching,
+    liveStatus,
+    refetchDetail,
+    statusSnapshotUpdatedAt,
+  ]);
 
   const chunksQuery = useQuery({
     queryKey: queryKeys.documents.chunks(documentId, {
@@ -576,7 +514,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const lifecycle = useMemo(
     () =>
       detail && currentStatus
-        ? buildLifecycleTimeline(currentStatus, detail)
+        ? buildLifecycleTimeline(detail)
         : [],
     [currentStatus, detail],
   );
@@ -881,65 +819,24 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
             </section>
 
             <div className="grid items-start gap-4 lg:grid-cols-12">
-              <div className="grid gap-3 sm:grid-cols-2 lg:col-span-8 lg:grid-cols-4">
-                <MetricCard
-                  label="Page count"
-                  value={detail.page_count ?? "-"}
-                />
-                <MetricCard label="Chunk count" value={detail.chunk_count} />
-                <MetricCard
-                  label="File type"
-                  value={detail.file_type.toUpperCase()}
-                />
-                <MetricCard
-                  label="Updated"
-                  value={formatDate(detail.updated_at)}
-                />
-              </div>
-              <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm lg:col-span-4">
-                <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Lifecycle timeline
-                </h3>
-                <ol className="relative space-y-3">
-                  <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
-                  {lifecycle.map((step) => (
-                    <li
-                      key={step.key}
-                      className="relative z-10 flex items-start gap-3"
-                    >
-                      <span
-                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${timelineStepClass(step.state)}`}
-                      >
-                        {timelineStepGlyph(step.state)}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-[#2a2640]">
-                            {step.label}
-                          </p>
-                          <p className="text-[11px] text-[#68647b]">
-                            {step.timestamp ? formatDate(step.timestamp) : "-"}
-                          </p>
-                        </div>
-                        <p className="mt-0.5 text-xs text-[#5f5a74]">
-                          {step.description}
-                        </p>
-                        {step.logs.slice(0, 1).map((line, index) => (
-                          <p
-                            key={`${step.key}-timeline-${index}`}
-                            className="mt-1 text-xs break-words text-[#4c4970]"
-                          >
-                            {line}
-                          </p>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            </div>
+              <div className="space-y-4 lg:col-span-8">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <MetricCard
+                    label="Page count"
+                    value={detail.page_count ?? "-"}
+                  />
+                  <MetricCard label="Chunk count" value={detail.chunk_count} />
+                  <MetricCard
+                    label="File type"
+                    value={detail.file_type.toUpperCase()}
+                  />
+                  <MetricCard
+                    label="Updated"
+                    value={formatDate(detail.updated_at)}
+                  />
+                </div>
 
-            <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
+                <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
               <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
                 {(["overview", "chunks", "errors"] as const).map((tabKey) => (
                   <button
@@ -967,122 +864,125 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
               <div className="space-y-4 p-4">
                 {activeTab === "overview" ? (
                   <div className="space-y-4">
-                    {detail.error_message ? (
-                      <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
-                        <p className="font-semibold">Processing error</p>
-                        <p className="mt-1">{detail.error_message}</p>
-                        {detail.error_details ? (
-                          <ul className="mt-2 space-y-1 text-xs">
-                            <li>
-                              <span className="font-semibold">Stage:</span>{" "}
-                              {detail.error_details.stage}
-                            </li>
-                            <li>
-                              <span className="font-semibold">Code:</span>{" "}
-                              {detail.error_details.code}
-                            </li>
-                            <li>
-                              <span className="font-semibold">Category:</span>{" "}
-                              {detail.error_details.category}
-                            </li>
-                            <li>
-                              <span className="font-semibold">Retryable:</span>{" "}
-                              {detail.error_details.retryable ? "yes" : "no"}
-                            </li>
-                            <li>
-                              <span className="font-semibold">Message:</span>{" "}
-                              {detail.error_details.message}
-                            </li>
-                          </ul>
-                        ) : null}
-                      </div>
-                    ) : null}
+                      {detail.error_message ? (
+                        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
+                          <p className="font-semibold">Processing error</p>
+                          <p className="mt-1">{detail.error_message}</p>
+                          {detail.error_details ? (
+                            <ul className="mt-2 space-y-1 text-xs">
+                              <li>
+                                <span className="font-semibold">Stage:</span>{" "}
+                                {detail.error_details.stage}
+                              </li>
+                              <li>
+                                <span className="font-semibold">Code:</span>{" "}
+                                {detail.error_details.code}
+                              </li>
+                              <li>
+                                <span className="font-semibold">Category:</span>{" "}
+                                {detail.error_details.category}
+                              </li>
+                              <li>
+                                <span className="font-semibold">
+                                  Retryable:
+                                </span>{" "}
+                                {detail.error_details.retryable ? "yes" : "no"}
+                              </li>
+                              <li>
+                                <span className="font-semibold">Message:</span>{" "}
+                                {detail.error_details.message}
+                              </li>
+                            </ul>
+                          ) : null}
+                        </div>
+                      ) : null}
 
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          File summary
-                        </h4>
-                        <div className="space-y-2 text-sm text-[#2a2640]">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">Filename</span>
-                            <span className="font-semibold">
-                              {detail.filename}
-                            </span>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            File summary
+                          </h4>
+                          <div className="space-y-2 text-sm text-[#2a2640]">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">Filename</span>
+                              <span className="font-semibold">
+                                {detail.filename}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">File type</span>
+                              <span className="font-semibold">
+                                {detail.file_type.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">Created</span>
+                              <span className="font-semibold">
+                                {formatDate(detail.created_at)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">Updated</span>
+                              <span className="font-semibold">
+                                {formatDate(detail.updated_at)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">File type</span>
-                            <span className="font-semibold">
-                              {detail.file_type.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">Created</span>
-                            <span className="font-semibold">
-                              {formatDate(detail.created_at)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">Updated</span>
-                            <span className="font-semibold">
-                              {formatDate(detail.updated_at)}
-                            </span>
+                        </div>
+
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Indexing intelligence
+                          </h4>
+                          <div className="space-y-2 text-sm text-[#2a2640]">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">Status</span>
+                              <span className={statusBadge(currentStatus)}>
+                                {currentStatus}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">
+                                Embedding model
+                              </span>
+                              <span className="font-semibold">
+                                {selectedChunks?.items[0]?.embedding_model ??
+                                  "-"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">
+                                Index version
+                              </span>
+                              <span className="font-semibold">
+                                {selectedChunks?.items[0]?.index_version ?? "-"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">
+                                Pipeline surface
+                              </span>
+                              <span className="font-semibold">
+                                Backend worker
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
                       <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                        <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          Indexing intelligence
+                        <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                          AI summary
                         </h4>
-                        <div className="space-y-2 text-sm text-[#2a2640]">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">Status</span>
-                            <span className={statusBadge(currentStatus)}>
-                              {currentStatus}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">
-                              Embedding model
-                            </span>
-                            <span className="font-semibold">
-                              {selectedChunks?.items[0]?.embedding_model ?? "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">
-                              Index version
-                            </span>
-                            <span className="font-semibold">
-                              {selectedChunks?.items[0]?.index_version ?? "-"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[#69637f]">
-                              Pipeline surface
-                            </span>
-                            <span className="font-semibold">
-                              Backend worker
-                            </span>
-                          </div>
-                        </div>
+                        <p className="text-sm leading-relaxed text-[#2a2640]">
+                          Document is currently <strong>{currentStatus}</strong>{" "}
+                          with {detail.chunk_count} indexed chunks
+                          {detail.page_count !== null
+                            ? ` across ${detail.page_count} pages`
+                            : ""}{" "}
+                          and checksum persisted for ingestion integrity checks.
+                        </p>
                       </div>
-                    </div>
-
-                    <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                      <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        AI summary
-                      </h4>
-                      <p className="text-sm leading-relaxed text-[#2a2640]">
-                        Document is currently <strong>{currentStatus}</strong>{" "}
-                        with {detail.chunk_count} indexed chunks
-                        {detail.page_count !== null
-                          ? ` across ${detail.page_count} pages`
-                          : ""}{" "}
-                        and checksum persisted for ingestion integrity checks.
-                      </p>
-                    </div>
                   </div>
                 ) : null}
 
@@ -1299,8 +1199,51 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 ) : null}
               </div>
             </section>
+          </div>
+          <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm lg:col-span-4">
+            <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Lifecycle timeline
+            </h3>
+            <ol className="relative space-y-3">
+              <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
+              {lifecycle.map((step) => (
+                <li
+                  key={step.key}
+                  className="relative z-10 flex items-start gap-3"
+                >
+                  <span
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${timelineStepClass(step.state)}`}
+                  >
+                    {timelineStepGlyph(step.state)}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-[#2a2640]">
+                        {step.label}
+                      </p>
+                      <p className="text-[11px] text-[#68647b]">
+                        {step.timestamp ? formatDate(step.timestamp) : "-"}
+                      </p>
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#5f5a74]">
+                      {step.description}
+                    </p>
+                    {step.logs.slice(0, 1).map((line, index) => (
+                      <p
+                        key={`${step.key}-timeline-${index}`}
+                        className="mt-1 text-xs break-words text-[#4c4970]"
+                      >
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </div>
 
-            <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
               <h3 className="mb-3 text-base font-bold text-[#2a2640]">
                 Document preview
               </h3>
