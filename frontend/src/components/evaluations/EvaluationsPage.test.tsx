@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,8 +16,9 @@ import type {
   EvaluationSetListResponse,
 } from "@/lib/api/evaluations";
 import type { DocumentListResponse } from "@/lib/api/documents";
-import { normalizeApiError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
+
+const RUN_HISTORY_KEY = "rudix.evaluations.run-history.v1";
 
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -83,13 +90,21 @@ function buildSetList(): EvaluationSetListResponse {
       {
         evaluation_set_id: "set-1",
         name: "Regression Set",
-        description: "test",
+        description: "baseline",
         question_count: 2,
         created_at: "2026-05-16T10:00:00Z",
         updated_at: "2026-05-16T11:00:00Z",
       },
+      {
+        evaluation_set_id: "set-2",
+        name: "Finance Set",
+        description: "finance questions",
+        question_count: 1,
+        created_at: "2026-05-17T10:00:00Z",
+        updated_at: "2026-05-17T11:00:00Z",
+      },
     ],
-    total: 1,
+    total: 2,
     limit: 100,
     offset: 0,
   };
@@ -104,7 +119,7 @@ function buildQuestionList(): EvaluationQuestionListResponse {
         evaluation_set_id: "set-1",
         question: "What is the SLA?",
         expected_answer: "99.9%",
-        expected_document_id: null,
+        expected_document_id: "doc-1",
         expected_page_number: 4,
         tags: ["sla"],
         metadata: {},
@@ -143,28 +158,27 @@ function buildDocuments(): DocumentListResponse {
   };
 }
 
-function buildRunDetail(): EvaluationRunDetailResponse {
+function buildRunDetail(
+  overrides?: Partial<EvaluationRunDetailResponse>,
+): EvaluationRunDetailResponse {
   return {
     evaluation_run_id: "run-1",
     evaluation_set_id: "set-1",
     status: "completed",
-    config: {
-      top_k: 5,
-      rerank: true,
-    },
+    config: { top_k: 5, rerank: true, run_name: "Regression smoke run" },
     summary: {
       question_total_count: 2,
       question_success_count: 1,
       question_failure_count: 1,
-      retrieval_hit_rate: 1,
-      context_precision: 0.7,
-      context_recall: 0.8,
-      faithfulness_score: 0.82,
-      answer_relevance_score: 0.78,
+      retrieval_hit_rate: 0.9,
+      faithfulness_score: 0.8,
+      answer_relevance_score: 0.82,
       citation_accuracy_score: 0.75,
-      refusal_accuracy: 0.9,
-      latency_ms_average: 380,
-      cost_usd_total: 1.25,
+      latency_ms_average: 430,
+      cost_usd_total: 0.13,
+      baseline_score: 0.7,
+      latest_score: 0.8,
+      score_delta: 0.1,
     },
     failure_reason: null,
     failure_type: null,
@@ -185,43 +199,38 @@ function buildRunDetail(): EvaluationRunDetailResponse {
           citation_accuracy_score: 0.75,
           answer_relevance_score: 0.78,
           latency_ms: 380,
-          metrics: {},
+          metrics: { confidence_score: 0.77 },
           failure_reason: null,
           failure_type: null,
-          details: {},
+          details: {
+            citations: [
+              {
+                document_id: "doc-1",
+                chunk_id: "chunk-1",
+                filename: "policy.pdf",
+                page_number: 4,
+              },
+            ],
+          },
           created_at: "2026-05-16T10:01:00Z",
           updated_at: "2026-05-16T10:01:00Z",
         },
-        {
-          evaluation_result_id: "r-2",
-          evaluation_question_id: "q-2",
-          question: "Where is the retention note?",
-          status: "failed",
-          generated_answer: null,
-          retrieval_score: null,
-          faithfulness_score: null,
-          citation_accuracy_score: null,
-          answer_relevance_score: null,
-          latency_ms: null,
-          metrics: {},
-          failure_reason: "No supporting chunks found",
-          failure_type: "NotFound",
-          details: {},
-          created_at: "2026-05-16T10:01:20Z",
-          updated_at: "2026-05-16T10:01:20Z",
-        },
       ],
-      total: 2,
-      limit: 200,
+      total: 1,
+      limit: 20,
       offset: 0,
     },
+    ...overrides,
   };
 }
 
-describe("EvaluationsPage", () => {
+describe("EvaluationsPage redesign", () => {
   beforeEach(() => {
     mockNavigation.searchParams = new URLSearchParams();
     mockNavigation.push.mockReset();
+
+    localStorage.clear();
+
     mockApi.listEvaluationSets.mockReset();
     mockApi.listEvaluationQuestions.mockReset();
     mockApi.createEvaluationSet.mockReset();
@@ -233,467 +242,171 @@ describe("EvaluationsPage", () => {
     mockApi.listEvaluationSets.mockResolvedValue(buildSetList());
     mockApi.listEvaluationQuestions.mockResolvedValue(buildQuestionList());
     mockApi.listDocuments.mockResolvedValue(buildDocuments());
-    mockApi.createEvaluationQuestion.mockResolvedValue({
-      evaluation_question_id: "q-new",
-      evaluation_set_id: "set-1",
-      question: "New question?",
-      expected_answer: null,
-      expected_document_id: null,
-      expected_page_number: null,
-      tags: [],
-      metadata: {},
-      created_at: "2026-05-16T12:30:00Z",
-      updated_at: "2026-05-16T12:30:00Z",
-    });
-    mockApi.createEvaluationSet.mockResolvedValue({
-      evaluation_set_id: "set-2",
-      name: "New Set",
-      description: "new description",
-      question_count: 0,
-      created_at: "2026-05-16T12:00:00Z",
-      updated_at: "2026-05-16T12:00:00Z",
-    });
     mockApi.runEvaluation.mockResolvedValue({
-      evaluation_run_id: "run-1",
+      evaluation_run_id: "run-created",
       status: "queued",
     });
     mockApi.getEvaluationRun.mockResolvedValue(buildRunDetail());
-  });
 
-  it("renders run summary metrics and failed/low-score inspection controls", async () => {
     mockState.authState = {
       status: "authenticated",
       session: {
         userId: "u-1",
-        email: "admin@example.com",
-        role: "admin",
+        email: "owner@example.com",
+        role: "owner",
         organizationId: "org-1",
         organizationName: "Org One",
         accessToken: "token-1",
       },
     };
+  });
 
+  it("renders redesigned sections and KPI cards for a selected run", async () => {
+    renderPage("run-1");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Track RAG quality before shipping answers",
+      }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByText("Hit Rate @ 10")).toBeInTheDocument();
+    expect(screen.getByText("Precision")).toBeInTheDocument();
+    expect(screen.getByText("Faithfulness")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Evaluation Sets" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Recent Runs" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Run detail")).toBeInTheDocument();
+    expect(screen.getByText("Case results")).toBeInTheDocument();
+    expect(screen.getByText("Baseline vs latest")).toBeInTheDocument();
+  });
+
+  it("supports starting a run from the primary CTA", async () => {
     renderPage();
 
-    await screen.findByRole("button", { name: "Run evaluation" });
+    await screen.findByText("Evaluation datasets");
     await userEvent.click(
-      screen.getByRole("button", { name: "Run evaluation" }),
+      screen.getByRole("button", { name: "Start evaluation run" }),
     );
-    await screen.findByRole("dialog");
+
+    await screen.findByRole("dialog", { name: "Start evaluation run" });
+    await userEvent.clear(screen.getByLabelText("Model override"));
+    await userEvent.type(
+      screen.getByLabelText("Model override"),
+      "gpt-5.4-mini",
+    );
+    fireEvent.change(screen.getByLabelText("Metric options JSON"), {
+      target: { value: '{"faithfulness":true}' },
+    });
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
-    await screen.findByText("Run status: completed");
-    expect(
-      screen.getByRole("link", { name: "View pipeline run" }),
-    ).toHaveAttribute(
-      "href",
-      "/rag-pipeline?run_type=evaluation.run&evaluation_run_id=run-1",
-    );
-
-    expect(screen.getAllByText("Faithfulness").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("82.0%").length).toBeGreaterThan(0);
-    expect(screen.getByText("Answer relevance")).toBeInTheDocument();
-    expect(screen.getAllByText("78.0%").length).toBeGreaterThan(0);
-    expect(screen.getByText("Citation accuracy")).toBeInTheDocument();
-    expect(screen.getAllByText("75.0%").length).toBeGreaterThan(0);
-    expect(screen.getByText("Retrieval hit rate")).toBeInTheDocument();
-    expect(screen.getByText("Context precision")).toBeInTheDocument();
-    expect(screen.getByText("Context recall")).toBeInTheDocument();
-    expect(screen.getByText("Refusal accuracy")).toBeInTheDocument();
-    expect(screen.getByText("Average latency")).toBeInTheDocument();
-    expect(screen.getByText("Estimated cost")).toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "Failed/low (1)" }),
-    ).toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole("button", { name: "Failed/low (1)" }),
-    );
-
     await waitFor(() => {
-      expect(
-        screen.getByText("No supporting chunks found"),
-      ).toBeInTheDocument();
+      expect(mockApi.runEvaluation).toHaveBeenCalled();
+      expect(mockNavigation.push).toHaveBeenCalledWith(
+        "/evaluations/runs/run-created",
+      );
     });
   });
 
-  it("renders failed run reason and failure type safely", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-8",
-        email: "admin-failed@example.com",
-        role: "admin",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-8",
-      },
-    };
-
-    mockApi.getEvaluationRun.mockResolvedValue({
-      ...buildRunDetail(),
-      status: "failed",
-      failure_reason: "Pipeline worker timeout.",
-      failure_type: "WorkerTimeout",
-    });
-
-    renderPage("run-failed-1");
-
-    expect(await screen.findByText("Run status: failed")).toBeInTheDocument();
-    expect(await screen.findByText(/Failure:/i)).toBeInTheDocument();
-    expect(
-      await screen.findByText(/Pipeline worker timeout\./i),
-    ).toBeInTheDocument();
-    expect(await screen.findByText(/\(WorkerTimeout\)/i)).toBeInTheDocument();
-  });
-
-  it("supports result filters and expandable metrics/details rows", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-10",
-        email: "admin-filters@example.com",
-        role: "admin",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-10",
-      },
-    };
-
-    mockApi.getEvaluationRun.mockResolvedValue({
-      ...buildRunDetail(),
-      results: {
-        items: [
-          {
-            evaluation_result_id: "r-low",
-            evaluation_question_id: "q-low",
-            question: "Low quality answer?",
-            status: "completed",
-            generated_answer: "Uncertain answer.",
-            retrieval_score: 0.2,
-            faithfulness_score: 0.2,
-            citation_accuracy_score: 0.2,
-            answer_relevance_score: 0.2,
-            latency_ms: 2_100,
-            metrics: { score_bucket: "low" },
-            failure_reason: null,
-            failure_type: null,
-            details: { status: "completed", notes: "low confidence" },
-            created_at: "2026-05-16T10:01:00Z",
-            updated_at: "2026-05-16T10:01:00Z",
-          },
-          {
-            evaluation_result_id: "r-failed",
-            evaluation_question_id: "q-failed",
-            question: "Missing chunk location?",
-            status: "failed",
-            generated_answer: null,
-            retrieval_score: null,
-            faithfulness_score: null,
-            citation_accuracy_score: null,
-            answer_relevance_score: null,
-            latency_ms: 80,
-            metrics: {},
-            failure_reason: "No supporting chunks found",
-            failure_type: "NotFound",
-            details: { status: "failed", error: "No supporting chunks found" },
-            created_at: "2026-05-16T10:01:20Z",
-            updated_at: "2026-05-16T10:01:20Z",
-          },
-        ],
-        total: 2,
-        limit: 20,
-        offset: 0,
-      },
-    });
-
-    renderPage("run-filter-1");
-
-    await screen.findByText("Run status: completed");
-    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
-    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Failed (1)" }));
-    expect(screen.queryByText("Low quality answer?")).not.toBeInTheDocument();
-    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Low score (1)" }),
+  it("applies run status filter against available run history", async () => {
+    localStorage.setItem(
+      RUN_HISTORY_KEY,
+      JSON.stringify([
+        {
+          runId: "run-failed",
+          runName: "Failed run",
+          datasetId: "set-1",
+          datasetName: "Regression Set",
+          status: "failed",
+          score: 0.2,
+          regressions: 2,
+          startedBy: "qa@example.com",
+          passRate: 0.1,
+          citationAccuracy: 0.3,
+          retrievalHitRate: 0.5,
+          latencyMsAverage: 900,
+          costUsdTotal: 0.2,
+          durationMs: 1000,
+          startedAt: "2026-05-17T10:00:00Z",
+          completedAt: "2026-05-17T10:01:00Z",
+          createdAt: "2026-05-17T10:00:00Z",
+          updatedAt: "2026-05-17T10:01:00Z",
+          isComparisonAvailable: false,
+        },
+      ]),
     );
-    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
+
+    renderPage("run-1");
+
+    await screen.findByText("Run inspector");
+    await userEvent.selectOptions(screen.getByLabelText("Status"), "failed");
+
+    const inspectorHeading = screen.getByRole("heading", {
+      name: "Run inspector",
+    });
+    const inspectorSection = inspectorHeading.closest("section");
+    expect(inspectorSection).not.toBeNull();
+
+    if (!inspectorSection) {
+      return;
+    }
+
     expect(
-      screen.queryByText("Missing chunk location?"),
+      within(inspectorSection).getByText("Failed run"),
+    ).toBeInTheDocument();
+    expect(
+      within(inspectorSection).queryByText("Regression smoke run"),
     ).not.toBeInTheDocument();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "High latency (1)" }),
-    );
-    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Not found (1)" }),
-    );
-    expect(screen.getByText("Missing chunk location?")).toBeInTheDocument();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Citation issues (1)" }),
-    );
-    expect(screen.getByText("Low quality answer?")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "All (2)" }));
-    await userEvent.click(
-      screen.getAllByRole("button", { name: "Details" })[0],
-    );
-    expect(await screen.findByText("Metrics JSON")).toBeInTheDocument();
-    expect(await screen.findByText("Details JSON")).toBeInTheDocument();
   });
 
-  it("renders safe not-found state for inaccessible run ids", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-9",
-        email: "admin-404@example.com",
-        role: "admin",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-9",
-      },
-    };
-
-    mockApi.getEvaluationRun.mockRejectedValue(
-      normalizeApiError({
-        status: 404,
-        payload: { detail: "not found" },
-      }),
-    );
-
-    renderPage("run-missing");
-
-    expect(
-      await screen.findByText("Run not found or inaccessible."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "The evaluation run may belong to another organization or may no longer exist.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Back to evaluations" }),
-    ).toBeInTheDocument();
-  });
-
-  it("renders permission-aware controls for viewer role", async () => {
+  it("shows restricted actions for member role", async () => {
     mockState.authState = {
       status: "authenticated",
       session: {
         userId: "u-2",
-        email: "viewer@example.com",
-        role: "viewer",
+        email: "member@example.com",
+        role: "member",
         organizationId: "org-1",
         organizationName: "Org One",
         accessToken: "token-2",
       },
     };
 
-    renderPage();
+    renderPage("run-1");
 
-    await screen.findByRole("button", { name: "Run evaluation" });
+    await screen.findByText("Evaluation datasets");
+
+    const startButton = screen.getByRole("button", {
+      name: "Start evaluation run",
+    });
+    expect(startButton).toBeDisabled();
 
     expect(
-      screen.getByText(
-        "Your role can view evaluation sets but only owner/admin can create new sets.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Your role can inspect results but only owner/admin can run evaluations.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Your role can view questions but only owner/admin can add new questions.",
-      ),
-    ).toBeInTheDocument();
-
-    const runButton = screen.getByRole("button", { name: "Run evaluation" });
-    expect(runButton).toBeDisabled();
-    expect(
-      screen.queryByRole("button", { name: "Create evaluation set" }),
+      screen.queryByRole("button", { name: "New Set" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Add question" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("renders question create permissions for member vs admin", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-4",
-        email: "member@example.com",
-        role: "member",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-4",
-      },
-    };
-
-    renderPage();
-    await screen.findByText("Question management");
-
-    expect(
-      await screen.findByText(
-        "Your role can view questions but only owner/admin can add new questions.",
+      screen.getByText(
+        "Your role can review evaluation results but only owner/admin can start new runs.",
       ),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Add question" }),
-    ).not.toBeInTheDocument();
   });
 
-  it("disables run action for member role", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-6",
-        email: "member-run@example.com",
-        role: "member",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-6",
-      },
-    };
-
-    renderPage();
-    const runButton = await screen.findByRole("button", {
-      name: "Run evaluation",
+  it("renders empty dataset state", async () => {
+    mockApi.listEvaluationSets.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
     });
-    expect(runButton).toBeDisabled();
-  });
-
-  it("validates run modal config fields before queueing", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-7",
-        email: "owner-run@example.com",
-        role: "owner",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-7",
-      },
-    };
 
     renderPage();
 
-    await screen.findByRole("button", { name: "Run evaluation" });
-    await userEvent.click(
-      screen.getByRole("button", { name: "Run evaluation" }),
-    );
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("Metric options (JSON object)"), {
-      target: { value: "{bad" },
-    });
-    await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
-
     expect(
-      await screen.findByText("Metric options must be valid JSON."),
+      await screen.findByText("No evaluation sets yet"),
     ).toBeInTheDocument();
-    expect(mockApi.runEvaluation).not.toHaveBeenCalled();
-  });
-
-  it("validates question form fields before submission", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-5",
-        email: "admin2@example.com",
-        role: "admin",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-5",
-      },
-    };
-
-    renderPage();
-
-    await screen.findByRole("button", { name: "Add question" });
-
-    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(
-      await screen.findByText("Question is required."),
-    ).toBeInTheDocument();
-    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
-
-    await userEvent.type(
-      screen.getByPlaceholderText("What is the retention policy for invoices?"),
-      "How long do we keep logs?",
-    );
-    await userEvent.type(screen.getByPlaceholderText("Optional"), "invalid");
-    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(
-      await screen.findByText("Expected page must be a positive integer."),
-    ).toBeInTheDocument();
-    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
-
-    await userEvent.clear(screen.getByPlaceholderText("Optional"));
-    fireEvent.change(screen.getByLabelText("Metadata (JSON object)"), {
-      target: { value: "{bad" },
-    });
-    await userEvent.click(screen.getByRole("button", { name: "Add question" }));
-    expect(
-      await screen.findByText("Metadata must be valid JSON."),
-    ).toBeInTheDocument();
-    expect(mockApi.createEvaluationQuestion).not.toHaveBeenCalled();
-  });
-
-  it("validates create set modal input and submits the set", async () => {
-    mockState.authState = {
-      status: "authenticated",
-      session: {
-        userId: "u-3",
-        email: "owner@example.com",
-        role: "owner",
-        organizationId: "org-1",
-        organizationName: "Org One",
-        accessToken: "token-3",
-      },
-    };
-
-    renderPage();
-
-    await screen.findByRole("button", { name: "Create evaluation set" });
-    const setTitleMatches = await screen.findAllByText("Regression Set");
-    expect(setTitleMatches.length).toBeGreaterThan(0);
-    expect(screen.getByText(/Created:/i)).toBeInTheDocument();
-    expect(screen.getByText(/Updated:/i)).toBeInTheDocument();
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Create evaluation set" }),
-    );
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: "Create set" }));
-    expect(
-      await screen.findByText("Set name is required."),
-    ).toBeInTheDocument();
-
-    await userEvent.type(screen.getByLabelText("Set name"), "Smoke test set");
-    await userEvent.type(
-      screen.getByLabelText("Description"),
-      "Validates retrieval quality",
-    );
-    await userEvent.click(screen.getByRole("button", { name: "Create set" }));
-
-    await waitFor(() => {
-      expect(mockApi.createEvaluationSet).toHaveBeenCalled();
-      const [payload] = mockApi.createEvaluationSet.mock.calls[0] ?? [];
-      expect(payload).toEqual({
-        name: "Smoke test set",
-        description: "Validates retrieval quality",
-      });
-    });
+    expect(screen.getByText("No evaluation runs yet")).toBeInTheDocument();
   });
 });

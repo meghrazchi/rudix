@@ -1,22 +1,56 @@
 "use client";
 
-import {
-  Fragment,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import {
+  CreateEvaluationSetDialog,
+  StartEvaluationRunDialog,
+} from "@/components/evaluations/evaluation-dialogs";
+import {
+  readEvaluationRunHistory,
+  upsertEvaluationRunHistory,
+} from "@/components/evaluations/evaluation-history-storage";
+import {
+  type AddQuestionDraft,
+  type DatasetQuestionFilters,
+  EvaluationSetsSection,
+} from "@/components/evaluations/evaluation-sets-section";
+import {
+  EvaluationCasesSection,
+  EvaluationRunDetailSection,
+  EvaluationRunDetailSkeleton,
+} from "@/components/evaluations/evaluation-run-detail";
+import {
+  buildCaseViews,
+  buildRunComparison,
+  buildRunListItemFromDetail,
+  filterAndSortCaseViews,
+  filterAndSortRuns,
+  runStatusLabel,
+  type EvaluationRunHistoryRecord,
+  type EvaluationRunListItem,
+  type ResultFilters,
+  type RunFilters,
+} from "@/components/evaluations/evaluation-view-model";
+import {
+  type EvaluationKpiItem,
+  type EvaluationSetOverviewRow,
+  EvaluationInsightsRow,
+  EvaluationKpiGrid,
+  EvaluationSetsOverviewTable,
+  EvaluationsPageHeader,
+  RecentRunsPanel,
+  EvaluationRunsFilterBar,
+  EvaluationRunsTable,
+  RunsTableSkeleton,
+  resolveKpiTrendLabel,
+} from "@/components/evaluations/evaluation-ui";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
-import { LoadingState } from "@/components/states/LoadingState";
 import {
   createEvaluationQuestion,
   createEvaluationSet,
@@ -24,172 +58,118 @@ import {
   listEvaluationQuestions,
   listEvaluationSets,
   runEvaluation,
-  type EvaluationQuestionResponse,
-  type EvaluationRunDetailResponse,
 } from "@/lib/api/evaluations";
 import { listDocuments } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
-import { buildPipelineExplorerHref } from "@/lib/pipeline-links";
-import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const EVALUATION_SET_LIMIT = 100;
 const EVALUATION_QUESTION_LIMIT = 200;
-const EVALUATION_RESULTS_MAX_LIMIT = 200;
-const EVALUATION_RESULTS_DEFAULT_PAGE_SIZE = 20;
-
+const EVALUATION_RESULTS_PAGE_SIZE = 20;
+const LOW_SCORE_THRESHOLD = 0.5;
+const RUN_POLL_INTERVAL_MS = 4_000;
 const MIN_TOP_K = 1;
 const MAX_TOP_K = 50;
-const DEFAULT_TOP_K = 5;
-const LOW_SCORE_THRESHOLD = 0.5;
-const DEFAULT_RUN_POLL_INTERVAL_MS = 4_000;
-const DEFAULT_HIGH_LATENCY_THRESHOLD_MS = 1_500;
 
-type ResultFilterMode =
-  | "all"
-  | "problematic"
-  | "failed"
-  | "low_score"
-  | "high_latency"
-  | "not_found"
-  | "citation_issues";
-
-type SummaryMetric = {
-  title: string;
-  value: string;
-  caption: string;
+type EvaluationsPageProps = {
+  initialRunId?: string | null;
 };
 
-type TimelinePoint = {
-  label: string;
-  score: number;
-};
+function parseTagsCsv(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0),
+    ),
+  );
+}
 
-type EvaluationSetLatestRunSummary = {
-  status: string;
-  completedAt: string | null;
-  qualityScore: number | null;
-};
-
-function parsePositiveIntegerEnv(
-  value: string | undefined,
-  fallback: number,
-): number {
-  if (!value) {
-    return fallback;
+function parseMetricOptionsJson(
+  value: string,
+): Record<string, boolean | number | string> | undefined {
+  if (!value.trim()) {
+    return undefined;
   }
 
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error("Metric options must be valid JSON.");
+  }
+
+  if (typeof parsed !== "object" || parsed == null || Array.isArray(parsed)) {
+    throw new Error("Metric options must be a JSON object.");
+  }
+
+  const output: Record<string, boolean | number | string> = {};
+  for (const [key, item] of Object.entries(parsed)) {
+    if (
+      typeof item === "string" ||
+      typeof item === "number" ||
+      typeof item === "boolean"
+    ) {
+      output[key] = item;
+      continue;
+    }
+    throw new Error(
+      `Metric option \"${key}\" must be a string, number, or boolean.`,
+    );
+  }
+
+  return output;
+}
+
+function normalizePage(value: string): number | null {
+  if (!value.trim()) {
+    return null;
+  }
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new Error("Expected page must be a positive integer.");
   }
   return parsed;
 }
 
-function parseScoreThresholdEnv(
-  value: string | undefined,
-  fallback: number,
-): number {
-  if (!value) {
-    return fallback;
-  }
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  return Math.max(0, Math.min(1, parsed));
+function runFiltersDefaults(): RunFilters {
+  return {
+    query: "",
+    status: "all",
+    datasetId: "all",
+    owner: "all",
+    dateFrom: "",
+    dateTo: "",
+    sortBy: "created_desc",
+  };
 }
 
-function parseDefaultTopK(): number {
-  const parsed = parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_EVALUATION_TOP_K_DEFAULT,
-    DEFAULT_TOP_K,
-  );
-  return Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed));
+function resultFiltersDefaults(): ResultFilters {
+  return {
+    query: "",
+    status: "all",
+    sortBy: "created_desc",
+  };
 }
 
-function parseRunPollIntervalMs(): number {
-  return parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_EVALUATION_RUN_POLL_INTERVAL_MS,
-    DEFAULT_RUN_POLL_INTERVAL_MS,
-  );
+function questionFiltersDefaults(): DatasetQuestionFilters {
+  return {
+    query: "",
+    sortBy: "created_desc",
+  };
 }
 
-function parseResultsPageSize(): number {
-  const parsed = parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_EVALUATION_RESULTS_PAGE_SIZE,
-    EVALUATION_RESULTS_DEFAULT_PAGE_SIZE,
-  );
-  return Math.max(1, Math.min(EVALUATION_RESULTS_MAX_LIMIT, parsed));
-}
-
-function parseHighLatencyThresholdMs(): number {
-  return parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_EVALUATION_HIGH_LATENCY_MS,
-    DEFAULT_HIGH_LATENCY_THRESHOLD_MS,
-  );
-}
-
-function formatDate(value: string | null | undefined): string {
-  if (!value) {
-    return "N/A";
-  }
-
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
-}
-
-function formatInteger(value: number | null | undefined): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "N/A";
-  }
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
-    value,
-  );
-}
-
-function formatMilliseconds(value: number | null | undefined): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "N/A";
-  }
-  return `${Math.max(0, value).toFixed(0)} ms`;
-}
-
-function formatPercent(value: number | null | undefined): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "N/A";
-  }
-  let normalized = value;
-  if (normalized > 1 && normalized <= 100) {
-    normalized /= 100;
-  }
-  normalized = Math.max(0, Math.min(1, normalized));
-  return `${(normalized * 100).toFixed(1)}%`;
-}
-
-function formatCurrency(value: number | null | undefined): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return "N/A";
-  }
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Math.max(0, value));
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
+function questionDraftDefaults(): AddQuestionDraft {
+  return {
+    question: "",
+    expectedAnswer: "",
+    expectedPage: "",
+    tags: "",
+  };
 }
 
 function asNumber(value: unknown): number | null {
@@ -205,371 +185,110 @@ function asNumber(value: unknown): number | null {
   return null;
 }
 
-function resolveStatusBadgeClass(status: string): string {
-  if (status === "completed") {
-    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+function normalizeRate(value: number | null): number | null {
+  if (value == null || !Number.isFinite(value)) {
+    return null;
   }
-  if (status === "running" || status === "queued") {
-    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
+  if (value > 1 && value <= 100) {
+    return Math.max(0, Math.min(1, value / 100));
   }
-  return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  return Math.max(0, Math.min(1, value));
 }
 
-function resolveSummaryValue(
-  summary: Record<string, unknown> | null,
+function metricFromSummary(
+  summary: Record<string, unknown> | null | undefined,
   keys: string[],
 ): number | null {
   if (!summary) {
     return null;
   }
-
   for (const key of keys) {
     const value = asNumber(summary[key]);
     if (value != null) {
       return value;
     }
   }
-
   return null;
 }
 
-function summarizeRunMetrics(
-  run: EvaluationRunDetailResponse | null,
-): SummaryMetric[] {
-  const summary = run?.summary ?? null;
-  const summaryRecord = summary ? asRecord(summary) : null;
-
-  const totalQuestions =
-    resolveSummaryValue(summaryRecord, ["question_total_count"]) ??
-    run?.results.total ??
-    null;
-  const successQuestions = resolveSummaryValue(summaryRecord, [
-    "question_success_count",
-  ]);
-  const failedQuestions = resolveSummaryValue(summaryRecord, [
-    "question_failure_count",
-  ]);
-  const retrievalHitRate = resolveSummaryValue(summaryRecord, [
-    "retrieval_hit_rate",
-    "retrieval_score",
-  ]);
-  const contextPrecision = resolveSummaryValue(summaryRecord, [
-    "context_precision",
-  ]);
-  const contextRecall = resolveSummaryValue(summaryRecord, ["context_recall"]);
-  const faithfulness = resolveSummaryValue(summaryRecord, [
-    "faithfulness_score",
-  ]);
-  const answerRelevance = resolveSummaryValue(summaryRecord, [
-    "answer_relevance_score",
-  ]);
-  const citationAccuracy = resolveSummaryValue(summaryRecord, [
-    "citation_accuracy_score",
-  ]);
-  const refusalAccuracy = resolveSummaryValue(summaryRecord, [
-    "refusal_accuracy",
-  ]);
-  const averageLatency = resolveSummaryValue(summaryRecord, [
-    "latency_ms_average",
-  ]);
-  const totalCost = resolveSummaryValue(summaryRecord, ["cost_usd_total"]);
-
-  return [
-    {
-      title: "Questions",
-      value: formatInteger(totalQuestions),
-      caption:
-        successQuestions != null && failedQuestions != null
-          ? `${formatInteger(successQuestions)} succeeded / ${formatInteger(failedQuestions)} failed`
-          : "Total evaluated questions",
-    },
-    {
-      title: "Retrieval hit rate",
-      value: formatPercent(retrievalHitRate),
-      caption: "Questions with at least one relevant chunk retrieved",
-    },
-    {
-      title: "Context precision",
-      value: formatPercent(contextPrecision),
-      caption: "Selected chunks that were relevant",
-    },
-    {
-      title: "Context recall",
-      value: formatPercent(contextRecall),
-      caption: "Coverage of expected relevant context",
-    },
-    {
-      title: "Faithfulness",
-      value: formatPercent(faithfulness),
-      caption: "Groundedness quality score",
-    },
-    {
-      title: "Answer relevance",
-      value: formatPercent(answerRelevance),
-      caption: "Question-to-answer alignment",
-    },
-    {
-      title: "Citation accuracy",
-      value: formatPercent(citationAccuracy),
-      caption: "Citation correctness score",
-    },
-    {
-      title: "Refusal accuracy",
-      value: formatPercent(refusalAccuracy),
-      caption: "Correct refusal behavior when answer is unavailable",
-    },
-    {
-      title: "Average latency",
-      value: formatMilliseconds(averageLatency),
-      caption: "Latency per successful question",
-    },
-    {
-      title: "Estimated cost",
-      value: formatCurrency(totalCost),
-      caption: "Total run cost estimate",
-    },
-  ];
+function setStatusToneFromScore(
+  score: number | null,
+): EvaluationSetOverviewRow["statusTone"] {
+  if (score == null || !Number.isFinite(score)) {
+    return "muted";
+  }
+  const normalized = normalizeRate(score);
+  if (normalized == null) {
+    return "muted";
+  }
+  if (normalized >= 0.85) {
+    return "good";
+  }
+  if (normalized >= 0.7) {
+    return "warn";
+  }
+  return "bad";
 }
 
-function computeResultQualityScore(
-  item: EvaluationRunDetailResponse["results"]["items"][number],
-): number | null {
-  const values = [
-    item.faithfulness_score,
-    item.answer_relevance_score,
-    item.citation_accuracy_score,
-    item.retrieval_score,
-  ].filter(
-    (value): value is number =>
-      typeof value === "number" && Number.isFinite(value),
-  );
-
-  if (values.length === 0) {
-    return null;
+function kpiToneFromScore(
+  score: number | null,
+): NonNullable<EvaluationKpiItem["tone"]> {
+  const tone = setStatusToneFromScore(score);
+  if (tone === "muted") {
+    return "default";
   }
-
-  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return Math.max(0, Math.min(1, average));
+  return tone;
 }
 
-function buildRunExportHref(rawTemplate: string, runId: string): string {
-  const template = rawTemplate.trim();
-  if (!template) {
-    return "";
+function setStatusLabel(
+  run: EvaluationRunListItem | undefined,
+): EvaluationSetOverviewRow["statusLabel"] {
+  if (!run) {
+    return "No Data";
   }
-
-  const encodedRunId = encodeURIComponent(runId);
-  if (template.includes("{runId}")) {
-    return template.replaceAll("{runId}", encodedRunId);
+  if (run.status === "failed") {
+    return "Critical";
   }
-  if (template.includes(":runId")) {
-    return template.replaceAll(":runId", encodedRunId);
+  if (run.status === "queued") {
+    return "Queued";
   }
-  if (template.includes("?")) {
-    return `${template}&evaluation_run_id=${encodedRunId}`;
+  if (run.status === "running") {
+    return "Running";
   }
-  return `${template}?evaluation_run_id=${encodedRunId}`;
-}
-
-function isNotFoundResult(
-  item: EvaluationRunDetailResponse["results"]["items"][number],
-): boolean {
-  const normalizedFailureType = item.failure_type?.trim().toLowerCase() ?? "";
-  const normalizedFailureReason =
-    item.failure_reason?.trim().toLowerCase() ?? "";
-  const normalizedStatus = item.status.trim().toLowerCase();
-  return (
-    normalizedFailureType.includes("notfound") ||
-    normalizedFailureReason.includes("not found") ||
-    normalizedStatus === "not_found"
-  );
-}
-
-function formatQuestionTags(question: EvaluationQuestionResponse): string {
-  if (question.tags.length === 0) {
-    return "-";
-  }
-  return question.tags.join(", ");
-}
-
-function buildTimelineFromSummary(
-  summary: Record<string, unknown> | null,
-): TimelinePoint[] {
-  if (!summary) {
-    return [];
-  }
-
-  const candidates = [
-    summary.quality_over_time,
-    summary.quality_timeline,
-    summary.series,
-    summary.score_timeline,
-  ];
-
-  for (const candidate of candidates) {
-    if (!Array.isArray(candidate)) {
-      continue;
+  if (run.score != null) {
+    const normalized = normalizeRate(run.score);
+    if (normalized != null && normalized >= 0.85) {
+      return "Stable";
     }
-
-    const points: TimelinePoint[] = [];
-    for (const item of candidate) {
-      const row = asRecord(item);
-      if (!row) {
-        continue;
-      }
-
-      const score =
-        asNumber(row.score) ??
-        asNumber(row.quality_score) ??
-        asNumber(row.answer_relevance_score) ??
-        asNumber(row.faithfulness_score) ??
-        asNumber(row.value);
-      if (score == null) {
-        continue;
-      }
-
-      const rawLabel =
-        (typeof row.label === "string" && row.label.trim()) ||
-        (typeof row.timestamp === "string" && row.timestamp.trim()) ||
-        (typeof row.date === "string" && row.date.trim()) ||
-        `Point ${points.length + 1}`;
-
-      points.push({
-        label: rawLabel,
-        score: Math.max(0, Math.min(1, score)),
-      });
+    if (normalized != null && normalized >= 0.7) {
+      return "Degraded";
     }
-
-    if (points.length > 0) {
-      return points;
+    if (normalized != null) {
+      return "Critical";
     }
   }
-
-  return [];
+  return run.statusLabel;
 }
 
-function parseTagsCsv(rawTags: string): string[] {
-  const parts = rawTags
-    .split(",")
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-
-  return Array.from(new Set(parts));
-}
-
-function parseMetadataJson(
-  rawMetadata: string,
-): Record<string, unknown> | undefined {
-  const normalized = rawMetadata.trim();
-  if (!normalized) {
-    return undefined;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(normalized);
-  } catch {
-    throw new Error("Metadata must be valid JSON.");
-  }
-
-  const record = asRecord(parsed);
-  if (!record) {
-    throw new Error("Metadata must be a JSON object.");
-  }
-
-  return record;
-}
-
-function parseMetricOptionsJson(
-  rawMetricOptions: string,
-): Record<string, boolean | number | string> | undefined {
-  const normalized = rawMetricOptions.trim();
-  if (!normalized) {
-    return undefined;
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(normalized);
-  } catch {
-    throw new Error("Metric options must be valid JSON.");
-  }
-
-  const record = asRecord(parsed);
-  if (!record) {
-    throw new Error("Metric options must be a JSON object.");
-  }
-
-  const normalizedOptions: Record<string, boolean | number | string> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
-      normalizedOptions[key] = value;
-      continue;
-    }
-    throw new Error(
-      `Metric option "${key}" must be a string, number, or boolean.`,
-    );
-  }
-
-  return normalizedOptions;
-}
-
-function KpiCard({ title, value, caption }: SummaryMetric) {
-  return (
-    <article className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="mb-1 text-xs font-bold tracking-[0.16em] text-[#6f6a8d] uppercase">
-        {title}
-      </p>
-      <p className="text-2xl font-extrabold text-[#2a2640]">{value}</p>
-      <p className="mt-2 text-xs text-[#6a6780]">{caption}</p>
-    </article>
+function nextRunEtaLabel(): string {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(
+    now.getHours() + 3,
+    now.getMinutes() + 24,
+    now.getSeconds() + 12,
   );
+  const diffMs = Math.max(0, next.getTime() - now.getTime());
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
 }
-
-function MetricSparkline({ points }: { points: TimelinePoint[] }) {
-  if (points.length === 0) {
-    return (
-      <p className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-        Quality trend data is not available for this run yet.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {points.map((point) => (
-        <li
-          key={`${point.label}:${point.score}`}
-          className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-2"
-        >
-          <p
-            className="mb-1 truncate text-xs font-semibold text-[#5f5a74]"
-            title={point.label}
-          >
-            {point.label}
-          </p>
-          <div className="h-2 overflow-hidden rounded bg-[#dfdcf3]">
-            <div
-              className="h-full rounded bg-[#3525cd]"
-              style={{ width: `${Math.round(point.score * 100)}%` }}
-            />
-          </div>
-          <p className="mt-1 text-xs text-[#68647b]">
-            {formatPercent(point.score)}
-          </p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-type EvaluationsPageProps = {
-  initialRunId?: string | null;
-};
 
 export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const queryClient = useQueryClient();
@@ -577,108 +296,138 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
 
+  const runModalRef = useRef<HTMLDivElement | null>(null);
+  const createSetModalRef = useRef<HTMLDivElement | null>(null);
+
   const role = state.session?.role ?? null;
   const canCreateSet = role === "owner" || role === "admin";
   const canManageQuestions = role === "owner" || role === "admin";
   const canRun = role === "owner" || role === "admin";
 
-  const lowScoreThreshold = parseScoreThresholdEnv(
-    process.env.NEXT_PUBLIC_EVALUATION_LOW_SCORE_THRESHOLD,
-    LOW_SCORE_THRESHOLD,
-  );
-  const highLatencyThresholdMs = parseHighLatencyThresholdMs();
-  const runResultsPageSize = parseResultsPageSize();
-  const exportFeatureEnabled = getFrontendRuntimeConfig().features.exports;
-  const exportEndpointTemplate = exportFeatureEnabled
-    ? (process.env.NEXT_PUBLIC_EVALUATION_RESULTS_EXPORT_URL?.trim() ?? "")
-    : "";
-
-  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [latestRunBySet, setLatestRunBySet] = useState<Record<string, string>>(
-    {},
-  );
-  const [latestRunSummaryBySet] = useState<
-    Record<string, EvaluationSetLatestRunSummary>
+  const [selectedSetPreferenceId, setSelectedSetPreferenceId] = useState<
+    string | null
+  >(null);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [resultOffsetByRunId, setResultOffsetByRunId] = useState<
+    Record<string, number>
   >({});
-  const [isCreateSetModalOpen, setIsCreateSetModalOpen] = useState(false);
-  const [isRunModalOpen, setIsRunModalOpen] = useState(false);
-  const runModalRef = useRef<HTMLDivElement | null>(null);
-  const createSetModalRef = useRef<HTMLDivElement | null>(null);
-
-  const [setName, setSetName] = useState("");
-  const [setDescription, setSetDescription] = useState("");
-  const [setFormError, setSetFormError] = useState<string | null>(null);
-
-  const [questionText, setQuestionText] = useState("");
-  const [expectedAnswer, setExpectedAnswer] = useState("");
-  const [expectedDocumentId, setExpectedDocumentId] = useState<string>("");
-  const [expectedPageNumber, setExpectedPageNumber] = useState("");
-  const [questionTags, setQuestionTags] = useState("");
-  const [questionMetadata, setQuestionMetadata] = useState("");
-  const [questionFormError, setQuestionFormError] = useState<string | null>(
-    null,
+  const [runHistory] = useState<EvaluationRunHistoryRecord[]>(() =>
+    readEvaluationRunHistory(),
   );
 
-  const [runTopK, setRunTopK] = useState(parseDefaultTopK);
+  const [runFilters, setRunFilters] = useState<RunFilters>(runFiltersDefaults);
+  const [resultFilters, setResultFilters] = useState<ResultFilters>(
+    resultFiltersDefaults,
+  );
+  const [datasetSearch, setDatasetSearch] = useState("");
+  const [questionFilters, setQuestionFilters] =
+    useState<DatasetQuestionFilters>(questionFiltersDefaults);
+
+  const [isRunDialogOpen, setIsRunDialogOpen] = useState(false);
+  const [isCreateSetDialogOpen, setIsCreateSetDialogOpen] = useState(false);
+
+  const [createSetName, setCreateSetName] = useState("");
+  const [createSetDescription, setCreateSetDescription] = useState("");
+  const [createSetError, setCreateSetError] = useState<string | null>(null);
+
+  const [addQuestionDraft, setAddQuestionDraft] = useState<AddQuestionDraft>(
+    questionDraftDefaults,
+  );
+  const [addQuestionError, setAddQuestionError] = useState<string | null>(null);
+
+  const [runTopK, setRunTopK] = useState(5);
   const [runRerank, setRunRerank] = useState(true);
   const [runModelName, setRunModelName] = useState("");
   const [runMetricOptions, setRunMetricOptions] = useState("");
   const [runDocumentIds, setRunDocumentIds] = useState<string[]>([]);
-  const [runFormError, setRunFormError] = useState<string | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
 
-  const [resultFilterMode, setResultFilterMode] =
-    useState<ResultFilterMode>("all");
-  const [resultOffsetByRunId, setResultOffsetByRunId] = useState<
-    Record<string, number>
-  >({});
-  const [expandedResultIdsByRunId, setExpandedResultIdsByRunId] = useState<
-    Record<string, Record<string, boolean>>
-  >({});
-  const runPollIntervalMs = parseRunPollIntervalMs();
-
-  const evaluationSetsQuery = useQuery({
-    queryKey: queryKeys.evaluations.sets,
-    queryFn: () =>
-      listEvaluationSets({
-        limit: EVALUATION_SET_LIMIT,
-        offset: 0,
-      }),
+  useOverlayFocus({
+    isOpen: isRunDialogOpen,
+    containerRef: runModalRef,
+    onClose: () => setIsRunDialogOpen(false),
+  });
+  useOverlayFocus({
+    isOpen: isCreateSetDialogOpen,
+    containerRef: createSetModalRef,
+    onClose: () => setIsCreateSetDialogOpen(false),
   });
 
-  const evaluationSetItems = useMemo(
-    () => evaluationSetsQuery.data?.items ?? [],
-    [evaluationSetsQuery.data?.items],
+  const setsQuery = useQuery({
+    queryKey: queryKeys.evaluations.sets,
+    queryFn: () =>
+      listEvaluationSets({ limit: EVALUATION_SET_LIMIT, offset: 0 }),
+  });
+
+  const setItems = useMemo(
+    () => setsQuery.data?.items ?? [],
+    [setsQuery.data?.items],
   );
-  const selectedEvaluationSetId = useMemo(() => {
-    if (evaluationSetItems.length === 0) {
+
+  const selectedSetId = useMemo(() => {
+    if (setItems.length === 0) {
       return null;
     }
-
     if (
-      selectedSetId &&
-      evaluationSetItems.some(
-        (item) => item.evaluation_set_id === selectedSetId,
+      selectedSetPreferenceId &&
+      setItems.some(
+        (setItem) => setItem.evaluation_set_id === selectedSetPreferenceId,
       )
     ) {
-      return selectedSetId;
+      return selectedSetPreferenceId;
     }
+    return setItems[0].evaluation_set_id;
+  }, [selectedSetPreferenceId, setItems]);
 
-    return evaluationSetItems[0].evaluation_set_id;
-  }, [evaluationSetItems, selectedSetId]);
+  const selectedSet =
+    setItems.find((setItem) => setItem.evaluation_set_id === selectedSetId) ??
+    null;
 
   const routeRunIdRaw = initialRunId ?? searchParams.get("runId");
   const routeRunId =
-    routeRunIdRaw && routeRunIdRaw.trim().length > 0
-      ? routeRunIdRaw.trim()
-      : null;
+    routeRunIdRaw && routeRunIdRaw.trim() ? routeRunIdRaw.trim() : null;
+
+  const latestRunBySet = useMemo(() => {
+    const map = new Map<string, string>();
+    const sorted = [...runHistory].sort((left, right) => {
+      const leftTs = Date.parse(left.updatedAt);
+      const rightTs = Date.parse(right.updatedAt);
+      return (
+        (Number.isFinite(rightTs) ? rightTs : 0) -
+        (Number.isFinite(leftTs) ? leftTs : 0)
+      );
+    });
+    for (const row of sorted) {
+      if (!map.has(row.datasetId)) {
+        map.set(row.datasetId, row.runId);
+      }
+    }
+    return map;
+  }, [runHistory]);
+
   const activeRunId =
     routeRunId ??
-    (selectedEvaluationSetId
-      ? (latestRunBySet[selectedEvaluationSetId] ?? null)
-      : null);
-  const runResultStateKey = activeRunId ?? "__no_run__";
-  const resultOffset = resultOffsetByRunId[runResultStateKey] ?? 0;
-  const expandedResultIds = expandedResultIdsByRunId[runResultStateKey] ?? {};
+    selectedRunId ??
+    (selectedSetId ? (latestRunBySet.get(selectedSetId) ?? null) : null);
+
+  const resultOffset = resultOffsetByRunId[activeRunId ?? "__none__"] ?? 0;
+
+  const questionsQuery = useQuery({
+    queryKey: queryKeys.evaluations.setQuestions(selectedSetId ?? "", {
+      limit: EVALUATION_QUESTION_LIMIT,
+      offset: 0,
+    }),
+    queryFn: () => {
+      if (!selectedSetId) {
+        throw new Error("Evaluation set is required.");
+      }
+      return listEvaluationQuestions(selectedSetId, {
+        limit: EVALUATION_QUESTION_LIMIT,
+        offset: 0,
+      });
+    },
+    enabled: Boolean(selectedSetId),
+  });
 
   const documentsQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -696,205 +445,117 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       }),
   });
 
-  const questionsQuery = useQuery({
-    queryKey: queryKeys.evaluations.setQuestions(
-      selectedEvaluationSetId ?? "",
-      {
-        limit: EVALUATION_QUESTION_LIMIT,
-        offset: 0,
-      },
-    ),
-    queryFn: () => {
-      if (!selectedEvaluationSetId) {
-        throw new Error("Evaluation set is required");
-      }
-      return listEvaluationQuestions(selectedEvaluationSetId, {
-        limit: EVALUATION_QUESTION_LIMIT,
-        offset: 0,
-      });
-    },
-    enabled: Boolean(selectedEvaluationSetId),
-  });
-
   const runDetailQuery = useQuery({
     queryKey: queryKeys.evaluations.run(activeRunId ?? "", {
-      limit: runResultsPageSize,
+      limit: EVALUATION_RESULTS_PAGE_SIZE,
       offset: resultOffset,
     }),
     queryFn: () => {
       if (!activeRunId) {
-        throw new Error("Evaluation run is required");
+        throw new Error("Evaluation run is required.");
       }
       return getEvaluationRun(activeRunId, {
-        limit: runResultsPageSize,
+        limit: EVALUATION_RESULTS_PAGE_SIZE,
         offset: resultOffset,
       });
     },
     enabled: Boolean(activeRunId),
     refetchInterval: (query) => {
-      const payload = query.state.data as
-        | EvaluationRunDetailResponse
-        | undefined;
-      if (!payload) {
-        return runPollIntervalMs;
+      const run = query.state.data;
+      if (!run) {
+        return RUN_POLL_INTERVAL_MS;
       }
-      return payload.status === "queued" || payload.status === "running"
-        ? runPollIntervalMs
+      return run.status === "queued" || run.status === "running"
+        ? RUN_POLL_INTERVAL_MS
         : false;
     },
   });
 
-  const accessibleDocuments = useMemo(
-    () => documentsQuery.data?.items ?? [],
-    [documentsQuery.data?.items],
-  );
-  const accessibleDocumentIdSet = useMemo(
-    () => new Set(accessibleDocuments.map((document) => document.document_id)),
-    [accessibleDocuments],
-  );
-  const indexedDocuments = useMemo(
-    () =>
-      accessibleDocuments.filter((document) => document.status === "indexed"),
-    [accessibleDocuments],
-  );
-  const indexedDocumentIdSet = useMemo(
-    () => new Set(indexedDocuments.map((document) => document.document_id)),
-    [indexedDocuments],
-  );
-
-  const filteredRunDocumentIds = useMemo(
-    () =>
-      runDocumentIds.filter((documentId) =>
-        indexedDocumentIdSet.has(documentId),
-      ),
-    [runDocumentIds, indexedDocumentIdSet],
-  );
-
-  const safeExpectedDocumentId =
-    expectedDocumentId && accessibleDocumentIdSet.has(expectedDocumentId)
-      ? expectedDocumentId
-      : "";
-
   const createSetMutation = useMutation({
     mutationFn: createEvaluationSet,
     onSuccess: async (created) => {
-      setSetName("");
-      setSetDescription("");
-      setSetFormError(null);
-      setIsCreateSetModalOpen(false);
-      setSelectedSetId(created.evaluation_set_id);
+      setCreateSetName("");
+      setCreateSetDescription("");
+      setCreateSetError(null);
+      setIsCreateSetDialogOpen(false);
+      setSelectedSetPreferenceId(created.evaluation_set_id);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.evaluations.sets,
       });
     },
-    onError: (error) => {
-      setSetFormError(getApiErrorMessage(error));
-    },
+    onError: (error) => setCreateSetError(getApiErrorMessage(error)),
   });
 
-  const createQuestionMutation = useMutation({
+  const addQuestionMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedEvaluationSetId) {
-        throw new Error("Evaluation set is required");
+      if (!selectedSetId) {
+        throw new Error("Select an evaluation set first.");
       }
-
-      const normalizedQuestion = questionText.trim();
-      if (!normalizedQuestion) {
+      if (!addQuestionDraft.question.trim()) {
         throw new Error("Question is required.");
       }
 
-      const parsedPageNumber = expectedPageNumber.trim();
-      let pageNumber: number | null | undefined = undefined;
-      if (parsedPageNumber.length > 0) {
-        const parsed = Number.parseInt(parsedPageNumber, 10);
-        if (!Number.isFinite(parsed) || parsed < 1) {
-          throw new Error("Expected page must be a positive integer.");
-        }
-        pageNumber = parsed;
-      }
+      const expectedPage = normalizePage(addQuestionDraft.expectedPage);
+      const tags = parseTagsCsv(addQuestionDraft.tags);
 
-      const tags = parseTagsCsv(questionTags);
-      const metadata = parseMetadataJson(questionMetadata);
-
-      return createEvaluationQuestion(selectedEvaluationSetId, {
-        question: normalizedQuestion,
-        expected_answer: expectedAnswer.trim() || null,
-        expected_document_id: safeExpectedDocumentId || null,
-        expected_page_number: pageNumber,
+      return createEvaluationQuestion(selectedSetId, {
+        question: addQuestionDraft.question.trim(),
+        expected_answer: addQuestionDraft.expectedAnswer.trim() || null,
+        expected_page_number: expectedPage,
+        expected_document_id: null,
         tags,
-        metadata,
       });
     },
     onSuccess: async () => {
-      setQuestionText("");
-      setExpectedAnswer("");
-      setExpectedDocumentId("");
-      setExpectedPageNumber("");
-      setQuestionTags("");
-      setQuestionMetadata("");
-      setQuestionFormError(null);
-      if (selectedEvaluationSetId) {
+      setAddQuestionDraft(questionDraftDefaults());
+      setAddQuestionError(null);
+      if (selectedSetId) {
         await queryClient.invalidateQueries({
-          queryKey: queryKeys.evaluations.setQuestions(
-            selectedEvaluationSetId,
-            {
-              limit: EVALUATION_QUESTION_LIMIT,
-              offset: 0,
-            },
-          ),
+          queryKey: queryKeys.evaluations.setQuestions(selectedSetId, {
+            limit: EVALUATION_QUESTION_LIMIT,
+            offset: 0,
+          }),
         });
       }
       await queryClient.invalidateQueries({
         queryKey: queryKeys.evaluations.sets,
       });
     },
-    onError: (error) => {
-      setQuestionFormError(getApiErrorMessage(error));
-    },
+    onError: (error) => setAddQuestionError(getApiErrorMessage(error)),
   });
 
   const runMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedEvaluationSetId) {
+      if (!selectedSetId) {
         throw new Error("Select an evaluation set before running.");
       }
       if (!canRun) {
         throw new Error("Only owner/admin can queue evaluation runs.");
       }
 
-      const selectedTopK = Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, runTopK));
-      const selectedDocumentIds = runDocumentIds.filter((documentId) =>
-        accessibleDocumentIdSet.has(documentId),
-      );
-      if (selectedDocumentIds.length !== runDocumentIds.length) {
-        throw new Error(
-          "One or more selected documents are no longer accessible. Refresh and retry.",
-        );
-      }
       const metricOptions = parseMetricOptionsJson(runMetricOptions);
       const modelName = runModelName.trim() || null;
+      const topK = Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, runTopK));
 
       return runEvaluation({
-        evaluation_set_id: selectedEvaluationSetId,
+        evaluation_set_id: selectedSetId,
         config: {
-          top_k: selectedTopK,
+          top_k: topK,
           rerank: runRerank,
           model_name: modelName,
-          selected_document_ids: selectedDocumentIds,
+          selected_document_ids: runDocumentIds,
           metric_options: metricOptions,
         },
       });
     },
     onSuccess: async (result) => {
-      if (selectedEvaluationSetId) {
-        setLatestRunBySet((previous) => ({
-          ...previous,
-          [selectedEvaluationSetId]: result.evaluation_run_id,
-        }));
-      }
-
-      setRunFormError(null);
-      setIsRunModalOpen(false);
+      setRunError(null);
+      setIsRunDialogOpen(false);
+      setSelectedRunId(result.evaluation_run_id);
+      setResultOffsetByRunId((previous) => ({
+        ...previous,
+        [result.evaluation_run_id]: 0,
+      }));
       await queryClient.invalidateQueries({
         queryKey: queryKeys.evaluations.sets,
       });
@@ -904,1529 +565,709 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     },
     onError: (error) => {
       if (isApiClientError(error) && error.status === 409) {
-        setRunFormError(
+        setRunError(
           "An evaluation run is already active for this set. Open the existing run or wait for completion.",
         );
         return;
       }
-      setRunFormError(getApiErrorMessage(error));
+      setRunError(getApiErrorMessage(error));
     },
   });
 
-  const closeRunModal = useCallback(() => {
-    if (runMutation.isPending) {
+  const indexedDocuments = useMemo(
+    () =>
+      (documentsQuery.data?.items ?? []).filter(
+        (document) => document.status === "indexed",
+      ),
+    [documentsQuery.data?.items],
+  );
+
+  const runDetail = runDetailQuery.data ?? null;
+
+  useEffect(() => {
+    if (!runDetail) {
       return;
     }
-    setRunFormError(null);
-    setIsRunModalOpen(false);
-  }, [runMutation.isPending, setIsRunModalOpen, setRunFormError]);
 
-  const closeCreateSetModal = useCallback(() => {
-    if (createSetMutation.isPending) {
-      return;
-    }
-    setSetFormError(null);
-    setIsCreateSetModalOpen(false);
-  }, [createSetMutation.isPending, setIsCreateSetModalOpen, setSetFormError]);
+    const dataset =
+      setItems.find(
+        (setItem) => setItem.evaluation_set_id === runDetail.evaluation_set_id,
+      ) ?? null;
+    const item = buildRunListItemFromDetail({
+      run: runDetail,
+      dataset,
+      source: "live",
+    });
 
-  useOverlayFocus({
-    isOpen: isRunModalOpen,
-    containerRef: runModalRef,
-    onClose: closeRunModal,
-  });
-
-  useOverlayFocus({
-    isOpen: isCreateSetModalOpen,
-    containerRef: createSetModalRef,
-    onClose: closeCreateSetModal,
-  });
-
-  const selectedSet =
-    evaluationSetItems.find(
-      (item) => item.evaluation_set_id === selectedEvaluationSetId,
-    ) ?? null;
-
-  const runDetails = runDetailQuery.data ?? null;
-  const summaryMetrics = useMemo(
-    () => summarizeRunMetrics(runDetails),
-    [runDetails],
-  );
-
-  const latestRunQualityScore = useMemo(() => {
-    const summary = asRecord(runDetails?.summary);
-    return (
-      asNumber(summary?.faithfulness_score) ??
-      asNumber(summary?.answer_relevance_score) ??
-      asNumber(summary?.citation_accuracy_score) ??
-      null
-    );
-  }, [runDetails?.summary]);
-
-  const summaryTimeline = buildTimelineFromSummary(
-    asRecord(runDetails?.summary),
-  );
-  const timelinePoints: TimelinePoint[] = summaryTimeline;
-
-  const results = useMemo(
-    () => runDetails?.results.items ?? [],
-    [runDetails?.results.items],
-  );
-  const matchesResultFilter = useCallback(
-    (
-      mode: ResultFilterMode,
-      item: EvaluationRunDetailResponse["results"]["items"][number],
-    ): boolean => {
-      const qualityScore = computeResultQualityScore(item);
-      const lowScore = qualityScore != null && qualityScore < lowScoreThreshold;
-      const failed = item.status === "failed";
-      const highLatency =
-        item.latency_ms != null && item.latency_ms > highLatencyThresholdMs;
-      const notFound = isNotFoundResult(item);
-      const citationIssue =
-        item.citation_accuracy_score != null &&
-        item.citation_accuracy_score < lowScoreThreshold;
-
-      if (mode === "all") {
-        return true;
-      }
-      if (mode === "problematic") {
-        return failed || lowScore;
-      }
-      if (mode === "failed") {
-        return failed;
-      }
-      if (mode === "low_score") {
-        return lowScore;
-      }
-      if (mode === "high_latency") {
-        return highLatency;
-      }
-      if (mode === "not_found") {
-        return notFound;
-      }
-      if (mode === "citation_issues") {
-        return citationIssue;
-      }
-      return true;
-    },
-    [highLatencyThresholdMs, lowScoreThreshold],
-  );
-
-  const filterCounts = useMemo(() => {
-    const counts: Record<ResultFilterMode, number> = {
-      all: results.length,
-      problematic: 0,
-      failed: 0,
-      low_score: 0,
-      high_latency: 0,
-      not_found: 0,
-      citation_issues: 0,
+    const historyRow: EvaluationRunHistoryRecord = {
+      runId: item.runId,
+      runName: item.runName,
+      datasetId: item.datasetId,
+      datasetName: item.datasetName,
+      status: item.status,
+      score: item.score,
+      regressions: item.regressions,
+      startedBy: item.startedBy,
+      passRate: item.passRate,
+      citationAccuracy: item.citationAccuracy,
+      retrievalHitRate: item.retrievalHitRate,
+      latencyMsAverage: item.latencyMsAverage,
+      costUsdTotal: item.costUsdTotal,
+      durationMs: item.durationMs,
+      startedAt: item.startedAt,
+      completedAt: item.completedAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      isComparisonAvailable: item.isComparisonAvailable,
     };
-    for (const item of results) {
-      if (matchesResultFilter("problematic", item)) {
-        counts.problematic += 1;
-      }
-      if (matchesResultFilter("failed", item)) {
-        counts.failed += 1;
-      }
-      if (matchesResultFilter("low_score", item)) {
-        counts.low_score += 1;
-      }
-      if (matchesResultFilter("high_latency", item)) {
-        counts.high_latency += 1;
-      }
-      if (matchesResultFilter("not_found", item)) {
-        counts.not_found += 1;
-      }
-      if (matchesResultFilter("citation_issues", item)) {
-        counts.citation_issues += 1;
+
+    upsertEvaluationRunHistory(historyRow);
+  }, [runDetail, setItems]);
+
+  const mergedRuns = useMemo(() => {
+    const historyRows: EvaluationRunListItem[] = runHistory.map((row) => ({
+      runId: row.runId,
+      runName: row.runName,
+      datasetId: row.datasetId,
+      datasetName: row.datasetName,
+      status: row.status,
+      statusLabel: runStatusLabel(row.status),
+      score: row.score,
+      regressions: row.regressions,
+      startedBy: row.startedBy,
+      passRate: row.passRate,
+      citationAccuracy: row.citationAccuracy,
+      retrievalHitRate: row.retrievalHitRate,
+      latencyMsAverage: row.latencyMsAverage,
+      costUsdTotal: row.costUsdTotal,
+      durationMs: row.durationMs,
+      startedAt: row.startedAt,
+      completedAt: row.completedAt,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      isComparisonAvailable: row.isComparisonAvailable,
+      source: "history",
+    }));
+
+    const map = new Map<string, EvaluationRunListItem>();
+    for (const row of historyRows) {
+      map.set(row.runId, row);
+    }
+
+    if (runDetail) {
+      const dataset =
+        setItems.find(
+          (setItem) =>
+            setItem.evaluation_set_id === runDetail.evaluation_set_id,
+        ) ?? null;
+      map.set(
+        runDetail.evaluation_run_id,
+        buildRunListItemFromDetail({
+          run: runDetail,
+          dataset,
+          source: "live",
+        }),
+      );
+    }
+
+    return [...map.values()];
+  }, [runDetail, runHistory, setItems]);
+
+  const filteredRuns = useMemo(
+    () => filterAndSortRuns(mergedRuns, runFilters),
+    [mergedRuns, runFilters],
+  );
+
+  const questions = useMemo(
+    () => questionsQuery.data?.items ?? [],
+    [questionsQuery.data?.items],
+  );
+  const caseRows = useMemo(
+    () =>
+      buildCaseViews({
+        results: runDetail?.results.items ?? [],
+        questions,
+        lowScoreThreshold: LOW_SCORE_THRESHOLD,
+      }),
+    [questions, runDetail?.results.items],
+  );
+
+  const filteredCaseRows = useMemo(
+    () => filterAndSortCaseViews(caseRows, resultFilters),
+    [caseRows, resultFilters],
+  );
+
+  const activeRunSummaryItem =
+    mergedRuns.find((run) => run.runId === activeRunId) ??
+    filteredRuns[0] ??
+    null;
+
+  const runsSortedByUpdated = useMemo(
+    () =>
+      [...mergedRuns].sort(
+        (left, right) =>
+          Date.parse(right.updatedAt || right.createdAt) -
+          Date.parse(left.updatedAt || left.createdAt),
+      ),
+    [mergedRuns],
+  );
+
+  const latestRunByDataset = useMemo(() => {
+    const map = new Map<string, EvaluationRunListItem>();
+    for (const run of runsSortedByUpdated) {
+      if (!map.has(run.datasetId)) {
+        map.set(run.datasetId, run);
       }
     }
-    return counts;
-  }, [matchesResultFilter, results]);
+    return map;
+  }, [runsSortedByUpdated]);
 
-  const filteredResults = useMemo(
-    () => results.filter((item) => matchesResultFilter(resultFilterMode, item)),
-    [matchesResultFilter, resultFilterMode, results],
-  );
-
-  const currentResultsPageIndex =
-    Math.floor(resultOffset / runResultsPageSize) + 1;
-  const totalResultsCount = runDetails?.results.total ?? 0;
-  const totalResultsPages = Math.max(
-    1,
-    Math.ceil(totalResultsCount / runResultsPageSize),
-  );
-  const canLoadPreviousResultsPage = resultOffset > 0;
-  const canLoadNextResultsPage =
-    resultOffset + runResultsPageSize < totalResultsCount;
-
-  const exportHref = activeRunId
-    ? buildRunExportHref(exportEndpointTemplate, activeRunId)
-    : "";
-  const canExportCsv = exportHref.length > 0;
-  const runNotFound =
-    runDetailQuery.isError &&
-    isApiClientError(runDetailQuery.error) &&
-    runDetailQuery.error.status === 404;
-  const runProgress = useMemo(() => {
-    if (!runDetails) {
+  const previousRunForActiveSet = useMemo(() => {
+    if (!activeRunSummaryItem) {
       return null;
     }
-
-    const total = Math.max(
-      runDetails.results.total,
-      runDetails.results.items.length,
-      0,
+    const candidates = runsSortedByUpdated.filter(
+      (candidate) =>
+        candidate.datasetId === activeRunSummaryItem.datasetId &&
+        candidate.runId !== activeRunSummaryItem.runId,
     );
-    const completed = runDetails.results.items.filter(
-      (item) => item.status === "completed",
-    ).length;
-    const failed = runDetails.results.items.filter(
-      (item) => item.status === "failed",
-    ).length;
-    const terminalCount = completed + failed;
-    const ratio =
-      total > 0
-        ? Math.max(0, Math.min(1, terminalCount / total))
-        : runDetails.status === "completed"
-          ? 1
-          : 0;
-    return {
-      total,
-      completed,
-      failed,
-      terminalCount,
-      ratio,
-    };
-  }, [runDetails]);
+    return candidates[0] ?? null;
+  }, [activeRunSummaryItem, runsSortedByUpdated]);
 
-  function updateResultOffset(
-    updater: number | ((previous: number) => number),
-  ): void {
-    setResultOffsetByRunId((previous) => {
-      const current = previous[runResultStateKey] ?? 0;
-      const nextValue =
-        typeof updater === "function"
-          ? (updater as (previous: number) => number)(current)
-          : updater;
-      if (nextValue === current) {
-        return previous;
-      }
-      return {
-        ...previous,
-        [runResultStateKey]: nextValue,
-      };
-    });
-  }
-
-  function updateExpandedResultIds(
-    updater:
-      | Record<string, boolean>
-      | ((previous: Record<string, boolean>) => Record<string, boolean>),
-  ): void {
-    setExpandedResultIdsByRunId((previous) => {
-      const current = previous[runResultStateKey] ?? {};
-      const nextValue =
-        typeof updater === "function"
-          ? (
-              updater as (
-                previous: Record<string, boolean>,
-              ) => Record<string, boolean>
-            )(current)
-          : updater;
-      if (nextValue === current) {
-        return previous;
-      }
-      return {
-        ...previous,
-        [runResultStateKey]: nextValue,
-      };
-    });
-  }
-
-  const activeRunEvaluationSetId = useMemo(() => {
-    if (!routeRunId || !runDetails?.evaluation_set_id) {
-      return null;
-    }
-    return evaluationSetItems.some(
-      (item) => item.evaluation_set_id === runDetails.evaluation_set_id,
-    )
-      ? runDetails.evaluation_set_id
+  const retrievalDelta =
+    activeRunSummaryItem?.retrievalHitRate != null &&
+    previousRunForActiveSet?.retrievalHitRate != null
+      ? activeRunSummaryItem.retrievalHitRate -
+        previousRunForActiveSet.retrievalHitRate
       : null;
-  }, [evaluationSetItems, routeRunId, runDetails]);
+  const citationDelta =
+    activeRunSummaryItem?.citationAccuracy != null &&
+    previousRunForActiveSet?.citationAccuracy != null
+      ? activeRunSummaryItem.citationAccuracy -
+        previousRunForActiveSet.citationAccuracy
+      : null;
+  const passRateDelta =
+    activeRunSummaryItem?.passRate != null &&
+    previousRunForActiveSet?.passRate != null
+      ? activeRunSummaryItem.passRate - previousRunForActiveSet.passRate
+      : null;
+  const faithfulnessDelta =
+    runDetail?.summary != null && previousRunForActiveSet?.runId != null
+      ? null
+      : null;
 
-  const highlightedEvaluationSetId =
-    activeRunEvaluationSetId ?? selectedEvaluationSetId;
+  const kpiItems: EvaluationKpiItem[] = [
+    {
+      id: "retrieval-hit-rate",
+      label: "Hit Rate @ 10",
+      value:
+        activeRunSummaryItem?.retrievalHitRate != null
+          ? `${((normalizeRate(activeRunSummaryItem.retrievalHitRate) ?? 0) * 100).toFixed(1)}%`
+          : "N/A",
+      helper: "Retrieved relevant chunks for evaluated questions",
+      trendLabel: resolveKpiTrendLabel(retrievalDelta),
+      trendTone:
+        retrievalDelta == null
+          ? "muted"
+          : retrievalDelta > 0
+            ? "good"
+            : retrievalDelta < 0
+              ? "bad"
+              : "muted",
+      sparkline: retrievalDelta != null && retrievalDelta < 0 ? "drop" : "rise",
+      tone: kpiToneFromScore(activeRunSummaryItem?.retrievalHitRate ?? null),
+      unavailable: activeRunSummaryItem?.retrievalHitRate == null,
+    },
+    {
+      id: "citation-accuracy",
+      label: "Precision",
+      value:
+        activeRunSummaryItem?.citationAccuracy != null
+          ? (normalizeRate(activeRunSummaryItem.citationAccuracy) ?? 0).toFixed(
+              2,
+            )
+          : "N/A",
+      helper: "Citation-grounding precision",
+      trendLabel: resolveKpiTrendLabel(citationDelta),
+      trendTone:
+        citationDelta == null
+          ? "muted"
+          : citationDelta > 0
+            ? "good"
+            : citationDelta < 0
+              ? "bad"
+              : "muted",
+      sparkline: "flat",
+      tone: kpiToneFromScore(activeRunSummaryItem?.citationAccuracy ?? null),
+      unavailable: activeRunSummaryItem?.citationAccuracy == null,
+    },
+    {
+      id: "pass-rate",
+      label: "Recall",
+      value:
+        activeRunSummaryItem?.passRate != null
+          ? (normalizeRate(activeRunSummaryItem.passRate) ?? 0).toFixed(2)
+          : "N/A",
+      helper: "Case success coverage",
+      trendLabel: resolveKpiTrendLabel(passRateDelta),
+      trendTone:
+        passRateDelta == null
+          ? "muted"
+          : passRateDelta > 0
+            ? "good"
+            : passRateDelta < 0
+              ? "bad"
+              : "muted",
+      sparkline: passRateDelta != null && passRateDelta < 0 ? "drop" : "rise",
+      tone: kpiToneFromScore(activeRunSummaryItem?.passRate ?? null),
+      unavailable: activeRunSummaryItem?.passRate == null,
+    },
+    {
+      id: "faithfulness",
+      label: "Faithfulness",
+      value:
+        runDetail?.summary != null
+          ? `${((normalizeRate(metricFromSummary(runDetail.summary, ["faithfulness_score"])) ?? 0) * 100).toFixed(1)}%`
+          : "N/A",
+      helper: "Grounding faithfulness score",
+      trendLabel: resolveKpiTrendLabel(faithfulnessDelta),
+      trendTone: "muted",
+      sparkline: "wave",
+      tone: kpiToneFromScore(
+        runDetail?.summary != null
+          ? normalizeRate(
+              metricFromSummary(runDetail.summary, ["faithfulness_score"]),
+            )
+          : null,
+      ),
+      unavailable: runDetail?.summary == null,
+    },
+  ];
 
-  const latestRunSummaryForDisplayBySet = useMemo(() => {
-    if (!runDetails) {
-      return latestRunSummaryBySet;
+  const runOwnerOptions = useMemo(() => {
+    const owners = new Set<string>();
+    for (const run of mergedRuns) {
+      owners.add(run.startedBy ?? "unavailable");
     }
-    const targetEvaluationSetId =
-      activeRunEvaluationSetId ?? selectedEvaluationSetId;
-    if (!targetEvaluationSetId) {
-      return latestRunSummaryBySet;
-    }
-    return {
-      ...latestRunSummaryBySet,
-      [targetEvaluationSetId]: {
-        status: runDetails.status,
-        completedAt: runDetails.completed_at,
-        qualityScore: latestRunQualityScore,
-      },
-    };
-  }, [
-    activeRunEvaluationSetId,
-    latestRunQualityScore,
-    latestRunSummaryBySet,
-    runDetails,
-    selectedEvaluationSetId,
-  ]);
+    return [...owners].sort((left, right) => left.localeCompare(right));
+  }, [mergedRuns]);
+
+  const datasetOptions = setItems.map((setItem) => ({
+    id: setItem.evaluation_set_id,
+    name: setItem.name,
+  }));
+
+  const setOverviewRows = useMemo<EvaluationSetOverviewRow[]>(() => {
+    return setItems.map((setItem) => {
+      const latestRun = latestRunByDataset.get(setItem.evaluation_set_id);
+      return {
+        setId: setItem.evaluation_set_id,
+        name: setItem.name,
+        author: latestRun?.startedBy ?? "Unavailable",
+        questionCount: setItem.question_count,
+        latencyMs: latestRun?.latencyMsAverage ?? null,
+        score: latestRun?.score ?? null,
+        statusLabel: setStatusLabel(latestRun),
+        statusTone: setStatusToneFromScore(latestRun?.score ?? null),
+      };
+    });
+  }, [latestRunByDataset, setItems]);
+
+  const recentRunItems = useMemo(
+    () =>
+      runsSortedByUpdated.slice(0, 4).map((run) => ({
+        runId: run.runId,
+        runName: run.runName,
+        status: run.status,
+        createdAt: run.createdAt,
+        durationMs: run.durationMs,
+        modelLabel: run.source === "live" ? "LLM: Configured" : null,
+        rerankerLabel: run.source === "live" ? "Reranker: Configured" : null,
+      })),
+    [runsSortedByUpdated],
+  );
 
   const listForbidden =
-    isForbiddenError(evaluationSetsQuery.error) ||
-    isForbiddenError(questionsQuery.error);
+    isForbiddenError(setsQuery.error) || isForbiddenError(questionsQuery.error);
   if (listForbidden) {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
           title="Evaluation access is restricted"
-          description="Your role does not have permission to view evaluation resources in this organization."
+          description="Your role does not have permission to view evaluations in this organization."
           requestId={extractRequestIdFromError(
-            evaluationSetsQuery.error ?? questionsQuery.error,
+            setsQuery.error ?? questionsQuery.error,
           )}
         />
       </section>
     );
   }
 
-  const emptySetState =
-    !evaluationSetsQuery.isLoading &&
-    !evaluationSetsQuery.isError &&
-    (evaluationSetsQuery.data?.items.length ?? 0) === 0;
+  const listUnavailable =
+    setsQuery.isError &&
+    isApiClientError(setsQuery.error) &&
+    setsQuery.error.status === 503;
 
   return (
-    <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
-      <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-              Rudix Evaluations
-            </p>
-            <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-              Evaluation page and dashboard
-            </h1>
-            <p className="max-w-3xl text-sm text-[#68647b]">
-              Create evaluation sets, manage questions, run benchmarks, and
-              inspect low-scoring or failed answers.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/documents"
-              className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              Upload document
-            </Link>
-            <Link
-              href="/chat"
-              className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              New chat
-            </Link>
-            <Link
-              href="/rag-pipeline"
-              className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              Pipeline explorer
-            </Link>
-          </div>
-        </div>
-      </header>
+    <section className="space-y-8 px-4 py-5 lg:px-8 lg:py-8">
+      <EvaluationsPageHeader
+        canRun={canRun}
+        canCreateSet={canCreateSet}
+        runDisabledReason="Only owner/admin can start evaluation runs."
+        onStartRun={() => {
+          setRunError(null);
+          setIsRunDialogOpen(true);
+        }}
+        onCreateSet={() => {
+          setCreateSetError(null);
+          setIsCreateSetDialogOpen(true);
+        }}
+      />
 
-      <div className="grid gap-4 xl:grid-cols-[340px_1fr]">
-        <aside className="space-y-4">
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                Evaluation sets
-              </h2>
-              {canCreateSet ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSetFormError(null);
-                    setIsCreateSetModalOpen(true);
-                  }}
-                  className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2b1fa8]"
-                >
-                  Create evaluation set
-                </button>
-              ) : null}
-            </div>
-            {!canCreateSet ? (
-              <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Your role can view evaluation sets but only owner/admin can
-                create new sets.
-              </p>
-            ) : (
-              <p className="mb-4 text-xs text-[#6a6780]">
-                Create and organize evaluation sets for your active
-                organization.
-              </p>
-            )}
+      {listUnavailable ? (
+        <ErrorState
+          title="Evaluation backend is currently unavailable"
+          description="Evaluation endpoints are temporarily unavailable. Retry shortly."
+          error={setsQuery.error}
+          onRetry={() => void setsQuery.refetch()}
+        />
+      ) : null}
 
-            {evaluationSetsQuery.isLoading ? (
-              <LoadingState compact title="Loading evaluation sets..." />
-            ) : evaluationSetsQuery.isError ? (
-              <ErrorState
-                compact
-                error={evaluationSetsQuery.error}
-                description={getApiErrorMessage(evaluationSetsQuery.error)}
-                onRetry={() => void evaluationSetsQuery.refetch()}
-              />
-            ) : emptySetState ? (
-              <EmptyState
-                compact
-                title="No evaluation sets yet. Create one to start question benchmarking."
-              />
-            ) : (
-              <ul className="max-h-[380px] space-y-2 overflow-auto pr-1">
-                {evaluationSetItems.map((item) => {
-                  const latestSummary =
-                    latestRunSummaryForDisplayBySet[item.evaluation_set_id];
-                  return (
-                    <li key={item.evaluation_set_id}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSetId(item.evaluation_set_id)}
-                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                          item.evaluation_set_id === highlightedEvaluationSetId
-                            ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
-                            : "border-[#e4e1f2] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
-                        }`}
-                      >
-                        <p className="font-semibold">{item.name}</p>
-                        {item.description ? (
-                          <p className="mt-1 line-clamp-2 text-xs text-[#6a6780]">
-                            {item.description}
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-xs text-[#6a6780]">
-                            No description.
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs">
-                          {item.question_count} questions
-                        </p>
-                        <p className="text-xs text-[#6a6780]">
-                          Created: {formatDate(item.created_at)}
-                        </p>
-                        <p className="text-xs text-[#6a6780]">
-                          Updated: {formatDate(item.updated_at)}
-                        </p>
-                        {latestSummary ? (
-                          <p className="mt-1 text-xs text-[#4f4b63]">
-                            Latest run: {latestSummary.status}
-                            {latestSummary.qualityScore != null
-                              ? ` • quality ${formatPercent(latestSummary.qualityScore)}`
-                              : ""}
-                            {latestSummary.completedAt
-                              ? ` • ${formatDate(latestSummary.completedAt)}`
-                              : ""}
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-xs text-[#6a6780]">
-                            Latest run: Not available yet.
-                          </p>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+      <EvaluationKpiGrid items={kpiItems} />
 
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Run controls
-            </h2>
-            {selectedSet ? (
-              <div className="space-y-3">
-                <p className="text-sm text-[#4f4b63]">
-                  Selected set:{" "}
-                  <span className="font-semibold text-[#2f2a46]">
-                    {selectedSet.name}
-                  </span>
-                </p>
-                <p className="text-xs text-[#6a6780]">
-                  Configure top-k retrieval, rerank behavior, optional model
-                  override, metric options, and document scope in the run modal.
-                </p>
-                {activeRunId ? (
-                  <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#5f5a74]">
-                    Active run detail:{" "}
-                    <span className="font-semibold text-[#2f2a46]">
-                      {activeRunId}
-                    </span>
-                  </p>
-                ) : null}
-
-                {!canRun ? (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Your role can inspect results but only owner/admin can run
-                    evaluations.
-                  </p>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRunFormError(null);
-                    setIsRunModalOpen(true);
-                  }}
-                  disabled={!canRun || !selectedEvaluationSetId}
-                  className="w-full rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Run evaluation
-                </button>
-              </div>
-            ) : (
-              <p className="text-sm text-[#68647b]">
-                Select an evaluation set to configure and run it.
-              </p>
-            )}
-          </section>
-        </aside>
-
-        <div className="space-y-4">
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Question management
-            </h2>
-
-            {!selectedEvaluationSetId ? (
-              <p className="text-sm text-[#68647b]">
-                Select a set before adding or reviewing questions.
-              </p>
-            ) : (
-              <>
-                {canManageQuestions ? (
-                  <form
-                    className="mb-4 grid gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 lg:grid-cols-2"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      setQuestionFormError(null);
-                      createQuestionMutation.mutate();
-                    }}
-                  >
-                    <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Question
-                      </span>
-                      <textarea
-                        value={questionText}
-                        onChange={(event) =>
-                          setQuestionText(event.target.value)
-                        }
-                        rows={2}
-                        className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                        placeholder="What is the retention policy for invoices?"
-                      />
-                    </label>
-
-                    <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Expected answer
-                      </span>
-                      <textarea
-                        value={expectedAnswer}
-                        onChange={(event) =>
-                          setExpectedAnswer(event.target.value)
-                        }
-                        rows={2}
-                        className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                        placeholder="Optional expected answer for quality scoring"
-                      />
-                    </label>
-
-                    <label className="grid gap-1">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Expected document
-                      </span>
-                      <select
-                        value={safeExpectedDocumentId}
-                        onChange={(event) =>
-                          setExpectedDocumentId(event.target.value)
-                        }
-                        className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                      >
-                        <option value="">Not specified</option>
-                        {accessibleDocuments.map((document) => (
-                          <option
-                            key={document.document_id}
-                            value={document.document_id}
-                          >
-                            {document.filename}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="grid gap-1">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Expected page
-                      </span>
-                      <input
-                        value={expectedPageNumber}
-                        onChange={(event) =>
-                          setExpectedPageNumber(event.target.value)
-                        }
-                        className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                        placeholder="Optional"
-                      />
-                    </label>
-
-                    <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Tags (comma separated)
-                      </span>
-                      <input
-                        value={questionTags}
-                        onChange={(event) =>
-                          setQuestionTags(event.target.value)
-                        }
-                        className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                        placeholder="invoice, policy, legal"
-                      />
-                    </label>
-
-                    <label className="grid gap-1 lg:col-span-2">
-                      <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Metadata (JSON object)
-                      </span>
-                      <textarea
-                        value={questionMetadata}
-                        onChange={(event) =>
-                          setQuestionMetadata(event.target.value)
-                        }
-                        rows={3}
-                        className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                        placeholder='{"difficulty":"medium","owner":"qa-team"}'
-                      />
-                    </label>
-
-                    {questionFormError ? (
-                      <p className="text-xs text-rose-700 lg:col-span-2">
-                        {questionFormError}
-                      </p>
-                    ) : null}
-
-                    <button
-                      type="submit"
-                      disabled={createQuestionMutation.isPending}
-                      className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 lg:col-span-2"
-                    >
-                      {createQuestionMutation.isPending
-                        ? "Adding question..."
-                        : "Add question"}
-                    </button>
-                  </form>
-                ) : (
-                  <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    Your role can view questions but only owner/admin can add
-                    new questions.
-                  </p>
-                )}
-
-                {questionsQuery.isLoading ? (
-                  <LoadingState compact title="Loading questions..." />
-                ) : questionsQuery.isError ? (
-                  <ErrorState
-                    compact
-                    error={questionsQuery.error}
-                    description={getApiErrorMessage(questionsQuery.error)}
-                    onRetry={() => void questionsQuery.refetch()}
-                  />
-                ) : (questionsQuery.data?.items.length ?? 0) === 0 ? (
-                  <EmptyState
-                    compact
-                    title="No questions yet. Add at least one question before running evaluations."
-                  />
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-[#ebe8f7]">
-                    <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
-                      <thead className="bg-[#faf9ff]">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Question
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Expected page
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Tags
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#f0edf9]">
-                        {questionsQuery.data?.items.map((question) => (
-                          <tr key={question.evaluation_question_id}>
-                            <td className="px-3 py-2 text-[#2f2a46]">
-                              <p className="font-medium">{question.question}</p>
-                              {question.expected_answer ? (
-                                <p className="mt-1 text-xs text-[#6a6780]">
-                                  Expected answer: {question.expected_answer}
-                                </p>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-2 text-[#2f2a46]">
-                              {question.expected_page_number ?? "-"}
-                            </td>
-                            <td className="px-3 py-2 text-[#2f2a46]">
-                              {formatQuestionTags(question)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                Evaluation run dashboard
-              </h2>
-              {runDetails ? (
-                <span className={resolveStatusBadgeClass(runDetails.status)}>
-                  Run status: {runDetails.status}
-                </span>
-              ) : null}
-            </div>
-
-            {!activeRunId ? (
-              <EmptyState
-                compact
-                title="No run selected yet. Start an evaluation run to populate status, summary, and question-level metrics."
-              />
-            ) : runDetailQuery.isLoading ? (
-              <LoadingState compact title="Loading evaluation run details..." />
-            ) : runDetailQuery.isError ? (
-              <div className="space-y-2">
-                {isForbiddenError(runDetailQuery.error) ? (
-                  <ForbiddenState
-                    compact
-                    title="Run details are restricted"
-                    description="You do not have permission to inspect this evaluation run."
-                    requestId={extractRequestIdFromError(runDetailQuery.error)}
-                  />
-                ) : runNotFound ? (
-                  <EmptyState
-                    compact
-                    className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm text-[#4d4963]"
-                    title="Run not found or inaccessible."
-                    description="The evaluation run may belong to another organization or may no longer exist."
-                    action={
-                      <Link
-                        href="/evaluations"
-                        className="inline-flex rounded border border-[#cbc5e6] bg-white px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
-                      >
-                        Back to evaluations
-                      </Link>
-                    }
-                  />
-                ) : (
-                  <ErrorState
-                    compact
-                    error={runDetailQuery.error}
-                    description={getApiErrorMessage(runDetailQuery.error)}
-                    onRetry={() => void runDetailQuery.refetch()}
-                  />
-                )}
-              </div>
-            ) : runDetails ? (
-              <div className="space-y-4">
-                <dl className="grid gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Run ID
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {runDetails.evaluation_run_id}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Evaluation set
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {selectedSet?.name ?? runDetails.evaluation_set_id}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Started at
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {formatDate(
-                        runDetails.started_at ?? runDetails.created_at,
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Completed at
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {formatDate(runDetails.completed_at)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Created at
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {formatDate(runDetails.created_at)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Updated at
-                    </dt>
-                    <dd className="font-medium text-[#2f2a46]">
-                      {formatDate(runDetails.updated_at)}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="flex flex-wrap gap-2">
-                  <Link
-                    href={buildPipelineExplorerHref({
-                      runType: "evaluation.run",
-                      evaluationRunId: runDetails.evaluation_run_id,
-                    })}
-                    className="rounded border border-[#cbc5e6] bg-white px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
-                  >
-                    View pipeline run
-                  </Link>
-                </div>
-
-                {(runDetails.status === "queued" ||
-                  runDetails.status === "running") &&
-                runProgress ? (
-                  <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                    <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
-                      Run progress
-                    </h3>
-                    <p className="text-sm text-[#4d4963]">
-                      {runDetails.status === "queued"
-                        ? "Run is queued and waiting for workers."
-                        : "Run is processing question-level evaluation results."}
-                    </p>
-                    <p className="mt-1 text-xs text-[#6a6780]">
-                      Auto-refreshing every{" "}
-                      {Math.max(1, Math.round(runPollIntervalMs / 1000))}s.
-                    </p>
-                    <div className="mt-2 h-2 overflow-hidden rounded bg-[#dfdcf3]">
-                      <div
-                        className="h-full rounded bg-[#3525cd]"
-                        style={{
-                          width: `${Math.round(runProgress.ratio * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="mt-1 text-xs text-[#6a6780]">
-                      {formatInteger(runProgress.terminalCount)} /{" "}
-                      {formatInteger(runProgress.total)} completed
-                      {runProgress.failed > 0
-                        ? ` (${formatInteger(runProgress.failed)} failed)`
-                        : ""}
-                    </p>
-                  </section>
-                ) : null}
-
-                <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                  <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
-                    Run configuration
-                  </h3>
-                  <pre className="max-h-64 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
-                    {JSON.stringify(runDetails.config ?? {}, null, 2)}
-                  </pre>
-                </section>
-
-                {runDetails.failure_reason ? (
-                  <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
-                    <span className="font-semibold">Failure:</span>{" "}
-                    {runDetails.failure_reason}
-                    {runDetails.failure_type ? (
-                      <span className="ml-2 text-xs tracking-wide text-rose-700 uppercase">
-                        ({runDetails.failure_type})
-                      </span>
-                    ) : null}
-                  </p>
-                ) : null}
-
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {summaryMetrics.map((metric) => (
-                    <KpiCard key={metric.title} {...metric} />
-                  ))}
-                </div>
-
-                <section className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                  <h3 className="mb-2 text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
-                    Quality over time
-                  </h3>
-                  <MetricSparkline points={timelinePoints} />
-                </section>
-
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-xs font-bold tracking-wide text-[#5f5a74] uppercase">
-                    Question-level results
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    {canExportCsv ? (
-                      <a
-                        href={exportHref}
-                        className="rounded border border-[#3525cd] bg-[#f4f2ff] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#ede9ff]"
-                      >
-                        Export CSV
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled
-                        title="CSV export endpoint is not configured yet."
-                        className="rounded border border-[#d2cee6] bg-[#f7f6fc] px-2 py-1 font-semibold text-[#8c89a0] disabled:cursor-not-allowed"
-                      >
-                        Export CSV (coming soon)
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] p-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("all")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "all"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      All ({filterCounts.all})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("problematic")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "problematic"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      Failed/low ({filterCounts.problematic})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("failed")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "failed"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      Failed ({filterCounts.failed})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("low_score")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "low_score"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      Low score ({filterCounts.low_score})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("high_latency")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "high_latency"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      High latency ({filterCounts.high_latency})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("not_found")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "not_found"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      Not found ({filterCounts.not_found})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setResultFilterMode("citation_issues")}
-                      className={`rounded border px-2 py-1 font-semibold ${
-                        resultFilterMode === "citation_issues"
-                          ? "border-[#3525cd] bg-[#f4f2ff] text-[#3525cd]"
-                          : "border-[#d2cee6] bg-white text-[#5f5a74]"
-                      }`}
-                    >
-                      Citation issues ({filterCounts.citation_issues})
-                    </button>
-                  </div>
-                  <p className="text-xs text-[#6a6780]">
-                    Filters are applied to the current page of results. High
-                    latency threshold:{" "}
-                    {formatMilliseconds(highLatencyThresholdMs)}.
-                  </p>
-                </div>
-
-                {filteredResults.length === 0 ? (
-                  <p className="rounded-lg border border-[#ebe8f7] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-                    No results match the selected filter.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-[#ebe8f7]">
-                    <table className="min-w-full divide-y divide-[#ebe8f7] bg-white text-sm">
-                      <thead className="bg-[#faf9ff]">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Question
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Status
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Retrieval
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Quality
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Faithfulness
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Citation
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Relevance
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Latency
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Failure
-                          </th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Details
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#f0edf9]">
-                        {filteredResults.map((item) => {
-                          const qualityScore = computeResultQualityScore(item);
-                          const isProblematic =
-                            item.status === "failed" ||
-                            (qualityScore != null &&
-                              qualityScore < lowScoreThreshold);
-                          const isExpanded =
-                            expandedResultIds[item.evaluation_result_id] ===
-                            true;
-                          return (
-                            <Fragment key={item.evaluation_result_id}>
-                              <tr
-                                className={
-                                  isProblematic ? "bg-rose-50/50" : "bg-white"
-                                }
-                              >
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  <p className="font-medium">{item.question}</p>
-                                  {item.generated_answer ? (
-                                    <p
-                                      className="mt-1 max-w-[420px] truncate text-xs text-[#6a6780]"
-                                      title={item.generated_answer}
-                                    >
-                                      {item.generated_answer}
-                                    </p>
-                                  ) : null}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  <span
-                                    className={resolveStatusBadgeClass(
-                                      item.status,
-                                    )}
-                                  >
-                                    {item.status}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatPercent(item.retrieval_score)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatPercent(qualityScore)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatPercent(item.faithfulness_score)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatPercent(item.citation_accuracy_score)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatPercent(item.answer_relevance_score)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {formatMilliseconds(item.latency_ms)}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  {item.failure_reason ? (
-                                    <div className="space-y-1">
-                                      <span
-                                        className="text-rose-700"
-                                        title={item.failure_reason}
-                                      >
-                                        {item.failure_reason}
-                                      </span>
-                                      {item.failure_type ? (
-                                        <p className="text-xs tracking-wide text-rose-700 uppercase">
-                                          {item.failure_type}
-                                        </p>
-                                      ) : null}
-                                    </div>
-                                  ) : (
-                                    "-"
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-[#2f2a46]">
-                                  <button
-                                    type="button"
-                                    aria-expanded={isExpanded}
-                                    onClick={() =>
-                                      updateExpandedResultIds((previous) => ({
-                                        ...previous,
-                                        [item.evaluation_result_id]:
-                                          !previous[item.evaluation_result_id],
-                                      }))
-                                    }
-                                    className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff]"
-                                  >
-                                    {isExpanded ? "Hide" : "Details"}
-                                  </button>
-                                </td>
-                              </tr>
-                              {isExpanded ? (
-                                <tr
-                                  className={
-                                    isProblematic
-                                      ? "bg-rose-50/40"
-                                      : "bg-[#faf9ff]"
-                                  }
-                                >
-                                  <td colSpan={10} className="px-3 py-3">
-                                    <div className="grid gap-2 lg:grid-cols-2">
-                                      <div>
-                                        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                                          Metrics JSON
-                                        </p>
-                                        <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
-                                          {JSON.stringify(
-                                            item.metrics ?? {},
-                                            null,
-                                            2,
-                                          )}
-                                        </pre>
-                                      </div>
-                                      <div>
-                                        <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                                          Details JSON
-                                        </p>
-                                        <pre className="max-h-52 overflow-auto rounded border border-[#e4e1f2] bg-white p-2 text-xs text-[#2f2a46]">
-                                          {JSON.stringify(
-                                            item.details ?? {},
-                                            null,
-                                            2,
-                                          )}
-                                        </pre>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ) : null}
-                            </Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#ebe8f7] bg-[#faf9ff] px-3 py-2">
-                  <p className="text-xs text-[#6a6780]">
-                    Page {formatInteger(currentResultsPageIndex)} of{" "}
-                    {formatInteger(totalResultsPages)} • Showing{" "}
-                    {formatInteger(results.length)} of{" "}
-                    {formatInteger(totalResultsCount)} total results
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      disabled={!canLoadPreviousResultsPage}
-                      onClick={() =>
-                        updateResultOffset((previous) =>
-                          Math.max(0, previous - runResultsPageSize),
-                        )
-                      }
-                      className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!canLoadNextResultsPage}
-                      onClick={() =>
-                        updateResultOffset(
-                          (previous) => previous + runResultsPageSize,
-                        )
-                      }
-                      className="rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3e376f] hover:bg-[#f4f2ff] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </section>
-        </div>
-      </div>
-      {isRunModalOpen ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4"
-          onClick={closeRunModal}
-        >
-          <div
-            ref={runModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="run-evaluation-title"
-            aria-describedby="run-evaluation-description"
-            className="w-full max-w-2xl rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2
-                  id="run-evaluation-title"
-                  className="text-lg font-bold text-[#2a2640]"
-                >
-                  Run evaluation
-                </h2>
-                <p
-                  id="run-evaluation-description"
-                  className="text-sm text-[#68647b]"
-                >
-                  Queue a run for{" "}
-                  <span className="font-semibold text-[#2f2a46]">
-                    {selectedSet?.name ?? "selected set"}
-                  </span>
-                  .
-                </p>
-              </div>
-              <button
-                type="button"
-                data-overlay-autofocus="true"
-                onClick={closeRunModal}
-                disabled={runMutation.isPending}
-                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Close
-              </button>
-            </div>
-
-            <form
-              className="space-y-3"
-              onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                setRunFormError(null);
-                runMutation.mutate();
+      <section className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+        <div className="xl:col-span-8">
+          {setsQuery.isLoading ? (
+            <RunsTableSkeleton />
+          ) : setsQuery.isError && !listUnavailable ? (
+            <ErrorState
+              compact
+              error={setsQuery.error}
+              description={getApiErrorMessage(setsQuery.error)}
+              onRetry={() => void setsQuery.refetch()}
+            />
+          ) : (
+            <EvaluationSetsOverviewTable
+              rows={setOverviewRows}
+              selectedSetId={selectedSetId}
+              canCreateSet={canCreateSet}
+              onCreateSet={() => {
+                setCreateSetError(null);
+                setIsCreateSetDialogOpen(true);
               }}
-            >
-              <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                Top K
-                <input
-                  type="number"
-                  min={MIN_TOP_K}
-                  max={MAX_TOP_K}
-                  value={runTopK}
-                  onChange={(event) => {
-                    const parsed = Number.parseInt(event.target.value, 10);
-                    if (!Number.isFinite(parsed)) {
-                      return;
-                    }
-                    setRunTopK(
-                      Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, parsed)),
-                    );
-                  }}
-                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                />
-              </label>
+              onSelectSet={(setId) => {
+                setSelectedSetPreferenceId(setId);
+                const latestRunId = latestRunBySet.get(setId) ?? null;
+                setSelectedRunId(latestRunId);
+              }}
+            />
+          )}
+        </div>
 
-              <label className="flex items-start gap-2 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-sm text-[#2f2a46]">
-                <input
-                  type="checkbox"
-                  checked={runRerank}
-                  onChange={(event) => setRunRerank(event.target.checked)}
-                  className="mt-0.5"
-                />
-                <span>
-                  Enable rerank
-                  <span className="mt-1 block text-xs text-[#6a6780]">
-                    Use a second-pass ranking to improve relevance.
-                  </span>
-                </span>
-              </label>
+        <div className="xl:col-span-4">
+          <RecentRunsPanel
+            items={recentRunItems}
+            activeRunId={activeRunId}
+            onSelectRun={(runId) => {
+              setSelectedRunId(runId);
+              setResultOffsetByRunId((previous) => ({
+                ...previous,
+                [runId]: 0,
+              }));
+              router.push(`/evaluations/runs/${encodeURIComponent(runId)}`);
+            }}
+          />
+        </div>
+      </section>
 
-              <label className="grid gap-1">
-                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Model name (optional)
-                </span>
-                <input
-                  value={runModelName}
-                  onChange={(event) => setRunModelName(event.target.value)}
-                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                  placeholder="Optional backend-supported model identifier"
-                />
-              </label>
+      <EvaluationInsightsRow
+        retrievalP95Ms={metricFromSummary(runDetail?.summary, [
+          "retrieval_p95_ms",
+          "retrieval_latency_p95_ms",
+          "retrieval_latency_ms_p95",
+        ])}
+        generationP95Ms={metricFromSummary(runDetail?.summary, [
+          "generation_p95_ms",
+          "generation_latency_p95_ms",
+          "generation_latency_ms_p95",
+          "latency_ms_average",
+        ])}
+        hallucinationRisk={normalizeRate(
+          metricFromSummary(runDetail?.summary, [
+            "context_hallucination_risk",
+            "hallucination_risk",
+            "hallucination_rate",
+          ]),
+        )}
+        hallucinationRiskDelta={metricFromSummary(runDetail?.summary, [
+          "context_hallucination_risk_delta",
+          "hallucination_risk_delta",
+        ])}
+        nextRunLabel={
+          selectedSet?.name
+            ? `${selectedSet.name} Baseline`
+            : "Nightly Baseline"
+        }
+        nextRunEta={nextRunEtaLabel()}
+        onTriggerRun={() => {
+          setRunError(null);
+          setIsRunDialogOpen(true);
+        }}
+        triggerDisabled={!canRun}
+      />
 
-              <div>
-                <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Selected documents
-                </p>
-                {documentsQuery.isLoading ? (
-                  <LoadingState compact title="Loading indexed documents..." />
-                ) : documentsQuery.isError ? (
-                  <ErrorState
-                    compact
-                    error={documentsQuery.error}
-                    description={getApiErrorMessage(documentsQuery.error)}
-                  />
-                ) : indexedDocuments.length === 0 ? (
-                  <EmptyState compact title="No indexed documents available." />
-                ) : (
-                  <ul className="max-h-40 space-y-1 overflow-auto rounded border border-[#ebe8f7] bg-[#faf9ff] p-2">
-                    {indexedDocuments.map((document) => {
-                      const checked = filteredRunDocumentIds.includes(
-                        document.document_id,
-                      );
-                      return (
-                        <li key={document.document_id}>
-                          <label className="flex items-center gap-2 text-xs text-[#2f2a46]">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => {
-                                setRunDocumentIds((previous) => {
-                                  const validPrevious = previous.filter(
-                                    (value) => indexedDocumentIdSet.has(value),
-                                  );
-                                  if (
-                                    validPrevious.includes(document.document_id)
-                                  ) {
-                                    return validPrevious.filter(
-                                      (value) => value !== document.document_id,
-                                    );
-                                  }
-                                  return [
-                                    ...validPrevious,
-                                    document.document_id,
-                                  ];
-                                });
-                              }}
-                            />
-                            <span
-                              className="truncate"
-                              title={document.filename}
-                            >
-                              {document.filename}
-                            </span>
-                          </label>
-                        </li>
-                      );
-                    })}
-                  </ul>
+      <section
+        id="evaluation-inspector"
+        className="space-y-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Run inspector</h2>
+          <p className="text-sm text-gray-500">
+            Search, filter, and compare runs before drilling into failed cases.
+          </p>
+        </div>
+
+        <EvaluationRunsFilterBar
+          filters={runFilters}
+          datasetOptions={datasetOptions}
+          ownerOptions={runOwnerOptions}
+          onChange={setRunFilters}
+          onReset={() => setRunFilters(runFiltersDefaults())}
+        />
+
+        {setsQuery.isLoading ? (
+          <RunsTableSkeleton />
+        ) : setsQuery.isError && !listUnavailable ? (
+          <ErrorState
+            compact
+            error={setsQuery.error}
+            description={getApiErrorMessage(setsQuery.error)}
+            onRetry={() => void setsQuery.refetch()}
+          />
+        ) : filteredRuns.length === 0 ? (
+          <EmptyState
+            compact
+            title="No evaluation runs yet"
+            description="Start your first run once a dataset has test cases."
+          />
+        ) : (
+          <EvaluationRunsTable
+            runs={filteredRuns}
+            activeRunId={activeRunId}
+            onSelectRun={(runId) => {
+              setSelectedRunId(runId);
+              setResultOffsetByRunId((previous) => ({
+                ...previous,
+                [runId]: 0,
+              }));
+              router.push(`/evaluations/runs/${encodeURIComponent(runId)}`);
+            }}
+          />
+        )}
+      </section>
+
+      {activeRunId ? (
+        runDetailQuery.isLoading ? (
+          <EvaluationRunDetailSkeleton />
+        ) : runDetailQuery.isError ? (
+          isForbiddenError(runDetailQuery.error) ? (
+            <ForbiddenState
+              compact
+              title="Run detail is restricted"
+              description="You do not have permission to inspect this evaluation run."
+              requestId={extractRequestIdFromError(runDetailQuery.error)}
+            />
+          ) : isApiClientError(runDetailQuery.error) &&
+            runDetailQuery.error.status === 404 ? (
+            <EmptyState
+              title="Run not found or inaccessible"
+              description="The run may belong to a different organization or was removed."
+            />
+          ) : (
+            <ErrorState
+              error={runDetailQuery.error}
+              description={getApiErrorMessage(runDetailQuery.error)}
+              onRetry={() => void runDetailQuery.refetch()}
+            />
+          )
+        ) : runDetail ? (
+          <div className="space-y-4">
+            <EvaluationRunDetailSection
+              run={runDetail}
+              datasetName={
+                setItems.find(
+                  (setItem) =>
+                    setItem.evaluation_set_id === runDetail.evaluation_set_id,
+                )?.name ?? runDetail.evaluation_set_id
+              }
+              comparison={buildRunComparison(runDetail.summary)}
+              failureReason={runDetail.failure_reason}
+              failureType={runDetail.failure_type}
+            />
+
+            <EvaluationCasesSection
+              rows={filteredCaseRows}
+              filters={resultFilters}
+              onFilterChange={setResultFilters}
+            />
+
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd8ec] bg-white px-3 py-2">
+              <p className="text-sm text-[#66627d]">
+                Page{" "}
+                {Math.floor(resultOffset / EVALUATION_RESULTS_PAGE_SIZE) + 1} of{" "}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    (runDetail.results.total || 0) /
+                      EVALUATION_RESULTS_PAGE_SIZE,
+                  ),
                 )}
-              </div>
-
-              <label className="grid gap-1">
-                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Metric options (JSON object)
-                </span>
-                <textarea
-                  value={runMetricOptions}
-                  onChange={(event) => setRunMetricOptions(event.target.value)}
-                  rows={3}
-                  className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                  placeholder='{"faithfulness":true,"latency_budget_ms":800}'
-                />
-              </label>
-
-              {runFormError ? (
-                <p className="text-xs text-rose-700">{runFormError}</p>
-              ) : null}
-
-              <div className="flex items-center justify-end gap-2">
+              </p>
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={closeRunModal}
-                  disabled={runMutation.isPending}
-                  className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    !canRun || runMutation.isPending || !selectedEvaluationSetId
+                  disabled={resultOffset <= 0}
+                  onClick={() =>
+                    setResultOffsetByRunId((previous) => ({
+                      ...previous,
+                      [activeRunId]: Math.max(
+                        0,
+                        resultOffset - EVALUATION_RESULTS_PAGE_SIZE,
+                      ),
+                    }))
                   }
-                  className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {runMutation.isPending ? "Queueing run..." : "Queue run"}
+                  Previous
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-      {isCreateSetModalOpen ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-[#17172a]/55 px-4"
-          onClick={closeCreateSetModal}
-        >
-          <div
-            ref={createSetModalRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-evaluation-set-title"
-            aria-describedby="create-evaluation-set-description"
-            className="w-full max-w-lg rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <h2
-                  id="create-evaluation-set-title"
-                  className="text-lg font-bold text-[#2a2640]"
-                >
-                  Create evaluation set
-                </h2>
-                <p
-                  id="create-evaluation-set-description"
-                  className="text-sm text-[#68647b]"
-                >
-                  Name your benchmark set and optionally add context for
-                  collaborators.
-                </p>
-              </div>
-              <button
-                type="button"
-                data-overlay-autofocus="true"
-                onClick={closeCreateSetModal}
-                disabled={createSetMutation.isPending}
-                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Close
-              </button>
-            </div>
-
-            <form
-              className="space-y-3"
-              onSubmit={(event: FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                if (!canCreateSet) {
-                  setSetFormError(
-                    "Only owner/admin can create evaluation sets.",
-                  );
-                  return;
-                }
-
-                const normalizedName = setName.trim();
-                if (!normalizedName) {
-                  setSetFormError("Set name is required.");
-                  return;
-                }
-
-                setSetFormError(null);
-                createSetMutation.mutate({
-                  name: normalizedName,
-                  description: setDescription.trim() || null,
-                });
-              }}
-            >
-              <label className="grid gap-1">
-                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Set name
-                </span>
-                <input
-                  value={setName}
-                  onChange={(event) => setSetName(event.target.value)}
-                  className="h-9 rounded-lg border border-[#d2cee6] px-2 text-sm font-medium text-[#2a2640]"
-                  placeholder="Regression suite"
-                />
-              </label>
-
-              <label className="grid gap-1">
-                <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Description
-                </span>
-                <textarea
-                  value={setDescription}
-                  onChange={(event) => setSetDescription(event.target.value)}
-                  rows={3}
-                  className="rounded-lg border border-[#d2cee6] px-2 py-1.5 text-sm text-[#2a2640]"
-                  placeholder="Optional context for what this evaluation set validates"
-                />
-              </label>
-
-              {setFormError ? (
-                <p className="text-xs text-rose-700">{setFormError}</p>
-              ) : null}
-
-              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={closeCreateSetModal}
-                  disabled={createSetMutation.isPending}
-                  className="rounded border border-[#cbc5e6] px-3 py-1.5 text-sm font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={
+                    resultOffset + EVALUATION_RESULTS_PAGE_SIZE >=
+                    runDetail.results.total
+                  }
+                  onClick={() =>
+                    setResultOffsetByRunId((previous) => ({
+                      ...previous,
+                      [activeRunId]:
+                        resultOffset + EVALUATION_RESULTS_PAGE_SIZE,
+                    }))
+                  }
+                  className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createSetMutation.isPending}
-                  className="rounded bg-[#3525cd] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {createSetMutation.isPending ? "Creating..." : "Create set"}
+                  Next
                 </button>
               </div>
-            </form>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null
+      ) : (
+        <EmptyState
+          title="No run selected"
+          description="Select a recent run or start a new run to inspect evaluation quality details."
+        />
+      )}
+
+      <EvaluationSetsSection
+        sets={setItems}
+        selectedSetId={selectedSetId}
+        onSelectSet={(setId) => {
+          setSelectedSetPreferenceId(setId);
+          const latestRunId = latestRunBySet.get(setId) ?? null;
+          setSelectedRunId(latestRunId);
+        }}
+        isSetsLoading={setsQuery.isLoading}
+        setsError={setsQuery.error}
+        onRetrySets={() => void setsQuery.refetch()}
+        setSearch={datasetSearch}
+        onSetSearchChange={setDatasetSearch}
+        questions={questions}
+        isQuestionsLoading={questionsQuery.isLoading}
+        questionsError={questionsQuery.error}
+        onRetryQuestions={() => void questionsQuery.refetch()}
+        questionFilters={questionFilters}
+        onQuestionFiltersChange={setQuestionFilters}
+        canManageQuestions={canManageQuestions}
+        addQuestionDraft={addQuestionDraft}
+        onAddQuestionDraftChange={setAddQuestionDraft}
+        onAddQuestion={() => {
+          setAddQuestionError(null);
+          addQuestionMutation.mutate();
+        }}
+        addQuestionError={addQuestionError}
+        isAddingQuestion={addQuestionMutation.isPending}
+      />
+
+      <CreateEvaluationSetDialog
+        containerRef={createSetModalRef}
+        isOpen={isCreateSetDialogOpen}
+        isSubmitting={createSetMutation.isPending}
+        name={createSetName}
+        description={createSetDescription}
+        error={createSetError}
+        onNameChange={setCreateSetName}
+        onDescriptionChange={setCreateSetDescription}
+        onClose={() => {
+          if (createSetMutation.isPending) {
+            return;
+          }
+          setIsCreateSetDialogOpen(false);
+        }}
+        onSubmit={() => {
+          if (!canCreateSet) {
+            setCreateSetError("Only owner/admin can create evaluation sets.");
+            return;
+          }
+
+          const normalizedName = createSetName.trim();
+          if (!normalizedName) {
+            setCreateSetError("Set name is required.");
+            return;
+          }
+
+          setCreateSetError(null);
+          createSetMutation.mutate({
+            name: normalizedName,
+            description: createSetDescription.trim() || null,
+          });
+        }}
+      />
+
+      <StartEvaluationRunDialog
+        containerRef={runModalRef}
+        isOpen={isRunDialogOpen}
+        isSubmitting={runMutation.isPending}
+        setName={selectedSet?.name ?? "Selected set"}
+        topK={runTopK}
+        rerank={runRerank}
+        modelName={runModelName}
+        metricOptions={runMetricOptions}
+        selectedDocumentIds={runDocumentIds}
+        indexedDocuments={indexedDocuments}
+        isDocumentsLoading={documentsQuery.isLoading}
+        documentsError={documentsQuery.error}
+        error={runError}
+        onClose={() => {
+          if (runMutation.isPending) {
+            return;
+          }
+          setIsRunDialogOpen(false);
+        }}
+        onSubmit={() => runMutation.mutate()}
+        onTopKChange={(next) =>
+          setRunTopK(Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, next)))
+        }
+        onRerankChange={setRunRerank}
+        onModelNameChange={setRunModelName}
+        onMetricOptionsChange={setRunMetricOptions}
+        onToggleDocument={(documentId) => {
+          setRunDocumentIds((previous) =>
+            previous.includes(documentId)
+              ? previous.filter((value) => value !== documentId)
+              : [...previous, documentId],
+          );
+        }}
+      />
     </section>
   );
 }

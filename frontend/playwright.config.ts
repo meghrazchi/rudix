@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const FRONTEND_PORT = Number.parseInt(
-  process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3001",
+  process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3101",
   10,
 );
 const FRONTEND_BASE_URL = `http://localhost:${FRONTEND_PORT}`;
@@ -35,7 +35,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npm run dev -- --hostname localhost --port ${FRONTEND_PORT}`,
-    url: FRONTEND_BASE_URL,
+    // Use a route-level readiness URL to reduce accidental reuse of unrelated apps.
+    url: `${FRONTEND_BASE_URL}/login`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {

@@ -198,6 +198,116 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "/evaluation-sets" && request.method() === "GET") {
+      await fulfillJson(route, {
+        items: [
+          {
+            evaluation_set_id: "set-1",
+            name: "Regression Set",
+            description: "Baseline checks",
+            question_count: 1,
+            created_at: "2026-05-20T07:30:00Z",
+            updated_at: "2026-05-20T08:30:00Z",
+          },
+        ],
+        total: 1,
+        limit: 100,
+        offset: 0,
+      });
+      return;
+    }
+
+    if (
+      path === "/evaluation-sets/set-1/questions" &&
+      request.method() === "GET"
+    ) {
+      await fulfillJson(route, {
+        evaluation_set_id: "set-1",
+        items: [
+          {
+            evaluation_question_id: "q-1",
+            evaluation_set_id: "set-1",
+            question: "What is the SLA?",
+            expected_answer: "99.9%",
+            expected_document_id: "doc-1",
+            expected_page_number: 4,
+            tags: ["sla"],
+            metadata: {},
+            created_at: "2026-05-20T07:30:00Z",
+            updated_at: "2026-05-20T08:30:00Z",
+          },
+        ],
+        total: 1,
+        limit: 200,
+        offset: 0,
+      });
+      return;
+    }
+
+    if (path === "/evaluations/run" && request.method() === "POST") {
+      await fulfillJson(
+        route,
+        {
+          evaluation_run_id: "run-e2e-1",
+          status: "queued",
+        },
+        202,
+      );
+      return;
+    }
+
+    if (path === "/evaluations/runs/run-e2e-1" && request.method() === "GET") {
+      await fulfillJson(route, {
+        evaluation_run_id: "run-e2e-1",
+        evaluation_set_id: "set-1",
+        status: "completed",
+        config: { top_k: 5, rerank: true, run_name: "E2E evaluation run" },
+        summary: {
+          question_total_count: 1,
+          question_success_count: 1,
+          question_failure_count: 0,
+          retrieval_hit_rate: 1,
+          faithfulness_score: 0.9,
+          answer_relevance_score: 0.9,
+          citation_accuracy_score: 0.9,
+          latency_ms_average: 180,
+          cost_usd_total: 0.02,
+        },
+        failure_reason: null,
+        failure_type: null,
+        started_at: "2026-05-20T08:00:00Z",
+        completed_at: "2026-05-20T08:01:00Z",
+        created_at: "2026-05-20T08:00:00Z",
+        updated_at: "2026-05-20T08:01:00Z",
+        results: {
+          items: [
+            {
+              evaluation_result_id: "r-1",
+              evaluation_question_id: "q-1",
+              question: "What is the SLA?",
+              status: "completed",
+              generated_answer: "99.9%",
+              retrieval_score: 1,
+              faithfulness_score: 0.9,
+              citation_accuracy_score: 0.9,
+              answer_relevance_score: 0.9,
+              latency_ms: 180,
+              metrics: {},
+              failure_reason: null,
+              failure_type: null,
+              details: {},
+              created_at: "2026-05-20T08:00:30Z",
+              updated_at: "2026-05-20T08:00:30Z",
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        },
+      });
+      return;
+    }
+
     if (path === "/admin/usage" && request.method() === "GET") {
       await fulfillJson(route, {
         organization_id: ORG_ID,
@@ -404,5 +514,39 @@ test.describe("frontend e2e smoke (no real backend)", () => {
         name: "Ask a question about your selected documents...",
       }),
     ).toBeVisible();
+  });
+
+  test("opens evaluations and starts a mocked evaluation run", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/evaluations");
+    await waitForSessionBootstrap(page);
+
+    await expect(
+      page.getByRole("heading", {
+        name: "Track RAG quality before shipping answers",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Evaluation datasets" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Regression Set", exact: true }),
+    ).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Start evaluation run", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Start evaluation run" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Queue run" }).click();
+
+    await expect(page).toHaveURL(/\/evaluations\/runs\/run-e2e-1$/);
+    await expect(page.getByText("Run detail")).toBeVisible();
+    await expect(page.getByText("Case results")).toBeVisible();
   });
 });

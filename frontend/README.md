@@ -99,10 +99,13 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - context panel includes safe agent timeline (status, budgets, stop reason, and step durations)
   - step-level raw payloads are intentionally hidden from UI to avoid sensitive data exposure
 - Evaluations page behavior:
-  - evaluation set list with create flow, question management, and permission-aware controls
-  - run controls for `top_k`, rerank, and optional document scope
-  - run status + summary dashboard with question-level result inspection and failed/low-score filter
-  - explicit loading, empty, error, and forbidden states with safe request-id rendering
+  - modular dashboard layout with header/actions, KPI cards, run filters, run list, run detail, and case-inspection sections
+  - primary CTA for starting a run and secondary CTA for evaluation set creation (owner/admin visibility)
+  - run filters for status, dataset, owner, date range, search query, and sort order
+  - run detail section with run metrics, baseline-comparison placeholder, failed-case focus, citation/source links when available, and pipeline deep-linking
+  - test-case section with dataset search, test-case filters/sort, and permission-aware add-case flow
+  - resilient fallback rendering for missing backend fields (for example comparison deltas, cost/owner fields, or citation payloads)
+  - explicit loading, empty, unavailable-backend, error, and forbidden states with safe request-id rendering
 - Settings page behavior:
   - profile and organization context sections for authenticated users
   - security section shows safe auth diagnostics only (provider and token availability flags)
@@ -333,10 +336,11 @@ Playwright smoke coverage:
   - chat load
 - e2e API calls are intercepted in-browser, so tests do not require a running backend.
 - Defaults:
-  - `PLAYWRIGHT_FRONTEND_PORT=3001`
+  - `PLAYWRIGHT_FRONTEND_PORT=3101`
   - uses system Chrome channel by default for local runs
   - automatically uses bundled Playwright Chromium in CI
   - set `PLAYWRIGHT_USE_BUNDLED_BROWSER=true` to use Playwright-managed browser binaries instead
+  - set `PLAYWRIGHT_FRONTEND_PORT` to a free port if another local app is already bound
 
 CI-ready commands:
 
