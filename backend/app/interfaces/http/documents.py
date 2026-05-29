@@ -494,6 +494,8 @@ async def list_documents(
     status_filter: Annotated[DocumentStatus | None, Query(alias="status")] = None,
     sort_by: DocumentSortBy = "created_at",
     sort_order: SortOrder = "desc",
+    filename_query: Annotated[str | None, Query(max_length=255)] = None,
+    file_type: Annotated[str | None, Query(pattern="^(pdf|docx|txt)$")] = None,
 ) -> DocumentListResponse:
     _, organization_id = _principal_user_and_org(principal)
 
@@ -501,6 +503,8 @@ async def list_documents(
         db_session,
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
+        file_type=file_type,
+        filename_query=filename_query,
         limit=limit,
         offset=offset,
         sort_by=sort_by,
@@ -510,6 +514,8 @@ async def list_documents(
         db_session,
         organization_id=organization_id,
         status=status_filter.value if status_filter is not None else None,
+        file_type=file_type,
+        filename_query=filename_query,
     )
 
     items: list[DocumentListItemResponse] = []

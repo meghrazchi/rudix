@@ -64,6 +64,7 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        file_type: str | None = None,
         filename_query: str | None = None,
         limit: int = 20,
         offset: int = 0,
@@ -73,6 +74,8 @@ class DocumentRepository:
         statement = select(Document).where(Document.organization_id == organization_id)
         if status is not None:
             statement = statement.where(Document.status == status)
+        if file_type is not None:
+            statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
             normalized_query = filename_query.strip()
             if normalized_query:
@@ -97,6 +100,7 @@ class DocumentRepository:
         *,
         organization_id: UUID,
         status: str | None = None,
+        file_type: str | None = None,
         filename_query: str | None = None,
     ) -> int:
         statement = select(func.count(Document.id)).where(
@@ -104,6 +108,8 @@ class DocumentRepository:
         )
         if status is not None:
             statement = statement.where(Document.status == status)
+        if file_type is not None:
+            statement = statement.where(Document.file_type == file_type)
         if filename_query is not None:
             normalized_query = filename_query.strip()
             if normalized_query:

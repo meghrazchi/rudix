@@ -141,8 +141,10 @@ export type ListDocumentsOptions = {
   limit?: number;
   offset?: number;
   status?: DocumentStatus;
+  file_type?: DocumentFileType;
   sort_by?: DocumentSortBy;
   sort_order?: SortOrder;
+  filename_query?: string;
 };
 
 export type DocumentChunksOptions = {
@@ -182,8 +184,10 @@ export async function listDocuments(
       limit: options.limit,
       offset: options.offset,
       status: options.status,
+      file_type: options.file_type,
       sort_by: options.sort_by,
       sort_order: options.sort_order,
+      filename_query: options.filename_query || undefined,
     },
   });
 }

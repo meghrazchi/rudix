@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -19,6 +19,7 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import type {
   DocumentDetailResponse,
+  DocumentFileType,
   DocumentListResponse,
   DocumentSortBy,
   DocumentStatus,
@@ -59,6 +60,7 @@ const REINDEX_ALL_PAGE_SIZE = 200;
 const REINDEX_ALL_TARGET_STATUSES: DocumentStatus[] = ["uploaded", "failed"];
 
 type StatusFilter = "all" | DocumentStatus;
+type FileTypeFilter = "all" | DocumentFileType;
 type IndexingStatusSummary = {
   total: number;
   uploaded: number;
@@ -82,6 +84,13 @@ const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
   { value: "updated_at", label: "Updated" },
   { value: "filename", label: "Filename" },
   { value: "status", label: "Status" },
+];
+
+const fileTypeFilterOptions: Array<{ value: FileTypeFilter; label: string }> = [
+  { value: "all", label: "All types" },
+  { value: "pdf", label: "PDF" },
+  { value: "docx", label: "DOCX" },
+  { value: "txt", label: "TXT" },
 ];
 
 function parseStatusFilter(value: string | null): StatusFilter {
@@ -271,16 +280,29 @@ export function DocumentsPage() {
   const cancelAllUploadsRequestedRef = useRef(false);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
+  const [filenameSearch, setFilenameSearch] = useState("");
+  const [debouncedFilenameSearch, setDebouncedFilenameSearch] = useState("");
+  const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>("all");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilenameSearch(filenameSearch);
+      setOffset(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filenameSearch]);
 
   const listQueryOptions = useMemo(
     () => ({
       limit: DOCUMENT_PAGE_SIZE,
       offset,
       status: statusFilter === "all" ? undefined : statusFilter,
+      file_type: fileTypeFilter === "all" ? undefined : fileTypeFilter,
       sort_by: sortBy,
       sort_order: sortOrder,
+      filename_query: debouncedFilenameSearch || undefined,
     }),
-    [offset, sortBy, sortOrder, statusFilter],
+    [offset, sortBy, sortOrder, statusFilter, fileTypeFilter, debouncedFilenameSearch],
   );
 
   const documentsQuery = useQuery({
@@ -1110,11 +1132,40 @@ export function DocumentsPage() {
       ) : null}
 
       <section className="space-y-4 rounded-xl border border-[#e5e3f1] bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-3 rounded-xl border border-[#e5e3f1] bg-[#fcfbff] p-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[#e5e3f1] bg-[#fcfbff] p-3">
           <div className="flex flex-wrap items-end gap-3">
-            <span className="px-2 text-sm font-semibold text-[#1b1b24]">
-              Filter by:
-            </span>
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Search
+              <div className="relative">
+                <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-base text-[#9993b8]">
+                  search
+                </span>
+                <input
+                  type="search"
+                  value={filenameSearch}
+                  onChange={(event) => setFilenameSearch(event.target.value)}
+                  placeholder="Search filenames…"
+                  className="h-9 w-44 rounded-lg border border-[#d2cee6] bg-white pl-8 pr-3 text-sm font-medium text-[#2a2640] placeholder:font-normal placeholder:text-[#b0abc8] outline-none transition-[width] duration-200 focus:w-64 focus:ring-2 focus:ring-[#3525cd]/20"
+                />
+              </div>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+              Type
+              <select
+                value={fileTypeFilter}
+                onChange={(event) => {
+                  setOffset(0);
+                  setFileTypeFilter(event.target.value as FileTypeFilter);
+                }}
+                className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+              >
+                {fileTypeFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Status
               <select
@@ -1215,9 +1266,21 @@ export function DocumentsPage() {
         documents.length === 0 ? (
           <EmptyState
             title="No documents found"
-            description={`Upload your first ${ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.`}
+            description={
+              debouncedFilenameSearch
+                ? `No documents match "${debouncedFilenameSearch}".`
+                : `Upload your first ${ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.`
+            }
             action={
-              capabilities.canUpload ? (
+              debouncedFilenameSearch ? (
+                <button
+                  type="button"
+                  onClick={() => setFilenameSearch("")}
+                  className="rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff]"
+                >
+                  Clear search
+                </button>
+              ) : capabilities.canUpload ? (
                 <button
                   type="button"
                   onClick={() => setIsUploadModalOpen(true)}
