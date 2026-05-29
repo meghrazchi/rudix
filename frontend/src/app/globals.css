@@ -138,3 +138,17 @@ body {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.rudix-svg-flow-line {
+  stroke-dasharray: 8;
+  animation: rudix-svg-flow-dash 30s linear infinite;
+}
+
+@keyframes rudix-svg-flow-dash {
+  to { stroke-dashoffset: -1000; }
+}
+
+.rudix-research-dot-bg {
+  background-image: radial-gradient(#e2dfff 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+}
