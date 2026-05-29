@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
@@ -219,10 +221,42 @@ function ComplianceDocumentSourcesSection() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="h-48 rounded-xl bg-gradient-to-br from-[#e2dfff] to-[#c3c0ff] shadow-lg" />
-          <div className="h-64 translate-y-8 rounded-xl bg-gradient-to-br from-[#eeedf3] to-[#e3e2e8] shadow-lg" />
-          <div className="h-64 -translate-y-16 rounded-xl bg-gradient-to-br from-[#0A0A0F] to-[#3525cd] shadow-lg" />
-          <div className="h-48 -translate-y-8 rounded-xl bg-gradient-to-br from-[#3525cd]/20 to-[#3525cd]/5 shadow-lg" />
+          <div className="relative h-48 overflow-hidden rounded-xl shadow-lg">
+            <Image
+              src="/images/solutions/compliance/documents.jpg"
+              alt="Contract documents on a desk — compliance and audit preparation"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          </div>
+          <div className="relative h-64 translate-y-8 overflow-hidden rounded-xl shadow-lg">
+            <Image
+              src="/images/solutions/compliance/audit-workspace.jpg"
+              alt="Professional auditor reviewing data analytics on a laptop"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          </div>
+          <div className="relative h-64 -translate-y-16 overflow-hidden rounded-xl shadow-lg">
+            <Image
+              src="/images/solutions/compliance/data-center.jpg"
+              alt="Enterprise data center server racks — secure infrastructure"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          </div>
+          <div className="relative h-48 -translate-y-8 overflow-hidden rounded-xl shadow-lg">
+            <Image
+              src="/images/solutions/compliance/data-visualization.jpg"
+              alt="Abstract data visualization representing connected compliance systems"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+          </div>
         </div>
       </div>
     </section>
