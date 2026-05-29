@@ -442,10 +442,12 @@ export function buildRunListItemFromDetail(params: {
     latencyMsAverage: resolveSummaryNumber(summary, ["latency_ms_average"]),
     costUsdTotal: resolveSummaryNumber(summary, ["cost_usd_total"]),
     durationMs:
-      resolveDurationMs(params.run.started_at, params.run.completed_at) ??
-      resolveSummaryNumber(summary, ["latency_ms_total"]),
-    startedAt: params.run.started_at,
-    completedAt: params.run.completed_at,
+      resolveDurationMs(
+        params.run.started_at ?? null,
+        params.run.completed_at ?? null,
+      ) ?? resolveSummaryNumber(summary, ["latency_ms_total"]),
+    startedAt: params.run.started_at ?? null,
+    completedAt: params.run.completed_at ?? null,
     createdAt: params.run.created_at,
     updatedAt: params.run.updated_at,
     isComparisonAvailable: resolveComparisonAvailable(summary),
@@ -582,10 +584,10 @@ function extractCitationsFromDetails(
 
 function scoreForResult(result: EvaluationRunResultResponse): number | null {
   const values = [
-    normalizeRate(result.faithfulness_score),
-    normalizeRate(result.answer_relevance_score),
-    normalizeRate(result.citation_accuracy_score),
-    normalizeRate(result.retrieval_score),
+    normalizeRate(result.faithfulness_score ?? null),
+    normalizeRate(result.answer_relevance_score ?? null),
+    normalizeRate(result.citation_accuracy_score ?? null),
+    normalizeRate(result.retrieval_score ?? null),
   ].filter((value): value is number => value != null);
 
   if (values.length === 0) {

@@ -73,7 +73,7 @@ function filteredQuestions(
     return (
       question.question.toLowerCase().includes(normalized) ||
       (question.expected_answer ?? "").toLowerCase().includes(normalized) ||
-      question.tags.some((tag) => tag.toLowerCase().includes(normalized))
+      (question.tags ?? []).some((tag) => tag.toLowerCase().includes(normalized))
     );
   });
 
@@ -396,8 +396,8 @@ export function EvaluationSetsSection({
                           {question.expected_page_number ?? "-"}
                         </td>
                         <td className="px-3 py-2 text-[#4e4968]">
-                          {question.tags.length > 0
-                            ? question.tags.join(", ")
+                          {(question.tags ?? []).length > 0
+                            ? (question.tags ?? []).join(", ")
                             : "-"}
                         </td>
                       </tr>

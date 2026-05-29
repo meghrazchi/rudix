@@ -1101,8 +1101,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 )?.name ?? runDetail.evaluation_set_id
               }
               comparison={buildRunComparison(runDetail.summary)}
-              failureReason={runDetail.failure_reason}
-              failureType={runDetail.failure_type}
+              failureReason={runDetail.failure_reason ?? null}
+              failureType={runDetail.failure_type ?? null}
             />
 
             <EvaluationCasesSection
