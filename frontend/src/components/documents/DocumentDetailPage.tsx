@@ -53,6 +53,7 @@ type TimelineStep = {
   pipelineType: string | null;
   durationMs: number | null;
   status: DocumentLifecycleTimelineStepResponse["status"] | null;
+  outputs: Record<string, unknown> | null;
 };
 
 type DetailTab = "overview" | "chunks" | "errors";
@@ -201,23 +202,70 @@ function fromBackendLifecycleTimelineStep(
     pipelineType: step.pipeline_type,
     durationMs: step.duration_ms,
     status: step.status,
+    outputs: step.outputs ?? null,
   };
 }
 
 function normalizeLifecycleLabel(stepKey: string, label: string): string {
-  if (stepKey === "extract") {
-    return "Extracted";
-  }
-  if (stepKey === "chunk") {
-    return "Chunked";
-  }
-  if (stepKey === "embed") {
-    return "Embedded";
-  }
-  if (stepKey === "index") {
-    return "Upserted to Qdrant";
-  }
+  if (stepKey === "extract") return "Extracted";
+  if (stepKey === "detect_ocr") return "OCR detection";
+  if (stepKey === "ocr") return "OCR";
+  if (stepKey === "chunk") return "Chunked";
+  if (stepKey === "embed") return "Embedded";
+  if (stepKey === "index") return "Upserted to Qdrant";
   return label;
+}
+
+type OcrMetadata = {
+  required: boolean;
+  mode: string;
+  status: string;
+  languages: string[];
+  pagesProcessed: number;
+  pagesCompleted: number;
+  pagesFailed: number;
+  nativeTextPages: number;
+  durationMs: number | null;
+  warnings: string[];
+};
+
+function extractOcrMetadata(timeline: TimelineStep[]): OcrMetadata | null {
+  const detectStep = timeline.find((s) => s.key === "detect_ocr");
+  const ocrStep = timeline.find((s) => s.key === "ocr");
+
+  if (!detectStep) return null;
+
+  const detectOut = detectStep.outputs;
+  const ocrOut = ocrStep?.outputs ?? null;
+
+  const required = Boolean(detectOut?.requires_ocr ?? false);
+  if (!required) {
+    return {
+      required: false,
+      mode: String(detectOut?.mode ?? "text"),
+      status: "not_required",
+      languages: [],
+      pagesProcessed: 0,
+      pagesCompleted: 0,
+      pagesFailed: 0,
+      nativeTextPages: Number(detectOut?.native_text_pages ?? 0),
+      durationMs: null,
+      warnings: [],
+    };
+  }
+
+  return {
+    required,
+    mode: String(ocrOut?.mode ?? detectOut?.mode ?? "unknown"),
+    status: String(ocrOut?.status ?? "unknown"),
+    languages: Array.isArray(ocrOut?.languages) ? (ocrOut.languages as string[]) : [],
+    pagesProcessed: Number(ocrOut?.pages_processed ?? 0),
+    pagesCompleted: Number(ocrOut?.pages_completed ?? 0),
+    pagesFailed: Number(ocrOut?.pages_failed ?? 0),
+    nativeTextPages: Number(detectOut?.native_text_pages ?? 0),
+    durationMs: ocrOut?.duration_ms != null ? Number(ocrOut.duration_ms) : null,
+    warnings: Array.isArray(ocrOut?.warnings) ? (ocrOut.warnings as string[]) : [],
+  };
 }
 
 function deriveDetailStatus(
@@ -522,6 +570,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     () => (detail ? buildErrorRows(detail, lifecycle) : []),
     [detail, lifecycle],
   );
+  const ocrMetadata = useMemo(() => extractOcrMetadata(lifecycle), [lifecycle]);
   const errorSummary = useMemo(
     () => ({
       critical: errorRows.filter((row) => row.severity === "critical").length,
@@ -969,6 +1018,72 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           </div>
                         </div>
                       </div>
+
+                      {ocrMetadata && detail.file_type === "pdf" ? (
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            OCR extraction
+                          </h4>
+                          <div className="space-y-2 text-sm text-[#2a2640]">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">OCR required</span>
+                              <span className="font-semibold">
+                                {ocrMetadata.required ? "Yes" : "No"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">Detection mode</span>
+                              <span className="font-semibold capitalize">
+                                {ocrMetadata.mode}
+                              </span>
+                            </div>
+                            {ocrMetadata.required ? (
+                              <>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">OCR status</span>
+                                  <span className={`font-semibold capitalize ${ocrMetadata.status === "failed" ? "text-rose-600" : ocrMetadata.status === "partial" ? "text-amber-600" : "text-emerald-700"}`}>
+                                    {ocrMetadata.status}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">Languages</span>
+                                  <span className="font-semibold">
+                                    {ocrMetadata.languages.length > 0 ? ocrMetadata.languages.join(", ") : "-"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">Native pages</span>
+                                  <span className="font-semibold">{ocrMetadata.nativeTextPages}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">OCR pages</span>
+                                  <span className="font-semibold">{ocrMetadata.pagesCompleted} / {ocrMetadata.pagesProcessed}</span>
+                                </div>
+                                {ocrMetadata.durationMs !== null ? (
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">OCR duration</span>
+                                    <span className="font-semibold">{(ocrMetadata.durationMs / 1000).toFixed(1)}s</span>
+                                  </div>
+                                ) : null}
+                                {ocrMetadata.warnings.length > 0 ? (
+                                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                                    <p className="mb-1 text-xs font-semibold text-amber-700 uppercase tracking-wide">Warnings</p>
+                                    <ul className="space-y-1 text-xs text-amber-800">
+                                      {ocrMetadata.warnings.map((w, i) => (
+                                        <li key={i}>{w}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <p className="text-xs text-[#69637f]">
+                                This document contains sufficient native text — OCR was skipped.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
 
                       <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
                         <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">

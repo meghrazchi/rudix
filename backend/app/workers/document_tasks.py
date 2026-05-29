@@ -27,7 +27,12 @@ from app.domains.documents.services.embedding_service import (
     TransientEmbeddingError,
 )
 from app.domains.documents.services.qdrant_service import QdrantService
-from app.domains.documents.services.text_extraction import extract_text_sections
+from app.domains.documents.services.ocr_detection import detect_ocr_need
+from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
+from app.domains.documents.services.text_extraction import (
+    extract_pdf_pages_native,
+    extract_text_sections,
+)
 from app.domains.documents.services.text_normalization import (
     TextCleaningStats,
     clean_extracted_sections,
@@ -511,23 +516,22 @@ async def _extract_and_store_document_pages_async(
                     category="infrastructure",
                     message=str(exc),
                 ) from exc
-            try:
-                sections = extract_text_sections(file_type=document.file_type, content=content)
-            except ValueError as exc:
-                raise DocumentPipelinePermanentError(
-                    stage="extract",
-                    code="TEXT_EXTRACTION_FAILED",
-                    category="validation",
-                    message=str(exc),
-                ) from exc
-            cleaned_sections, cleaning_stats = clean_extracted_sections(sections)
-            if not any(section.text for section in cleaned_sections):
-                raise DocumentPipelinePermanentError(
-                    stage="clean",
-                    code="EMPTY_AFTER_CLEANING",
-                    category="validation",
-                    message="extracted document contains no text after cleaning",
-                )
+            ocr_enabled = settings.ocr_enabled and document.file_type == "pdf"
+            if ocr_enabled:
+                sections = extract_pdf_pages_native(content)
+            else:
+                try:
+                    sections = extract_text_sections(
+                        file_type=document.file_type, content=content
+                    )
+                except ValueError as exc:
+                    raise DocumentPipelinePermanentError(
+                        stage="extract",
+                        code="TEXT_EXTRACTION_FAILED",
+                        category="validation",
+                        message=str(exc),
+                    ) from exc
+
             log_document_event(
                 event="document.pipeline.stage",
                 document_id=str(document.id),
@@ -536,17 +540,141 @@ async def _extract_and_store_document_pages_async(
                 user_id=resolved_user_id,
                 stage="extract",
                 stage_status="completed",
-                page_count=len(cleaned_sections),
-                **cleaning_stats.as_log_fields(),
+                page_count=len(sections),
             )
             await pipeline_recorder.emit_stage(
                 stage="extract",
                 stage_status="completed",
-                outputs={
-                    "page_count": len(cleaned_sections),
-                    **cleaning_stats.as_log_fields(),
-                },
+                outputs={"page_count": len(sections)},
             )
+
+            if ocr_enabled:
+                current_stage = "detect_ocr"
+                await pipeline_recorder.emit_stage(
+                    stage="detect_ocr", stage_status="started"
+                )
+                detection = detect_ocr_need(
+                    sections,
+                    min_chars_per_page=settings.ocr_min_text_chars_per_page,
+                )
+                await pipeline_recorder.emit_stage(
+                    stage="detect_ocr",
+                    stage_status="completed",
+                    outputs={
+                        "requires_ocr": detection.requires_ocr,
+                        "mode": detection.mode,
+                        "page_count": detection.page_count,
+                        "native_text_pages": detection.native_text_pages,
+                        "ocr_candidate_pages": detection.ocr_candidate_pages,
+                        "reason": detection.reason,
+                    },
+                )
+                log_document_event(
+                    event="document.pipeline.stage",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    stage="detect_ocr",
+                    stage_status="completed",
+                    ocr_required=detection.requires_ocr,
+                    ocr_mode=detection.mode,
+                )
+
+                if detection.requires_ocr:
+                    current_stage = "ocr"
+                    await pipeline_recorder.emit_stage(
+                        stage="ocr",
+                        stage_status="started",
+                        config={
+                            "languages": settings.ocr_default_languages,
+                            "dpi": settings.ocr_image_dpi,
+                            "max_pages": settings.ocr_max_pages,
+                            "page_timeout_seconds": settings.ocr_page_timeout_seconds,
+                        },
+                    )
+                    try:
+                        ocr_result = run_ocr(
+                            content,
+                            detection.ocr_candidate_pages,
+                            languages=settings.ocr_default_languages,
+                            dpi=settings.ocr_image_dpi,
+                            page_timeout_seconds=settings.ocr_page_timeout_seconds,
+                            max_pages=settings.ocr_max_pages,
+                        )
+                    except RuntimeError as exc:
+                        raise DocumentPipelinePermanentError(
+                            stage="ocr",
+                            code="OCR_DEPENDENCIES_MISSING",
+                            category="infrastructure",
+                            message=str(exc),
+                        ) from exc
+
+                    sections = merge_ocr_with_sections(
+                        sections,
+                        ocr_result,
+                        min_chars_per_page=settings.ocr_min_text_chars_per_page,
+                    )
+                    ocr_completed = sum(
+                        1 for p in ocr_result.pages if p.status == "completed"
+                    )
+                    ocr_failed = sum(
+                        1 for p in ocr_result.pages if p.status == "failed"
+                    )
+                    ocr_stage_status = (
+                        "failed"
+                        if ocr_result.status == "failed"
+                        else "completed"
+                    )
+                    await pipeline_recorder.emit_stage(
+                        stage="ocr",
+                        stage_status=ocr_stage_status,
+                        outputs={
+                            "status": ocr_result.status,
+                            "mode": detection.mode,
+                            "languages": ocr_result.languages,
+                            "pages_processed": len(ocr_result.pages),
+                            "pages_completed": ocr_completed,
+                            "pages_failed": ocr_failed,
+                            "duration_ms": ocr_result.duration_ms,
+                            "warnings": [
+                                p.warning
+                                for p in ocr_result.pages
+                                if p.warning
+                            ],
+                        },
+                    )
+                    page_warnings = [p.warning for p in ocr_result.pages if p.warning]
+                    log_document_event(
+                        event="document.pipeline.stage",
+                        document_id=str(document.id),
+                        request_id=request_id,
+                        organization_id=resolved_organization_id,
+                        user_id=resolved_user_id,
+                        stage="ocr",
+                        stage_status=ocr_stage_status,
+                        ocr_status=ocr_result.status,
+                        ocr_pages_processed=len(ocr_result.pages),
+                        ocr_duration_ms=ocr_result.duration_ms,
+                        ocr_page_warnings=page_warnings,
+                    )
+                    if ocr_result.status == "failed":
+                        first_warning = page_warnings[0] if page_warnings else "unknown error"
+                        raise DocumentPipelinePermanentError(
+                            stage="ocr",
+                            code="OCR_FAILED",
+                            category="processing",
+                            message=f"OCR failed on all candidate pages: {first_warning}",
+                        )
+
+            cleaned_sections, cleaning_stats = clean_extracted_sections(sections)
+            if not any(section.text for section in cleaned_sections):
+                raise DocumentPipelinePermanentError(
+                    stage="clean",
+                    code="EMPTY_AFTER_CLEANING",
+                    category="validation",
+                    message="extracted document contains no text after cleaning",
+                )
 
             current_stage = "index_cleanup"
             log_document_event(

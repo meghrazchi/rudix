@@ -101,6 +101,7 @@ export type DocumentLifecycleTimelineStepResponse = {
   completed_at: string | null;
   duration_ms: number | null;
   logs: string[];
+  outputs: Record<string, unknown> | null;
 };
 
 export type DocumentChunkPreviewResponse = {

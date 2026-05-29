@@ -99,6 +99,15 @@ def _extract_docx_sections(content: bytes) -> list[ExtractedSection]:
     return sections
 
 
+def extract_pdf_pages_native(content: bytes) -> list[ExtractedSection]:
+    """Extract all PDF pages natively without raising on empty text.
+
+    Used before OCR detection so scanned pages (empty text) are still returned
+    and can be passed to the OCR detection and extraction stages.
+    """
+    return _extract_pdf_sections(content)
+
+
 def extract_text_sections(*, file_type: str, content: bytes) -> list[ExtractedSection]:
     normalized_type = file_type.strip().lower()
     if normalized_type == "pdf":

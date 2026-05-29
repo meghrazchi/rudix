@@ -9,6 +9,8 @@ from app.models.pipeline import PipelineEvent
 _NODE_LABELS: dict[str, str] = {
     "resolve_document": "Resolve document",
     "extract": "Extract",
+    "detect_ocr": "Detect OCR need",
+    "ocr": "OCR",
     "clean": "Clean",
     "index_cleanup": "Index cleanup",
     "chunk": "Chunk",
@@ -33,6 +35,8 @@ _NODE_LABELS: dict[str, str] = {
 _NODE_DESCRIPTIONS: dict[str, str] = {
     "resolve_document": "Load and validate document context for the run.",
     "extract": "Extract raw text and metadata from source files.",
+    "detect_ocr": "Analyse extracted text to determine if OCR is required.",
+    "ocr": "Run optical character recognition on image-based pages.",
     "clean": "Normalize extracted text before chunking.",
     "index_cleanup": "Remove stale vectors for re-index operations.",
     "chunk": "Split text into retrieval-sized chunks.",

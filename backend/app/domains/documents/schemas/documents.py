@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -104,6 +104,7 @@ class DocumentLifecycleTimelineStepResponse(BaseModel):
     completed_at: datetime | None = None
     duration_ms: int | None = None
     logs: list[str] = Field(default_factory=list)
+    outputs: dict[str, Any] | None = None
 
 
 class DocumentDetailResponse(BaseModel):

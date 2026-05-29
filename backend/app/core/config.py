@@ -329,6 +329,18 @@ class Settings(BaseSettings):
     malware_scan_timeout_seconds: float = Field(default=10.0, ge=0.1, le=120.0)
     malware_scan_max_bytes: int | None = Field(default=None, ge=1, le=536_870_912)
     malware_scan_stream_chunk_size_bytes: int = Field(default=65_536, ge=1024, le=4_194_304)
+    ocr_enabled: bool = True
+    ocr_default_languages: str = Field(default="eng", min_length=1, max_length=255)
+    ocr_allowed_languages: str = Field(
+        default="eng,ara,fas,spa,fra,deu,ita,por,rus,chi_sim,chi_tra,jpn,kor",
+        min_length=3,
+        max_length=512,
+    )
+    ocr_max_pages: int = Field(default=100, ge=1, le=1000)
+    ocr_page_timeout_seconds: int = Field(default=60, ge=5, le=300)
+    ocr_min_text_chars_per_page: int = Field(default=30, ge=1, le=1000)
+    ocr_min_text_chars_document: int = Field(default=300, ge=1, le=10000)
+    ocr_image_dpi: int = Field(default=300, ge=72, le=600)
     retrieval_initial_top_k: int = Field(default=20, ge=1, le=200)
     retrieval_final_top_k: int = Field(default=5, ge=1, le=50)
     rerank_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)

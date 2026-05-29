@@ -203,6 +203,11 @@ def _build_lifecycle_timeline_from_pipeline(
             max(completed_candidates) if completed_candidates else latest_event.completed_at
         )
 
+        safe_outputs = (
+            latest_event.outputs_json
+            if isinstance(latest_event.outputs_json, dict)
+            else None
+        )
         timeline.append(
             DocumentLifecycleTimelineStepResponse(
                 step=node_name,
@@ -216,6 +221,7 @@ def _build_lifecycle_timeline_from_pipeline(
                 completed_at=completed_at,
                 duration_ms=_duration_from_event(latest_event),
                 logs=_safe_log_lines(latest_event.logs_json),
+                outputs=safe_outputs,
             )
         )
 
