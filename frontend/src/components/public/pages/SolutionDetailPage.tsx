@@ -3,10 +3,11 @@ import {
   FaqSection,
   FinalCtaBand,
   HeroSection,
+  WorkflowStripSection,
 } from "@/components/public/sections/PublicSections";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import type { SolutionAudience } from "@/lib/public-site/solutions";
-import { SOLUTION_ROLE_NAV } from "@/lib/public-site/solutions";
+import { SOLUTION_AUDIENCES, SOLUTION_ROLE_NAV } from "@/lib/public-site/solutions";
 
 type SolutionDetailPageProps = {
   solution: SolutionAudience;
@@ -126,6 +127,134 @@ function SolutionDetailBody({ solution }: { solution: SolutionAudience }) {
   );
 }
 
+function SolutionDocumentSourcesSection({ sources }: { sources: string[] }) {
+  return (
+    <section
+      aria-labelledby="doc-sources-title"
+      className="mx-auto w-full max-w-7xl px-4 pb-10 lg:px-8"
+    >
+      <h2
+        id="doc-sources-title"
+        className="text-xl font-semibold text-[#171a24]"
+      >
+        Common document sources
+      </h2>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {sources.map((source) => (
+          <li
+            key={source}
+            className="rounded-full border border-[#d0d5e4] bg-white px-4 py-2 text-xs font-medium text-[#3a3f54]"
+          >
+            {source}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SolutionOutcomesSection({ outcomes }: { outcomes: string[] }) {
+  return (
+    <section
+      aria-labelledby="outcomes-title"
+      className="mx-auto w-full max-w-7xl px-4 py-10 lg:px-8"
+    >
+      <h2
+        id="outcomes-title"
+        className="text-3xl font-black text-[#12141b] lg:text-4xl"
+      >
+        Measurable outcomes
+      </h2>
+      <ul className="mt-6 grid gap-4 md:grid-cols-2">
+        {outcomes.map((outcome) => (
+          <li
+            key={outcome}
+            className="flex items-start gap-3 rounded-2xl border border-[#d8dce7] bg-white p-5 shadow-sm"
+          >
+            <span
+              aria-hidden="true"
+              className="mt-0.5 shrink-0 text-[#3a35e8]"
+            >
+              ✓
+            </span>
+            <span className="text-sm leading-7 text-[#4e5160]">{outcome}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function SolutionRiskNoteSection({ riskNote }: { riskNote: string }) {
+  return (
+    <section
+      aria-labelledby="risk-note-title"
+      className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8"
+    >
+      <div className="rounded-2xl border border-[#f0c070] bg-[#fffbeb] px-5 py-5">
+        <h2
+          id="risk-note-title"
+          className="text-base font-semibold text-[#92400e]"
+        >
+          Usage note
+        </h2>
+        <p className="mt-2 text-sm leading-7 text-[#78350f]">{riskNote}</p>
+      </div>
+    </section>
+  );
+}
+
+function SolutionRelatedSection({
+  relatedSlugs,
+}: {
+  relatedSlugs: SolutionAudience["relatedSlugs"];
+}) {
+  if (!relatedSlugs?.length) {
+    return null;
+  }
+
+  const related = relatedSlugs
+    .map((slug) => SOLUTION_AUDIENCES.find((s) => s.slug === slug))
+    .filter((s): s is SolutionAudience => s !== undefined);
+
+  if (related.length === 0) {
+    return null;
+  }
+
+  return (
+    <section
+      aria-labelledby="related-solutions-title"
+      className="mx-auto w-full max-w-7xl px-4 py-10 lg:px-8"
+    >
+      <h2
+        id="related-solutions-title"
+        className="text-xl font-semibold text-[#171a24]"
+      >
+        Related solutions
+      </h2>
+      <ul className="mt-4 grid gap-4 md:grid-cols-2">
+        {related.map((sol) => (
+          <li key={sol.slug}>
+            <PublicActionLink
+              href={sol.routePath}
+              ariaLabel={`${sol.shortLabel} solution`}
+              className="block rounded-2xl border border-[#d8dce7] bg-white p-5 shadow-sm transition hover:border-[#b8bde8] hover:shadow-md"
+            >
+              <span className="text-xs font-bold tracking-[0.12em] text-[#636a7f] uppercase">
+                {sol.shortLabel}
+              </span>
+              <p className="mt-1 text-base font-semibold text-[#171a24]">
+                {sol.name}
+              </p>
+              <p className="mt-2 text-sm text-[#5a6071]">{sol.summary}</p>
+            </PublicActionLink>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function SolutionDetailPage({ solution }: SolutionDetailPageProps) {
   const links = resolvePublicSiteLinks();
 
@@ -154,9 +283,37 @@ export function SolutionDetailPage({ solution }: SolutionDetailPageProps) {
       <SolutionRoleNavigation activeSlug={solution.slug} />
       <SolutionDetailBody solution={solution} />
 
+      {solution.documentSources ? (
+        <SolutionDocumentSourcesSection sources={solution.documentSources} />
+      ) : null}
+
+      {solution.workflowSteps ? (
+        <WorkflowStripSection
+          title={solution.workflowTitle ?? `How ${solution.shortLabel} teams use Rudix`}
+          description={
+            solution.workflowDescription ??
+            "A repeatable process from first upload to consistently answered questions."
+          }
+          steps={solution.workflowSteps}
+        />
+      ) : null}
+
+      {solution.outcomes ? (
+        <SolutionOutcomesSection outcomes={solution.outcomes} />
+      ) : null}
+
+      {solution.riskNote ? (
+        <SolutionRiskNoteSection riskNote={solution.riskNote} />
+      ) : null}
+
+      {solution.relatedSlugs ? (
+        <SolutionRelatedSection relatedSlugs={solution.relatedSlugs} />
+      ) : null}
+
       <FaqSection
         title={`${solution.shortLabel} solution FAQ`}
         items={[
+          ...(solution.faqItems ?? []),
           {
             question: "Can we start with one team and expand later?",
             answer:

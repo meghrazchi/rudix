@@ -6,6 +6,16 @@ export type SolutionSlug =
   | "operations"
   | "research";
 
+export type SolutionFaqItem = {
+  question: string;
+  answer: string;
+};
+
+export type SolutionWorkflowStep = {
+  title: string;
+  description: string;
+};
+
 export type SolutionAudience = {
   slug: SolutionSlug;
   name: string;
@@ -16,6 +26,14 @@ export type SolutionAudience = {
   rudixWorkflow: string;
   exampleQuestions: string[];
   summary: string;
+  documentSources?: string[];
+  workflowSteps?: SolutionWorkflowStep[];
+  workflowTitle?: string;
+  workflowDescription?: string;
+  riskNote?: string;
+  outcomes?: string[];
+  relatedSlugs?: SolutionSlug[];
+  faqItems?: SolutionFaqItem[];
 };
 
 export const SOLUTION_AUDIENCES: SolutionAudience[] = [
@@ -33,9 +51,85 @@ export const SOLUTION_AUDIENCES: SolutionAudience[] = [
       "What is the parental leave policy by region?",
       "Which onboarding documents are required before day one?",
       "What is the current reimbursement policy for remote work?",
+      "How many days of sick leave does an employee accrue per month?",
+      "Where can I find the benefits enrollment deadline for this year?",
+      "What does the policy say about manager approval for overtime?",
+      "Is there a formal process for requesting a role change?",
+      "What happens if a question is not covered in the current handbook?",
     ],
     summary:
       "Support HR teams with faster, consistent responses grounded in approved internal policy sources.",
+    documentSources: [
+      "Employee handbook",
+      "Benefits enrollment guide",
+      "Onboarding packets",
+      "Leave and time-off policies",
+      "Remote work and expense SOPs",
+      "Role transition and promotion guides",
+      "Training and certification materials",
+      "Disciplinary and performance procedures",
+    ],
+    workflowTitle: "How HR teams use Rudix",
+    workflowDescription:
+      "A repeatable process from first upload to consistently answered policy questions.",
+    workflowSteps: [
+      {
+        title: "Upload policies",
+        description:
+          "Add handbooks, benefits guides, onboarding packets, and SOPs into a governed workspace.",
+      },
+      {
+        title: "Index documents",
+        description:
+          "Rudix processes and chunks content into searchable context ready for retrieval.",
+      },
+      {
+        title: "Ask questions",
+        description:
+          "Employees and HR operators ask policy questions in plain language.",
+      },
+      {
+        title: "Review citations",
+        description:
+          "Every answer includes source citations so teams can trace the exact document and section.",
+      },
+      {
+        title: "Evaluate quality",
+        description:
+          "Run evaluations against expected answers to monitor retrieval accuracy over time.",
+      },
+      {
+        title: "Update stale content",
+        description:
+          "Replace outdated policy versions and reindex to keep answers current.",
+      },
+    ],
+    riskNote:
+      "Rudix provides grounded answers from uploaded documents — it does not make employment decisions, legal determinations, or compliance rulings. Sensitive employee information should be governed under your organization's data policies. Role-scoped access controls ensure employees only retrieve content appropriate to their access level.",
+    outcomes: [
+      "Faster policy lookups for employees and HR teams",
+      "Fewer repetitive policy questions routed to the HR inbox",
+      "Consistent onboarding answers across regions and roles",
+      "Clear document-level source of truth for every response",
+    ],
+    relatedSlugs: ["compliance", "operations"],
+    faqItems: [
+      {
+        question: "Can employees use the HR assistant without HR oversight?",
+        answer:
+          "Access scope is controlled by your organization. HR teams can restrict which documents are queryable and by whom, so employees only retrieve content appropriate to their role.",
+      },
+      {
+        question: "How is sensitive employee data protected?",
+        answer:
+          "Rudix does not store document content beyond what is indexed for retrieval. Your data governance policies and role-based access controls govern who can query which documents.",
+      },
+      {
+        question: "What happens when a policy changes?",
+        answer:
+          "Replace the outdated document version and reindex. Answers automatically draw from the updated content on the next query.",
+      },
+    ],
   },
   {
     slug: "support",
