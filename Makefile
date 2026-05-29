@@ -1,6 +1,7 @@
 .PHONY: up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
 	migrate test lint check-backend \
 	frontend-dev frontend-build frontend-lint frontend-typecheck frontend-test frontend-e2e frontend-format check-frontend \
+	api-types api-types-check api-types-update \
 	check-all
 
 COMPOSE := docker compose
@@ -86,6 +87,21 @@ check-frontend:
 	$(MAKE) frontend-typecheck
 	$(MAKE) frontend-test
 
+## API type generation
+# Regenerate src/lib/api/generated/schema.d.ts from the committed openapi.json.
+api-types:
+	$(NPM) --prefix $(FRONTEND_DIR) run api:generate
+
+# Verify that generated types match the committed openapi.json (used in CI).
+api-types-check:
+	$(NPM) --prefix $(FRONTEND_DIR) run api:check
+
+# Fetch a fresh openapi.json from the backend and regenerate types.
+# Requires the backend API to be reachable (run `make up-d` first).
+api-types-update:
+	$(NPM) --prefix $(FRONTEND_DIR) run api:update-schema
+
 check-all:
 	$(MAKE) check-backend
 	$(MAKE) check-frontend
+	$(MAKE) api-types-check

@@ -256,7 +256,10 @@ make test        # Run backend tests
 make lint        # Run backend lint checks
 make check-backend   # Run backend lint + tests
 make check-frontend  # Run frontend lint + typecheck + tests
-make check-all       # Run backend checks, then frontend checks
+make check-all       # Run backend checks, frontend checks, and API type staleness check
+make api-types       # Regenerate frontend types from committed openapi.json
+make api-types-check # Verify generated types are up to date (used in CI)
+make api-types-update # Fetch fresh openapi.json from running backend and regenerate types
 make up-mcp          # Start standalone MCP server profile
 make logs-mcp        # Tail MCP service logs
 make frontend-dev    # Start frontend dev server from repo root
@@ -302,6 +305,9 @@ make lint         # Run lint and type checks
 | Backend API | `http://localhost:8000` |
 | MCP Server (optional profile) | `http://localhost:8010` |
 | API Health | `http://localhost:8000/api/v1/health` |
+| Swagger UI | `http://localhost:8000/docs` |
+| ReDoc | `http://localhost:8000/redoc` |
+| OpenAPI Schema | `http://localhost:8000/openapi.json` |
 | MinIO Console | `http://localhost:9001` |
 | RabbitMQ UI | `http://localhost:15672` |
 | Qdrant | `http://localhost:6333` |

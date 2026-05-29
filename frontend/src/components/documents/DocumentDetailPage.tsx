@@ -195,12 +195,12 @@ function fromBackendLifecycleTimelineStep(
     label: normalizeLifecycleLabel(step.step, step.label),
     description: step.description,
     state,
-    timestamp: step.completed_at ?? step.started_at,
+    timestamp: step.completed_at ?? step.started_at ?? null,
     documentId: step.document_id,
     logs: Array.isArray(step.logs) ? step.logs : [],
-    pipelineRunId: step.pipeline_run_id,
-    pipelineType: step.pipeline_type,
-    durationMs: step.duration_ms,
+    pipelineRunId: step.pipeline_run_id ?? null,
+    pipelineType: step.pipeline_type ?? null,
+    durationMs: step.duration_ms ?? null,
     status: step.status,
     outputs: step.outputs ?? null,
   };
@@ -711,7 +711,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       disabled={!detail.checksum}
                       onClick={() => {
                         void copyMetadataValue(
-                          detail.checksum,
+                          detail.checksum ?? null,
                           "Checksum",
                           "checksum",
                         );

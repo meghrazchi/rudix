@@ -29,11 +29,14 @@ docker compose up --build
 make up
 ```
 
-3. API health endpoints:
+3. API health and documentation endpoints:
 
 - `GET http://localhost:8000/api/v1/health`
 - `GET http://localhost:8000/api/v1/ready`
 - `GET http://localhost:8000/api/v1/configz` (sanitized settings snapshot, controlled by `FEATURE_EXPOSE_CONFIG_SNAPSHOT`)
+- `GET http://localhost:8000/docs` — Swagger UI (auto-generated from route and Pydantic model definitions)
+- `GET http://localhost:8000/redoc` — ReDoc UI
+- `GET http://localhost:8000/openapi.json` — Raw OpenAPI 3.1 schema
 
 4. Apply database migrations:
 
@@ -275,6 +278,20 @@ make logs-mcp
 ```
 
 `docker-compose.yml` uses a dedicated `mcp` profile so the service is not started unless explicitly requested.
+
+## OpenAPI schema export
+
+The script `scripts/export_openapi.py` dumps the FastAPI OpenAPI schema to JSON without starting any services. It is used by the frontend type generation pipeline.
+
+```bash
+# Write schema to stdout
+python scripts/export_openapi.py
+
+# Write schema to a specific path
+python scripts/export_openapi.py ../frontend/openapi.json
+```
+
+The script sets stub values for required config fields so pydantic-settings can load without a `.env` file or live infrastructure. If a `.env` file exists, real values take precedence.
 
 ## Development commands
 

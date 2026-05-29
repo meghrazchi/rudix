@@ -300,16 +300,52 @@ Open `http://localhost:3000`.
 
 ## Scripts
 
-| Command              | Description             |
-| -------------------- | ----------------------- |
-| `npm run dev`        | Start dev server        |
-| `npm run build`      | Build production bundle |
-| `npm run start`      | Run production server   |
-| `npm run typecheck`  | TypeScript checks       |
-| `npm run lint`       | ESLint                  |
-| `npm run test`       | Vitest tests            |
-| `npm run test:watch` | Vitest watch mode       |
-| `npm run test:e2e`   | Playwright tests        |
+| Command                     | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `npm run dev`               | Start dev server                                         |
+| `npm run build`             | Build production bundle                                  |
+| `npm run start`             | Run production server                                    |
+| `npm run typecheck`         | TypeScript checks                                        |
+| `npm run lint`              | ESLint                                                   |
+| `npm run test`              | Vitest tests                                             |
+| `npm run test:watch`        | Vitest watch mode                                        |
+| `npm run test:e2e`          | Playwright tests                                         |
+| `npm run api:generate`      | Regenerate TypeScript types from committed `openapi.json` |
+| `npm run api:check`         | Fail if generated types are stale (used in CI)           |
+| `npm run api:update-schema` | Fetch fresh `openapi.json` from running backend and regenerate types |
+
+## API type generation
+
+Frontend API types in `src/lib/api/generated/schema.d.ts` are generated from the backend's OpenAPI schema using [`openapi-typescript`](https://github.com/openapi-ts/openapi-typescript).
+
+**Regenerate from committed schema** (no backend needed):
+
+```bash
+npm run api:generate
+```
+
+**Refresh schema from a running backend** (requires `make up-d`):
+
+```bash
+npm run api:update-schema
+```
+
+**Check for stale types** (runs automatically in CI via `make check-all`):
+
+```bash
+npm run api:check
+```
+
+API modules such as `src/lib/api/documents.ts` and `src/lib/api/chat.ts` import and re-export types directly from the generated schema:
+
+```ts
+import type { components } from "@/lib/api/generated/schema";
+type Schemas = components["schemas"];
+
+export type DocumentListResponse = Schemas["DocumentListResponse"];
+```
+
+When you add or change a Pydantic model on the backend, run `npm run api:update-schema` and commit both `openapi.json` and the updated `schema.d.ts`.
 
 ## Testing
 
@@ -354,7 +390,7 @@ npm run test:e2e
 ## Notes
 
 - `@radix-ui/react-dialog` and `@radix-ui/react-slot` were removed because they are not used in the current code.
-- Typed frontend API clients are in `src/lib/api/*`.
+- Typed frontend API clients are in `src/lib/api/*`. Request/response types are derived from the generated schema at `src/lib/api/generated/schema.d.ts`.
 - Shared request handling includes bearer token and organization header injection from local session (when available), normalized API errors, and safe retry behavior for transient query failures.
 - Shared UI state primitives are in `src/components/states/*` (`LoadingState`, `EmptyState`, `ErrorState`, `ForbiddenState`, `RateLimitState`, `RetryAction`) with safe trace/request ID rendering.
 - TanStack Query defaults and mutation invalidation helpers are in `src/lib/api/query.ts`.
