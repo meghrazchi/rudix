@@ -6,7 +6,8 @@ export type SolutionSlug =
   | "operations"
   | "research"
   | "sales"
-  | "internal-knowledge";
+  | "internal-knowledge"
+  | "procurement";
 
 export type SolutionFaqItem = {
   question: string;
@@ -360,6 +361,70 @@ export const SOLUTION_AUDIENCES: SolutionAudience[] = [
       "Clear document-level source of truth for every response",
     ],
     relatedSlugs: ["hr", "operations", "research"],
+  },
+  {
+    slug: "procurement",
+    name: "Procurement & Vendor Review",
+    shortLabel: "Procurement",
+    routePath: "/solutions/procurement",
+    teamLabel: "Procurement and Supply Chain",
+    painPoint:
+      "Vendor documentation is voluminous and unstructured — security questionnaires, SOC2 reports, and contracts take weeks to manually parse and compare.",
+    rudixWorkflow:
+      "Index supplier documents, surface cited answers to due-diligence questions, and track compliance evidence without replacing approval workflows.",
+    exampleQuestions: [
+      "Which vendor meets our data residency requirements for the EU?",
+      "Summarize the security controls in this SOC2 report.",
+      "What does this vendor's DPA say about sub-processor notification timelines?",
+      "Does this contract include a limitation of liability clause?",
+      "Which RFP responses address our uptime SLA requirement?",
+    ],
+    summary:
+      "Accelerate vendor due diligence and procurement policy review with citation-backed answers from supplier documents and contracts.",
+    documentSources: [
+      "SOC2 reports",
+      "RFP and RFQ responses",
+      "Vendor contracts and DPAs",
+      "Security questionnaires",
+      "Supplier onboarding packs",
+      "Procurement policies",
+      "Risk assessment frameworks",
+      "ISO and regulatory compliance evidence",
+    ],
+    workflowTitle: "How procurement teams use Rudix",
+    workflowDescription:
+      "From document upload to cited due-diligence answers, without replacing your approval process.",
+    workflowSteps: [
+      {
+        title: "Upload vendor documents",
+        description:
+          "Ingest SOC2 reports, vendor contracts, RFP responses, and security questionnaires into a governed workspace.",
+      },
+      {
+        title: "Index and extract",
+        description:
+          "Rudix semantically indexes content and maps responses to your internal risk framework.",
+      },
+      {
+        title: "Ask due-diligence questions",
+        description:
+          "Ask compliance and contract questions in plain language and receive cited, source-grounded answers.",
+      },
+      {
+        title: "Verify and escalate",
+        description:
+          "Review citations, flag gaps, and escalate to legal or compliance where human judgment is required.",
+      },
+    ],
+    riskNote:
+      "Rudix surfaces answers from uploaded documents — it does not make final procurement approvals, legal determinations, or vendor selection decisions. All sourced answers should be verified by qualified procurement and legal teams before acting on them.",
+    outcomes: [
+      "Faster vendor due diligence cycles",
+      "Consistent policy answers across procurement reviewers",
+      "Traceable evidence for every compliance claim",
+      "Fewer manual reads of long supplier documents",
+    ],
+    relatedSlugs: ["legal", "compliance", "operations"],
   },
 ];
 

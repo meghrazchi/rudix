@@ -81,6 +81,7 @@ export const enterpriseUseCaseCards: EnterpriseUseCaseCard[] = [
     description:
       "Streamline vendor evaluations and RFP response extraction through RAG pipelines.",
     icon: "procurement",
+    href: SOLUTION_AUDIENCES[8].routePath,
   },
   {
     id: "research",
