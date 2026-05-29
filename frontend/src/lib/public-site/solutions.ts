@@ -5,7 +5,8 @@ export type SolutionSlug =
   | "compliance"
   | "operations"
   | "research"
-  | "sales";
+  | "sales"
+  | "internal-knowledge";
 
 export type SolutionFaqItem = {
   question: string;
@@ -295,6 +296,70 @@ export const SOLUTION_AUDIENCES: SolutionAudience[] = [
       "Citation-backed answers reps can share with confidence",
     ],
     relatedSlugs: ["legal", "research", "operations"],
+  },
+  {
+    slug: "internal-knowledge",
+    name: "Internal Knowledge Assistant",
+    shortLabel: "Knowledge",
+    routePath: "/solutions/internal-knowledge",
+    teamLabel: "All Teams",
+    painPoint:
+      "Critical context is trapped in PDFs, private drives, and individuals' heads, slowing onboarding and repeating the same questions daily.",
+    rudixWorkflow:
+      "Upload SOPs, handbooks, playbooks, and manuals into a governed workspace; employees get citation-backed answers instantly.",
+    exampleQuestions: [
+      "What is the budget approval process?",
+      "Where is the brand style guide?",
+      "How do I request temporary VPN access?",
+      "What is our policy on working from abroad?",
+      "What is the remote work stipend for international employees?",
+    ],
+    summary:
+      "Turn scattered internal documents into a trusted AI Q&A experience with citations and access control for every team.",
+    documentSources: [
+      "Standard Operating Procedures",
+      "Employee handbooks",
+      "Sales and engineering playbooks",
+      "Technical manuals and training kits",
+      "Onboarding guides",
+      "Company procedures and policies",
+      "Product documentation",
+      "Finance and approval workflows",
+    ],
+    workflowTitle: "How teams use Rudix for internal knowledge",
+    workflowDescription:
+      "A repeatable process from document upload to instant, citation-backed employee answers.",
+    workflowSteps: [
+      {
+        title: "Upload SOPs",
+        description:
+          "Drag and drop unstructured documents — PDFs, Notion pages, and structured files — into a governed workspace.",
+      },
+      {
+        title: "Vector index",
+        description:
+          "Rudix automatically creates semantic embeddings for precise retrieval across the full document corpus.",
+      },
+      {
+        title: "Ask anything",
+        description:
+          "Employees ask natural language questions via web or integrated channels and receive immediate answers.",
+      },
+      {
+        title: "Verify and cite",
+        description:
+          "Every answer includes verifiable source references so teams can trace the exact document and section.",
+      },
+    ],
+    riskNote:
+      "Rudix surfaces answers from uploaded documents — it does not make HR decisions, approve budgets, or replace manager judgment. Role-scoped access controls ensure employees only retrieve content appropriate to their access level.",
+    outcomes: [
+      "Faster answers to common employee questions",
+      "Reduced onboarding time with instant policy lookups",
+      "Fewer repeated questions reaching subject matter experts",
+      "Clear document-level source of truth for every response",
+    ],
+    relatedSlugs: ["hr", "operations", "research"],
   },
 ];
 

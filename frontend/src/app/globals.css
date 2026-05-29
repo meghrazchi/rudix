@@ -152,3 +152,52 @@ body {
   background-image: radial-gradient(#e2dfff 0.5px, transparent 0.5px);
   background-size: 24px 24px;
 }
+
+@keyframes rudix-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-15px); }
+}
+.rudix-animate-float {
+  animation: rudix-float 6s ease-in-out infinite;
+}
+
+@keyframes rudix-data-pulse {
+  0%   { left: -10%; opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { left: 110%; opacity: 0; }
+}
+.rudix-data-pulse-line {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 4px;
+  width: 100px;
+  background: linear-gradient(90deg, transparent, #4f46e5, transparent);
+  filter: blur(2px);
+  animation: rudix-data-pulse 4s linear infinite;
+}
+
+@keyframes rudix-cursor-blink {
+  from, to { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.rudix-cursor-blink {
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  background-color: currentColor;
+  vertical-align: middle;
+  margin-left: 2px;
+  animation: rudix-cursor-blink 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rudix-animate-float,
+  .rudix-data-pulse-line,
+  .rudix-cursor-blink {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

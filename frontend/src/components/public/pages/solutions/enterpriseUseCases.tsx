@@ -25,6 +25,7 @@ export const enterpriseUseCaseCards: EnterpriseUseCaseCard[] = [
     description:
       "Centralize wikis, handbooks, and team documentation for instant employee onboarding.",
     icon: "knowledge",
+    href: SOLUTION_AUDIENCES[7].routePath,
   },
   {
     id: "hr",

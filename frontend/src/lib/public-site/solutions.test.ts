@@ -8,16 +8,16 @@ import {
 } from "@/lib/public-site/solutions";
 
 describe("public solutions model", () => {
-  it("defines seven unique solution audiences with unique routes", () => {
-    expect(SOLUTION_AUDIENCES).toHaveLength(7);
+  it("defines eight unique solution audiences with unique routes", () => {
+    expect(SOLUTION_AUDIENCES).toHaveLength(8);
 
     const slugs = new Set(SOLUTION_AUDIENCES.map((solution) => solution.slug));
     const routes = new Set(
       SOLUTION_AUDIENCES.map((solution) => solution.routePath),
     );
 
-    expect(slugs.size).toBe(7);
-    expect(routes.size).toBe(7);
+    expect(slugs.size).toBe(8);
+    expect(routes.size).toBe(8);
   });
 
   it("maps role navigation to every solution route", () => {
