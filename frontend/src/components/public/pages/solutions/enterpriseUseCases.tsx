@@ -72,6 +72,7 @@ export const enterpriseUseCaseCards: EnterpriseUseCaseCard[] = [
     description:
       "Arm account executives with competitive intel and case studies during live calls.",
     icon: "sales",
+    href: SOLUTION_AUDIENCES[6].routePath,
   },
   {
     id: "procurement",

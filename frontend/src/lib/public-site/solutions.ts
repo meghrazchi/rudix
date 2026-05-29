@@ -4,7 +4,8 @@ export type SolutionSlug =
   | "legal"
   | "compliance"
   | "operations"
-  | "research";
+  | "research"
+  | "sales";
 
 export type SolutionFaqItem = {
   question: string;
@@ -220,6 +221,80 @@ export const SOLUTION_AUDIENCES: SolutionAudience[] = [
     ],
     summary:
       "Accelerate research synthesis with grounded answers and clearer evidence trails for strategic decisions.",
+  },
+  {
+    slug: "sales",
+    name: "Sales Enablement Engine",
+    shortLabel: "Sales",
+    routePath: "/solutions/sales",
+    teamLabel: "Sales and Revenue",
+    painPoint:
+      "AEs and SEs waste hours searching for battlecards, pricing sheets, and case studies during live deal cycles.",
+    rudixWorkflow:
+      "Index approved sales collateral and product knowledge so reps get cited, accurate answers during calls and proposal prep.",
+    exampleQuestions: [
+      "Which case study fits a healthcare prospect looking for SOC2 compliance?",
+      "What are our competitive advantages against Enterprise-X?",
+      "Can we offer a 15% discount for a 3-year term on the Enterprise tier?",
+      "What does the implementation guide say about onboarding timelines?",
+      "Which RFP template covers data residency requirements?",
+    ],
+    summary:
+      "Empower sales teams to answer deal questions instantly with cited answers from battlecards, RFP templates, pricing sheets, and product specs.",
+    documentSources: [
+      "Product specifications",
+      "Case studies",
+      "RFP and RFI templates",
+      "Pricing sheets",
+      "Competitive battlecards",
+      "Proposal decks",
+      "Implementation guides",
+      "Customer success playbooks",
+    ],
+    workflowTitle: "How sales teams use Rudix",
+    workflowDescription:
+      "From uploaded collateral to cited deal intelligence, without leaving your workflow.",
+    workflowSteps: [
+      {
+        title: "Upload approved collateral",
+        description:
+          "Add battlecards, pricing sheets, case studies, and RFP templates into a governed workspace.",
+      },
+      {
+        title: "Index documents",
+        description:
+          "Rudix processes and chunks content for precision retrieval during live deal interactions.",
+      },
+      {
+        title: "Ask deal questions",
+        description:
+          "AEs and SEs ask competitive, pricing, and product questions in plain language.",
+      },
+      {
+        title: "Verify citations",
+        description:
+          "Every answer links back to the source document so reps can cite evidence confidently.",
+      },
+      {
+        title: "Evaluate accuracy",
+        description:
+          "Run evaluations to keep answer quality high as collateral and pricing evolve.",
+      },
+      {
+        title: "Update stale content",
+        description:
+          "Replace outdated battlecards or pricing versions and reindex to keep answers current.",
+      },
+    ],
+    riskNote:
+      "Rudix surfaces answers from approved uploaded documents — it does not generate commercial commitments, finalize pricing, or replace legal review. All deal-specific terms must be validated by the appropriate owner before being communicated to prospects.",
+    outcomes: [
+      "Faster RFP and proposal response cycles",
+      "Consistent competitive positioning across the team",
+      "Fewer escalations to product and legal for standard deal questions",
+      "Citation-backed answers reps can share with confidence",
+    ],
+    relatedSlugs: ["legal", "research", "operations"],
   },
 ];
 
