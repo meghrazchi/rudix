@@ -104,7 +104,18 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
     Record<string, TeamInviteRole>
   >({});
   const [memberPageIndex, setMemberPageIndex] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const memberOffset = memberPageIndex * TEAM_MEMBERS_PAGE_SIZE;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const trimmed = searchInput.trim();
+      setSearchQuery(trimmed);
+      setMemberPageIndex(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const inviteForm = useForm<TeamInviteValues>({
     resolver: zodResolver(teamInviteSchema),
@@ -116,11 +127,12 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
   });
 
   const membersQuery = useQuery({
-    queryKey: ["team", "members", TEAM_MEMBERS_PAGE_SIZE, memberOffset],
+    queryKey: ["team", "members", TEAM_MEMBERS_PAGE_SIZE, memberOffset, searchQuery],
     queryFn: () =>
       listTeamMembers({
         limit: TEAM_MEMBERS_PAGE_SIZE,
         offset: memberOffset,
+        search: searchQuery || undefined,
       }),
     enabled: isAdmin && capabilities.listMembersEnabled,
     retry: false,
@@ -265,6 +277,59 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
         users.
       </p>
 
+      {capabilities.listMembersEnabled && (
+        <div className="relative mb-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#777587]"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search by name or email…"
+            aria-label="Search members"
+            className="h-9 w-full rounded-lg border border-[#d2cee6] bg-white pl-8 pr-8 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#777587] hover:text-[#2f2a46] transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
       {!capabilities.listMembersEnabled ? (
         <EmptyState
           compact
@@ -292,7 +357,11 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
         <EmptyState
           compact
           className="mb-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-          title="No members are currently available for this organization."
+          title={
+            searchQuery
+              ? `No members match "${searchQuery}".`
+              : "No members are currently available for this organization."
+          }
         />
       ) : (
         <div className="mb-4 overflow-x-auto rounded-lg border border-[#ebe8f7]">

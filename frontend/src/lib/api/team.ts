@@ -33,6 +33,7 @@ export type TeamMemberListResponse = {
 export type TeamMemberListParams = {
   limit?: number;
   offset?: number;
+  search?: string;
 };
 
 export type InviteTeamMemberRequest = {
@@ -263,12 +264,17 @@ export async function listTeamMembers(
     params.offset >= 0
       ? Math.floor(params.offset)
       : undefined;
+  const search =
+    typeof params.search === "string" && params.search.trim().length > 0
+      ? params.search.trim()
+      : undefined;
 
   const payload = await apiRequest<unknown>(listMembersUrl, {
     method: "GET",
     query: {
       limit,
       offset,
+      search,
     },
     retry: false,
   });

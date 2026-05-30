@@ -4,20 +4,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { ForbiddenState } from "@/components/states/ForbiddenState";
+import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
 import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import {
   SettingsTabs,
   useSettingsTab,
   type SettingsTabId,
 } from "@/components/settings/SettingsTabs";
-import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
-
-function isAdminLikeRole(role: string | null | undefined): boolean {
-  return role === "owner" || role === "admin";
-}
 
 function formatAuthProvider(value: string | undefined): string {
   if (!value?.trim()) {
@@ -41,8 +36,6 @@ export function SettingsPage() {
   const router = useRouter();
   const { state, signOut } = useAuthSession();
   const session = state.session;
-  const role = session?.role ?? null;
-  const isAdmin = isAdminLikeRole(role);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const activeTab = useSettingsTab();
@@ -116,77 +109,9 @@ export function SettingsPage() {
           role="tabpanel"
           aria-labelledby="settings-tab-organization"
           tabIndex={0}
-          className="space-y-6 focus-visible:outline-none"
+          className="focus-visible:outline-none"
         >
-          <section
-            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-            aria-label="Organization section"
-          >
-            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Organization context
-            </h2>
-            <dl className="space-y-3 text-sm">
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">
-                  Organization name
-                </dt>
-                <dd className="text-[#2f2a46]">
-                  {session?.organizationName ?? "Not assigned"}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">
-                  Organization ID
-                </dt>
-                <dd className="text-[#2f2a46]">
-                  {session?.organizationId ?? "Not assigned"}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">
-                  Permission scope
-                </dt>
-                <dd className="text-[#2f2a46]">
-                  {isAdmin
-                    ? "Administrator controls are enabled."
-                    : "Standard member/viewer permissions."}
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <TeamManagementSection role={role} />
-
-          <section
-            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-            aria-label="Admin controls section"
-          >
-            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Admin-only controls
-            </h2>
-            {isAdmin ? (
-              <div className="space-y-3">
-                <p className="text-sm text-[#4d4963]">
-                  Administrative security and organization controls are
-                  available to owner/admin roles.
-                </p>
-                <Link
-                  href="/admin"
-                  className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-                >
-                  Open admin surface
-                </Link>
-              </div>
-            ) : (
-              <ForbiddenState
-                compact
-                title="Admin controls restricted"
-                description="Your current role does not permit viewing or modifying organization security controls."
-                backHref="/dashboard"
-                backLabel="Back to dashboard"
-              />
-            )}
-          </section>
+          <OrganizationSettingsTab />
         </div>
       )}
 
