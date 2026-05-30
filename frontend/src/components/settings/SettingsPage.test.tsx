@@ -93,6 +93,50 @@ vi.mock("@/lib/api/team", () => ({
   isTeamEndpointUnavailableError: () => false,
 }));
 
+vi.mock("@/lib/api/security", () => ({
+  getSecurityCapabilities: () => ({
+    sessionsEnabled: false,
+    revokeSessionEnabled: false,
+    revokeAllSessionsEnabled: false,
+    loginPolicyEnabled: false,
+    postureEnabled: false,
+    auditEnabled: false,
+    auditExportEnabled: false,
+  }),
+  getSessions: vi.fn(),
+  revokeSession: vi.fn(),
+  revokeAllOtherSessions: vi.fn(),
+  getLoginPolicy: vi.fn(),
+  updateLoginPolicy: vi.fn(),
+  getSecurityPosture: vi.fn(),
+  getRecentAuditEvents: vi.fn(),
+}));
+
+vi.mock("@/lib/api/request", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api/request")>(
+    "@/lib/api/request",
+  );
+  return {
+    ...actual,
+    getJwtExpirationTimeMs: () => null,
+  };
+});
+
+vi.mock("@/lib/runtime-config", () => ({
+  getFrontendRuntimeConfig: () => ({
+    apiUrl: "http://localhost:8000/api/v1",
+    appUrl: "http://localhost:3000",
+    authProvider: "app",
+    authProviderRaw: "app",
+    features: {
+      developerMode: false,
+      feedback: false,
+      exports: false,
+      unavailableBackendEndpoints: false,
+    },
+  }),
+}));
+
 const FULL_PREFERENCES: SettingsPreferences = {
   defaultTopK: 5,
   rerankEnabled: true,
@@ -223,7 +267,9 @@ describe("SettingsPage", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("region", { name: "Security section" }),
+      await screen.findByRole("region", {
+        name: "Authentication diagnostics section",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -351,12 +397,14 @@ describe("SettingsPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses the shared logout flow from settings security area", async () => {
-    mockState.tab = "security";
+  it("uses the shared logout flow from the profile tab", async () => {
+    mockState.tab = "profile";
     renderPage();
-    await screen.findByRole("region", { name: "Security section" });
+    await screen.findByRole("region", { name: "Account actions section" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /^Sign out$/ }),
+    );
 
     await waitFor(() => {
       expect(mockState.signOut).toHaveBeenCalledTimes(1);
