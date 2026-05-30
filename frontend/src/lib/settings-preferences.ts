@@ -75,6 +75,9 @@ export const settingsTopKBounds = {
   defaultValue: TOP_K_DEFAULT,
 } as const;
 
+export const ANSWER_DETAIL_LEVELS = ["brief", "standard", "detailed"] as const;
+export type AnswerDetailLevel = (typeof ANSWER_DETAIL_LEVELS)[number];
+
 export const settingsPreferencesSchema = z.object({
   defaultTopK: z
     .number()
@@ -83,10 +86,16 @@ export const settingsPreferencesSchema = z.object({
     .max(TOP_K_MAX, `Default top-k must be at most ${TOP_K_MAX}.`),
   rerankEnabled: z.boolean(),
   developerMode: z.boolean(),
+  answerDetailLevel: z.enum(ANSWER_DETAIL_LEVELS),
+  showConfidenceScore: z.boolean(),
+  expandCitations: z.boolean(),
   notifications: z.object({
     productUpdates: z.boolean(),
     securityAlerts: z.boolean(),
     documentProcessing: z.boolean(),
+    failedIndexing: z.boolean(),
+    evaluationCompletion: z.boolean(),
+    billingWarnings: z.boolean(),
   }),
 });
 
@@ -105,6 +114,12 @@ type SettingsPreferencesPayload = {
   rerankEnabled?: boolean;
   developer_mode?: boolean;
   developerMode?: boolean;
+  answer_detail_level?: string;
+  answerDetailLevel?: string;
+  show_confidence_score?: boolean;
+  showConfidenceScore?: boolean;
+  expand_citations?: boolean;
+  expandCitations?: boolean;
   notifications?: {
     product_updates?: boolean;
     productUpdates?: boolean;
@@ -112,6 +127,12 @@ type SettingsPreferencesPayload = {
     securityAlerts?: boolean;
     document_processing?: boolean;
     documentProcessing?: boolean;
+    failed_indexing?: boolean;
+    failedIndexing?: boolean;
+    evaluation_completion?: boolean;
+    evaluationCompletion?: boolean;
+    billing_warnings?: boolean;
+    billingWarnings?: boolean;
   } | null;
 };
 
@@ -140,10 +161,16 @@ export function createDefaultSettingsPreferences(): SettingsPreferences {
     defaultTopK: TOP_K_DEFAULT,
     rerankEnabled: true,
     developerMode: runtimeConfig.features.developerMode,
+    answerDetailLevel: "standard",
+    showConfidenceScore: false,
+    expandCitations: false,
     notifications: {
       productUpdates: true,
       securityAlerts: true,
       documentProcessing: true,
+      failedIndexing: true,
+      evaluationCompletion: true,
+      billingWarnings: true,
     },
   };
 }
@@ -160,6 +187,19 @@ function sanitizeNumber(value: unknown, fallback: number): number {
     return fallback;
   }
   return Math.trunc(value);
+}
+
+function sanitizeAnswerDetailLevel(
+  value: unknown,
+  fallback: AnswerDetailLevel,
+): AnswerDetailLevel {
+  if (
+    typeof value === "string" &&
+    (ANSWER_DETAIL_LEVELS as readonly string[]).includes(value)
+  ) {
+    return value as AnswerDetailLevel;
+  }
+  return fallback;
 }
 
 function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
@@ -188,6 +228,18 @@ function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
       candidate.developer_mode ?? candidate.developerMode,
       defaults.developerMode,
     ),
+    answerDetailLevel: sanitizeAnswerDetailLevel(
+      candidate.answer_detail_level ?? candidate.answerDetailLevel,
+      defaults.answerDetailLevel,
+    ),
+    showConfidenceScore: sanitizeBoolean(
+      candidate.show_confidence_score ?? candidate.showConfidenceScore,
+      defaults.showConfidenceScore,
+    ),
+    expandCitations: sanitizeBoolean(
+      candidate.expand_citations ?? candidate.expandCitations,
+      defaults.expandCitations,
+    ),
     notifications: {
       productUpdates: sanitizeBoolean(
         notifications.product_updates ?? notifications.productUpdates,
@@ -201,6 +253,19 @@ function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
         notifications.document_processing ?? notifications.documentProcessing,
         defaults.notifications.documentProcessing,
       ),
+      failedIndexing: sanitizeBoolean(
+        notifications.failed_indexing ?? notifications.failedIndexing,
+        defaults.notifications.failedIndexing,
+      ),
+      evaluationCompletion: sanitizeBoolean(
+        notifications.evaluation_completion ??
+          notifications.evaluationCompletion,
+        defaults.notifications.evaluationCompletion,
+      ),
+      billingWarnings: sanitizeBoolean(
+        notifications.billing_warnings ?? notifications.billingWarnings,
+        defaults.notifications.billingWarnings,
+      ),
     },
   };
 
@@ -212,10 +277,16 @@ function toPayload(preferences: SettingsPreferences): Record<string, unknown> {
     default_top_k: preferences.defaultTopK,
     rerank_enabled: preferences.rerankEnabled,
     developer_mode: preferences.developerMode,
+    answer_detail_level: preferences.answerDetailLevel,
+    show_confidence_score: preferences.showConfidenceScore,
+    expand_citations: preferences.expandCitations,
     notifications: {
       product_updates: preferences.notifications.productUpdates,
       security_alerts: preferences.notifications.securityAlerts,
       document_processing: preferences.notifications.documentProcessing,
+      failed_indexing: preferences.notifications.failedIndexing,
+      evaluation_completion: preferences.notifications.evaluationCompletion,
+      billing_warnings: preferences.notifications.billingWarnings,
     },
   };
 }

@@ -63,6 +63,24 @@ vi.mock("@/lib/settings-preferences", async () => {
   };
 });
 
+vi.mock("@/lib/schemas/settings", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/schemas/settings")
+  >("@/lib/schemas/settings");
+  return {
+    ...actual,
+    loadProfileUiPreferences: () => actual.createDefaultProfileUiPreferences(),
+    saveProfileUiPreferences: vi.fn(),
+  };
+});
+
+vi.mock("@/lib/api/profile", () => ({
+  getProfileCapabilities: () => ({
+    signOutAllDevicesEnabled: false,
+    deleteAccountEnabled: false,
+  }),
+}));
+
 vi.mock("@/lib/api/team", () => ({
   getTeamCapabilities: () => mockTeamApi.capabilities,
   listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
@@ -74,6 +92,23 @@ vi.mock("@/lib/api/team", () => ({
     mockTeamApi.removeTeamMember(...args),
   isTeamEndpointUnavailableError: () => false,
 }));
+
+const FULL_PREFERENCES: SettingsPreferences = {
+  defaultTopK: 5,
+  rerankEnabled: true,
+  developerMode: false,
+  answerDetailLevel: "standard",
+  showConfidenceScore: false,
+  expandCitations: false,
+  notifications: {
+    productUpdates: true,
+    securityAlerts: true,
+    documentProcessing: true,
+    failedIndexing: true,
+    evaluationCompletion: true,
+    billingWarnings: true,
+  },
+};
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -115,28 +150,17 @@ describe("SettingsPage", () => {
       },
     };
 
-    mockPreferencesApi.loadSettingsPreferences.mockResolvedValue({
-      defaultTopK: 5,
-      rerankEnabled: true,
-      developerMode: false,
-      notifications: {
-        productUpdates: true,
-        securityAlerts: true,
-        documentProcessing: true,
-      },
-    } satisfies SettingsPreferences);
+    mockPreferencesApi.loadSettingsPreferences.mockResolvedValue(
+      FULL_PREFERENCES,
+    );
 
     mockPreferencesApi.persistSettingsPreferences.mockResolvedValue({
       preferences: {
+        ...FULL_PREFERENCES,
         defaultTopK: 7,
         rerankEnabled: false,
         developerMode: true,
-        notifications: {
-          productUpdates: false,
-          securityAlerts: true,
-          documentProcessing: false,
-        },
-      },
+      } satisfies SettingsPreferences,
       persistenceScope: "remote",
     });
   });
@@ -158,14 +182,15 @@ describe("SettingsPage", () => {
   it("defaults to the Profile tab when no tab param is set", async () => {
     renderPage();
 
+    expect(screen.getByRole("tab", { name: "Profile" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(
-      screen.getByRole("tab", { name: "Profile" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(
-      await screen.findByRole("region", { name: "Profile section" }),
+      await screen.findByRole("region", { name: "Account identity section" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Preferences section" }),
+      screen.getByRole("region", { name: "Personal preferences section" }),
     ).toBeInTheDocument();
   });
 
@@ -174,10 +199,10 @@ describe("SettingsPage", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("region", { name: "Profile section" }),
+      await screen.findByRole("region", { name: "Account identity section" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Preferences section" }),
+      screen.getByRole("region", { name: "Personal preferences section" }),
     ).toBeInTheDocument();
   });
 
@@ -207,7 +232,9 @@ describe("SettingsPage", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("region", { name: "Billing and usage section" }),
+      await screen.findByRole("region", {
+        name: "Billing and usage section",
+      }),
     ).toBeInTheDocument();
   });
 
@@ -216,11 +243,12 @@ describe("SettingsPage", () => {
     renderPage();
 
     expect(
-      await screen.findByRole("region", { name: "Profile section" }),
+      await screen.findByRole("region", { name: "Account identity section" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("tab", { name: "Profile" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Profile" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("navigates to the clicked tab by updating the URL", async () => {

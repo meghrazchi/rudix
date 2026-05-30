@@ -1,38 +1,19 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
 
-import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
-import { LoadingState } from "@/components/states/LoadingState";
+import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import {
   SettingsTabs,
   useSettingsTab,
   type SettingsTabId,
 } from "@/components/settings/SettingsTabs";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
-import { getApiErrorMessage } from "@/lib/api/errors";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
-import {
-  createDefaultSettingsPreferences,
-  loadSettingsPreferences,
-  persistSettingsPreferences,
-  settingsPreferencesSchema,
-  settingsTopKBounds,
-  type PersistedSettingsPreferences,
-  type SettingsPreferences,
-} from "@/lib/settings-preferences";
-
-type SaveState = {
-  tone: "neutral" | "success" | "error";
-  message: string;
-} | null;
 
 function isAdminLikeRole(role: string | null | undefined): boolean {
   return role === "owner" || role === "admin";
@@ -56,71 +37,15 @@ function statusPill(isEnabled: boolean) {
   return "inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700";
 }
 
-function saveStateClassName(saveState: SaveState): string {
-  if (!saveState || saveState.tone === "neutral") {
-    return "rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#4d4963]";
-  }
-  if (saveState.tone === "success") {
-    return "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800";
-  }
-  return "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800";
-}
-
 export function SettingsPage() {
   const router = useRouter();
   const { state, signOut } = useAuthSession();
   const session = state.session;
   const role = session?.role ?? null;
   const isAdmin = isAdminLikeRole(role);
-  const [saveState, setSaveState] = useState<SaveState>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const activeTab = useSettingsTab();
-
-  const lastSavedPreferencesRef = useRef<SettingsPreferences>(
-    createDefaultSettingsPreferences(),
-  );
-
-  const form = useForm<SettingsPreferences>({
-    resolver: zodResolver(settingsPreferencesSchema),
-    defaultValues: createDefaultSettingsPreferences(),
-    mode: "onSubmit",
-  });
-
-  const preferencesQuery = useQuery({
-    queryKey: ["settings", "preferences"],
-    queryFn: loadSettingsPreferences,
-  });
-
-  useEffect(() => {
-    if (!preferencesQuery.data) {
-      return;
-    }
-    lastSavedPreferencesRef.current = preferencesQuery.data;
-    form.reset(preferencesQuery.data);
-  }, [form, preferencesQuery.data]);
-
-  const saveMutation = useMutation({
-    mutationFn: async (values: SettingsPreferences) =>
-      persistSettingsPreferences(values),
-    onSuccess: (result: PersistedSettingsPreferences) => {
-      lastSavedPreferencesRef.current = result.preferences;
-      form.reset(result.preferences);
-      setSaveState({
-        tone: "success",
-        message:
-          result.persistenceScope === "remote"
-            ? "Preferences saved successfully."
-            : "Preferences saved locally for this browser session.",
-      });
-    },
-    onError: (error) => {
-      setSaveState({
-        tone: "error",
-        message: getApiErrorMessage(error),
-      });
-    },
-  });
 
   const billingHref =
     process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL?.trim() || "/admin";
@@ -143,19 +68,6 @@ export function SettingsPage() {
     [session?.accessToken, session?.refreshToken],
   );
 
-  function handleDiscard(): void {
-    form.reset(lastSavedPreferencesRef.current);
-    setSaveState({
-      tone: "neutral",
-      message: "Unsaved changes were discarded.",
-    });
-  }
-
-  async function handleSave(values: SettingsPreferences): Promise<void> {
-    setSaveState(null);
-    await saveMutation.mutateAsync(values);
-  }
-
   async function handleSignOut(): Promise<void> {
     setIsSigningOut(true);
     try {
@@ -167,18 +79,8 @@ export function SettingsPage() {
   }
 
   function handleTabChange(tab: SettingsTabId): void {
-    if (form.formState.isDirty) {
-      const confirmed = window.confirm(
-        "You have unsaved preference changes. Leave this tab and discard them?",
-      );
-      if (!confirmed) return;
-      handleDiscard();
-    }
     router.replace(`/settings?tab=${tab}`, { scroll: false });
   }
-
-  const hasUnsavedChanges = form.formState.isDirty;
-  const isSubmitting = saveMutation.isPending;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
@@ -202,163 +104,9 @@ export function SettingsPage() {
           role="tabpanel"
           aria-labelledby="settings-tab-profile"
           tabIndex={0}
-          className="space-y-6 focus-visible:outline-none"
+          className="focus-visible:outline-none"
         >
-          <section
-            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-            aria-label="Profile section"
-          >
-            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Profile
-            </h2>
-            <dl className="space-y-3 text-sm">
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">Email</dt>
-                <dd className="text-[#2f2a46]">
-                  {session?.email ?? "Not available"}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">User ID</dt>
-                <dd className="text-[#2f2a46]">
-                  {session?.userId ?? "Not available"}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-semibold text-[#5c5871]">Role</dt>
-                <dd className="text-[#2f2a46]">{role ?? "Not available"}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section
-            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-            aria-label="Preferences section"
-          >
-            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Preferences
-            </h2>
-
-            {preferencesQuery.isLoading ? (
-              <LoadingState compact title="Loading preferences..." />
-            ) : preferencesQuery.isError ? (
-              <ErrorState
-                compact
-                error={preferencesQuery.error}
-                description={getApiErrorMessage(preferencesQuery.error)}
-                onRetry={() => {
-                  void preferencesQuery.refetch();
-                }}
-              />
-            ) : (
-              <form
-                onSubmit={form.handleSubmit(handleSave)}
-                className="space-y-4"
-                noValidate
-              >
-                <label className="block" htmlFor="defaultTopK">
-                  <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                    Default top-k
-                  </span>
-                  <input
-                    id="defaultTopK"
-                    type="number"
-                    min={settingsTopKBounds.min}
-                    max={settingsTopKBounds.max}
-                    step={1}
-                    {...form.register("defaultTopK", { valueAsNumber: true })}
-                    className="h-10 w-full max-w-[220px] rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
-                  />
-                  <p className="mt-1 text-xs text-[#6a6780]">
-                    Allowed range: {settingsTopKBounds.min} to{" "}
-                    {settingsTopKBounds.max}
-                  </p>
-                  {form.formState.errors.defaultTopK?.message ? (
-                    <p role="alert" className="mt-1 text-xs text-rose-700">
-                      {form.formState.errors.defaultTopK.message}
-                    </p>
-                  ) : null}
-                </label>
-
-                <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-                  <input
-                    type="checkbox"
-                    {...form.register("rerankEnabled")}
-                    className="mt-0.5"
-                  />
-                  <span>Enable rerank by default for new chat queries</span>
-                </label>
-
-                <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-                  <input
-                    type="checkbox"
-                    {...form.register("developerMode")}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    Enable developer/debug diagnostics in settings surfaces
-                  </span>
-                </label>
-
-                <fieldset className="space-y-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-3">
-                  <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                    Notifications
-                  </legend>
-                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                    <input
-                      type="checkbox"
-                      {...form.register("notifications.productUpdates")}
-                    />
-                    Product updates
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                    <input
-                      type="checkbox"
-                      {...form.register("notifications.securityAlerts")}
-                    />
-                    Security alerts
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                    <input
-                      type="checkbox"
-                      {...form.register("notifications.documentProcessing")}
-                    />
-                    Document processing updates
-                  </label>
-                </fieldset>
-
-                {saveState ? (
-                  <p className={saveStateClassName(saveState)}>
-                    {saveState.message}
-                  </p>
-                ) : null}
-
-                {hasUnsavedChanges ? (
-                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                    You have unsaved changes.
-                  </p>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    disabled={!hasUnsavedChanges || isSubmitting}
-                    className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSubmitting ? "Saving..." : "Save preferences"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDiscard}
-                    disabled={!hasUnsavedChanges || isSubmitting}
-                    className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Discard changes
-                  </button>
-                </div>
-              </form>
-            )}
-          </section>
+          <ProfileSettingsTab />
         </div>
       )}
 
