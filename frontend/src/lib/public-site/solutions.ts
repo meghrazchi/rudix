@@ -7,7 +7,8 @@ export type SolutionSlug =
   | "research"
   | "sales"
   | "internal-knowledge"
-  | "procurement";
+  | "procurement"
+  | "client-portal";
 
 export type SolutionFaqItem = {
   question: string;
@@ -425,6 +426,70 @@ export const SOLUTION_AUDIENCES: SolutionAudience[] = [
       "Fewer manual reads of long supplier documents",
     ],
     relatedSlugs: ["legal", "compliance", "operations"],
+  },
+  {
+    slug: "client-portal",
+    name: "Client Knowledge Portal",
+    shortLabel: "Client Portal",
+    routePath: "/solutions/client-portal",
+    teamLabel: "Customer Success and Support",
+    painPoint:
+      "Support and account teams field the same onboarding and implementation questions daily, while clients struggle to find answers across scattered documentation.",
+    rudixWorkflow:
+      "Approve and index client-facing documents, expose a scoped Q&A layer with citation-backed answers, and collect feedback to improve knowledge quality over time.",
+    exampleQuestions: [
+      "How do I configure SAML-based SSO for my organization?",
+      "What data is retained after I close my account?",
+      "How do I migrate my data from the legacy system?",
+      "What are the API rate limits for my plan?",
+      "Where can I find the implementation checklist for my onboarding?",
+    ],
+    summary:
+      "Give clients instant, citation-backed answers from your approved documentation to reduce support load and accelerate onboarding.",
+    documentSources: [
+      "Customer onboarding guides",
+      "API documentation",
+      "Implementation and configuration docs",
+      "Support knowledge base",
+      "Product guides and release notes",
+      "Partner enablement materials",
+      "Account documentation",
+      "Data retention and privacy policies",
+    ],
+    workflowTitle: "How customer teams use Rudix for client portals",
+    workflowDescription:
+      "A controlled process from document approval to self-service client answers.",
+    workflowSteps: [
+      {
+        title: "Approve client-facing docs",
+        description:
+          "Your team selects which documentation clients are allowed to query — onboarding guides, product docs, and support knowledge.",
+      },
+      {
+        title: "Index and scope access",
+        description:
+          "Rudix semantically indexes approved content and applies access boundaries so different customer segments query different document sets.",
+      },
+      {
+        title: "Expose Q&A",
+        description:
+          "Clients ask questions in plain language and receive citation-backed answers sourced only from your approved documentation.",
+      },
+      {
+        title: "Verify and improve",
+        description:
+          "Review citations, collect feedback, and run evaluations to improve answer quality as documentation evolves.",
+      },
+    ],
+    riskNote:
+      "Rudix surfaces answers from approved uploaded documents — it does not replace a full external client portal, manage client identity and access, or make account-level decisions. All client-facing content must be reviewed and approved by your team before indexing.",
+    outcomes: [
+      "Fewer repetitive support questions from clients",
+      "Faster customer onboarding with self-service answers",
+      "Consistent knowledge delivery across all customer segments",
+      "Citation-backed responses clients can verify and trust",
+    ],
+    relatedSlugs: ["support", "sales", "internal-knowledge"],
   },
 ];
 
