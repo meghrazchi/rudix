@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { BillingSettingsTab } from "@/components/settings/BillingSettingsTab";
 import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
 import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import { SecuritySettingsTab } from "@/components/settings/SecuritySettingsTab";
@@ -16,9 +16,6 @@ export function SettingsPage() {
   const router = useRouter();
 
   const activeTab = useSettingsTab();
-
-  const billingHref =
-    process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL?.trim() || "/admin";
 
   function handleTabChange(tab: SettingsTabId): void {
     router.replace(`/settings?tab=${tab}`, { scroll: false });
@@ -82,28 +79,9 @@ export function SettingsPage() {
           role="tabpanel"
           aria-labelledby="settings-tab-billing"
           tabIndex={0}
-          className="space-y-6 focus-visible:outline-none"
+          className="focus-visible:outline-none"
         >
-          <section
-            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-            aria-label="Billing and usage section"
-          >
-            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-              Billing and usage
-            </h2>
-            <p className="text-sm text-[#4d4963]">
-              Review usage trends and billing-relevant activity from the
-              administrative usage surface.
-            </p>
-            <div className="mt-4">
-              <Link
-                href={billingHref}
-                className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-              >
-                Open billing/usage
-              </Link>
-            </div>
-          </section>
+          <BillingSettingsTab />
         </div>
       )}
     </section>
