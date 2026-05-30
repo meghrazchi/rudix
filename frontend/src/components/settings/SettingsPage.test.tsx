@@ -12,6 +12,7 @@ const mockState = vi.hoisted(() => ({
   authState: { status: "authenticated", session: null } as SessionState,
   signOut: vi.fn(),
   replace: vi.fn(),
+  tab: null as string | null,
 }));
 
 const mockPreferencesApi = vi.hoisted(() => ({
@@ -43,6 +44,9 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockState.replace,
+  }),
+  useSearchParams: () => ({
+    get: (key: string) => (key === "tab" ? mockState.tab : null),
   }),
 }));
 
@@ -89,6 +93,7 @@ function renderPage() {
 describe("SettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockState.tab = null;
     mockState.signOut.mockResolvedValue(undefined);
     mockTeamApi.capabilities = {
       listMembersEnabled: false,
@@ -136,27 +141,97 @@ describe("SettingsPage", () => {
     });
   });
 
-  it("renders profile, organization, security, and preferences sections", async () => {
+  it("renders tab navigation with all four tabs", () => {
     renderPage();
 
     expect(
-      await screen.findByText("Profile, organization, and preferences"),
+      screen.getByRole("tablist", { name: "Settings navigation" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Profile" })).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: "Profile section" }),
+      screen.getByRole("tab", { name: "Organization" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Security" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Billing" })).toBeInTheDocument();
+  });
+
+  it("defaults to the Profile tab when no tab param is set", async () => {
+    renderPage();
+
     expect(
-      screen.getByRole("region", { name: "Organization section" }),
-    ).toBeInTheDocument();
+      screen.getByRole("tab", { name: "Profile" }),
+    ).toHaveAttribute("aria-selected", "true");
     expect(
-      screen.getByRole("region", { name: "Security section" }),
+      await screen.findByRole("region", { name: "Profile section" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Preferences section" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows Profile tab content at ?tab=profile", async () => {
+    mockState.tab = "profile";
+    renderPage();
+
+    expect(
+      await screen.findByRole("region", { name: "Profile section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Preferences section" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Organization tab content at ?tab=organization", async () => {
+    mockState.tab = "organization";
+    renderPage();
+
+    expect(
+      await screen.findByRole("region", { name: "Organization section" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Team management section" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows Security tab content at ?tab=security", async () => {
+    mockState.tab = "security";
+    renderPage();
+
+    expect(
+      await screen.findByRole("region", { name: "Security section" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows Billing tab content at ?tab=billing", async () => {
+    mockState.tab = "billing";
+    renderPage();
+
+    expect(
+      await screen.findByRole("region", { name: "Billing and usage section" }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to Profile tab for invalid tab param", async () => {
+    mockState.tab = "invalid-tab-value";
+    renderPage();
+
+    expect(
+      await screen.findByRole("region", { name: "Profile section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "Profile" }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("navigates to the clicked tab by updating the URL", async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Security" }));
+
+    expect(mockState.replace).toHaveBeenCalledWith(
+      "/settings?tab=security",
+      expect.objectContaining({ scroll: false }),
+    );
   });
 
   it("validates preference values and blocks save on invalid top-k", async () => {
@@ -212,6 +287,7 @@ describe("SettingsPage", () => {
   });
 
   it("renders permission-aware admin-only section for non-admin users", async () => {
+    mockState.tab = "organization";
     renderPage();
     await screen.findByText("Admin-only controls");
 
@@ -222,6 +298,7 @@ describe("SettingsPage", () => {
   });
 
   it("shows admin controls for admin role", async () => {
+    mockState.tab = "organization";
     mockState.authState = {
       status: "authenticated",
       session: {
@@ -247,6 +324,7 @@ describe("SettingsPage", () => {
   });
 
   it("uses the shared logout flow from settings security area", async () => {
+    mockState.tab = "security";
     renderPage();
     await screen.findByRole("region", { name: "Security section" });
 

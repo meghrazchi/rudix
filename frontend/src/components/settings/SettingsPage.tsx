@@ -10,6 +10,11 @@ import { useForm } from "react-hook-form";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import {
+  SettingsTabs,
+  useSettingsTab,
+  type SettingsTabId,
+} from "@/components/settings/SettingsTabs";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
@@ -69,6 +74,8 @@ export function SettingsPage() {
   const isAdmin = isAdminLikeRole(role);
   const [saveState, setSaveState] = useState<SaveState>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const activeTab = useSettingsTab();
 
   const lastSavedPreferencesRef = useRef<SettingsPreferences>(
     createDefaultSettingsPreferences(),
@@ -159,6 +166,17 @@ export function SettingsPage() {
     }
   }
 
+  function handleTabChange(tab: SettingsTabId): void {
+    if (form.formState.isDirty) {
+      const confirmed = window.confirm(
+        "You have unsaved preference changes. Leave this tab and discard them?",
+      );
+      if (!confirmed) return;
+      handleDiscard();
+    }
+    router.replace(`/settings?tab=${tab}`, { scroll: false });
+  }
+
   const hasUnsavedChanges = form.formState.isDirty;
   const isSubmitting = saveMutation.isPending;
 
@@ -169,297 +187,338 @@ export function SettingsPage() {
           Rudix Settings
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Profile, organization, and preferences
+          Settings
         </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Manage safe account context details and retrieval defaults used by the
-          chat experience.
+          Manage your account, organization, security, and billing settings.
         </p>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section
-          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-          aria-label="Profile section"
-        >
-          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-            Profile
-          </h2>
-          <dl className="space-y-3 text-sm">
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">Email</dt>
-              <dd className="text-[#2f2a46]">
-                {session?.email ?? "Not available"}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">User ID</dt>
-              <dd className="text-[#2f2a46]">
-                {session?.userId ?? "Not available"}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">Role</dt>
-              <dd className="text-[#2f2a46]">{role ?? "Not available"}</dd>
-            </div>
-          </dl>
-        </section>
+      <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
-        <section
-          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-          aria-label="Organization section"
+      {activeTab === "profile" && (
+        <div
+          id="settings-tabpanel-profile"
+          role="tabpanel"
+          aria-labelledby="settings-tab-profile"
+          tabIndex={0}
+          className="space-y-6 focus-visible:outline-none"
         >
-          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-            Organization context
-          </h2>
-          <dl className="space-y-3 text-sm">
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">
-                Organization name
-              </dt>
-              <dd className="text-[#2f2a46]">
-                {session?.organizationName ?? "Not assigned"}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">Organization ID</dt>
-              <dd className="text-[#2f2a46]">
-                {session?.organizationId ?? "Not assigned"}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-semibold text-[#5c5871]">Permission scope</dt>
-              <dd className="text-[#2f2a46]">
-                {isAdmin
-                  ? "Administrator controls are enabled."
-                  : "Standard member/viewer permissions."}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section
-          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-          aria-label="Security section"
-        >
-          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-            Security
-          </h2>
-          <dl className="space-y-3 text-sm">
-            {securityFacts.map((fact) => (
-              <div
-                key={fact.label}
-                className="flex items-center justify-between gap-4 rounded-lg border border-[#ebe8f7] px-3 py-2"
-              >
-                <dt className="font-semibold text-[#5c5871]">{fact.label}</dt>
-                <dd className={statusPill(fact.value === "Yes")}>
-                  {fact.value}
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Profile section"
+          >
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Profile
+            </h2>
+            <dl className="space-y-3 text-sm">
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">Email</dt>
+                <dd className="text-[#2f2a46]">
+                  {session?.email ?? "Not available"}
                 </dd>
               </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-xs text-[#6a6780]">
-            Sensitive token values are never displayed in the UI.
-          </p>
-          <div className="mt-4 border-t border-[#ebe8f7] pt-3">
-            <button
-              type="button"
-              onClick={() => {
-                void handleSignOut();
-              }}
-              disabled={isSigningOut}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSigningOut ? "Signing out..." : "Sign out"}
-            </button>
-          </div>
-        </section>
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">User ID</dt>
+                <dd className="text-[#2f2a46]">
+                  {session?.userId ?? "Not available"}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">Role</dt>
+                <dd className="text-[#2f2a46]">{role ?? "Not available"}</dd>
+              </div>
+            </dl>
+          </section>
 
-        <section
-          className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-          aria-label="Billing and usage section"
-        >
-          <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-            Billing and usage
-          </h2>
-          <p className="text-sm text-[#4d4963]">
-            Review usage trends and billing-relevant activity from the
-            administrative usage surface.
-          </p>
-          <div className="mt-4">
-            <Link
-              href={billingHref}
-              className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              Open billing/usage
-            </Link>
-          </div>
-        </section>
-      </div>
-
-      <section
-        className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-        aria-label="Preferences section"
-      >
-        <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-          Preferences
-        </h2>
-
-        {preferencesQuery.isLoading ? (
-          <LoadingState compact title="Loading preferences..." />
-        ) : preferencesQuery.isError ? (
-          <ErrorState
-            compact
-            error={preferencesQuery.error}
-            description={getApiErrorMessage(preferencesQuery.error)}
-            onRetry={() => {
-              void preferencesQuery.refetch();
-            }}
-          />
-        ) : (
-          <form
-            onSubmit={form.handleSubmit(handleSave)}
-            className="space-y-4"
-            noValidate
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Preferences section"
           >
-            <label className="block" htmlFor="defaultTopK">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                Default top-k
-              </span>
-              <input
-                id="defaultTopK"
-                type="number"
-                min={settingsTopKBounds.min}
-                max={settingsTopKBounds.max}
-                step={1}
-                {...form.register("defaultTopK", { valueAsNumber: true })}
-                className="h-10 w-full max-w-[220px] rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Preferences
+            </h2>
+
+            {preferencesQuery.isLoading ? (
+              <LoadingState compact title="Loading preferences..." />
+            ) : preferencesQuery.isError ? (
+              <ErrorState
+                compact
+                error={preferencesQuery.error}
+                description={getApiErrorMessage(preferencesQuery.error)}
+                onRetry={() => {
+                  void preferencesQuery.refetch();
+                }}
               />
-              <p className="mt-1 text-xs text-[#6a6780]">
-                Allowed range: {settingsTopKBounds.min} to{" "}
-                {settingsTopKBounds.max}
-              </p>
-              {form.formState.errors.defaultTopK?.message ? (
-                <p role="alert" className="mt-1 text-xs text-rose-700">
-                  {form.formState.errors.defaultTopK.message}
-                </p>
-              ) : null}
-            </label>
-
-            <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-              <input
-                type="checkbox"
-                {...form.register("rerankEnabled")}
-                className="mt-0.5"
-              />
-              <span>Enable rerank by default for new chat queries</span>
-            </label>
-
-            <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
-              <input
-                type="checkbox"
-                {...form.register("developerMode")}
-                className="mt-0.5"
-              />
-              <span>
-                Enable developer/debug diagnostics in settings surfaces
-              </span>
-            </label>
-
-            <fieldset className="space-y-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-3">
-              <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                Notifications
-              </legend>
-              <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input
-                  type="checkbox"
-                  {...form.register("notifications.productUpdates")}
-                />
-                Product updates
-              </label>
-              <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input
-                  type="checkbox"
-                  {...form.register("notifications.securityAlerts")}
-                />
-                Security alerts
-              </label>
-              <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
-                <input
-                  type="checkbox"
-                  {...form.register("notifications.documentProcessing")}
-                />
-                Document processing updates
-              </label>
-            </fieldset>
-
-            {saveState ? (
-              <p className={saveStateClassName(saveState)}>
-                {saveState.message}
-              </p>
-            ) : null}
-
-            {hasUnsavedChanges ? (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                You have unsaved changes.
-              </p>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={!hasUnsavedChanges || isSubmitting}
-                className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+            ) : (
+              <form
+                onSubmit={form.handleSubmit(handleSave)}
+                className="space-y-4"
+                noValidate
               >
-                {isSubmitting ? "Saving..." : "Save preferences"}
-              </button>
+                <label className="block" htmlFor="defaultTopK">
+                  <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                    Default top-k
+                  </span>
+                  <input
+                    id="defaultTopK"
+                    type="number"
+                    min={settingsTopKBounds.min}
+                    max={settingsTopKBounds.max}
+                    step={1}
+                    {...form.register("defaultTopK", { valueAsNumber: true })}
+                    className="h-10 w-full max-w-[220px] rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
+                  />
+                  <p className="mt-1 text-xs text-[#6a6780]">
+                    Allowed range: {settingsTopKBounds.min} to{" "}
+                    {settingsTopKBounds.max}
+                  </p>
+                  {form.formState.errors.defaultTopK?.message ? (
+                    <p role="alert" className="mt-1 text-xs text-rose-700">
+                      {form.formState.errors.defaultTopK.message}
+                    </p>
+                  ) : null}
+                </label>
+
+                <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
+                  <input
+                    type="checkbox"
+                    {...form.register("rerankEnabled")}
+                    className="mt-0.5"
+                  />
+                  <span>Enable rerank by default for new chat queries</span>
+                </label>
+
+                <label className="flex items-start gap-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-2 text-sm text-[#2d2a3f]">
+                  <input
+                    type="checkbox"
+                    {...form.register("developerMode")}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Enable developer/debug diagnostics in settings surfaces
+                  </span>
+                </label>
+
+                <fieldset className="space-y-2 rounded-lg border border-[#e0dced] bg-[#faf8ff] px-3 py-3">
+                  <legend className="px-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                    Notifications
+                  </legend>
+                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
+                    <input
+                      type="checkbox"
+                      {...form.register("notifications.productUpdates")}
+                    />
+                    Product updates
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
+                    <input
+                      type="checkbox"
+                      {...form.register("notifications.securityAlerts")}
+                    />
+                    Security alerts
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-[#2d2a3f]">
+                    <input
+                      type="checkbox"
+                      {...form.register("notifications.documentProcessing")}
+                    />
+                    Document processing updates
+                  </label>
+                </fieldset>
+
+                {saveState ? (
+                  <p className={saveStateClassName(saveState)}>
+                    {saveState.message}
+                  </p>
+                ) : null}
+
+                {hasUnsavedChanges ? (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    You have unsaved changes.
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="submit"
+                    disabled={!hasUnsavedChanges || isSubmitting}
+                    className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSubmitting ? "Saving..." : "Save preferences"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscard}
+                    disabled={!hasUnsavedChanges || isSubmitting}
+                    className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Discard changes
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        </div>
+      )}
+
+      {activeTab === "organization" && (
+        <div
+          id="settings-tabpanel-organization"
+          role="tabpanel"
+          aria-labelledby="settings-tab-organization"
+          tabIndex={0}
+          className="space-y-6 focus-visible:outline-none"
+        >
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Organization section"
+          >
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Organization context
+            </h2>
+            <dl className="space-y-3 text-sm">
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">
+                  Organization name
+                </dt>
+                <dd className="text-[#2f2a46]">
+                  {session?.organizationName ?? "Not assigned"}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">
+                  Organization ID
+                </dt>
+                <dd className="text-[#2f2a46]">
+                  {session?.organizationId ?? "Not assigned"}
+                </dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-semibold text-[#5c5871]">
+                  Permission scope
+                </dt>
+                <dd className="text-[#2f2a46]">
+                  {isAdmin
+                    ? "Administrator controls are enabled."
+                    : "Standard member/viewer permissions."}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <TeamManagementSection role={role} />
+
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Admin controls section"
+          >
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Admin-only controls
+            </h2>
+            {isAdmin ? (
+              <div className="space-y-3">
+                <p className="text-sm text-[#4d4963]">
+                  Administrative security and organization controls are
+                  available to owner/admin roles.
+                </p>
+                <Link
+                  href="/admin"
+                  className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+                >
+                  Open admin surface
+                </Link>
+              </div>
+            ) : (
+              <ForbiddenState
+                compact
+                title="Admin controls restricted"
+                description="Your current role does not permit viewing or modifying organization security controls."
+                backHref="/dashboard"
+                backLabel="Back to dashboard"
+              />
+            )}
+          </section>
+        </div>
+      )}
+
+      {activeTab === "security" && (
+        <div
+          id="settings-tabpanel-security"
+          role="tabpanel"
+          aria-labelledby="settings-tab-security"
+          tabIndex={0}
+          className="space-y-6 focus-visible:outline-none"
+        >
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Security section"
+          >
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Security
+            </h2>
+            <dl className="space-y-3 text-sm">
+              {securityFacts.map((fact) => (
+                <div
+                  key={fact.label}
+                  className="flex items-center justify-between gap-4 rounded-lg border border-[#ebe8f7] px-3 py-2"
+                >
+                  <dt className="font-semibold text-[#5c5871]">{fact.label}</dt>
+                  <dd className={statusPill(fact.value === "Yes")}>
+                    {fact.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 text-xs text-[#6a6780]">
+              Sensitive token values are never displayed in the UI.
+            </p>
+            <div className="mt-4 border-t border-[#ebe8f7] pt-3">
               <button
                 type="button"
-                onClick={handleDiscard}
-                disabled={!hasUnsavedChanges || isSubmitting}
-                className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                disabled={isSigningOut}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Discard changes
+                {isSigningOut ? "Signing out..." : "Sign out"}
               </button>
             </div>
-          </form>
-        )}
-      </section>
+          </section>
+        </div>
+      )}
 
-      <TeamManagementSection role={role} />
-
-      <section
-        className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
-        aria-label="Admin controls section"
-      >
-        <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-          Admin-only controls
-        </h2>
-        {isAdmin ? (
-          <div className="space-y-3">
+      {activeTab === "billing" && (
+        <div
+          id="settings-tabpanel-billing"
+          role="tabpanel"
+          aria-labelledby="settings-tab-billing"
+          tabIndex={0}
+          className="space-y-6 focus-visible:outline-none"
+        >
+          <section
+            className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
+            aria-label="Billing and usage section"
+          >
+            <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+              Billing and usage
+            </h2>
             <p className="text-sm text-[#4d4963]">
-              Administrative security and organization controls are available to
-              owner/admin roles.
+              Review usage trends and billing-relevant activity from the
+              administrative usage surface.
             </p>
-            <Link
-              href="/admin"
-              className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              Open admin surface
-            </Link>
-          </div>
-        ) : (
-          <ForbiddenState
-            compact
-            title="Admin controls restricted"
-            description="Your current role does not permit viewing or modifying organization security controls."
-            backHref="/dashboard"
-            backLabel="Back to dashboard"
-          />
-        )}
-      </section>
+            <div className="mt-4">
+              <Link
+                href={billingHref}
+                className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
+              >
+                Open billing/usage
+              </Link>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
