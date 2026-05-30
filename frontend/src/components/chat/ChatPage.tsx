@@ -157,24 +157,11 @@ function formatPercent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function toRelevancePercent(value: number | null | undefined): number {
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    return 0;
-  }
-  const clamped = Math.min(Math.max(value, 0), 1);
-  return Math.round(clamped * 100);
-}
 
 function confidenceBadgeClass(
-  confidence: ChatQueryResponse["confidence_category"],
+  _confidence: ChatQueryResponse["confidence_category"],
 ): string {
-  if (confidence === "high") {
-    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
-  }
-  if (confidence === "medium") {
-    return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
-  }
-  return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  return "inline-flex items-center gap-1 rounded-full bg-[#e4e1ee] px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
 }
 
 function agentRunStatusClass(status: string): string {
@@ -187,15 +174,6 @@ function agentRunStatusClass(status: string): string {
   return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
 }
 
-function approvalStatusClass(status: string): string {
-  if (status === "approved") {
-    return "rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800";
-  }
-  if (status === "rejected" || status === "cancelled" || status === "expired") {
-    return "rounded-full bg-rose-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-rose-800";
-  }
-  return "rounded-full bg-amber-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800";
-}
 
 function isTerminalAgentRunStatus(status: string): boolean {
   return (
@@ -478,85 +456,29 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
   }
 }
 
-function CitationPanel({ citations }: { citations: ChatCitationResponse[] }) {
-  if (citations.length === 0) {
-    return (
-      <p className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3 text-xs text-[#68647b]">
-        No citations were returned for this answer.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="space-y-3">
-      {citations.map((citation, index) => (
-        <li
-          key={`${citation.document_id}:${citation.chunk_id}`}
-          className="group rounded-xl border border-[#ded9ef] bg-[#fffefe] p-3 shadow-sm transition hover:border-[#bdb4ea]"
-        >
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="rounded bg-[#e9e5ff] px-2 py-0.5 text-[10px] font-bold tracking-[0.08em] text-[#3323cc] uppercase">
-              DOC_{String(index + 1).padStart(2, "0")}
-            </span>
-            <span className="text-[10px] text-[#6a6780]">
-              score {formatScore(citation.score)}
-            </span>
-          </div>
-          <p className="truncate text-sm font-semibold text-[#2f2a46]">
-            {citation.filename ?? "Unknown document"}
-            {citation.page_number ? ` • page ${citation.page_number}` : ""}
-          </p>
-          <p className="mt-2 line-clamp-4 text-xs break-words whitespace-pre-wrap text-[#5f5a74] italic">
-            {citation.text_snippet ?? "Snippet unavailable."}
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-[#5f5a74]">
-            <p>
-              <span className="font-semibold text-[#3f3b58]">Similarity</span>{" "}
-              {formatScore(citation.similarity_score)}
-            </p>
-            <p>
-              <span className="font-semibold text-[#3f3b58]">Rerank score</span>{" "}
-              {formatScore(citation.rerank_score)}
-            </p>
-            <p>
-              <span className="font-semibold text-[#3f3b58]">Rerank rank</span>{" "}
-              {citation.rerank_rank ?? "N/A"}
-            </p>
-            <p className="truncate">
-              <span className="font-semibold text-[#3f3b58]">Chunk ID</span>{" "}
-              {citation.chunk_id}
-            </p>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-[0.07em] text-[#6a6780] uppercase">
-              Relevance
-            </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#e4e1ee]">
-              <div
-                className="h-full bg-emerald-500"
-                style={{
-                  width: `${toRelevancePercent(
-                    citation.rerank_score ??
-                      citation.similarity_score ??
-                      citation.score,
-                  )}%`,
-                }}
-              />
-            </div>
-          </div>
-          {citation.document_id ? (
-            <Link
-              href={`/documents/${encodeURIComponent(citation.document_id)}?chunk_id=${encodeURIComponent(citation.chunk_id)}&back=${encodeURIComponent("/chat")}`}
-              className="mt-3 inline-flex rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-            >
-              Open document detail
-            </Link>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  );
+function getFileIcon(filename: string | null | undefined): string {
+  if (!filename) return "insert_drive_file";
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "article";
+  if (["md", "txt", "doc", "docx"].includes(ext)) return "description";
+  if (["xlsx", "xls", "csv"].includes(ext)) return "table_chart";
+  return "insert_drive_file";
 }
+
+function getFileTypeLabel(filename: string | null | undefined): string {
+  if (!filename) return "FILE";
+  return filename.split(".").pop()?.toUpperCase() ?? "FILE";
+}
+
+function getFileTypeColorClass(filename: string | null | undefined): string {
+  if (!filename) return "text-[#464555]";
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "text-[#3525cd]";
+  if (["md", "txt", "doc", "docx"].includes(ext)) return "text-emerald-600";
+  if (["xlsx", "xls", "csv"].includes(ext)) return "text-amber-600";
+  return "text-[#464555]";
+}
+
 
 export function ChatPage() {
   const queryClient = useQueryClient();
@@ -591,6 +513,8 @@ export function ChatPage() {
   const [feedbackByMessageId, setFeedbackByMessageId] = useState<
     Record<string, "up" | "down">
   >({});
+  const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
+  const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -963,20 +887,6 @@ export function ChatPage() {
     );
     return uniqueDocumentIds.size;
   }, [selectedCitationTurn]);
-  const selectedCitationTokenEstimate = useMemo(() => {
-    if (!selectedCitationTurn) {
-      return 0;
-    }
-    const answerTokenEstimate = Math.round(
-      selectedCitationTurn.response.answer.length / 4,
-    );
-    const citationTokenEstimate =
-      selectedCitationTurn.response.citations.reduce((total, citation) => {
-        const snippetLength = citation.text_snippet?.length ?? 0;
-        return total + Math.round(snippetLength / 4);
-      }, 0);
-    return answerTokenEstimate + citationTokenEstimate;
-  }, [selectedCitationTurn]);
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
@@ -1207,7 +1117,7 @@ export function ChatPage() {
           </div>
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+        <div className={`grid min-h-0 flex-1 gap-4 ${(isKnowledgeHubOpen || activeCitation !== null) ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}>
           <aside className="hide-scrollbar min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-[#f5f2ff] p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
@@ -1344,9 +1254,9 @@ export function ChatPage() {
                           className="space-y-3"
                         >
                           <div className="flex justify-end">
-                            <article className="max-w-[85%] rounded-xl rounded-tr-none border border-[#d8d5e8] bg-[#f5f2ff] px-4 py-3 shadow-sm">
+                            <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
                               <p className="sr-only">Question</p>
-                              <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                              <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                                 {turn.question}
                               </p>
                             </article>
@@ -1357,55 +1267,47 @@ export function ChatPage() {
                               <span
                                 className="material-symbols-outlined text-[18px]"
                                 aria-hidden="true"
+                                style={{ fontVariationSettings: "'FILL' 1" }}
                               >
                                 auto_awesome
                               </span>
                             </div>
-                            <article className="max-w-[92%] flex-1 rounded-xl rounded-tl-none border border-[#d7d4e8] bg-white px-4 py-3 shadow-sm">
-                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <article className="max-w-[92%] flex-1 rounded-xl rounded-tl-none border border-[#c7c4d8] bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                 <span
                                   className={confidenceBadgeClass(
                                     turn.response.confidence_category,
                                   )}
                                 >
-                                  Confidence{" "}
-                                  {formatPercent(
-                                    turn.response.confidence_score,
-                                  )}
-                                </span>
-                                {turn.response.agent_run_status ? (
                                   <span
-                                    className={agentRunStatusClass(
-                                      turn.response.agent_run_status,
-                                    )}
+                                    className="material-symbols-outlined text-xs"
+                                    aria-hidden="true"
+                                    style={{ fontVariationSettings: "'FILL' 1" }}
                                   >
-                                    Agent run {turn.response.agent_run_status}
+                                    check_circle
                                   </span>
-                                ) : null}
-                                <span className="text-xs text-[#6a6780]">
-                                  {formatDate(turn.response.created_at)}
+                                  Confidence{" "}
+                                  {formatPercent(turn.response.confidence_score)}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedResponseMessageId(
-                                      turn.response.message_id,
-                                    )
-                                  }
-                                  className={`ml-auto rounded border px-2 py-1 text-[11px] font-semibold ${
-                                    selectedCitationTurn?.response
-                                      .message_id === turn.response.message_id
-                                      ? "border-[#3525cd] bg-[#f4f2ff] text-[#2f2a46]"
-                                      : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"
-                                  }`}
-                                >
-                                  View context
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  {turn.response.agent_run_status ? (
+                                    <span
+                                      className={agentRunStatusClass(
+                                        turn.response.agent_run_status,
+                                      )}
+                                    >
+                                      Agent {turn.response.agent_run_status}
+                                    </span>
+                                  ) : null}
+                                  <span className="font-mono text-xs text-[#6a6780]">
+                                    {formatDate(turn.response.created_at)}
+                                  </span>
+                                </div>
                               </div>
 
                               {turn.response.confidence_category === "low" &&
                               !turn.response.not_found ? (
-                                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
                                   Low confidence warning: validate this answer
                                   against the cited source text.
                                 </p>
@@ -1424,9 +1326,63 @@ export function ChatPage() {
                                   </p>
                                 </div>
                               ) : (
-                                <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
-                                  {turn.response.answer}
-                                </p>
+                                <>
+                                  <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                                    {turn.response.answer}
+                                  </p>
+                                  {turn.response.citations.length > 0 && (
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                      {turn.response.citations.map((citation, ci) => (
+                                        <button
+                                          key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedResponseMessageId(turn.response.message_id);
+                                            setIsKnowledgeHubOpen(false);
+                                            setActiveCitation(citation);
+                                          }}
+                                          className="relative flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2 text-left hover:bg-[#eae6f4] transition-colors cursor-pointer"
+                                        >
+                                          <span
+                                            className={`material-symbols-outlined text-base shrink-0 ${getFileTypeColorClass(citation.filename)}`}
+                                            aria-hidden="true"
+                                          >
+                                            {getFileIcon(citation.filename)}
+                                          </span>
+                                          <div className="min-w-0 overflow-hidden">
+                                            <p className={`text-[10px] font-bold mb-0.5 ${getFileTypeColorClass(citation.filename)}`}>
+                                              {getFileTypeLabel(citation.filename)}
+                                            </p>
+                                            <p
+                                              className="truncate text-xs font-bold text-[#1b1b24]"
+                                              title={citation.filename ?? "Document"}
+                                            >
+                                              {citation.filename ?? "Document"}
+                                            </p>
+                                            {citation.text_snippet && (
+                                              <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
+                                                {citation.text_snippet}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {turn.response.citations[0]?.text_snippet && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedResponseMessageId(turn.response.message_id);
+                                        setActiveCitation(null);
+                                        setIsKnowledgeHubOpen(true);
+                                      }}
+                                      className="mt-3 w-full cursor-pointer rounded-r border-l-4 border-[#3525cd] bg-white px-3 py-2 text-left italic text-sm text-[#464555] shadow-sm hover:bg-[#f5f2ff] transition-colors"
+                                    >
+                                      {turn.response.citations[0].text_snippet}
+                                    </button>
+                                  )}
+                                </>
                               )}
                               {turn.response.agent_run_error ? (
                                 <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
@@ -1533,9 +1489,9 @@ export function ChatPage() {
                     {pendingQuestion ? (
                       <li className="space-y-3">
                         <div className="flex justify-end">
-                          <article className="max-w-[85%] rounded-xl rounded-tr-none border border-[#d8d5e8] bg-[#f5f2ff] px-4 py-3 shadow-sm">
+                          <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
                             <p className="sr-only">Question</p>
-                            <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                            <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                               {pendingQuestion}
                             </p>
                           </article>
@@ -1545,12 +1501,13 @@ export function ChatPage() {
                             <span
                               className="material-symbols-outlined text-[18px]"
                               aria-hidden="true"
+                              style={{ fontVariationSettings: "'FILL' 1" }}
                             >
-                              auto_awesome
+                              bolt
                             </span>
                           </div>
-                          <article className="rounded-xl rounded-tl-none border border-[#d7d4e8] bg-white px-4 py-3 shadow-sm">
-                            <p className="text-sm text-[#68647b]">
+                          <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                            <p className="text-sm text-[#464555]">
                               {STREAMING_PLACEHOLDER_ENABLED
                                 ? "Streaming response..."
                                 : "Generating answer..."}
@@ -1585,550 +1542,380 @@ export function ChatPage() {
                 </div>
               ) : null}
 
-              <div className="border-t border-[#e2dff1] bg-[#faf9ff] p-4">
-                <form onSubmit={handleSubmit} className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#ddd7ef] bg-white px-3 py-2 text-xs text-[#5f5a74]">
-                    <div className="flex items-center gap-2">
-                      <label
-                        htmlFor="top-k-slider"
-                        className="text-[11px] font-semibold tracking-[0.08em] uppercase"
+              <div className="border-t border-[#e2dff1] p-4">
+                <form onSubmit={handleSubmit}>
+                  <div className="relative overflow-hidden rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm">
+                    {/* Integrated toolbar */}
+                    <div className="flex items-center gap-3 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="top-k-slider" className="uppercase tracking-wider">Top-k</label>
+                        <input
+                          id="top-k-slider"
+                          type="range"
+                          min={MIN_TOP_K}
+                          max={MAX_TOP_K}
+                          value={topK}
+                          onChange={(event) => {
+                            const parsed = Number.parseInt(event.target.value, 10);
+                            if (Number.isFinite(parsed)) setTopK(Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)));
+                          }}
+                          className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-[#c7c4d8] accent-[#3525cd]"
+                        />
+                        <span className="font-mono text-[#3525cd]">{topK}</span>
+                        <input id="top-k-input" type="number" min={MIN_TOP_K} max={MAX_TOP_K} value={topK}
+                          onChange={(event) => {
+                            const parsed = Number.parseInt(event.target.value, 10);
+                            if (Number.isFinite(parsed)) setTopK(Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)));
+                          }}
+                          className="sr-only"
+                          aria-label="Top K"
+                        />
+                      </div>
+
+                      <span className="h-3 w-px bg-[#c7c4d8]" />
+
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <span>Rerank</span>
+                        <span className="relative inline-flex items-center">
+                          <input type="checkbox" checked={rerank} onChange={(e) => setRerank(e.target.checked)} className="peer sr-only" />
+                          <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd]" />
+                          <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5" />
+                        </span>
+                      </label>
+
+                      <span className="h-3 w-px bg-[#c7c4d8]" />
+
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <span>Agentic</span>
+                        <span className="relative inline-flex items-center">
+                          <input type="checkbox" checked={agenticMode} disabled={!AGENTIC_CHAT_ENABLED}
+                            onChange={(e) => setAgenticMode(e.target.checked)} className="peer sr-only" />
+                          <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd] peer-disabled:opacity-50" />
+                          <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 peer-disabled:opacity-80" />
+                        </span>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
+                        className="ml-auto flex items-center gap-1 text-[#3525cd] hover:text-[#2b1fa8] transition-colors"
                       >
-                        Top-k
-                      </label>
-                      <input
-                        id="top-k-slider"
-                        type="range"
-                        min={MIN_TOP_K}
-                        max={MAX_TOP_K}
-                        value={topK}
-                        onChange={(event) => {
-                          const parsed = Number.parseInt(
-                            event.target.value,
-                            10,
-                          );
-                          if (!Number.isFinite(parsed)) {
-                            return;
-                          }
-                          setTopK(
-                            Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)),
-                          );
-                        }}
-                        className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-[#d8d3ee] accent-[#3525cd]"
-                      />
-                      <span className="font-mono text-sm text-[#3525cd]">
-                        {topK}
-                      </span>
-                      <label htmlFor="top-k-input" className="sr-only">
-                        Top K
-                      </label>
-                      <input
-                        id="top-k-input"
-                        type="number"
-                        min={MIN_TOP_K}
-                        max={MAX_TOP_K}
-                        value={topK}
-                        onChange={(event) => {
-                          const parsed = Number.parseInt(
-                            event.target.value,
-                            10,
-                          );
-                          if (!Number.isFinite(parsed)) {
-                            return;
-                          }
-                          setTopK(
-                            Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)),
-                          );
-                        }}
-                        className="sr-only"
-                      />
+                        <span className="material-symbols-outlined text-sm" aria-hidden="true">folder_open</span>
+                        Context ({contextScopeDocumentCount})
+                      </button>
                     </div>
 
-                    <span className="h-4 w-px bg-[#d8d3ee]" />
-
-                    <label className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold tracking-[0.04em]">
-                        Rerank
-                      </span>
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={rerank}
-                          onChange={(event) => setRerank(event.target.checked)}
-                          className="peer sr-only"
-                        />
-                        <span className="h-5 w-9 rounded-full bg-[#d5d0ea] transition peer-checked:bg-[#3525cd]" />
-                        <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-4" />
-                      </span>
-                    </label>
-
-                    <span className="h-4 w-px bg-[#d8d3ee]" />
-
-                    <label className="flex items-center gap-2">
-                      <span className="text-[11px] font-semibold tracking-[0.04em]">
-                        Agentic Mode
-                      </span>
-                      <span className="relative inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={agenticMode}
-                          disabled={!AGENTIC_CHAT_ENABLED}
-                          onChange={(event) =>
-                            setAgenticMode(event.target.checked)
+                    {/* Textarea + send */}
+                    <div className="relative flex items-end bg-white">
+                      <textarea
+                        value={question}
+                        onChange={(event) => setQuestion(event.target.value)}
+                        onKeyDown={(event) => {
+                          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            void submitQuestion();
                           }
-                          className="peer sr-only"
-                        />
-                        <span className="h-5 w-9 rounded-full bg-[#d5d0ea] transition peer-checked:bg-[#3525cd] peer-disabled:opacity-50" />
-                        <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-4 peer-disabled:opacity-80" />
-                      </span>
-                    </label>
-
-                    <span className="h-4 w-px bg-[#d8d3ee]" />
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsContextModalOpen(true);
-                        setContextSearchQuery("");
-                        setContextPage(1);
-                      }}
-                      className="inline-flex cursor-pointer items-center gap-1 font-semibold text-[#3525cd] hover:text-[#2b1fa8]"
-                    >
-                      <span
-                        className="material-symbols-outlined cursor-pointer text-[14px]"
-                        aria-hidden="true"
-                      >
-                        folder
-                      </span>
-                      Select Context ({contextScopeDocumentCount})
-                    </button>
-
-                    <span className="h-4 w-px bg-[#d8d3ee]" />
-
-                    <span className="text-[11px]">
-                      {!hasIndexedDocuments
-                        ? "Chat is disabled until at least one document is indexed."
-                        : filteredSelectedDocumentIds.length > 0
-                          ? `${filteredSelectedDocumentIds.length} document(s) selected`
-                          : "All indexed accessible documents are in scope"}
-                    </span>
-
-                    <span className="ml-auto text-[11px]">
-                      Shortcut: Ctrl/Cmd + Enter to submit.
-                    </span>
+                        }}
+                        rows={2}
+                        placeholder="Type a message or use '/' for commands..."
+                        disabled={!hasIndexedDocuments}
+                        className="w-full resize-none border-none bg-transparent py-3 pl-3 pr-14 text-sm text-[#2f2a46] outline-none focus:ring-0"
+                      />
+                      <div className="absolute bottom-2.5 right-3">
+                        <button
+                          type="submit"
+                          disabled={isComposerDisabled}
+                          aria-label={
+                            createSessionMutation.isPending ? "Starting session…"
+                            : agentRunMutation.isPending ? "Running agent…"
+                            : queryMutation.isPending ? "Generating answer…"
+                            : "Send message"
+                          }
+                          className="flex items-center justify-center rounded-xl bg-[#3525cd] p-2 text-white hover:shadow-lg active:scale-90 transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_upward</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  {!AGENTIC_CHAT_ENABLED ? (
-                    <p className="text-xs text-[#8a4762]">
-                      Agentic Mode is disabled for this deployment.
-                    </p>
-                  ) : null}
-                  <textarea
-                    value={question}
-                    onChange={(event) => setQuestion(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (
-                        (event.metaKey || event.ctrlKey) &&
-                        event.key === "Enter"
-                      ) {
-                        event.preventDefault();
-                        void submitQuestion();
-                      }
-                    }}
-                    rows={3}
-                    placeholder="Ask a question about your selected documents..."
-                    disabled={!hasIndexedDocuments}
-                    className="w-full rounded-xl border border-[#cfc9e6] bg-white px-3 py-2 text-sm text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
-                  />
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      type="submit"
-                      disabled={isComposerDisabled}
-                      className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {createSessionMutation.isPending
-                        ? "Starting session..."
-                        : agentRunMutation.isPending
-                          ? "Running agent..."
-                          : queryMutation.isPending
-                            ? "Generating answer..."
-                            : "Ask"}
-                    </button>
-                  </div>
+                  {!AGENTIC_CHAT_ENABLED && (
+                    <p className="mt-2 text-xs text-[#8a4762]">Agentic Mode is disabled for this deployment.</p>
+                  )}
+                  {!hasIndexedDocuments && (
+                    <p className="mt-2 text-center text-xs text-[#777587]">Chat is disabled until at least one document is indexed.</p>
+                  )}
                 </form>
               </div>
             </div>
           </section>
 
-          <aside className="min-h-0 rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="flex items-center border-b border-[#e2dff1] px-4 py-3">
-                <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                  Context & citations
-                </h2>
+          <aside className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${(isKnowledgeHubOpen || activeCitation !== null) ? "" : "hidden"}`}>
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[#1b1b24]">Knowledge Hub</h2>
+                <p className="text-xs text-[#464555]">Live insights from current context</p>
               </div>
-              <div className="hide-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-                {!selectedCitationTurn ? (
-                  <p className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-                    Select an answer in the conversation to inspect citations
-                    and retrieval context.
-                  </p>
-                ) : (
-                  <>
-                    <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                      <p className="mb-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Selected answer
-                      </p>
-                      <p className="text-xs text-[#5f5a74]">
-                        Confidence{" "}
-                        {formatPercent(
-                          selectedCitationTurn.response.confidence_score,
-                        )}
-                        {" • "}
-                        {formatDate(selectedCitationTurn.response.created_at)}
-                      </p>
-                      <p className="mt-2 text-sm text-[#2f2a46]">
-                        {selectedCitationTurn.question}
-                      </p>
-                      {selectedCitationPipelineHref ? (
-                        <Link
-                          href={selectedCitationPipelineHref}
-                          className="mt-2 inline-flex rounded border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-                        >
-                          View pipeline run
-                        </Link>
-                      ) : null}
-                    </div>
-                    {selectedCitationTurn.response.not_found ? (
-                      <p className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-xs text-[#68647b]">
-                        No citations are shown because the assistant did not
-                        find grounded evidence for this response.
-                      </p>
-                    ) : (
-                      <CitationPanel
-                        citations={selectedCitationTurn.response.citations}
-                      />
-                    )}
+              <button
+                type="button"
+                onClick={() => setIsKnowledgeHubOpen(false)}
+                aria-label="Close Knowledge Hub"
+                className="rounded-full p-1.5 text-[#464555] hover:bg-[#f0ecf9] transition-colors"
+              >
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+              </button>
+            </div>
 
-                    {showDebugDetails ? (
-                      <section className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                        <h3 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          Retrieval debug
-                        </h3>
-                        {selectedCitationTurn.response.debug ? (
-                          <div className="space-y-2 text-xs text-[#4f4b63]">
-                            <dl className="grid grid-cols-2 gap-2">
-                              <div>
-                                <dt className="font-semibold">
-                                  retrieval_count
-                                </dt>
-                                <dd>
-                                  {
-                                    selectedCitationTurn.response.debug
-                                      .retrieval_count
-                                  }
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="font-semibold">
-                                  selected_count
-                                </dt>
-                                <dd>
-                                  {
-                                    selectedCitationTurn.response.debug
-                                      .selected_count
-                                  }
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="font-semibold">
-                                  rerank_applied
-                                </dt>
-                                <dd>
-                                  {selectedCitationTurn.response.debug
-                                    .rerank_applied
-                                    ? "true"
-                                    : "false"}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="font-semibold">
-                                  embedding_model
-                                </dt>
-                                <dd>
-                                  {selectedCitationTurn.response.debug
-                                    .embedding_model ?? "N/A"}
-                                </dd>
-                              </div>
-                              <div className="col-span-2">
-                                <dt className="font-semibold">llm_model</dt>
-                                <dd>
-                                  {selectedCitationTurn.response.debug
-                                    .llm_model ?? "N/A"}
-                                </dd>
-                              </div>
-                            </dl>
-                            <div>
-                              <p className="mb-1 font-semibold">latencies_ms</p>
-                              {Object.keys(
-                                selectedCitationTurn.response.debug
-                                  .latencies_ms,
-                              ).length === 0 ? (
-                                <p className="text-[#6a6780]">
-                                  No latency details available.
-                                </p>
-                              ) : (
-                                <ul className="space-y-1">
-                                  {Object.entries(
-                                    selectedCitationTurn.response.debug
-                                      .latencies_ms,
-                                  ).map(([key, value]) => (
-                                    <li
-                                      key={key}
-                                      className="flex items-center justify-between gap-2 rounded border border-[#ebe8f7] px-2 py-1"
-                                    >
-                                      <span>{key}</span>
-                                      <span>{value} ms</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-[#6a6780]">
-                            Debug details are unavailable for this message.
-                          </p>
-                        )}
-                      </section>
-                    ) : null}
-
-                    <section className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] p-3">
-                      <h3 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Agent timeline
-                      </h3>
-                      {!selectedAgentRunId ? (
-                        <EmptyState
-                          compact
-                          title="No agent run for this answer."
-                          description="Enable agentic mode and ask a question to inspect step timeline details."
-                        />
-                      ) : selectedAgentRunQuery.isLoading ? (
-                        <LoadingState compact title="Loading run timeline..." />
-                      ) : selectedAgentRunQuery.isError ? (
-                        <ErrorState
-                          compact
-                          title="Unable to load agent timeline"
-                          error={selectedAgentRunQuery.error}
-                          description={getApiErrorMessage(
-                            selectedAgentRunQuery.error,
-                          )}
-                          requestId={extractRequestIdFromError(
-                            selectedAgentRunQuery.error,
-                          )}
-                          onRetry={() => {
-                            void selectedAgentRunQuery.refetch();
-                          }}
-                        />
-                      ) : selectedAgentRunQuery.data ? (
-                        <div className="space-y-2 text-xs text-[#4f4b63]">
-                          <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-2">
-                            <span
-                              className={agentRunStatusClass(
-                                selectedAgentRunQuery.data.status,
-                              )}
-                            >
-                              {selectedAgentRunQuery.data.status}
-                            </span>
-                            <span>run {selectedAgentRunQuery.data.run_id}</span>
-                          </div>
-                          <dl className="grid grid-cols-2 gap-2 rounded border border-[#ebe8f7] px-2 py-2">
-                            <div>
-                              <dt className="font-semibold">Max steps</dt>
-                              <dd>
-                                {String(
-                                  selectedAgentRunQuery.data.budget.max_steps ??
-                                    selectedAgentRunQuery.data.max_steps ??
-                                    "N/A",
-                                )}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="font-semibold">Steps used</dt>
-                              <dd>{selectedAgentRunQuery.data.steps.length}</dd>
-                            </div>
-                            <div>
-                              <dt className="font-semibold">Max tool calls</dt>
-                              <dd>
-                                {String(
-                                  selectedAgentRunQuery.data.budget
-                                    .max_tool_calls ?? "N/A",
-                                )}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="font-semibold">Tool calls used</dt>
-                              <dd>
-                                {selectedAgentRunQuery.data.tool_calls.length}
-                              </dd>
-                            </div>
-                          </dl>
-                          {selectedAgentRunQuery.data.error_message ? (
-                            <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
-                              Stop reason:{" "}
-                              {selectedAgentRunQuery.data.error_message}
-                            </p>
-                          ) : null}
-                          {selectedAgentRunQuery.data.approvals.length > 0 ? (
-                            <section className="space-y-1 rounded border border-[#ebe8f7] px-2 py-2">
-                              <h4 className="font-semibold text-[#3f3b58]">
-                                Approvals
-                              </h4>
-                              <ol className="space-y-1">
-                                {selectedAgentRunQuery.data.approvals.map(
-                                  (approval) => (
-                                    <li
-                                      key={approval.approval_id}
-                                      className="rounded border border-[#ebe8f7] bg-white px-2 py-2"
-                                    >
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span
-                                          className={approvalStatusClass(
-                                            approval.status,
-                                          )}
-                                        >
-                                          {approval.status}
-                                        </span>
-                                        <span className="text-[#6a6780]">
-                                          {approval.request_summary ??
-                                            "Approval request"}
-                                        </span>
-                                      </div>
-                                      <p className="mt-1 text-[#6a6780]">
-                                        id {approval.approval_id}
-                                      </p>
-                                      {approval.decision_reason ? (
-                                        <p className="mt-1 text-[#6a6780]">
-                                          reason: {approval.decision_reason}
-                                        </p>
-                                      ) : null}
-                                      {approval.status === "pending" &&
-                                      canDecideApprovals ? (
-                                        <div className="mt-2 flex items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              void handleApprovalDecision({
-                                                runId:
-                                                  selectedAgentRunQuery.data
-                                                    .run_id,
-                                                approvalId:
-                                                  approval.approval_id,
-                                                status: "approved",
-                                              });
-                                            }}
-                                            disabled={
-                                              decideApprovalMutation.isPending
-                                            }
-                                            className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800 disabled:opacity-60"
-                                          >
-                                            Approve
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              void handleApprovalDecision({
-                                                runId:
-                                                  selectedAgentRunQuery.data
-                                                    .run_id,
-                                                approvalId:
-                                                  approval.approval_id,
-                                                status: "rejected",
-                                              });
-                                            }}
-                                            disabled={
-                                              decideApprovalMutation.isPending
-                                            }
-                                            className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-800 disabled:opacity-60"
-                                          >
-                                            Reject
-                                          </button>
-                                        </div>
-                                      ) : null}
-                                    </li>
-                                  ),
-                                )}
-                              </ol>
-                              {decideApprovalMutation.isError ? (
-                                <p className="rounded border border-rose-200 bg-rose-50 px-2 py-2 text-rose-800">
-                                  {getApiErrorMessage(
-                                    decideApprovalMutation.error,
-                                  )}
-                                </p>
-                              ) : null}
-                            </section>
-                          ) : null}
-                          {selectedAgentRunQuery.data.steps.length === 0 ? (
-                            <EmptyState
-                              compact
-                              title="No timeline steps were persisted."
-                            />
-                          ) : (
-                            <ol className="space-y-1">
-                              {selectedAgentRunQuery.data.steps.map((step) => (
-                                <li
-                                  key={step.step_id}
-                                  className="rounded border border-[#ebe8f7] px-2 py-2"
-                                >
-                                  <p className="font-semibold text-[#3f3b58]">
-                                    {step.sequence}. {step.step_name}
-                                  </p>
-                                  <p className="text-[#6a6780]">
-                                    status {step.status}
-                                    {step.duration_ms !== null
-                                      ? ` • ${step.duration_ms} ms`
-                                      : ""}
-                                  </p>
-                                  {step.error_message ? (
-                                    <p className="mt-1 text-rose-700">
-                                      {step.error_message}
-                                    </p>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ol>
-                          )}
-                        </div>
-                      ) : (
-                        <EmptyState compact title="Run detail unavailable." />
-                      )}
-                    </section>
-                  </>
-                )}
-              </div>
-
-              <div className="border-t border-[#e2dff1] bg-[#f5f2ff] p-4">
-                <p className="mb-2 text-xs font-bold tracking-[0.12em] text-[#6a6780] uppercase">
-                  Context statistics
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border border-[#e4e1f2] bg-white px-2 py-2">
-                    <p className="text-[10px] text-[#6a6780]">Tokens Used</p>
-                    <p className="font-mono text-sm text-[#2f2a46]">
-                      {selectedCitationTokenEstimate.toLocaleString()}
-                    </p>
+            {/* ── Scrollable body ── */}
+            <div className="hide-scrollbar flex-1 overflow-y-auto">
+              {/* Context Map */}
+              <div className="p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Context Map</span>
+                  <button type="button" className="text-[10px] font-bold text-[#3525cd]">EXPAND</button>
+                </div>
+                <div className="relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9] group">
+                  <div className="pointer-events-none absolute inset-0 opacity-20">
+                    <svg className="h-full w-full">
+                      <line stroke="#3525cd" strokeWidth="1" x1="20%" y1="30%" x2="50%" y2="50%" />
+                      <line stroke="#3525cd" strokeWidth="1" x1="50%" y1="50%" x2="80%" y2="20%" />
+                      <line stroke="#3525cd" strokeWidth="1" x1="50%" y1="50%" x2="70%" y2="80%" />
+                    </svg>
                   </div>
-                  <div className="rounded-lg border border-[#e4e1f2] bg-white px-2 py-2">
-                    <p className="text-[10px] text-[#6a6780]">Documents</p>
-                    <p className="font-mono text-sm text-[#2f2a46]">
-                      {selectedCitationDocumentCount} docs
-                    </p>
+                  <div className="absolute top-[30%] left-[20%] h-3 w-3 rounded-full bg-[#3525cd] shadow-lg" />
+                  <div className="absolute top-[50%] left-[50%] flex h-6 w-6 items-center justify-center rounded-full bg-[#3525cd] shadow-lg">
+                    <span className="material-symbols-outlined text-xs text-white" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
+                  </div>
+                  <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
+                  <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
+                  <div className="absolute bottom-2 left-2 right-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
+                    CONNECTED: {selectedCitationTurn?.response.citations.length ?? 0} SOURCES
                   </div>
                 </div>
               </div>
+
+              {/* Source Documents */}
+              <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Source Documents</span>
+                  <span className="material-symbols-outlined text-sm text-[#464555]" aria-hidden="true">filter_list</span>
+                </div>
+
+                {!selectedCitationTurn ? (
+                  <p className="text-xs text-[#777587]">Ask a question to see source documents.</p>
+                ) : selectedCitationTurn.response.not_found ? (
+                  <p className="text-xs text-[#777587]">No citations are shown because the assistant did not find grounded evidence for this response.</p>
+                ) : selectedCitationTurn.response.citations.length === 0 ? (
+                  <p className="text-xs text-[#777587]">No citations for this response.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedCitationTurn.response.citations.map((citation, ci) => (
+                      <button
+                        key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                        type="button"
+                        onClick={() => { setActiveCitation(citation); setIsKnowledgeHubOpen(false); }}
+                        className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
+                      >
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}>
+                            {getFileTypeLabel(citation.filename)}
+                          </span>
+                          <span className="material-symbols-outlined text-xs text-[#464555] group-hover:text-[#3525cd]" aria-hidden="true">open_in_new</span>
+                        </div>
+                        <h4
+                          className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
+                          title={citation.filename ?? "Unknown document"}
+                        >
+                          {citation.filename ?? "Unknown document"}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          {citation.page_number ? (
+                            <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
+                              PAGE {citation.page_number}
+                            </span>
+                          ) : null}
+                          <span className="text-[9px] text-[#464555]">
+                            score {formatScore(citation.score)}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                    {selectedCitationPipelineHref ? (
+                      <Link
+                        href={selectedCitationPipelineHref}
+                        className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[#777587] py-2 text-xs font-bold text-[#464555] transition-all hover:border-[#3525cd] hover:bg-white hover:text-[#3525cd]"
+                      >
+                        View pipeline run
+                      </Link>
+                    ) : null}
+                  </div>
+                )}
+
+                {/* Agent timeline */}
+                {selectedAgentRunId ? (
+                  <div className="mt-4">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#464555]">Agent timeline</p>
+                    {selectedAgentRunQuery.isLoading ? (
+                      <LoadingState compact title="Loading timeline..." />
+                    ) : selectedAgentRunQuery.isError ? (
+                      <ErrorState compact error={selectedAgentRunQuery.error} description={getApiErrorMessage(selectedAgentRunQuery.error)} onRetry={() => { void selectedAgentRunQuery.refetch(); }} />
+                    ) : selectedAgentRunQuery.data ? (
+                      <div className="space-y-1.5 text-xs text-[#4f4b63]">
+                        <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-1.5">
+                          <span className={agentRunStatusClass(selectedAgentRunQuery.data.status)}>{selectedAgentRunQuery.data.status}</span>
+                          <span className="truncate text-[#6a6780]">run {selectedAgentRunQuery.data.run_id.slice(0, 8)}…</span>
+                        </div>
+                        {selectedAgentRunQuery.data.approvals.length > 0 && (
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Approvals</p>
+                        )}
+                        {selectedAgentRunQuery.data.approvals.filter((a) => a.status === "pending").map((approval) => (
+                          <div key={approval.approval_id} className="rounded border border-amber-200 bg-amber-50 px-2 py-2">
+                            <p className="mb-1 text-xs text-amber-800">{approval.request_summary ?? "Approval needed"}</p>
+                            {canDecideApprovals && (
+                              <div className="flex gap-2">
+                                <button type="button" disabled={decideApprovalMutation.isPending}
+                                  onClick={() => { void handleApprovalDecision({ runId: selectedAgentRunQuery.data.run_id, approvalId: approval.approval_id, status: "approved" }); }}
+                                  className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60">Approve</button>
+                                <button type="button" disabled={decideApprovalMutation.isPending}
+                                  onClick={() => { void handleApprovalDecision({ runId: selectedAgentRunQuery.data.run_id, approvalId: approval.approval_id, status: "rejected" }); }}
+                                  className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60">Reject</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <ol className="space-y-1">
+                          {selectedAgentRunQuery.data.steps.map((step) => (
+                            <li key={step.step_id} className="rounded border border-[#ebe8f7] px-2 py-1.5">
+                              <p className="font-semibold text-[#3f3b58]">{step.sequence}. {step.step_name}</p>
+                              <p className="text-[#6a6780]">{step.status}{step.duration_ms !== null ? ` • ${step.duration_ms}ms` : ""}</p>
+                            </li>
+                          ))}
+                        </ol>
+                        {decideApprovalMutation.isError && (
+                          <p className="rounded border border-rose-200 bg-rose-50 px-2 py-1.5 text-rose-800">
+                            {getApiErrorMessage(decideApprovalMutation.error)}
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* Debug details for admins */}
+                {showDebugDetails && selectedCitationTurn?.response.debug ? (
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-widest text-[#464555]">Retrieval debug</summary>
+                    <div className="mt-2 space-y-1 text-xs text-[#4f4b63]">
+                      <dl className="grid grid-cols-2 gap-1 rounded border border-[#ebe8f7] px-2 py-2">
+                        {(["retrieval_count","selected_count","rerank_applied","embedding_model","llm_model"] as const).map((key) => (
+                          <div key={key} className={key === "llm_model" ? "col-span-2" : ""}>
+                            <dt className="font-semibold">{key}</dt>
+                            <dd>{String((selectedCitationTurn.response.debug as Record<string,unknown>)[key] ?? "N/A")}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  </details>
+                ) : null}
+              </div>
             </div>
+
+            {/* ── Metrics footer ── */}
+            <div className="border-t border-[#e4e1ee] bg-white p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#464555]">Confidence</p>
+                  <p className="text-lg font-semibold text-[#3525cd]">
+                    {selectedCitationTurn
+                      ? selectedCitationTurn.response.confidence_category === "high" ? "High"
+                        : selectedCitationTurn.response.confidence_category === "medium" ? "Medium"
+                        : "Low"
+                      : "—"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#464555]">Sources</p>
+                  <p className="text-lg font-semibold text-[#3525cd]">
+                    {selectedCitationDocumentCount > 0
+                      ? String(selectedCitationDocumentCount).padStart(2, "0")
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Citation Detail overlay ── */}
+            {activeCitation ? (
+              <div className="absolute inset-0 z-50 flex flex-col bg-white">
+                <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-[#1b1b24]">Citation Details</h2>
+                    <p className="font-mono text-xs text-[#464555]">
+                      <span className="truncate" title={activeCitation.filename ?? "Document"}>
+                        {activeCitation.filename ?? "Document"}
+                      </span>
+                      {activeCitation.page_number ? ` • Page ${activeCitation.page_number}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCitation(null)}
+                    aria-label="Close citation detail"
+                    className="rounded-full p-1.5 text-[#464555] hover:bg-[#f0ecf9] transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                  </button>
+                </div>
+
+                <div className="hide-scrollbar flex-1 overflow-y-auto bg-[#f5f2ff] p-4">
+                  <div className="min-h-[300px] rounded-lg border border-[#c7c4d8] bg-white p-5 font-serif text-sm leading-relaxed text-[#1b1b24] shadow-md">
+                    <div className="mb-4 flex items-end justify-between border-b pb-2 font-sans text-xs italic text-[#464555]">
+                      <span className="max-w-[70%] truncate" title={activeCitation.filename ?? "DOCUMENT"}>
+                        {activeCitation.filename ?? "DOCUMENT"}
+                      </span>
+                      {activeCitation.page_number ? <span>PAGE {activeCitation.page_number}</span> : null}
+                    </div>
+                    <p className="mb-3 text-xs leading-relaxed opacity-40">
+                      The passage below was retrieved from the indexed knowledge base as a high-relevance match for your query.
+                    </p>
+                    {activeCitation.text_snippet ? (
+                      <div className="my-3 rounded-r border-l-4 border-[#3525cd] bg-[#e2dfff]/30 p-3">
+                        <span className="mr-1 rounded bg-[#3525cd]/10 px-1 font-sans text-xs font-bold text-[#3525cd]">
+                          CIT
+                        </span>
+                        <span className="font-bold">{activeCitation.text_snippet}</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs italic text-[#464555]">Snippet not available for this citation.</p>
+                    )}
+                    <p className="mt-3 text-xs leading-relaxed opacity-40">
+                      Retrieval score:{" "}
+                      {formatScore(activeCitation.rerank_score ?? activeCitation.similarity_score ?? activeCitation.score)}.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#e4e1ee] bg-white p-4">
+                  {activeCitation.document_id ? (
+                    <Link
+                      href={`/documents/${encodeURIComponent(activeCitation.document_id)}?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}&back=${encodeURIComponent("/chat")}`}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
+                    >
+                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
+                      Jump to Source
+                    </Link>
+                  ) : (
+                    <p className="text-center text-xs text-[#777587]">Document link unavailable.</p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
           </aside>
         </div>
       </section>
+
       {isContextModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f1a3f]/45 p-4">
           <div

@@ -67,7 +67,7 @@ function renderPage() {
 
 async function openContextSelector() {
   await userEvent.click(
-    screen.getByRole("button", { name: /Select context/i }),
+    screen.getByRole("button", { name: /Context \(/i }),
   );
   return screen.findByRole("dialog", { name: /Select context/i });
 }
@@ -177,11 +177,11 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    const askButton = screen.getByRole("button", { name: "Ask" });
+    const askButton = screen.getByRole("button", { name: /Send message/i });
     expect(askButton).toBeDisabled();
 
     const textarea = screen.getByPlaceholderText(
-      "Ask a question about your selected documents...",
+      "Type a message or use '/' for commands...",
     );
     await userEvent.type(textarea, "   ");
     expect(askButton).toBeDisabled();
@@ -302,15 +302,15 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "When is the policy active?",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(vi.mocked(createChatSession)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(createChatSession)).toHaveBeenCalledWith({
@@ -397,14 +397,14 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "check debug visibility",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(await screen.findByText("normal answer")).toBeInTheDocument();
     expect(screen.queryByText("Retrieval debug")).not.toBeInTheDocument();
@@ -483,14 +483,14 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "show debug",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(await screen.findByText("Retrieval debug")).toBeInTheDocument();
     expect(screen.getByText("retrieval_count")).toBeInTheDocument();
@@ -692,11 +692,11 @@ describe("ChatPage", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "scope check",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     await waitFor(() => {
       expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
@@ -815,18 +815,18 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+      screen.getByRole("checkbox", { name: /Agentic/i }),
     );
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "agentic question",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(
       await screen.findByText("Agent generated grounded answer."),
@@ -891,18 +891,18 @@ describe("ChatPage", () => {
     );
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+      screen.getByRole("checkbox", { name: /Agentic/i }),
     );
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "agentic failing question",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(
       await screen.findByText("Unable to complete the query."),
@@ -988,24 +988,24 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+      screen.getByRole("checkbox", { name: /Agentic/i }),
     );
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "fallback question",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(await screen.findByText("Fallback chat answer")).toBeInTheDocument();
     expect(vi.mocked(createAgentRun)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(queryChat)).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+      screen.getByRole("checkbox", { name: /Agentic/i }),
     ).not.toBeChecked();
   });
 
@@ -1130,18 +1130,18 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic mode/i }),
+      screen.getByRole("checkbox", { name: /Agentic/i }),
     );
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "approval question",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(await screen.findByText("Approvals")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -1216,14 +1216,14 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "hello",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     await waitFor(() => {
       expect(
@@ -1296,9 +1296,9 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
     const textarea = screen.getByPlaceholderText(
-      "Ask a question about your selected documents...",
+      "Type a message or use '/' for commands...",
     );
     await userEvent.type(textarea, "retry me");
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
@@ -1310,7 +1310,7 @@ describe("ChatPage", () => {
     });
     expect(screen.getByDisplayValue("retry me")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
     expect(await screen.findByText("Recovered answer")).toBeInTheDocument();
   });
 
@@ -1672,14 +1672,14 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "unknown question",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(
       await screen.findByText(
@@ -1759,26 +1759,26 @@ describe("ChatPage", () => {
       .mockRejectedValueOnce(new Error("Temporary failure"));
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "first",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
     expect(
       await screen.findByText("First answer stays visible"),
     ).toBeInTheDocument();
 
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "second",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
 
     expect(
       await screen.findByText("Unable to complete the query."),
@@ -1880,15 +1880,15 @@ describe("ChatPage", () => {
       });
 
     renderPage();
-    await screen.findByText(/All indexed accessible documents are in scope/i);
+    await screen.findByText(/Context \(/i);
 
     await userEvent.type(
       screen.getByPlaceholderText(
-        "Ask a question about your selected documents...",
+        "Type a message or use '/' for commands...",
       ),
       "repeat me",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
     expect(await screen.findByText("Initial answer")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Regenerate" }));
