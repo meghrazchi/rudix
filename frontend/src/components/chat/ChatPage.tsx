@@ -254,6 +254,8 @@ function normalizeAgentCitation(
     rerank_rank: toNumberOrNull(citation.rerank_rank),
     text_snippet:
       toStringOrNull(citation.text_snippet) ?? toStringOrNull(citation.snippet),
+    start_offset: toNumberOrNull(citation.start_offset),
+    end_offset: toNumberOrNull(citation.end_offset),
   };
 }
 
@@ -526,7 +528,10 @@ export function ChatPage() {
     Record<string, "up" | "down">
   >({});
   const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
-  const [previewCitation, setPreviewCitation] = useState<ChatCitationResponse | null>(null);
+  const [previewCitationSet, setPreviewCitationSet] = useState<{
+    citations: ChatCitationResponse[];
+    initialIndex: number;
+  } | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
@@ -1415,7 +1420,16 @@ export function ChatPage() {
                                             <button
                                               type="button"
                                               aria-label={`Preview ${citation.filename ?? "document"}`}
-                                              onClick={() => setPreviewCitation(citation)}
+                                              onClick={() => {
+                                                const siblings = turn.response.citations.filter(
+                                                  (c) => c.document_id === citation.document_id,
+                                                );
+                                                const idx = siblings.indexOf(citation);
+                                                setPreviewCitationSet({
+                                                  citations: siblings,
+                                                  initialIndex: idx >= 0 ? idx : 0,
+                                                });
+                                              }}
                                               className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
                                             >
                                               <span
@@ -2193,10 +2207,11 @@ export function ChatPage() {
         </div>
       ) : null}
 
-      {previewCitation ? (
+      {previewCitationSet ? (
         <DocumentPreviewModal
-          citation={previewCitation}
-          onClose={() => setPreviewCitation(null)}
+          citations={previewCitationSet.citations}
+          initialIndex={previewCitationSet.initialIndex}
+          onClose={() => setPreviewCitationSet(null)}
         />
       ) : null}
     </>

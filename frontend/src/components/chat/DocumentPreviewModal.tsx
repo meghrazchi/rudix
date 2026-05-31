@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -15,22 +15,51 @@ import { isApiClientError } from "@/lib/api/errors";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 
 type Props = {
-  citation: ChatCitationResponse;
+  citations: ChatCitationResponse[];
+  initialIndex?: number;
   onClose: () => void;
+};
+
+type SplitResult = {
+  before: string;
+  match: string;
+  after: string;
+  exact: boolean;
 };
 
 function splitOnSnippet(
   text: string,
   snippet: string,
-): { before: string; match: string; after: string } | null {
+  startOffset?: number | null,
+  endOffset?: number | null,
+): SplitResult | null {
+  if (!snippet && startOffset == null) return null;
+
+  // Use persisted offsets when available — most precise.
+  if (startOffset != null && endOffset != null && endOffset > startOffset) {
+    const clamped = Math.min(endOffset, text.length);
+    return {
+      before: text.slice(0, startOffset),
+      match: text.slice(startOffset, clamped),
+      after: text.slice(clamped),
+      exact: true,
+    };
+  }
+
   if (!snippet) return null;
+
+  // Case-insensitive substring fallback.
   const idx = text.toLowerCase().indexOf(snippet.toLowerCase());
-  if (idx === -1) return null;
-  return {
-    before: text.slice(0, idx),
-    match: text.slice(idx, idx + snippet.length),
-    after: text.slice(idx + snippet.length),
-  };
+  if (idx !== -1) {
+    return {
+      before: text.slice(0, idx),
+      match: text.slice(idx, idx + snippet.length),
+      after: text.slice(idx + snippet.length),
+      exact: true,
+    };
+  }
+
+  return null;
 }
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
@@ -78,9 +107,14 @@ function formatScore(value: number | null | undefined): string {
   return value.toFixed(3);
 }
 
-export function DocumentPreviewModal({ citation, onClose }: Props) {
+export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: Props) {
+  const [activeIndex, setActiveIndex] = useState(
+    Math.min(initialIndex, Math.max(0, citations.length - 1)),
+  );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const highlightedChunkRef = useRef<HTMLDivElement | null>(null);
+
+  const citation = citations[activeIndex] ?? citations[0];
 
   useOverlayFocus({ isOpen: true, containerRef, onClose });
 
@@ -115,7 +149,7 @@ export function DocumentPreviewModal({ citation, onClose }: Props) {
       behavior: "smooth",
       block: "center",
     });
-  }, [chunksQuery.data]);
+  }, [chunksQuery.data, activeIndex]);
 
   const doc = docQuery.data;
   const isDocRestricted =
@@ -135,6 +169,10 @@ export function DocumentPreviewModal({ citation, onClose }: Props) {
   const displayStatus = doc?.status ?? null;
   const canDownload =
     !isDocDeleted && !isDocRestricted && !downloadMutation.isPending;
+
+  const hasSiblings = citations.length > 1;
+  const canGoPrev = activeIndex > 0;
+  const canGoNext = activeIndex < citations.length - 1;
 
   const viewInDocsHref = citation.document_id
     ? `/documents/${encodeURIComponent(citation.document_id)}` +
@@ -209,6 +247,39 @@ export function DocumentPreviewModal({ citation, onClose }: Props) {
             </span>
           </button>
         </div>
+
+        {/* Citation navigation */}
+        {hasSiblings ? (
+          <div className="shrink-0 flex items-center justify-between border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
+            <span className="text-[11px] font-semibold text-[#6a6780]">
+              Citation {activeIndex + 1} of {citations.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!canGoPrev}
+                onClick={() => setActiveIndex((i) => i - 1)}
+                aria-label="Previous citation"
+                className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                  chevron_left
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={!canGoNext}
+                onClick={() => setActiveIndex((i) => i + 1)}
+                aria-label="Next citation"
+                className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                  chevron_right
+                </span>
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* Metadata strip */}
         {(citation.chunk_id ||
@@ -330,10 +401,14 @@ export function DocumentPreviewModal({ citation, onClose }: Props) {
               {chunksQuery.data.items.map((chunk) => {
                 const isHighlighted = chunk.chunk_id === citation.chunk_id;
                 const chunkText = chunk.text ?? chunk.text_preview;
-                const parts =
-                  isHighlighted && citation.text_snippet
-                    ? splitOnSnippet(chunkText, citation.text_snippet)
-                    : null;
+                const parts = isHighlighted
+                  ? splitOnSnippet(
+                      chunkText,
+                      citation.text_snippet ?? "",
+                      citation.start_offset,
+                      citation.end_offset,
+                    )
+                  : null;
 
                 return (
                   <div
@@ -358,6 +433,13 @@ export function DocumentPreviewModal({ citation, onClose }: Props) {
                         </mark>
                         {parts.after}
                       </p>
+                    ) : isHighlighted ? (
+                      <>
+                        <p>{chunkText}</p>
+                        <p className="mt-2 font-sans text-[10px] italic text-[#6a6780]">
+                          Exact highlight unavailable — passage is shown in full.
+                        </p>
+                      </>
                     ) : (
                       <p>{chunkText}</p>
                     )}

@@ -455,6 +455,8 @@ async def list_chat_session_messages(
                     rerank_score=citation.rerank_score,
                     rerank_rank=None,
                     text_snippet=citation.text_snippet,
+                    start_offset=citation.start_offset,
+                    end_offset=citation.end_offset,
                 )
                 for citation, filename in citation_rows
             ]
@@ -802,6 +804,8 @@ async def query_chat(
                 chunk_id=UUID(citation.chunk_id),
                 text_snippet=citation.text_snippet or "",
                 page_number=citation.page_number,
+                start_offset=citation.start_offset,
+                end_offset=citation.end_offset,
                 similarity_score=citation.similarity_score,
                 rerank_score=citation.rerank_score if payload.rerank else None,
             )

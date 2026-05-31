@@ -1231,6 +1231,10 @@ export interface components {
             rerank_rank?: number | null;
             /** Text Snippet */
             text_snippet?: string | null;
+            /** Start Offset */
+            start_offset?: number | null;
+            /** End Offset */
+            end_offset?: number | null;
         };
         /** ChatConfidenceExplanationResponse */
         ChatConfidenceExplanationResponse: {

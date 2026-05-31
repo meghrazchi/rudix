@@ -28,6 +28,8 @@ class Citation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     page_number: Mapped[int | None] = mapped_column(nullable=True)
     text_snippet: Mapped[str] = mapped_column(Text(), nullable=False)
+    start_offset: Mapped[int | None] = mapped_column(nullable=True)
+    end_offset: Mapped[int | None] = mapped_column(nullable=True)
     similarity_score: Mapped[float | None] = mapped_column(nullable=True)
     rerank_score: Mapped[float | None] = mapped_column(nullable=True)
 

@@ -173,6 +173,8 @@ class ChatRepository:
         chunk_id: UUID,
         text_snippet: str,
         page_number: int | None = None,
+        start_offset: int | None = None,
+        end_offset: int | None = None,
         similarity_score: float | None = None,
         rerank_score: float | None = None,
     ) -> Citation:
@@ -182,6 +184,8 @@ class ChatRepository:
             chunk_id=chunk_id,
             text_snippet=text_snippet,
             page_number=page_number,
+            start_offset=start_offset,
+            end_offset=end_offset,
             similarity_score=similarity_score,
             rerank_score=rerank_score,
         )

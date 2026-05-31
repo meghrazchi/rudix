@@ -93,6 +93,84 @@ def test_build_citations_repairs_invalid_snippets() -> None:
     assert result.citations[0].text_snippet == context_chunk.text[:400]
 
 
+def test_citation_offsets_exact_case_insensitive_match() -> None:
+    service = CitationService()
+    chunk_text = "Employees receive twenty days of annual leave per year."
+    chunk = _chunk(text=chunk_text)
+
+    result = service.build_citations(
+        not_found=False,
+        answer="Employees receive twenty days.",
+        retrieved_chunks=[chunk],
+        model_citations=[
+            ParsedCitation(
+                document_id=str(chunk.document_id),
+                chunk_id=str(chunk.chunk_id),
+                filename=chunk.filename,
+                page_number=chunk.page_number,
+                text_snippet="twenty days of annual leave",
+            )
+        ],
+    )
+
+    citation = result.citations[0]
+    assert citation.start_offset is not None
+    assert citation.end_offset is not None
+    assert chunk_text[citation.start_offset : citation.end_offset].lower() == "twenty days of annual leave"
+
+
+def test_citation_offsets_preserved_for_fallback_snippets() -> None:
+    service = CitationService()
+    chunk_text = "The quick brown fox jumps over the lazy dog."
+    chunk = _chunk(text=chunk_text)
+
+    # No model citations → fallback path uses default snippet (full chunk text).
+    result = service.build_citations(
+        not_found=False,
+        answer="The quick brown fox.",
+        retrieved_chunks=[chunk],
+        model_citations=[
+            ParsedCitation(
+                document_id=str(chunk.document_id),
+                chunk_id=str(uuid4()),  # invalid → triggers fallback
+            )
+        ],
+    )
+
+    assert result.used_fallback is True
+    citation = result.citations[0]
+    # Fallback snippet equals the full chunk text; offsets must cover it.
+    assert citation.start_offset == 0
+    assert citation.end_offset == len(chunk_text)
+
+
+def test_citation_offsets_none_when_snippet_not_found_in_chunk() -> None:
+    service = CitationService()
+    # Snippet that doesn't match chunk text at all.
+    chunk = _chunk(text="Completely unrelated chunk content here.")
+
+    result = service.build_citations(
+        not_found=False,
+        answer="Some answer.",
+        retrieved_chunks=[chunk],
+        model_citations=[
+            ParsedCitation(
+                document_id=str(chunk.document_id),
+                chunk_id=str(chunk.chunk_id),
+                filename=chunk.filename,
+                page_number=chunk.page_number,
+                text_snippet="this snippet does not appear in the chunk",
+            )
+        ],
+    )
+
+    # Mismatch causes snippet to be replaced by the default (full chunk); offsets should exist.
+    citation = result.citations[0]
+    assert citation.text_snippet is not None
+    # When the default snippet is used it should match at offset 0.
+    assert citation.start_offset == 0
+
+
 def test_build_citations_returns_no_citations_for_not_found() -> None:
     service = CitationService()
     context_chunk = _chunk()

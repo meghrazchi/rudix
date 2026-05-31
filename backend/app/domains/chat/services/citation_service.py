@@ -74,10 +74,30 @@ class CitationService:
     def _default_snippet(self, chunk: CitationContextChunk) -> str:
         return chunk.text[: self.max_text_snippet_chars].strip()
 
+    def _find_snippet_offsets(
+        self, *, snippet: str, chunk_text: str
+    ) -> tuple[int, int] | None:
+        lower_chunk = chunk_text.lower()
+        lower_snippet = snippet.lower()
+        idx = lower_chunk.find(lower_snippet)
+        if idx != -1:
+            return (idx, idx + len(snippet))
+        # Fuzzy: find the longest matching block and use its position as the highlight centre.
+        matcher = SequenceMatcher(None, lower_snippet, lower_chunk, autojunk=False)
+        match = matcher.find_longest_match(0, len(lower_snippet), 0, len(lower_chunk))
+        if match.size >= max(8, int(len(lower_snippet) * 0.6)):
+            return (match.b, match.b + match.size)
+        return None
+
     def _build_response(
         self, *, chunk: CitationContextChunk, text_snippet: str
     ) -> ChatCitationResponse:
         score = chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score
+        clamped_snippet = (
+            text_snippet[: self.max_text_snippet_chars].strip() or self._default_snippet(chunk)
+        )
+        offsets = self._find_snippet_offsets(snippet=clamped_snippet, chunk_text=chunk.text)
+        start_offset, end_offset = offsets if offsets else (None, None)
         return ChatCitationResponse(
             document_id=str(chunk.document_id),
             chunk_id=str(chunk.chunk_id),
@@ -87,8 +107,9 @@ class CitationService:
             similarity_score=chunk.similarity_score,
             rerank_score=chunk.rerank_score,
             rerank_rank=chunk.rerank_rank,
-            text_snippet=text_snippet[: self.max_text_snippet_chars].strip()
-            or self._default_snippet(chunk),
+            text_snippet=clamped_snippet,
+            start_offset=start_offset,
+            end_offset=end_offset,
         )
 
     @staticmethod

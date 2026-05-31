@@ -98,6 +98,8 @@ class ChatCitationResponse(BaseModel):
     rerank_score: float | None = None
     rerank_rank: int | None = None
     text_snippet: str | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
 
 
 class ChatDebugResponse(BaseModel):
