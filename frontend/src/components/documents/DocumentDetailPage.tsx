@@ -367,6 +367,8 @@ function deriveRecommendations(
 export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const highlightedChunkId = searchParams.get("chunk_id");
+  const highlightedSnippet = searchParams.get("snippet");
   const { state } = useAuthSession();
   const capabilities = resolveDocumentCapabilities(state.session?.role);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -375,12 +377,15 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     field: MetadataCopyField;
     fading: boolean;
   } | null>(null);
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
+  const [activeTab, setActiveTab] = useState<DetailTab>(
+    highlightedChunkId ? "chunks" : "overview",
+  );
   const [chunksOffset, setChunksOffset] = useState(0);
   const [includeFullText, setIncludeFullText] = useState(false);
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
   const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
+  const highlightedChunkRef = useRef<HTMLElement | null>(null);
 
   const clearCopyFeedbackTimers = (): void => {
     if (copyFadeTimeoutRef.current !== null) {
@@ -476,20 +481,32 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     statusSnapshotUpdatedAt,
   ]);
 
+  const effectiveChunksLimit = highlightedChunkId ? 100 : CHUNK_PAGE_SIZE;
+  const effectiveChunksOffset = highlightedChunkId ? 0 : chunksOffset;
+  const effectiveIncludeFullText = highlightedChunkId ? true : includeFullText;
+
   const chunksQuery = useQuery({
     queryKey: queryKeys.documents.chunks(documentId, {
-      limit: CHUNK_PAGE_SIZE,
-      offset: chunksOffset,
-      include_full_text: includeFullText,
+      limit: effectiveChunksLimit,
+      offset: effectiveChunksOffset,
+      include_full_text: effectiveIncludeFullText,
     }),
     queryFn: () =>
       getDocumentChunks(documentId, {
-        limit: CHUNK_PAGE_SIZE,
-        offset: chunksOffset,
-        include_full_text: includeFullText,
+        limit: effectiveChunksLimit,
+        offset: effectiveChunksOffset,
+        include_full_text: effectiveIncludeFullText,
       }),
     enabled: detailQuery.isSuccess,
   });
+
+  useEffect(() => {
+    if (!highlightedChunkId || !highlightedChunkRef.current) return;
+    highlightedChunkRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [highlightedChunkId, chunksQuery.data]);
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteDocument(documentId),
@@ -867,6 +884,43 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
               </div>
             </section>
 
+            {/* Citation evidence callout — shown when arriving from a chat citation deep-link */}
+            {highlightedChunkId ? (
+              <div className="rounded-xl border border-[#3525cd]/30 bg-[#f5f2ff] p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span
+                    className="material-symbols-outlined text-[18px] text-[#3525cd]"
+                    aria-hidden="true"
+                  >
+                    format_quote
+                  </span>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#3525cd]">
+                    Citation evidence
+                  </p>
+                </div>
+                {highlightedSnippet ? (
+                  <p className="rounded-r border-l-4 border-[#3525cd] bg-white py-2 pl-3 pr-2 text-sm italic text-[#1b1b24]">
+                    {highlightedSnippet}
+                  </p>
+                ) : null}
+                <p
+                  className="mt-2 font-mono text-[10px] text-[#6a6780]"
+                  title={`Chunk ID: ${highlightedChunkId}`}
+                >
+                  Chunk: {highlightedChunkId.slice(0, 16)}&hellip;
+                </p>
+                {activeTab !== "chunks" ? (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("chunks")}
+                    className="mt-2 text-xs font-semibold text-[#3525cd] hover:underline"
+                  >
+                    View in chunks tab &rarr;
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             <div className="grid items-start gap-4 lg:grid-cols-12">
               <div className="space-y-4 lg:col-span-8">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1157,12 +1211,24 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
 
                     {selectedChunks && selectedChunks.items.length > 0 ? (
                       <div className="space-y-2">
-                        {selectedChunks.items.map((chunk) => (
+                        {selectedChunks.items.map((chunk) => {
+                          const isCited = chunk.chunk_id === highlightedChunkId;
+                          return (
                           <article
                             key={chunk.chunk_id}
-                            className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
+                            ref={isCited ? (el) => { highlightedChunkRef.current = el; } : undefined}
+                            className={`rounded-lg border px-3 py-3 ${
+                              isCited
+                                ? "border-[#3525cd]/30 bg-[#f0ecff] shadow-sm ring-1 ring-[#3525cd]/20"
+                                : "border-[#e4e1f2] bg-[#faf9ff]"
+                            }`}
                           >
                             <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              {isCited ? (
+                                <span className="rounded bg-[#3525cd] px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+                                  cited
+                                </span>
+                              ) : null}
                               <span>Chunk #{chunk.chunk_index}</span>
                               <span>Page {chunk.page_number ?? "-"}</span>
                               <span>{chunk.token_count} tokens</span>
@@ -1178,38 +1244,40 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                 : truncateChunkPreview(chunk.text_preview)}
                             </p>
                           </article>
-                        ))}
+                        ); })}
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <p className="text-xs text-[#6e6a86]">
                             Showing {selectedChunks.items.length} of{" "}
                             {selectedChunks.total} chunks.
                           </p>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              disabled={!canGoPrevChunks}
-                              onClick={() =>
-                                setChunksOffset((current) =>
-                                  Math.max(0, current - CHUNK_PAGE_SIZE),
-                                )
-                              }
-                              className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Previous
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!canGoNextChunks}
-                              onClick={() =>
-                                setChunksOffset(
-                                  (current) => current + CHUNK_PAGE_SIZE,
-                                )
-                              }
-                              className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Next
-                            </button>
-                          </div>
+                          {!highlightedChunkId ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={!canGoPrevChunks}
+                                onClick={() =>
+                                  setChunksOffset((current) =>
+                                    Math.max(0, current - CHUNK_PAGE_SIZE),
+                                  )
+                                }
+                                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Previous
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!canGoNextChunks}
+                                onClick={() =>
+                                  setChunksOffset(
+                                    (current) => current + CHUNK_PAGE_SIZE,
+                                  )
+                                }
+                                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                Next
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}

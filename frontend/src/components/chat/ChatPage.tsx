@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
+  keepPreviousData,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -643,7 +644,7 @@ export function ChatPage() {
   );
 
   const indexedDocumentIdSet = useMemo(
-    () => new Set(indexedDocuments.map((item) => item.document_id)),
+    () => new Set(indexedDocuments.map((doc) => doc.document_id)),
     [indexedDocuments],
   );
 
@@ -696,54 +697,47 @@ export function ChatPage() {
     }
     return filteredSelectedDocumentIds;
   }, [collectionDocumentIdSet, filteredSelectedDocumentIds]);
-  const contextSearchQueryNormalized = contextSearchQuery.trim().toLowerCase();
-  const searchableIndexedDocuments = useMemo(() => {
-    if (!contextSearchQueryNormalized) {
-      return indexedDocuments;
-    }
-
-    return indexedDocuments.filter((document) => {
-      const filename = document.filename.toLowerCase();
-      const fileType = document.file_type.toLowerCase();
-      return (
-        filename.includes(contextSearchQueryNormalized) ||
-        fileType.includes(contextSearchQueryNormalized)
-      );
-    });
-  }, [contextSearchQueryNormalized, indexedDocuments]);
-  const contextPageCount = useMemo(
-    () =>
-      Math.max(
-        1,
-        Math.ceil(searchableIndexedDocuments.length / CONTEXT_MODAL_PAGE_SIZE),
-      ),
-    [searchableIndexedDocuments.length],
+  const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
+  const contextModalQuery = useQuery({
+    queryKey: queryKeys.documents.list({
+      status: "indexed",
+      limit: CONTEXT_MODAL_PAGE_SIZE,
+      offset: contextModalOffset,
+      filename_query: contextSearchQuery.trim() || undefined,
+      sort_by: "updated_at",
+      sort_order: "desc",
+    }),
+    queryFn: () =>
+      listDocuments({
+        status: "indexed",
+        limit: CONTEXT_MODAL_PAGE_SIZE,
+        offset: contextModalOffset,
+        filename_query: contextSearchQuery.trim() || undefined,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+    placeholderData: keepPreviousData,
+  });
+  const contextModalTotal = contextModalQuery.data?.total ?? 0;
+  const contextPageCount = Math.max(
+    1,
+    Math.ceil(contextModalTotal / CONTEXT_MODAL_PAGE_SIZE),
   );
   const boundedContextPage = Math.min(contextPage, contextPageCount);
-  const pagedSearchableIndexedDocuments = useMemo(() => {
-    const start = (boundedContextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
-    return searchableIndexedDocuments.slice(
-      start,
-      start + CONTEXT_MODAL_PAGE_SIZE,
-    );
-  }, [boundedContextPage, searchableIndexedDocuments]);
   const contextPageStartIndex =
-    searchableIndexedDocuments.length === 0
-      ? 0
-      : (boundedContextPage - 1) * CONTEXT_MODAL_PAGE_SIZE + 1;
-  const contextPageEndIndex =
-    searchableIndexedDocuments.length === 0
-      ? 0
-      : Math.min(
-          boundedContextPage * CONTEXT_MODAL_PAGE_SIZE,
-          searchableIndexedDocuments.length,
-        );
+    contextModalTotal === 0 ? 0 : contextModalOffset + 1;
+  const contextPageEndIndex = Math.min(
+    contextModalOffset + CONTEXT_MODAL_PAGE_SIZE,
+    contextModalTotal,
+  );
 
   const hasIndexedDocuments = indexedDocuments.length > 0;
+  const totalIndexedDocuments =
+    indexedDocumentsQuery.data?.total ?? indexedDocuments.length;
   const contextScopeDocumentCount =
     effectiveDocumentIds.length > 0
       ? effectiveDocumentIds.length
-      : indexedDocuments.length;
+      : totalIndexedDocuments;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1697,10 +1691,24 @@ export function ChatPage() {
                         <button
                           type="button"
                           onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
-                          className="flex items-center gap-1 text-[#3525cd] hover:text-[#2b1fa8] transition-colors"
+                          className="flex items-center gap-1 transition-colors"
+                          aria-label={
+                            filteredSelectedDocumentIds.length > 0
+                              ? `${filteredSelectedDocumentIds.length} document(s) selected — click to change`
+                              : `All ${contextScopeDocumentCount} indexed files included — click to narrow scope`
+                          }
                         >
-                          <span className="material-symbols-outlined text-sm" aria-hidden="true">folder_open</span>
-                          Context ({contextScopeDocumentCount})
+                          <span className="material-symbols-outlined text-sm text-[#3525cd]" aria-hidden="true">folder_open</span>
+                          {filteredSelectedDocumentIds.length > 0 ? (
+                            <span className="text-[#3525cd] hover:text-[#2b1fa8]">
+                              {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-xs font-semibold text-[#3525cd] hover:bg-[#e8e4f8]">
+                              All files
+                              <span className="font-normal opacity-60">({contextScopeDocumentCount})</span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -2001,7 +2009,13 @@ export function ChatPage() {
                 <div className="border-t border-[#e4e1ee] bg-white p-4">
                   {activeCitation.document_id ? (
                     <Link
-                      href={`/documents/${encodeURIComponent(activeCitation.document_id)}?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}&back=${encodeURIComponent("/chat")}`}
+                      href={
+                      `/documents/${encodeURIComponent(activeCitation.document_id)}` +
+                      `?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}` +
+                      (activeCitation.text_snippet ? `&snippet=${encodeURIComponent(activeCitation.text_snippet)}` : "") +
+                      (activeCitation.page_number != null ? `&page=${encodeURIComponent(String(activeCitation.page_number))}` : "") +
+                      `&back=${encodeURIComponent("/chat")}`
+                    }
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
                     >
                       <span className="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
@@ -2072,18 +2086,18 @@ export function ChatPage() {
               </div>
             </div>
             <div className="hide-scrollbar max-h-[52vh] overflow-y-auto px-4 py-3">
-              {indexedDocumentsQuery.isLoading ? (
-                <LoadingState compact title="Loading indexed documents..." />
-              ) : indexedDocumentsQuery.isError ? (
+              {contextModalQuery.isLoading ? (
+                <LoadingState compact title="Loading documents..." />
+              ) : contextModalQuery.isError ? (
                 <ErrorState
                   compact
-                  error={indexedDocumentsQuery.error}
-                  description={getApiErrorMessage(indexedDocumentsQuery.error)}
+                  error={contextModalQuery.error}
+                  description={getApiErrorMessage(contextModalQuery.error)}
                   onRetry={() => {
-                    void indexedDocumentsQuery.refetch();
+                    void contextModalQuery.refetch();
                   }}
                 />
-              ) : indexedDocuments.length === 0 ? (
+              ) : contextModalQuery.data?.items.length === 0 && !contextSearchQuery.trim() ? (
                 <EmptyState
                   compact
                   title="No indexed documents available. Upload and index documents first."
@@ -2096,7 +2110,7 @@ export function ChatPage() {
                     </Link>
                   }
                 />
-              ) : searchableIndexedDocuments.length === 0 ? (
+              ) : contextModalQuery.data?.items.length === 0 ? (
                 <EmptyState
                   compact
                   title="No documents match your search."
@@ -2104,7 +2118,7 @@ export function ChatPage() {
                 />
               ) : (
                 <ul className="space-y-2">
-                  {pagedSearchableIndexedDocuments.map((document) => (
+                  {(contextModalQuery.data?.items ?? []).map((document) => (
                     <DocumentSelectorItem
                       key={document.document_id}
                       document={document}
@@ -2117,11 +2131,11 @@ export function ChatPage() {
                 </ul>
               )}
             </div>
-            {searchableIndexedDocuments.length > CONTEXT_MODAL_PAGE_SIZE ? (
+            {contextModalTotal > CONTEXT_MODAL_PAGE_SIZE ? (
               <div className="flex items-center justify-between border-t border-[#ece8f7] px-4 py-3 text-xs text-[#5f5a74]">
                 <p>
                   Showing {contextPageStartIndex}-{contextPageEndIndex} of{" "}
-                  {searchableIndexedDocuments.length}
+                  {contextModalTotal}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -2129,7 +2143,7 @@ export function ChatPage() {
                     onClick={() => {
                       setContextPage((previous) => Math.max(1, previous - 1));
                     }}
-                    disabled={boundedContextPage <= 1}
+                    disabled={boundedContextPage <= 1 || contextModalQuery.isFetching}
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Previous
@@ -2144,7 +2158,7 @@ export function ChatPage() {
                         Math.min(contextPageCount, previous + 1),
                       );
                     }}
-                    disabled={boundedContextPage >= contextPageCount}
+                    disabled={boundedContextPage >= contextPageCount || contextModalQuery.isFetching}
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Next
@@ -2153,11 +2167,16 @@ export function ChatPage() {
               </div>
             ) : null}
             <div className="flex items-center justify-between border-t border-[#e2dff1] bg-[#faf9ff] px-4 py-3">
-              <p className="text-xs text-[#5f5a74]">
-                {filteredSelectedDocumentIds.length > 0
-                  ? `${filteredSelectedDocumentIds.length} document(s) selected`
-                  : "No specific documents selected. All indexed documents will be used."}
-              </p>
+              {filteredSelectedDocumentIds.length > 0 ? (
+                <p className="text-xs text-[#5f5a74]">
+                  {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                </p>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">check_circle</span>
+                  All {contextScopeDocumentCount} indexed files included
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => {
