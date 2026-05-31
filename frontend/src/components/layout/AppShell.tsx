@@ -12,6 +12,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import {
+  type OnboardingState,
+  readOnboardingState,
+  createDefaultOnboardingState,
+} from "@/lib/onboarding";
+
 import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments, type DocumentStatus } from "@/lib/api/documents";
 import { getTopBarNotifications } from "@/lib/api/notifications";
@@ -296,6 +303,7 @@ function NavList({
               key={item.key}
               href={item.href}
               onClick={onNavigate}
+              data-onboarding={`nav-${item.key}`}
               className={
                 item.isActive
                   ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd]"
@@ -324,6 +332,18 @@ export function AppShell({
   const [openMenu, setOpenMenu] = useState<TopBarMenuKey | null>(null);
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
+  const [onboardingState, setOnboardingState] = useState<OnboardingState>(
+    createDefaultOnboardingState,
+  );
+  const [onboardingVisible, setOnboardingVisible] = useState(false);
+
+  useEffect(() => {
+    const stored = readOnboardingState(session.userId);
+    setOnboardingState(stored);
+    if (!stored.dismissed) {
+      setOnboardingVisible(true);
+    }
+  }, [session.userId]);
   const mobileSidebarRef = useRef<HTMLElement | null>(null);
   const commandMenuRef = useRef<HTMLElement | null>(null);
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1017,6 +1037,7 @@ export function AppShell({
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "help"}
                     aria-label="Help"
+                    data-onboarding="help-button"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
                     <span
@@ -1036,39 +1057,60 @@ export function AppShell({
                       <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
                         Help
                       </p>
-                      {helpItems.length === 0 ? (
-                        <p
-                          data-menu-autofocus="true"
-                          className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
-                        >
-                          No help resources configured.
-                        </p>
-                      ) : (
-                        <ul className="space-y-1">
-                          {helpItems.map((item, index) => {
-                            const external = isExternalHref(item.href);
-                            return (
-                              <li key={item.id}>
-                                <Link
-                                  href={item.href}
-                                  role="menuitem"
-                                  data-menu-autofocus={
-                                    index === 0 ? "true" : undefined
-                                  }
-                                  onClick={closeMenu}
-                                  target={external ? "_blank" : undefined}
-                                  rel={
-                                    external ? "noreferrer noopener" : undefined
-                                  }
-                                  className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
-                                >
-                                  {item.label}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
+                      <ul className="space-y-1">
+                        <li>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            data-menu-autofocus="true"
+                            data-onboarding="checklist-trigger"
+                            onClick={() => {
+                              closeMenu();
+                              setOnboardingVisible(true);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                          >
+                            <svg
+                              className="h-3.5 w-3.5 shrink-0 text-[#3525cd]"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2.2}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <path d="M9 11l3 3L22 4" />
+                              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                            </svg>
+                            Getting started
+                          </button>
+                        </li>
+                        {helpItems.map((item, index) => {
+                          const external = isExternalHref(item.href);
+                          return (
+                            <li key={item.id}>
+                              <Link
+                                href={item.href}
+                                role="menuitem"
+                                data-menu-autofocus={
+                                  index === 0 && helpItems.length > 0
+                                    ? undefined
+                                    : undefined
+                                }
+                                onClick={closeMenu}
+                                target={external ? "_blank" : undefined}
+                                rel={
+                                  external ? "noreferrer noopener" : undefined
+                                }
+                                className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
+                              >
+                                {item.label}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
                   ) : null}
                 </div>
@@ -1163,6 +1205,17 @@ export function AppShell({
           <main className="min-h-0 flex-1 overflow-auto">{children}</main>
         </div>
       </div>
+
+      {onboardingVisible ? (
+        <div className="fixed bottom-5 right-5 z-40 w-[340px]">
+          <OnboardingChecklist
+            session={session}
+            state={onboardingState}
+            onStateChange={setOnboardingState}
+            onDismiss={() => setOnboardingVisible(false)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

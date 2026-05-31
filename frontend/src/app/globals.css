@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+@import "intro.js/minified/introjs.min.css";
 
 :root {
   --background: #ffffff;
@@ -199,5 +200,163 @@ body {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* ─── Intro.js tour theme overrides (Rudix purple) ─── */
+
+.introjs-overlay {
+  background-color: #17172a;
+}
+
+.introjs-helperLayer {
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 4px rgba(53, 37, 205, 0.25),
+    0 0 0 9999px rgba(23, 23, 42, 0.5);
+}
+
+.introjs-tooltip {
+  border-radius: 14px;
+  border: 1px solid #d7d4e8;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(53, 37, 205, 0.14);
+  padding: 18px 18px 14px;
+  min-width: 280px;
+  max-width: 360px;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.introjs-arrow.top,
+.introjs-arrow.top-right,
+.introjs-arrow.top-middle {
+  border-bottom-color: #d7d4e8;
+}
+
+.introjs-arrow.bottom,
+.introjs-arrow.bottom-right,
+.introjs-arrow.bottom-middle {
+  border-top-color: #d7d4e8;
+}
+
+.introjs-arrow.left,
+.introjs-arrow.left-bottom {
+  border-right-color: #d7d4e8;
+}
+
+.introjs-arrow.right,
+.introjs-arrow.right-bottom {
+  border-left-color: #d7d4e8;
+}
+
+.introjs-tooltiptext {
+  padding: 0 0 12px;
+}
+
+.introjs-tooltip-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2a2640;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.introjs-tooltiptext p,
+.introjs-tooltiptext span {
+  font-size: 13px;
+  color: #56536a;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.introjs-tooltipbuttons {
+  border-top: 1px solid #ece9ff;
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.introjs-button {
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: Inter, system-ui, sans-serif;
+  padding: 6px 14px;
+  text-shadow: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  outline: none;
+}
+
+.introjs-button:focus {
+  box-shadow: 0 0 0 3px rgba(53, 37, 205, 0.2);
+}
+
+.introjs-nextbutton,
+.introjs-donebutton {
+  background: #3525cd;
+  border-color: #3525cd;
+  color: #ffffff;
+}
+
+.introjs-nextbutton:hover,
+.introjs-donebutton:hover {
+  background: #4535e0;
+  border-color: #4535e0;
+  color: #ffffff;
+}
+
+.introjs-prevbutton {
+  background: #ffffff;
+  border: 1px solid #d7d4e8;
+  color: #3f3b58;
+}
+
+.introjs-prevbutton:hover {
+  background: #f5f3ff;
+  border-color: #b8b3e0;
+  color: #3525cd;
+}
+
+.introjs-skipbutton {
+  color: #7a7693;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  margin-right: auto;
+}
+
+.introjs-skipbutton:hover {
+  color: #3525cd;
+  background: transparent;
+}
+
+.introjs-progress {
+  background-color: #ece9ff;
+  border-radius: 99px;
+  height: 4px;
+  margin-bottom: 10px;
+}
+
+.introjs-progressbar {
+  background-color: #3525cd;
+  border-radius: 99px;
+}
+
+.introjs-disabled,
+.introjs-disabled:hover,
+.introjs-disabled:focus {
+  opacity: 0.4;
+  cursor: default;
+  background: #f5f3ff;
+  border-color: #d7d4e8;
+  color: #7a7693;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .introjs-tooltip,
+  .introjs-helperLayer {
+    transition: none !important;
   }
 }
