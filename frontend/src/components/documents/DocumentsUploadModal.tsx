@@ -381,32 +381,6 @@ export function DocumentsUploadModal({
           </p>
         ) : null}
 
-        <div className="mt-4 flex items-center justify-end gap-3 border-t border-[#e5e3f1] bg-[#f8f7ff] px-6 py-4">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-[#2f2c45] transition-colors hover:bg-[#ebe8f7]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (!canUpload) {
-                return;
-              }
-              if (isUploading) {
-                onCancelAll();
-                return;
-              }
-              fileInputRef.current?.click();
-            }}
-            disabled={!canUpload}
-            className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isUploading ? "Cancel All Uploads" : "Select Files To Upload"}
-          </button>
-        </div>
       </div>
     </div>
   );
