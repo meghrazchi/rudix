@@ -126,6 +126,17 @@ function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
     );
   }
 
+  if (routeKey === "collections") {
+    return (
+      <svg {...sharedProps}>
+        <rect x="3" y="3.8" width="8" height="7.2" rx="1.2" />
+        <rect x="13" y="3.8" width="8" height="7.2" rx="1.2" />
+        <rect x="3" y="13" width="8" height="7.2" rx="1.2" />
+        <rect x="13" y="13" width="8" height="7.2" rx="1.2" />
+      </svg>
+    );
+  }
+
   if (routeKey === "chat") {
     return (
       <svg {...sharedProps}>

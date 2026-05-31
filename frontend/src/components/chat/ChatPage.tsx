@@ -41,6 +41,10 @@ import {
   listDocuments,
   type DocumentListItemResponse,
 } from "@/lib/api/documents";
+import {
+  listCollectionDocuments,
+  listCollections,
+} from "@/lib/api/collections";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
@@ -523,6 +527,7 @@ export function ChatPage() {
   const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
   const [previewCitation, setPreviewCitation] = useState<ChatCitationResponse | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -642,6 +647,28 @@ export function ChatPage() {
     [indexedDocuments],
   );
 
+  const collectionsListQuery = useQuery({
+    queryKey: [...queryKeys.collections.all, "chat-picker"],
+    queryFn: () => listCollections({ limit: 200 }),
+  });
+
+  const collectionDocsQuery = useQuery({
+    queryKey: queryKeys.collections.documents(selectedCollectionId ?? "", {
+      limit: 200,
+    }),
+    queryFn: () =>
+      listCollectionDocuments(selectedCollectionId ?? "", { limit: 200 }),
+    enabled: Boolean(selectedCollectionId),
+  });
+
+  const collectionDocumentIdSet = useMemo(() => {
+    if (!selectedCollectionId) return null;
+    const ids = (collectionDocsQuery.data?.items ?? [])
+      .filter((doc) => doc.status === "indexed")
+      .map((doc) => doc.document_id);
+    return new Set(ids);
+  }, [selectedCollectionId, collectionDocsQuery.data?.items]);
+
   const documentIdFromQuery = searchParams.get("document_id");
   const filteredSelectedDocumentIds = useMemo(() => {
     const validSelectedDocumentIds = selectedDocumentIds.filter((documentId) =>
@@ -656,6 +683,19 @@ export function ChatPage() {
     }
     return validSelectedDocumentIds;
   }, [documentIdFromQuery, indexedDocumentIdSet, selectedDocumentIds]);
+
+  const effectiveDocumentIds = useMemo(() => {
+    if (collectionDocumentIdSet && collectionDocumentIdSet.size > 0) {
+      const collectionAndSelected = [
+        ...Array.from(collectionDocumentIdSet),
+        ...filteredSelectedDocumentIds.filter(
+          (id) => !collectionDocumentIdSet.has(id),
+        ),
+      ];
+      return collectionAndSelected;
+    }
+    return filteredSelectedDocumentIds;
+  }, [collectionDocumentIdSet, filteredSelectedDocumentIds]);
   const contextSearchQueryNormalized = contextSearchQuery.trim().toLowerCase();
   const searchableIndexedDocuments = useMemo(() => {
     if (!contextSearchQueryNormalized) {
@@ -701,8 +741,8 @@ export function ChatPage() {
 
   const hasIndexedDocuments = indexedDocuments.length > 0;
   const contextScopeDocumentCount =
-    filteredSelectedDocumentIds.length > 0
-      ? filteredSelectedDocumentIds.length
+    effectiveDocumentIds.length > 0
+      ? effectiveDocumentIds.length
       : indexedDocuments.length;
 
   useEffect(() => {
@@ -972,8 +1012,8 @@ export function ChatPage() {
           mode: "answer",
           question: trimmedQuestion,
           document_ids:
-            filteredSelectedDocumentIds.length > 0
-              ? filteredSelectedDocumentIds
+            effectiveDocumentIds.length > 0
+              ? effectiveDocumentIds
               : undefined,
           top_k: topK,
           rerank,
@@ -1043,8 +1083,8 @@ export function ChatPage() {
         question: trimmedQuestion,
         chat_session_id: targetSessionId,
         document_ids:
-          filteredSelectedDocumentIds.length > 0
-            ? filteredSelectedDocumentIds
+          effectiveDocumentIds.length > 0
+            ? effectiveDocumentIds
             : undefined,
         top_k: topK,
         rerank,
@@ -1622,14 +1662,47 @@ export function ChatPage() {
                         </span>
                       </label>
 
-                      <button
-                        type="button"
-                        onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
-                        className="ml-auto flex items-center gap-1 text-[#3525cd] hover:text-[#2b1fa8] transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-sm" aria-hidden="true">folder_open</span>
-                        Context ({contextScopeDocumentCount})
-                      </button>
+                      <div className="ml-auto flex items-center gap-2">
+                        <label className="flex items-center gap-1 text-xs font-medium text-[#6a6780]">
+                          <span
+                            className="material-symbols-outlined text-sm text-[#3525cd]"
+                            aria-hidden="true"
+                          >
+                            folder_special
+                          </span>
+                          <select
+                            value={selectedCollectionId ?? ""}
+                            onChange={(event) =>
+                              setSelectedCollectionId(
+                                event.target.value || null,
+                              )
+                            }
+                            aria-label="Filter by collection"
+                            className="max-w-[160px] rounded border border-[#d2cee6] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+                          >
+                            <option value="">All collections</option>
+                            {(collectionsListQuery.data?.items ?? []).map(
+                              (col) => (
+                                <option
+                                  key={col.collection_id}
+                                  value={col.collection_id}
+                                >
+                                  {col.name}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
+                          className="flex items-center gap-1 text-[#3525cd] hover:text-[#2b1fa8] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm" aria-hidden="true">folder_open</span>
+                          Context ({contextScopeDocumentCount})
+                        </button>
+                      </div>
                     </div>
 
                     {/* Textarea + send */}

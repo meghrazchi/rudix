@@ -52,6 +52,12 @@ import {
   maxUploadSizeMbFromEnv,
   validateUploadFile,
 } from "@/components/documents/upload-validation";
+import { AssignCollectionsDialog } from "@/components/collections/CollectionsPage";
+import {
+  getDocumentCollections,
+  listCollections,
+  setDocumentCollections,
+} from "@/lib/api/collections";
 
 const DOCUMENT_PAGE_SIZE = 20;
 const CHUNK_PAGE_SIZE = 8;
@@ -283,6 +289,9 @@ export function DocumentsPage() {
   const [filenameSearch, setFilenameSearch] = useState("");
   const [debouncedFilenameSearch, setDebouncedFilenameSearch] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>("all");
+  const [assignDocumentId, setAssignDocumentId] = useState<string | null>(null);
+  const [assignDocumentName, setAssignDocumentName] = useState<string>("");
+  const [assignSaveError, setAssignSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -419,6 +428,34 @@ export function DocumentsPage() {
         include_full_text: false,
       }),
     enabled: Boolean(selectedDocumentId),
+  });
+
+  const allCollectionsQuery = useQuery({
+    queryKey: [...queryKeys.collections.all, "for-assign"],
+    queryFn: () => listCollections({ limit: 200 }),
+    enabled: Boolean(assignDocumentId),
+  });
+
+  const docCollectionsQuery = useQuery({
+    queryKey: [...queryKeys.collections.all, "doc", assignDocumentId ?? ""],
+    queryFn: () => getDocumentCollections(assignDocumentId ?? ""),
+    enabled: Boolean(assignDocumentId),
+  });
+
+  const assignCollectionsMutation = useMutation({
+    mutationFn: (collectionIds: string[]) =>
+      setDocumentCollections(assignDocumentId ?? "", collectionIds),
+    onSuccess: async () => {
+      setAssignDocumentId(null);
+      setAssignDocumentName("");
+      setAssignSaveError(null);
+      setActionFeedback("Collection assignments saved.");
+      setActionRequestId(null);
+      await invalidateAfterMutation(queryClient, "collection.document.add");
+    },
+    onError: (error) => {
+      setAssignSaveError(getApiErrorMessage(error));
+    },
   });
 
   const documents = documentsQuery.data?.items ?? [];
@@ -1454,6 +1491,21 @@ export function DocumentsPage() {
                                 delete
                               </span>
                             </button>
+                            <button
+                              type="button"
+                              aria-label="Assign collections"
+                              title="Assign to collections"
+                              onClick={() => {
+                                setAssignDocumentId(document.document_id);
+                                setAssignDocumentName(document.filename);
+                                setAssignSaveError(null);
+                              }}
+                              className="rounded p-1 text-violet-700 hover:bg-violet-100"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                folder_open
+                              </span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1753,6 +1805,29 @@ export function DocumentsPage() {
         feedback={uploadFeedback}
         progress={uploadProgress}
       />
+
+      {assignDocumentId ? (
+        <AssignCollectionsDialog
+          documentName={assignDocumentName}
+          collectionList={allCollectionsQuery.data?.items ?? []}
+          loadingCollections={
+            allCollectionsQuery.isLoading || docCollectionsQuery.isLoading
+          }
+          currentCollectionIds={(
+            docCollectionsQuery.data?.items ?? []
+          ).map((c) => c.collection_id)}
+          saving={assignCollectionsMutation.isPending}
+          saveError={assignSaveError}
+          onSave={(collectionIds) =>
+            assignCollectionsMutation.mutate(collectionIds)
+          }
+          onClose={() => {
+            setAssignDocumentId(null);
+            setAssignDocumentName("");
+            setAssignSaveError(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

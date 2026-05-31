@@ -7,6 +7,7 @@ from app.interfaces.http import (
     agent_runs,
     auth,
     chat,
+    collections,
     documents,
     evaluation_sets,
     evaluations,
@@ -22,6 +23,8 @@ api_router.include_router(auth.router)
 
 protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
 protected_router.include_router(documents.router)
+protected_router.include_router(collections.router)
+protected_router.include_router(collections.documents_router)
 protected_router.include_router(chat.router)
 protected_router.include_router(agent_runs.router)
 protected_router.include_router(evaluation_sets.router)

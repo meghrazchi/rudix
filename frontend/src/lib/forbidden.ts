@@ -42,6 +42,17 @@ export function isForbiddenError(error: unknown): boolean {
   return false;
 }
 
+export function isEndpointNotFoundError(error: unknown): boolean {
+  if (isApiClientError(error)) {
+    return error.status === 404 || error.status === 410;
+  }
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = (error as { status?: unknown }).status;
+    return status === 404 || status === 410;
+  }
+  return false;
+}
+
 export function extractRequestIdFromError(error: unknown): string | null {
   if (isApiClientError(error)) {
     return sanitizeRequestId(error.requestId);

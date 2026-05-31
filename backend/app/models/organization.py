@@ -31,3 +31,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    collections = relationship(
+        "Collection", back_populates="organization", cascade="all, delete-orphan"
+    )

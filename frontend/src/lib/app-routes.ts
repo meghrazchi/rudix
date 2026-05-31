@@ -8,6 +8,7 @@ import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 export type AppRouteKey =
   | "dashboard"
   | "documents"
+  | "collections"
   | "chat"
   | "evaluations"
   | "pipeline"
@@ -58,6 +59,15 @@ export const APP_ROUTES: AppRouteMeta[] = [
     label: "Documents",
     description: "Manage and monitor uploaded documents",
     matchPrefixes: ["/documents"],
+    requiresOrganization: true,
+    allowedRoles: ["owner", "admin", "member", "viewer"],
+  },
+  {
+    key: "collections",
+    href: "/collections",
+    label: "Collections",
+    description: "Organize documents into knowledge bases by topic or team",
+    matchPrefixes: ["/collections"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
   },

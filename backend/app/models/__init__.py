@@ -1,6 +1,7 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
+from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
 from app.models.governance import OrganizationGovernancePolicy
@@ -19,6 +20,8 @@ __all__ = [
     "ChatMessage",
     "ChatSession",
     "Citation",
+    "Collection",
+    "CollectionDocument",
     "Document",
     "DocumentChunk",
     "DocumentPage",

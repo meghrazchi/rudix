@@ -8,6 +8,7 @@ export type FrontendFeatureFlags = {
   feedback: boolean;
   exports: boolean;
   unavailableBackendEndpoints: boolean;
+  collectionsEnabled: boolean;
 };
 
 export type FrontendRuntimeConfig = {
@@ -145,6 +146,10 @@ export function parseFrontendRuntimeConfig(
         ),
         unavailableBackendEndpoints: parseBooleanFlag(
           env.NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS,
+          true,
+        ),
+        collectionsEnabled: parseBooleanFlag(
+          env.NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED,
           true,
         ),
       },

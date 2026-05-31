@@ -80,6 +80,15 @@ export async function clearAuthSensitiveQueryState(): Promise<void> {
 }
 
 export const queryKeys = {
+  collections: {
+    all: ["collections"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["collections", "list", params ?? {}] as const,
+    detail: (collectionId: string) =>
+      ["collections", "detail", collectionId] as const,
+    documents: (collectionId: string, params?: Record<string, unknown>) =>
+      ["collections", "documents", collectionId, params ?? {}] as const,
+  },
   documents: {
     all: ["documents"] as const,
     list: (params?: Record<string, unknown>) =>
@@ -135,6 +144,11 @@ export type FrontendMutationKind =
   | "document.upload"
   | "document.delete"
   | "document.reindex"
+  | "collection.create"
+  | "collection.update"
+  | "collection.delete"
+  | "collection.document.add"
+  | "collection.document.remove"
   | "chat.query"
   | "agent.run"
   | "evaluation.run";
@@ -143,6 +157,28 @@ export async function invalidateAfterMutation(
   queryClient: QueryClient,
   kind: FrontendMutationKind,
 ): Promise<void> {
+  if (
+    kind === "collection.create" ||
+    kind === "collection.update" ||
+    kind === "collection.delete"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.collections.all,
+    });
+    return;
+  }
+
+  if (
+    kind === "collection.document.add" ||
+    kind === "collection.document.remove"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.collections.all,
+    });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
+    return;
+  }
+
   if (
     kind === "document.upload" ||
     kind === "document.delete" ||

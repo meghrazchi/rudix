@@ -1,0 +1,266 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.collection import Collection, CollectionDocument
+from app.models.document import Document
+from app.models.enums import DocumentStatus
+from app.models.user import User
+
+
+class CollectionRepository:
+    async def create(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        owner_id: UUID,
+        name: str,
+        description: str | None,
+        access_policy: str,
+    ) -> Collection:
+        collection = Collection(
+            organization_id=organization_id,
+            owner_id=owner_id,
+            name=name.strip(),
+            description=description,
+            access_policy=access_policy,
+        )
+        session.add(collection)
+        await session.flush()
+        await session.refresh(collection, ["owner"])
+        return collection
+
+    async def get(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+        organization_id: UUID,
+    ) -> Collection | None:
+        result = await session.execute(
+            select(Collection)
+            .options(selectinload(Collection.owner))
+            .where(
+                Collection.id == collection_id,
+                Collection.organization_id == organization_id,
+                Collection.is_archived.is_(False),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        name_query: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Collection]:
+        stmt = (
+            select(Collection)
+            .options(selectinload(Collection.owner))
+            .where(
+                Collection.organization_id == organization_id,
+                Collection.is_archived.is_(False),
+            )
+        )
+        if name_query:
+            stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
+        stmt = stmt.order_by(Collection.created_at.desc()).limit(limit).offset(offset)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        name_query: str | None = None,
+    ) -> int:
+        stmt = select(func.count(Collection.id)).where(
+            Collection.organization_id == organization_id,
+            Collection.is_archived.is_(False),
+        )
+        if name_query:
+            stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
+        result = await session.execute(stmt)
+        return result.scalar_one()
+
+    async def count_documents(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(CollectionDocument.document_id)).where(
+                CollectionDocument.collection_id == collection_id
+            )
+        )
+        return result.scalar_one()
+
+    async def count_indexed_documents(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            select(func.count(CollectionDocument.document_id))
+            .join(Document, Document.id == CollectionDocument.document_id)
+            .where(
+                CollectionDocument.collection_id == collection_id,
+                Document.status == DocumentStatus.indexed.value,
+            )
+        )
+        return result.scalar_one()
+
+    async def update(
+        self,
+        session: AsyncSession,
+        *,
+        collection: Collection,
+        name: str | None = None,
+        description: str | None = None,
+        access_policy: str | None = None,
+    ) -> Collection:
+        if name is not None:
+            collection.name = name.strip()
+        if description is not None:
+            collection.description = description or None
+        if access_policy is not None:
+            collection.access_policy = access_policy
+        await session.flush()
+        await session.refresh(collection, ["owner"])
+        return collection
+
+    async def archive(self, session: AsyncSession, *, collection: Collection) -> Collection:
+        collection.is_archived = True
+        await session.flush()
+        return collection
+
+    async def list_documents(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[Document]:
+        stmt = (
+            select(Document)
+            .join(CollectionDocument, CollectionDocument.document_id == Document.id)
+            .where(CollectionDocument.collection_id == collection_id)
+            .order_by(Document.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def document_in_collection(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+        document_id: UUID,
+    ) -> bool:
+        result = await session.execute(
+            select(CollectionDocument).where(
+                CollectionDocument.collection_id == collection_id,
+                CollectionDocument.document_id == document_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def add_document(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+        document_id: UUID,
+    ) -> None:
+        membership = CollectionDocument(
+            collection_id=collection_id,
+            document_id=document_id,
+        )
+        session.add(membership)
+        await session.flush()
+
+    async def remove_document(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+        document_id: UUID,
+    ) -> bool:
+        result = await session.execute(
+            delete(CollectionDocument).where(
+                CollectionDocument.collection_id == collection_id,
+                CollectionDocument.document_id == document_id,
+            )
+        )
+        return result.rowcount > 0
+
+    async def set_document_collections(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        organization_id: UUID,
+        collection_ids: list[UUID],
+    ) -> list[Collection]:
+        await session.execute(
+            delete(CollectionDocument).where(
+                CollectionDocument.document_id == document_id,
+                CollectionDocument.collection_id.in_(
+                    select(Collection.id).where(
+                        Collection.organization_id == organization_id
+                    )
+                ),
+            )
+        )
+        for cid in collection_ids:
+            session.add(CollectionDocument(collection_id=cid, document_id=document_id))
+        await session.flush()
+
+        if not collection_ids:
+            return []
+        result = await session.execute(
+            select(Collection)
+            .options(selectinload(Collection.owner))
+            .where(
+                Collection.id.in_(collection_ids),
+                Collection.organization_id == organization_id,
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_document_collections(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        organization_id: UUID,
+    ) -> list[Collection]:
+        result = await session.execute(
+            select(Collection)
+            .options(selectinload(Collection.owner))
+            .join(CollectionDocument, CollectionDocument.collection_id == Collection.id)
+            .where(
+                CollectionDocument.document_id == document_id,
+                Collection.organization_id == organization_id,
+                Collection.is_archived.is_(False),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_owner(self, session: AsyncSession, *, user_id: UUID) -> User | None:
+        result = await session.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()

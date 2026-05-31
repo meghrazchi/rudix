@@ -65,6 +65,9 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     citations = relationship("Citation", back_populates="document")
     evaluation_questions = relationship("EvaluationQuestion", back_populates="expected_document")
     pipeline_runs = relationship("PipelineRun", back_populates="document")
+    collection_memberships = relationship(
+        "CollectionDocument", back_populates="document", cascade="all, delete-orphan"
+    )
 
 
 class DocumentPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
