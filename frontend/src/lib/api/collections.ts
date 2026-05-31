@@ -1,7 +1,13 @@
 import { apiRequest } from "@/lib/api/request";
 import type { DocumentListItemResponse } from "@/lib/api/documents";
 
-export type CollectionAccessPolicy = "org_wide" | "restricted";
+export type CollectionAccessPolicy =
+  | "org_wide"
+  | "admin_only"
+  | "selected_roles"
+  | "selected_members";
+
+export type GranteeType = "role" | "member";
 
 export type CollectionListItemResponse = {
   collection_id: string;
@@ -62,6 +68,26 @@ export type ListCollectionsOptions = {
   name_query?: string;
 };
 
+// ── Access policy types ────────────────────────────────────────────────────────
+
+export type CollectionAccessGrant = {
+  grantee_type: GranteeType;
+  grantee_value: string; // role name or user_id
+};
+
+export type CollectionPolicyResponse = {
+  collection_id: string;
+  access_policy: CollectionAccessPolicy;
+  grants: CollectionAccessGrant[];
+};
+
+export type UpdateCollectionPolicyRequest = {
+  access_policy: CollectionAccessPolicy;
+  grants?: CollectionAccessGrant[];
+};
+
+// ── Collection CRUD ────────────────────────────────────────────────────────────
+
 export async function listCollections(
   options: ListCollectionsOptions = {},
 ): Promise<CollectionListResponse> {
@@ -112,6 +138,31 @@ export async function deleteCollection(
     { method: "DELETE" },
   );
 }
+
+// ── Access policy management ───────────────────────────────────────────────────
+
+export async function getCollectionPolicy(
+  collectionId: string,
+): Promise<CollectionPolicyResponse> {
+  return apiRequest<CollectionPolicyResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/access-policy`,
+  );
+}
+
+export async function updateCollectionPolicy(
+  collectionId: string,
+  payload: UpdateCollectionPolicyRequest,
+): Promise<CollectionPolicyResponse> {
+  return apiRequest<CollectionPolicyResponse>(
+    `/collections/${encodeURIComponent(collectionId)}/access-policy`,
+    {
+      method: "PUT",
+      json: payload,
+    },
+  );
+}
+
+// ── Collection documents ───────────────────────────────────────────────────────
 
 export async function listCollectionDocuments(
   collectionId: string,

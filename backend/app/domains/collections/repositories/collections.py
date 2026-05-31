@@ -2,17 +2,61 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import and_, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.collection import Collection, CollectionDocument
+from app.models.collection import Collection, CollectionAccessGrant, CollectionDocument
 from app.models.document import Document
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.user import User
+
+_ADMIN_ROLES: frozenset[str] = frozenset(
+    {OrganizationRole.owner.value, OrganizationRole.admin.value}
+)
 
 
 class CollectionRepository:
+    # ── Access filter ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _access_filter(user_id: UUID, user_roles: list[str]):
+        """
+        Returns a SQLAlchemy WHERE condition for non-admin users, or None for admins.
+        Admins (owner/admin org role) and collection owners always bypass restrictions.
+        """
+        if _ADMIN_ROLES.intersection(user_roles):
+            return None
+
+        non_empty_roles = [r for r in user_roles if r]
+
+        role_grant = exists(
+            select(CollectionAccessGrant.id).where(
+                CollectionAccessGrant.collection_id == Collection.id,
+                CollectionAccessGrant.grantee_type == "role",
+                CollectionAccessGrant.grantee_value.in_(non_empty_roles)
+                if non_empty_roles
+                else CollectionAccessGrant.grantee_value == "__never__",
+            )
+        )
+        member_grant = exists(
+            select(CollectionAccessGrant.id).where(
+                CollectionAccessGrant.collection_id == Collection.id,
+                CollectionAccessGrant.grantee_type == "member",
+                CollectionAccessGrant.grantee_value == str(user_id),
+            )
+        )
+
+        return or_(
+            Collection.owner_id == user_id,
+            Collection.access_policy == "org_wide",
+            and_(Collection.access_policy == "selected_roles", role_grant),
+            and_(Collection.access_policy == "selected_members", member_grant),
+            # 'admin_only' is excluded — non-admins cannot access those collections
+        )
+
+    # ── CRUD ───────────────────────────────────────────────────────────────────
+
     async def create(
         self,
         session: AsyncSession,
@@ -41,8 +85,10 @@ class CollectionRepository:
         *,
         collection_id: UUID,
         organization_id: UUID,
+        user_id: UUID,
+        user_roles: list[str],
     ) -> Collection | None:
-        result = await session.execute(
+        stmt = (
             select(Collection)
             .options(selectinload(Collection.owner))
             .where(
@@ -51,6 +97,10 @@ class CollectionRepository:
                 Collection.is_archived.is_(False),
             )
         )
+        access = self._access_filter(user_id, user_roles)
+        if access is not None:
+            stmt = stmt.where(access)
+        result = await session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def list(
@@ -58,6 +108,8 @@ class CollectionRepository:
         session: AsyncSession,
         *,
         organization_id: UUID,
+        user_id: UUID,
+        user_roles: list[str],
         name_query: str | None = None,
         limit: int = 20,
         offset: int = 0,
@@ -70,6 +122,9 @@ class CollectionRepository:
                 Collection.is_archived.is_(False),
             )
         )
+        access = self._access_filter(user_id, user_roles)
+        if access is not None:
+            stmt = stmt.where(access)
         if name_query:
             stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
         stmt = stmt.order_by(Collection.created_at.desc()).limit(limit).offset(offset)
@@ -81,12 +136,17 @@ class CollectionRepository:
         session: AsyncSession,
         *,
         organization_id: UUID,
+        user_id: UUID,
+        user_roles: list[str],
         name_query: str | None = None,
     ) -> int:
         stmt = select(func.count(Collection.id)).where(
             Collection.organization_id == organization_id,
             Collection.is_archived.is_(False),
         )
+        access = self._access_filter(user_id, user_roles)
+        if access is not None:
+            stmt = stmt.where(access)
         if name_query:
             stmt = stmt.where(Collection.name.ilike(f"%{name_query.strip()}%"))
         result = await session.execute(stmt)
@@ -248,8 +308,10 @@ class CollectionRepository:
         *,
         document_id: UUID,
         organization_id: UUID,
+        user_id: UUID,
+        user_roles: list[str],
     ) -> list[Collection]:
-        result = await session.execute(
+        stmt = (
             select(Collection)
             .options(selectinload(Collection.owner))
             .join(CollectionDocument, CollectionDocument.collection_id == Collection.id)
@@ -259,8 +321,59 @@ class CollectionRepository:
                 Collection.is_archived.is_(False),
             )
         )
+        access = self._access_filter(user_id, user_roles)
+        if access is not None:
+            stmt = stmt.where(access)
+        result = await session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_owner(self, session: AsyncSession, *, user_id: UUID) -> User | None:
         result = await session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
+
+    # ── Access policy management ───────────────────────────────────────────────
+
+    async def get_policy(
+        self,
+        session: AsyncSession,
+        *,
+        collection_id: UUID,
+    ) -> list[CollectionAccessGrant]:
+        result = await session.execute(
+            select(CollectionAccessGrant)
+            .where(CollectionAccessGrant.collection_id == collection_id)
+            .order_by(CollectionAccessGrant.grantee_type, CollectionAccessGrant.grantee_value)
+        )
+        return list(result.scalars().all())
+
+    async def set_policy(
+        self,
+        session: AsyncSession,
+        *,
+        collection: Collection,
+        access_policy: str,
+        grants: list[dict],  # list of {"grantee_type": ..., "grantee_value": ..., "granted_by_id": ...}
+    ) -> list[CollectionAccessGrant]:
+        # Update the policy mode on the collection
+        collection.access_policy = access_policy
+
+        # Replace all existing grants for this collection
+        await session.execute(
+            delete(CollectionAccessGrant).where(
+                CollectionAccessGrant.collection_id == collection.id
+            )
+        )
+
+        new_grants: list[CollectionAccessGrant] = []
+        for grant in grants:
+            g = CollectionAccessGrant(
+                collection_id=collection.id,
+                grantee_type=grant["grantee_type"],
+                grantee_value=grant["grantee_value"],
+                granted_by_id=grant.get("granted_by_id"),
+            )
+            session.add(g)
+            new_grants.append(g)
+
+        await session.flush()
+        return new_grants

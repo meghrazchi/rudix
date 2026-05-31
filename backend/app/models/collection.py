@@ -5,7 +5,6 @@ from sqlalchemy import (
     CheckConstraint,
     ForeignKey,
     Index,
-    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -21,7 +20,7 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "collections"
     __table_args__ = (
         CheckConstraint(
-            "access_policy IN ('org_wide', 'restricted')",
+            "access_policy IN ('org_wide', 'admin_only', 'selected_roles', 'selected_members')",
             name="collections_access_policy_allowed",
         ),
         CheckConstraint("char_length(trim(name)) >= 1", name="collections_name_not_blank"),
@@ -53,6 +52,11 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="collection",
         cascade="all, delete-orphan",
     )
+    access_grants = relationship(
+        "CollectionAccessGrant",
+        back_populates="collection",
+        cascade="all, delete-orphan",
+    )
 
 
 class CollectionDocument(TimestampMixin, Base):
@@ -78,3 +82,35 @@ class CollectionDocument(TimestampMixin, Base):
 
     collection = relationship("Collection", back_populates="document_memberships")
     document = relationship("Document", back_populates="collection_memberships")
+
+
+class CollectionAccessGrant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "collection_access_grants"
+    __table_args__ = (
+        CheckConstraint(
+            "grantee_type IN ('role', 'member')",
+            name="collection_access_grants_grantee_type_allowed",
+        ),
+        UniqueConstraint(
+            "collection_id",
+            "grantee_type",
+            "grantee_value",
+            name="uq_collection_access_grants",
+        ),
+        Index("idx_collection_access_grants_collection_id", "collection_id"),
+    )
+
+    collection_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("collections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    grantee_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    grantee_value: Mapped[str] = mapped_column(String(255), nullable=False)
+    granted_by_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    collection = relationship("Collection", back_populates="access_grants")

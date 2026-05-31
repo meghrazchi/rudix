@@ -13,10 +13,13 @@ import {
   createCollection,
   deleteCollection,
   getCollection,
+  getCollectionPolicy,
   listCollectionDocuments,
   listCollections,
   removeDocumentFromCollection,
   updateCollection,
+  updateCollectionPolicy,
+  type CollectionAccessGrant,
   type CollectionAccessPolicy,
   type CollectionDetailResponse,
   type CollectionListItemResponse,
@@ -31,6 +34,11 @@ import {
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { useAuthSession } from "@/lib/use-auth-session";
 import type { AppRole } from "@/lib/auth-session";
+import {
+  getTeamCapabilities,
+  listTeamMembers,
+  type TeamMember,
+} from "@/lib/api/team";
 
 const COLLECTIONS_PAGE_SIZE = 20;
 const COLLECTION_DOCS_PAGE_SIZE = 10;
@@ -40,6 +48,7 @@ type CollectionCapabilities = {
   canEdit: boolean;
   canDelete: boolean;
   canManageDocuments: boolean;
+  canManagePolicy: boolean;
 };
 
 function resolveCollectionCapabilities(
@@ -52,6 +61,7 @@ function resolveCollectionCapabilities(
     canEdit: isAdminLike || isMember,
     canDelete: isAdminLike,
     canManageDocuments: isAdminLike || isMember,
+    canManagePolicy: isAdminLike,
   };
 }
 
@@ -64,14 +74,423 @@ function formatDate(value: string): string {
 }
 
 function accessPolicyLabel(policy: CollectionAccessPolicy): string {
-  return policy === "org_wide" ? "Org-wide" : "Restricted";
+  switch (policy) {
+    case "org_wide":
+      return "Org-wide";
+    case "admin_only":
+      return "Admin-only";
+    case "selected_roles":
+      return "Selected roles";
+    case "selected_members":
+      return "Selected members";
+    default:
+      return policy;
+  }
 }
 
 function accessPolicyBadgeClass(policy: CollectionAccessPolicy): string {
-  return policy === "org_wide"
-    ? "bg-emerald-100 text-emerald-800"
-    : "bg-amber-100 text-amber-800";
+  switch (policy) {
+    case "org_wide":
+      return "bg-emerald-100 text-emerald-800";
+    case "admin_only":
+      return "bg-rose-100 text-rose-800";
+    case "selected_roles":
+      return "bg-amber-100 text-amber-800";
+    case "selected_members":
+      return "bg-blue-100 text-blue-800";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
 }
+
+function accessPolicyDescription(policy: CollectionAccessPolicy): string {
+  switch (policy) {
+    case "org_wide":
+      return "All organization members can view and query this collection.";
+    case "admin_only":
+      return "Only organization owners and admins can access this collection.";
+    case "selected_roles":
+      return "Only members with the specified roles can access this collection.";
+    case "selected_members":
+      return "Only explicitly listed members can access this collection.";
+    default:
+      return "";
+  }
+}
+
+const GRANTABLE_ROLES: Array<{ value: string; label: string }> = [
+  { value: "member", label: "Member" },
+  { value: "viewer", label: "Viewer" },
+];
+
+// ── Policy editor ──────────────────────────────────────────────────────────────
+
+type PolicyEditorProps = {
+  collectionId: string;
+  collectionName: string;
+};
+
+function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
+  const queryClient = useQueryClient();
+  const teamCapabilities = getTeamCapabilities();
+
+  const policyQuery = useQuery({
+    queryKey: queryKeys.collections.policy(collectionId),
+    queryFn: () => getCollectionPolicy(collectionId),
+  });
+
+  const membersQuery = useQuery({
+    queryKey: ["team", "members", "policy-picker"],
+    queryFn: () => listTeamMembers({ limit: 200 }),
+    enabled: teamCapabilities.listMembersEnabled,
+  });
+
+  const [policy, setPolicy] = useState<CollectionAccessPolicy | null>(null);
+  const [roleGrants, setRoleGrants] = useState<Set<string>>(new Set());
+  const [memberGrants, setMemberGrants] = useState<Set<string>>(new Set());
+  const [isDirty, setIsDirty] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
+
+  // Sync state when policy data arrives
+  useEffect(() => {
+    if (!policyQuery.data || isDirty) return;
+    const data = policyQuery.data;
+    setPolicy(data.access_policy);
+    setRoleGrants(
+      new Set(
+        data.grants
+          .filter((g) => g.grantee_type === "role")
+          .map((g) => g.grantee_value),
+      ),
+    );
+    setMemberGrants(
+      new Set(
+        data.grants
+          .filter((g) => g.grantee_type === "member")
+          .map((g) => g.grantee_value),
+      ),
+    );
+  }, [policyQuery.data, isDirty]);
+
+  const saveMutation = useMutation({
+    mutationFn: (req: { access_policy: CollectionAccessPolicy; grants: CollectionAccessGrant[] }) =>
+      updateCollectionPolicy(collectionId, req),
+    onSuccess: async () => {
+      setSaveError(null);
+      setIsDirty(false);
+      setShowWarning(false);
+      await invalidateAfterMutation(queryClient, "collection.policy.update");
+    },
+    onError: (error) => {
+      setSaveError(getApiErrorMessage(error));
+    },
+  });
+
+  function buildGrants(): CollectionAccessGrant[] {
+    if (!policy) return [];
+    if (policy === "selected_roles") {
+      return Array.from(roleGrants).map((v) => ({ grantee_type: "role" as const, grantee_value: v }));
+    }
+    if (policy === "selected_members") {
+      return Array.from(memberGrants).map((v) => ({ grantee_type: "member" as const, grantee_value: v }));
+    }
+    return [];
+  }
+
+  function handlePolicyChange(next: CollectionAccessPolicy) {
+    const current = policyQuery.data?.access_policy ?? "org_wide";
+    const isMoreRestrictive =
+      current === "org_wide" && next !== "org_wide";
+    if (isMoreRestrictive) {
+      setShowWarning(true);
+    }
+    setPolicy(next);
+    setIsDirty(true);
+  }
+
+  function handleRoleToggle(role: string) {
+    setRoleGrants((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+    setIsDirty(true);
+  }
+
+  function handleMemberToggle(userId: string) {
+    setMemberGrants((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+    setIsDirty(true);
+  }
+
+  function handleSave() {
+    if (!policy) return;
+    saveMutation.mutate({ access_policy: policy, grants: buildGrants() });
+  }
+
+  function handleDiscard() {
+    setIsDirty(false);
+    setShowWarning(false);
+    setSaveError(null);
+    if (policyQuery.data) {
+      const data = policyQuery.data;
+      setPolicy(data.access_policy);
+      setRoleGrants(new Set(data.grants.filter((g) => g.grantee_type === "role").map((g) => g.grantee_value)));
+      setMemberGrants(new Set(data.grants.filter((g) => g.grantee_type === "member").map((g) => g.grantee_value)));
+    }
+  }
+
+  if (policyQuery.isLoading) {
+    return <LoadingState compact title="Loading access policy…" />;
+  }
+  if (policyQuery.isError) {
+    if (isForbiddenError(policyQuery.error)) {
+      return (
+        <ForbiddenState
+          compact
+          title="Policy access denied"
+          description="You do not have permission to view or manage this collection's access policy."
+          requestId={extractRequestIdFromError(policyQuery.error)}
+        />
+      );
+    }
+    return (
+      <ErrorState
+        compact
+        error={policyQuery.error}
+        description={getApiErrorMessage(policyQuery.error)}
+        onRetry={() => void policyQuery.refetch()}
+      />
+    );
+  }
+
+  const effectivePolicy = policy ?? policyQuery.data?.access_policy ?? "org_wide";
+
+  const members: TeamMember[] = membersQuery.data?.items ?? [];
+  const filteredMembers = members.filter(
+    (m) => m.role !== "owner" && m.role !== "admin" && m.user_id,
+  );
+
+  return (
+    <div className="space-y-4 rounded-xl border border-[#e5e3f1] bg-[#faf9ff] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+          Access Policy
+        </p>
+        {isDirty ? (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleDiscard}
+              disabled={saveMutation.isPending}
+              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              className="rounded bg-[#3525cd] px-3 py-1 text-xs font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saveMutation.isPending ? "Saving…" : "Save policy"}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      {showWarning ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <span className="material-symbols-outlined mt-0.5 shrink-0 text-base text-amber-700">
+            warning
+          </span>
+          <p className="text-xs text-amber-800">
+            You are restricting access to <strong>{collectionName}</strong>. Members who
+            currently have access may lose it immediately after saving.
+          </p>
+        </div>
+      ) : null}
+
+      <div>
+        <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+          Mode
+        </label>
+        <select
+          value={effectivePolicy}
+          onChange={(e) => handlePolicyChange(e.target.value as CollectionAccessPolicy)}
+          className="h-9 w-full rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
+        >
+          <option value="org_wide">Org-wide — all members</option>
+          <option value="admin_only">Admin-only — owners and admins</option>
+          <option value="selected_roles">Selected roles</option>
+          <option value="selected_members">Selected members</option>
+        </select>
+        <p className="mt-1 text-xs text-[#7a768f]">
+          {accessPolicyDescription(effectivePolicy)}
+        </p>
+      </div>
+
+      {effectivePolicy === "selected_roles" ? (
+        <div>
+          <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            Roles with access
+          </p>
+          <p className="mb-2 text-xs text-[#7a768f]">
+            Owners and admins always have access. Choose which other roles can see this collection.
+          </p>
+          <div className="space-y-1">
+            {GRANTABLE_ROLES.map(({ value, label }) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-center gap-3 rounded-lg border border-[#e5e3f1] bg-white px-3 py-2 hover:bg-[#f5f3ff]"
+              >
+                <input
+                  type="checkbox"
+                  checked={roleGrants.has(value)}
+                  onChange={() => handleRoleToggle(value)}
+                  className="accent-[#3525cd]"
+                />
+                <span className="text-sm font-semibold text-[#2a2640]">{label}</span>
+              </label>
+            ))}
+          </div>
+          {roleGrants.size === 0 ? (
+            <p className="mt-1 text-xs text-amber-700">
+              No roles selected — only admins will have access.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {effectivePolicy === "selected_members" ? (
+        <div>
+          <p className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+            Members with access
+          </p>
+          <p className="mb-2 text-xs text-[#7a768f]">
+            Owners and admins always have access. Select additional members below.
+          </p>
+          {!teamCapabilities.listMembersEnabled ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Team members list is not configured. Set{" "}
+              <code>NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL</code> to enable the member picker.
+            </p>
+          ) : membersQuery.isLoading ? (
+            <LoadingState compact title="Loading members…" />
+          ) : filteredMembers.length === 0 ? (
+            <EmptyState
+              compact
+              title="No eligible members."
+              description="All organization members are admins or owners who already have access."
+            />
+          ) : (
+            <ul className="max-h-52 space-y-1 overflow-auto rounded-lg border border-[#e5e3f1] bg-white p-2">
+              {filteredMembers.map((m) => (
+                <li key={m.user_id}>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-[#f5f3ff]">
+                    <input
+                      type="checkbox"
+                      checked={memberGrants.has(m.user_id!)}
+                      onChange={() => handleMemberToggle(m.user_id!)}
+                      className="accent-[#3525cd]"
+                    />
+                    <span className="flex-1">
+                      <span className="block text-sm font-semibold text-[#2a2640]">
+                        {m.name}
+                      </span>
+                      <span className="block text-xs text-[#68647b]">
+                        {m.email}{" "}
+                        <span className="rounded-full bg-[#f0eeff] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#4535b5]">
+                          {m.role}
+                        </span>
+                      </span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+          {memberGrants.size === 0 && teamCapabilities.listMembersEnabled ? (
+            <p className="mt-1 text-xs text-amber-700">
+              No members selected — only admins will have access.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {saveError ? (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {saveError}
+        </p>
+      ) : null}
+
+      {!isDirty && policyQuery.data ? (
+        <CurrentAccessSummary
+          policy={policyQuery.data.access_policy}
+          grants={policyQuery.data.grants}
+          members={members}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+type CurrentAccessSummaryProps = {
+  policy: CollectionAccessPolicy;
+  grants: CollectionAccessGrant[];
+  members: TeamMember[];
+};
+
+function CurrentAccessSummary({ policy, grants, members }: CurrentAccessSummaryProps) {
+  if (policy === "org_wide") {
+    return (
+      <p className="text-xs text-[#68647b]">
+        All organization members currently have access.
+      </p>
+    );
+  }
+  if (policy === "admin_only") {
+    return (
+      <p className="text-xs text-[#68647b]">Only owners and admins have access.</p>
+    );
+  }
+  if (policy === "selected_roles") {
+    const roles = grants.filter((g) => g.grantee_type === "role").map((g) => g.grantee_value);
+    return (
+      <p className="text-xs text-[#68647b]">
+        Access granted to: <strong>owners, admins</strong>
+        {roles.length > 0 ? `, and ${roles.join(", ")}s` : " only"}.
+      </p>
+    );
+  }
+  if (policy === "selected_members") {
+    const memberIds = new Set(
+      grants.filter((g) => g.grantee_type === "member").map((g) => g.grantee_value),
+    );
+    const named = members
+      .filter((m) => m.user_id && memberIds.has(m.user_id))
+      .map((m) => m.name || m.email);
+    const count = memberIds.size;
+    return (
+      <p className="text-xs text-[#68647b]">
+        {count === 0
+          ? "No members explicitly granted — only admins have access."
+          : named.length > 0
+            ? `Explicitly granted: ${named.join(", ")}.`
+            : `${count} member${count === 1 ? "" : "s"} explicitly granted.`}
+      </p>
+    );
+  }
+  return null;
+}
+
+// ── Form / dialog ──────────────────────────────────────────────────────────────
 
 type CollectionFormState = {
   name: string;
@@ -124,7 +543,7 @@ function CollectionDialog({
     nameRef.current?.focus();
   }, []);
 
-  function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const errors = validateCollectionForm(form);
     if (Object.keys(errors).length > 0) {
@@ -209,13 +628,13 @@ function CollectionDialog({
               }
               className="h-9 w-full rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
             >
-              <option value="org_wide">Org-wide (all members)</option>
-              <option value="restricted">Restricted</option>
+              <option value="org_wide">Org-wide — all members</option>
+              <option value="admin_only">Admin-only</option>
+              <option value="selected_roles">Selected roles</option>
+              <option value="selected_members">Selected members</option>
             </select>
             <p className="mt-1 text-xs text-[#7a768f]">
-              {form.access_policy === "org_wide"
-                ? "All organization members can view and query this collection."
-                : "Only explicitly granted users can query this collection."}
+              {accessPolicyDescription(form.access_policy)}
             </p>
           </div>
 
@@ -246,6 +665,8 @@ function CollectionDialog({
     </div>
   );
 }
+
+// ── Collection detail panel ────────────────────────────────────────────────────
 
 type CollectionDetailPanelProps = {
   collectionId: string;
@@ -380,6 +801,13 @@ function CollectionDetailPanel({
               </p>
               <p className="text-sm text-[#2a2640]">{detail.description}</p>
             </div>
+          ) : null}
+
+          {capabilities.canManagePolicy ? (
+            <PolicyEditor
+              collectionId={collectionId}
+              collectionName={detail.name}
+            />
           ) : null}
 
           {actionFeedback ? (
@@ -545,6 +973,8 @@ function MetricCard({
   );
 }
 
+// ── Assign collections dialog ──────────────────────────────────────────────────
+
 type AssignCollectionsDialogProps = {
   collectionList: CollectionListItemResponse[];
   loadingCollections: boolean;
@@ -673,6 +1103,8 @@ export function AssignCollectionsDialog({
     </div>
   );
 }
+
+// ── Collections page ───────────────────────────────────────────────────────────
 
 export function CollectionsPage() {
   const queryClient = useQueryClient();

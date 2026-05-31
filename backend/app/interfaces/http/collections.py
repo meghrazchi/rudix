@@ -15,15 +15,18 @@ from app.domains.collections.repositories.collections import CollectionRepositor
 from app.domains.collections.schemas.collections import (
     AddDocumentToCollectionRequest,
     AddDocumentToCollectionResponse,
+    CollectionAccessGrantItem,
     CollectionDetailResponse,
     CollectionDocumentItem,
     CollectionDocumentsResponse,
     CollectionListItemResponse,
     CollectionListResponse,
+    CollectionPolicyResponse,
     CreateCollectionRequest,
     DeleteCollectionResponse,
     DocumentCollectionsResponse,
     SetDocumentCollectionsRequest,
+    UpdateCollectionPolicyRequest,
     UpdateCollectionRequest,
 )
 from app.domains.documents.repositories.documents import DocumentRepository
@@ -37,6 +40,8 @@ _collection_repo = CollectionRepository()
 _document_repo = DocumentRepository()
 _audit_service = AuditLogService()
 _logger = get_logger("events.collections")
+
+_ADMIN_ROLES = frozenset({OrganizationRole.owner.value, OrganizationRole.admin.value})
 
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -79,6 +84,10 @@ def _request_id(request: Request) -> str | None:
     if isinstance(rid, str) and rid.strip():
         return rid
     return request.headers.get("x-request-id")
+
+
+def _is_admin(principal: AuthenticatedPrincipal) -> bool:
+    return bool(_ADMIN_ROLES.intersection(principal.roles))
 
 
 def _collection_to_list_item(
@@ -141,15 +150,22 @@ async def list_collections(
     name_query: Annotated[str | None, Query(max_length=120)] = None,
 ) -> CollectionListResponse:
     organization_id = _org_id(principal)
+    user_id = _user_id(principal)
     collections = await _collection_repo.list(
         db,
         organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
         name_query=name_query,
         limit=limit,
         offset=offset,
     )
     total = await _collection_repo.count(
-        db, organization_id=organization_id, name_query=name_query
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+        name_query=name_query,
     )
     items = []
     for col in collections:
@@ -223,10 +239,15 @@ async def get_collection(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionDetailResponse:
     organization_id = _org_id(principal)
+    user_id = _user_id(principal)
     parsed_id = _parse_uuid(collection_id, "Collection")
 
     collection = await _collection_repo.get(
-        db, collection_id=parsed_id, organization_id=organization_id
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
@@ -258,13 +279,18 @@ async def update_collection(
     rid = _request_id(request)
     parsed_id = _parse_uuid(collection_id, "Collection")
 
+    # Fetch without access filter so admins can update any collection
     collection = await _collection_repo.get(
-        db, collection_id=parsed_id, organization_id=organization_id
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
 
-    is_admin = principal.role in (OrganizationRole.owner.value, OrganizationRole.admin.value)
+    is_admin = _is_admin(principal)
     if not is_admin and str(collection.owner_id) != principal.user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -318,8 +344,13 @@ async def delete_collection(
     rid = _request_id(request)
     parsed_id = _parse_uuid(collection_id, "Collection")
 
+    # Admins can delete any collection — no access filter needed
     collection = await _collection_repo.get(
-        db, collection_id=parsed_id, organization_id=organization_id
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,  # admin roles bypass access filter automatically
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
@@ -346,6 +377,129 @@ async def delete_collection(
     return DeleteCollectionResponse(collection_id=collection_id, archived=True)
 
 
+# ── Access policy endpoints ────────────────────────────────────────────────────
+
+@router.get("/{collection_id}/access-policy", response_model=CollectionPolicyResponse)
+async def get_collection_access_policy(
+    collection_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)
+        ),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CollectionPolicyResponse:
+    organization_id = _org_id(principal)
+    user_id = _user_id(principal)
+    parsed_id = _parse_uuid(collection_id, "Collection")
+
+    # Admins always see the collection regardless of policy
+    collection = await _collection_repo.get(
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+    )
+    if collection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+
+    grants = await _collection_repo.get_policy(db, collection_id=parsed_id)
+    return CollectionPolicyResponse(
+        collection_id=collection_id,
+        access_policy=collection.access_policy,  # type: ignore[arg-type]
+        grants=[
+            CollectionAccessGrantItem(
+                grantee_type=g.grantee_type,  # type: ignore[arg-type]
+                grantee_value=g.grantee_value,
+            )
+            for g in grants
+        ],
+    )
+
+
+@router.put("/{collection_id}/access-policy", response_model=CollectionPolicyResponse)
+async def update_collection_access_policy(
+    request: Request,
+    collection_id: str,
+    payload: UpdateCollectionPolicyRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)
+        ),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CollectionPolicyResponse:
+    organization_id = _org_id(principal)
+    user_id = _user_id(principal)
+    rid = _request_id(request)
+    parsed_id = _parse_uuid(collection_id, "Collection")
+
+    collection = await _collection_repo.get(
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+    )
+    if collection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+
+    old_policy = collection.access_policy
+    grants_data = [
+        {
+            "grantee_type": g.grantee_type,
+            "grantee_value": g.grantee_value,
+            "granted_by_id": user_id,
+        }
+        for g in payload.grants
+    ]
+    new_grants = await _collection_repo.set_policy(
+        db,
+        collection=collection,
+        access_policy=payload.access_policy,
+        grants=grants_data,
+    )
+    await _audit_service.record(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="collection.policy.updated",
+        resource_type="collection",
+        resource_id=parsed_id,
+        request_id=rid,
+        metadata={
+            "old_access_policy": old_policy,
+            "new_access_policy": payload.access_policy,
+            "grant_count": len(new_grants),
+        },
+    )
+    await db.commit()
+
+    _logger.info(
+        "collection.policy.updated",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        collection_id=collection_id,
+        access_policy=payload.access_policy,
+    )
+    return CollectionPolicyResponse(
+        collection_id=collection_id,
+        access_policy=collection.access_policy,  # type: ignore[arg-type]
+        grants=[
+            CollectionAccessGrantItem(
+                grantee_type=g.grantee_type,  # type: ignore[arg-type]
+                grantee_value=g.grantee_value,
+            )
+            for g in new_grants
+        ],
+    )
+
+
+# ── Document management endpoints ─────────────────────────────────────────────
+
 @router.get("/{collection_id}/documents", response_model=CollectionDocumentsResponse)
 async def list_collection_documents(
     collection_id: str,
@@ -355,10 +509,15 @@ async def list_collection_documents(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CollectionDocumentsResponse:
     organization_id = _org_id(principal)
+    user_id = _user_id(principal)
     parsed_id = _parse_uuid(collection_id, "Collection")
 
     collection = await _collection_repo.get(
-        db, collection_id=parsed_id, organization_id=organization_id
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
@@ -401,7 +560,11 @@ async def add_document_to_collection(
     parsed_document_id = _parse_uuid(payload.document_id, "Document")
 
     collection = await _collection_repo.get(
-        db, collection_id=parsed_collection_id, organization_id=organization_id
+        db,
+        collection_id=parsed_collection_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
@@ -470,7 +633,11 @@ async def remove_document_from_collection(
     parsed_document_id = _parse_uuid(document_id, "Document")
 
     collection = await _collection_repo.get(
-        db, collection_id=parsed_collection_id, organization_id=organization_id
+        db,
+        collection_id=parsed_collection_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
@@ -519,10 +686,15 @@ async def get_document_collections(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentCollectionsResponse:
     organization_id = _org_id(principal)
+    user_id = _user_id(principal)
     parsed_doc_id = _parse_uuid(document_id, "Document")
 
     collections = await _collection_repo.get_document_collections(
-        db, document_id=parsed_doc_id, organization_id=organization_id
+        db,
+        document_id=parsed_doc_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
     )
     items = []
     for col in collections:

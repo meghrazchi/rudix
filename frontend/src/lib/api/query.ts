@@ -88,6 +88,8 @@ export const queryKeys = {
       ["collections", "detail", collectionId] as const,
     documents: (collectionId: string, params?: Record<string, unknown>) =>
       ["collections", "documents", collectionId, params ?? {}] as const,
+    policy: (collectionId: string) =>
+      ["collections", "policy", collectionId] as const,
   },
   documents: {
     all: ["documents"] as const,
@@ -149,6 +151,7 @@ export type FrontendMutationKind =
   | "collection.delete"
   | "collection.document.add"
   | "collection.document.remove"
+  | "collection.policy.update"
   | "chat.query"
   | "agent.run"
   | "evaluation.run";
@@ -162,6 +165,13 @@ export async function invalidateAfterMutation(
     kind === "collection.update" ||
     kind === "collection.delete"
   ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.collections.all,
+    });
+    return;
+  }
+
+  if (kind === "collection.policy.update") {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.collections.all,
     });

@@ -5,7 +5,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-CollectionAccessPolicy = Literal["org_wide", "restricted"]
+CollectionAccessPolicy = Literal["org_wide", "admin_only", "selected_roles", "selected_members"]
+
+GranteeType = Literal["role", "member"]
 
 
 class CollectionListItemResponse(BaseModel):
@@ -75,3 +77,21 @@ class DocumentCollectionsResponse(BaseModel):
 
 class SetDocumentCollectionsRequest(BaseModel):
     collection_ids: list[str]
+
+
+# ── Access policy management ───────────────────────────────────────────────────
+
+class CollectionAccessGrantItem(BaseModel):
+    grantee_type: GranteeType
+    grantee_value: str  # role name (e.g. "member") or user_id string
+
+
+class CollectionPolicyResponse(BaseModel):
+    collection_id: str
+    access_policy: CollectionAccessPolicy
+    grants: list[CollectionAccessGrantItem]
+
+
+class UpdateCollectionPolicyRequest(BaseModel):
+    access_policy: CollectionAccessPolicy
+    grants: list[CollectionAccessGrantItem] = Field(default_factory=list)
