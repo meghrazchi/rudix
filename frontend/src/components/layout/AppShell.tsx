@@ -13,11 +13,13 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { WorkspaceSwitcherCard } from "@/components/workspace/WorkspaceSwitcherCard";
 import {
   type OnboardingState,
   readOnboardingState,
   createDefaultOnboardingState,
 } from "@/lib/onboarding";
+import { clearAuthSensitiveQueryState } from "@/lib/api/query";
 
 import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments, type DocumentStatus } from "@/lib/api/documents";
@@ -344,6 +346,13 @@ export function AppShell({
       setOnboardingVisible(true);
     }
   }, [session.userId]);
+
+  const prevOrgIdRef = useRef(session.organizationId);
+  useEffect(() => {
+    if (prevOrgIdRef.current === session.organizationId) return;
+    prevOrgIdRef.current = session.organizationId;
+    void clearAuthSensitiveQueryState();
+  }, [session.organizationId]);
   const mobileSidebarRef = useRef<HTMLElement | null>(null);
   const commandMenuRef = useRef<HTMLElement | null>(null);
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -609,17 +618,7 @@ export function AppShell({
 
           <NavList navItems={navItems} />
 
-          <div className="mt-8 rounded-xl border border-[#d8d3f1] bg-white p-3">
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-              Organization
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-800">
-              {session.organizationName ??
-                session.organizationId ??
-                "Unassigned"}
-            </p>
-            <p className="text-xs text-slate-500">{roleLabel(session.role)}</p>
-          </div>
+          <WorkspaceSwitcherCard session={session} />
         </aside>
 
         {mobileSidebarOpen ? (

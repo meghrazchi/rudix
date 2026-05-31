@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { ErrorState } from "@/components/states/ErrorState";
@@ -39,6 +39,7 @@ import {
 } from "@/lib/api/organization";
 import type { AppRole } from "@/lib/auth-session";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { orgAvatarColor, orgInitials } from "@/lib/workspace";
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
@@ -335,6 +336,12 @@ export function OrganizationSettingsTab() {
     resolver: zodResolver(orgProfileSchema),
     defaultValues: defaultProfileValues,
     mode: "onSubmit",
+  });
+
+  const watchedOrgName = useWatch({
+    control: profileForm.control,
+    name: "name",
+    defaultValue: defaultProfileValues.name,
   });
 
   const profileQuery = useQuery({
@@ -699,6 +706,31 @@ export function OrganizationSettingsTab() {
         ) : isAdmin ? (
           /* Editable profile form for owner/admin */
           <div className="space-y-4">
+            {/* Avatar preview */}
+            <div className="flex items-center gap-4 rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
+              {(() => {
+                const colors = orgAvatarColor(watchedOrgName);
+                const initials = orgInitials(watchedOrgName || "W");
+                return (
+                  <span
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold"
+                    style={{ backgroundColor: colors.bg, color: colors.text }}
+                    aria-hidden
+                  >
+                    {initials}
+                  </span>
+                );
+              })()}
+              <div>
+                <p className="text-sm font-semibold text-[#2a2640]">
+                  {watchedOrgName.trim() || "Workspace name"}
+                </p>
+                <p className="text-xs text-[#7a7693]">
+                  Initials and color are derived from the workspace name and shown throughout the app.
+                </p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <FieldLabel htmlFor="org-name">Name</FieldLabel>
@@ -779,8 +811,7 @@ export function OrganizationSettingsTab() {
                 className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
               />
               <p className="text-xs text-[#777587]">
-                Comma-separated list of allowed email domains for self-service
-                join.
+                Comma-separated list of domains (e.g. <code className="rounded bg-[#f0eeff] px-1 font-mono text-[#3525cd]">acme.com, partner.org</code>). Users with matching email addresses can join this workspace without an invitation.
               </p>
             </div>
 
