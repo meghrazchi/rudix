@@ -40,8 +40,10 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/documents", () => ({
-  uploadDocument: (file: File, signal?: AbortSignal) =>
-    mockApi.uploadDocument(file, signal),
+  uploadDocument: (file: File, metadata?: unknown, signal?: AbortSignal) =>
+    mockApi.uploadDocument(file, metadata, signal),
+  UPLOAD_LANGUAGES: [],
+  UPLOAD_RETENTION_CLASSES: [],
   listDocuments: (options?: unknown) => mockApi.listDocuments(options),
   getDocument: (documentId: string) => mockApi.getDocument(documentId),
   getDocumentStatus: (documentId: string) =>
@@ -383,6 +385,7 @@ describe("DocumentsPage", () => {
     });
     expect(mockApi.uploadDocument).toHaveBeenCalledWith(
       expect.any(File),
+      expect.any(Object),
       expect.any(AbortSignal),
     );
   });
@@ -446,14 +449,16 @@ describe("DocumentsPage", () => {
     expect(mockApi.uploadDocument).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({ name: "guide-a.pdf" }),
+      expect.any(Object),
       expect.any(AbortSignal),
     );
     expect(mockApi.uploadDocument).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ name: "guide-b.pdf" }),
+      expect.any(Object),
       expect.any(AbortSignal),
     );
-    expect(await screen.findByText("Progress: 2/2")).toBeInTheDocument();
+    expect(await screen.findByText("2/2 done")).toBeInTheDocument();
     expect(
       screen.getAllByText(
         /Uploaded 2\/2 file\(s\)\. Processing has been queued\./i,
@@ -560,7 +565,7 @@ describe("DocumentsPage", () => {
     let activeSignal: AbortSignal | undefined;
     mockApi.uploadDocument
       .mockImplementationOnce(
-        (_file: File, signal?: AbortSignal) =>
+        (_file: File, _metadata: unknown, signal?: AbortSignal) =>
           new Promise((resolve) => {
             activeSignal = signal;
             resolveFirstRef.current = () => {
@@ -614,7 +619,7 @@ describe("DocumentsPage", () => {
     });
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Close upload modal" }),
+      screen.getByRole("button", { name: "Close upload center" }),
     );
 
     if (typeof resolveFirstRef.current === "function") {

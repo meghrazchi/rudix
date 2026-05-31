@@ -604,3 +604,191 @@ async def test_upload_bypasses_unavailable_scanner_when_explicitly_enabled_in_no
     audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
     actions = {row.action for row in audit_logs}
     assert actions == {"document.upload.scan_unavailable_bypassed", "document.upload.accepted"}
+
+
+@pytest.mark.asyncio
+async def test_upload_stores_metadata_fields(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("report.pdf", b"%PDF-1.7\nsample", "application/pdf")},
+        data={
+            "source": "https://internal.example.com/report",
+            "language": "en",
+            "retention_class": "confidential",
+            "notes": "Quarterly compliance report",
+            "tags": "compliance,quarterly,legal",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["status"] == "uploaded"
+    assert payload["collection_assigned"] is False
+
+    document_id = UUID(payload["document_id"])
+    document = await _get_document(db_session, document_id=document_id)
+    assert document is not None
+    assert document.source == "https://internal.example.com/report"
+    assert document.language == "en"
+    assert document.retention_class == "confidential"
+    assert document.notes == "Quarterly compliance report"
+    assert document.tags == "compliance,quarterly,legal"
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_invalid_language_code(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("report.pdf", b"%PDF-1.7\nsample", "application/pdf")},
+        data={"language": "klingon"},
+    )
+
+    assert response.status_code == 422
+    assert await _document_count(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_invalid_retention_class(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("report.pdf", b"%PDF-1.7\nsample", "application/pdf")},
+        data={"retention_class": "super_secret"},
+    )
+
+    assert response.status_code == 422
+    assert await _document_count(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_upload_with_collection_auto_assigns_document(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    from app.models.collection import Collection, CollectionDocument
+    from app.models.organization_member import OrganizationMember
+
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    collection = Collection(
+        organization_id=org.id,
+        owner_id=user.id,
+        name="Legal Docs",
+        access_policy="org_wide",
+    )
+    db_session.add(collection)
+    await db_session.commit()
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("contract.pdf", b"%PDF-1.7\ncontent", "application/pdf")},
+        data={"collection_id": str(collection.id)},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["collection_assigned"] is True
+
+    document_id = UUID(payload["document_id"])
+    result = await db_session.execute(
+        select(CollectionDocument).where(
+            CollectionDocument.document_id == document_id,
+            CollectionDocument.collection_id == collection.id,
+        )
+    )
+    assert result.scalar_one_or_none() is not None
+
+
+@pytest.mark.asyncio
+async def test_upload_with_unknown_collection_id_skips_assignment(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("note.txt", b"plain text", "text/plain")},
+        data={"collection_id": str(uuid4())},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["collection_assigned"] is False
+    assert await _document_count(db_session) == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_without_metadata_succeeds_with_defaults(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("readme.txt", b"hello world", "text/plain")},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["collection_assigned"] is False
+
+    document_id = UUID(payload["document_id"])
+    document = await _get_document(db_session, document_id=document_id)
+    assert document is not None
+    assert document.source is None
+    assert document.language is None
+    assert document.retention_class is None
+    assert document.notes is None
+    assert document.tags is None

@@ -12,8 +12,25 @@ export type UploadDocumentResponse = Schemas["UploadDocumentResponse"];
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
 export type DocumentStatusResponse = Schemas["DocumentStatusResponse"];
-export type DocumentListItemResponse = Schemas["DocumentListItemResponse"];
-export type DocumentListResponse = Schemas["DocumentListResponse"];
+export type DocumentCollectionSummary = {
+  collection_id: string;
+  name: string;
+};
+
+export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
+  source?: string | null;
+  language?: string | null;
+  retention_class?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  collections?: DocumentCollectionSummary[];
+};
+export type DocumentListResponse = Omit<
+  Schemas["DocumentListResponse"],
+  "items"
+> & {
+  items: DocumentListItemResponse[];
+};
 export type DocumentDetailResponse = Schemas["DocumentDetailResponse"];
 export type DocumentLifecycleTimelineStepResponse =
   Schemas["DocumentLifecycleTimelineStepResponse"];
@@ -22,6 +39,56 @@ export type DocumentChunkPreviewResponse =
 export type DocumentChunksResponse = Schemas["DocumentChunksResponse"];
 export type CreateUploadUrlRequest = Schemas["CreateUploadUrlRequest"];
 export type CreateUploadUrlResponse = Schemas["CreateUploadUrlResponse"];
+
+export type UploadDocumentMetadata = {
+  collection_id?: string | null;
+  source?: string | null;
+  language?: string | null;
+  retention_class?: string | null;
+  notes?: string | null;
+  tags?: string[];
+};
+
+export const UPLOAD_LANGUAGES: ReadonlyArray<{ code: string; label: string }> =
+  [
+    { code: "en", label: "English" },
+    { code: "de", label: "German" },
+    { code: "fr", label: "French" },
+    { code: "es", label: "Spanish" },
+    { code: "pt", label: "Portuguese" },
+    { code: "it", label: "Italian" },
+    { code: "nl", label: "Dutch" },
+    { code: "pl", label: "Polish" },
+    { code: "sv", label: "Swedish" },
+    { code: "no", label: "Norwegian" },
+    { code: "da", label: "Danish" },
+    { code: "fi", label: "Finnish" },
+    { code: "cs", label: "Czech" },
+    { code: "sk", label: "Slovak" },
+    { code: "hu", label: "Hungarian" },
+    { code: "ro", label: "Romanian" },
+    { code: "bg", label: "Bulgarian" },
+    { code: "el", label: "Greek" },
+    { code: "tr", label: "Turkish" },
+    { code: "ar", label: "Arabic" },
+    { code: "fa", label: "Persian" },
+    { code: "zh", label: "Chinese" },
+    { code: "ja", label: "Japanese" },
+    { code: "ko", label: "Korean" },
+    { code: "ru", label: "Russian" },
+    { code: "uk", label: "Ukrainian" },
+  ];
+
+export const UPLOAD_RETENTION_CLASSES: ReadonlyArray<{
+  value: string;
+  label: string;
+}> = [
+  { value: "standard", label: "Standard" },
+  { value: "confidential", label: "Confidential" },
+  { value: "legal_hold", label: "Legal Hold" },
+  { value: "archive", label: "Archive" },
+  { value: "gdpr_restricted", label: "GDPR Restricted" },
+];
 
 export type ListDocumentsOptions = {
   limit?: number;
@@ -41,10 +108,29 @@ export type DocumentChunksOptions = {
 
 export async function uploadDocument(
   file: File,
+  metadata?: UploadDocumentMetadata,
   signal?: AbortSignal,
 ): Promise<UploadDocumentResponse> {
   const formData = new FormData();
   formData.set("file", file);
+  if (metadata?.collection_id) {
+    formData.set("collection_id", metadata.collection_id);
+  }
+  if (metadata?.source) {
+    formData.set("source", metadata.source);
+  }
+  if (metadata?.language) {
+    formData.set("language", metadata.language);
+  }
+  if (metadata?.retention_class) {
+    formData.set("retention_class", metadata.retention_class);
+  }
+  if (metadata?.notes) {
+    formData.set("notes", metadata.notes);
+  }
+  if (metadata?.tags?.length) {
+    formData.set("tags", metadata.tags.join(","));
+  }
 
   return apiRequest<UploadDocumentResponse>("/documents/upload", {
     method: "POST",

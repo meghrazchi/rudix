@@ -57,6 +57,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    source: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    retention_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    tags: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")

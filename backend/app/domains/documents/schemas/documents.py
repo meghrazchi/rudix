@@ -7,6 +7,24 @@ from app.models.enums import DocumentStatus
 
 AllowedFileType = Literal["pdf", "txt", "docx"]
 
+ALLOWED_LANGUAGES = frozenset(
+    {
+        "en", "de", "fr", "es", "pt", "it", "nl", "pl", "sv", "no",
+        "da", "fi", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "lt",
+        "lv", "et", "el", "tr", "ar", "fa", "zh", "ja", "ko", "ru", "uk",
+    }
+)
+
+ALLOWED_RETENTION_CLASSES = frozenset(
+    {"standard", "legal_hold", "confidential", "archive", "gdpr_restricted"}
+)
+
+
+def _parse_tags_string(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [t.strip() for t in value.split(",") if t.strip()]
+
 
 class CreateUploadUrlRequest(BaseModel):
     filename: str = Field(min_length=3, max_length=512)
@@ -29,6 +47,35 @@ class CreateUploadUrlResponse(BaseModel):
     expires_in_seconds: int = 900
 
 
+class UploadDocumentMetadata(BaseModel):
+    collection_id: str | None = None
+    source: str | None = Field(default=None, max_length=512)
+    language: str | None = None
+    retention_class: str | None = None
+    notes: str | None = Field(default=None, max_length=4096)
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALLOWED_LANGUAGES:
+            raise ValueError(f"Unsupported language code: {value}")
+        return value
+
+    @field_validator("retention_class")
+    @classmethod
+    def validate_retention_class(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALLOWED_RETENTION_CLASSES:
+            raise ValueError(f"Unsupported retention class: {value}")
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: list[str]) -> list[str]:
+        cleaned = [t.strip()[:64] for t in value if t.strip()]
+        return cleaned[:20]
+
+
 class UploadDocumentResponse(BaseModel):
     document_id: str
     filename: str
@@ -36,6 +83,7 @@ class UploadDocumentResponse(BaseModel):
     queue_status: Literal["queued", "deferred"]
     checksum: str
     message: str
+    collection_assigned: bool = False
 
 
 class DeleteDocumentResponse(BaseModel):
@@ -69,6 +117,11 @@ DocumentSortBy = Literal["created_at", "updated_at", "filename", "status"]
 SortOrder = Literal["asc", "desc"]
 
 
+class DocumentCollectionSummary(BaseModel):
+    collection_id: str
+    name: str
+
+
 class DocumentListItemResponse(BaseModel):
     document_id: str
     filename: str
@@ -78,6 +131,12 @@ class DocumentListItemResponse(BaseModel):
     chunk_count: int
     error_message: str | None = None
     error_details: DocumentErrorDetails | None = None
+    source: str | None = None
+    language: str | None = None
+    retention_class: str | None = None
+    notes: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    collections: list[DocumentCollectionSummary] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -117,6 +176,11 @@ class DocumentDetailResponse(BaseModel):
     checksum: str | None = None
     error_message: str | None = None
     error_details: DocumentErrorDetails | None = None
+    source: str | None = None
+    language: str | None = None
+    retention_class: str | None = None
+    notes: str | None = None
+    tags: list[str] = Field(default_factory=list)
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

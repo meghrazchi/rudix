@@ -3,6 +3,8 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -12,10 +14,12 @@ from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
     DeleteDocumentResponse,
     ReindexDocumentResponse,
+    UploadDocumentMetadata,
     UploadDocumentResponse,
 )
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
+from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus
 
@@ -68,6 +72,35 @@ def _should_bypass_scan_error(scan_result: MalwareScanResult) -> bool:
     return scan_result.error_type in {"unavailable", "timeout"}
 
 
+async def _assign_collection(
+    db_session: AsyncSession,
+    *,
+    document_id: UUID,
+    collection_id: UUID,
+    organization_id: UUID,
+) -> bool:
+    result = await db_session.execute(
+        select(Collection).where(
+            Collection.id == collection_id,
+            Collection.organization_id == organization_id,
+            Collection.is_archived.is_(False),
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        return False
+
+    membership = CollectionDocument(
+        collection_id=collection_id,
+        document_id=document_id,
+    )
+    db_session.add(membership)
+    try:
+        await db_session.flush()
+    except IntegrityError:
+        await db_session.rollback()
+    return True
+
+
 async def upload_document_workflow(
     *,
     request_id: str | None,
@@ -80,6 +113,7 @@ async def upload_document_workflow(
     malware_scan_service: MalwareScanService,
     process_document_task: Any,
     minio_client: Any,
+    upload_metadata: UploadDocumentMetadata | None = None,
 ) -> UploadDocumentResponse:
     max_size_bytes = settings.max_upload_size_mb * 1024 * 1024
     try:
@@ -227,6 +261,9 @@ async def upload_document_workflow(
             detail="Upload storage operation failed",
         ) from exc
 
+    meta = upload_metadata or UploadDocumentMetadata()
+    tags_str = ",".join(meta.tags) if meta.tags else None
+
     try:
         document = await document_repository.create_document(
             db_session,
@@ -239,7 +276,26 @@ async def upload_document_workflow(
             storage_object_key=object_key,
             checksum=validated.checksum_sha256,
             status=DocumentStatus.uploaded.value,
+            source=meta.source,
+            language=meta.language,
+            retention_class=meta.retention_class,
+            notes=meta.notes,
+            tags=tags_str,
         )
+
+        collection_assigned = False
+        if meta.collection_id:
+            try:
+                collection_uuid = UUID(meta.collection_id)
+                collection_assigned = await _assign_collection(
+                    db_session,
+                    document_id=document.id,
+                    collection_id=collection_uuid,
+                    organization_id=organization_id,
+                )
+            except (ValueError, Exception):
+                pass
+
         await audit_log_service.record(
             db_session,
             organization_id=organization_id,
@@ -253,6 +309,7 @@ async def upload_document_workflow(
                 "file_type": validated.extension,
                 "file_size_bytes": validated.file_size_bytes,
                 "status": DocumentStatus.uploaded.value,
+                "collection_assigned": collection_assigned,
             },
         )
         await db_session.commit()
@@ -327,6 +384,7 @@ async def upload_document_workflow(
                 queue_status="deferred",
                 checksum=validated.checksum_sha256,
                 message="Document uploaded; processing queue is temporarily unavailable.",
+                collection_assigned=collection_assigned,
             )
 
         wrote_audit = await audit_log_service.record(
@@ -374,6 +432,7 @@ async def upload_document_workflow(
         queue_status="queued",
         checksum=validated.checksum_sha256,
         message="Document uploaded and queued for processing.",
+        collection_assigned=collection_assigned,
     )
 
 

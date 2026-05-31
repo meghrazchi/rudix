@@ -8,11 +8,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   DocumentsUploadModal,
+  type UploadBatchRecord,
   type UploadFeedbackState,
   type UploadProgressItem,
   type UploadProgressItemState,
   type UploadProgressState,
 } from "@/components/documents/DocumentsUploadModal";
+import type { UploadDocumentMetadata } from "@/lib/api/documents";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -281,9 +283,12 @@ export function DocumentsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isPageDropActive, setIsPageDropActive] = useState(false);
   const [isReindexAllPending, setIsReindexAllPending] = useState(false);
+  const [uploadHistory, setUploadHistory] = useState<UploadBatchRecord[]>([]);
   const uploadControllersRef = useRef<Map<number, AbortController>>(new Map());
   const canceledUploadIndexesRef = useRef<Set<number>>(new Set());
   const cancelAllUploadsRequestedRef = useRef(false);
+  const currentBatchFilesRef = useRef<File[]>([]);
+  const currentBatchMetadataRef = useRef<UploadDocumentMetadata>({});
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
   const [actionRequestId, setActionRequestId] = useState<string | null>(null);
   const [filenameSearch, setFilenameSearch] = useState("");
@@ -431,6 +436,12 @@ export function DocumentsPage() {
   });
 
   const allCollectionsQuery = useQuery({
+    queryKey: [...queryKeys.collections.all, "for-upload"],
+    queryFn: () => listCollections({ limit: 200 }),
+    enabled: isUploadModalOpen,
+  });
+
+  const assignCollectionsListQuery = useQuery({
     queryKey: [...queryKeys.collections.all, "for-assign"],
     queryFn: () => listCollections({ limit: 200 }),
     enabled: Boolean(assignDocumentId),
@@ -717,7 +728,10 @@ export function DocumentsPage() {
     setIsUploadModalOpen(false);
   }
 
-  async function handleFileUpload(files: File[]): Promise<void> {
+  async function handleFileUpload(
+    files: File[],
+    metadata: UploadDocumentMetadata = {},
+  ): Promise<void> {
     setActionFeedback(null);
     setActionRequestId(null);
 
@@ -725,6 +739,8 @@ export function DocumentsPage() {
       return;
     }
 
+    currentBatchFilesRef.current = files;
+    currentBatchMetadataRef.current = metadata;
     uploadControllersRef.current.clear();
     canceledUploadIndexesRef.current.clear();
     cancelAllUploadsRequestedRef.current = false;
@@ -734,6 +750,7 @@ export function DocumentsPage() {
       state: "pending",
       message: null,
       requestId: null,
+      canRetry: false,
     }));
 
     let completed = 0;
@@ -822,7 +839,11 @@ export function DocumentsPage() {
       });
 
       try {
-        const result = await uploadDocument(file, uploadController.signal);
+        const result = await uploadDocument(
+          file,
+          metadata,
+          uploadController.signal,
+        );
         uploadControllersRef.current.delete(index);
 
         if (canceledUploadIndexesRef.current.has(index)) {
@@ -893,13 +914,16 @@ export function DocumentsPage() {
         const requestId = extractRequestIdFromError(error);
         lastRequestId = requestId;
         lastFailureMessage = errorMessage;
-        progressItems = updateUploadProgressItem(
-          progressItems,
-          index,
-          "failed",
-          errorMessage,
-          requestId,
-        );
+        progressItems = progressItems.map((item, itemIndex) => {
+          if (itemIndex !== index) return item;
+          return {
+            ...item,
+            state: "failed" as const,
+            message: errorMessage,
+            requestId: requestId ?? item.requestId,
+            canRetry: true,
+          };
+        });
         setUploadProgress({
           total: files.length,
           completed,
@@ -922,6 +946,19 @@ export function DocumentsPage() {
       setChunksOffset(0);
       await invalidateAfterMutation(queryClient, "document.upload");
     }
+
+    setUploadHistory((prev) => {
+      const record: UploadBatchRecord = {
+        id: `batch-${Date.now()}`,
+        startedAt: new Date().toISOString(),
+        total: files.length,
+        succeeded: successCount,
+        failed: failedCount,
+        canceled: canceledCount,
+        files: files.map((f) => f.name),
+      };
+      return [record, ...prev].slice(0, 10);
+    });
 
     setIsUploading(false);
     setUploadProgress((previous) =>
@@ -977,6 +1014,30 @@ export function DocumentsPage() {
     });
   }
 
+  function handleRetryItem(index: number): void {
+    const file = currentBatchFilesRef.current[index];
+    if (!file || isUploading) {
+      return;
+    }
+
+    setUploadProgress((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        completed: Math.max(0, prev.completed - 1),
+        total: prev.total,
+        items: prev.items.map((item, i) => {
+          if (i !== index) return item;
+          return { ...item, state: "pending" as const, message: null, requestId: null, canRetry: false };
+        }),
+      };
+    });
+
+    void (async () => {
+      await handleFileUpload([file], currentBatchMetadataRef.current);
+    })();
+  }
+
   function handlePageUploadDragOver(event: DragEvent<HTMLButtonElement>): void {
     event.preventDefault();
     event.stopPropagation();
@@ -1011,7 +1072,7 @@ export function DocumentsPage() {
     }
 
     setIsUploadModalOpen(true);
-    await handleFileUpload(files);
+    await handleFileUpload(files, {});
   }
 
   const totalDocumentsCount = documentsQuery.data?.total ?? documents.length;
@@ -1389,6 +1450,31 @@ export function DocumentsPage() {
                               <p className="text-xs text-[#7a768f]">
                                 {document.document_id}
                               </p>
+                              {document.collections &&
+                              document.collections.length > 0 ? (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {document.collections.map((c) => (
+                                    <span
+                                      key={c.collection_id}
+                                      className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800"
+                                    >
+                                      {c.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {document.tags && document.tags.length > 0 ? (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {document.tags.map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
                               {document.error_message ? (
                                 <p className="mt-1 text-xs text-rose-700">
                                   {document.error_message}
@@ -1798,20 +1884,23 @@ export function DocumentsPage() {
         canUpload={capabilities.canUpload}
         isUploading={isUploading}
         acceptedTypesLabel={ACCEPTED_UPLOAD_TYPES_LABEL}
+        collections={allCollectionsQuery.data?.items ?? []}
         onRequestClose={handleUploadModalClose}
         onCancelAll={cancelAllUploads}
         onCancelItem={cancelUploadAtIndex}
+        onRetryItem={handleRetryItem}
         onFilesSelected={handleFileUpload}
         feedback={uploadFeedback}
         progress={uploadProgress}
+        uploadHistory={uploadHistory}
       />
 
       {assignDocumentId ? (
         <AssignCollectionsDialog
           documentName={assignDocumentName}
-          collectionList={allCollectionsQuery.data?.items ?? []}
+          collectionList={assignCollectionsListQuery.data?.items ?? []}
           loadingCollections={
-            allCollectionsQuery.isLoading || docCollectionsQuery.isLoading
+            assignCollectionsListQuery.isLoading || docCollectionsQuery.isLoading
           }
           currentCollectionIds={(
             docCollectionsQuery.data?.items ?? []

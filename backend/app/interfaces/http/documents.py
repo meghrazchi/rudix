@@ -7,6 +7,7 @@ from fastapi import (
     APIRouter,
     Depends,
     File,
+    Form,
     HTTPException,
     Query,
     Request,
@@ -14,6 +15,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from sqlalchemy import select
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,11 +34,13 @@ from app.core.logging import log_document_event
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.models.collection import Collection, CollectionDocument
 from app.domains.documents.schemas.documents import (
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
     DeleteDocumentResponse,
     DocumentChunkPreviewResponse,
+    DocumentCollectionSummary,
     DocumentChunksResponse,
     DocumentDetailResponse,
     DocumentLifecycleTimelineStepResponse,
@@ -46,7 +50,9 @@ from app.domains.documents.schemas.documents import (
     DocumentStatusResponse,
     ReindexDocumentResponse,
     SortOrder,
+    UploadDocumentMetadata,
     UploadDocumentResponse,
+    _parse_tags_string,
 )
 from app.domains.documents.services.malware_scan import MalwareScanService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
@@ -446,9 +452,31 @@ async def upload_document(
     ],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.upload))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    collection_id: Annotated[str | None, Form()] = None,
+    source: Annotated[str | None, Form(max_length=512)] = None,
+    language: Annotated[str | None, Form(max_length=32)] = None,
+    retention_class: Annotated[str | None, Form(max_length=64)] = None,
+    notes: Annotated[str | None, Form(max_length=4096)] = None,
+    tags: Annotated[str | None, Form()] = None,
 ) -> UploadDocumentResponse:
     request_id = _request_id_from_request(request)
     user_id, organization_id = _principal_user_and_org(principal)
+
+    try:
+        upload_metadata = UploadDocumentMetadata(
+            collection_id=collection_id or None,
+            source=source or None,
+            language=language or None,
+            retention_class=retention_class or None,
+            notes=notes or None,
+            tags=_parse_tags_string(tags),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
     return await upload_document_workflow(
         request_id=request_id,
         file=file,
@@ -460,6 +488,7 @@ async def upload_document(
         malware_scan_service=malware_scan_service,
         process_document_task=process_document,
         minio_client=minio_module.get_minio_client(),
+        upload_metadata=upload_metadata,
     )
 
 
@@ -524,6 +553,24 @@ async def list_documents(
         filename_query=filename_query,
     )
 
+    # Batch-fetch collection memberships for all documents in one query.
+    doc_ids = [doc.id for doc in documents]
+    collections_by_doc: dict[object, list[DocumentCollectionSummary]] = {}
+    if doc_ids:
+        coll_result = await db_session.execute(
+            select(CollectionDocument.document_id, Collection.id, Collection.name)
+            .join(Collection, CollectionDocument.collection_id == Collection.id)
+            .where(
+                CollectionDocument.document_id.in_(doc_ids),
+                Collection.is_archived.is_(False),
+            )
+            .order_by(Collection.name)
+        )
+        for doc_id, coll_id, coll_name in coll_result:
+            collections_by_doc.setdefault(doc_id, []).append(
+                DocumentCollectionSummary(collection_id=str(coll_id), name=coll_name)
+            )
+
     items: list[DocumentListItemResponse] = []
     for document in documents:
         chunk_count = await document_repository.count_document_chunks(
@@ -542,6 +589,12 @@ async def list_documents(
                 chunk_count=chunk_count,
                 error_message=safe_error_message,
                 error_details=safe_error_details,
+                source=document.source,
+                language=document.language,
+                retention_class=document.retention_class,
+                notes=document.notes,
+                tags=_parse_tags_string(document.tags),
+                collections=collections_by_doc.get(document.id, []),
                 created_at=document.created_at,
                 updated_at=document.updated_at,
             )
@@ -650,6 +703,11 @@ async def get_document(
     checksum = document.checksum
     created_at = document.created_at
     updated_at = document.updated_at
+    doc_source = document.source
+    doc_language = document.language
+    doc_retention_class = document.retention_class
+    doc_notes = document.notes
+    doc_tags = _parse_tags_string(document.tags)
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
@@ -713,6 +771,11 @@ async def get_document(
         checksum=checksum,
         error_message=safe_error_message,
         error_details=safe_error_details,
+        source=doc_source,
+        language=doc_language,
+        retention_class=doc_retention_class,
+        notes=doc_notes,
+        tags=doc_tags,
         lifecycle_timeline=lifecycle_timeline,
         created_at=created_at,
         updated_at=updated_at,

@@ -9,6 +9,7 @@ engine = create_async_engine(
     str(settings.database_url),
     echo=settings.database_echo,
     pool_pre_ping=True,
+    pool_recycle=1800,
 )
 
 SessionLocal = async_sessionmaker(

@@ -21,6 +21,11 @@ class DocumentRepository:
         storage_object_key: str,
         checksum: str | None = None,
         status: str = DocumentStatus.uploaded.value,
+        source: str | None = None,
+        language: str | None = None,
+        retention_class: str | None = None,
+        notes: str | None = None,
+        tags: str | None = None,
     ) -> Document:
         document_kwargs: dict[str, object] = {
             "organization_id": organization_id,
@@ -31,6 +36,11 @@ class DocumentRepository:
             "storage_object_key": storage_object_key,
             "checksum": checksum,
             "status": status,
+            "source": source,
+            "language": language,
+            "retention_class": retention_class,
+            "notes": notes,
+            "tags": tags,
         }
         if document_id is not None:
             document_kwargs["id"] = document_id

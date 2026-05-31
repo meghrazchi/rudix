@@ -894,6 +894,14 @@ export function AssignCollectionsDialog({
   onClose: () => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(currentCollectionIds));
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (!loadingCollections && !initializedRef.current) {
+      initializedRef.current = true;
+      setSelected(new Set(currentCollectionIds));
+    }
+  }, [loadingCollections, currentCollectionIds]);
 
   function toggle(id: string) {
     setSelected((prev) => {
