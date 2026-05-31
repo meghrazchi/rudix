@@ -6,8 +6,20 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentType,
   type ReactNode,
 } from "react";
+import {
+  BarChart2,
+  FileText,
+  Folder,
+  LayoutGrid,
+  MessageSquare,
+  Settings,
+  Shield,
+  Workflow,
+  type LucideProps,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -94,95 +106,19 @@ function routeDisabledReason(
   return "Unavailable";
 }
 
+const NAV_ICONS: Partial<Record<AppNavigationItem["key"], ComponentType<LucideProps>>> = {
+  dashboard: LayoutGrid,
+  documents: FileText,
+  collections: Folder,
+  chat: MessageSquare,
+  evaluations: BarChart2,
+  pipeline: Workflow,
+  settings: Settings,
+};
+
 function NavigationIcon({ routeKey }: { routeKey: AppNavigationItem["key"] }) {
-  const sharedProps = {
-    className: "h-4 w-4 shrink-0",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.9,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
-
-  if (routeKey === "dashboard") {
-    return (
-      <svg {...sharedProps}>
-        <rect x="3.8" y="3.8" width="6.6" height="6.6" rx="1.2" />
-        <rect x="13.6" y="3.8" width="6.6" height="6.6" rx="1.2" />
-        <rect x="3.8" y="13.6" width="6.6" height="6.6" rx="1.2" />
-        <rect x="13.6" y="13.6" width="6.6" height="6.6" rx="1.2" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "documents") {
-    return (
-      <svg {...sharedProps}>
-        <path d="M8 3.8h6l4.2 4.2V20a1.8 1.8 0 0 1-1.8 1.8H8A1.8 1.8 0 0 1 6.2 20V5.6A1.8 1.8 0 0 1 8 3.8Z" />
-        <path d="M14 3.8V8h4.2M9.2 12.1h5.6M9.2 15.6h5.6" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "collections") {
-    return (
-      <svg {...sharedProps}>
-        <rect x="3" y="3.8" width="8" height="7.2" rx="1.2" />
-        <rect x="13" y="3.8" width="8" height="7.2" rx="1.2" />
-        <rect x="3" y="13" width="8" height="7.2" rx="1.2" />
-        <rect x="13" y="13" width="8" height="7.2" rx="1.2" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "chat") {
-    return (
-      <svg {...sharedProps}>
-        <path d="M4.2 6.4A2.2 2.2 0 0 1 6.4 4.2h11.2a2.2 2.2 0 0 1 2.2 2.2v7.2a2.2 2.2 0 0 1-2.2 2.2H11l-4.4 4v-4H6.4a2.2 2.2 0 0 1-2.2-2.2Z" />
-        <path d="M8.3 9.4h7.4M8.3 12.4h4.8" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "evaluations") {
-    return (
-      <svg {...sharedProps}>
-        <path d="M4.6 19.8V4.2M4.6 19.8h15.2" />
-        <rect x="7.8" y="11.6" width="2.8" height="5.4" rx="0.7" />
-        <rect x="12.1" y="8.8" width="2.8" height="8.2" rx="0.7" />
-        <rect x="16.4" y="6.1" width="2.8" height="10.9" rx="0.7" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "pipeline") {
-    return (
-      <svg {...sharedProps}>
-        <circle cx="6.3" cy="7" r="1.9" />
-        <circle cx="17.7" cy="7" r="1.9" />
-        <circle cx="12" cy="16.8" r="1.9" />
-        <path d="M8.2 7h7.6M7.3 8.6l3.8 6.3M16.7 8.6l-3.8 6.3" />
-      </svg>
-    );
-  }
-
-  if (routeKey === "settings") {
-    return (
-      <svg {...sharedProps}>
-        <circle cx="12" cy="12" r="2.7" />
-        <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.8-1l-.4-2.6h-4l-.4 2.6a7 7 0 0 0-1.8 1l-2.4-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .3 0 .7.1 1l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.8 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...sharedProps}>
-      <path d="M12 3.6 5.6 6.5v5.2c0 4.1 2.5 7.8 6.4 8.9 3.9-1.1 6.4-4.8 6.4-8.9V6.5Z" />
-      <path d="m9.3 12 1.8 1.8 3.6-3.7" />
-    </svg>
-  );
+  const Icon = NAV_ICONS[routeKey] ?? Shield;
+  return <Icon className="h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden />;
 }
 
 type TopBarMenuKey = "notifications" | "help" | "profile";
