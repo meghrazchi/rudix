@@ -435,3 +435,256 @@ async def test_list_chat_session_messages_rejects_inaccessible_sessions(
     )
     assert invalid_id_response.status_code == 404
     assert invalid_id_response.json()["detail"] == "Chat session not found"
+
+
+@pytest.mark.asyncio
+async def test_rename_chat_session_updates_title(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    chat_session = await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="Old Title",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.patch(
+        f"/api/v1/chat/sessions/{chat_session.id}",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={"title": "  New Title  "},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["session_id"] == str(chat_session.id)
+    assert payload["title"] == "New Title"
+
+    await db_session.refresh(chat_session)
+    assert chat_session.title == "New Title"
+
+
+@pytest.mark.asyncio
+async def test_rename_chat_session_clears_title_when_null(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    chat_session = await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="Named Session",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.patch(
+        f"/api/v1/chat/sessions/{chat_session.id}",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={"title": None},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] is None
+
+
+@pytest.mark.asyncio
+async def test_rename_chat_session_rejects_inaccessible_session(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, other_organization = await _seed_principal(db_session)
+    other_user = await _seed_user_for_org(db_session, organization=other_organization)
+    other_session = await repository.create_chat_session(
+        db_session,
+        organization_id=other_organization.id,
+        user_id=other_user.id,
+        title="Other Session",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.patch(
+        f"/api/v1/chat/sessions/{other_session.id}",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={"title": "Hijacked"},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_removes_record(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    chat_session = await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="To Be Deleted",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.delete(
+        f"/api/v1/chat/sessions/{chat_session.id}",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert response.status_code == 204
+
+    sessions = await repository.list_chat_sessions(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+    )
+    assert not any(s.id == chat_session.id for s in sessions)
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_rejects_inaccessible_session(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, other_organization = await _seed_principal(db_session)
+    other_user = await _seed_user_for_org(db_session, organization=other_organization)
+    other_session = await repository.create_chat_session(
+        db_session,
+        organization_id=other_organization.id,
+        user_id=other_user.id,
+        title="Other Session",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.delete(
+        f"/api/v1/chat/sessions/{other_session.id}",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert response.status_code == 404
+
+    await db_session.refresh(other_session)
+    assert other_session.id is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_chat_session_invalid_id_returns_404(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.delete(
+        "/api/v1/chat/sessions/not-a-uuid",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_chat_sessions_search_filters_by_title(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="Policy Review 2026",
+    )
+    await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="Budget Planning",
+    )
+    await repository.create_chat_session(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        title="policy amendment draft",
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.get(
+        "/api/v1/chat/sessions",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        params={"search": "policy"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 2
+    titles = {item["title"] for item in payload["items"]}
+    assert titles == {"Policy Review 2026", "policy amendment draft"}
+
+
+@pytest.mark.asyncio
+async def test_list_chat_sessions_search_blank_returns_all(
+    chat_sessions_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    repository = ChatRepository()
+    user, organization, _ = await _seed_principal(db_session)
+    for i in range(3):
+        await repository.create_chat_session(
+            db_session,
+            organization_id=organization.id,
+            user_id=user.id,
+            title=f"Session {i}",
+        )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await chat_sessions_client.get(
+        "/api/v1/chat/sessions",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        params={"search": "   "},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 3

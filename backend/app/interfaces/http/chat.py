@@ -29,6 +29,7 @@ from app.domains.chat.schemas.chat import (
     ChatSessionMessageResponse,
     ChatSessionResponse,
     CreateChatSessionRequest,
+    UpdateChatSessionRequest,
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
@@ -286,19 +287,23 @@ async def list_chat_sessions(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    search: Annotated[str | None, Query(max_length=255)] = None,
 ) -> ChatSessionListResponse:
     user_id, organization_id = _principal_user_and_org(principal)
+    normalized_search = search.strip() if search and search.strip() else None
     sessions = await chat_repository.list_chat_sessions(
         db_session,
         organization_id=organization_id,
         user_id=user_id,
         limit=limit,
         offset=offset,
+        search=normalized_search,
     )
     total = await chat_repository.count_chat_sessions(
         db_session,
         organization_id=organization_id,
         user_id=user_id,
+        search=normalized_search,
     )
     message_counts = await chat_repository.count_messages_by_session_ids(
         db_session,
@@ -921,6 +926,114 @@ async def query_chat(
             llm_model=llm_model,
         ),
         created_at=assistant_message.created_at,
+    )
+
+
+@router.patch("/sessions/{session_id}", response_model=ChatSessionResponse)
+async def update_chat_session(
+    session_id: str,
+    payload: UpdateChatSessionRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatSessionResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
+
+    chat_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    title = payload.title.strip() if payload.title is not None else None
+    chat_session = await chat_repository.update_chat_session_title(
+        db_session,
+        chat_session=chat_session,
+        title=title,
+    )
+    await db_session.commit()
+    await db_session.refresh(chat_session)
+
+    message_counts = await chat_repository.count_messages_by_session_ids(
+        db_session,
+        session_ids=[chat_session.id],
+    )
+
+    log_query_event(
+        event="chat.session.updated",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=session_id,
+        status_code=status.HTTP_200_OK,
+    )
+    return ChatSessionResponse(
+        session_id=str(chat_session.id),
+        title=chat_session.title,
+        message_count=message_counts.get(chat_session.id, 0),
+        created_at=chat_session.created_at,
+        updated_at=chat_session.updated_at,
+    )
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_chat_session(
+    session_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
+
+    deleted = await chat_repository.delete_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    await db_session.commit()
+
+    log_query_event(
+        event="chat.session.deleted",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=session_id,
+        status_code=status.HTTP_204_NO_CONTENT,
     )
 
 

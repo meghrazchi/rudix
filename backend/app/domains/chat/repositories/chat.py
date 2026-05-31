@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chat import ChatMessage, ChatSession
@@ -54,17 +54,19 @@ class ChatRepository:
         user_id: UUID,
         limit: int = 20,
         offset: int = 0,
+        search: str | None = None,
     ) -> list[ChatSession]:
-        result = await session.execute(
+        query = (
             select(ChatSession)
             .where(
                 ChatSession.organization_id == organization_id,
                 ChatSession.user_id == user_id,
             )
-            .order_by(ChatSession.created_at.desc(), ChatSession.id.desc())
-            .offset(offset)
-            .limit(limit)
         )
+        if search:
+            query = query.where(ChatSession.title.ilike(f"%{search}%"))
+        query = query.order_by(ChatSession.updated_at.desc(), ChatSession.id.desc()).offset(offset).limit(limit)
+        result = await session.execute(query)
         return list(result.scalars().all())
 
     async def count_chat_sessions(
@@ -73,14 +75,46 @@ class ChatRepository:
         *,
         organization_id: UUID,
         user_id: UUID,
+        search: str | None = None,
     ) -> int:
+        query = select(func.count(ChatSession.id)).where(
+            ChatSession.organization_id == organization_id,
+            ChatSession.user_id == user_id,
+        )
+        if search:
+            query = query.where(ChatSession.title.ilike(f"%{search}%"))
+        result = await session.execute(query)
+        return int(result.scalar_one())
+
+    async def update_chat_session_title(
+        self,
+        session: AsyncSession,
+        *,
+        chat_session: ChatSession,
+        title: str | None,
+    ) -> ChatSession:
+        chat_session.title = title
+        session.add(chat_session)
+        await session.flush()
+        await session.refresh(chat_session)
+        return chat_session
+
+    async def delete_chat_session(
+        self,
+        session: AsyncSession,
+        *,
+        chat_session_id: UUID,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> bool:
         result = await session.execute(
-            select(func.count(ChatSession.id)).where(
+            delete(ChatSession).where(
+                ChatSession.id == chat_session_id,
                 ChatSession.organization_id == organization_id,
                 ChatSession.user_id == user_id,
             )
         )
-        return int(result.scalar_one())
+        return result.rowcount > 0
 
     async def count_messages_by_session_ids(
         self,

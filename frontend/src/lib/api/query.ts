@@ -104,6 +104,8 @@ export const queryKeys = {
   },
   chat: {
     sessions: ["chat", "sessions"] as const,
+    sessionsQuery: (params?: { search?: string }) =>
+      ["chat", "sessions", params ?? {}] as const,
     session: (sessionId: string) => ["chat", "session", sessionId] as const,
     sessionMessages: (sessionId: string) =>
       ["chat", "session-messages", sessionId] as const,
@@ -153,6 +155,8 @@ export type FrontendMutationKind =
   | "collection.document.remove"
   | "collection.policy.update"
   | "chat.query"
+  | "chat.session.rename"
+  | "chat.session.delete"
   | "agent.run"
   | "evaluation.run";
 
@@ -204,7 +208,12 @@ export async function invalidateAfterMutation(
     return;
   }
 
-  if (kind === "chat.query" || kind === "agent.run") {
+  if (
+    kind === "chat.query" ||
+    kind === "agent.run" ||
+    kind === "chat.session.rename" ||
+    kind === "chat.session.delete"
+  ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.chat.sessions });
     return;
   }

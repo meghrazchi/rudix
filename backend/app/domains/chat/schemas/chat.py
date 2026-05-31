@@ -40,6 +40,20 @@ class CreateChatSessionRequest(BaseModel):
         return trimmed
 
 
+class UpdateChatSessionRequest(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("title must not be blank")
+        return trimmed
+
+
 class ChatSessionResponse(BaseModel):
     session_id: str
     title: str | None = None

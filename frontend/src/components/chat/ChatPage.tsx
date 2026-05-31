@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -29,9 +36,11 @@ import {
 } from "@/lib/api/agent";
 import {
   createChatSession,
+  deleteChatSession,
   listChatSessionMessages,
   listChatSessions,
   queryChat,
+  updateChatSession,
   type ChatCitationResponse,
   type ChatDebugResponse,
   type ChatSessionMessageResponse,
@@ -534,6 +543,11 @@ export function ChatPage() {
   } | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -542,12 +556,15 @@ export function ChatPage() {
   });
 
   const sessionsQuery = useInfiniteQuery({
-    queryKey: queryKeys.chat.sessions,
+    queryKey: queryKeys.chat.sessionsQuery(
+      debouncedSearchQuery ? { search: debouncedSearchQuery } : undefined,
+    ),
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       listChatSessions({
         limit: SESSION_LIST_LIMIT,
         offset: Number(pageParam),
+        search: debouncedSearchQuery || undefined,
       }),
     getNextPageParam: (lastPage, allPages) => {
       const loadedCount = allPages.reduce(
@@ -761,6 +778,15 @@ export function ChatPage() {
   }, [agenticMode, filteredSelectedDocumentIds, rerank, topK]);
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(sessionSearchQuery.trim());
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [sessionSearchQuery]);
+
+  useEffect(() => {
     if (!isContextModalOpen) {
       return;
     }
@@ -902,6 +928,29 @@ export function ChatPage() {
     mutationFn: (title: string | null) => createChatSession({ title }),
   });
 
+  const renameSessionMutation = useMutation({
+    mutationFn: ({ sessionId, title }: { sessionId: string; title: string | null }) =>
+      updateChatSession(sessionId, { title }),
+    onSuccess: async () => {
+      await invalidateAfterMutation(queryClient, "chat.session.rename");
+    },
+  });
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: (sessionId: string) => deleteChatSession(sessionId),
+    onSuccess: async (_, deletedSessionId) => {
+      if (activeSessionId === deletedSessionId) {
+        resetForNewChat();
+      }
+      setThreadsBySession((previous) => {
+        const next = { ...previous };
+        delete next[activeThreadKey(deletedSessionId)];
+        return next;
+      });
+      await invalidateAfterMutation(queryClient, "chat.session.delete");
+    },
+  });
+
   const isComposerDisabled =
     queryMutation.isPending ||
     agentRunMutation.isPending ||
@@ -955,6 +1004,51 @@ export function ChatPage() {
     setSubmitRequestId(null);
     replaceSessionParamInUrl(null);
   }
+
+  const handleRenameStart = useCallback(
+    (sessionId: string, currentTitle: string | null | undefined) => {
+      setRenamingSessionId(sessionId);
+      setRenameValue(currentTitle ?? "");
+    },
+    [],
+  );
+
+  const handleRenameCancel = useCallback(() => {
+    setRenamingSessionId(null);
+    setRenameValue("");
+  }, []);
+
+  const handleRenameSubmit = useCallback(
+    (sessionId: string) => {
+      const trimmed = renameValue.trim();
+      renameSessionMutation.mutate(
+        { sessionId, title: trimmed || null },
+        {
+          onSettled: () => {
+            setRenamingSessionId(null);
+            setRenameValue("");
+          },
+        },
+      );
+    },
+    [renameValue, renameSessionMutation],
+  );
+
+  const handleDeleteRequest = useCallback((sessionId: string) => {
+    setConfirmDeleteSessionId(sessionId);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(
+    (sessionId: string) => {
+      setConfirmDeleteSessionId(null);
+      deleteSessionMutation.mutate(sessionId);
+    },
+    [deleteSessionMutation],
+  );
+
+  const handleDeleteCancel = useCallback(() => {
+    setConfirmDeleteSessionId(null);
+  }, []);
 
   async function handleApprovalDecision(params: {
     runId: string;
@@ -1143,7 +1237,10 @@ export function ChatPage() {
                 </span>
                 <input
                   type="text"
+                  value={sessionSearchQuery}
+                  onChange={(e) => setSessionSearchQuery(e.target.value)}
                   placeholder="Search sessions..."
+                  aria-label="Search sessions"
                   className="h-9 w-60 rounded-full border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
                 />
               </div>
@@ -1184,33 +1281,134 @@ export function ChatPage() {
               ) : sessions.length ? (
                 <>
                   <ul className="space-y-2">
-                    {sessions.map((session) => (
-                      <li key={session.session_id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveSessionId(session.session_id);
-                            setSubmitRequestId(null);
-                            setPendingQuestion(null);
-                            replaceSessionParamInUrl(session.session_id);
-                          }}
-                          className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                            session.session_id === activeSessionId
-                              ? "border-[#3525cd] bg-[#ece8ff] text-[#2f2a46]"
-                              : "border-[#dfdbef] bg-white text-[#4f4b63] hover:bg-[#faf9ff]"
-                          }`}
-                        >
-                          <p className="truncate font-semibold">
-                            {sessionDisplayTitleById.get(session.session_id) ??
-                              "Untitled session"}
-                          </p>
-                          <p className="mt-1 text-xs">
-                            {session.message_count} messages • updated{" "}
-                            {formatDate(session.updated_at)}
-                          </p>
-                        </button>
-                      </li>
-                    ))}
+                    {sessions.map((session) => {
+                      const isActive = session.session_id === activeSessionId;
+                      const isRenaming = renamingSessionId === session.session_id;
+                      const isConfirmingDelete = confirmDeleteSessionId === session.session_id;
+                      const displayTitle =
+                        sessionDisplayTitleById.get(session.session_id) ??
+                        "Untitled session";
+
+                      return (
+                        <li key={session.session_id}>
+                          {isConfirmingDelete ? (
+                            <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm">
+                              <p className="mb-2 font-semibold text-rose-800">
+                                Delete this session?
+                              </p>
+                              <p className="mb-3 truncate text-xs text-rose-700">
+                                {displayTitle}
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteConfirm(session.session_id)}
+                                  disabled={deleteSessionMutation.isPending}
+                                  className="flex-1 rounded bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+                                >
+                                  Delete
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleDeleteCancel}
+                                  className="flex-1 rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : isRenaming ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleRenameSubmit(session.session_id);
+                              }}
+                              className={`rounded-lg border px-3 py-2 ${isActive ? "border-[#3525cd] bg-[#ece8ff]" : "border-[#dfdbef] bg-white"}`}
+                            >
+                              <input
+                                autoFocus
+                                type="text"
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape") handleRenameCancel();
+                                }}
+                                onBlur={() => handleRenameCancel()}
+                                maxLength={SESSION_TITLE_MAX_LENGTH}
+                                placeholder="Session title"
+                                aria-label="Session title"
+                                className="w-full bg-transparent text-sm font-semibold text-[#2f2a46] outline-none placeholder:text-[#9d98b5]"
+                              />
+                              <div className="mt-1 flex gap-2">
+                                <button
+                                  type="submit"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  disabled={renameSessionMutation.isPending}
+                                  className="text-xs font-semibold text-[#3525cd] hover:underline disabled:opacity-60"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={handleRenameCancel}
+                                  className="text-xs font-semibold text-[#6a6780] hover:underline"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <div
+                              className={`group flex items-stretch rounded-lg border transition ${
+                                isActive
+                                  ? "border-[#3525cd] bg-[#ece8ff]"
+                                  : "border-[#dfdbef] bg-white hover:bg-[#faf9ff]"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSessionId(session.session_id);
+                                  setSubmitRequestId(null);
+                                  setPendingQuestion(null);
+                                  replaceSessionParamInUrl(session.session_id);
+                                }}
+                                className="min-w-0 flex-1 px-3 py-2 text-left text-sm"
+                              >
+                                <p className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}>
+                                  {displayTitle}
+                                </p>
+                                <p className="mt-1 text-xs text-[#7a758f]">
+                                  {session.message_count} messages • updated{" "}
+                                  {formatDate(session.updated_at)}
+                                </p>
+                              </button>
+                              <div className="flex shrink-0 flex-col justify-center gap-1 px-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameStart(session.session_id, session.title)}
+                                  title="Rename session"
+                                  aria-label="Rename session"
+                                  className="flex h-6 w-6 items-center justify-center rounded text-[#6a6780] hover:bg-[#e4e1f0] hover:text-[#2f2a46]"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRequest(session.session_id)}
+                                  title="Delete session"
+                                  aria-label="Delete session"
+                                  className="flex h-6 w-6 items-center justify-center rounded text-[#6a6780] hover:bg-rose-100 hover:text-rose-700"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                   {sessionsQuery.hasNextPage ? (
                     <button
@@ -1230,7 +1428,11 @@ export function ChatPage() {
               ) : (
                 <EmptyState
                   compact
-                  title="No sessions yet. Ask your first question to start one."
+                  title={
+                    debouncedSearchQuery
+                      ? `No sessions match "${debouncedSearchQuery}".`
+                      : "No sessions yet. Ask your first question to start one."
+                  }
                 />
               )}
             </section>

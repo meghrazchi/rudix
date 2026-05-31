@@ -18,9 +18,11 @@ import {
 } from "@/lib/api/agent";
 import {
   createChatSession,
+  deleteChatSession,
   listChatSessionMessages,
   listChatSessions,
   queryChat,
+  updateChatSession,
 } from "@/lib/api/chat";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
@@ -39,9 +41,11 @@ vi.mock("@/lib/api/documents", () => ({
 
 vi.mock("@/lib/api/chat", () => ({
   createChatSession: vi.fn(),
+  deleteChatSession: vi.fn(),
   listChatSessionMessages: vi.fn(),
   listChatSessions: vi.fn(),
   queryChat: vi.fn(),
+  updateChatSession: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agent", () => ({
@@ -95,6 +99,14 @@ describe("ChatPage", () => {
       message_count: 0,
       created_at: "2026-05-14T10:00:00Z",
       updated_at: "2026-05-14T10:00:00Z",
+    });
+    vi.mocked(deleteChatSession).mockResolvedValue(undefined);
+    vi.mocked(updateChatSession).mockResolvedValue({
+      session_id: "session-new",
+      title: "Renamed Session",
+      message_count: 0,
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: "2026-05-14T10:01:00Z",
     });
     vi.mocked(createAgentRun).mockResolvedValue({
       run: {
@@ -1897,5 +1909,327 @@ describe("ChatPage", () => {
       2,
       expect.objectContaining({ question: "repeat me" }),
     );
+  });
+
+  it("filters session list when search query is typed", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            session_id: "s1",
+            title: "Policy Review",
+            message_count: 2,
+            created_at: "2026-05-14T09:00:00Z",
+            updated_at: "2026-05-14T09:05:00Z",
+          },
+          {
+            session_id: "s2",
+            title: "Budget Planning",
+            message_count: 1,
+            created_at: "2026-05-14T08:00:00Z",
+            updated_at: "2026-05-14T08:05:00Z",
+          },
+        ],
+        total: 2,
+        limit: 10,
+        offset: 0,
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            session_id: "s1",
+            title: "Policy Review",
+            message_count: 2,
+            created_at: "2026-05-14T09:00:00Z",
+            updated_at: "2026-05-14T09:05:00Z",
+          },
+        ],
+        total: 1,
+        limit: 10,
+        offset: 0,
+      });
+
+    renderPage();
+    expect(await screen.findByText("Policy Review")).toBeInTheDocument();
+    expect(screen.getByText("Budget Planning")).toBeInTheDocument();
+
+    const searchInput = screen.getByRole("textbox", { name: /Search sessions/i });
+    await userEvent.type(searchInput, "policy");
+
+    await waitFor(() => {
+      expect(vi.mocked(listChatSessions)).toHaveBeenCalledWith(
+        expect.objectContaining({ search: "policy" }),
+      );
+    });
+  });
+
+  it("shows contextual empty state when search returns no results", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 10,
+      offset: 0,
+    });
+
+    renderPage();
+    await screen.findByRole("textbox", { name: /Search sessions/i });
+
+    const searchInput = screen.getByRole("textbox", { name: /Search sessions/i });
+    await userEvent.type(searchInput, "xyz");
+
+    await waitFor(() => {
+      expect(screen.getByText(/No sessions match "xyz"/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows rename inline form when rename button is clicked", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "s1",
+          title: "My Session",
+          message_count: 1,
+          created_at: "2026-05-14T09:00:00Z",
+          updated_at: "2026-05-14T09:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+
+    renderPage();
+    expect(await screen.findByText("My Session")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Rename session/i }));
+
+    expect(screen.getByRole("textbox", { name: /Session title/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("calls updateChatSession when rename is saved", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "s1",
+          title: "Old Title",
+          message_count: 1,
+          created_at: "2026-05-14T09:00:00Z",
+          updated_at: "2026-05-14T09:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    vi.mocked(updateChatSession).mockResolvedValue({
+      session_id: "s1",
+      title: "New Title",
+      message_count: 1,
+      created_at: "2026-05-14T09:00:00Z",
+      updated_at: "2026-05-14T09:06:00Z",
+    });
+
+    renderPage();
+    expect(await screen.findByText("Old Title")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Rename session/i }));
+    const input = screen.getByRole("textbox", { name: /Session title/i });
+    await userEvent.clear(input);
+    await userEvent.type(input, "New Title");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(updateChatSession)).toHaveBeenCalledWith("s1", { title: "New Title" });
+    });
+  });
+
+  it("shows delete confirmation and calls deleteChatSession on confirm", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "s1",
+          title: "Session To Delete",
+          message_count: 3,
+          created_at: "2026-05-14T09:00:00Z",
+          updated_at: "2026-05-14T09:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+
+    renderPage();
+    expect(await screen.findByText("Session To Delete")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Delete session/i }));
+
+    expect(screen.getByText("Delete this session?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(vi.mocked(deleteChatSession)).toHaveBeenCalledWith("s1");
+    });
+  });
+
+  it("dismisses delete confirmation without deleting when cancel is clicked", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "s1",
+          title: "Keep Me",
+          message_count: 1,
+          created_at: "2026-05-14T09:00:00Z",
+          updated_at: "2026-05-14T09:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+
+    renderPage();
+    expect(await screen.findByText("Keep Me")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Delete session/i }));
+    expect(screen.getByText("Delete this session?")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByText("Delete this session?")).not.toBeInTheDocument();
+    expect(vi.mocked(deleteChatSession)).not.toHaveBeenCalled();
+  });
+
+  it("loads historical messages when switching to a session with messages", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "report.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 5,
+          chunk_count: 20,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T08:00:00Z",
+          updated_at: "2026-05-14T08:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listChatSessions).mockResolvedValue({
+      items: [
+        {
+          session_id: "s-history",
+          title: "Historical Chat",
+          message_count: 2,
+          created_at: "2026-05-14T09:00:00Z",
+          updated_at: "2026-05-14T09:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 10,
+      offset: 0,
+    });
+    vi.mocked(listChatSessionMessages).mockResolvedValue({
+      items: [
+        {
+          message_id: "m-user",
+          role: "user",
+          content: "What does the report say?",
+          confidence_score: null,
+          confidence_category: null,
+          citations: [],
+          created_at: "2026-05-14T09:01:00Z",
+        },
+        {
+          message_id: "m-assistant",
+          role: "assistant",
+          content: "The report says revenue grew 12%.",
+          confidence_score: 0.88,
+          confidence_category: "high",
+          citations: [],
+          created_at: "2026-05-14T09:01:05Z",
+        },
+      ],
+      total: 2,
+      limit: 500,
+      offset: 0,
+    });
+
+    renderPage();
+    expect(await screen.findByText("Historical Chat")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Historical Chat"));
+
+    expect(
+      await screen.findByText("The report says revenue grew 12%."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("What does the report say?")).toBeInTheDocument();
   });
 });

@@ -18,6 +18,10 @@ export type ChatSessionMessageListResponse =
 export type ChatQueryRequest = Schemas["ChatQueryRequest"];
 export type ChatMessageRequest = Schemas["ChatMessageRequest"];
 
+export type UpdateChatSessionRequest = {
+  title: string | null;
+};
+
 export async function createChatSession(
   payload: CreateChatSessionRequest = {},
 ): Promise<ChatSessionResponse> {
@@ -28,12 +32,13 @@ export async function createChatSession(
 }
 
 export async function listChatSessions(
-  params: { limit?: number; offset?: number } = {},
+  params: { limit?: number; offset?: number; search?: string } = {},
 ): Promise<ChatSessionListResponse> {
   return apiRequest<ChatSessionListResponse>("/chat/sessions", {
     query: {
       limit: params.limit,
       offset: params.offset,
+      search: params.search || undefined,
     },
   });
 }
@@ -44,6 +49,25 @@ export async function getChatSession(
   return apiRequest<ChatSessionResponse>(
     `/chat/sessions/${encodeURIComponent(sessionId)}`,
   );
+}
+
+export async function updateChatSession(
+  sessionId: string,
+  payload: UpdateChatSessionRequest,
+): Promise<ChatSessionResponse> {
+  return apiRequest<ChatSessionResponse>(
+    `/chat/sessions/${encodeURIComponent(sessionId)}`,
+    {
+      method: "PATCH",
+      json: payload,
+    },
+  );
+}
+
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  return apiRequest<void>(`/chat/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function listChatSessionMessages(
