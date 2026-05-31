@@ -1,5 +1,6 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.chat import ChatMessage, ChatSession
+from app.models.chat_share import ChatShare
 from app.models.citation import Citation
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -19,6 +20,7 @@ __all__ = [
     "AuditLog",
     "ChatMessage",
     "ChatSession",
+    "ChatShare",
     "Citation",
     "Collection",
     "CollectionDocument",

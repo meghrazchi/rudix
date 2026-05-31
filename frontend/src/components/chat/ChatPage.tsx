@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-query";
 
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
+import { ShareModal } from "@/components/chat/ShareModal";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -58,6 +59,14 @@ import {
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
+import {
+  copyToClipboard,
+  downloadMarkdown,
+  formatAnswerAsMarkdown,
+  formatTranscriptAsMarkdown,
+  sanitizeFilename,
+  type ExportTurn,
+} from "@/lib/export-utils";
 import {
   buildPipelineExplorerHref,
   normalizePipelineRunType,
@@ -393,6 +402,15 @@ function toTurnResponseFromAgentRun(
   };
 }
 
+function toExportTurns(turns: ChatTurn[]): ExportTurn[] {
+  return turns.map((t) => ({
+    question: t.question,
+    answer: t.response.answer,
+    citations: t.response.citations,
+    created_at: t.response.created_at,
+  }));
+}
+
 function buildTurnsFromSessionMessages(
   messages: ChatSessionMessageResponse[],
 ): ChatTurn[] {
@@ -548,6 +566,8 @@ export function ChatPage() {
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -1440,7 +1460,8 @@ export function ChatPage() {
 
           <section className="min-h-0 rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
             <div className="flex h-full min-h-0 flex-col">
-              <div className="border-b border-[#e2dff1] px-4 py-3">
+              <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
+                <div className="min-w-0">
                 <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
                   Conversation
                 </h2>
@@ -1460,6 +1481,56 @@ export function ChatPage() {
                     "New chat draft. Start with a question to create a session."
                   )}
                 </p>
+                </div>
+                {activeSessionId && thread.length > 0 ? (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      aria-label="Copy full transcript"
+                      title="Copy transcript as Markdown"
+                      onClick={() => {
+                        const md = formatTranscriptAsMarkdown(
+                          toExportTurns(thread),
+                          activeSessionDisplayTitle,
+                        );
+                        void copyToClipboard(md);
+                      }}
+                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                    >
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">content_copy</span>
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Download transcript as Markdown"
+                      title="Download as .md file"
+                      onClick={() => {
+                        const md = formatTranscriptAsMarkdown(
+                          toExportTurns(thread),
+                          activeSessionDisplayTitle,
+                        );
+                        downloadMarkdown(
+                          md,
+                          `${sanitizeFilename(activeSessionDisplayTitle)}.md`,
+                        );
+                      }}
+                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                    >
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">download</span>
+                      Export
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Share session"
+                      title="Share session with org members"
+                      onClick={() => setIsShareModalOpen(true)}
+                      className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
+                    >
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">share</span>
+                      Share
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4">
@@ -1666,6 +1737,32 @@ export function ChatPage() {
                                   Agent stop reason:{" "}
                                   {turn.response.agent_run_error.message}
                                 </p>
+                              ) : null}
+                              {!turn.response.not_found ? (
+                                <div className="mt-2 flex items-center">
+                                  <button
+                                    type="button"
+                                    aria-label="Copy answer"
+                                    onClick={() => {
+                                      const md = formatAnswerAsMarkdown({
+                                        question: turn.question,
+                                        answer: turn.response.answer,
+                                        citations: turn.response.citations,
+                                        created_at: turn.response.created_at,
+                                      });
+                                      void copyToClipboard(md).then(() => {
+                                        setCopiedMessageId(turn.response.message_id);
+                                        setTimeout(() => setCopiedMessageId(null), 2000);
+                                      });
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#6a6780] hover:bg-[#f5f3ff] hover:text-[#3e376f]"
+                                  >
+                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                                      {copiedMessageId === turn.response.message_id ? "check" : "content_copy"}
+                                    </span>
+                                    {copiedMessageId === turn.response.message_id ? "Copied" : "Copy answer"}
+                                  </button>
+                                </div>
                               ) : null}
                               {isLatestTurn ? (
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2414,6 +2511,14 @@ export function ChatPage() {
           citations={previewCitationSet.citations}
           initialIndex={previewCitationSet.initialIndex}
           onClose={() => setPreviewCitationSet(null)}
+        />
+      ) : null}
+
+      {isShareModalOpen && activeSessionId ? (
+        <ShareModal
+          sessionId={activeSessionId}
+          sessionTitle={activeSessionDisplayTitle}
+          onClose={() => setIsShareModalOpen(false)}
         />
       ) : null}
     </>

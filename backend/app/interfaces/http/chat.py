@@ -1,4 +1,6 @@
+import secrets
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from time import perf_counter
 from typing import Annotated
 from uuid import UUID
@@ -16,6 +18,7 @@ from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.chat.repositories.share import ChatShareRepository
 from app.domains.chat.schemas.chat import (
     ChatCitationResponse,
     ChatConfidenceExplanationResponse,
@@ -30,6 +33,12 @@ from app.domains.chat.schemas.chat import (
     ChatSessionResponse,
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
+)
+from app.domains.chat.schemas.share import (
+    ChatShareListResponse,
+    ChatShareResponse,
+    CreateChatShareRequest,
+    SharedSessionResponse,
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
@@ -49,8 +58,11 @@ from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
+share_repository = ChatShareRepository()
 usage_repository = UsageRepository()
 audit_log_service = AuditLogService()
+
+_MAX_ACTIVE_SHARES_PER_SESSION = 10
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
@@ -1071,4 +1083,339 @@ async def create_chat_message(
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail=f"Chat pipeline for session {session_id} is not implemented in scaffold.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Share endpoints
+# ---------------------------------------------------------------------------
+
+
+def _to_share_response(share: "ChatShare") -> ChatShareResponse:  # type: ignore[name-defined]
+    from app.models.chat_share import ChatShare as _ChatShare  # noqa: F401
+
+    return ChatShareResponse(
+        share_id=str(share.id),
+        session_id=str(share.chat_session_id),
+        token=share.token,
+        created_at=share.created_at,
+        expires_at=share.expires_at,
+        is_revoked=share.is_revoked,
+        shared_by_user_id=str(share.shared_by_user_id),
+    )
+
+
+@router.post(
+    "/sessions/{session_id}/shares",
+    response_model=ChatShareResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_chat_share(
+    session_id: str,
+    payload: CreateChatShareRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatShareResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    request_id = _request_id_from_request(request)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
+
+    chat_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    active_count = await share_repository.count_active_chat_shares(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if active_count >= _MAX_ACTIVE_SHARES_PER_SESSION:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Maximum of {_MAX_ACTIVE_SHARES_PER_SESSION} active share links per session reached.",
+        )
+
+    expires_at: datetime | None = None
+    if payload.expires_in_hours is not None:
+        expires_at = datetime.now(tz=timezone.utc) + timedelta(hours=payload.expires_in_hours)
+
+    token = secrets.token_urlsafe(32)
+    share = await share_repository.create_chat_share(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        shared_by_user_id=user_id,
+        token=token,
+        expires_at=expires_at,
+    )
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="chat.session.shared",
+        resource_type="chat_session",
+        resource_id=chat_session_id,
+        request_id=request_id,
+        metadata={"share_id": str(share.id), "expires_at": expires_at.isoformat() if expires_at else None},
+    )
+    await db_session.commit()
+    await db_session.refresh(share)
+
+    log_query_event(
+        event="chat.session.shared",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=session_id,
+        status_code=status.HTTP_201_CREATED,
+    )
+    return _to_share_response(share)
+
+
+@router.get("/sessions/{session_id}/shares", response_model=ChatShareListResponse)
+async def list_chat_shares(
+    session_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatShareListResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
+
+    chat_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    shares = await share_repository.list_active_chat_shares(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    items = [_to_share_response(s) for s in shares]
+    return ChatShareListResponse(items=items, total=len(items))
+
+
+@router.delete(
+    "/sessions/{session_id}/shares/{share_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def revoke_chat_share(
+    session_id: str,
+    share_id: str,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    user_id, organization_id = _principal_user_and_org(principal)
+    request_id = _request_id_from_request(request)
+    try:
+        chat_session_id = UUID(session_id)
+        share_uuid = UUID(share_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Share not found"
+        ) from exc
+
+    revoked = await share_repository.revoke_chat_share(
+        db_session,
+        share_id=share_uuid,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if not revoked:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found")
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="chat.session.share.revoked",
+        resource_type="chat_session",
+        resource_id=chat_session_id,
+        request_id=request_id,
+        metadata={"share_id": share_id},
+    )
+    await db_session.commit()
+
+    log_query_event(
+        event="chat.session.share.revoked",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=session_id,
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+
+
+@router.get("/shared/{token}", response_model=SharedSessionResponse)
+async def get_shared_session(
+    token: str,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SharedSessionResponse:
+    _, organization_id = _principal_user_and_org(principal)
+    request_id = _request_id_from_request(request)
+
+    share = await share_repository.get_chat_share_by_token(
+        db_session,
+        token=token,
+        organization_id=organization_id,
+    )
+    if share is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Share link not found, expired, or revoked.",
+        )
+
+    from sqlalchemy import select as _select
+
+    from app.models.chat import ChatSession as _ChatSession
+
+    result = await db_session.execute(
+        _select(_ChatSession).where(_ChatSession.id == share.chat_session_id)
+    )
+    chat_session = result.scalar_one_or_none()
+    if chat_session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Share link not found, expired, or revoked.",
+        )
+
+    messages_orm = await chat_repository.list_chat_messages(
+        db_session,
+        chat_session_id=chat_session.id,
+        limit=500,
+        offset=0,
+    )
+    total_messages = await chat_repository.count_chat_messages(
+        db_session,
+        chat_session_id=chat_session.id,
+    )
+
+    items: list[ChatSessionMessageResponse] = []
+    for message in messages_orm:
+        message_citations: list[ChatCitationResponse] = []
+        if message.role == ChatRole.assistant.value:
+            citation_rows = await chat_repository.list_citations_for_message_with_filename(
+                db_session,
+                chat_message_id=message.id,
+            )
+            message_citations = [
+                ChatCitationResponse(
+                    document_id=str(citation.document_id),
+                    chunk_id=str(citation.chunk_id),
+                    filename=filename,
+                    page_number=citation.page_number,
+                    score=citation.rerank_score
+                    if citation.rerank_score is not None
+                    else citation.similarity_score,
+                    similarity_score=citation.similarity_score,
+                    rerank_score=citation.rerank_score,
+                    rerank_rank=None,
+                    text_snippet=citation.text_snippet,
+                    start_offset=citation.start_offset,
+                    end_offset=citation.end_offset,
+                )
+                for citation, filename in citation_rows
+            ]
+
+        items.append(
+            ChatSessionMessageResponse(
+                message_id=str(message.id),
+                role=message.role,
+                content=message.content,
+                confidence_score=message.confidence_score,
+                confidence_category=_confidence_category_from_score(message.confidence_score),
+                citations=message_citations,
+                created_at=message.created_at,
+            )
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=principal.user_id,
+        action="chat.session.share.viewed",
+        resource_type="chat_session",
+        resource_id=chat_session.id,
+        request_id=request_id,
+        metadata={"share_id": str(share.id), "share_owner_user_id": str(share.shared_by_user_id)},
+    )
+    await db_session.commit()
+
+    log_query_event(
+        event="chat.session.share.viewed",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=str(chat_session.id),
+        status_code=status.HTTP_200_OK,
+    )
+    return SharedSessionResponse(
+        session_id=str(chat_session.id),
+        title=chat_session.title,
+        shared_at=share.created_at,
+        messages=items,
+        total_messages=total_messages,
     )
