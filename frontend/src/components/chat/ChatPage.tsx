@@ -11,6 +11,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -479,6 +480,12 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
   return "text-[#464555]";
 }
 
+function isPreviewableFile(filename: string | null | undefined): boolean {
+  if (!filename) return false;
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return ext === "pdf" || ext === "docx" || ext === "doc";
+}
+
 
 export function ChatPage() {
   const queryClient = useQueryClient();
@@ -514,6 +521,7 @@ export function ChatPage() {
     Record<string, "up" | "down">
   >({});
   const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
+  const [previewCitation, setPreviewCitation] = useState<ChatCitationResponse | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
 
   const settingsPreferencesQuery = useQuery({
@@ -1333,39 +1341,58 @@ export function ChatPage() {
                                   {turn.response.citations.length > 0 && (
                                     <div className="mt-3 grid grid-cols-2 gap-2">
                                       {turn.response.citations.map((citation, ci) => (
-                                        <button
+                                        <div
                                           key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                          type="button"
-                                          onClick={() => {
-                                            setSelectedResponseMessageId(turn.response.message_id);
-                                            setIsKnowledgeHubOpen(false);
-                                            setActiveCitation(citation);
-                                          }}
-                                          className="relative flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2 text-left hover:bg-[#eae6f4] transition-colors cursor-pointer"
+                                          className="relative flex items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
                                         >
-                                          <span
-                                            className={`material-symbols-outlined text-base shrink-0 ${getFileTypeColorClass(citation.filename)}`}
-                                            aria-hidden="true"
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setSelectedResponseMessageId(turn.response.message_id);
+                                              setIsKnowledgeHubOpen(false);
+                                              setActiveCitation(citation);
+                                            }}
+                                            className="flex flex-1 cursor-pointer items-start gap-2 overflow-hidden p-2 text-left"
                                           >
-                                            {getFileIcon(citation.filename)}
-                                          </span>
-                                          <div className="min-w-0 overflow-hidden">
-                                            <p className={`text-[10px] font-bold mb-0.5 ${getFileTypeColorClass(citation.filename)}`}>
-                                              {getFileTypeLabel(citation.filename)}
-                                            </p>
-                                            <p
-                                              className="truncate text-xs font-bold text-[#1b1b24]"
-                                              title={citation.filename ?? "Document"}
+                                            <span
+                                              className={`material-symbols-outlined shrink-0 text-base ${getFileTypeColorClass(citation.filename)}`}
+                                              aria-hidden="true"
                                             >
-                                              {citation.filename ?? "Document"}
-                                            </p>
-                                            {citation.text_snippet && (
-                                              <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
-                                                {citation.text_snippet}
+                                              {getFileIcon(citation.filename)}
+                                            </span>
+                                            <div className="min-w-0 overflow-hidden">
+                                              <p className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}>
+                                                {getFileTypeLabel(citation.filename)}
                                               </p>
-                                            )}
-                                          </div>
-                                        </button>
+                                              <p
+                                                className="truncate text-xs font-bold text-[#1b1b24]"
+                                                title={citation.filename ?? "Document"}
+                                              >
+                                                {citation.filename ?? "Document"}
+                                              </p>
+                                              {citation.text_snippet && (
+                                                <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
+                                                  {citation.text_snippet}
+                                                </p>
+                                              )}
+                                            </div>
+                                          </button>
+                                          {isPreviewableFile(citation.filename) && (
+                                            <button
+                                              type="button"
+                                              aria-label={`Preview ${citation.filename ?? "document"}`}
+                                              onClick={() => setPreviewCitation(citation)}
+                                              className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
+                                            >
+                                              <span
+                                                className="material-symbols-outlined text-[16px]"
+                                                aria-hidden="true"
+                                              >
+                                                visibility
+                                              </span>
+                                            </button>
+                                          )}
+                                        </div>
                                       ))}
                                     </div>
                                   )}
@@ -1848,21 +1875,23 @@ export function ChatPage() {
             {/* ── Citation Detail overlay ── */}
             {activeCitation ? (
               <div className="absolute inset-0 z-50 flex flex-col bg-white">
-                <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
-                  <div>
+                <div className="flex items-center gap-2 border-b border-[#e4e1ee] p-4">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-base font-semibold text-[#1b1b24]">Citation Details</h2>
-                    <p className="font-mono text-xs text-[#464555]">
+                    <p className="flex items-center gap-1 font-mono text-xs text-[#464555]">
                       <span className="truncate" title={activeCitation.filename ?? "Document"}>
                         {activeCitation.filename ?? "Document"}
                       </span>
-                      {activeCitation.page_number ? ` • Page ${activeCitation.page_number}` : ""}
+                      {activeCitation.page_number ? (
+                        <span className="shrink-0">• Page {activeCitation.page_number}</span>
+                      ) : null}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveCitation(null)}
                     aria-label="Close citation detail"
-                    className="rounded-full p-1.5 text-[#464555] hover:bg-[#f0ecf9] transition-colors"
+                    className="shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
                   >
                     <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
                   </button>
@@ -2070,6 +2099,13 @@ export function ChatPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {previewCitation ? (
+        <DocumentPreviewModal
+          citation={previewCitation}
+          onClose={() => setPreviewCitation(null)}
+        />
       ) : null}
     </>
   );
