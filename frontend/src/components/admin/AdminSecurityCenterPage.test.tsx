@@ -306,33 +306,38 @@ describe("AdminSecurityCenterPage", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Organization security center",
+        name: "Organization Security Center",
       }),
     ).toBeInTheDocument();
-    expect(await screen.findByText("Security overview")).toBeInTheDocument();
-    expect(await screen.findByText("Security controls")).toBeInTheDocument();
-    expect(await screen.findByText("Unresolved warnings")).toBeInTheDocument();
-    expect(await screen.findByText("Recommendations")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Security Posture Summary"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Security Controls")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Security Recommendations"),
+    ).toBeInTheDocument();
     expect(
       (await screen.findAllByText("MFA is not required")).length,
     ).toBeGreaterThan(0);
     expect(
-      await screen.findByRole("link", { name: "Billing and plan controls" }),
+      await screen.findByRole("link", {
+        name: /Billing and plan controls/i,
+      }),
     ).toHaveAttribute("href", "https://billing.example.com");
     expect(
-      await screen.findByRole("link", { name: "API keys" }),
+      await screen.findByRole("link", { name: /^API keys/i }),
     ).toHaveAttribute("href", "https://api.example.com/keys");
     expect(
-      await screen.findByRole("link", { name: "Webhooks" }),
+      await screen.findByRole("link", { name: /^Webhooks/i }),
     ).toHaveAttribute("href", "https://api.example.com/webhooks");
     expect(
-      await screen.findByRole("link", { name: "Audit logs" }),
+      await screen.findByRole("link", { name: /^Audit logs/i }),
     ).toHaveAttribute("href", "/admin/audit-logs");
     expect(
-      await screen.findByRole("link", { name: "Team settings" }),
+      await screen.findByRole("link", { name: /^Role settings/i }),
     ).toHaveAttribute("href", "/settings?tab=organization");
     expect(
-      await screen.findByRole("link", { name: "Retention settings" }),
+      await screen.findByRole("link", { name: /^Data retention/i }),
     ).toHaveAttribute("href", "/settings?tab=organization");
   });
 

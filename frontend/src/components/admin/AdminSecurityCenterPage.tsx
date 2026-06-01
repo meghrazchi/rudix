@@ -1,11 +1,26 @@
 "use client";
 
 import {
+  AlertCircle,
   AlertTriangle,
+  BarChart3,
   CheckCircle2,
+  ChevronRight,
+  Code2,
+  CreditCard,
+  Database,
+  Download,
+  FileSearch2,
+  Globe,
+  Info,
+  Key,
   KeyRound,
   Link2,
+  LogIn,
+  Settings2,
   ShieldCheck,
+  Users,
+  Webhook,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -436,28 +451,119 @@ function buildRecommendations(
   return [...recommendations.values()];
 }
 
-function ActionLink({ href, label }: { href: string; label: string }) {
+function ActionLink({
+  href,
+  label,
+  variant = "outline",
+}: {
+  href: string;
+  label: string;
+  variant?: "primary" | "outline" | "link";
+}) {
+  const cls =
+    variant === "primary"
+      ? "inline-flex rounded-lg bg-[#2a2640] px-4 py-2 text-xs font-bold text-white hover:opacity-90"
+      : variant === "link"
+        ? "inline-flex px-2 py-1 text-sm font-bold text-[#3525cd] hover:underline"
+        : "inline-flex rounded-lg border border-[#d2cee6] px-3 py-1.5 text-xs font-semibold text-[#3525cd] hover:bg-[#f8f6ff]";
+
   if (isExternalHref(href)) {
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-1.5 text-xs font-semibold text-[#3525cd] hover:bg-[#f8f6ff]"
-      >
+      <a href={href} target="_blank" rel="noreferrer" className={cls}>
         {label}
       </a>
     );
   }
 
   return (
-    <Link
-      href={href}
-      className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-1.5 text-xs font-semibold text-[#3525cd] hover:bg-[#f8f6ff]"
-    >
+    <Link href={href} className={cls}>
       {label}
     </Link>
   );
+}
+
+function getRecommendationStyle(severity: WarningSeverity): {
+  borderClass: string;
+  iconBgClass: string;
+  badgeClass: string;
+  badgeLabel: string;
+  actionLabel: string;
+  actionVariant: "primary" | "outline" | "link";
+} {
+  if (severity === "high") {
+    return {
+      borderClass: "border-l-rose-600",
+      iconBgClass: "bg-rose-100 text-rose-800",
+      badgeClass: "bg-rose-100 text-rose-800",
+      badgeLabel: "HIGH SEVERITY",
+      actionLabel: "Fix Now",
+      actionVariant: "primary",
+    };
+  }
+  if (severity === "medium") {
+    return {
+      borderClass: "border-l-amber-500",
+      iconBgClass: "bg-amber-100 text-amber-800",
+      badgeClass: "bg-amber-100 text-amber-800",
+      badgeLabel: "MEDIUM SEVERITY",
+      actionLabel: "Review",
+      actionVariant: "outline",
+    };
+  }
+  return {
+    borderClass: "border-l-[#3525cd]",
+    iconBgClass: "bg-[#e2dfff] text-[#0f0069]",
+    badgeClass: "bg-[#e2dfff] text-[#0f0069]",
+    badgeLabel: "INFO",
+    actionLabel: "Learn More",
+    actionVariant: "link",
+  };
+}
+
+function getWarningCategory(id: string): string {
+  if (id.startsWith("audit")) return "Infrastructure";
+  if (
+    id.includes("mfa") ||
+    id.includes("sso") ||
+    id.includes("session") ||
+    id.includes("domain")
+  )
+    return "Identity";
+  if (id.includes("retention") || id.includes("source")) return "Policy";
+  if (
+    id.includes("injection") ||
+    id.includes("citation") ||
+    id.includes("isolation") ||
+    id.includes("validation")
+  )
+    return "AI Safety";
+  if (id.includes("api") || id.includes("webhook")) return "Integrations";
+  return "Security";
+}
+
+function getControlIcon(id: string) {
+  switch (id) {
+    case "session-policy":
+      return Key;
+    case "domain-restrictions":
+      return Globe;
+    case "role-settings":
+      return Users;
+    case "retention":
+      return Database;
+    case "audit":
+      return FileSearch2;
+    case "api-keys":
+      return Code2;
+    case "webhooks":
+      return Webhook;
+    case "sso":
+      return LogIn;
+    case "billing":
+      return CreditCard;
+    default:
+      return ShieldCheck;
+  }
 }
 
 export function AdminSecurityCenterPage() {
@@ -647,8 +753,24 @@ export function AdminSecurityCenterPage() {
   });
   const recommendations = buildRecommendations(warnings);
 
-  const riskStatus: "ok" | "warning" | "unknown" =
-    warnings.length === 0 ? "ok" : "warning";
+  const adminCount = teamMembers.filter((m) => m.role === "admin").length;
+  const ownerCount = teamMembers.filter((m) => m.role === "owner").length;
+  const elevatedCount = adminCount + ownerCount;
+  const totalMembers = teamMembers.length;
+  const elevatedRatio = totalMembers > 0 ? elevatedCount / totalMembers : 0;
+  const isAuditHealthy =
+    auditHealth.failedCount === 0 && auditHealth.severeCount === 0;
+
+  const infoItems = recommendations
+    .filter((r) => !warnings.some((w) => w.id === r.id))
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      severity: "low" as WarningSeverity,
+      href: r.href,
+    }));
+  const displayItems = [...warnings, ...infoItems];
 
   const controls: Array<{
     id: string;
@@ -737,266 +859,217 @@ export function AdminSecurityCenterPage() {
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
-      <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-        <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Rudix Admin
-        </p>
-        <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Organization security center
-        </h1>
-        <p className="max-w-4xl text-sm text-[#68647b]">
-          Central security posture view for organization controls and
-          operational risk. This page summarizes available signals and action
-          links; it is not a compliance certification.
-        </p>
+      {/* Page Header */}
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
+              Organization Security Center
+            </h1>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3525cd]/20 bg-[#e2dfff]/40 px-3 py-1 text-xs font-semibold text-[#3525cd]">
+              <ShieldCheck className="h-3 w-3" aria-hidden />
+              Organization Admin
+            </span>
+          </div>
+          <p className="max-w-2xl text-sm text-[#68647b]">
+            Review key security settings, warnings, and access controls for
+            this organization. Ensure compliance with global enterprise
+            standards.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Link
+            href="/admin/audit-logs"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-white px-4 py-2 text-sm font-medium text-[#2a2640] transition-colors hover:bg-[#f5f2ff]"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Export Logs
+          </Link>
+        </div>
       </header>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-[#2a2640]">
-                Security overview
-              </h2>
-              <span
-                className={`rounded-full px-2 py-1 text-[11px] font-semibold tracking-wide uppercase ${statusBadgeClass(riskStatus)}`}
-              >
-                {riskStatus === "ok"
-                  ? "No active warnings"
-                  : "Warnings present"}
+      {/* Posture Summary Bento Grid */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-[#3525cd]" aria-hidden />
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            Security Posture Summary
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              Authentication
+            </p>
+            <div className="flex items-center justify-between gap-1">
+              <p className="truncate text-sm font-bold text-[#2a2640]">
+                {runtimeConfig.authProviderRaw || "Configured"}
+              </p>
+              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">
+                ACTIVE
               </span>
             </div>
+            <p className="mt-2 text-[10px] text-[#6a6780]">
+              {sessionSummary}
+            </p>
+          </article>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Auth and session status
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {runtimeConfig.authProviderRaw || "app"} · {state.status}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  Session expiry: {formatSessionExpiry(sessionExpiryMs)}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Roles summary
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {roleSummary}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  {teamCapabilities.listMembersEnabled
-                    ? "Derived from team membership."
-                    : "Team listing endpoint is unavailable."}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Allowed domains
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {allowedDomainList.length > 0
-                    ? allowedDomainList.join(", ")
-                    : "No restriction"}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  Login and membership controls.
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Active sessions
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {sessionSummary}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  {securityCapabilities.sessionsEnabled
-                    ? "Session telemetry endpoint configured."
-                    : "Placeholder shown until deployment support is enabled."}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  API access status
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  Base API configured
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  Audit export:{" "}
-                  {securityCapabilities.auditExportEnabled
-                    ? "enabled"
-                    : "unavailable"}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Retention status
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {retentionSummary}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  Source download policy:{" "}
-                  {organizationSettingsQuery.data?.source_download ?? "unknown"}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Audit health (30 days)
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {auditSummary}
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  High severity signals: {auditHealth.severeCount}
-                </p>
-              </article>
-
-              <article className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3">
-                <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                  Risky settings
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[#2a2640]">
-                  {warnings.length} unresolved warnings
-                </p>
-                <p className="mt-1 text-xs text-[#6a6780]">
-                  Last posture audit:{" "}
-                  {formatTimestamp(postureQuery.data?.last_audit_at)}
-                </p>
-              </article>
-            </div>
-
-            {auditQuery.isError &&
-              isApiClientError(auditQuery.error) &&
-              auditQuery.error.status === 429 && (
-                <div className="mt-4">
-                  <RateLimitState
-                    compact
-                    title="Audit health is rate-limited"
-                    onRetry={() => {
-                      void auditQuery.refetch();
-                    }}
-                  />
-                </div>
-              )}
-          </section>
-
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-[#3525cd]" aria-hidden />
-              <h2 className="text-lg font-bold text-[#2a2640]">
-                Security controls
-              </h2>
-            </div>
-            <div className="space-y-3">
-              {controls.map((control) => (
-                <article
-                  key={control.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-[#2a2640]">
-                      {control.label}
-                    </p>
-                    <p className="text-xs text-[#6a6780]">
-                      {control.description}
-                    </p>
-                  </div>
-                  <div>
-                    {control.href ? (
-                      <ActionLink href={control.href} label="Open control" />
-                    ) : (
-                      <span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                        Unavailable
-                      </span>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <div className="space-y-6">
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#8a5f00]" aria-hidden />
-              <h2 className="text-lg font-bold text-[#2a2640]">
-                Unresolved warnings
-              </h2>
-            </div>
-
-            {(loginPolicyQuery.isLoading ||
-              organizationSettingsQuery.isLoading ||
-              postureQuery.isLoading ||
-              (teamCapabilities.listMembersEnabled && teamQuery.isLoading)) && (
-              <LoadingState compact title="Loading security signals..." />
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              Roles &amp; Access
+            </p>
+            <p className="text-sm font-bold text-[#2a2640]">
+              {teamCapabilities.listMembersEnabled
+                ? `${elevatedCount} Elevated`
+                : "Unavailable"}
+            </p>
+            <p className="text-[10px] text-[#6a6780]">
+              {teamCapabilities.listMembersEnabled
+                ? `${adminCount} Admin · ${ownerCount} Owner`
+                : "Team listing disabled"}
+            </p>
+            {teamCapabilities.listMembersEnabled && totalMembers > 0 && (
+              <div className="mt-2 h-1 overflow-hidden rounded-full bg-[#f0ecf9]">
+                <div
+                  className="h-full rounded-full bg-[#3525cd]"
+                  style={{ width: `${Math.min(elevatedRatio * 100, 100)}%` }}
+                />
+              </div>
             )}
+          </article>
 
-            {(loginPolicyQuery.isError ||
-              organizationSettingsQuery.isError ||
-              postureQuery.isError ||
-              teamQuery.isError) &&
-              !(
-                isApiClientError(loginPolicyQuery.error) &&
-                loginPolicyQuery.error.status === 429
-              ) &&
-              !(
-                isApiClientError(organizationSettingsQuery.error) &&
-                organizationSettingsQuery.error.status === 429
-              ) &&
-              !(
-                isApiClientError(postureQuery.error) &&
-                postureQuery.error.status === 429
-              ) &&
-              !(
-                isApiClientError(teamQuery.error) &&
-                teamQuery.error.status === 429
-              ) && (
-                <ErrorState
-                  compact
-                  error={
-                    loginPolicyQuery.error ??
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              Domain Restrictions
+            </p>
+            <div className="flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 shrink-0 text-[#3525cd]" aria-hidden />
+              <p className="text-sm font-bold text-[#2a2640]">
+                {allowedDomainList.length > 0
+                  ? `${allowedDomainList.length} Domain${allowedDomainList.length !== 1 ? "s" : ""}`
+                  : "Open"}
+              </p>
+            </div>
+            <p className="mt-2 text-[10px] text-[#6a6780]">
+              {allowedDomainList.length > 0
+                ? "Allowlist active"
+                : "No restriction set"}
+            </p>
+          </article>
+
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              API &amp; Webhooks
+            </p>
+            <p className="text-sm font-bold text-[#2a2640]">
+              {apiKeysHref ? "Keys Configured" : "Not Configured"}
+            </p>
+            <div className="mt-2 flex gap-1">
+              <span
+                className={`h-2 w-2 rounded-full ${apiKeysHref ? "bg-emerald-500" : "bg-[#d7d4e8]"}`}
+              />
+              <span
+                className={`h-2 w-2 rounded-full ${webhooksHref ? "bg-emerald-500" : "bg-[#d7d4e8]"}`}
+              />
+              <span
+                className={`h-2 w-2 rounded-full ${securityCapabilities.auditExportEnabled ? "bg-emerald-500" : "bg-[#d7d4e8]"}`}
+              />
+            </div>
+          </article>
+
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              Data Retention
+            </p>
+            <p className="text-sm font-bold text-[#2a2640]">
+              {organizationSettingsQuery.data?.retention_days != null
+                ? `${organizationSettingsQuery.data.retention_days}d`
+                : "Default Policy"}
+            </p>
+            <p className="mt-2 text-[10px] text-[#6a6780]">{retentionSummary}</p>
+          </article>
+
+          <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+              Audit Health
+            </p>
+            <div className="flex items-center gap-1.5">
+              {isAuditHealthy ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden />
+              )}
+              <p
+                className={`text-sm font-bold ${isAuditHealthy ? "text-emerald-700" : "text-amber-700"}`}
+              >
+                {isAuditHealthy ? "Healthy" : "Warning"}
+              </p>
+            </div>
+            <p className="mt-2 text-[10px] text-[#6a6780]">{auditSummary}</p>
+          </article>
+        </div>
+      </section>
+
+      {/* Main Layout: Recommendations + Controls */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        {/* Left: Security Recommendations */}
+        <div>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-rose-600" aria-hidden />
+              <h2 className="text-lg font-bold text-[#2a2640]">
+                Security Recommendations
+              </h2>
+            </div>
+            <Link
+              href="/admin/audit-logs"
+              className="text-sm font-bold text-[#3525cd] hover:underline"
+            >
+              View All
+            </Link>
+          </div>
+
+          {(loginPolicyQuery.isLoading ||
+            organizationSettingsQuery.isLoading ||
+            postureQuery.isLoading ||
+            (teamCapabilities.listMembersEnabled && teamQuery.isLoading)) && (
+            <LoadingState compact title="Loading security signals..." />
+          )}
+
+          {(loginPolicyQuery.isError ||
+            organizationSettingsQuery.isError ||
+            postureQuery.isError ||
+            teamQuery.isError) &&
+            !(
+              isApiClientError(loginPolicyQuery.error) &&
+              loginPolicyQuery.error.status === 429
+            ) &&
+            !(
+              isApiClientError(organizationSettingsQuery.error) &&
+              organizationSettingsQuery.error.status === 429
+            ) &&
+            !(
+              isApiClientError(postureQuery.error) &&
+              postureQuery.error.status === 429
+            ) &&
+            !(
+              isApiClientError(teamQuery.error) &&
+              teamQuery.error.status === 429
+            ) && (
+              <ErrorState
+                compact
+                error={
+                  loginPolicyQuery.error ??
+                  organizationSettingsQuery.error ??
+                  postureQuery.error ??
+                  teamQuery.error
+                }
+                description={getApiErrorMessage(
+                  loginPolicyQuery.error ??
                     organizationSettingsQuery.error ??
                     postureQuery.error ??
-                    teamQuery.error
-                  }
-                  description={getApiErrorMessage(
-                    loginPolicyQuery.error ??
-                      organizationSettingsQuery.error ??
-                      postureQuery.error ??
-                      teamQuery.error,
-                  )}
-                  onRetry={() => {
-                    void loginPolicyQuery.refetch();
-                    void organizationSettingsQuery.refetch();
-                    void postureQuery.refetch();
-                    void teamQuery.refetch();
-                  }}
-                />
-              )}
-
-            {(isApiClientError(loginPolicyQuery.error) &&
-              loginPolicyQuery.error.status === 429) ||
-            (isApiClientError(organizationSettingsQuery.error) &&
-              organizationSettingsQuery.error.status === 429) ||
-            (isApiClientError(postureQuery.error) &&
-              postureQuery.error.status === 429) ||
-            (isApiClientError(teamQuery.error) &&
-              teamQuery.error.status === 429) ? (
-              <RateLimitState
-                compact
-                title="Security signals are rate-limited"
+                    teamQuery.error,
+                )}
                 onRetry={() => {
                   void loginPolicyQuery.refetch();
                   void organizationSettingsQuery.refetch();
@@ -1004,120 +1077,193 @@ export function AdminSecurityCenterPage() {
                   void teamQuery.refetch();
                 }}
               />
-            ) : null}
+            )}
 
-            {!loginPolicyQuery.isLoading &&
-              !organizationSettingsQuery.isLoading &&
-              !postureQuery.isLoading &&
-              warnings.length === 0 && (
-                <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                  No active warnings were detected from available controls.
-                </p>
-              )}
+          {(isApiClientError(loginPolicyQuery.error) &&
+            loginPolicyQuery.error.status === 429) ||
+          (isApiClientError(organizationSettingsQuery.error) &&
+            organizationSettingsQuery.error.status === 429) ||
+          (isApiClientError(postureQuery.error) &&
+            postureQuery.error.status === 429) ||
+          (isApiClientError(teamQuery.error) &&
+            teamQuery.error.status === 429) ? (
+            <RateLimitState
+              compact
+              title="Security signals are rate-limited"
+              onRetry={() => {
+                void loginPolicyQuery.refetch();
+                void organizationSettingsQuery.refetch();
+                void postureQuery.refetch();
+                void teamQuery.refetch();
+              }}
+            />
+          ) : null}
 
-            {warnings.length > 0 && (
-              <div className="space-y-3">
-                {warnings.map((warning) => (
-                  <article
-                    key={warning.id}
-                    className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3"
-                  >
-                    <div className="mb-1 flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-[#2a2640]">
-                        {warning.title}
-                      </p>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${severityBadgeClass(warning.severity)}`}
-                      >
-                        {warning.severity}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#68647b]">
-                      {warning.description}
-                    </p>
-                    {warning.href ? (
-                      <div className="mt-2">
-                        <ActionLink href={warning.href} label="Resolve" />
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
+          {auditQuery.isError &&
+            isApiClientError(auditQuery.error) &&
+            auditQuery.error.status === 429 && (
+              <div className="mt-4">
+                <RateLimitState
+                  compact
+                  title="Audit health is rate-limited"
+                  onRetry={() => {
+                    void auditQuery.refetch();
+                  }}
+                />
               </div>
             )}
-          </section>
 
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-700" aria-hidden />
-              <h2 className="text-lg font-bold text-[#2a2640]">
-                Recommendations
-              </h2>
-            </div>
-            <div className="space-y-3">
-              {recommendations.map((item) => (
+          {!loginPolicyQuery.isLoading &&
+            !organizationSettingsQuery.isLoading &&
+            !postureQuery.isLoading &&
+            warnings.length === 0 && (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                No active warnings were detected from available controls.
+              </p>
+            )}
+
+          <div className="space-y-3">
+            {displayItems.map((item) => {
+              const style = getRecommendationStyle(item.severity);
+              const category = getWarningCategory(item.id);
+              return (
                 <article
                   key={item.id}
-                  className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3"
+                  className={`flex items-center gap-4 rounded-r-xl border border-[#e4e1f2] border-l-4 bg-white p-5 ${style.borderClass}`}
                 >
-                  <p className="text-sm font-semibold text-[#2a2640]">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 text-xs text-[#68647b]">
-                    {item.description}
-                  </p>
-                  <div className="mt-2">
-                    <ActionLink href={item.href} label="Open" />
+                  <div
+                    className={`shrink-0 rounded-lg p-2.5 ${style.iconBgClass}`}
+                  >
+                    {item.severity === "high" ? (
+                      <AlertTriangle className="h-5 w-5" aria-hidden />
+                    ) : item.severity === "medium" ? (
+                      <AlertCircle className="h-5 w-5" aria-hidden />
+                    ) : (
+                      <Info className="h-5 w-5" aria-hidden />
+                    )}
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${style.badgeClass}`}
+                      >
+                        {style.badgeLabel}
+                      </span>
+                      <span className="text-[11px] text-[#6a6780]">
+                        {category}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-bold text-[#2a2640]">
+                      {item.title}
+                    </h3>
+                    <p className="mt-1 text-xs text-[#68647b]">
+                      {item.description}
+                    </p>
+                  </div>
+                  {item.href ? (
+                    <div className="shrink-0">
+                      <ActionLink
+                        href={item.href}
+                        label={style.actionLabel}
+                        variant={style.actionVariant}
+                      />
+                    </div>
+                  ) : null}
                 </article>
-              ))}
-            </div>
-          </section>
+              );
+            })}
+          </div>
+        </div>
 
-          <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-[#3525cd]" aria-hidden />
-              <h2 className="text-lg font-bold text-[#2a2640]">
-                Security links
-              </h2>
-            </div>
-            <div className="grid gap-2">
-              <ActionLink href="/admin/audit-logs" label="Audit logs" />
-              <ActionLink
-                href="/settings?tab=organization"
-                label="Team settings"
-              />
-              <ActionLink
-                href="/settings?tab=organization"
-                label="Retention settings"
-              />
-              <ActionLink
-                href={billingControlsHref}
-                label="Billing and plan controls"
-              />
-              {apiKeysHref ? (
-                <ActionLink href={apiKeysHref} label="API keys" />
-              ) : null}
-              {webhooksHref ? (
-                <ActionLink href={webhooksHref} label="Webhooks" />
-              ) : null}
-            </div>
-            <p className="mt-3 text-xs text-[#68647b]">
-              Audit exports must remain sanitized and should never include
-              secrets or raw private document content.
-            </p>
-          </section>
+        {/* Right: Security Controls */}
+        <div>
+          <div className="mb-4 flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-[#6a6780]" aria-hidden />
+            <h2 className="text-lg font-bold text-[#2a2640]">
+              Security Controls
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {controls.map((control) => {
+              const ControlIcon = getControlIcon(control.id);
+              const sharedClass =
+                "group flex items-center gap-3 rounded-xl border border-[#e4e1f2] bg-white p-4 transition-all hover:border-[#3525cd]";
+              const inner = (
+                <>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f5f2ff] text-[#6a6780] transition-colors group-hover:text-[#3525cd]">
+                    <ControlIcon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#2a2640]">
+                      {control.label}
+                    </p>
+                    <p className="text-[11px] text-[#6a6780]">
+                      {control.description}
+                    </p>
+                  </div>
+                  {control.href ? (
+                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-[#c7c4d8] transition-colors group-hover:text-[#3525cd]" aria-hidden />
+                  ) : (
+                    <span className="ml-auto shrink-0 rounded-lg bg-[#f0ecf9] px-2 py-1 text-[10px] font-semibold text-[#6a6780]">
+                      N/A
+                    </span>
+                  )}
+                </>
+              );
+              if (!control.href) {
+                return (
+                  <article key={control.id} className={sharedClass}>
+                    {inner}
+                  </article>
+                );
+              }
+              if (isExternalHref(control.href)) {
+                return (
+                  <a
+                    key={control.id}
+                    href={control.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={sharedClass}
+                  >
+                    {inner}
+                  </a>
+                );
+              }
+              return (
+                <Link key={control.id} href={control.href} className={sharedClass}>
+                  {inner}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {organizationProfileQuery.data?.plan ? (
-        <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm text-[#4f4a67]">
-            <Link2 className="h-4 w-4 text-[#5d58a8]" aria-hidden />
-            <span className="font-semibold text-[#2a2640]">Plan:</span>
-            <span>{organizationProfileQuery.data.plan}</span>
+      {/* Footer Status Bar */}
+      <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-[#d7d4e8] pt-4 text-xs text-[#6a6780]">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+            Operational: Rudix Security Engine
           </div>
-        </section>
-      ) : null}
+          <div>Compliance: SOC2 Type II, ISO 27001</div>
+          {organizationProfileQuery.data?.plan && (
+            <div className="flex items-center gap-1">
+              <Link2 className="h-3.5 w-3.5 text-[#5d58a8]" aria-hidden />
+              <span className="font-semibold text-[#2a2640]">Plan:</span>
+              <span>{organizationProfileQuery.data.plan}</span>
+            </div>
+          )}
+        </div>
+        <div>
+          Last posture audit:{" "}
+          <span className="font-mono text-xs text-[#3525cd]">
+            {formatTimestamp(postureQuery.data?.last_audit_at)}
+          </span>
+        </div>
+      </footer>
     </section>
   );
 }
+
