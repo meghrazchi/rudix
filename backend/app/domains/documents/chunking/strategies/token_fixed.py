@@ -11,12 +11,20 @@ from app.domains.documents.chunking.strategies._base import (
     resolve_encoding,
 )
 
-STRATEGY_NAME = "token_recursive"
+STRATEGY_NAME = "token_fixed"
 STRATEGY_VERSION = "1.0"
 
 
-class TokenRecursiveStrategy:
-    """Sliding-window token-aware chunker. This is the default and original strategy."""
+class TokenFixedStrategy:
+    """Fixed-size sliding-window chunker without inter-page separator tokens.
+
+    Pages are concatenated directly so chunk boundaries depend only on the raw
+    token positions, not on inserted whitespace.  This makes chunk sizes fully
+    predictable and is useful for benchmarking or simple uniform documents.
+
+    Overlap works identically to token_recursive: the next window starts
+    *chunk_overlap_tokens* tokens before the previous window ended.
+    """
 
     name: str = STRATEGY_NAME
     version: str = STRATEGY_VERSION
@@ -39,12 +47,10 @@ class TokenRecursiveStrategy:
         self.tiny_chunk_min_tokens = tiny_chunk_min_tokens or max(
             1, min(32, self.chunk_size_tokens // 8)
         )
-
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
             raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
         if self.tiny_chunk_min_tokens < 1:
             raise ValueError("tiny_chunk_min_tokens must be at least 1")
-
         self._encoding = resolve_encoding(self.embedding_model)
 
     @classmethod
@@ -53,7 +59,7 @@ class TokenRecursiveStrategy:
         profile: ChunkingProfileConfig,
         embedding_model: str,
         index_version: str,
-    ) -> TokenRecursiveStrategy:
+    ) -> TokenFixedStrategy:
         return cls(
             chunk_size_tokens=profile.chunk_size_tokens,
             chunk_overlap_tokens=profile.chunk_overlap_tokens,
@@ -68,53 +74,49 @@ class TokenRecursiveStrategy:
         document_id: UUID,
         pages: Sequence[PageLike],
     ) -> list[ChunkPayload]:
-        ordered_pages = sorted(pages, key=lambda page: page.page_number)
+        ordered_pages = sorted(pages, key=lambda p: p.page_number)
         if not ordered_pages:
             return []
 
-        separator_tokens = encode_text(self._encoding, "\n\n")
+        # Flat token stream: no separator tokens between pages.
         token_stream: list[tuple[int, int]] = []
         for page in ordered_pages:
             page_text = page.text.strip()
             if not page_text:
                 continue
-            page_tokens = encode_text(self._encoding, page_text)
-            if not page_tokens:
-                continue
-            if token_stream and separator_tokens:
-                token_stream.extend((page.page_number, token) for token in separator_tokens)
-            token_stream.extend((page.page_number, token) for token in page_tokens)
+            for token in encode_text(self._encoding, page_text):
+                token_stream.append((page.page_number, token))
 
         if not token_stream:
             return []
 
         stride = self.chunk_size_tokens - self.chunk_overlap_tokens
-        chunks: list[ChunkPayload] = []
+        result: list[ChunkPayload] = []
         cursor = 0
-        total_tokens = len(token_stream)
+        total = len(token_stream)
 
-        while cursor < total_tokens:
-            end = min(cursor + self.chunk_size_tokens, total_tokens)
-            token_window = token_stream[cursor:end]
-            tokens = [token for _page_number, token in token_window]
+        while cursor < total:
+            end = min(cursor + self.chunk_size_tokens, total)
+            window = token_stream[cursor:end]
+            tokens = [t for _, t in window]
             chunk_text = self._encoding.decode(tokens).strip()
             token_count = len(tokens)
-            is_last_window = end == total_tokens
+            is_last = end == total
 
             if not chunk_text:
-                if is_last_window:
+                if is_last:
                     break
                 cursor += stride
                 continue
 
-            if is_last_window and chunks and token_count < self.tiny_chunk_min_tokens:
+            if is_last and result and token_count < self.tiny_chunk_min_tokens:
                 break
 
-            chunks.append(
+            result.append(
                 ChunkPayload(
                     document_id=document_id,
-                    page_number=dominant_page_number(token_window),
-                    chunk_index=len(chunks),
+                    page_number=dominant_page_number(window),
+                    chunk_index=len(result),
                     text=chunk_text,
                     token_count=token_count,
                     embedding_model=self.embedding_model,
@@ -124,8 +126,8 @@ class TokenRecursiveStrategy:
                 )
             )
 
-            if is_last_window:
+            if is_last:
                 break
             cursor += stride
 
-        return chunks
+        return result

@@ -51,13 +51,22 @@ _registry: StrategyRegistry | None = None
 def get_registry() -> StrategyRegistry:
     global _registry
     if _registry is None:
+        from app.domains.documents.chunking.strategies.paragraph_recursive import (
+            ParagraphRecursiveStrategy,
+        )
+        from app.domains.documents.chunking.strategies.sentence_window import (
+            SentenceWindowStrategy,
+        )
+        from app.domains.documents.chunking.strategies.token_fixed import (
+            TokenFixedStrategy,
+        )
         from app.domains.documents.chunking.strategies.token_recursive import (
             TokenRecursiveStrategy,
         )
 
         _registry = StrategyRegistry()
-        _registry.register(
-            TokenRecursiveStrategy.name,
-            TokenRecursiveStrategy.from_profile,
-        )
+        _registry.register(TokenRecursiveStrategy.name, TokenRecursiveStrategy.from_profile)
+        _registry.register(TokenFixedStrategy.name, TokenFixedStrategy.from_profile)
+        _registry.register(ParagraphRecursiveStrategy.name, ParagraphRecursiveStrategy.from_profile)
+        _registry.register(SentenceWindowStrategy.name, SentenceWindowStrategy.from_profile)
     return _registry
