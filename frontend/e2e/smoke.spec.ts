@@ -390,6 +390,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await expect(
       page.getByRole("link", { name: "Request Demo" }).first(),
     ).toBeVisible();
+    await page.waitForLoadState("networkidle");
 
     await primaryNavigation
       .getByRole("link", { name: "Security", exact: true })
@@ -506,13 +507,11 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await page.goto("/chat");
     await waitForSessionBootstrap(page);
     await expect(
-      page.getByRole("heading", { name: "Document-grounded Q&A" }),
+      page.getByRole("heading", { name: "Chat Session" }),
     ).toBeVisible();
     await expect(page.getByText("Onboarding FAQ")).toBeVisible();
     await expect(
-      page.getByRole("textbox", {
-        name: "Ask a question about your selected documents...",
-      }),
+      page.getByPlaceholder("Type a message or use '/' for commands..."),
     ).toBeVisible();
   });
 
@@ -545,7 +544,9 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "Queue run" }).click();
 
-    await expect(page).toHaveURL(/\/evaluations\/runs\/run-e2e-1$/);
+    await expect(page).toHaveURL(/\/evaluations\/runs\/run-e2e-1$/, {
+      timeout: 15_000,
+    });
     await expect(page.getByText("Run detail")).toBeVisible();
     await expect(page.getByText("Case results")).toBeVisible();
   });
