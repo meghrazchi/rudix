@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     ForeignKey,
     Index,
@@ -62,6 +63,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     retention_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     tags: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Chunking provenance — written once when indexing starts; immutable after that.
+    chunking_strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    chunking_profile_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    chunking_config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")
@@ -122,6 +127,13 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     qdrant_point_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     embedding_model: Mapped[str] = mapped_column(String(128), nullable=False)
     index_version: Mapped[str] = mapped_column(String(64), nullable=False, default="v1")
+    # Content fingerprint and structural metadata.
+    chunk_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    section_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Character offsets into the original source text (populated by offset-aware strategies).
+    source_start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    source_end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     document = relationship("Document", back_populates="chunks")
     citations = relationship("Citation", back_populates="chunk")

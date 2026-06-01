@@ -22,6 +22,9 @@ class ChunkLike(Protocol):
     qdrant_point_id: str | None
     embedding_model: str
     index_version: str
+    chunk_hash: str | None
+    section_path: str | None
+    language: str | None
 
 
 @dataclass(frozen=True)
@@ -90,6 +93,8 @@ class QdrantService:
         file_type: str,
         chunks: list[ChunkLike],
         vectors_by_chunk_id: dict[UUID, list[float]],
+        chunking_strategy: str | None = None,
+        chunking_profile_version: str | None = None,
     ) -> QdrantUpsertResult:
         if not chunks:
             return QdrantUpsertResult(point_ids_by_chunk_id={}, upserted_count=0, batch_count=0)
@@ -134,6 +139,11 @@ class QdrantService:
                         "token_count": chunk.token_count,
                         "embedding_model": chunk.embedding_model,
                         "index_version": chunk.index_version,
+                        "chunk_hash": chunk.chunk_hash,
+                        "section_path": chunk.section_path,
+                        "language": chunk.language,
+                        "chunking_strategy": chunking_strategy,
+                        "chunking_profile_version": chunking_profile_version,
                     },
                 )
             )

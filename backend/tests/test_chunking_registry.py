@@ -221,3 +221,32 @@ async def test_chunking_service_empty_pages_returns_empty() -> None:
 def test_chunking_service_invalid_overlap_fails_fast() -> None:
     with pytest.raises((ValueError, Exception)):
         ChunkingService(chunk_size_tokens=100, chunk_overlap_tokens=100)
+
+
+# ---------------------------------------------------------------------------
+# compute_chunk_hash
+# ---------------------------------------------------------------------------
+
+from app.domains.documents.chunking.hashing import compute_chunk_hash  # noqa: E402
+
+
+def test_chunk_hash_is_deterministic() -> None:
+    h1 = compute_chunk_hash("hello world")
+    h2 = compute_chunk_hash("hello world")
+    assert h1 == h2
+    assert len(h1) == 64  # SHA-256 hex
+
+
+def test_chunk_hash_differs_for_different_text() -> None:
+    assert compute_chunk_hash("foo") != compute_chunk_hash("bar")
+
+
+def test_chunk_hash_strips_whitespace() -> None:
+    assert compute_chunk_hash("  hello  ") == compute_chunk_hash("hello")
+
+
+def test_chunk_hash_nfc_normalization() -> None:
+    # é as precomposed vs decomposed should produce the same hash.
+    precomposed = "é"  # é
+    decomposed = "é"  # e + combining acute accent
+    assert compute_chunk_hash(precomposed) == compute_chunk_hash(decomposed)

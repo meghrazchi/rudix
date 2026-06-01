@@ -18,6 +18,7 @@ from app.core.logging import log_document_event
 from app.db.session import SessionLocal
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.documents.chunking.hashing import compute_chunk_hash
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.services.chunking_service import ChunkingService
 from app.domains.documents.services.embedding_service import (
@@ -26,9 +27,9 @@ from app.domains.documents.services.embedding_service import (
     PermanentEmbeddingError,
     TransientEmbeddingError,
 )
-from app.domains.documents.services.qdrant_service import QdrantService
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
+from app.domains.documents.services.qdrant_service import QdrantService
 from app.domains.documents.services.text_extraction import (
     extract_pdf_pages_native,
     extract_text_sections,
@@ -807,6 +808,13 @@ async def _extract_and_store_document_pages_async(
                             qdrant_point_id=qdrant_point_id,
                             embedding_model=chunk.embedding_model,
                             index_version=chunk.index_version,
+                            chunk_hash=compute_chunk_hash(chunk.text),
+                            section_path=(
+                                f"page:{chunk.page_number}"
+                                if chunk.page_number is not None
+                                else None
+                            ),
+                            language=document.language,
                         )
                     )
 
@@ -897,6 +905,8 @@ async def _extract_and_store_document_pages_async(
                     stage_status="started",
                     config={"collection": settings.qdrant_collection},
                 )
+                _strategy_name = chunks[0].strategy_name if chunks else "token_recursive"
+                _strategy_version = chunks[0].strategy_version if chunks else "1.0"
                 try:
                     qdrant_result = await _qdrant_service.upsert_chunks(
                         organization_id=document.organization_id,
@@ -906,6 +916,8 @@ async def _extract_and_store_document_pages_async(
                         file_type=document.file_type,
                         chunks=created_chunks,
                         vectors_by_chunk_id=embedding_result.vectors_by_chunk_id,
+                        chunking_strategy=_strategy_name,
+                        chunking_profile_version=_strategy_version,
                     )
                 except ValueError as exc:
                     raise DocumentPipelinePermanentError(
@@ -963,12 +975,23 @@ async def _extract_and_store_document_pages_async(
                     },
                 )
                 current_stage = "status"
+                _chunking_config_snapshot: dict = {
+                    "strategy": _strategy_name,
+                    "strategy_version": _strategy_version,
+                    "chunk_size_tokens": _chunking_service.chunk_size_tokens,
+                    "chunk_overlap_tokens": _chunking_service.chunk_overlap_tokens,
+                    "embedding_model": _chunking_service.embedding_model,
+                    "index_version": _chunking_service.index_version,
+                }
                 updated = await _document_repository.update_document_status(
                     session,
                     document_id=parsed_document_id,
                     status=DocumentStatus.indexed.value,
                     error_message=None,
                     page_count=len(cleaned_sections),
+                    chunking_strategy=_strategy_name,
+                    chunking_profile_version=_strategy_version,
+                    chunking_config_snapshot=_chunking_config_snapshot,
                 )
                 await session.commit()
             except Exception:

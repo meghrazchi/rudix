@@ -135,6 +135,9 @@ class DocumentRepository:
         status: str,
         error_message: str | None = None,
         page_count: int | None = None,
+        chunking_strategy: str | None = None,
+        chunking_profile_version: str | None = None,
+        chunking_config_snapshot: dict | None = None,
     ) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         document = result.scalar_one_or_none()
@@ -144,6 +147,12 @@ class DocumentRepository:
         document.error_message = error_message
         if page_count is not None:
             document.page_count = page_count
+        if chunking_strategy is not None:
+            document.chunking_strategy = chunking_strategy
+        if chunking_profile_version is not None:
+            document.chunking_profile_version = chunking_profile_version
+        if chunking_config_snapshot is not None:
+            document.chunking_config_snapshot = chunking_config_snapshot
         await session.flush()
         await session.refresh(document)
         return document
@@ -196,6 +205,11 @@ class DocumentRepository:
         index_version: str = "v1",
         page_number: int | None = None,
         qdrant_point_id: str | None = None,
+        chunk_hash: str | None = None,
+        section_path: str | None = None,
+        language: str | None = None,
+        source_start_offset: int | None = None,
+        source_end_offset: int | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
             document_id=document_id,
@@ -206,6 +220,11 @@ class DocumentRepository:
             index_version=index_version,
             page_number=page_number,
             qdrant_point_id=qdrant_point_id,
+            chunk_hash=chunk_hash,
+            section_path=section_path,
+            language=language,
+            source_start_offset=source_start_offset,
+            source_end_offset=source_end_offset,
         )
         session.add(chunk)
         await session.flush()
