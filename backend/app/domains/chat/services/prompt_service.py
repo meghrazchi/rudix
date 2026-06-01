@@ -79,3 +79,24 @@ class PromptService:
             "<<QUESTION_END>>\n\n"
             f"Context blocks:\n{context_block}"
         )
+
+    def build_general_prompt(self, *, question: str) -> str:
+        """Builds a prompt for general-knowledge (no-RAG) chat mode."""
+        return (
+            "You are a helpful assistant.\n"
+            "Answer the user's question using your own knowledge.\n"
+            "Follow these rules:\n"
+            "1. Never invent citations or document references.\n"
+            "2. Return compact JSON only; no markdown, no code fences, no extra keys.\n"
+            "Return ONLY a valid JSON object with keys: answer, not_found, citations.\n"
+            "JSON schema:\n"
+            "{\n"
+            '  "answer": "string",\n'
+            '  "not_found": false,\n'
+            '  "citations": []\n'
+            "}\n\n"
+            "User question:\n"
+            "<<QUESTION_START>>\n"
+            f"{question}\n"
+            "<<QUESTION_END>>"
+        )

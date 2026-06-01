@@ -1337,6 +1337,8 @@ export interface components {
              * @default true
              */
             rerank: boolean;
+            /** Scope Mode */
+            scope_mode?: "all" | "collection" | "documents" | "none" | null;
         };
         /** ChatQueryResponse */
         ChatQueryResponse: {

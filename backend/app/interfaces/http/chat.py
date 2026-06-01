@@ -592,117 +592,26 @@ async def query_chat(
             title=default_title,
         )
 
-    final_top_k = payload.top_k or settings.retrieval_final_top_k
-    retrieval_top_k = max(
-        final_top_k,
-        _rerank_service.candidate_count if payload.rerank else final_top_k,
-    )
-
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
     embedding_model = _query_retrieval_service.embedding_model
 
-    embed_started = perf_counter()
-    try:
-        query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
-            question=payload.question,
-            openai_client=_get_openai_client(),
-        )
-    except Exception as exc:
-        log_query_event(
-            event="query.failed.embed",
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
-            job_id=str(chat_session.id),
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error=exc.__class__.__name__,
-            embedding_model=embedding_model,
-        )
-        raise _safe_http_error(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            code="query_embedding_failed",
-            message="Query embedding is unavailable",
-        ) from exc
-    latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
-
-    retrieve_started = perf_counter()
-    try:
-        retrieved_candidates = _query_retrieval_service.retrieve_candidates(
-            query_vector=query_vector,
-            organization_id=organization_id,
-            document_ids=document_ids,
-            initial_top_k=retrieval_top_k,
-            qdrant_client=_get_qdrant_client(),
-        )
-        retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieved_candidates]
-    except Exception as exc:
-        log_query_event(
-            event="query.failed.retrieve",
-            organization_id=principal.organization_id,
-            user_id=principal.user_id,
-            job_id=str(chat_session.id),
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            error=exc.__class__.__name__,
-            initial_top_k=retrieval_top_k,
-        )
-        raise _safe_http_error(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            code="retrieval_failed",
-            message="Retrieval is unavailable",
-        ) from exc
-    latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
-
-    rerank_started = perf_counter()
-    selected_chunks = _rerank_chunks(
-        chunks=retrieved_chunks,
-        enabled=payload.rerank,
-        final_top_k=final_top_k,
-    )
-    latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
-
+    retrieved_chunks: list[RetrievedChunk] = []
+    selected_chunks: list[RetrievedChunk] = []
+    embedding_prompt_tokens = 0
     llm_prompt_tokens = 0
     llm_completion_tokens = 0
     llm_model: str | None = None
     llm_cost_usd = None
-
-    confidence_signals = _to_confidence_signals(
-        chunks=selected_chunks, rerank_applied=payload.rerank
-    )
-    confidence_result = _confidence_service.score(
-        chunks=confidence_signals,
-        citation_count=0,
-        citation_validation_score=1.0,
-        not_found_signal=False,
-    )
-    confidence_score = confidence_result.score
-    confidence_category = confidence_result.category
-    confidence_explanation = confidence_result.explanation
-    not_found = (
-        len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
-    )
-
-    if not_found:
-        confidence_result = _confidence_service.score(
-            chunks=confidence_signals,
-            citation_count=0,
-            citation_validation_score=1.0,
-            not_found_signal=True,
-        )
-        confidence_score = confidence_result.score
-        confidence_category = confidence_result.category
-        confidence_explanation = confidence_result.explanation
-
-    prompt_started = perf_counter()
-    prompt = (
-        _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
-    )
-    latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
-
+    llm_latency_ms = 0
     answer = _NOT_FOUND_ANSWER
     citations: list[ChatCitationResponse] = []
+    not_found = False
 
-    llm_latency_ms = 0
-    if not not_found:
+    if payload.scope_mode == "none":
+        # General chat mode: skip retrieval, answer from LLM general knowledge.
+        embedding_model = None
+        prompt = _prompt_service.build_general_prompt(question=payload.question)
         try:
             llm_result = await _llm_service.generate_answer(
                 prompt=prompt,
@@ -722,62 +631,103 @@ async def query_chat(
                 code="generation_failed",
                 message="Answer generation is unavailable",
             ) from exc
-
         llm_latency_ms = llm_result.latency_ms
         llm_model = llm_result.model_name
         llm_prompt_tokens = llm_result.prompt_tokens
         llm_completion_tokens = llm_result.completion_tokens
         llm_cost_usd = llm_result.approximate_cost_usd
-        answer = llm_result.answer
+        answer = llm_result.answer if llm_result.answer.strip() else _NOT_FOUND_ANSWER
+        not_found = llm_result.not_found or not answer.strip()
+        confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
+        confidence_result = _confidence_service.score(
+            chunks=confidence_signals,
+            citation_count=0,
+            citation_validation_score=1.0,
+            not_found_signal=not_found,
+        )
+        confidence_score = confidence_result.score
+        confidence_category = confidence_result.category
+        confidence_explanation = confidence_result.explanation
+    else:
+        final_top_k = payload.top_k or settings.retrieval_final_top_k
+        retrieval_top_k = max(
+            final_top_k,
+            _rerank_service.candidate_count if payload.rerank else final_top_k,
+        )
 
-        if llm_result.not_found:
-            answer = _NOT_FOUND_ANSWER
-            not_found = True
-        elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
-            answer = _NOT_FOUND_ANSWER
-            not_found = True
-        else:
-            citation_result = _citation_service.build_citations(
-                not_found=False,
-                answer=answer,
-                retrieved_chunks=[
-                    CitationContextChunk(
-                        document_id=chunk.document_id,
-                        chunk_id=chunk.chunk_id,
-                        filename=chunk.filename,
-                        page_number=chunk.page_number,
-                        text=chunk.text,
-                        similarity_score=chunk.similarity_score,
-                        rerank_score=chunk.rerank_score,
-                        rerank_rank=chunk.rerank_rank,
-                    )
-                    for chunk in selected_chunks
-                ],
-                model_citations=llm_result.citations,
+        embed_started = perf_counter()
+        try:
+            query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
+                question=payload.question,
+                openai_client=_get_openai_client(),
             )
-            citations = citation_result.citations
-            confidence_result = _confidence_service.score(
-                chunks=confidence_signals,
-                citation_count=len(citations),
-                citation_validation_score=citation_result.validation_score,
-                not_found_signal=False,
-            )
-            confidence_score = confidence_result.score
-            confidence_category = confidence_result.category
-            confidence_explanation = confidence_result.explanation
+        except Exception as exc:
             log_query_event(
-                event="query.citations.validated",
+                event="query.failed.embed",
                 organization_id=principal.organization_id,
                 user_id=principal.user_id,
                 job_id=str(chat_session.id),
-                validation_score=citation_result.validation_score,
-                model_citation_count=citation_result.model_citation_count,
-                accepted_model_citation_count=citation_result.accepted_model_citation_count,
-                used_fallback=citation_result.used_fallback,
-                invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
-                metadata_mismatch_count=citation_result.metadata_mismatch_count,
-                snippet_mismatch_count=citation_result.snippet_mismatch_count,
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                error=exc.__class__.__name__,
+                embedding_model=embedding_model,
             )
+            raise _safe_http_error(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                code="query_embedding_failed",
+                message="Query embedding is unavailable",
+            ) from exc
+        latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
+
+        retrieve_started = perf_counter()
+        try:
+            retrieved_candidates = _query_retrieval_service.retrieve_candidates(
+                query_vector=query_vector,
+                organization_id=organization_id,
+                document_ids=document_ids,
+                initial_top_k=retrieval_top_k,
+                qdrant_client=_get_qdrant_client(),
+            )
+            retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieved_candidates]
+        except Exception as exc:
+            log_query_event(
+                event="query.failed.retrieve",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                job_id=str(chat_session.id),
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                error=exc.__class__.__name__,
+                initial_top_k=retrieval_top_k,
+            )
+            raise _safe_http_error(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                code="retrieval_failed",
+                message="Retrieval is unavailable",
+            ) from exc
+        latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
+
+        rerank_started = perf_counter()
+        selected_chunks = _rerank_chunks(
+            chunks=retrieved_chunks,
+            enabled=payload.rerank,
+            final_top_k=final_top_k,
+        )
+        latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
+
+        confidence_signals = _to_confidence_signals(
+            chunks=selected_chunks, rerank_applied=payload.rerank
+        )
+        confidence_result = _confidence_service.score(
+            chunks=confidence_signals,
+            citation_count=0,
+            citation_validation_score=1.0,
+            not_found_signal=False,
+        )
+        confidence_score = confidence_result.score
+        confidence_category = confidence_result.category
+        confidence_explanation = confidence_result.explanation
+        not_found = (
+            len(selected_chunks) == 0 or confidence_score < settings.confidence_not_found_threshold
+        )
 
         if not_found:
             confidence_result = _confidence_service.score(
@@ -789,6 +739,101 @@ async def query_chat(
             confidence_score = confidence_result.score
             confidence_category = confidence_result.category
             confidence_explanation = confidence_result.explanation
+
+        prompt_started = perf_counter()
+        prompt = (
+            _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
+        )
+        latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
+
+        if not not_found:
+            try:
+                llm_result = await _llm_service.generate_answer(
+                    prompt=prompt,
+                    openai_client=_get_openai_client(),
+                )
+            except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
+                log_query_event(
+                    event="query.failed.generate",
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    job_id=str(chat_session.id),
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    error=exc.__class__.__name__,
+                )
+                raise _safe_http_error(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    code="generation_failed",
+                    message="Answer generation is unavailable",
+                ) from exc
+
+            llm_latency_ms = llm_result.latency_ms
+            llm_model = llm_result.model_name
+            llm_prompt_tokens = llm_result.prompt_tokens
+            llm_completion_tokens = llm_result.completion_tokens
+            llm_cost_usd = llm_result.approximate_cost_usd
+            answer = llm_result.answer
+
+            if llm_result.not_found:
+                answer = _NOT_FOUND_ANSWER
+                not_found = True
+            elif not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+                answer = _NOT_FOUND_ANSWER
+                not_found = True
+            else:
+                citation_result = _citation_service.build_citations(
+                    not_found=False,
+                    answer=answer,
+                    retrieved_chunks=[
+                        CitationContextChunk(
+                            document_id=chunk.document_id,
+                            chunk_id=chunk.chunk_id,
+                            filename=chunk.filename,
+                            page_number=chunk.page_number,
+                            text=chunk.text,
+                            similarity_score=chunk.similarity_score,
+                            rerank_score=chunk.rerank_score,
+                            rerank_rank=chunk.rerank_rank,
+                        )
+                        for chunk in selected_chunks
+                    ],
+                    model_citations=llm_result.citations,
+                )
+                citations = citation_result.citations
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=len(citations),
+                    citation_validation_score=citation_result.validation_score,
+                    not_found_signal=False,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+                log_query_event(
+                    event="query.citations.validated",
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    job_id=str(chat_session.id),
+                    validation_score=citation_result.validation_score,
+                    model_citation_count=citation_result.model_citation_count,
+                    accepted_model_citation_count=citation_result.accepted_model_citation_count,
+                    used_fallback=citation_result.used_fallback,
+                    invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
+                    metadata_mismatch_count=citation_result.metadata_mismatch_count,
+                    snippet_mismatch_count=citation_result.snippet_mismatch_count,
+                )
+
+            if not_found:
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=0,
+                    citation_validation_score=1.0,
+                    not_found_signal=True,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+
     latencies_ms["llm"] = llm_latency_ms
     answer_latency_ms = int((perf_counter() - total_started) * 1000)
 

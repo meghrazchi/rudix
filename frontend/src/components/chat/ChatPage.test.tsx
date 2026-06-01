@@ -24,6 +24,7 @@ import {
   queryChat,
   updateChatSession,
 } from "@/lib/api/chat";
+import { listCollections } from "@/lib/api/collections";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 
@@ -37,6 +38,11 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/api/documents", () => ({
   listDocuments: vi.fn(),
+}));
+
+vi.mock("@/lib/api/collections", () => ({
+  listCollections: vi.fn(),
+  listCollectionDocuments: vi.fn(),
 }));
 
 vi.mock("@/lib/api/chat", () => ({
@@ -69,9 +75,20 @@ function renderPage() {
   );
 }
 
+async function openSessionMenu(sessionTitle: string) {
+  const item = await screen.findByText(sessionTitle);
+  const row = item.closest("li") as HTMLElement;
+  await userEvent.click(within(row).getByRole("button", { name: /Session actions/i }));
+}
+
 async function openContextSelector() {
+  // Switch scope type to "Files" (documents mode), then open the file picker.
+  await userEvent.selectOptions(
+    screen.getByRole("combobox", { name: /Scope type/i }),
+    "documents",
+  );
   await userEvent.click(
-    screen.getByRole("button", { name: /Context \(/i }),
+    await screen.findByRole("button", { name: /Select Files/i }),
   );
   return screen.findByRole("dialog", { name: /Select context/i });
 }
@@ -81,6 +98,7 @@ describe("ChatPage", () => {
     vi.clearAllMocks();
     window.localStorage.clear();
     mockNavigation.searchParams = new URLSearchParams();
+    vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [],
       total: 0,
@@ -314,7 +332,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -409,7 +427,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
       screen.getByPlaceholderText(
         "Type a message or use '/' for commands...",
@@ -495,7 +513,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
       screen.getByPlaceholderText(
         "Type a message or use '/' for commands...",
@@ -827,7 +845,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic/i }),
@@ -903,7 +921,7 @@ describe("ChatPage", () => {
     );
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic/i }),
@@ -1000,7 +1018,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic/i }),
@@ -1142,7 +1160,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.click(
       screen.getByRole("checkbox", { name: /Agentic/i }),
@@ -1228,7 +1246,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
       screen.getByPlaceholderText(
         "Type a message or use '/' for commands...",
@@ -1308,7 +1326,7 @@ describe("ChatPage", () => {
 
     renderPage();
 
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     const textarea = screen.getByPlaceholderText(
       "Type a message or use '/' for commands...",
     );
@@ -1684,7 +1702,7 @@ describe("ChatPage", () => {
     });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
       screen.getByPlaceholderText(
         "Type a message or use '/' for commands...",
@@ -1771,7 +1789,7 @@ describe("ChatPage", () => {
       .mockRejectedValueOnce(new Error("Temporary failure"));
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -1892,7 +1910,7 @@ describe("ChatPage", () => {
       });
 
     renderPage();
-    await screen.findByText(/Context \(/i);
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
       screen.getByPlaceholderText(
@@ -2028,7 +2046,8 @@ describe("ChatPage", () => {
     renderPage();
     expect(await screen.findByText("My Session")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Rename session/i }));
+    await openSessionMenu("My Session");
+    await userEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
 
     expect(screen.getByRole("textbox", { name: /Session title/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
@@ -2070,7 +2089,8 @@ describe("ChatPage", () => {
     renderPage();
     expect(await screen.findByText("Old Title")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Rename session/i }));
+    await openSessionMenu("Old Title");
+    await userEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
     const input = screen.getByRole("textbox", { name: /Session title/i });
     await userEvent.clear(input);
     await userEvent.type(input, "New Title");
@@ -2109,7 +2129,8 @@ describe("ChatPage", () => {
     renderPage();
     expect(await screen.findByText("Session To Delete")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Delete session/i }));
+    await openSessionMenu("Session To Delete");
+    await userEvent.click(screen.getByRole("menuitem", { name: /Delete/i }));
 
     expect(screen.getByText("Delete this session?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
@@ -2150,7 +2171,8 @@ describe("ChatPage", () => {
     renderPage();
     expect(await screen.findByText("Keep Me")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Delete session/i }));
+    await openSessionMenu("Keep Me");
+    await userEvent.click(screen.getByRole("menuitem", { name: /Delete/i }));
     expect(screen.getByText("Delete this session?")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -2231,5 +2253,330 @@ describe("ChatPage", () => {
       await screen.findByText("The report says revenue grew 12%."),
     ).toBeInTheDocument();
     expect(screen.getByText("What does the report say?")).toBeInTheDocument();
+  });
+
+  // ── F136 scope controls ──────────────────────────────────────────────────
+
+  it("renders all four scope mode buttons in the composer toolbar", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const scopeSelect = screen.getByRole("combobox", { name: /Scope type/i });
+    expect(scopeSelect).toBeInTheDocument();
+    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /All files/i })).toBeInTheDocument();
+    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /^Collection$/i })).toBeInTheDocument();
+    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /^Files$/i })).toBeInTheDocument();
+    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /No RAG/i })).toBeInTheDocument();
+  });
+
+  it("shows warning when documents scope selected with no files chosen", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Scope type/i }),
+      "documents",
+    );
+
+    expect(
+      await screen.findByText("Select at least one document to use document scope."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+  });
+
+  it("shows warning when collection scope selected with no collection chosen", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Scope type/i }),
+      "collection",
+    );
+
+    expect(
+      await screen.findByText("Select a collection to scope retrieval."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+  });
+
+  it("enables submit in No RAG mode even when no documents are indexed", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-none",
+      message_id: "msg-none",
+      answer: "The capital of France is Paris.",
+      confidence_score: 0.0,
+      confidence_category: "low",
+      confidence_explanation: {
+        top_similarity: 0.0,
+        average_similarity: 0.0,
+        top_rerank_score: 0.0,
+        citation_support_score: 0.0,
+        citation_validation_score: 1.0,
+        citation_coverage_score: 0.0,
+        retrieval_agreement_score: 0.0,
+        raw_score: 0.0,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: true,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 40 },
+        retrieval_count: 0,
+        selected_count: 0,
+        rerank_applied: false,
+        embedding_model: null,
+        llm_model: "llm-model",
+      },
+      created_at: "2026-06-01T10:00:00Z",
+    });
+
+    renderPage();
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Scope type/i }),
+      "none",
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      "Type a message or use '/' for commands...",
+    );
+    expect(textarea).not.toBeDisabled();
+
+    await userEvent.type(textarea, "What is the capital of France?");
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+
+    expect(await screen.findByText("The capital of France is Paris.")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "What is the capital of France?",
+          scope_mode: "none",
+        }),
+      );
+    });
+  });
+
+  it("shows scope label chip in answer header", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-scope",
+      message_id: "msg-scope",
+      answer: "Policy answer.",
+      confidence_score: 0.85,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.85,
+        average_similarity: 0.8,
+        top_rerank_score: 0.82,
+        citation_support_score: 0.7,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.8,
+        retrieval_agreement_score: 0.75,
+        raw_score: 0.85,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 80 },
+        retrieval_count: 1,
+        selected_count: 1,
+        rerank_applied: false,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-06-01T10:00:00Z",
+    });
+
+    renderPage();
+
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "What is the policy?",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+
+    // The scope label chip in the answer header should show "All files (N)".
+    // The Context button in the toolbar also shows "Context (N)", so findAllByText on the
+    // chip-specific pattern should find exactly the answer header chip.
+    expect(await screen.findByText(/All files \(\d+\)/i)).toBeInTheDocument();
+  });
+
+  it("passes scope_mode=documents and selected document_ids when in documents scope", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-scoped",
+          filename: "scoped.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 3,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-doc-scope",
+      message_id: "msg-doc-scope",
+      answer: "Scoped answer.",
+      confidence_score: 0.9,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.9,
+        average_similarity: 0.85,
+        top_rerank_score: 0.88,
+        citation_support_score: 0.8,
+        citation_validation_score: 0.95,
+        citation_coverage_score: 0.9,
+        retrieval_agreement_score: 0.85,
+        raw_score: 0.9,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 60 },
+        retrieval_count: 1,
+        selected_count: 1,
+        rerank_applied: false,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-06-01T10:00:00Z",
+    });
+
+    renderPage();
+
+    const contextDialog = await openContextSelector();
+    const docLabel = (await within(contextDialog).findByText("scoped.pdf")).closest("label");
+    await userEvent.click(within(docLabel as HTMLLabelElement).getByRole("checkbox"));
+    await userEvent.click(within(contextDialog).getByRole("button", { name: "Done" }));
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "Scoped query",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "Scoped query",
+          document_ids: ["doc-scoped"],
+          scope_mode: "documents",
+        }),
+      );
+    });
   });
 });

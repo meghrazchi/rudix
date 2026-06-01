@@ -16,6 +16,7 @@ class ChatQueryRequest(BaseModel):
     document_ids: list[str] = Field(default_factory=list, max_length=50)
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool = True
+    scope_mode: Literal["all", "collection", "documents", "none"] | None = None
 
     @field_validator("question")
     @classmethod

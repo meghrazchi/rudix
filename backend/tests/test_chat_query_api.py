@@ -959,3 +959,181 @@ async def test_post_chat_not_found_response_omits_citations_even_if_model_includ
     payload = response.json()
     assert payload["not_found"] is True
     assert payload["citations"] == []
+
+
+@pytest.mark.asyncio
+async def test_post_chat_scope_mode_none_skips_retrieval_and_uses_general_prompt(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scope_mode=none must skip embedding+retrieval and answer from general knowledge."""
+    user, organization, _ = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    fake_qdrant = FakeQdrantClient([])
+    qdrant_module.qdrant_client = fake_qdrant
+    fake_openai = FakeOpenAIClient(
+        answer='{"answer":"Paris is the capital of France.","not_found":false,"citations":[]}'
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "What is the capital of France?",
+            "document_ids": [],
+            "scope_mode": "none",
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"] == "Paris is the capital of France."
+    assert payload["not_found"] is False
+    assert payload["citations"] == []
+    assert payload["debug"]["retrieval_count"] == 0
+    assert payload["debug"]["selected_count"] == 0
+    assert payload["debug"]["embedding_model"] is None
+    # Retrieval must not have been called.
+    assert fake_qdrant.calls == []
+    # Embeddings must not have been called.
+    assert fake_openai.embeddings.calls == []
+    # LLM must have been called once (for the general answer).
+    assert len(fake_openai.chat.completions.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_post_chat_scope_mode_documents_uses_specified_document_ids(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scope_mode=documents should pass document_ids to retrieval (same as default behaviour)."""
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="handbook.pdf",
+        text="Annual leave is thirty days.",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.91,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "handbook.pdf",
+                    "page_number": 1,
+                    "text": "Annual leave is thirty days.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer=(
+            '{"answer":"Annual leave is thirty days.","not_found":false,'
+            '"citations":[{"document_id":"'
+            + str(document.id)
+            + '","chunk_id":"'
+            + str(chunk.id)
+            + '","filename":"handbook.pdf","page_number":1,'
+            '"text_snippet":"Annual leave is thirty days."}]}'
+        )
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "How many leave days?",
+            "document_ids": [str(document.id)],
+            "scope_mode": "documents",
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert payload["answer"] == "Annual leave is thirty days."
+    assert len(payload["citations"]) == 1
+    assert payload["citations"][0]["document_id"] == str(document.id)
+    assert payload["debug"]["retrieval_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_post_chat_scope_mode_all_behaves_like_no_scope_mode(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scope_mode=all should behave identically to omitting scope_mode (full retrieval)."""
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Remote work is permitted two days per week.",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.88,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Remote work is permitted two days per week.",
+                },
+            )
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer='{"answer":"Remote work is permitted two days per week.","not_found":false,"citations":[]}'
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Can I work from home?",
+            "document_ids": [],
+            "scope_mode": "all",
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert payload["answer"] == "Remote work is permitted two days per week."
+    assert payload["debug"]["retrieval_count"] == 1
+    assert payload["debug"]["embedding_model"] == settings.openai_embedding_model

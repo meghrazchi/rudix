@@ -78,6 +78,8 @@ import { useAuthSession } from "@/lib/use-auth-session";
 
 const DRAFT_SESSION_KEY = "__draft__";
 
+type ChatScopeMode = "all" | "collection" | "documents" | "none";
+
 function parsePositiveIntegerEnv(
   value: string | undefined,
   fallback: number,
@@ -139,6 +141,8 @@ type PersistedChatSettings = {
   rerank: boolean;
   selectedDocumentIds: string[];
   agenticMode?: boolean;
+  scopeMode?: ChatScopeMode;
+  selectedCollectionId?: string | null;
 };
 
 type ChatTurn = {
@@ -156,6 +160,7 @@ type ChatTurn = {
     agent_run_status: string | null;
     agent_run_error: AgentRunCreateResponse["run"]["error"] | null;
     agent_mode: AgentRuntimeMode | null;
+    scope_label: string | null;
   };
 };
 
@@ -185,7 +190,7 @@ function formatPercent(value: number | null | undefined): string {
 function confidenceBadgeClass(
   _confidence: ChatQueryResponse["confidence_category"],
 ): string {
-  return "inline-flex items-center gap-1 rounded-full bg-[#e4e1ee] px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  return "inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
 }
 
 function agentRunStatusClass(status: string): string {
@@ -330,6 +335,7 @@ function activeThreadKey(sessionId: string | null): string {
 
 function toTurnResponseFromQuery(
   response: ChatQueryResponse,
+  scopeLabel: string | null = null,
 ): ChatTurn["response"] {
   return {
     message_id: response.message_id,
@@ -344,6 +350,7 @@ function toTurnResponseFromQuery(
     agent_run_status: null,
     agent_run_error: null,
     agent_mode: null,
+    scope_label: scopeLabel,
   };
 }
 
@@ -366,6 +373,7 @@ function toTurnResponseFromHistoryMessage(
     agent_run_status: null,
     agent_run_error: null,
     agent_mode: null,
+    scope_label: null,
   };
 }
 
@@ -399,6 +407,7 @@ function toTurnResponseFromAgentRun(
     agent_run_status: run.status,
     agent_run_error: run.error ?? null,
     agent_mode: outcome?.mode ?? null,
+    scope_label: null,
   };
 }
 
@@ -480,11 +489,26 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
         )
       : [];
 
+    const scopeMode: ChatScopeMode =
+      parsed.scopeMode === "all" ||
+      parsed.scopeMode === "collection" ||
+      parsed.scopeMode === "documents" ||
+      parsed.scopeMode === "none"
+        ? parsed.scopeMode
+        : "all";
+
+    const selectedCollectionId =
+      typeof parsed.selectedCollectionId === "string"
+        ? parsed.selectedCollectionId
+        : null;
+
     return {
       topK: storedTopK,
       rerank: parsed.rerank !== false,
       selectedDocumentIds,
       agenticMode: parsed.agenticMode === true,
+      scopeMode,
+      selectedCollectionId,
     };
   } catch {
     return null;
@@ -536,6 +560,9 @@ export function ChatPage() {
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
     () => persistedSettings?.selectedDocumentIds ?? [],
   );
+  const [scopeMode, setScopeMode] = useState<ChatScopeMode>(
+    () => persistedSettings?.scopeMode ?? "all",
+  );
   const [topK, setTopK] = useState(
     () => persistedSettings?.topK ?? DEFAULT_TOP_K,
   );
@@ -560,14 +587,32 @@ export function ChatPage() {
     initialIndex: number;
   } | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(
+    () => persistedSettings?.selectedCollectionId ?? null,
+  );
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
+  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  const activeOrgId = state.session?.organizationId ?? null;
+  const prevOrgIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevOrgIdRef.current === null) {
+      prevOrgIdRef.current = activeOrgId;
+      return;
+    }
+    if (activeOrgId !== prevOrgIdRef.current) {
+      prevOrgIdRef.current = activeOrgId;
+      setScopeMode("all");
+      setSelectedCollectionId(null);
+      setSelectedDocumentIds([]);
+    }
+  }, [activeOrgId]);
 
   const settingsPreferencesQuery = useQuery({
     queryKey: ["settings", "preferences", "chat"],
@@ -728,17 +773,41 @@ export function ChatPage() {
   }, [documentIdFromQuery, indexedDocumentIdSet, selectedDocumentIds]);
 
   const effectiveDocumentIds = useMemo(() => {
-    if (collectionDocumentIdSet && collectionDocumentIdSet.size > 0) {
-      const collectionAndSelected = [
-        ...Array.from(collectionDocumentIdSet),
-        ...filteredSelectedDocumentIds.filter(
-          (id) => !collectionDocumentIdSet.has(id),
-        ),
-      ];
-      return collectionAndSelected;
+    if (scopeMode === "none") {
+      return [];
     }
+    if (scopeMode === "collection") {
+      if (collectionDocumentIdSet && collectionDocumentIdSet.size > 0) {
+        return Array.from(collectionDocumentIdSet);
+      }
+      return [];
+    }
+    if (scopeMode === "documents") {
+      return filteredSelectedDocumentIds;
+    }
+    // "all": pass empty list so backend searches all org docs
     return filteredSelectedDocumentIds;
-  }, [collectionDocumentIdSet, filteredSelectedDocumentIds]);
+  }, [scopeMode, collectionDocumentIdSet, filteredSelectedDocumentIds]);
+
+  const scopeWarning = useMemo<string | null>(() => {
+    if (scopeMode === "collection") {
+      if (!selectedCollectionId) return "Select a collection to scope retrieval.";
+      if (collectionDocsQuery.isLoading) return null;
+      if (collectionDocumentIdSet !== null && collectionDocumentIdSet.size === 0) {
+        return "The selected collection has no indexed documents.";
+      }
+    }
+    if (scopeMode === "documents" && filteredSelectedDocumentIds.length === 0) {
+      return "Select at least one document to use document scope.";
+    }
+    return null;
+  }, [
+    scopeMode,
+    selectedCollectionId,
+    collectionDocsQuery.isLoading,
+    collectionDocumentIdSet,
+    filteredSelectedDocumentIds,
+  ]);
   const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
   const contextModalQuery = useQuery({
     queryKey: queryKeys.documents.list({
@@ -790,12 +859,14 @@ export function ChatPage() {
       rerank,
       selectedDocumentIds: filteredSelectedDocumentIds,
       agenticMode,
+      scopeMode,
+      selectedCollectionId,
     };
     window.localStorage.setItem(
       CHAT_SETTINGS_STORAGE_KEY,
       JSON.stringify(payload),
     );
-  }, [agenticMode, filteredSelectedDocumentIds, rerank, topK]);
+  }, [agenticMode, filteredSelectedDocumentIds, rerank, topK, scopeMode, selectedCollectionId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -825,6 +896,14 @@ export function ChatPage() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [isContextModalOpen]);
+
+  useEffect(() => {
+    if (!openSessionMenuId) return;
+    const close = () => setOpenSessionMenuId(null);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [openSessionMenuId]);
+
 
   const activeSession =
     sessions.find((item) => item.session_id === activeSessionId) ?? null;
@@ -890,7 +969,8 @@ export function ChatPage() {
   });
 
   const queryMutation = useMutation({
-    mutationFn: (payload: ChatQueryRequest) => queryChat(payload),
+    mutationFn: (payload: ChatQueryRequest & { _scopeLabel?: string }) =>
+      queryChat(payload),
     onSuccess: async (response, payload) => {
       const resolvedSessionId =
         response.chat_session_id ?? payload.chat_session_id ?? activeSessionId;
@@ -900,7 +980,7 @@ export function ChatPage() {
       );
       const nextTurn: ChatTurn = {
         question: payload.question,
-        response: toTurnResponseFromQuery(response),
+        response: toTurnResponseFromQuery(response, payload._scopeLabel ?? null),
       };
 
       setThreadsBySession((previous) => {
@@ -971,6 +1051,7 @@ export function ChatPage() {
     },
   });
 
+  const isScopeInvalid = scopeWarning !== null;
   const isComposerDisabled =
     queryMutation.isPending ||
     agentRunMutation.isPending ||
@@ -978,7 +1059,23 @@ export function ChatPage() {
     question.trim().length === 0 ||
     indexedDocumentsQuery.isLoading ||
     indexedDocumentsQuery.isError ||
-    !hasIndexedDocuments;
+    (!hasIndexedDocuments && scopeMode !== "none") ||
+    isScopeInvalid;
+
+  function buildScopeLabel(): string {
+    if (scopeMode === "none") return "No retrieval";
+    if (scopeMode === "collection") {
+      const col = (collectionsListQuery.data?.items ?? []).find(
+        (c) => c.collection_id === selectedCollectionId,
+      );
+      return col ? `Collection: ${col.name}` : "Collection scope";
+    }
+    if (scopeMode === "documents") {
+      const n = filteredSelectedDocumentIds.length;
+      return `${n} document${n !== 1 ? "s" : ""} selected`;
+    }
+    return `All files (${totalIndexedDocuments})`;
+  }
 
   const listForbidden =
     isForbiddenError(indexedDocumentsQuery.error) ||
@@ -1104,7 +1201,7 @@ export function ChatPage() {
       queryMutation.isPending ||
       agentRunMutation.isPending ||
       createSessionMutation.isPending ||
-      !hasIndexedDocuments
+      (!hasIndexedDocuments && scopeMode !== "none")
     ) {
       return;
     }
@@ -1114,6 +1211,8 @@ export function ChatPage() {
     if (clearComposerOnSubmit) {
       setQuestion("");
     }
+
+    const currentScopeLabel = buildScopeLabel();
 
     if (AGENTIC_CHAT_ENABLED && agenticMode) {
       const previousThreadKey = activeThreadKey(activeSessionId);
@@ -1125,7 +1224,7 @@ export function ChatPage() {
           mode: "answer",
           question: trimmedQuestion,
           document_ids:
-            effectiveDocumentIds.length > 0
+            scopeMode !== "none" && effectiveDocumentIds.length > 0
               ? effectiveDocumentIds
               : undefined,
           top_k: topK,
@@ -1137,7 +1236,7 @@ export function ChatPage() {
         const response = await agentRunMutation.mutateAsync(payload);
         const nextTurn: ChatTurn = {
           question: trimmedQuestion,
-          response: toTurnResponseFromAgentRun(response.run),
+          response: { ...toTurnResponseFromAgentRun(response.run), scope_label: currentScopeLabel },
         };
         setThreadsBySession((previous) => {
           const sourceThread = previous[previousThreadKey] ?? [];
@@ -1196,11 +1295,13 @@ export function ChatPage() {
         question: trimmedQuestion,
         chat_session_id: targetSessionId,
         document_ids:
-          effectiveDocumentIds.length > 0
+          scopeMode !== "none" && effectiveDocumentIds.length > 0
             ? effectiveDocumentIds
             : undefined,
         top_k: topK,
         rerank,
+        scope_mode: scopeMode,
+        _scopeLabel: currentScopeLabel,
       },
       {
         onError: (error) => {
@@ -1283,7 +1384,7 @@ export function ChatPage() {
 
         <div className={`grid min-h-0 flex-1 gap-4 ${(isKnowledgeHubOpen || activeCitation !== null) ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}>
           <aside className="hide-scrollbar min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
-            <section className="rounded-2xl border border-[#d7d4e8] bg-[#f5f2ff] p-4">
+            <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
                 Sessions
               </h2>
@@ -1380,7 +1481,7 @@ export function ChatPage() {
                             </form>
                           ) : (
                             <div
-                              className={`group flex items-stretch rounded-lg border transition ${
+                              className={`group relative cursor-pointer rounded-lg border transition ${
                                 isActive
                                   ? "border-[#3525cd] bg-[#ece8ff]"
                                   : "border-[#dfdbef] bg-white hover:bg-[#faf9ff]"
@@ -1394,7 +1495,7 @@ export function ChatPage() {
                                   setPendingQuestion(null);
                                   replaceSessionParamInUrl(session.session_id);
                                 }}
-                                className="min-w-0 flex-1 px-3 py-2 text-left text-sm"
+                                className="w-full px-3 py-2 pr-8 text-left text-sm"
                               >
                                 <p className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}>
                                   {displayTitle}
@@ -1404,25 +1505,58 @@ export function ChatPage() {
                                   {formatDate(session.updated_at)}
                                 </p>
                               </button>
-                              <div className="flex shrink-0 flex-col justify-center gap-1 px-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+                              <div
+                                className={`absolute right-1 top-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${openSessionMenuId === session.session_id ? "opacity-100" : "opacity-0"}`}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
                                 <button
                                   type="button"
-                                  onClick={() => handleRenameStart(session.session_id, session.title)}
-                                  title="Rename session"
-                                  aria-label="Rename session"
-                                  className="flex h-6 w-6 items-center justify-center rounded text-[#6a6780] hover:bg-[#e4e1f0] hover:text-[#2f2a46]"
+                                  aria-label="Session actions"
+                                  aria-expanded={openSessionMenuId === session.session_id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenSessionMenuId((prev) =>
+                                      prev === session.session_id ? null : session.session_id,
+                                    );
+                                  }}
+                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-[#6a6780] hover:text-[#2f2a46]"
                                 >
-                                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">edit</span>
+                                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">more_vert</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteRequest(session.session_id)}
-                                  title="Delete session"
-                                  aria-label="Delete session"
-                                  className="flex h-6 w-6 items-center justify-center rounded text-[#6a6780] hover:bg-rose-100 hover:text-rose-700"
-                                >
-                                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
-                                </button>
+                                {openSessionMenuId === session.session_id && (
+                                  <div
+                                    role="menu"
+                                    className="absolute right-0 top-7 z-20 min-w-[130px] overflow-hidden rounded-lg border border-[#d7d4e8] bg-white py-1 shadow-lg"
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenSessionMenuId(null);
+                                        handleRenameStart(session.session_id, session.title);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-[#2f2a46] hover:bg-[#f5f2ff]"
+                                    >
+                                      <span className="material-symbols-outlined text-[14px] text-[#6a6780]" aria-hidden="true">edit</span>
+                                      Rename
+                                    </button>
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenSessionMenuId(null);
+                                        handleDeleteRequest(session.session_id);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
+                                    >
+                                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}
@@ -1511,7 +1645,7 @@ export function ChatPage() {
                         );
                         downloadMarkdown(
                           md,
-                          `${sanitizeFilename(activeSessionDisplayTitle)}.md`,
+                          `${sanitizeFilename(activeSessionDisplayTitle ?? "chat")}.md`,
                         );
                       }}
                       className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
@@ -1592,23 +1726,32 @@ export function ChatPage() {
                                 auto_awesome
                               </span>
                             </div>
-                            <article className="max-w-[92%] flex-1 rounded-xl rounded-tl-none border border-[#c7c4d8] bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                            <div className="flex min-w-0 max-w-[92%] flex-1 flex-col">
+                            <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
                               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                <span
-                                  className={confidenceBadgeClass(
-                                    turn.response.confidence_category,
-                                  )}
-                                >
+                                <div className="flex flex-wrap items-center gap-2">
                                   <span
-                                    className="material-symbols-outlined text-xs"
-                                    aria-hidden="true"
-                                    style={{ fontVariationSettings: "'FILL' 1" }}
+                                    className={confidenceBadgeClass(
+                                      turn.response.confidence_category,
+                                    )}
                                   >
-                                    check_circle
+                                    <span
+                                      className="material-symbols-outlined text-xs"
+                                      aria-hidden="true"
+                                      style={{ fontVariationSettings: "'FILL' 1" }}
+                                    >
+                                      check_circle
+                                    </span>
+                                    Confidence{" "}
+                                    {formatPercent(turn.response.confidence_score)}
                                   </span>
-                                  Confidence{" "}
-                                  {formatPercent(turn.response.confidence_score)}
-                                </span>
+                                  {turn.response.scope_label ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-[10px] font-semibold text-[#3525cd]">
+                                      <span className="material-symbols-outlined text-[11px]" aria-hidden="true">filter_alt</span>
+                                      {turn.response.scope_label}
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <div className="flex items-center gap-2">
                                   {turn.response.agent_run_status ? (
                                     <span
@@ -1738,8 +1881,10 @@ export function ChatPage() {
                                   {turn.response.agent_run_error.message}
                                 </p>
                               ) : null}
+                            </article>
+                            <div className="mt-1 flex items-center gap-0.5 px-1">
                               {!turn.response.not_found ? (
-                                <div className="mt-2 flex items-center">
+                                <div className="group/copy relative">
                                   <button
                                     type="button"
                                     aria-label="Copy answer"
@@ -1755,107 +1900,90 @@ export function ChatPage() {
                                         setTimeout(() => setCopiedMessageId(null), 2000);
                                       });
                                     }}
-                                    className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#6a6780] hover:bg-[#f5f3ff] hover:text-[#3e376f]"
+                                    className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                   >
-                                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
                                       {copiedMessageId === turn.response.message_id ? "check" : "content_copy"}
                                     </span>
-                                    {copiedMessageId === turn.response.message_id ? "Copied" : "Copy answer"}
                                   </button>
+                                  <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/copy:opacity-100">
+                                    {copiedMessageId === turn.response.message_id ? "Copied!" : "Copy"}
+                                  </span>
                                 </div>
                               ) : null}
+                              {CHAT_FEEDBACK_ENABLED ? (
+                                <>
+                                  <div className="group/up relative">
+                                    <button
+                                      type="button"
+                                      aria-label="Mark answer helpful"
+                                      onClick={() => {
+                                        setFeedbackByMessageId((previous) => {
+                                          const next = { ...previous };
+                                          if (next[turn.response.message_id] === "up") {
+                                            delete next[turn.response.message_id];
+                                          } else {
+                                            next[turn.response.message_id] = "up";
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${feedbackByMessageId[turn.response.message_id] === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                    >
+                                      <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_up</span>
+                                    </button>
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/up:opacity-100">
+                                      Helpful
+                                    </span>
+                                  </div>
+                                  <div className="group/down relative">
+                                    <button
+                                      type="button"
+                                      aria-label="Mark answer not helpful"
+                                      onClick={() => {
+                                        setFeedbackByMessageId((previous) => {
+                                          const next = { ...previous };
+                                          if (next[turn.response.message_id] === "down") {
+                                            delete next[turn.response.message_id];
+                                          } else {
+                                            next[turn.response.message_id] = "down";
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${feedbackByMessageId[turn.response.message_id] === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                    >
+                                      <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_down</span>
+                                    </button>
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/down:opacity-100">
+                                      Not helpful
+                                    </span>
+                                  </div>
+                                </>
+                              ) : null}
                               {isLatestTurn ? (
-                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                  {CHAT_FEEDBACK_ENABLED ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        aria-label="Mark answer helpful"
-                                        onClick={() => {
-                                          setFeedbackByMessageId((previous) => {
-                                            const next = { ...previous };
-                                            if (
-                                              next[turn.response.message_id] ===
-                                              "up"
-                                            ) {
-                                              delete next[
-                                                turn.response.message_id
-                                              ];
-                                            } else {
-                                              next[turn.response.message_id] =
-                                                "up";
-                                            }
-                                            return next;
-                                          });
-                                        }}
-                                        className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${feedbackByMessageId[turn.response.message_id] === "up" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"}`}
-                                      >
-                                        <span
-                                          className="material-symbols-outlined text-[16px]"
-                                          aria-hidden="true"
-                                        >
-                                          thumb_up
-                                        </span>
-                                        Helpful
-                                      </button>
-                                      <button
-                                        type="button"
-                                        aria-label="Mark answer not helpful"
-                                        onClick={() => {
-                                          setFeedbackByMessageId((previous) => {
-                                            const next = { ...previous };
-                                            if (
-                                              next[turn.response.message_id] ===
-                                              "down"
-                                            ) {
-                                              delete next[
-                                                turn.response.message_id
-                                              ];
-                                            } else {
-                                              next[turn.response.message_id] =
-                                                "down";
-                                            }
-                                            return next;
-                                          });
-                                        }}
-                                        className={`inline-flex items-center rounded border px-2 py-1 text-xs ${feedbackByMessageId[turn.response.message_id] === "down" ? "border-rose-300 bg-rose-50 text-rose-800" : "border-[#d2cee6] text-[#3e376f] hover:bg-[#f5f3ff]"}`}
-                                      >
-                                        <span
-                                          className="material-symbols-outlined text-[16px]"
-                                          aria-hidden="true"
-                                        >
-                                          thumb_down
-                                        </span>
-                                      </button>
-                                    </>
-                                  ) : null}
+                                <div className="group/regen relative">
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      void submitQuestionText(
-                                        turn.question,
-                                        false,
-                                      );
-                                    }}
+                                    aria-label="Regenerate answer"
+                                    onClick={() => { void submitQuestionText(turn.question, false); }}
                                     disabled={
                                       queryMutation.isPending ||
                                       agentRunMutation.isPending ||
                                       createSessionMutation.isPending ||
-                                      !hasIndexedDocuments
+                                      (!hasIndexedDocuments && scopeMode !== "none")
                                     }
-                                    className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[#9d98b5] transition-colors hover:bg-[#ece9f4] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
                                   >
-                                    <span
-                                      className="material-symbols-outlined text-[16px]"
-                                      aria-hidden="true"
-                                    >
-                                      refresh
-                                    </span>
-                                    Regenerate
+                                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">refresh</span>
                                   </button>
+                                  <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/regen:opacity-100">
+                                    Regenerate
+                                  </span>
                                 </div>
                               ) : null}
-                            </article>
+                            </div>
+                            </div>
                           </div>
                         </li>
                       );
@@ -1880,7 +2008,7 @@ export function ChatPage() {
                               bolt
                             </span>
                           </div>
-                          <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-[#f0ecf9] px-4 py-3 shadow-sm">
+                          <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
                             <p className="text-sm text-[#464555]">
                               {STREAMING_PLACEHOLDER_ENABLED
                                 ? "Streaming response..."
@@ -1921,6 +2049,65 @@ export function ChatPage() {
                   <div className="relative overflow-hidden rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm">
                     {/* Integrated toolbar */}
                     <div className="flex items-center gap-3 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
+
+                      {/* ── Scope ── */}
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[14px] text-[#6a6780]" aria-hidden="true">travel_explore</span>
+                        <span className="uppercase tracking-wider">Scope</span>
+                        <select
+                          value={scopeMode}
+                          onChange={(e) => setScopeMode(e.target.value as ChatScopeMode)}
+                          aria-label="Scope type"
+                          className="rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20 cursor-pointer"
+                        >
+                          <option value="all">All files</option>
+                          <option value="collection">Collection</option>
+                          <option value="documents">Files</option>
+                          <option value="none">No RAG</option>
+                        </select>
+                      </div>
+
+                      {/* Collection value picker */}
+                      {scopeMode === "collection" && (
+                        <>
+                          <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                          <select
+                            value={selectedCollectionId ?? ""}
+                            onChange={(e) => setSelectedCollectionId(e.target.value || null)}
+                            aria-label="Select collection"
+                            className="max-w-[160px] rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20 cursor-pointer"
+                          >
+                            <option value="">— choose collection —</option>
+                            {(collectionsListQuery.data?.items ?? []).map((col) => (
+                              <option key={col.collection_id} value={col.collection_id}>{col.name}</option>
+                            ))}
+                          </select>
+                        </>
+                      )}
+
+                      {/* Files value picker */}
+                      {scopeMode === "documents" && (
+                        <>
+                          <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                          <button
+                            type="button"
+                            onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
+                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] hover:bg-[#e8e4f8] transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-[13px]" aria-hidden="true">upload_file</span>
+                            Select Files
+                          </button>
+                          {filteredSelectedDocumentIds.length > 0 && (
+                            <span className="bg-[#ece8ff] text-[#3525cd] px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                              {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+
+                      {/* ── Top-k ── */}
                       <div className="flex items-center gap-2">
                         <label htmlFor="top-k-slider" className="uppercase tracking-wider">Top-k</label>
                         <input
@@ -1946,8 +2133,9 @@ export function ChatPage() {
                         />
                       </div>
 
-                      <span className="h-3 w-px bg-[#c7c4d8]" />
+                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
 
+                      {/* ── Rerank ── */}
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <span>Rerank</span>
                         <span className="relative inline-flex items-center">
@@ -1957,8 +2145,9 @@ export function ChatPage() {
                         </span>
                       </label>
 
-                      <span className="h-3 w-px bg-[#c7c4d8]" />
+                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
 
+                      {/* ── Agentic ── */}
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <span>Agentic</span>
                         <span className="relative inline-flex items-center">
@@ -1969,62 +2158,25 @@ export function ChatPage() {
                         </span>
                       </label>
 
-                      <div className="ml-auto flex items-center gap-2">
-                        <label className="flex items-center gap-1 text-xs font-medium text-[#6a6780]">
-                          <span
-                            className="material-symbols-outlined text-sm text-[#3525cd]"
-                            aria-hidden="true"
-                          >
-                            folder_special
-                          </span>
-                          <select
-                            value={selectedCollectionId ?? ""}
-                            onChange={(event) =>
-                              setSelectedCollectionId(
-                                event.target.value || null,
-                              )
-                            }
-                            aria-label="Filter by collection"
-                            className="max-w-[160px] rounded border border-[#d2cee6] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
-                          >
-                            <option value="">All collections</option>
-                            {(collectionsListQuery.data?.items ?? []).map(
-                              (col) => (
-                                <option
-                                  key={col.collection_id}
-                                  value={col.collection_id}
-                                >
-                                  {col.name}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
-                          className="flex items-center gap-1 transition-colors"
-                          aria-label={
-                            filteredSelectedDocumentIds.length > 0
-                              ? `${filteredSelectedDocumentIds.length} document(s) selected — click to change`
-                              : `All ${contextScopeDocumentCount} indexed files included — click to narrow scope`
-                          }
-                        >
-                          <span className="material-symbols-outlined text-sm text-[#3525cd]" aria-hidden="true">folder_open</span>
-                          {filteredSelectedDocumentIds.length > 0 ? (
-                            <span className="text-[#3525cd] hover:text-[#2b1fa8]">
-                              {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-xs font-semibold text-[#3525cd] hover:bg-[#e8e4f8]">
-                              All files
-                              <span className="font-normal opacity-60">({contextScopeDocumentCount})</span>
-                            </span>
-                          )}
-                        </button>
-                      </div>
+                      {/* ── Context button (far right) ── */}
+                      <button
+                        type="button"
+                        onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
+                        className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[#3525cd] transition-colors hover:bg-[#ece8ff]/60"
+                        aria-label={`Context (${contextScopeDocumentCount} documents in scope) — click to view or change`}
+                      >
+                        <span className="material-symbols-outlined text-[13px]" aria-hidden="true">history</span>
+                        Context ({contextScopeDocumentCount})
+                      </button>
                     </div>
+
+                    {/* Scope warning banner */}
+                    {scopeWarning && (
+                      <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">warning</span>
+                        {scopeWarning}
+                      </div>
+                    )}
 
                     {/* Textarea + send */}
                     <div className="relative flex items-end bg-white">
@@ -2039,7 +2191,7 @@ export function ChatPage() {
                         }}
                         rows={2}
                         placeholder="Type a message or use '/' for commands..."
-                        disabled={!hasIndexedDocuments}
+                        disabled={scopeMode !== "none" && !hasIndexedDocuments}
                         className="w-full resize-none border-none bg-transparent py-3 pl-3 pr-14 text-sm text-[#2f2a46] outline-none focus:ring-0"
                       />
                       <div className="absolute bottom-2.5 right-3">
@@ -2063,8 +2215,12 @@ export function ChatPage() {
                   {!AGENTIC_CHAT_ENABLED && (
                     <p className="mt-2 text-xs text-[#8a4762]">Agentic Mode is disabled for this deployment.</p>
                   )}
-                  {!hasIndexedDocuments && (
-                    <p className="mt-2 text-center text-xs text-[#777587]">Chat is disabled until at least one document is indexed.</p>
+                  {!hasIndexedDocuments && scopeMode !== "none" && (
+                    <p className="mt-2 text-center text-xs text-[#777587]">
+                      <span>Chat is disabled until at least one document is indexed.</span>
+                      {" "}
+                      <span>Switch to No RAG mode to chat without documents.</span>
+                    </p>
                   )}
                 </form>
               </div>
