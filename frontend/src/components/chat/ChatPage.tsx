@@ -20,6 +20,7 @@ import {
 } from "@tanstack/react-query";
 
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
+import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { ShareModal } from "@/components/chat/ShareModal";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -56,6 +57,13 @@ import {
   listCollectionDocuments,
   listCollections,
 } from "@/lib/api/collections";
+import {
+  deleteMessageFeedback,
+  listSessionFeedback,
+  submitMessageFeedback,
+  type FeedbackReason,
+  type MessageFeedbackResponse,
+} from "@/lib/api/feedback";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
@@ -72,7 +80,6 @@ import {
   normalizePipelineRunType,
   type PipelineRunType,
 } from "@/lib/pipeline-links";
-import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -132,7 +139,7 @@ const AGENTIC_CHAT_ENABLED =
 const DEFAULT_AGENTIC_MODE =
   process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
-const CHAT_FEEDBACK_ENABLED = getFrontendRuntimeConfig().features.feedback;
+const CHAT_FEEDBACK_ENABLED = process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
 const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
@@ -579,8 +586,9 @@ export function ChatPage() {
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [submitRequestId, setSubmitRequestId] = useState<string | null>(null);
   const [feedbackByMessageId, setFeedbackByMessageId] = useState<
-    Record<string, "up" | "down">
+    Record<string, MessageFeedbackResponse>
   >({});
+  const [feedbackModalMessageId, setFeedbackModalMessageId] = useState<string | null>(null);
   const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: ChatCitationResponse[];
@@ -699,6 +707,20 @@ export function ChatPage() {
           [threadKey]: hydratedTurns,
         };
       });
+      if (CHAT_FEEDBACK_ENABLED) {
+        try {
+          const feedbackResponse = await listSessionFeedback(activeSessionId);
+          setFeedbackByMessageId((previous) => {
+            const next = { ...previous };
+            for (const fb of feedbackResponse.items) {
+              next[fb.message_id] = fb;
+            }
+            return next;
+          });
+        } catch {
+          // non-critical — feedback state remains as-is
+        }
+      }
       return response;
     },
     enabled: shouldLoadActiveSessionHistory,
@@ -1048,6 +1070,25 @@ export function ChatPage() {
         return next;
       });
       await invalidateAfterMutation(queryClient, "chat.session.delete");
+    },
+  });
+
+  const feedbackSubmitMutation = useMutation({
+    mutationFn: ({ messageId, rating, reason, comment }: { messageId: string; rating: "up" | "down"; reason?: FeedbackReason | null; comment?: string | null }) =>
+      submitMessageFeedback(messageId, { rating, reason, comment }),
+    onSuccess: (data) => {
+      setFeedbackByMessageId((previous) => ({ ...previous, [data.message_id]: data }));
+    },
+  });
+
+  const feedbackDeleteMutation = useMutation({
+    mutationFn: (messageId: string) => deleteMessageFeedback(messageId),
+    onSuccess: (_, messageId) => {
+      setFeedbackByMessageId((previous) => {
+        const next = { ...previous };
+        delete next[messageId];
+        return next;
+      });
     },
   });
 
@@ -1900,7 +1941,7 @@ export function ChatPage() {
                                         setTimeout(() => setCopiedMessageId(null), 2000);
                                       });
                                     }}
-                                    className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                    className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                   >
                                     <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
                                       {copiedMessageId === turn.response.message_id ? "check" : "content_copy"}
@@ -1918,17 +1959,14 @@ export function ChatPage() {
                                       type="button"
                                       aria-label="Mark answer helpful"
                                       onClick={() => {
-                                        setFeedbackByMessageId((previous) => {
-                                          const next = { ...previous };
-                                          if (next[turn.response.message_id] === "up") {
-                                            delete next[turn.response.message_id];
-                                          } else {
-                                            next[turn.response.message_id] = "up";
-                                          }
-                                          return next;
-                                        });
+                                        const msgId = turn.response.message_id;
+                                        if (feedbackByMessageId[msgId]?.rating === "up") {
+                                          feedbackDeleteMutation.mutate(msgId);
+                                        } else {
+                                          feedbackSubmitMutation.mutate({ messageId: msgId, rating: "up" });
+                                        }
                                       }}
-                                      className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${feedbackByMessageId[turn.response.message_id] === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
                                       <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_up</span>
                                     </button>
@@ -1939,19 +1977,9 @@ export function ChatPage() {
                                   <div className="group/down relative">
                                     <button
                                       type="button"
-                                      aria-label="Mark answer not helpful"
-                                      onClick={() => {
-                                        setFeedbackByMessageId((previous) => {
-                                          const next = { ...previous };
-                                          if (next[turn.response.message_id] === "down") {
-                                            delete next[turn.response.message_id];
-                                          } else {
-                                            next[turn.response.message_id] = "down";
-                                          }
-                                          return next;
-                                        });
-                                      }}
-                                      className={`flex h-6 w-6 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-[#ece9f4] ${feedbackByMessageId[turn.response.message_id] === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                      aria-label="Report an issue"
+                                      onClick={() => setFeedbackModalMessageId(turn.response.message_id)}
+                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
                                       <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_down</span>
                                     </button>
@@ -1973,7 +2001,7 @@ export function ChatPage() {
                                       createSessionMutation.isPending ||
                                       (!hasIndexedDocuments && scopeMode !== "none")
                                     }
-                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[#9d98b5] transition-colors hover:bg-[#ece9f4] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
+                                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     <span className="material-symbols-outlined text-[13px]" aria-hidden="true">refresh</span>
                                   </button>
@@ -2675,6 +2703,27 @@ export function ChatPage() {
           sessionId={activeSessionId}
           sessionTitle={activeSessionDisplayTitle}
           onClose={() => setIsShareModalOpen(false)}
+        />
+      ) : null}
+
+      {CHAT_FEEDBACK_ENABLED && feedbackModalMessageId ? (
+        <FeedbackModal
+          existingReason={feedbackByMessageId[feedbackModalMessageId]?.reason}
+          existingComment={feedbackByMessageId[feedbackModalMessageId]?.comment}
+          isSubmitting={feedbackSubmitMutation.isPending}
+          isDeleting={feedbackDeleteMutation.isPending}
+          onSubmit={(reason, comment) => {
+            feedbackSubmitMutation.mutate(
+              { messageId: feedbackModalMessageId, rating: "down", reason, comment },
+              { onSuccess: () => setFeedbackModalMessageId(null) },
+            );
+          }}
+          onDelete={() => {
+            feedbackDeleteMutation.mutate(feedbackModalMessageId, {
+              onSuccess: () => setFeedbackModalMessageId(null),
+            });
+          }}
+          onClose={() => setFeedbackModalMessageId(null)}
         />
       ) : null}
     </>

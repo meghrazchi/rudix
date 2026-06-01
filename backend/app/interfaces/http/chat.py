@@ -34,6 +34,12 @@ from app.domains.chat.schemas.chat import (
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
+from app.domains.chat.repositories.feedback import FeedbackRepository
+from app.domains.chat.schemas.feedback import (
+    MessageFeedbackResponse,
+    SessionFeedbackListResponse,
+    SubmitFeedbackRequest,
+)
 from app.domains.chat.schemas.share import (
     ChatShareListResponse,
     ChatShareResponse,
@@ -59,6 +65,7 @@ from app.rate_limit import RateLimitScope, enforce_rate_limit
 router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
 share_repository = ChatShareRepository()
+feedback_repository = FeedbackRepository()
 usage_repository = UsageRepository()
 audit_log_service = AuditLogService()
 
@@ -1463,4 +1470,195 @@ async def get_shared_session(
         shared_at=share.created_at,
         messages=items,
         total_messages=total_messages,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feedback endpoints
+# ---------------------------------------------------------------------------
+
+
+def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # type: ignore[name-defined]
+    from app.models.message_feedback import MessageFeedback as _MessageFeedback  # noqa: F401
+
+    return MessageFeedbackResponse(
+        feedback_id=str(fb.id),
+        message_id=str(fb.message_id),
+        user_id=str(fb.user_id),
+        rating=fb.rating,  # type: ignore[arg-type]
+        reason=fb.reason,  # type: ignore[arg-type]
+        comment=fb.comment,
+        created_at=fb.created_at,
+        updated_at=fb.updated_at,
+    )
+
+
+async def _get_assistant_message_for_org(
+    db_session: AsyncSession,
+    *,
+    message_id: UUID,
+    organization_id: UUID,
+) -> "ChatMessage":  # type: ignore[name-defined]
+    from sqlalchemy import select as _select
+
+    from app.models.chat import ChatMessage as _ChatMessage, ChatSession as _ChatSession
+
+    result = await db_session.execute(
+        _select(_ChatMessage)
+        .join(_ChatSession, _ChatMessage.chat_session_id == _ChatSession.id)
+        .where(
+            _ChatMessage.id == message_id,
+            _ChatMessage.role == "assistant",
+            _ChatSession.organization_id == organization_id,
+        )
+    )
+    message = result.scalar_one_or_none()
+    if message is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+    return message
+
+
+@router.put(
+    "/messages/{message_id}/feedback",
+    response_model=MessageFeedbackResponse,
+)
+async def submit_message_feedback(
+    message_id: str,
+    payload: SubmitFeedbackRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> MessageFeedbackResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    request_id = _request_id_from_request(request)
+    try:
+        msg_id = UUID(message_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+
+    await _get_assistant_message_for_org(db_session, message_id=msg_id, organization_id=organization_id)
+
+    feedback = await feedback_repository.upsert_feedback(
+        db_session,
+        message_id=msg_id,
+        user_id=user_id,
+        organization_id=organization_id,
+        rating=payload.rating,
+        reason=payload.reason,
+        comment=payload.comment,
+    )
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="chat.message.feedback.submitted",
+        resource_type="chat_message",
+        resource_id=msg_id,
+        request_id=request_id,
+        metadata={"rating": payload.rating, "reason": payload.reason},
+    )
+    await db_session.commit()
+    await db_session.refresh(feedback)
+    return _to_feedback_response(feedback)
+
+
+@router.delete("/messages/{message_id}/feedback", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_message_feedback(
+    message_id: str,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    user_id, organization_id = _principal_user_and_org(principal)
+    request_id = _request_id_from_request(request)
+    try:
+        msg_id = UUID(message_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+
+    deleted = await feedback_repository.delete_feedback(
+        db_session,
+        message_id=msg_id,
+        user_id=user_id,
+        organization_id=organization_id,
+    )
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback not found")
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="chat.message.feedback.deleted",
+        resource_type="chat_message",
+        resource_id=msg_id,
+        request_id=request_id,
+        metadata={},
+    )
+    await db_session.commit()
+
+
+@router.get(
+    "/sessions/{session_id}/feedback",
+    response_model=SessionFeedbackListResponse,
+)
+async def list_session_feedback(
+    session_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SessionFeedbackListResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    try:
+        chat_session_id = UUID(session_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found") from exc
+
+    chat_session = await chat_repository.get_chat_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    if chat_session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found")
+
+    items = await feedback_repository.list_feedback_for_session(
+        db_session,
+        chat_session_id=chat_session_id,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    return SessionFeedbackListResponse(
+        items=[_to_feedback_response(fb) for fb in items],
+        total=len(items),
     )

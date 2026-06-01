@@ -70,3 +70,17 @@ class AgentApprovalStatus(StrEnum):
     rejected = "rejected"
     expired = "expired"
     cancelled = "cancelled"
+
+
+class FeedbackRating(StrEnum):
+    up = "up"
+    down = "down"
+
+
+class FeedbackReason(StrEnum):
+    wrong_citation = "wrong_citation"
+    hallucination = "hallucination"
+    outdated_source = "outdated_source"
+    missing_document = "missing_document"
+    unsafe_content = "unsafe_content"
+    other = "other"
