@@ -50,6 +50,9 @@ describe("AdminLandingPage", () => {
       screen.getByRole("link", { name: "Open Audit logs" }),
     ).toHaveAttribute("href", "/admin/audit-logs");
     expect(
+      screen.getByRole("link", { name: "Open Security center" }),
+    ).toHaveAttribute("href", "/admin/security-center");
+    expect(
       screen.getByRole("link", { name: "Open System health" }),
     ).toHaveAttribute("href", "/admin/system-health");
     expect(

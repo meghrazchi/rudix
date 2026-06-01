@@ -17,12 +17,7 @@ import {
   type AuditLogListItemResponse,
 } from "@/lib/api/admin-usage";
 import { queryKeys } from "@/lib/api/query";
-import {
-  formatAuditStatusLabel,
-  getAuditStatusCode,
-  getAuditStatusFilter,
-  sanitizeAuditMetadata,
-} from "@/lib/admin-audit";
+import { getAuditStatusFilter, sanitizeAuditMetadata } from "@/lib/admin-audit";
 import {
   canViewAdminUsage,
   DASHBOARD_RANGE_PRESETS,
@@ -166,21 +161,6 @@ function summarizeBeforeAfter(
   ];
 
   return { before, after, changedFields };
-}
-
-function statusBadgeClass(
-  filter: "success" | "client_error" | "server_error" | "unknown",
-): string {
-  if (filter === "success") {
-    return "bg-emerald-100 text-emerald-800";
-  }
-  if (filter === "client_error") {
-    return "bg-amber-100 text-amber-800";
-  }
-  if (filter === "server_error") {
-    return "bg-rose-100 text-rose-800";
-  }
-  return "bg-slate-200 text-slate-700";
 }
 
 function resultPillClass(result: AuditLogListItemResponse["result"]): string {
@@ -837,8 +817,6 @@ export function AdminAuditLogsPage() {
                   </thead>
                   <tbody className="divide-y divide-[#ece9f5]">
                     {rows.map((item) => {
-                      const status = getAuditStatusFilter(item);
-                      const statusCode = getAuditStatusCode(item.metadata);
                       const isSelected =
                         selectedEvent?.audit_log_id === item.audit_log_id;
 
@@ -890,14 +868,6 @@ export function AdminAuditLogsPage() {
                             >
                               View details
                             </button>
-                            <span
-                              className={`ml-2 inline-flex rounded-full px-2 py-1 text-[10px] font-bold tracking-wide uppercase ${statusBadgeClass(
-                                status,
-                              )}`}
-                            >
-                              {formatAuditStatusLabel(status)}
-                              {statusCode ? ` (${statusCode})` : ""}
-                            </span>
                           </td>
                         </tr>
                       );

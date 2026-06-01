@@ -7,7 +7,13 @@ import { canViewAdminUsage } from "@/lib/dashboard";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 type AdminSurfaceCard = {
-  id: "usage" | "audit" | "system-health" | "monitoring" | "governance";
+  id:
+    | "usage"
+    | "audit"
+    | "security-center"
+    | "system-health"
+    | "monitoring"
+    | "governance";
   title: string;
   description: string;
   href: string;
@@ -43,6 +49,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       title: "Audit logs",
       description: "Review security and product activity across admin events.",
       href: "/admin/audit-logs",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "security-center",
+      title: "Security center",
+      description:
+        "Review organization security posture, controls, and unresolved warnings.",
+      href: "/admin/security-center",
       available: true,
       availabilityNote: "Available",
     },

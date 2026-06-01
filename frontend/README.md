@@ -39,6 +39,7 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - `/rag-pipeline` Pipeline Explorer
   - `/settings`
   - `/admin` (owner/admin roles only)
+  - `/admin/security-center` (owner/admin roles only)
   - `/admin/governance` (owner/admin roles only)
 
 ### Shared Shell and Protection
@@ -119,6 +120,11 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - authenticated export from `/admin/audit-logs/export` in CSV and JSON formats with sanitized metadata only
   - owner/admin-only access with forbidden-state fallback when authorization changes
   - quick links to documents, chat, evaluations, and pipeline explorer
+- Admin security center behavior:
+  - consolidated security posture summary for auth/session status, role visibility, domain restrictions, retention posture, and audit health
+  - deep links for audit logs, team settings, retention controls, billing/plan controls, and optional API key/webhook controls when configured
+  - unresolved warning and recommendation panels with safe operational language (no compliance over-claims)
+  - owner/admin-only access with forbidden-state fallback when authorization changes
 - Admin governance page behavior:
   - organization-scoped policy controls for agentic mode, MCP exposure, tool allowlists, and runtime budgets
   - external MCP server policy form with side-effect warning acknowledgment flow
