@@ -888,12 +888,6 @@ export function BillingSettingsTab() {
             </section>
           )}
 
-          {planQuery.data?.estimated_llm_cost_usd !== undefined && (
-            <LlmCostCard
-              costUsd={planQuery.data?.estimated_llm_cost_usd ?? null}
-            />
-          )}
-
           <BillingNotificationsInfo />
         </div>
 

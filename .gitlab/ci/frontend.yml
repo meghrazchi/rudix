@@ -1,6 +1,6 @@
 frontend:format-lint-typecheck:
   stage: test
-  image: node:22-bookworm
+  image: node:24-bookworm
   extends:
     - .rules:frontend-changes
     - .cache:npm
@@ -14,7 +14,7 @@ frontend:format-lint-typecheck:
 
 frontend:test:
   stage: test
-  image: node:22-bookworm
+  image: node:24-bookworm
   extends:
     - .rules:frontend-changes
     - .cache:npm
@@ -26,7 +26,7 @@ frontend:test:
 
 frontend:build:
   stage: test
-  image: node:22-bookworm
+  image: node:24-bookworm
   extends:
     - .rules:frontend-changes
     - .cache:npm
