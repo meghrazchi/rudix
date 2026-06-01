@@ -550,8 +550,7 @@ function isPreviewableFile(filename: string | null | undefined): boolean {
 }
 
 export function ChatPage() {
-  const chatFeedbackEnabled =
-    getFrontendRuntimeConfig().features.feedback;
+  const chatFeedbackEnabled = getFrontendRuntimeConfig().features.feedback;
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { state } = useAuthSession();

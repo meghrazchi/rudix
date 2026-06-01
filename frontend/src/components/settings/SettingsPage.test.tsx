@@ -278,9 +278,10 @@ describe("SettingsPage", () => {
     mockState.tab = "billing";
     renderPage();
 
-    expect(
-      await screen.findByRole("tab", { name: "Billing" }),
-    ).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("tab", { name: "Billing" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("falls back to Profile tab for invalid tab param", async () => {
