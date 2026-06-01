@@ -381,6 +381,7 @@ class Settings(BaseSettings):
     feature_enable_evaluations: bool = True
     feature_enable_pipeline_explorer: bool = True
     feature_enable_agents: bool | None = None
+    feature_enable_chunking_profiles: bool = False
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
