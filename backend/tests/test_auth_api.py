@@ -5,6 +5,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Ensure strict settings can be loaded when importing modules in tests.
@@ -37,6 +38,7 @@ from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 
 _repository = AuthRepository()
@@ -485,6 +487,13 @@ async def test_auth_login_returns_access_token_and_refresh_cookie(
     assert claims["org_id"] == str(org.id)
     _ = _extract_refresh_cookie(response)
 
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 1
+    assert audit_logs[0].action == "auth.login.succeeded"
+    assert audit_logs[0].resource_type == "auth_session"
+    assert audit_logs[0].organization_id == org.id
+    assert audit_logs[0].user_id == user.id
+
 
 @pytest.mark.asyncio
 async def test_auth_login_auto_provisions_user_when_email_is_unknown(
@@ -539,6 +548,12 @@ async def test_refresh_token_rotation_revokes_old_refresh_cookie(
     assert replay_response.status_code == 403
     assert replay_response.json()["detail"] == "Refresh token has been revoked"
 
+    audit_actions = [
+        row.action for row in (await db_session.execute(select(AuditLog))).scalars().all()
+    ]
+    assert "auth.token.refresh.succeeded" in audit_actions
+    assert "auth.token.refresh.failed" in audit_actions
+
 
 @pytest.mark.asyncio
 async def test_logout_revokes_refresh_cookie(
@@ -566,3 +581,8 @@ async def test_logout_revokes_refresh_cookie(
     )
     assert refresh_response.status_code == 403
     assert refresh_response.json()["detail"] == "Refresh token has been revoked"
+
+    audit_actions = [
+        row.action for row in (await db_session.execute(select(AuditLog))).scalars().all()
+    ]
+    assert "auth.logout.completed" in audit_actions

@@ -1214,6 +1214,11 @@ export function SecuritySettingsTab() {
               </span>
             )}
           </div>
+          <p className="mt-3 text-xs text-[#777587]">
+            Audit retention follows your workspace retention settings. Exports
+            should include sanitized metadata only, never secrets or raw private
+            document text.
+          </p>
         </section>
       </div>
     </div>

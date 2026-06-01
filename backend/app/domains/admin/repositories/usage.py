@@ -4,13 +4,170 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import String, and_, cast, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import Select
 
 from app.models.usage import AuditLog, UsageEvent
 
 
 class UsageRepository:
+    _SUCCESS_RESULTS = ("ok", "success", "succeeded", "completed")
+    _FAILURE_RESULTS = ("failed", "failure", "error", "denied", "rejected")
+
+    @staticmethod
+    def _metadata_text(key: str):
+        return AuditLog.metadata_json[key].as_string()
+
+    def _with_audit_filters(
+        self,
+        statement: Select,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+        system_actor_only: bool = False,
+        actor_email: str | None = None,
+        action: str | None = None,
+        resource_type: str | None = None,
+        resource_id: UUID | None = None,
+        request_id: str | None = None,
+        session_id: str | None = None,
+        ip_address: str | None = None,
+        document_id: UUID | None = None,
+        collection_id: UUID | None = None,
+        result: str | None = None,
+        severity: str | None = None,
+        search: str | None = None,
+    ) -> Select:
+        statement = statement.where(AuditLog.organization_id == organization_id)
+        if from_created_at is not None:
+            statement = statement.where(AuditLog.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(AuditLog.created_at <= to_created_at)
+        if user_id is not None:
+            statement = statement.where(AuditLog.user_id == user_id)
+        if system_actor_only:
+            statement = statement.where(AuditLog.user_id.is_(None))
+        if actor_email is not None:
+            statement = statement.where(
+                func.lower(self._metadata_text("actor_email")).like(f"%{actor_email.lower()}%")
+            )
+        if action is not None:
+            statement = statement.where(AuditLog.action == action)
+        if resource_type is not None:
+            statement = statement.where(AuditLog.resource_type == resource_type)
+        if resource_id is not None:
+            statement = statement.where(AuditLog.resource_id == resource_id)
+        if request_id is not None:
+            statement = statement.where(
+                func.lower(self._metadata_text("request_id")) == request_id.lower()
+            )
+
+        if session_id is not None:
+            session_term = f"%{session_id.lower()}%"
+            statement = statement.where(
+                or_(
+                    func.lower(self._metadata_text("session_id")).like(session_term),
+                    func.lower(self._metadata_text("auth_session_id")).like(session_term),
+                    func.lower(self._metadata_text("chat_session_id")).like(session_term),
+                )
+            )
+
+        if ip_address is not None:
+            ip_term = f"%{ip_address.lower()}%"
+            statement = statement.where(
+                or_(
+                    func.lower(self._metadata_text("ip_address")).like(ip_term),
+                    func.lower(self._metadata_text("ip")).like(ip_term),
+                )
+            )
+
+        if document_id is not None:
+            document_id_text = str(document_id)
+            statement = statement.where(
+                or_(
+                    and_(
+                        AuditLog.resource_type == "document",
+                        cast(AuditLog.resource_id, String) == document_id_text,
+                    ),
+                    self._metadata_text("document_id") == document_id_text,
+                )
+            )
+
+        if collection_id is not None:
+            collection_id_text = str(collection_id)
+            statement = statement.where(
+                or_(
+                    and_(
+                        AuditLog.resource_type == "collection",
+                        cast(AuditLog.resource_id, String) == collection_id_text,
+                    ),
+                    self._metadata_text("collection_id") == collection_id_text,
+                )
+            )
+
+        if severity is not None:
+            statement = statement.where(
+                func.lower(self._metadata_text("severity")) == severity.lower()
+            )
+
+        status_code = self._metadata_text("status_code")
+        http_status = self._metadata_text("http_status")
+        result_text = func.lower(self._metadata_text("result"))
+        outcome_text = func.lower(self._metadata_text("outcome"))
+        success_status = or_(
+            status_code.like("2%"),
+            status_code.like("3%"),
+            http_status.like("2%"),
+            http_status.like("3%"),
+        )
+        failure_status = or_(
+            status_code.like("4%"),
+            status_code.like("5%"),
+            http_status.like("4%"),
+            http_status.like("5%"),
+        )
+        success_text = or_(
+            result_text.in_(self._SUCCESS_RESULTS),
+            outcome_text.in_(self._SUCCESS_RESULTS),
+        )
+        failure_text = or_(
+            result_text.in_(self._FAILURE_RESULTS),
+            outcome_text.in_(self._FAILURE_RESULTS),
+        )
+        success_expr = or_(success_status, success_text)
+        failure_expr = or_(failure_status, failure_text)
+
+        if result == "success":
+            statement = statement.where(success_expr)
+        elif result == "failure":
+            statement = statement.where(failure_expr)
+        elif result == "unknown":
+            statement = statement.where(
+                func.coalesce(success_expr, false()) == false(),
+                func.coalesce(failure_expr, false()) == false(),
+            )
+
+        if search is not None:
+            normalized = f"%{search.lower()}%"
+            statement = statement.where(
+                or_(
+                    func.lower(AuditLog.action).like(normalized),
+                    func.lower(AuditLog.resource_type).like(normalized),
+                    func.lower(cast(AuditLog.resource_id, String)).like(normalized),
+                    func.lower(cast(AuditLog.user_id, String)).like(normalized),
+                    func.lower(self._metadata_text("request_id")).like(normalized),
+                    func.lower(self._metadata_text("session_id")).like(normalized),
+                    func.lower(self._metadata_text("ip_address")).like(normalized),
+                    func.lower(self._metadata_text("document_id")).like(normalized),
+                    func.lower(self._metadata_text("collection_id")).like(normalized),
+                )
+            )
+
+        return statement
+
     async def create_usage_event(
         self,
         session: AsyncSession,
@@ -95,20 +252,40 @@ class UsageRepository:
         from_created_at: datetime | None = None,
         to_created_at: datetime | None = None,
         user_id: UUID | None = None,
+        system_actor_only: bool = False,
+        actor_email: str | None = None,
         action: str | None = None,
         resource_type: str | None = None,
+        resource_id: UUID | None = None,
+        request_id: str | None = None,
+        session_id: str | None = None,
+        ip_address: str | None = None,
+        document_id: UUID | None = None,
+        collection_id: UUID | None = None,
+        result: str | None = None,
+        severity: str | None = None,
+        search: str | None = None,
     ) -> list[AuditLog]:
-        statement = select(AuditLog).where(AuditLog.organization_id == organization_id)
-        if from_created_at is not None:
-            statement = statement.where(AuditLog.created_at >= from_created_at)
-        if to_created_at is not None:
-            statement = statement.where(AuditLog.created_at <= to_created_at)
-        if user_id is not None:
-            statement = statement.where(AuditLog.user_id == user_id)
-        if action is not None:
-            statement = statement.where(AuditLog.action == action)
-        if resource_type is not None:
-            statement = statement.where(AuditLog.resource_type == resource_type)
+        statement = self._with_audit_filters(
+            select(AuditLog),
+            organization_id=organization_id,
+            from_created_at=from_created_at,
+            to_created_at=to_created_at,
+            user_id=user_id,
+            system_actor_only=system_actor_only,
+            actor_email=actor_email,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            request_id=request_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            document_id=document_id,
+            collection_id=collection_id,
+            result=result,
+            severity=severity,
+            search=search,
+        )
 
         statement = (
             statement.order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
@@ -126,22 +303,40 @@ class UsageRepository:
         from_created_at: datetime | None = None,
         to_created_at: datetime | None = None,
         user_id: UUID | None = None,
+        system_actor_only: bool = False,
+        actor_email: str | None = None,
         action: str | None = None,
         resource_type: str | None = None,
+        resource_id: UUID | None = None,
+        request_id: str | None = None,
+        session_id: str | None = None,
+        ip_address: str | None = None,
+        document_id: UUID | None = None,
+        collection_id: UUID | None = None,
+        result: str | None = None,
+        severity: str | None = None,
+        search: str | None = None,
     ) -> int:
-        statement = select(func.count(AuditLog.id)).where(
-            AuditLog.organization_id == organization_id
+        statement = self._with_audit_filters(
+            select(func.count(AuditLog.id)),
+            organization_id=organization_id,
+            from_created_at=from_created_at,
+            to_created_at=to_created_at,
+            user_id=user_id,
+            system_actor_only=system_actor_only,
+            actor_email=actor_email,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            request_id=request_id,
+            session_id=session_id,
+            ip_address=ip_address,
+            document_id=document_id,
+            collection_id=collection_id,
+            result=result,
+            severity=severity,
+            search=search,
         )
-        if from_created_at is not None:
-            statement = statement.where(AuditLog.created_at >= from_created_at)
-        if to_created_at is not None:
-            statement = statement.where(AuditLog.created_at <= to_created_at)
-        if user_id is not None:
-            statement = statement.where(AuditLog.user_id == user_id)
-        if action is not None:
-            statement = statement.where(AuditLog.action == action)
-        if resource_type is not None:
-            statement = statement.where(AuditLog.resource_type == resource_type)
 
         result = await session.execute(statement)
         return int(result.scalar_one())

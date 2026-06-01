@@ -4,6 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 UsageGranularity = Literal["day", "week", "month"]
+AuditResultFilter = Literal["all", "success", "failure", "unknown"]
+AuditEventResult = Literal["success", "failure", "unknown"]
+AuditExportFormat = Literal["csv", "json"]
 
 
 class UsageSummaryRange(BaseModel):
@@ -51,6 +54,12 @@ class AuditLogListItemResponse(BaseModel):
     resource_type: str
     resource_id: str | None = None
     request_id: str | None = None
+    result: AuditEventResult
+    severity: str | None = None
+    ip_address: str | None = None
+    session_id: str | None = None
+    document_id: str | None = None
+    collection_id: str | None = None
     metadata: dict[str, object] = Field(default_factory=dict)
     created_at: datetime
 

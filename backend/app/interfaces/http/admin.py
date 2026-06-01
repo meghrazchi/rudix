@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import csv
+import io
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
@@ -18,16 +21,19 @@ from app.domains.admin.schemas.admin import (
     AgentDiagnosticsPointResponse,
     AgentDiagnosticsResponse,
     AgentDiagnosticsTotalsResponse,
+    AuditExportFormat,
     AuditLogListItemResponse,
     AuditLogListResponse,
+    AuditResultFilter,
     UsageGranularity,
     UsageSummaryPointResponse,
     UsageSummaryRange,
     UsageSummaryResponse,
     UsageSummaryTotalsResponse,
 )
+from app.domains.admin.services.audit_service import sanitize_metadata
 from app.models.enums import OrganizationRole
-from app.models.usage import UsageEvent
+from app.models.usage import AuditLog, UsageEvent
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -56,6 +62,9 @@ AGENT_EVENT_TYPES = {
     AGENT_TOOL_CALL_EVENT_TYPE,
     AGENT_APPROVAL_EVENT_TYPE,
 }
+
+AUDIT_SUCCESS_RESULTS = frozenset({"ok", "success", "succeeded", "completed"})
+AUDIT_FAILURE_RESULTS = frozenset({"failed", "failure", "error", "denied", "rejected"})
 
 
 def _organization_id_from_principal(principal: AuthenticatedPrincipal) -> UUID:
@@ -468,10 +477,231 @@ async def get_admin_agent_diagnostics(
 
 
 def _request_id_from_metadata(metadata: dict[str, object]) -> str | None:
-    candidate = metadata.get("request_id")
-    if isinstance(candidate, str) and candidate.strip():
-        return candidate.strip()
+    candidate = _metadata_text_value(metadata, "request_id")
+    if candidate:
+        return candidate
     return None
+
+
+def _metadata_text_value(metadata: dict[str, object], *keys: str) -> str | None:
+    for key in keys:
+        value = metadata.get(key)
+        if isinstance(value, str):
+            candidate = value.strip()
+            if candidate:
+                return candidate
+        elif isinstance(value, (int, float)) and value == value:
+            return str(value)
+    return None
+
+
+def _metadata_status_code(metadata: dict[str, object]) -> int | None:
+    for key in ("status_code", "http_status", "statusCode"):
+        value = metadata.get(key)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float) and value == value:
+            return int(value)
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if trimmed and trimmed.isdigit():
+                return int(trimmed)
+    return None
+
+
+def _audit_result_from_metadata(
+    metadata: dict[str, object],
+) -> Literal["success", "failure", "unknown"]:
+    status_code = _metadata_status_code(metadata)
+    if status_code is not None:
+        if 200 <= status_code < 400:
+            return "success"
+        if status_code >= 400:
+            return "failure"
+    result_value = _metadata_text_value(metadata, "result", "outcome")
+    if result_value is not None:
+        normalized = result_value.lower()
+        if normalized in AUDIT_SUCCESS_RESULTS:
+            return "success"
+        if normalized in AUDIT_FAILURE_RESULTS:
+            return "failure"
+    return "unknown"
+
+
+def _normalized_uuid_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    try:
+        return str(UUID(value))
+    except ValueError:
+        return None
+
+
+def _to_audit_log_item(log: AuditLog) -> AuditLogListItemResponse:
+    raw_metadata = log.metadata_json if isinstance(log.metadata_json, dict) else {}
+    metadata = sanitize_metadata(raw_metadata)
+    document_id = _metadata_text_value(metadata, "document_id")
+    collection_id = _metadata_text_value(metadata, "collection_id")
+    if log.resource_type == "document" and log.resource_id is not None:
+        document_id = str(log.resource_id)
+    if log.resource_type == "collection" and log.resource_id is not None:
+        collection_id = str(log.resource_id)
+
+    return AuditLogListItemResponse(
+        audit_log_id=str(log.id),
+        organization_id=str(log.organization_id),
+        user_id=str(log.user_id) if log.user_id else None,
+        action=log.action,
+        resource_type=log.resource_type,
+        resource_id=str(log.resource_id) if log.resource_id else None,
+        request_id=_request_id_from_metadata(metadata),
+        result=_audit_result_from_metadata(metadata),
+        severity=_metadata_text_value(metadata, "severity"),
+        ip_address=_metadata_text_value(metadata, "ip_address", "ip"),
+        session_id=_metadata_text_value(
+            metadata,
+            "session_id",
+            "auth_session_id",
+            "chat_session_id",
+        ),
+        document_id=_normalized_uuid_text(document_id) or document_id,
+        collection_id=_normalized_uuid_text(collection_id) or collection_id,
+        metadata=metadata,
+        created_at=log.created_at,
+    )
+
+
+@dataclass(frozen=True)
+class _AuditFilterState:
+    actor_user_id: UUID | None
+    system_actor_only: bool
+    actor_email: str | None
+    entity: str | None
+    action: str | None
+    resource_id: UUID | None
+    request_id: str | None
+    session_id: str | None
+    ip_address: str | None
+    document_id: UUID | None
+    collection_id: UUID | None
+    result: str | None
+    severity: str | None
+    search: str | None
+
+
+def _resolve_audit_filter_state(
+    *,
+    actor: str | None,
+    user_id: UUID | None,
+    entity: str | None,
+    resource_type: str | None,
+    action: str | None,
+    resource_id: UUID | None,
+    request_id: str | None,
+    session_id: str | None,
+    ip_address: str | None,
+    document_id: UUID | None,
+    collection_id: UUID | None,
+    result: AuditResultFilter,
+    severity: str | None,
+    search: str | None,
+) -> _AuditFilterState:
+    resolved_actor_user_id = user_id
+    system_actor_only = False
+    actor_email = None
+    if actor is not None and user_id is None:
+        normalized_actor = actor.strip()
+        if normalized_actor:
+            if normalized_actor.lower() in {"system", "service"}:
+                system_actor_only = True
+            else:
+                try:
+                    resolved_actor_user_id = UUID(normalized_actor)
+                except ValueError:
+                    actor_email = normalized_actor.lower()
+
+    if entity and resource_type and entity != resource_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="entity and resource_type filters must match when both are provided",
+        )
+
+    resolved_entity = entity or resource_type
+    resolved_result = result if result != "all" else None
+    resolved_severity = severity.strip().lower() if severity and severity.strip() else None
+    resolved_search = search.strip().lower() if search and search.strip() else None
+
+    return _AuditFilterState(
+        actor_user_id=resolved_actor_user_id,
+        system_actor_only=system_actor_only,
+        actor_email=actor_email,
+        entity=resolved_entity,
+        action=action,
+        resource_id=resource_id,
+        request_id=request_id,
+        session_id=session_id,
+        ip_address=ip_address,
+        document_id=document_id,
+        collection_id=collection_id,
+        result=resolved_result,
+        severity=resolved_severity,
+        search=resolved_search,
+    )
+
+
+def _build_audit_export_filename(
+    *,
+    from_date: date,
+    to_date: date,
+    export_format: AuditExportFormat,
+) -> str:
+    return f"audit-logs-{from_date.isoformat()}-{to_date.isoformat()}.{export_format}"
+
+
+def _serialize_audit_logs_csv(items: list[AuditLogListItemResponse]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "audit_log_id",
+            "created_at",
+            "organization_id",
+            "user_id",
+            "action",
+            "resource_type",
+            "resource_id",
+            "request_id",
+            "result",
+            "severity",
+            "ip_address",
+            "session_id",
+            "document_id",
+            "collection_id",
+            "metadata_json",
+        ],
+    )
+    writer.writeheader()
+    for item in items:
+        writer.writerow(
+            {
+                "audit_log_id": item.audit_log_id,
+                "created_at": item.created_at.isoformat(),
+                "organization_id": item.organization_id,
+                "user_id": item.user_id or "",
+                "action": item.action,
+                "resource_type": item.resource_type,
+                "resource_id": item.resource_id or "",
+                "request_id": item.request_id or "",
+                "result": item.result,
+                "severity": item.severity or "",
+                "ip_address": item.ip_address or "",
+                "session_id": item.session_id or "",
+                "document_id": item.document_id or "",
+                "collection_id": item.collection_id or "",
+                "metadata_json": json.dumps(item.metadata, sort_keys=True),
+            }
+        )
+    return output.getvalue()
 
 
 @router.get("/audit-logs", response_model=AuditLogListResponse)
@@ -486,22 +716,66 @@ async def list_admin_audit_logs(
     offset: Annotated[int, Query(ge=0)] = 0,
     from_date: Annotated[date | None, Query(alias="from")] = None,
     to_date: Annotated[date | None, Query(alias="to")] = None,
+    organization_filter_id: Annotated[UUID | None, Query(alias="organization_id")] = None,
+    actor: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
     user_id: UUID | None = None,
     action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    entity: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
     resource_type: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    resource_id: UUID | None = None,
+    document_id: UUID | None = None,
+    collection_id: UUID | None = None,
+    request_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    session_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    ip_address: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    result: AuditResultFilter = "all",
+    severity: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
 ) -> AuditLogListResponse:
     organization_id = _organization_id_from_principal(principal)
+    if organization_filter_id is not None and organization_filter_id != organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cross-organization audit access is not allowed",
+        )
     resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
     from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
+    filters = _resolve_audit_filter_state(
+        actor=actor,
+        user_id=user_id,
+        entity=entity,
+        resource_type=resource_type,
+        action=action,
+        resource_id=resource_id,
+        request_id=request_id,
+        session_id=session_id,
+        ip_address=ip_address,
+        document_id=document_id,
+        collection_id=collection_id,
+        result=result,
+        severity=severity,
+        search=search,
+    )
 
     total = await usage_repository.count_audit_logs(
         db_session,
         organization_id=organization_id,
         from_created_at=from_created_at,
         to_created_at=to_created_at,
-        user_id=user_id,
-        action=action,
-        resource_type=resource_type,
+        user_id=filters.actor_user_id,
+        system_actor_only=filters.system_actor_only,
+        actor_email=filters.actor_email,
+        action=filters.action,
+        resource_type=filters.entity,
+        resource_id=filters.resource_id,
+        request_id=filters.request_id,
+        session_id=filters.session_id,
+        ip_address=filters.ip_address,
+        document_id=filters.document_id,
+        collection_id=filters.collection_id,
+        result=filters.result,
+        severity=filters.severity,
+        search=filters.search,
     )
 
     logs = await usage_repository.list_audit_logs(
@@ -511,32 +785,149 @@ async def list_admin_audit_logs(
         offset=offset,
         from_created_at=from_created_at,
         to_created_at=to_created_at,
-        user_id=user_id,
-        action=action,
-        resource_type=resource_type,
+        user_id=filters.actor_user_id,
+        system_actor_only=filters.system_actor_only,
+        actor_email=filters.actor_email,
+        action=filters.action,
+        resource_type=filters.entity,
+        resource_id=filters.resource_id,
+        request_id=filters.request_id,
+        session_id=filters.session_id,
+        ip_address=filters.ip_address,
+        document_id=filters.document_id,
+        collection_id=filters.collection_id,
+        result=filters.result,
+        severity=filters.severity,
+        search=filters.search,
     )
 
-    items = []
-    for log in logs:
-        metadata = log.metadata_json if isinstance(log.metadata_json, dict) else {}
-        items.append(
-            AuditLogListItemResponse(
-                audit_log_id=str(log.id),
-                organization_id=str(log.organization_id),
-                user_id=str(log.user_id) if log.user_id else None,
-                action=log.action,
-                resource_type=log.resource_type,
-                resource_id=str(log.resource_id) if log.resource_id else None,
-                request_id=_request_id_from_metadata(metadata),
-                metadata=metadata,
-                created_at=log.created_at,
-            )
-        )
-
+    items = [_to_audit_log_item(log) for log in logs]
     return AuditLogListResponse(
         items=items,
         total=total,
         limit=limit,
         offset=offset,
         range=UsageSummaryRange(from_date=resolved_from, to_date=resolved_to),
+    )
+
+
+@router.get("/audit-logs/export")
+async def export_admin_audit_logs(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    export_format: Annotated[AuditExportFormat, Query(alias="format")] = "csv",
+    from_date: Annotated[date | None, Query(alias="from")] = None,
+    to_date: Annotated[date | None, Query(alias="to")] = None,
+    organization_filter_id: Annotated[UUID | None, Query(alias="organization_id")] = None,
+    actor: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
+    user_id: UUID | None = None,
+    action: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    entity: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    resource_type: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
+    resource_id: UUID | None = None,
+    document_id: UUID | None = None,
+    collection_id: UUID | None = None,
+    request_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    session_id: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    ip_address: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    result: AuditResultFilter = "all",
+    severity: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 5000,
+) -> Response:
+    organization_id = _organization_id_from_principal(principal)
+    if organization_filter_id is not None and organization_filter_id != organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cross-organization audit access is not allowed",
+        )
+
+    resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
+    from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
+    filters = _resolve_audit_filter_state(
+        actor=actor,
+        user_id=user_id,
+        entity=entity,
+        resource_type=resource_type,
+        action=action,
+        resource_id=resource_id,
+        request_id=request_id,
+        session_id=session_id,
+        ip_address=ip_address,
+        document_id=document_id,
+        collection_id=collection_id,
+        result=result,
+        severity=severity,
+        search=search,
+    )
+
+    logs = await usage_repository.list_audit_logs(
+        db_session,
+        organization_id=organization_id,
+        limit=limit,
+        offset=0,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+        user_id=filters.actor_user_id,
+        system_actor_only=filters.system_actor_only,
+        actor_email=filters.actor_email,
+        action=filters.action,
+        resource_type=filters.entity,
+        resource_id=filters.resource_id,
+        request_id=filters.request_id,
+        session_id=filters.session_id,
+        ip_address=filters.ip_address,
+        document_id=filters.document_id,
+        collection_id=filters.collection_id,
+        result=filters.result,
+        severity=filters.severity,
+        search=filters.search,
+    )
+    items = [_to_audit_log_item(log) for log in logs]
+    filename = _build_audit_export_filename(
+        from_date=resolved_from, to_date=resolved_to, export_format=export_format
+    )
+
+    if export_format == "json":
+        payload = {
+            "organization_id": str(organization_id),
+            "exported_at": datetime.now(tz=UTC).isoformat(),
+            "range": {
+                "from": resolved_from.isoformat(),
+                "to": resolved_to.isoformat(),
+            },
+            "filters": {
+                "actor": actor,
+                "user_id": str(user_id) if user_id is not None else None,
+                "action": action,
+                "entity": entity or resource_type,
+                "resource_id": str(resource_id) if resource_id is not None else None,
+                "document_id": str(document_id) if document_id is not None else None,
+                "collection_id": str(collection_id) if collection_id is not None else None,
+                "request_id": request_id,
+                "session_id": session_id,
+                "ip_address": ip_address,
+                "result": result,
+                "severity": severity,
+                "search": search,
+            },
+            "returned": len(items),
+            "max_rows": limit,
+            "items": [item.model_dump(mode="json") for item in items],
+        }
+        return Response(
+            content=json.dumps(payload, sort_keys=True),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    csv_payload = _serialize_audit_logs_csv(items)
+    return Response(
+        content=csv_payload,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

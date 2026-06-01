@@ -3,13 +3,18 @@ import { describe, expect, it } from "vitest";
 import type { AuditLogListItemResponse } from "@/lib/api/admin-usage";
 import {
   formatAuditStatusLabel,
+  getAuditResultFilter,
   getAuditStatusCode,
   getAuditStatusFilter,
+  matchesAuditResultFilter,
   matchesAuditStatusFilter,
   sanitizeAuditMetadata,
 } from "@/lib/admin-audit";
 
-function event(metadata: Record<string, unknown>): AuditLogListItemResponse {
+function event(
+  metadata: Record<string, unknown>,
+  result: "success" | "failure" | "unknown" = "unknown",
+): AuditLogListItemResponse {
   return {
     audit_log_id: "audit-1",
     organization_id: "org-1",
@@ -18,6 +23,7 @@ function event(metadata: Record<string, unknown>): AuditLogListItemResponse {
     resource_type: "chat_session",
     resource_id: "session-1",
     request_id: "req-1",
+    result,
     metadata,
     created_at: "2026-05-17T10:00:00Z",
   };
@@ -58,5 +64,18 @@ describe("admin-audit utils", () => {
     expect(matchesAuditStatusFilter(sample, "server_error")).toBe(true);
     expect(matchesAuditStatusFilter(sample, "success")).toBe(false);
     expect(formatAuditStatusLabel("client_error")).toBe("Client error");
+  });
+
+  it("matches result filters", () => {
+    const success = event({ status_code: 200 }, "success");
+    const failure = event({ status_code: 503 }, "failure");
+    const unknown = event({}, "unknown");
+
+    expect(getAuditResultFilter(success)).toBe("success");
+    expect(getAuditResultFilter(failure)).toBe("failure");
+    expect(getAuditResultFilter(unknown)).toBe("unknown");
+    expect(matchesAuditResultFilter(success, "success")).toBe(true);
+    expect(matchesAuditResultFilter(success, "failure")).toBe(false);
+    expect(matchesAuditResultFilter(unknown, "all")).toBe(true);
   });
 });

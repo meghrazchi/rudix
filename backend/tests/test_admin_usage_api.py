@@ -250,7 +250,14 @@ async def test_admin_audit_logs_list_scoped_with_filters(
         user_id=user.id,
         action="document.upload.accepted",
         resource_type="document",
-        metadata={"request_id": "req-1", "status_code": 201},
+        metadata={
+            "request_id": "req-1",
+            "status_code": 201,
+            "severity": "info",
+            "ip_address": "10.0.0.1",
+            "session_id": "sess-1",
+            "document_id": str(uuid4()),
+        },
     )
     _own_audit.created_at = datetime(2026, 5, 2, 10, 0, tzinfo=UTC)
 
@@ -260,7 +267,13 @@ async def test_admin_audit_logs_list_scoped_with_filters(
         user_id=user.id,
         action="chat.query.completed",
         resource_type="chat_session",
-        metadata={"request_id": "req-2", "status_code": 200},
+        metadata={
+            "request_id": "req-2",
+            "status_code": 503,
+            "severity": "critical",
+            "ip_address": "10.0.0.2",
+            "session_id": "sess-2",
+        },
     )
     own_audit_second.created_at = datetime(2026, 5, 2, 10, 5, tzinfo=UTC)
 
@@ -290,6 +303,9 @@ async def test_admin_audit_logs_list_scoped_with_filters(
             "limit": 10,
             "offset": 0,
             "action": "chat.query.completed",
+            "result": "failure",
+            "severity": "critical",
+            "session_id": "sess-2",
         },
     )
 
@@ -301,7 +317,110 @@ async def test_admin_audit_logs_list_scoped_with_filters(
     assert item["organization_id"] == str(organization.id)
     assert item["action"] == "chat.query.completed"
     assert item["request_id"] == "req-2"
-    assert item["metadata"]["status_code"] == 200
+    assert item["metadata"]["status_code"] == 503
+    assert item["result"] == "failure"
+    assert item["severity"] == "critical"
+    assert item["session_id"] == "sess-2"
+
+
+@pytest.mark.asyncio
+async def test_admin_audit_logs_requires_admin_role(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await admin_client.get(
+        "/api/v1/admin/audit-logs",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role for requested operation"
+
+
+@pytest.mark.asyncio
+async def test_admin_audit_logs_export_requires_admin_role(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session, role=OrganizationRole.member)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await admin_client.get(
+        "/api/v1/admin/audit-logs/export",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        params={"from": "2026-05-01", "to": "2026-05-05", "format": "json"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient role for requested operation"
+
+
+@pytest.mark.asyncio
+async def test_admin_audit_logs_export_sanitizes_metadata(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session, role=OrganizationRole.owner)
+    usage_repository = UsageRepository()
+    audit_row = await usage_repository.create_audit_log(
+        db_session,
+        organization_id=organization.id,
+        user_id=user.id,
+        action="auth.login.succeeded",
+        resource_type="auth_session",
+        metadata={
+            "request_id": "req-export-1",
+            "status_code": 200,
+            "severity": "info",
+            "session_id": "sess-export-1",
+            "authorization": "Bearer should-not-leak",
+        },
+    )
+    audit_row.created_at = datetime(2026, 5, 3, 8, 0, tzinfo=UTC)
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    headers = _auth_headers(token=token, organization_id=str(organization.id))
+
+    csv_response = await admin_client.get(
+        "/api/v1/admin/audit-logs/export",
+        headers=headers,
+        params={"from": "2026-05-01", "to": "2026-05-05", "format": "csv"},
+    )
+    assert csv_response.status_code == 200
+    assert csv_response.headers["content-type"].startswith("text/csv")
+    assert "audit-logs-2026-05-01-2026-05-05.csv" in csv_response.headers.get(
+        "content-disposition", ""
+    )
+    assert "should-not-leak" not in csv_response.text
+    assert "***" in csv_response.text
+
+    json_response = await admin_client.get(
+        "/api/v1/admin/audit-logs/export",
+        headers=headers,
+        params={"from": "2026-05-01", "to": "2026-05-05", "format": "json"},
+    )
+    assert json_response.status_code == 200
+    payload = json_response.json()
+    assert payload["organization_id"] == str(organization.id)
+    assert payload["returned"] == 1
+    assert payload["items"][0]["result"] == "success"
+    assert payload["items"][0]["metadata"]["authorization"] == "***"
 
 
 @pytest.mark.asyncio

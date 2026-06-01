@@ -108,7 +108,7 @@ Current endpoint authorization:
 - `agent/runs*`: any authenticated org member role (`owner|admin|member|viewer`) when `FEATURE_ENABLE_AGENTS=true`
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
-- `admin/usage`, `admin/audit-logs`, and `admin/governance`: `owner|admin`
+- `admin/usage`, `admin/audit-logs`, `admin/audit-logs/export`, and `admin/governance`: `owner|admin`
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 - Retrieval-side qdrant filters must include `organization_id` (see `app/domains/documents/services/qdrant_filters.py`).
 

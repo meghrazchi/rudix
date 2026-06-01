@@ -201,6 +201,8 @@ Do not log by default:
 Track:
 
 - Login.
+- Logout.
+- Token refresh failures.
 - Upload.
 - Delete.
 - Re-index.
@@ -208,6 +210,16 @@ Track:
 - Download source.
 - Run evaluation.
 - Admin action.
+- Policy changes.
+- Share-link create/revoke/view actions.
+
+Audit explorer/export requirements:
+
+- Restrict audit log and export endpoints to `owner|admin`.
+- Enforce organization scope on every audit query/filter.
+- Keep audit events immutable from normal application flows.
+- Export only safe structured metadata (no secrets, tokens, or raw private document text).
+- Respect configured workspace retention policies for audit-data lifecycle.
 
 ## Data deletion
 

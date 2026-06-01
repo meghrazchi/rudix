@@ -115,7 +115,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Admin page behavior:
   - usage summary cards for events, tokens, cost, confidence, and latency
   - usage trend table sourced from `/admin/usage` with date-range filters
-  - recent activity feed sourced from `/admin/audit-logs` with optional user/action filters
+  - audit explorer sourced from `/admin/audit-logs` with actor/action/entity/organization/document/collection/IP/session/result/severity filters
+  - authenticated export from `/admin/audit-logs/export` in CSV and JSON formats with sanitized metadata only
   - owner/admin-only access with forbidden-state fallback when authorization changes
   - quick links to documents, chat, evaluations, and pipeline explorer
 - Admin governance page behavior:
@@ -250,7 +251,6 @@ NEXT_PUBLIC_SENTRY_RELEASE=
 NEXT_PUBLIC_SENTRY_ENVIRONMENT=
 NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE=1
 NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL=
-NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL=
 NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_RESUME_URL=
 NEXT_PUBLIC_ORGANIZATION_ONBOARDING_SAVE_URL=
@@ -277,7 +277,6 @@ Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and d
 Set `NEXT_PUBLIC_SENTRY_DSN` to enable frontend observability event capture (breadcrumbs + sanitized exceptions). Leave it empty to keep monitoring disabled.
 Set `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` to control client-side error sampling (`0` to disable transport, `1` for full sampling).
 Set `NEXT_PUBLIC_ADMIN_USAGE_EXPORT_URL` to enable CSV export from Admin Usage.
-Set `NEXT_PUBLIC_ADMIN_AUDIT_EXPORT_URL` to enable CSV export from Admin Audit Logs.
 Set `NEXT_PUBLIC_ADMIN_HEALTH_REFRESH_INTERVAL_MS` (milliseconds) to auto-refresh `/admin/system-health`; leave empty or `0` to disable.
 Set `NEXT_PUBLIC_CHAT_AGENTIC_ENABLED=false` to hide agentic-mode execution in chat.
 Set `NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT=true` to start chat in agentic mode by default.

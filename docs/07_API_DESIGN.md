@@ -1097,6 +1097,52 @@ Notes:
 - `avg_latency_ms` is derived from usage-event latency metadata fields when present.
 - `latency_score` is computed server-side from average latency (0-100, higher is better).
 
+### GET `/admin/audit-logs`
+
+Returns paginated organization-scoped audit events for compliance review.
+
+Query parameters:
+
+- `from`, `to`: date range (`YYYY-MM-DD`, max 365-day span).
+- `limit`, `offset`: pagination controls.
+- `organization_id`: optional guard filter; must match caller organization context.
+- `actor` or `user_id`: actor filter (`actor=system` matches system events).
+- `action`: exact action filter.
+- `entity` (or `resource_type`): exact entity/resource type filter.
+- `resource_id`, `document_id`, `collection_id`: UUID scoping filters.
+- `request_id`, `session_id`, `ip_address`: trace/session/network filters.
+- `result`: `all|success|failure|unknown`.
+- `severity`: severity label filter (for example `info`, `warning`, `critical`).
+- `search`: case-insensitive text match across key event fields.
+
+Response includes safe metadata plus derived fields:
+
+- `result`, `severity`
+- `request_id`, `session_id`, `ip_address`
+- `document_id`, `collection_id` (when present)
+
+Safe-output guarantees:
+
+- metadata is sanitized before response serialization
+- secrets/tokens and raw private content fields are redacted
+
+### GET `/admin/audit-logs/export`
+
+Exports filtered audit events for compliance workflows.
+
+Query parameters:
+
+- Supports the same filters as `/admin/audit-logs`.
+- `format`: `csv` or `json`.
+- `limit`: max rows per export (default `5000`, max `10000`).
+
+Behavior:
+
+- Requires `owner|admin`.
+- Enforces organization isolation.
+- Returns downloadable attachments with sanitized metadata only.
+- Never includes raw auth secrets, tokens, or private document body text.
+
 ### GET `/admin/governance`
 
 Returns organization-scoped governance policy for agent and MCP controls.

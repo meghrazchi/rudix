@@ -6,6 +6,7 @@ export type AuditStatusFilter =
   | "client_error"
   | "server_error"
   | "unknown";
+export type AuditResultFilter = "all" | "success" | "failure" | "unknown";
 
 const REDACTED_VALUE = "[redacted]";
 const TRUNCATED_VALUE_SUFFIX = "…";
@@ -120,6 +121,30 @@ export function getAuditStatusFilter(
   return "unknown";
 }
 
+export function getAuditResultFilter(
+  event: AuditLogListItemResponse,
+): Exclude<AuditResultFilter, "all"> {
+  if (
+    event.result === "success" ||
+    event.result === "failure" ||
+    event.result === "unknown"
+  ) {
+    return event.result;
+  }
+
+  const statusCode = getAuditStatusCode(event.metadata ?? {});
+  if (statusCode == null) {
+    return "unknown";
+  }
+  if (statusCode >= 200 && statusCode < 400) {
+    return "success";
+  }
+  if (statusCode >= 400) {
+    return "failure";
+  }
+  return "unknown";
+}
+
 export function matchesAuditStatusFilter(
   event: AuditLogListItemResponse,
   filter: AuditStatusFilter,
@@ -128,6 +153,16 @@ export function matchesAuditStatusFilter(
     return true;
   }
   return getAuditStatusFilter(event) === filter;
+}
+
+export function matchesAuditResultFilter(
+  event: AuditLogListItemResponse,
+  filter: AuditResultFilter,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  return getAuditResultFilter(event) === filter;
 }
 
 export function formatAuditStatusLabel(

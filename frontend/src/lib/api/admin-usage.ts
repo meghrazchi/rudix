@@ -48,6 +48,12 @@ export type AuditLogListItemResponse = {
   resource_type: string;
   resource_id: string | null;
   request_id: string | null;
+  result?: "success" | "failure" | "unknown";
+  severity?: string | null;
+  ip_address?: string | null;
+  session_id?: string | null;
+  document_id?: string | null;
+  collection_id?: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
 };
@@ -66,12 +72,26 @@ export type AuditLogListResponse = {
 export type AuditLogListQuery = {
   from?: string;
   to?: string;
+  organization_id?: string;
+  actor?: string;
   limit?: number;
   offset?: number;
   user_id?: string;
   action?: string;
+  entity?: string;
   resource_type?: string;
+  resource_id?: string;
+  document_id?: string;
+  collection_id?: string;
+  request_id?: string;
+  session_id?: string;
+  ip_address?: string;
+  result?: "all" | "success" | "failure" | "unknown";
+  severity?: string;
+  search?: string;
 };
+
+export type AuditLogExportFormat = "csv" | "json";
 
 export async function getUsageSummary(
   query: UsageSummaryQuery = {},
@@ -86,5 +106,18 @@ export async function listAuditLogs(
 ): Promise<AuditLogListResponse> {
   return apiRequest<AuditLogListResponse>("/admin/audit-logs", {
     query,
+  });
+}
+
+export async function exportAuditLogs(
+  format: AuditLogExportFormat,
+  query: AuditLogListQuery = {},
+): Promise<Blob> {
+  return apiRequest<Blob>("/admin/audit-logs/export", {
+    query: {
+      ...query,
+      format,
+    },
+    responseType: "blob",
   });
 }

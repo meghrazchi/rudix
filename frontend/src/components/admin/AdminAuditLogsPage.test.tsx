@@ -13,6 +13,7 @@ const mockState = vi.hoisted(() => ({
 
 const mockApi = vi.hoisted(() => ({
   listAuditLogs: vi.fn(),
+  exportAuditLogs: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -25,6 +26,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 
 vi.mock("@/lib/api/admin-usage", () => ({
   listAuditLogs: (query?: unknown) => mockApi.listAuditLogs(query),
+  exportAuditLogs: (format: unknown, query?: unknown) =>
+    mockApi.exportAuditLogs(format, query),
 }));
 
 function renderPage() {
@@ -45,6 +48,8 @@ function renderPage() {
 describe("AdminAuditLogsPage", () => {
   beforeEach(() => {
     mockApi.listAuditLogs.mockReset();
+    mockApi.exportAuditLogs.mockReset();
+    mockApi.exportAuditLogs.mockResolvedValue(new Blob(["audit-export"]));
     mockApi.listAuditLogs.mockResolvedValue({
       items: [
         {
@@ -55,6 +60,7 @@ describe("AdminAuditLogsPage", () => {
           resource_type: "chat_session",
           resource_id: "session-1",
           request_id: "req-1",
+          result: "success",
           metadata: { status_code: 200, authorization: "Bearer test-token" },
           created_at: "2026-05-14T12:00:00Z",
         },
@@ -66,6 +72,7 @@ describe("AdminAuditLogsPage", () => {
           resource_type: "document",
           resource_id: "doc-2",
           request_id: "req-2",
+          result: "failure",
           metadata: { status_code: 503, detail: "downstream timeout" },
           created_at: "2026-05-15T12:00:00Z",
         },
@@ -77,7 +84,7 @@ describe("AdminAuditLogsPage", () => {
     });
   });
 
-  it("renders audit table and supports local status filtering", async () => {
+  it("renders audit table and applies result filtering through API query", async () => {
     mockState.authState = {
       status: "authenticated",
       session: {
@@ -97,15 +104,22 @@ describe("AdminAuditLogsPage", () => {
       await screen.findByText("documents.reindex.failed"),
     ).toBeInTheDocument();
 
+    await userEvent.click(
+      screen.getByRole("button", { name: "Advanced filters" }),
+    );
     await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "Status" }),
-      "server_error",
+      screen.getByRole("combobox", { name: "Result" }),
+      "failure",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Apply filters" }),
     );
 
-    expect(
-      await screen.findByText("documents.reindex.failed"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("chat.query.completed")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockApi.listAuditLogs).toHaveBeenCalledWith(
+        expect.objectContaining({ result: "failure" }),
+      );
+    });
   });
 
   it("shows sanitized metadata in event detail drawer", async () => {
@@ -193,5 +207,45 @@ describe("AdminAuditLogsPage", () => {
     await waitFor(() => {
       expect(mockApi.listAuditLogs).toHaveBeenCalled();
     });
+  });
+
+  it("exports CSV audit logs", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-5",
+        email: "admin@example.com",
+        role: "admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-5",
+      },
+    };
+
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:download");
+    const revokeObjectUrl = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
+
+    renderPage();
+    await screen.findByText("chat.query.completed");
+
+    await userEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+
+    await waitFor(() => {
+      expect(mockApi.exportAuditLogs).toHaveBeenCalledWith(
+        "csv",
+        expect.any(Object),
+      );
+    });
+
+    createObjectUrl.mockRestore();
+    revokeObjectUrl.mockRestore();
+    clickSpy.mockRestore();
   });
 });
