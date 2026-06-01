@@ -80,6 +80,7 @@ import {
   normalizePipelineRunType,
   type PipelineRunType,
 } from "@/lib/pipeline-links";
+import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -139,8 +140,6 @@ const AGENTIC_CHAT_ENABLED =
 const DEFAULT_AGENTIC_MODE =
   process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
-const CHAT_FEEDBACK_ENABLED =
-  process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
 const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
@@ -551,6 +550,8 @@ function isPreviewableFile(filename: string | null | undefined): boolean {
 }
 
 export function ChatPage() {
+  const chatFeedbackEnabled =
+    getFrontendRuntimeConfig().features.feedback;
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
@@ -714,7 +715,7 @@ export function ChatPage() {
           [threadKey]: hydratedTurns,
         };
       });
-      if (CHAT_FEEDBACK_ENABLED) {
+      if (chatFeedbackEnabled) {
         try {
           const feedbackResponse = await listSessionFeedback(activeSessionId);
           setFeedbackByMessageId((previous) => {
@@ -2089,7 +2090,7 @@ export function ChatPage() {
                                     </span>
                                   </div>
                                 ) : null}
-                                {CHAT_FEEDBACK_ENABLED ? (
+                                {chatFeedbackEnabled ? (
                                   <>
                                     <div className="group/up relative">
                                       <button
@@ -3201,7 +3202,7 @@ export function ChatPage() {
         />
       ) : null}
 
-      {CHAT_FEEDBACK_ENABLED && feedbackModalMessageId ? (
+      {chatFeedbackEnabled && feedbackModalMessageId ? (
         <FeedbackModal
           existingReason={feedbackByMessageId[feedbackModalMessageId]?.reason}
           existingComment={feedbackByMessageId[feedbackModalMessageId]?.comment}

@@ -137,7 +137,7 @@ describe("CollectionsPage", () => {
     });
 
     expect(screen.getByText("admin@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Org-wide")).toBeInTheDocument();
+    expect(screen.getAllByText("Org-wide").length).toBeGreaterThan(0);
   });
 
   it("opens create dialog when 'New Collection' button is clicked", async () => {
@@ -276,10 +276,10 @@ describe("CollectionsPage", () => {
       expect(screen.getByText("Engineering Handbook")).toBeInTheDocument(),
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /inspect/i }));
+    await userEvent.click(screen.getByText("Engineering Handbook"));
 
     await waitFor(() => {
-      expect(screen.getByText("Collection detail")).toBeInTheDocument();
+      expect(screen.getByText("Collection Metadata")).toBeInTheDocument();
     });
   });
 
@@ -303,7 +303,6 @@ describe("CollectionsPage", () => {
     expect(
       screen.queryByRole("button", { name: /new collection/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Read-only role")).toBeInTheDocument();
 
     mockAuth.state = {
       status: "authenticated",

@@ -9,6 +9,12 @@ import type { AuthenticatedSession } from "@/lib/auth-session";
 import * as chatApi from "@/lib/api/chat";
 import * as documentsApi from "@/lib/api/documents";
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 function buildNavItems(
   activeKey: string,
   session: AuthenticatedSession,

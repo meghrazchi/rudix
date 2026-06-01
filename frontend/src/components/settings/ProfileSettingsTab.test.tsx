@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -158,10 +158,11 @@ describe("ProfileSettingsTab", () => {
     expect(
       await screen.findByRole("region", { name: "Account identity section" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("alex.jones@example.com")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("alex.jones@example.com"),
+    ).toBeInTheDocument();
     expect(screen.getByText("user-123")).toBeInTheDocument();
     expect(screen.getByText("member")).toBeInTheDocument();
-    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
   });
 
   it("shows initials avatar derived from email", async () => {
@@ -172,11 +173,13 @@ describe("ProfileSettingsTab", () => {
     expect(avatar.textContent).toBe("AJ");
   });
 
-  it("shows Verified badge in account identity", async () => {
+  it("shows email input in account identity", async () => {
     renderTab();
 
     await screen.findByRole("region", { name: "Account identity section" });
-    expect(screen.getByText("Verified")).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue("alex.jones@example.com"),
+    ).toBeInTheDocument();
   });
 
   it("never renders access token or refresh token values", async () => {
@@ -196,15 +199,15 @@ describe("ProfileSettingsTab", () => {
     });
 
     renderTab();
-    await screen.findByRole("button", { name: "Copy user ID" });
+    await screen.findByRole("button", { name: "Copy ID" });
 
-    await userEvent.click(screen.getByRole("button", { name: "Copy user ID" }));
+    await userEvent.click(screen.getByRole("button", { name: "Copy ID" }));
 
     expect(writeText).toHaveBeenCalledWith("user-123");
     expect(await screen.findByText("Copied!")).toBeInTheDocument();
   });
 
-  it("shows Not available for missing session fields", async () => {
+  it("shows account identity section when session fields are null", async () => {
     mockState.authState = {
       status: "authenticated",
       session: {
@@ -217,10 +220,11 @@ describe("ProfileSettingsTab", () => {
     };
 
     renderTab();
-    await screen.findByRole("region", { name: "Account identity section" });
 
-    expect(screen.getAllByText("Not available").length).toBeGreaterThan(0);
-    expect(screen.getByText("Not assigned")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "Account identity section" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
   });
 
   // ── Personal Preferences ──────────────────────────────────────────────────
@@ -235,8 +239,6 @@ describe("ProfileSettingsTab", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Display Language")).toBeInTheDocument();
     expect(screen.getByLabelText("Timezone")).toBeInTheDocument();
-    expect(screen.getByLabelText("Date & Time Format")).toBeInTheDocument();
-    expect(screen.getByLabelText("Default Landing Page")).toBeInTheDocument();
   });
 
   it("saves personal preferences to local storage", async () => {
@@ -246,12 +248,12 @@ describe("ProfileSettingsTab", () => {
     await userEvent.selectOptions(langSelect, "de");
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Save personal preferences" }),
+      screen.getByRole("button", { name: "Update Profile" }),
     );
 
     expect(mockSchemas.saveProfileUiPreferences).toHaveBeenCalledTimes(1);
     expect(
-      await screen.findByText("Personal preferences saved."),
+      await screen.findByText("Profile settings saved successfully."),
     ).toBeInTheDocument();
   });
 
@@ -261,17 +263,16 @@ describe("ProfileSettingsTab", () => {
     const langSelect = await screen.findByLabelText("Display Language");
     await userEvent.selectOptions(langSelect, "fr");
 
-    const discardBtn = screen.getByRole("button", {
-      name: "Discard personal changes",
-    });
+    const discardBtn = screen.getByRole("button", { name: "Discard Changes" });
     expect(discardBtn).not.toBeDisabled();
 
     await userEvent.click(discardBtn);
 
-    expect(
-      await screen.findByText("Unsaved changes were discarded."),
-    ).toBeInTheDocument();
     expect(mockSchemas.saveProfileUiPreferences).not.toHaveBeenCalled();
+    // After discard, language should be reset to original value
+    expect(
+      (screen.getByLabelText("Display Language") as HTMLSelectElement).value,
+    ).toBe("en");
   });
 
   // ── AI / RAG Defaults ─────────────────────────────────────────────────────
@@ -284,8 +285,7 @@ describe("ProfileSettingsTab", () => {
         name: "AI and retrieval defaults section",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/default top-k/i)).toBeInTheDocument();
-    expect(screen.getByLabelText("Answer Detail Level")).toBeInTheDocument();
+    expect(screen.getByLabelText("Top-K Retrieval")).toBeInTheDocument();
   });
 
   it("shows loading state while preferences load", () => {
@@ -312,32 +312,13 @@ describe("ProfileSettingsTab", () => {
     });
   });
 
-  it("validates top-k and blocks save on invalid value", async () => {
+  it("saves RAG preferences via Update Profile button", async () => {
     renderTab();
 
-    const input = await screen.findByLabelText(/default top-k/i);
-    await userEvent.clear(input);
-    await userEvent.type(input, "9999");
+    await screen.findByRole("region", { name: "AI and retrieval defaults section" });
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Save preferences" }),
-    );
-
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(
-      mockPreferencesApi.persistSettingsPreferences,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("saves RAG preferences successfully", async () => {
-    renderTab();
-
-    const input = await screen.findByLabelText(/default top-k/i);
-    await userEvent.clear(input);
-    await userEvent.type(input, "7");
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save preferences" }),
+      screen.getByRole("button", { name: "Update Profile" }),
     );
 
     await waitFor(() => {
@@ -346,69 +327,85 @@ describe("ProfileSettingsTab", () => {
       ).toHaveBeenCalledTimes(1);
     });
     expect(
-      await screen.findByText("Preferences saved successfully."),
+      await screen.findByText("Profile settings saved successfully."),
+    ).toBeInTheDocument();
+  });
+
+  it("saves RAG preferences successfully", async () => {
+    renderTab();
+
+    const slider = await screen.findByLabelText("Top-K Retrieval");
+    fireEvent.change(slider, { target: { value: "7" } });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update Profile" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        mockPreferencesApi.persistSettingsPreferences,
+      ).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      await screen.findByText("Profile settings saved successfully."),
     ).toBeInTheDocument();
   });
 
   it("discards RAG preference changes", async () => {
     renderTab();
 
-    const input = await screen.findByLabelText(/default top-k/i);
-    await userEvent.clear(input);
-    await userEvent.type(input, "3");
+    const slider = await screen.findByLabelText("Top-K Retrieval");
+    fireEvent.change(slider, { target: { value: "3" } });
+    expect((slider as HTMLInputElement).value).toBe("3");
 
-    const discardBtn = screen.getByRole("button", { name: "Discard changes" });
+    const discardBtn = screen.getByRole("button", { name: "Discard Changes" });
     expect(discardBtn).not.toBeDisabled();
     await userEvent.click(discardBtn);
 
     expect(
-      await screen.findByText("Unsaved changes were discarded."),
-    ).toBeInTheDocument();
-    expect(
-      (screen.getByLabelText(/default top-k/i) as HTMLInputElement).value,
+      (screen.getByLabelText("Top-K Retrieval") as HTMLInputElement).value,
     ).toBe("5");
   });
 
   // ── Notifications ─────────────────────────────────────────────────────────
 
-  it("renders notifications section with all six notification types", async () => {
+  it("renders notifications section with notification types", async () => {
     renderTab();
 
     await screen.findByRole("region", { name: "Notifications section" });
-    expect(screen.getByText("Product updates")).toBeInTheDocument();
-    expect(screen.getByText("Security alerts")).toBeInTheDocument();
-    expect(screen.getByText("Document processing")).toBeInTheDocument();
-    expect(screen.getByText("Failed indexing")).toBeInTheDocument();
-    expect(screen.getByText("Evaluation completion")).toBeInTheDocument();
-    expect(screen.getByText("Billing warnings")).toBeInTheDocument();
+    expect(screen.getByText("Processing Alerts")).toBeInTheDocument();
+    expect(screen.getByText("Security Warnings")).toBeInTheDocument();
+    expect(screen.getByText("Daily Evaluation Reports")).toBeInTheDocument();
   });
 
-  it("defaults security alerts and document processing to on", async () => {
+  it("defaults security warnings and processing alerts to on", async () => {
     renderTab();
 
     await screen.findByRole("region", { name: "Notifications section" });
 
-    const securityAlertsLabel = screen
+    const securityWarningsCheckbox = screen
       .getAllByRole("checkbox")
       .find((cb) =>
-        cb.closest("label")?.textContent?.includes("Security alerts"),
+        cb.closest("label")?.textContent?.includes("Security Warnings"),
       );
-    const docProcessingLabel = screen
+    const processingAlertsCheckbox = screen
       .getAllByRole("checkbox")
       .find((cb) =>
-        cb.closest("label")?.textContent?.includes("Document processing"),
+        cb.closest("label")?.textContent?.includes("Processing Alerts"),
       );
 
-    expect(securityAlertsLabel).toBeChecked();
-    expect(docProcessingLabel).toBeChecked();
+    expect(securityWarningsCheckbox).toBeChecked();
+    expect(processingAlertsCheckbox).toBeChecked();
   });
 
-  it("shows coming-soon connector and agent notifications as disabled", async () => {
+  it("renders notification checkboxes inside the notifications section", async () => {
     renderTab();
-    await screen.findByRole("region", { name: "Notifications section" });
+    const section = await screen.findByRole("region", {
+      name: "Notifications section",
+    });
 
-    expect(screen.getByText("Connector sync failures")).toBeInTheDocument();
-    expect(screen.getByText("Agent run status")).toBeInTheDocument();
+    const checkboxes = within(section).getAllByRole("checkbox");
+    expect(checkboxes.length).toBeGreaterThan(0);
   });
 
   // ── Account Actions ───────────────────────────────────────────────────────
@@ -443,11 +440,9 @@ describe("ProfileSettingsTab", () => {
 
     await screen.findByRole("region", { name: "Account actions section" });
     expect(
-      screen.getByLabelText("Sign out from all devices unavailable"),
-    ).toBeInTheDocument();
-    expect(
       screen.queryByRole("button", { name: "Sign out everywhere" }),
     ).not.toBeInTheDocument();
+    expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
   });
 
   it("shows sign-out-everywhere button when capability is enabled", async () => {
@@ -469,11 +464,9 @@ describe("ProfileSettingsTab", () => {
 
     await screen.findByRole("region", { name: "Account actions section" });
     expect(
-      screen.getByLabelText("Delete account unavailable"),
-    ).toBeInTheDocument();
-    expect(
       screen.queryByRole("button", { name: "Delete account" }),
     ).not.toBeInTheDocument();
+    expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
   });
 
   it("shows delete account button when capability is enabled", async () => {

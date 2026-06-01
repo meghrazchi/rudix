@@ -6,6 +6,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,6 +18,12 @@ import { setupServer } from "msw/node";
 import { AppShell } from "@/components/layout/AppShell";
 import { APP_ROUTES, type AppNavigationItem } from "@/lib/app-routes";
 import type { AuthenticatedSession } from "@/lib/auth-session";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const apiBaseUrl = "http://api.test";
 

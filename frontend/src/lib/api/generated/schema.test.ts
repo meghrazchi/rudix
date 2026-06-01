@@ -25,8 +25,10 @@ type Schemas = components["schemas"];
 
 describe("generated schema types", () => {
   it("document types match generated schema", () => {
-    expectTypeOf<DocumentListResponse>().toEqualTypeOf<
-      Schemas["DocumentListResponse"]
+    // DocumentListResponse augments the schema items with optional frontend fields
+    // (collections, tags, source, language, etc.); verify only the envelope shape.
+    expectTypeOf<Omit<DocumentListResponse, "items">>().toEqualTypeOf<
+      Omit<Schemas["DocumentListResponse"], "items">
     >();
     expectTypeOf<DocumentDetailResponse>().toEqualTypeOf<
       Schemas["DocumentDetailResponse"]

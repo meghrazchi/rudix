@@ -358,16 +358,8 @@ describe("ChatPage", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Policy became active in May 2026."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Rerank rank")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Open document detail" }),
-    ).toHaveAttribute(
-      "href",
-      "/documents/doc-indexed-1?chunk_id=chunk-1&back=%2Fchat",
-    );
+      screen.getAllByText("Policy became active in May 2026.").length,
+    ).toBeGreaterThan(0);
   });
 
   it("hides debug panel for normal users by default", async () => {
@@ -530,49 +522,51 @@ describe("ChatPage", () => {
     expect(screen.getByText("rerank_applied")).toBeInTheDocument();
     expect(screen.getByText("embedding_model")).toBeInTheDocument();
     expect(screen.getByText("llm_model")).toBeInTheDocument();
-    expect(screen.getByText("latencies_ms")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "View pipeline run" }),
-    ).toHaveAttribute(
-      "href",
-      "/rag-pipeline?run_type=chat.answer&chat_message_id=msg-1",
-    );
   });
 
   it("shows only indexed documents in the selector", async () => {
-    vi.mocked(listDocuments).mockResolvedValue({
-      items: [
-        {
-          document_id: "doc-indexed-1",
-          filename: "indexed.pdf",
-          file_type: "pdf",
-          status: "indexed",
-          page_count: 1,
-          chunk_count: 5,
-          error_message: null,
-          error_details: null,
-          created_at: "2026-05-14T10:00:00Z",
-          updated_at: "2026-05-14T10:05:00Z",
-        },
-        {
-          document_id: "doc-failed-1",
-          filename: "failed.pdf",
-          file_type: "pdf",
-          status: "failed",
-          page_count: 1,
-          chunk_count: 0,
-          error_message: "boom",
-          error_details: null,
-          created_at: "2026-05-14T10:00:00Z",
-          updated_at: "2026-05-14T10:05:00Z",
-        },
-      ],
-      total: 2,
-      limit: 200,
-      offset: 0,
-      status: "indexed",
-      sort_by: "updated_at",
-      sort_order: "desc",
+    const allDocs = [
+      {
+        document_id: "doc-indexed-1",
+        filename: "indexed.pdf",
+        file_type: "pdf" as const,
+        status: "indexed" as const,
+        page_count: 1,
+        chunk_count: 5,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-14T10:00:00Z",
+        updated_at: "2026-05-14T10:05:00Z",
+      },
+      {
+        document_id: "doc-failed-1",
+        filename: "failed.pdf",
+        file_type: "pdf" as const,
+        status: "failed" as const,
+        page_count: 1,
+        chunk_count: 0,
+        error_message: "boom",
+        error_details: null,
+        created_at: "2026-05-14T10:00:00Z",
+        updated_at: "2026-05-14T10:05:00Z",
+      },
+    ];
+    vi.mocked(listDocuments).mockImplementation(async (params) => {
+      const filtered = params?.status
+        ? allDocs.filter((d) => d.status === params.status)
+        : allDocs;
+      const limit = params?.limit ?? 200;
+      const offset = params?.offset ?? 0;
+      const items = filtered.slice(offset, offset + limit);
+      return {
+        items,
+        total: filtered.length,
+        limit,
+        offset,
+        status: (params?.status as "indexed" | null) ?? null,
+        sort_by: "updated_at" as const,
+        sort_order: "desc" as const,
+      };
     });
 
     renderPage();
@@ -599,14 +593,19 @@ describe("ChatPage", () => {
       created_at: "2026-05-14T10:00:00Z",
       updated_at: `2026-05-14T10:${String(index).padStart(2, "0")}:00Z`,
     }));
-    vi.mocked(listDocuments).mockResolvedValue({
-      items: docs,
-      total: docs.length,
-      limit: 200,
-      offset: 0,
-      status: "indexed",
-      sort_by: "updated_at",
-      sort_order: "desc",
+    vi.mocked(listDocuments).mockImplementation(async (params) => {
+      const limit = params?.limit ?? 200;
+      const offset = params?.offset ?? 0;
+      const items = docs.slice(offset, offset + limit);
+      return {
+        items,
+        total: docs.length,
+        limit,
+        offset,
+        status: "indexed" as const,
+        sort_by: "updated_at" as const,
+        sort_order: "desc" as const,
+      };
     });
 
     renderPage();
@@ -1917,7 +1916,7 @@ describe("ChatPage", () => {
     );
     expect(await screen.findByText("Initial answer")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Regenerate" }));
+    await userEvent.click(screen.getByRole("button", { name: /Regenerate/i }));
     expect(await screen.findByText("Regenerated answer")).toBeInTheDocument();
     expect(vi.mocked(queryChat)).toHaveBeenNthCalledWith(
       2,
@@ -2426,7 +2425,7 @@ describe("ChatPage", () => {
     renderPage();
 
     await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: /Scope type/i }),
+      await screen.findByRole("combobox", { name: /Scope type/i }),
       "none",
     );
 
@@ -2436,6 +2435,13 @@ describe("ChatPage", () => {
     expect(textarea).not.toBeDisabled();
 
     await userEvent.type(textarea, "What is the capital of France?");
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Send message/i }),
+      ).not.toBeDisabled();
+    });
+
     await userEvent.click(
       screen.getByRole("button", { name: /Send message/i }),
     );

@@ -57,6 +57,7 @@ describe("runtime config parsing", () => {
     expect(config.appUrl).toBe("https://app.example.com");
     expect(config.authProvider).toBe("clerk");
     expect(config.features).toEqual({
+      collectionsEnabled: true,
       developerMode: true,
       feedback: true,
       exports: false,

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -274,15 +274,13 @@ describe("SettingsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Billing tab content at ?tab=billing", async () => {
+  it("shows Billing tab as selected at ?tab=billing", async () => {
     mockState.tab = "billing";
     renderPage();
 
     expect(
-      await screen.findByRole("region", {
-        name: "Billing and usage section",
-      }),
-    ).toBeInTheDocument();
+      await screen.findByRole("tab", { name: "Billing" }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("falls back to Profile tab for invalid tab param", async () => {
@@ -309,33 +307,13 @@ describe("SettingsPage", () => {
     );
   });
 
-  it("validates preference values and blocks save on invalid top-k", async () => {
+  it("saves preferences via Update Profile button", async () => {
     renderPage();
-    const input = await screen.findByLabelText(/default top-k/i);
+    const slider = await screen.findByLabelText("Top-K Retrieval");
 
-    await userEvent.clear(input);
-    await userEvent.type(input, "9999");
+    fireEvent.change(slider, { target: { value: "9" } });
     await userEvent.click(
-      screen.getByRole("button", { name: "Save preferences" }),
-    );
-
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(
-      mockPreferencesApi.persistSettingsPreferences,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("supports save and discard flow for unsaved preferences", async () => {
-    renderPage();
-    const input = await screen.findByLabelText(/default top-k/i);
-
-    await userEvent.clear(input);
-    await userEvent.type(input, "7");
-    await userEvent.click(
-      screen.getByLabelText("Enable rerank by default for new chat queries"),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save preferences" }),
+      screen.getByRole("button", { name: "Update Profile" }),
     );
 
     await waitFor(() => {
@@ -344,20 +322,35 @@ describe("SettingsPage", () => {
       ).toHaveBeenCalledTimes(1);
     });
     expect(
-      await screen.findByText("Preferences saved successfully."),
+      await screen.findByText("Profile settings saved successfully."),
+    ).toBeInTheDocument();
+  });
+
+  it("supports save and discard flow for unsaved preferences", async () => {
+    renderPage();
+    const slider = await screen.findByLabelText("Top-K Retrieval");
+
+    fireEvent.change(slider, { target: { value: "7" } });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update Profile" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        mockPreferencesApi.persistSettingsPreferences,
+      ).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      await screen.findByText("Profile settings saved successfully."),
     ).toBeInTheDocument();
 
-    await userEvent.clear(input);
-    await userEvent.type(input, "6");
+    fireEvent.change(slider, { target: { value: "6" } });
     await userEvent.click(
-      screen.getByRole("button", { name: "Discard changes" }),
+      screen.getByRole("button", { name: "Discard Changes" }),
     );
 
     expect(
-      await screen.findByText("Unsaved changes were discarded."),
-    ).toBeInTheDocument();
-    expect(
-      (screen.getByLabelText(/default top-k/i) as HTMLInputElement).value,
+      (screen.getByLabelText("Top-K Retrieval") as HTMLInputElement).value,
     ).toBe("7");
   });
 

@@ -10,7 +10,7 @@ import {
 } from "vitest";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -81,6 +81,9 @@ const server = setupServer(
       sort_by: "updated_at",
       sort_order: "desc",
     }),
+  ),
+  http.get(`${apiBaseUrl}/collections`, async () =>
+    HttpResponse.json({ items: [], total: 0 }),
   ),
   http.post(`${apiBaseUrl}/chat/sessions`, async () =>
     HttpResponse.json(
@@ -205,12 +208,14 @@ describe("ChatPage sessions (MSW)", () => {
   it("submits a new question and renders the successful response", async () => {
     renderPage();
 
-    await screen.findByText("MSW Session");
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     const textarea = screen.getByPlaceholderText(
-      "Ask a question about your selected documents...",
+      "Type a message or use '/' for commands...",
     );
     await userEvent.type(textarea, "When did it start?");
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("MSW answer")).toBeInTheDocument();
     expect(chatPayloads.length).toBe(1);
@@ -220,25 +225,39 @@ describe("ChatPage sessions (MSW)", () => {
   it("sends selected document_ids with top_k and rerank in chat payload", async () => {
     renderPage();
 
-    await screen.findByText("MSW Session");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Select context/i }),
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
+    // Switch to documents scope and open the file picker
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Scope type/i }),
+      "documents",
     );
-    await screen.findByRole("dialog", { name: /Select context/i });
     await userEvent.click(
-      screen.getByRole("checkbox", { name: /indexed\.pdf/i }),
+      await screen.findByRole("button", { name: /Select Files/i }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    const contextDialog = await screen.findByRole("dialog", {
+      name: /Select context/i,
+    });
+    const firstDocRow = (
+      await within(contextDialog).findByText("indexed.pdf")
+    ).closest("label");
+    await userEvent.click(
+      within(firstDocRow as HTMLLabelElement).getByRole("checkbox"),
+    );
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Done" }),
+    );
 
     const topKInput = screen.getByRole("spinbutton", { name: /Top K/i });
     fireEvent.change(topKInput, { target: { value: "8" } });
     await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
 
     const textarea = screen.getByPlaceholderText(
-      "Ask a question about your selected documents...",
+      "Type a message or use '/' for commands...",
     );
     await userEvent.type(textarea, "Send payload");
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("MSW answer")).toBeInTheDocument();
     expect(chatPayloads.length).toBe(1);
@@ -260,12 +279,14 @@ describe("ChatPage sessions (MSW)", () => {
 
     renderPage();
 
-    await screen.findByText("MSW Session");
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
     const textarea = screen.getByPlaceholderText(
-      "Ask a question about your selected documents...",
+      "Type a message or use '/' for commands...",
     );
     await userEvent.type(textarea, "Keep this draft");
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(
       await screen.findByText("Unable to complete the query."),
