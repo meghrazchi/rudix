@@ -206,8 +206,8 @@ function SalesProblemSection() {
             The Cost of Sales Friction
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Searching for the right collateral shouldn't be the bottleneck in
-            your deal cycle.
+            Searching for the right collateral shouldn&apos;t be the bottleneck
+            in your deal cycle.
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -353,23 +353,25 @@ function SalesExampleQueriesSection() {
             <ul className="space-y-4">
               <li className="group cursor-default rounded-xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10">
                 <p className="text-base leading-6 text-[#faf9ff] transition group-hover:text-[#c3c0ff]">
-                  "Which case study fits a healthcare prospect looking for SOC2
-                  compliance?"
+                  &quot;Which case study fits a healthcare prospect looking for
+                  SOC2 compliance?&quot;
                 </p>
               </li>
               <li className="rounded-xl border border-[#3525cd]/50 bg-white/10 p-5">
                 <p className="mb-4 text-base leading-6 text-[#c3c0ff]">
-                  "What are our competitive advantages against Enterprise-X?"
+                  &quot;What are our competitive advantages against
+                  Enterprise-X?&quot;
                 </p>
                 <div className="border-l-2 border-[#c3c0ff] pl-4 text-sm text-[#faf9ff]/80 italic">
-                  "Based on the 'Q3 Battlecard', our advantages are (1) Native
-                  VPC deployment and (2) No-PII data handling…"
+                  &quot;Based on the &apos;Q3 Battlecard&apos;, our advantages
+                  are (1) Native VPC deployment and (2) No-PII data
+                  handling…&quot;
                 </div>
               </li>
               <li className="group cursor-default rounded-xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10">
                 <p className="text-base leading-6 text-[#faf9ff] transition group-hover:text-[#c3c0ff]">
-                  "Can we offer a 15% discount for a 3-year term on the
-                  Enterprise tier?"
+                  &quot;Can we offer a 15% discount for a 3-year term on the
+                  Enterprise tier?&quot;
                 </p>
               </li>
             </ul>

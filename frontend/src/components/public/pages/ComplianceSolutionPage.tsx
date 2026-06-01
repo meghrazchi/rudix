@@ -103,7 +103,7 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
               <div className="flex items-start gap-4 rounded-lg border border-[#c7c4d8]/20 bg-[#eeedf3] p-3">
                 <Sym name="search" className="mt-1 shrink-0 text-[#3525cd]" />
                 <p className="text-[#464555] italic">
-                  "What supports our access review process?"
+                  &quot;What supports our access review process?&quot;
                 </p>
               </div>
               <div className="rounded-lg border border-[#3525cd]/30 bg-[#0A0A0F] p-4 text-[#faf9ff]">
@@ -329,7 +329,7 @@ function ComplianceExampleQuestionsSection() {
             >
               <Sym name={e.icon} className="mb-6 block text-[#c3c0ff]" />
               <p className="mb-4 text-lg leading-7 font-semibold italic">
-                "{e.question}"
+                &quot;{e.question}&quot;
               </p>
               <div className="mb-6 h-px w-12 bg-white/10 transition-all group-hover:w-full" />
               <p className="text-base leading-6 text-[#e3e2e8]">{e.answer}</p>
@@ -408,8 +408,8 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                   Built for enterprise-grade trust.
                 </h2>
                 <p className="text-lg leading-7 text-[#464555]">
-                  Compliance isn't just about finding data — it's about
-                  verifying it securely and maintaining a perfect trail.
+                  Compliance isn&apos;t just about finding data — it&apos;s
+                  about verifying it securely and maintaining a perfect trail.
                 </p>
               </div>
 

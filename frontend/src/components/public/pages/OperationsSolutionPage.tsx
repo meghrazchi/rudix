@@ -152,8 +152,8 @@ function OperationsProblemSection() {
                 Runbooks scattered across wikis
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
-                Stop the "Where is that PDF?" panic. Rudix unifies knowledge
-                from Confluence, Notion, and GitHub into a single
+                Stop the &quot;Where is that PDF?&quot; panic. Rudix unifies
+                knowledge from Confluence, Notion, and GitHub into a single
                 high-availability retrieval engine.
               </p>
             </div>
@@ -233,7 +233,7 @@ function OperationsDocumentSourcesSection() {
             </h2>
             <p className="text-lg leading-7 text-[#464555]">
               Rudix supports your existing operational stack. Just upload, and
-              we'll index the technical nuance.
+              we&apos;ll index the technical nuance.
             </p>
           </div>
         </div>
@@ -360,7 +360,7 @@ function OperationsExampleQueriesSection() {
               Built for the high-pressure query.
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Ops teams don't have time to craft the perfect prompt. Ask
+              Ops teams don&apos;t have time to craft the perfect prompt. Ask
               naturally, get the technical truth.
             </p>
             <ul className="space-y-4">
@@ -373,7 +373,7 @@ function OperationsExampleQueriesSection() {
                     <Sym name={q.icon} className="text-sm" />
                   </div>
                   <span className="font-semibold text-[#1a1b20]">
-                    "{q.text}"
+                    &quot;{q.text}&quot;
                   </span>
                 </li>
               ))}
@@ -405,7 +405,8 @@ function OperationsExampleQueriesSection() {
                   <div className="w-full space-y-4">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                       <p className="mb-4 font-semibold text-[#c3c0ff]">
-                        According to the 'Infrastructure Recovery SOP (v2.4)':
+                        According to the &apos;Infrastructure Recovery SOP
+                        (v2.4)&apos;:
                       </p>
                       <ol className="list-inside list-decimal space-y-2 text-[#464555]">
                         <li>
@@ -477,7 +478,7 @@ function OperationsFinalCtaSection({
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-lg leading-7 text-[#c3c0ff]">
           Reduce MTTR and eliminate documentation silos with Rudix. Your
-          infrastructure is only as reliable as your team's access to
+          infrastructure is only as reliable as your team&apos;s access to
           information.
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">

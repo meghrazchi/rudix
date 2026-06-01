@@ -72,7 +72,7 @@ function InternalKnowledgeHeroSection({
             id="ik-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Your team's knowledge,{" "}
+            Your team&apos;s knowledge,{" "}
             <span className="text-[#3525cd]">instantly accessible.</span>
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
@@ -117,8 +117,8 @@ function InternalKnowledgeHeroSection({
               {/* user message */}
               <div className="flex justify-end">
                 <div className="max-w-[80%] rounded-2xl rounded-tr-none bg-[#4f46e5] p-4 text-sm text-[#dad7ff]">
-                  "What is our policy on remote work stipends for international
-                  employees?"
+                  &quot;What is our policy on remote work stipends for
+                  international employees?&quot;
                 </div>
               </div>
 
@@ -289,7 +289,7 @@ function InternalKnowledgeDocumentSection() {
             One Brain, Every Document
           </h2>
           <p className="mb-8 text-lg leading-7 text-[#464555]">
-            Rudix isn't limited to simple text files. Our high-fidelity RAG
+            Rudix isn&apos;t limited to simple text files. Our high-fidelity RAG
             engine ingests complex PDFs, Notion pages, Google Docs, and
             structured JSON to build a multi-modal knowledge graph.
           </p>
@@ -359,6 +359,7 @@ function InternalKnowledgeHowItWorksSection() {
     const el = cardRef.current;
     if (!el) return;
     if (typeof IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStarted(true);
       return;
     }
@@ -378,6 +379,7 @@ function InternalKnowledgeHowItWorksSection() {
   useEffect(() => {
     if (!started) return;
     indexRef.current = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTypedText("");
     const id = setInterval(() => {
       indexRef.current += 1;
@@ -489,7 +491,9 @@ function InternalKnowledgeExampleQueriesSection() {
               key={q}
               className="group flex cursor-default items-center justify-between rounded-xl border border-[#c7c4d8]/30 bg-[#eeedf3] p-6 transition hover:bg-[#e8e7ed]"
             >
-              <span className="font-semibold text-[#0A0A0F]">"{q}"</span>
+              <span className="font-semibold text-[#0A0A0F]">
+                &quot;{q}&quot;
+              </span>
               <Sym
                 name="arrow_forward"
                 className="shrink-0 text-[#3525cd] transition group-hover:translate-x-1"

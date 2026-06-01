@@ -290,8 +290,10 @@ export function AppShell({
 
   useEffect(() => {
     const stored = readOnboardingState(session.userId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOnboardingState(stored);
     if (!stored.dismissed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOnboardingVisible(true);
     }
   }, [session.userId]);

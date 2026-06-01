@@ -377,7 +377,7 @@ function HRFlowSection() {
               Staff query the assistant in plain language from any interface.
             </p>
             <div className="mt-7 rounded-full border border-[#d8dce7] bg-white px-4 py-2.5 text-xs text-[#505465] italic shadow-sm">
-              "What is the parental leave policy?"
+              &quot;What is the parental leave policy?&quot;
             </div>
           </li>
 
@@ -391,8 +391,8 @@ function HRFlowSection() {
               source document.
             </p>
             <div className="mt-7 rounded bg-white/10 p-3 text-xs leading-5 text-[#e8e6ff]">
-              "You are eligible for 16 weeks…{" "}
-              <span className="font-medium">[Leave Policy p. 14]</span>"
+              &quot;You are eligible for 16 weeks…{" "}
+              <span className="font-medium">[Leave Policy p. 14]</span>&quot;
             </div>
           </li>
         </ol>
@@ -425,7 +425,7 @@ function HRDocumentSourcesSection() {
               Supported document sources
             </h2>
             <p className="mt-4 text-sm leading-7 text-[#505465]">
-              Whether it's a 200-page handbook or a one-page memo, Rudix
+              Whether it&apos;s a 200-page handbook or a one-page memo, Rudix
               processes every nuance of your organizational knowledge.
             </p>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -452,7 +452,7 @@ function HRDocumentSourcesSection() {
             <div className="mt-4 space-y-4 text-sm">
               <div className="rounded-lg bg-[#f4f3f9] p-4">
                 <p className="font-semibold text-[#0f1117]">
-                  "How many days of sick leave per month?"
+                  &quot;How many days of sick leave per month?&quot;
                 </p>
                 <div className="mt-3 border-l-4 border-[#3a35e8] pl-3 text-[#505465]">
                   Employees accrue 1.5 sick days per month up to 18 days per
@@ -465,7 +465,7 @@ function HRDocumentSourcesSection() {
               </div>
               <div className="rounded-lg bg-[#f4f3f9] p-4">
                 <p className="font-semibold text-[#0f1117]">
-                  "What is the remote work expense limit?"
+                  &quot;What is the remote work expense limit?&quot;
                 </p>
                 <div className="mt-3 border-l-4 border-[#3a35e8] pl-3 text-[#505465]">
                   Up to $75/month for home-office expenses with manager
@@ -546,7 +546,7 @@ function HRExampleQuestionsSection() {
                     {q.initials}
                   </div>
                   <p className="flex-1 pt-1.5 text-sm font-semibold text-[#0f1117]">
-                    "{q.question}"
+                    &quot;{q.question}&quot;
                   </p>
                   <IconChevron />
                 </summary>
@@ -637,14 +637,20 @@ function HRSecuritySection() {
               {"{"}
               {"\n"}
               {"  "}
-              <span className="text-[#75db94]">"document_id"</span>:{" "}
-              <span className="text-[#c3c0ff]">"doc_hr_24f9..."</span>,{"\n"}
+              <span className="text-[#75db94]">
+                &quot;document_id&quot;
+              </span>:{" "}
+              <span className="text-[#c3c0ff]">&quot;doc_hr_24f9...&quot;</span>
+              ,{"\n"}
               {"  "}
-              <span className="text-[#75db94]">"status"</span>:{" "}
-              <span className="text-[#c3c0ff]">"uploaded"</span>,{"\n"}
+              <span className="text-[#75db94]">&quot;status&quot;</span>:{" "}
+              <span className="text-[#c3c0ff]">&quot;uploaded&quot;</span>,
+              {"\n"}
               {"  "}
-              <span className="text-[#75db94]">"queue_status"</span>:{" "}
-              <span className="text-[#c3c0ff]">"queued"</span>
+              <span className="text-[#75db94]">
+                &quot;queue_status&quot;
+              </span>:{" "}
+              <span className="text-[#c3c0ff]">&quot;queued&quot;</span>
               {"\n"}
               {"}"}
             </pre>

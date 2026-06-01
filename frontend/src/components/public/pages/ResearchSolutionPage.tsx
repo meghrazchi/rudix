@@ -149,7 +149,8 @@ function ResearchProblemSection() {
               </h3>
               <p className="max-w-lg text-base leading-6 text-[#464555]">
                 Technical teams are drowning in 500+ page PDFs. Sifting through
-                noise to find specific implementation risks shouldn't take days.
+                noise to find specific implementation risks shouldn&apos;t take
+                days.
               </p>
             </div>
             <Sym

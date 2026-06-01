@@ -105,7 +105,7 @@ function SupportHeroSection({
                 </span>
               </div>
               <div className="mb-3 rounded-full border border-[#c7c4d8] bg-white px-4 py-2.5 text-sm text-[#464555] italic shadow-sm">
-                "How do I escalate a P1 incident under the SLA?"
+                &quot;How do I escalate a P1 incident under the SLA?&quot;
               </div>
               <div className="rounded-xl bg-[#1F1E24] p-4 font-mono text-[14px] leading-5 text-[#eeedf3]">
                 <p className="mb-2 text-[#c3c0ff]">
@@ -395,17 +395,17 @@ function SupportExampleQueriesSection() {
                 </span>
               </div>
               <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
-                "How do I troubleshoot login failures for users on Enterprise
-                Plan v2?"
+                &quot;How do I troubleshoot login failures for users on
+                Enterprise Plan v2?&quot;
               </h3>
               <div className="rounded-xl bg-[#1F1E24] p-6 font-mono text-[14px] leading-5 text-[#eeedf3]">
                 <p className="mb-2 text-[#c3c0ff]">
                   # Source: Auth_Runbook_v2.1.pdf
                 </p>
                 <p>
-                  1. Verify the 'client_id' matches the region...
+                  1. Verify the &apos;client_id&apos; matches the region...
                   <br />
-                  2. Check for 'error_code: 403_STALE' in the logs...
+                  2. Check for &apos;error_code: 403_STALE&apos; in the logs...
                   <br />
                   3. Ensure SSO provider metadata is rotated.
                 </p>
@@ -416,20 +416,20 @@ function SupportExampleQueriesSection() {
           <div className="col-span-1 space-y-6 md:col-span-4">
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#3525cd] p-6">
               <h4 className="mb-2 font-bold text-[#1a1b20]">
-                "Which plan includes SSO?"
+                &quot;Which plan includes SSO?&quot;
               </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                "SSO is available on Enterprise and Custom plans. See pricing.md
-                for details."
+                &quot;SSO is available on Enterprise and Custom plans. See
+                pricing.md for details.&quot;
               </p>
             </div>
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#E24329] p-6">
               <h4 className="mb-2 font-bold text-[#1a1b20]">
-                "What changed in the latest release?"
+                &quot;What changed in the latest release?&quot;
               </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                "Release 4.2 introduced Webhooks and enhanced API rate limiting.
-                See CHANGELOG.txt"
+                &quot;Release 4.2 introduced Webhooks and enhanced API rate
+                limiting. See CHANGELOG.txt&quot;
               </p>
             </div>
             <div className="rounded-2xl bg-[#3525cd] p-6 text-white">

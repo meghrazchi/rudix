@@ -777,7 +777,8 @@ function BillingNotificationsInfo() {
         ))}
       </div>
       <p className="mt-4 text-xs text-[#777587]">
-        Alert delivery depends on your deployment's notification configuration.
+        Alert delivery depends on your deployment&apos;s notification
+        configuration.
       </p>
     </section>
   );

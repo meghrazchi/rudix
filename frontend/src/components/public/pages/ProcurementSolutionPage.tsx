@@ -75,7 +75,7 @@ function ProcurementHeroSection({
             Evaluate vendors with AI-powered document review.
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            Accelerate your security and legal vetting process. Rudix's
+            Accelerate your security and legal vetting process. Rudix&apos;s
             RAG-enabled platform ingests complex vendor documentation to provide
             instant, cited answers to your most critical compliance questions.
           </p>
@@ -288,9 +288,9 @@ function ProcurementEngineSection() {
                 Deep Semantic Indexing
               </h3>
               <p className="text-base leading-6 text-[#464555]">
-                We don't just search keywords. Rudix understands the context of
-                security controls and legal obligations across your entire
-                vendor library.
+                We don&apos;t just search keywords. Rudix understands the
+                context of security controls and legal obligations across your
+                entire vendor library.
               </p>
             </div>
           </div>

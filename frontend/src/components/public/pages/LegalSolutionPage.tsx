@@ -89,7 +89,7 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
             <div className="mb-4 flex items-center gap-4 rounded-lg border border-white/10 bg-[#0A0A0F] p-4">
               <Sym name="search" className="text-[#c3c0ff]" />
               <span className="text-sm text-[#c3c0ff]/60 italic">
-                "When is the termination notice for the AWS contract?"
+                &quot;When is the termination notice for the AWS contract?&quot;
               </span>
             </div>
             <div className="rounded-lg bg-[#eeedf3] p-4">
@@ -299,7 +299,7 @@ function LegalExampleQuestionsSection() {
                 name="chat_bubble"
                 className="mb-4 text-[#c3c0ff] transition group-hover:translate-x-1"
               />
-              <p className="text-lg leading-7 font-semibold">"{q}"</p>
+              <p className="text-lg leading-7 font-semibold">&quot;{q}&quot;</p>
             </li>
           ))}
         </ul>
@@ -336,9 +336,9 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                     Snippet from: MSA_Enterprise_Final.pdf
                   </p>
                   <p className="text-sm leading-5 text-[#464555] italic">
-                    "…either party may terminate this Agreement upon ninety (90)
-                    days prior written notice if the other party materially
-                    breaches any term…"
+                    &quot;…either party may terminate this Agreement upon ninety
+                    (90) days prior written notice if the other party materially
+                    breaches any term…&quot;
                   </p>
                 </div>
                 <div className="border-l-2 border-[#3525cd] pl-4 opacity-40">
@@ -346,8 +346,8 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                     Snippet from: Addendum_C.pdf
                   </p>
                   <p className="text-sm leading-5 text-[#464555] italic">
-                    "…notwithstanding Section 12, the pricing tier remains fixed
-                    for the duration of the initial term…"
+                    &quot;…notwithstanding Section 12, the pricing tier remains
+                    fixed for the duration of the initial term…&quot;
                   </p>
                 </div>
               </div>

@@ -419,7 +419,9 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
   useEffect(() => {
     if (!policyQuery.data || isDirty) return;
     const data = policyQuery.data;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPolicy(data.access_policy);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRoleGrants(
       new Set(
         data.grants
@@ -427,6 +429,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
           .map((g) => g.grantee_value),
       ),
     );
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMemberGrants(
       new Set(
         data.grants
