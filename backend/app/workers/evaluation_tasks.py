@@ -897,6 +897,18 @@ class EvaluationTask(RudixTask):
                     "error_type": exc.__class__.__name__,
                 },
             )
+            from app.workers.notification_helper import emit_notification
+
+            emit_notification(
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                event_type="evaluation_failed",
+                severity="error",
+                title="Evaluation run failed",
+                message="The evaluation run could not be completed.",
+                href=f"/evaluations/runs/{evaluation_run_id}",
+                source_id=evaluation_run_id,
+            )
         except Exception:
             return
 
@@ -998,6 +1010,33 @@ def run_evaluation(
             "question_failure_count": summary["question_failure_count"],
         },
     )
+    from app.workers.notification_helper import emit_notification
+
+    if final_status == EvaluationRunStatus.completed:
+        emit_notification(
+            organization_id=organization_id,
+            user_id=user_id,
+            event_type="evaluation_complete",
+            severity="info",
+            title="Evaluation run completed",
+            message=(
+                f"{summary['question_success_count']}/{summary['question_total_count']} "
+                "question(s) passed."
+            ),
+            href=f"/evaluations/runs/{evaluation_run_id}",
+            source_id=evaluation_run_id,
+        )
+    else:
+        emit_notification(
+            organization_id=organization_id,
+            user_id=user_id,
+            event_type="evaluation_failed",
+            severity="error",
+            title="Evaluation run failed",
+            message="All questions failed during evaluation.",
+            href=f"/evaluations/runs/{evaluation_run_id}",
+            source_id=evaluation_run_id,
+        )
     return {
         "evaluation_run_id": evaluation_run_id,
         "status": final_status.value,

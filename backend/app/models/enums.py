@@ -84,3 +84,20 @@ class FeedbackReason(StrEnum):
     missing_document = "missing_document"
     unsafe_content = "unsafe_content"
     other = "other"
+
+
+class NotificationEventType(StrEnum):
+    upload_indexed = "upload_indexed"
+    upload_failed = "upload_failed"
+    evaluation_complete = "evaluation_complete"
+    evaluation_failed = "evaluation_failed"
+    invite_received = "invite_received"
+    security_warning = "security_warning"
+    quota_warning = "quota_warning"
+    connector_sync_issue = "connector_sync_issue"
+
+
+class NotificationSeverity(StrEnum):
+    info = "info"
+    warning = "warning"
+    error = "error"

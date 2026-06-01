@@ -142,6 +142,12 @@ export const queryKeys = {
     notifications: (endpoint: string) =>
       ["top-bar", "notifications", endpoint] as const,
   },
+  notifications: {
+    all: ["notifications"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["notifications", "list", params ?? {}] as const,
+    unreadCount: ["notifications", "unread-count"] as const,
+  },
 };
 
 export type FrontendMutationKind =
@@ -158,7 +164,10 @@ export type FrontendMutationKind =
   | "chat.session.rename"
   | "chat.session.delete"
   | "agent.run"
-  | "evaluation.run";
+  | "evaluation.run"
+  | "notification.read"
+  | "notification.unread"
+  | "notification.mark-all-read";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -221,6 +230,17 @@ export async function invalidateAfterMutation(
   if (kind === "evaluation.run") {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.evaluations.sets,
+    });
+    return;
+  }
+
+  if (
+    kind === "notification.read" ||
+    kind === "notification.unread" ||
+    kind === "notification.mark-all-read"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.notifications.all,
     });
     return;
   }

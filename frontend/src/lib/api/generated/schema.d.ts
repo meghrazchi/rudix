@@ -2432,6 +2432,74 @@ export interface components {
       /** Context */
       ctx?: Record<string, never>;
     };
+    /** NotificationResponse */
+    NotificationResponse: {
+      /** Notification Id */
+      notification_id: string;
+      /**
+       * Event Type
+       * @enum {string}
+       */
+      event_type:
+        | "upload_indexed"
+        | "upload_failed"
+        | "evaluation_complete"
+        | "evaluation_failed"
+        | "invite_received"
+        | "security_warning"
+        | "quota_warning"
+        | "connector_sync_issue";
+      /**
+       * Severity
+       * @enum {string}
+       */
+      severity: "info" | "warning" | "error";
+      /** Title */
+      title: string;
+      /** Message */
+      message: string | null;
+      /** Href */
+      href: string | null;
+      /** Source Id */
+      source_id: string | null;
+      /** Is Read */
+      is_read: boolean;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+    };
+    /** NotificationListResponse */
+    NotificationListResponse: {
+      /** Items */
+      items: components["schemas"]["NotificationResponse"][];
+      /** Total */
+      total: number;
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Unread Count */
+      unread_count: number;
+    };
+    /** MarkReadResponse */
+    MarkReadResponse: {
+      /** Notification Id */
+      notification_id: string;
+      /** Is Read */
+      is_read: boolean;
+    };
+    /** MarkAllReadResponse */
+    MarkAllReadResponse: {
+      /** Marked Count */
+      marked_count: number;
+    };
+    /** UnreadCountResponse */
+    UnreadCountResponse: {
+      /** Unread Count */
+      unread_count: number;
+    };
   };
   responses: never;
   parameters: never;
@@ -3830,6 +3898,95 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
+    };
+  };
+  list_notifications_api_v1_notifications_get: {
+    parameters: {
+      query?: { limit?: number; offset?: number };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["NotificationListResponse"] };
+      };
+      422: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+      };
+    };
+  };
+  get_unread_count_api_v1_notifications_unread_count_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["UnreadCountResponse"] };
+      };
+    };
+  };
+  mark_notification_read_api_v1_notifications__notification_id__read_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: { notification_id: string };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["MarkReadResponse"] };
+      };
+      404: { headers: { [name: string]: unknown }; content?: never };
+      422: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+      };
+    };
+  };
+  mark_notification_unread_api_v1_notifications__notification_id__unread_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: { notification_id: string };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["MarkReadResponse"] };
+      };
+      404: { headers: { [name: string]: unknown }; content?: never };
+      422: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+      };
+    };
+  };
+  mark_all_notifications_read_api_v1_notifications_mark_all_read_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: { [name: string]: unknown };
+        content: { "application/json": components["schemas"]["MarkAllReadResponse"] };
       };
     };
   };

@@ -11,6 +11,7 @@ from app.interfaces.http import (
     documents,
     evaluation_sets,
     evaluations,
+    notifications,
     pipeline,
     team,
 )
@@ -30,6 +31,7 @@ protected_router.include_router(agent_runs.router)
 protected_router.include_router(evaluation_sets.router)
 protected_router.include_router(evaluations.router)
 protected_router.include_router(pipeline.router)
+protected_router.include_router(notifications.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(team.router)

@@ -1303,6 +1303,18 @@ class DocumentTask(RudixTask):
                     "retryable": error_details["retryable"],
                 },
             )
+            from app.workers.notification_helper import emit_notification
+
+            emit_notification(
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                event_type="upload_failed",
+                severity="error",
+                title="Document processing failed",
+                message="The document could not be indexed. Check the document details for more information.",
+                href=f"/documents?highlight={document_id}",
+                source_id=document_id,
+            )
         except Exception:
             return
 
@@ -1397,6 +1409,18 @@ def process_document(
             "page_count": page_count,
             "chunk_count": chunk_count,
         },
+    )
+    from app.workers.notification_helper import emit_notification
+
+    emit_notification(
+        organization_id=organization_id,
+        user_id=user_id,
+        event_type="upload_indexed",
+        severity="info",
+        title="Document indexed",
+        message=f"{page_count} page(s), {chunk_count} chunk(s) ready for search.",
+        href=f"/documents?highlight={document_id}",
+        source_id=document_id,
     )
     return {
         "document_id": document_id,

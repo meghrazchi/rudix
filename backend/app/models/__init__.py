@@ -1,5 +1,6 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.chat import ChatMessage, ChatSession
+from app.models.notification import Notification
 from app.models.chat_share import ChatShare
 from app.models.message_feedback import MessageFeedback
 from app.models.citation import Citation
@@ -37,6 +38,7 @@ __all__ = [
     "OrganizationGovernancePolicy",
     "OrganizationMember",
     "PipelineEvent",
+    "Notification",
     "PipelineRun",
     "UsageEvent",
     "User",

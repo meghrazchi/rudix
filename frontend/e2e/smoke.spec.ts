@@ -339,6 +339,54 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "/notifications/unread-count" && request.method() === "GET") {
+      await fulfillJson(route, { unread_count: 1 });
+      return;
+    }
+
+    if (path === "/notifications" && request.method() === "GET") {
+      await fulfillJson(route, {
+        items: [
+          {
+            notification_id: "notif-e2e-1",
+            event_type: "upload_failed",
+            severity: "error",
+            title: "Document processing failed",
+            message:
+              "The document could not be indexed. Check the document details for more information.",
+            href: "/documents?highlight=doc-1",
+            source_id: "doc-1",
+            is_read: false,
+            created_at: "2026-05-20T08:30:00Z",
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+        unread_count: 1,
+      });
+      return;
+    }
+
+    if (
+      path === "/notifications/notif-e2e-1/read" &&
+      request.method() === "PATCH"
+    ) {
+      await fulfillJson(route, {
+        notification_id: "notif-e2e-1",
+        is_read: true,
+      });
+      return;
+    }
+
+    if (
+      path === "/notifications/mark-all-read" &&
+      request.method() === "POST"
+    ) {
+      await fulfillJson(route, { marked_count: 1 });
+      return;
+    }
+
     await fulfillJson(
       route,
       { detail: `No e2e mock for ${request.method()} ${path}` },
@@ -549,5 +597,35 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     });
     await expect(page.getByText("Run detail")).toBeVisible();
     await expect(page.getByText("Case results")).toBeVisible();
+  });
+
+  test("shows upload failure notification and deep-links to document", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/dashboard");
+    await waitForSessionBootstrap(page);
+
+    // Bell badge shows the unread count from the polling query.
+    await expect(page.getByLabel("Notifications")).toBeVisible();
+
+    // Open the notification center.
+    await page.getByLabel("Notifications").click();
+
+    // The failed document notification should be visible.
+    await expect(
+      page.getByText("Document processing failed"),
+    ).toBeVisible();
+    await expect(page.getByText(/could not be indexed/)).toBeVisible();
+
+    // Clicking the notification navigates to the documents page.
+    const notifLink = page.getByRole("menuitem", {
+      name: /Document processing failed/,
+    });
+    await notifLink.click();
+
+    await expect(page).toHaveURL(/\/documents/);
   });
 });
