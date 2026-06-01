@@ -94,7 +94,7 @@ function SectionHeader({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="mb-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-[#3525cd]" aria-hidden="true" />
         <h2 className="text-lg font-semibold text-[#1b1b24]">{title}</h2>
@@ -113,10 +113,7 @@ function DeploymentControlledBadge() {
 }
 
 function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
-  const map: Record<
-    BillingPlanStatus,
-    { label: string; cls: string }
-  > = {
+  const map: Record<BillingPlanStatus, { label: string; cls: string }> = {
     active: {
       label: "Active",
       cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
@@ -141,7 +138,7 @@ function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
   const { label, cls } = map[status];
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${cls}`}
     >
       {label}
     </span>
@@ -172,7 +169,7 @@ function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {label.toUpperCase()}
     </span>
   );
@@ -207,12 +204,12 @@ function PlanCard({
 
   return (
     <section
-      className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm"
+      className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Current plan section"
     >
-      <div className="flex items-start justify-between mb-4">
+      <div className="mb-4 flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#5d58a8] mb-1">
+          <p className="mb-1 text-[10px] font-bold tracking-widest text-[#5d58a8] uppercase">
             Current Plan
           </p>
           <h3 className="text-2xl font-extrabold text-[#3525cd]">
@@ -222,7 +219,7 @@ function PlanCard({
         <PlanStatusBadge status={plan.status} />
       </div>
 
-      <dl className="space-y-3 mb-5">
+      <dl className="mb-5 space-y-3">
         {plan.billing_cycle && (
           <div className="flex items-center justify-between">
             <dt className="text-sm text-[#5c5871]">Billing cycle</dt>
@@ -249,7 +246,7 @@ function PlanCard({
         )}
       </dl>
 
-      <div className="space-y-4 mb-6">
+      <div className="mb-6 space-y-4">
         <QuotaProgress
           label="Seats"
           used={seatsUsed}
@@ -269,7 +266,7 @@ function PlanCard({
           href={manageUrl ?? "#"}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white hover:bg-[#2b1fa8] transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
           aria-label="Manage subscription — opens billing portal"
         >
           Manage Subscription
@@ -301,10 +298,10 @@ function LlmCostCard({ costUsd }: { costUsd: number | null }) {
       className="relative overflow-hidden rounded-2xl bg-[#1b1b24] p-6 shadow-lg"
       aria-label="Estimated LLM cost section"
     >
-      <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#c3c0ff]/70">
+      <p className="mb-3 text-[10px] font-bold tracking-widest text-[#c3c0ff]/70 uppercase">
         Estimated LLM Costs
       </p>
-      <div className="flex items-baseline gap-1 mb-1">
+      <div className="mb-1 flex items-baseline gap-1">
         <span className="text-3xl font-extrabold text-white">{dollars}</span>
         {cents && (
           <span className="text-lg font-semibold text-white/60">.{cents}</span>
@@ -314,7 +311,7 @@ function LlmCostCard({ costUsd }: { costUsd: number | null }) {
         All LLM cost values are estimates only
       </p>
       <div
-        className="pointer-events-none absolute -bottom-6 -right-6 h-28 w-28 rounded-full bg-[#3525cd]/20 blur-3xl"
+        className="pointer-events-none absolute -right-6 -bottom-6 h-28 w-28 rounded-full bg-[#3525cd]/20 blur-3xl"
         aria-hidden="true"
       />
     </section>
@@ -339,13 +336,13 @@ function UsageSummarySection({
 
   return (
     <section
-      className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm"
+      className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Usage summary section"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <SectionHeader icon={TrendingUp} title="Usage Summary" />
         <div
-          className="flex gap-1 ml-4"
+          className="ml-4 flex gap-1"
           role="group"
           aria-label="Date range selector"
         >
@@ -356,9 +353,9 @@ function UsageSummarySection({
               onClick={() => setDateRange(opt.id)}
               aria-pressed={dateRange === opt.id}
               className={[
-                "px-3 py-1 text-xs font-semibold rounded-lg border transition-colors",
+                "rounded-lg border px-3 py-1 text-xs font-semibold transition-colors",
                 dateRange === opt.id
-                  ? "bg-[#3525cd] text-white border-[#3525cd]"
+                  ? "border-[#3525cd] bg-[#3525cd] text-white"
                   : "border-[#d7d4e8] text-[#5c5871] hover:bg-[#f5f2ff]",
               ].join(" ")}
             >
@@ -404,7 +401,7 @@ function UsageSummarySection({
         )
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3 mb-6">
+          <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3">
             {[
               {
                 label: "Questions asked",
@@ -426,9 +423,7 @@ function UsageSummarySection({
               },
               {
                 label: "Indexed documents",
-                value: formatNumber(
-                  usageQuery.data?.indexed_documents ?? null,
-                ),
+                value: formatNumber(usageQuery.data?.indexed_documents ?? null),
               },
               {
                 label: "Storage used",
@@ -452,7 +447,7 @@ function UsageSummarySection({
               },
             ].map(({ label, value }) => (
               <div key={label}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555] mb-0.5">
+                <p className="mb-0.5 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                   {label}
                 </p>
                 <p className="font-mono text-base font-semibold text-[#1b1b24]">
@@ -462,9 +457,9 @@ function UsageSummarySection({
             ))}
           </div>
 
-          <div className="border-t border-[#e4e1ee] pt-5 grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 border-t border-[#e4e1ee] pt-5">
             <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555] mb-1">
+              <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                 Avg Latency
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
@@ -473,8 +468,8 @@ function UsageSummarySection({
                   : "—"}
               </p>
             </div>
-            <div className="text-center border-x border-[#e4e1ee]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555] mb-1">
+            <div className="border-x border-[#e4e1ee] text-center">
+              <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                 Avg Confidence
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
@@ -484,7 +479,7 @@ function UsageSummarySection({
               </p>
             </div>
             <div className="text-center">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555] mb-1">
+              <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                 Est. LLM Cost
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
@@ -495,7 +490,7 @@ function UsageSummarySection({
             </div>
           </div>
           {usageQuery.data?.estimated_llm_cost_usd != null && (
-            <p className="mt-2 text-[10px] text-[#aaa6b8] text-right">
+            <p className="mt-2 text-right text-[10px] text-[#aaa6b8]">
               * LLM cost values are estimates only
             </p>
           )}
@@ -521,7 +516,7 @@ function QuotaSection({
 
   return (
     <section
-      className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm"
+      className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Quota and limits section"
     >
       <SectionHeader icon={Gauge} title="Quota & Limits" />
@@ -586,12 +581,16 @@ function InvoiceSection({
 
   return (
     <section
-      className="bg-white border border-[#c7c4d8] rounded-2xl overflow-hidden shadow-sm"
+      className="overflow-hidden rounded-2xl border border-[#c7c4d8] bg-white shadow-sm"
       aria-label="Invoice history section"
     >
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#e4e1ee]">
+      <div className="flex items-center justify-between border-b border-[#e4e1ee] px-6 py-4">
         <div className="flex items-center gap-3">
-          <ReceiptText size={20} className="text-[#3525cd]" aria-hidden="true" />
+          <ReceiptText
+            size={20}
+            className="text-[#3525cd]"
+            aria-hidden="true"
+          />
           <h2 className="text-lg font-semibold text-[#1b1b24]">
             Invoice History
           </h2>
@@ -636,7 +635,7 @@ function InvoiceSection({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-[#f5f2ff] text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+            <thead className="bg-[#f5f2ff] text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
               <tr>
                 <th className="px-6 py-3">Invoice ID</th>
                 <th className="px-6 py-3">Date</th>
@@ -649,7 +648,7 @@ function InvoiceSection({
               {(invoicesQuery.data ?? []).map((inv) => (
                 <tr
                   key={inv.id}
-                  className="hover:bg-[#f5f2ff]/40 transition-colors"
+                  className="transition-colors hover:bg-[#f5f2ff]/40"
                 >
                   <td className="px-6 py-3 font-mono text-xs text-[#464555]">
                     {inv.id}
@@ -697,14 +696,14 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
       className="rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-sm"
       aria-label="Billing portal section"
     >
-      <div className="flex items-center gap-3 mb-3">
+      <div className="mb-3 flex items-center gap-3">
         <CreditCard size={20} className="text-[#3525cd]" aria-hidden="true" />
-        <h2 className="text-sm font-bold uppercase tracking-wide text-[#5f5a74]">
+        <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
           Billing
         </h2>
         <DeploymentControlledBadge />
       </div>
-      <p className="text-sm text-[#4d4963] mb-4">
+      <p className="mb-4 text-sm text-[#4d4963]">
         Detailed billing information is managed through your billing portal.
         Plan, usage, and invoice data are not directly available in this
         deployment.
@@ -714,7 +713,7 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
           href={portalUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
         >
           Open billing portal
           <ExternalLink size={14} aria-hidden="true" />
@@ -734,7 +733,7 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
 function BillingNotificationsInfo() {
   return (
     <section
-      className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm"
+      className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Billing notifications section"
     >
       <SectionHeader icon={AlertTriangle} title="Billing Alerts" />
@@ -820,16 +819,16 @@ export function BillingSettingsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left column: Plan + LLM cost */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="space-y-6 lg:col-span-4">
           {capabilities.planEnabled ? (
             planQuery.isLoading ? (
-              <section className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm">
+              <section className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm">
                 <LoadingState compact title="Loading plan info..." />
               </section>
             ) : planQuery.isError ? (
-              <section className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm">
+              <section className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm">
                 {isApiClientError(planQuery.error) &&
                 planQuery.error.status === 429 ? (
                   <RateLimitState
@@ -859,8 +858,8 @@ export function BillingSettingsTab() {
               />
             ) : null
           ) : (
-            <section className="bg-white border border-[#c7c4d8] rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-3 mb-3">
+            <section className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm">
+              <div className="mb-3 flex items-center gap-3">
                 <FileText
                   size={20}
                   className="text-[#3525cd]"
@@ -879,7 +878,7 @@ export function BillingSettingsTab() {
                   href={billingPortalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                 >
                   Open billing portal
                   <ExternalLink size={14} aria-hidden="true" />
@@ -892,7 +891,7 @@ export function BillingSettingsTab() {
         </div>
 
         {/* Right column: Usage + Quotas */}
-        <div className="lg:col-span-8 space-y-6">
+        <div className="space-y-6 lg:col-span-8">
           <UsageSummarySection capabilities={capabilities} />
           <QuotaSection capabilities={capabilities} />
         </div>

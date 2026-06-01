@@ -32,7 +32,9 @@ export function FeedbackModal({
   onClose,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [reason, setReason] = useState<FeedbackReason | null>(existingReason ?? null);
+  const [reason, setReason] = useState<FeedbackReason | null>(
+    existingReason ?? null,
+  );
   const [comment, setComment] = useState(existingComment ?? "");
 
   const isEditing = existingReason != null || existingComment != null;
@@ -74,14 +76,17 @@ export function FeedbackModal({
             aria-label="Close"
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
           >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+            <span
+              className="material-symbols-outlined text-[20px]"
+              aria-hidden="true"
+            >
               close
             </span>
           </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
           <div>
             <p className="mb-2 text-xs font-medium text-[#464555]">
               What&apos;s wrong with this answer? (optional)
@@ -132,7 +137,7 @@ export function FeedbackModal({
               maxLength={1000}
               rows={3}
               placeholder="Describe the issue…"
-              className="w-full rounded-lg border border-[#d7d4e8] bg-[#faf9ff] px-3 py-2 text-sm text-[#2a2640] placeholder-[#9d98b5] outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd] resize-none"
+              className="w-full resize-none rounded-lg border border-[#d7d4e8] bg-[#faf9ff] px-3 py-2 text-sm text-[#2a2640] placeholder-[#9d98b5] outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
             />
             <p className="mt-0.5 text-right text-[10px] text-[#9d98b5]">
               {comment.length}/1000

@@ -36,11 +36,19 @@ describe("Support solution page (/solutions/support)", () => {
     render(<SupportSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: /Support knowledge is often scattered/i }),
+      screen.getByRole("heading", {
+        name: /Support knowledge is often scattered/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Tool Fatigue" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Slow Onboarding" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Inconsistent Data" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Tool Fatigue" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Slow Onboarding" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Inconsistent Data" }),
+    ).toBeInTheDocument();
   });
 
   it("renders document sources section with six source cards", () => {
@@ -75,13 +83,17 @@ describe("Support solution page (/solutions/support)", () => {
       screen.getByRole("heading", { name: "Precision retrieval in action." }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/troubleshoot login failures for users on Enterprise Plan/i),
+      screen.getByText(
+        /troubleshoot login failures for users on Enterprise Plan/i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /"Which plan includes SSO\?"/ }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /"What changed in the latest release\?"/ }),
+      screen.getByRole("heading", {
+        name: /"What changed in the latest release\?"/,
+      }),
     ).toBeInTheDocument();
   });
 
@@ -104,9 +116,13 @@ describe("Support solution page (/solutions/support)", () => {
   it("renders hero CTA links pointing to demo and contact", () => {
     render(<SupportSolutionPage />);
 
-    const speakLinks = screen.getAllByRole("link", { name: "Speak to us about support" });
+    const speakLinks = screen.getAllByRole("link", {
+      name: "Speak to us about support",
+    });
     expect(speakLinks.length).toBeGreaterThanOrEqual(1);
-    speakLinks.forEach((link) => expect(link).toHaveAttribute("href", "/contact"));
+    speakLinks.forEach((link) =>
+      expect(link).toHaveAttribute("href", "/contact"),
+    );
   });
 
   it("applies env-driven demo URL when configured", () => {
@@ -114,7 +130,9 @@ describe("Support solution page (/solutions/support)", () => {
 
     render(<SupportSolutionPage />);
 
-    const speakLinks = screen.getAllByRole("link", { name: "Speak to us about support" });
+    const speakLinks = screen.getAllByRole("link", {
+      name: "Speak to us about support",
+    });
     speakLinks.forEach((link) =>
       expect(link).toHaveAttribute("href", "https://demo.example.com"),
     );

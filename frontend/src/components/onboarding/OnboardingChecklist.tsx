@@ -49,10 +49,9 @@ export function OnboardingChecklist({
     () => ({
       hasOrganization: Boolean(session.organizationId),
       hasDocuments: (documentsQuery.data?.total ?? 0) > 0,
-      hasIndexedDocuments:
-        (documentsQuery.data?.items ?? []).some(
-          (doc) => doc.status === "indexed",
-        ),
+      hasIndexedDocuments: (documentsQuery.data?.items ?? []).some(
+        (doc) => doc.status === "indexed",
+      ),
       hasChatSessions: (chatQuery.data?.total ?? 0) > 0,
     }),
     [session.organizationId, documentsQuery.data, chatQuery.data],
@@ -251,7 +250,10 @@ export function OnboardingChecklist({
         />
       </div>
 
-      <ol className="max-h-[360px] overflow-auto px-3 py-2" aria-label="Setup steps">
+      <ol
+        className="max-h-[360px] overflow-auto px-3 py-2"
+        aria-label="Setup steps"
+      >
         {visibleSteps.map((step) => {
           const done = isStepComplete(
             step.id,
@@ -280,9 +282,7 @@ export function OnboardingChecklist({
                   className={`text-sm font-semibold ${done ? "text-[#7a7693] line-through" : "text-[#2a2640]"}`}
                 >
                   {step.title}
-                  {done ? (
-                    <span className="sr-only"> (complete)</span>
-                  ) : null}
+                  {done ? <span className="sr-only"> (complete)</span> : null}
                 </p>
                 <p className="mt-0.5 text-xs text-[#68647b]">
                   {step.description}

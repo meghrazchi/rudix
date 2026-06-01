@@ -300,18 +300,18 @@ Open `http://localhost:3000`.
 
 ## Scripts
 
-| Command                     | Description                                              |
-| --------------------------- | -------------------------------------------------------- |
-| `npm run dev`               | Start dev server                                         |
-| `npm run build`             | Build production bundle                                  |
-| `npm run start`             | Run production server                                    |
-| `npm run typecheck`         | TypeScript checks                                        |
-| `npm run lint`              | ESLint                                                   |
-| `npm run test`              | Vitest tests                                             |
-| `npm run test:watch`        | Vitest watch mode                                        |
-| `npm run test:e2e`          | Playwright tests                                         |
-| `npm run api:generate`      | Regenerate TypeScript types from committed `openapi.json` |
-| `npm run api:check`         | Fail if generated types are stale (used in CI)           |
+| Command                     | Description                                                          |
+| --------------------------- | -------------------------------------------------------------------- |
+| `npm run dev`               | Start dev server                                                     |
+| `npm run build`             | Build production bundle                                              |
+| `npm run start`             | Run production server                                                |
+| `npm run typecheck`         | TypeScript checks                                                    |
+| `npm run lint`              | ESLint                                                               |
+| `npm run test`              | Vitest tests                                                         |
+| `npm run test:watch`        | Vitest watch mode                                                    |
+| `npm run test:e2e`          | Playwright tests                                                     |
+| `npm run api:generate`      | Regenerate TypeScript types from committed `openapi.json`            |
+| `npm run api:check`         | Fail if generated types are stale (used in CI)                       |
 | `npm run api:update-schema` | Fetch fresh `openapi.json` from running backend and regenerate types |
 
 ## API type generation

@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function OperationsBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Operations
         </li>
@@ -58,12 +65,12 @@ function OperationsHeroSection({
     >
       <div className="relative z-10 mx-auto max-w-[1440px] px-10">
         <div className="max-w-3xl">
-          <span className="mb-6 inline-block rounded-full bg-[#3525cd]/10 px-4 py-1.5 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3525cd]">
+          <span className="mb-6 inline-block rounded-full bg-[#3525cd]/10 px-4 py-1.5 text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
             Operations &amp; Incident Response
           </span>
           <h1
             id="ops-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Runbook answers when your team needs them.
           </h1>
@@ -92,7 +99,7 @@ function OperationsHeroSection({
       {/* decorative diagram */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-[-10%] top-1/4 hidden w-5/12 opacity-20 lg:block"
+        className="pointer-events-none absolute top-1/4 right-[-10%] hidden w-5/12 opacity-20 lg:block"
       >
         <div className="-rotate-[4deg] rounded-2xl border border-[#c7c4d8]/30 bg-[#f4f3f9] p-8">
           <div className="mb-4 flex items-center gap-4">
@@ -124,7 +131,7 @@ function OperationsProblemSection() {
         <div className="mb-16 text-center">
           <h2
             id="ops-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             During incidents, searching documents wastes time.
           </h2>
@@ -137,8 +144,11 @@ function OperationsProblemSection() {
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-12">
           <li className="relative overflow-hidden rounded-2xl border border-[#c7c4d8]/30 bg-[#f4f3f9] p-10 md:col-span-7">
             <div className="relative z-10">
-              <Sym name="inventory_2" className="mb-6 text-4xl text-[#3525cd]" />
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <Sym
+                name="inventory_2"
+                className="mb-6 text-4xl text-[#3525cd]"
+              />
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 Runbooks scattered across wikis
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
@@ -156,12 +166,12 @@ function OperationsProblemSection() {
           <li className="relative overflow-hidden rounded-2xl border border-[#0A0A0F] bg-[#0A0A0F] p-10 text-[#faf9ff] md:col-span-5">
             <div className="relative z-10">
               <Sym name="timer" className="mb-6 text-4xl text-[#c3c0ff]" />
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#faf9ff]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#faf9ff]">
                 Incident steps need to be followed quickly
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
-                When services are down, reading a 20-page SOP is impossible.
-                Get exact, bulleted instructions in seconds, not minutes.
+                When services are down, reading a 20-page SOP is impossible. Get
+                exact, bulleted instructions in seconds, not minutes.
               </p>
             </div>
             <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#3525cd] to-transparent" />
@@ -170,7 +180,7 @@ function OperationsProblemSection() {
           <li className="flex flex-col items-center gap-10 rounded-2xl border border-[#c7c4d8]/30 bg-white p-10 md:col-span-12 md:flex-row">
             <div className="flex-1">
               <Sym name="warning" className="mb-6 text-4xl text-[#ba1a1a]" />
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 Outdated procedures create risk
               </h3>
               <p className="text-lg leading-7 text-[#464555]">
@@ -184,7 +194,7 @@ function OperationsProblemSection() {
                 src="/images/solutions/operations/terminal-ops.jpg"
                 alt="Code terminal showing operations runbook and incident response procedures"
                 fill
-                className="object-cover grayscale opacity-60"
+                className="object-cover opacity-60 grayscale"
                 sizes="(max-width: 768px) 100vw, 40vw"
               />
             </div>
@@ -208,13 +218,16 @@ function OperationsDocumentSourcesSection() {
   ];
 
   return (
-    <section aria-labelledby="ops-doc-sources-title" className="bg-[#faf9ff] py-24">
+    <section
+      aria-labelledby="ops-doc-sources-title"
+      className="bg-[#faf9ff] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 flex flex-col items-end justify-between gap-8 md:flex-row">
           <div className="max-w-2xl">
             <h2
               id="ops-doc-sources-title"
-              className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Universal technical ingestion.
             </h2>
@@ -267,12 +280,15 @@ function OperationsHowItWorksSection() {
   ];
 
   return (
-    <section aria-labelledby="ops-flow-title" className="overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]">
+    <section
+      aria-labelledby="ops-flow-title"
+      className="overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-20 text-center">
           <h2
             id="ops-flow-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#faf9ff]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
           >
             How Rudix secures your uptime.
           </h2>
@@ -291,7 +307,7 @@ function OperationsHowItWorksSection() {
                 <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-[#3525cd]/50 bg-[#3525cd]/20">
                   <Sym name={s.icon} className="text-3xl text-[#c3c0ff]" />
                 </div>
-                <h3 className="mb-2 text-[24px] font-semibold leading-8 text-[#faf9ff]">
+                <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#faf9ff]">
                   {s.label}
                 </h3>
                 <p className="text-base leading-6 text-[#464555]">{s.desc}</p>
@@ -318,9 +334,18 @@ function OperationsHowItWorksSection() {
 
 function OperationsExampleQueriesSection() {
   const questions = [
-    { icon: "alternate_email", text: "What are the steps for a priority incident?" },
-    { icon: "sync_problem", text: "How do we restart the failed indexing worker?" },
-    { icon: "person_alert", text: "Who needs to be notified during an outage?" },
+    {
+      icon: "alternate_email",
+      text: "What are the steps for a priority incident?",
+    },
+    {
+      icon: "sync_problem",
+      text: "How do we restart the failed indexing worker?",
+    },
+    {
+      icon: "person_alert",
+      text: "Who needs to be notified during an outage?",
+    },
   ];
 
   return (
@@ -330,7 +355,7 @@ function OperationsExampleQueriesSection() {
           <div className="flex-1">
             <h2
               id="ops-queries-title"
-              className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Built for the high-pressure query.
             </h2>
@@ -347,7 +372,9 @@ function OperationsExampleQueriesSection() {
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-[#eeedf3] text-[#3525cd] transition group-hover:bg-[#3525cd] group-hover:text-white">
                     <Sym name={q.icon} className="text-sm" />
                   </div>
-                  <span className="font-semibold text-[#1a1b20]">"{q.text}"</span>
+                  <span className="font-semibold text-[#1a1b20]">
+                    "{q.text}"
+                  </span>
                 </li>
               ))}
             </ul>
@@ -370,7 +397,10 @@ function OperationsExampleQueriesSection() {
                 {/* bot response */}
                 <div className="flex gap-4">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#006f3a]">
-                    <Sym name="auto_awesome" className="text-sm text-[#91f8ae]" />
+                    <Sym
+                      name="auto_awesome"
+                      className="text-sm text-[#91f8ae]"
+                    />
                   </div>
                   <div className="w-full space-y-4">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -441,7 +471,7 @@ function OperationsFinalCtaSection({
       <div className="relative z-10 mx-auto max-w-[1440px] px-10 text-center">
         <h2
           id="ops-cta-title"
-          className="mb-8 text-4xl font-bold leading-tight tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
+          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
         >
           Make runbooks easier to use.
         </h2>
@@ -477,12 +507,18 @@ export function OperationsSolutionPage() {
   return (
     <>
       <OperationsBreadcrumb />
-      <OperationsHeroSection demoHref={links.requestDemo} docsHref={links.docs} />
+      <OperationsHeroSection
+        demoHref={links.requestDemo}
+        docsHref={links.docs}
+      />
       <OperationsProblemSection />
       <OperationsDocumentSourcesSection />
       <OperationsHowItWorksSection />
       <OperationsExampleQueriesSection />
-      <OperationsFinalCtaSection demoHref={links.requestDemo} contactHref={links.requestDemo} />
+      <OperationsFinalCtaSection
+        demoHref={links.requestDemo}
+        contactHref={links.requestDemo}
+      />
     </>
   );
 }

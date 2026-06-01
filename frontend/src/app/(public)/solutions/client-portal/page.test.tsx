@@ -38,9 +38,10 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
     expect(
       screen.getByRole("link", { name: /Start Free Trial/i }),
     ).toHaveAttribute("href", "/signup");
-    expect(
-      screen.getByRole("link", { name: "Request Demo" }),
-    ).toHaveAttribute("href", "/contact");
+    expect(screen.getByRole("link", { name: "Request Demo" })).toHaveAttribute(
+      "href",
+      "/contact",
+    );
   });
 
   it("renders the problem section with three friction cards", () => {
@@ -100,7 +101,9 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
     render(<ClientPortalSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Built for every client touchpoint" }),
+      screen.getByRole("heading", {
+        name: "Built for every client touchpoint",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Customer Onboarding" }),
@@ -126,7 +129,9 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
       screen.getByRole("heading", { name: /Cited answers\. Every time\./i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/How do I configure SAML-based SSO for my organization/i),
+      screen.getByText(
+        /How do I configure SAML-based SSO for my organization/i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/What data is retained after I close my account/i),
@@ -138,18 +143,21 @@ describe("Client Portal solution page (/solutions/client-portal)", () => {
   it("renders the related solutions section with expected links", () => {
     render(<ClientPortalSolutionPage />);
 
-    expect(
-      screen.getByRole("link", { name: "Support" }),
-    ).toHaveAttribute("href", "/solutions/support");
-    expect(
-      screen.getByRole("link", { name: "Sales" }),
-    ).toHaveAttribute("href", "/solutions/sales");
+    expect(screen.getByRole("link", { name: "Support" })).toHaveAttribute(
+      "href",
+      "/solutions/support",
+    );
+    expect(screen.getByRole("link", { name: "Sales" })).toHaveAttribute(
+      "href",
+      "/solutions/sales",
+    );
     expect(
       screen.getByRole("link", { name: "Internal Knowledge" }),
     ).toHaveAttribute("href", "/solutions/internal-knowledge");
-    expect(
-      screen.getByRole("link", { name: "Security" }),
-    ).toHaveAttribute("href", "/security");
+    expect(screen.getByRole("link", { name: "Security" })).toHaveAttribute(
+      "href",
+      "/security",
+    );
   });
 
   it("renders the final CTA section with demo and trial links", () => {

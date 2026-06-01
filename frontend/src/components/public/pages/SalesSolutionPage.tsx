@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function SalesBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Sales
         </li>
@@ -60,13 +67,13 @@ function SalesHeroSection({
         <div className="z-10">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#e2dfff] px-3 py-1 text-[#3525cd]">
             <Sym name="verified" className="text-[18px]" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.05em]">
+            <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
               Sales Enablement Engine
             </span>
           </div>
           <h1
             id="sales-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Win deals with cited{" "}
             <span className="text-[#3525cd]">product intelligence.</span>
@@ -94,8 +101,14 @@ function SalesHeroSection({
         </div>
 
         <div className="relative">
-          <div aria-hidden="true" className="absolute -top-20 -right-20 h-80 w-80 rounded-full bg-[#3525cd]/10 blur-[100px]" />
-          <div aria-hidden="true" className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-[#00542a]/5 blur-[80px]" />
+          <div
+            aria-hidden="true"
+            className="absolute -top-20 -right-20 h-80 w-80 rounded-full bg-[#3525cd]/10 blur-[100px]"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-20 -left-20 h-64 w-64 rounded-full bg-[#00542a]/5 blur-[80px]"
+          />
 
           <div className="rudix-landing-glass relative z-10 rounded-2xl border border-[#c7c4d8]/30 p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
@@ -104,7 +117,9 @@ function SalesHeroSection({
                 <span className="h-3 w-3 rounded-full bg-yellow-400" />
                 <span className="h-3 w-3 rounded-full bg-green-400" />
               </div>
-              <span className="font-mono text-[12px] text-[#464555]">rudix-query-v4.2</span>
+              <span className="font-mono text-[12px] text-[#464555]">
+                rudix-query-v4.2
+              </span>
             </div>
 
             <div className="mb-6 rounded-xl bg-[#1F1E24] p-6">
@@ -118,17 +133,14 @@ function SalesHeroSection({
               <p className="mb-4 text-sm leading-6 text-[#faf9ff]">
                 Our primary advantages include:
                 <br />
-                1.{" "}
-                <span className="text-[#c3c0ff]">RAG Accuracy:</span> 24% higher
-                retrieval precision.
+                1. <span className="text-[#c3c0ff]">RAG Accuracy:</span> 24%
+                higher retrieval precision.
                 <br />
-                2.{" "}
-                <span className="text-[#c3c0ff]">Deployment:</span> On-prem and VPC
-                support.
+                2. <span className="text-[#c3c0ff]">Deployment:</span> On-prem
+                and VPC support.
                 <br />
-                3.{" "}
-                <span className="text-[#c3c0ff]">Pricing:</span> 40% lower TCO for
-                high-fidelity enterprise flows.
+                3. <span className="text-[#c3c0ff]">Pricing:</span> 40% lower
+                TCO for high-fidelity enterprise flows.
               </p>
               <div className="flex flex-wrap gap-2">
                 <span className="rounded bg-white/10 px-2 py-1 font-mono text-[10px] text-[#faf9ff]">
@@ -140,12 +152,16 @@ function SalesHeroSection({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+            <div className="flex items-center gap-4 text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
               <span className="flex items-center gap-1">
                 <Sym name="sync" className="text-[16px]" /> Indexing Live
               </span>
               <span className="flex items-center gap-1">
-                <Sym name="check_circle" className="text-[16px] text-[#108548]" /> Sources Verified
+                <Sym
+                  name="check_circle"
+                  className="text-[16px] text-[#108548]"
+                />{" "}
+                Sources Verified
               </span>
             </div>
           </div>
@@ -185,7 +201,7 @@ function SalesProblemSection() {
         <div className="mb-16 text-center">
           <h2
             id="sales-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             The Cost of Sales Friction
           </h2>
@@ -205,7 +221,7 @@ function SalesProblemSection() {
               >
                 <Sym name={p.icon} />
               </div>
-              <h3 className="mb-3 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -230,13 +246,16 @@ function SalesDocumentSourcesSection() {
   ];
 
   return (
-    <section aria-labelledby="sales-doc-sources-title" className="overflow-hidden bg-[#faf9ff] py-24">
+    <section
+      aria-labelledby="sales-doc-sources-title"
+      className="overflow-hidden bg-[#faf9ff] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="flex flex-col items-center gap-16 lg:flex-row">
           <div className="lg:w-1/2">
             <h2
               id="sales-doc-sources-title"
-              className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+              className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
             >
               Your knowledge, unified.
             </h2>
@@ -251,7 +270,9 @@ function SalesDocumentSourcesSection() {
                   className="flex items-center gap-3 rounded-lg border border-[#c7c4d8]/20 bg-[#eeedf3] p-4"
                 >
                   <Sym name={s.icon} className="text-[#3525cd]" />
-                  <span className="font-semibold text-[#1a1b20]">{s.label}</span>
+                  <span className="font-semibold text-[#1a1b20]">
+                    {s.label}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -309,13 +330,16 @@ function SalesDocumentSourcesSection() {
 
 function SalesExampleQueriesSection() {
   return (
-    <section aria-labelledby="sales-queries-title" className="bg-[#0A0A0F] py-24 text-[#faf9ff]">
+    <section
+      aria-labelledby="sales-queries-title"
+      className="bg-[#0A0A0F] py-24 text-[#faf9ff]"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="grid items-center gap-16 lg:grid-cols-2">
           <div>
             <h2
               id="sales-queries-title"
-              className="mb-6 text-4xl font-bold leading-tight tracking-tight lg:text-[48px] lg:leading-[56px]"
+              className="mb-6 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
               Ask anything.
               <br />
@@ -337,7 +361,7 @@ function SalesExampleQueriesSection() {
                 <p className="mb-4 text-base leading-6 text-[#c3c0ff]">
                   "What are our competitive advantages against Enterprise-X?"
                 </p>
-                <div className="border-l-2 border-[#c3c0ff] pl-4 text-sm italic text-[#faf9ff]/80">
+                <div className="border-l-2 border-[#c3c0ff] pl-4 text-sm text-[#faf9ff]/80 italic">
                   "Based on the 'Q3 Battlecard', our advantages are (1) Native
                   VPC deployment and (2) No-PII data handling…"
                 </div>
@@ -368,12 +392,14 @@ function SalesExampleQueriesSection() {
               </div>
               <div className="absolute right-0 bottom-10 rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-sm">
-                  <Sym name="record_voice_over" className="text-base" /> AE Query
+                  <Sym name="record_voice_over" className="text-base" /> AE
+                  Query
                 </div>
               </div>
               <div className="absolute top-20 right-10 rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-sm">
-                  <Sym name="verified_user" className="text-base" /> Security Docs
+                  <Sym name="verified_user" className="text-base" /> Security
+                  Docs
                 </div>
               </div>
             </div>
@@ -405,7 +431,7 @@ function SalesFinalCtaSection({
       <div className="relative z-10 mx-auto max-w-[1440px] px-10 text-center">
         <h2
           id="sales-cta-title"
-          className="mb-8 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
         >
           Ready to accelerate your deals?
         </h2>
@@ -440,11 +466,17 @@ export function SalesSolutionPage() {
   return (
     <>
       <SalesBreadcrumb />
-      <SalesHeroSection trialHref={links.startTrial} demoHref={links.requestDemo} />
+      <SalesHeroSection
+        trialHref={links.startTrial}
+        demoHref={links.requestDemo}
+      />
       <SalesProblemSection />
       <SalesDocumentSourcesSection />
       <SalesExampleQueriesSection />
-      <SalesFinalCtaSection demoHref={links.requestDemo} pricingHref={links.pricing} />
+      <SalesFinalCtaSection
+        demoHref={links.requestDemo}
+        pricingHref={links.pricing}
+      />
     </>
   );
 }

@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function ResearchBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Research
         </li>
@@ -60,13 +67,13 @@ function ResearchHeroSection({
         <div>
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#e2dfff] px-3 py-1 text-[#3323cc]">
             <Sym name="analytics" className="text-[18px]" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.05em]">
+            <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
               Analyst Intelligence
             </span>
           </div>
           <h1
             id="research-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
           >
             Extract insights from technical PDFs and reports.
           </h1>
@@ -116,12 +123,15 @@ function ResearchHeroSection({
 
 function ResearchProblemSection() {
   return (
-    <section aria-labelledby="research-problem-title" className="bg-[#f4f3f9] py-24">
+    <section
+      aria-labelledby="research-problem-title"
+      className="bg-[#f4f3f9] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="research-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             The research friction point.
           </h2>
@@ -134,7 +144,7 @@ function ResearchProblemSection() {
         <ul className="grid auto-rows-auto grid-cols-1 gap-6 md:grid-cols-12">
           <li className="rudix-landing-glass group relative overflow-hidden rounded-2xl p-10 md:col-span-8">
             <div className="relative z-10">
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 Information Overload
               </h3>
               <p className="max-w-lg text-base leading-6 text-[#464555]">
@@ -153,7 +163,7 @@ function ResearchProblemSection() {
               <Sym name="description" className="text-white" />
             </div>
             <div>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-[#faf9ff]">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#faf9ff]">
                 Manual Summarization
               </h3>
               <p className="text-base leading-6 text-[#464555]">
@@ -165,7 +175,7 @@ function ResearchProblemSection() {
 
           <li className="rudix-landing-glass flex flex-col gap-4 rounded-2xl p-10 md:col-span-4">
             <Sym name="link" className="text-4xl text-[#3525cd]" />
-            <h3 className="text-[24px] font-semibold leading-8 text-[#1a1b20]">
+            <h3 className="text-[24px] leading-8 font-semibold text-[#1a1b20]">
               Lack of Citations
             </h3>
             <p className="text-base leading-6 text-[#464555]">
@@ -179,10 +189,13 @@ function ResearchProblemSection() {
               aria-hidden="true"
               className="hidden h-32 w-32 shrink-0 items-center justify-center rounded-full border-4 border-dashed border-[#3525cd]/30 sm:flex"
             >
-              <Sym name="troubleshoot" className="animate-pulse text-[#3525cd]" />
+              <Sym
+                name="troubleshoot"
+                className="animate-pulse text-[#3525cd]"
+              />
             </div>
             <div>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 Technical Fragmentation
               </h3>
               <p className="text-base leading-6 text-[#464555]">
@@ -201,21 +214,44 @@ function ResearchProblemSection() {
 
 function ResearchDocumentSourcesSection() {
   const sources = [
-    { icon: "article", label: "Whitepapers", desc: "Technical specs and protocols" },
-    { icon: "query_stats", label: "Market Research", desc: "Trends and TAM data" },
-    { icon: "lab_profile", label: "Analyst Reports", desc: "Gartner, Forrester, etc." },
-    { icon: "science", label: "Technical Papers", desc: "Academic and R&D docs" },
-    { icon: "account_tree", label: "Strategy Docs", desc: "Internal vision and roadmaps" },
+    {
+      icon: "article",
+      label: "Whitepapers",
+      desc: "Technical specs and protocols",
+    },
+    {
+      icon: "query_stats",
+      label: "Market Research",
+      desc: "Trends and TAM data",
+    },
+    {
+      icon: "lab_profile",
+      label: "Analyst Reports",
+      desc: "Gartner, Forrester, etc.",
+    },
+    {
+      icon: "science",
+      label: "Technical Papers",
+      desc: "Academic and R&D docs",
+    },
+    {
+      icon: "account_tree",
+      label: "Strategy Docs",
+      desc: "Internal vision and roadmaps",
+    },
   ];
 
   return (
-    <section aria-labelledby="research-doc-sources-title" className="bg-white py-24">
+    <section
+      aria-labelledby="research-doc-sources-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 flex flex-col items-end justify-between gap-8 md:flex-row">
           <div className="max-w-xl">
             <h2
               id="research-doc-sources-title"
-              className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Ingest everything. Analyze anything.
             </h2>
@@ -276,7 +312,7 @@ function ResearchPipelineSection() {
           <div>
             <h2
               id="research-pipeline-title"
-              className="mb-8 text-[30px] font-semibold leading-[38px] text-[#faf9ff]"
+              className="mb-8 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
             >
               The High-Fidelity Retrieval Pipeline
             </h2>
@@ -287,10 +323,12 @@ function ResearchPipelineSection() {
                     {s.n}
                   </div>
                   <div>
-                    <h3 className="mb-2 text-[24px] font-semibold leading-8 text-[#faf9ff]">
+                    <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#faf9ff]">
                       {s.title}
                     </h3>
-                    <p className="text-base leading-6 text-[#464555]">{s.body}</p>
+                    <p className="text-base leading-6 text-[#464555]">
+                      {s.body}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -309,20 +347,72 @@ function ResearchPipelineSection() {
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
             >
-              <rect x="20" y="120" width="80" height="40" rx="4" fill="#3525cd" />
-              <text x="60" y="145" textAnchor="middle" fill="white" fontSize="10">
+              <rect
+                x="20"
+                y="120"
+                width="80"
+                height="40"
+                rx="4"
+                fill="#3525cd"
+              />
+              <text
+                x="60"
+                y="145"
+                textAnchor="middle"
+                fill="white"
+                fontSize="10"
+              >
                 PDF Source
               </text>
-              <rect x="160" y="20" width="80" height="40" rx="4" fill="#3525cd" />
-              <text x="200" y="45" textAnchor="middle" fill="white" fontSize="10">
+              <rect
+                x="160"
+                y="20"
+                width="80"
+                height="40"
+                rx="4"
+                fill="#3525cd"
+              />
+              <text
+                x="200"
+                y="45"
+                textAnchor="middle"
+                fill="white"
+                fontSize="10"
+              >
                 Embeddings
               </text>
-              <rect x="160" y="220" width="80" height="40" rx="4" fill="#3525cd" />
-              <text x="200" y="245" textAnchor="middle" fill="white" fontSize="10">
+              <rect
+                x="160"
+                y="220"
+                width="80"
+                height="40"
+                rx="4"
+                fill="#3525cd"
+              />
+              <text
+                x="200"
+                y="245"
+                textAnchor="middle"
+                fill="white"
+                fontSize="10"
+              >
                 Vector DB
               </text>
-              <rect x="300" y="120" width="80" height="40" rx="4" fill="#3525cd" />
-              <text x="340" y="145" textAnchor="middle" fill="white" fontSize="10">
+              <rect
+                x="300"
+                y="120"
+                width="80"
+                height="40"
+                rx="4"
+                fill="#3525cd"
+              />
+              <text
+                x="340"
+                y="145"
+                textAnchor="middle"
+                fill="white"
+                fontSize="10"
+              >
                 Insights
               </text>
               <path
@@ -352,13 +442,13 @@ function ResearchPipelineSection() {
             </svg>
             <div className="mt-8 grid grid-cols-2 gap-4">
               <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+                <p className="text-[10px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
                   Latency
                 </p>
                 <p className="font-mono text-[14px] text-[#3525cd]">124ms</p>
               </div>
               <div className="rounded-lg border border-white/10 bg-[#0A0A0F] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+                <p className="text-[10px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
                   Accuracy
                 </p>
                 <p className="font-mono text-[14px] text-[#108548]">99.8%</p>
@@ -402,12 +492,15 @@ function ResearchExampleQueriesSection() {
   ];
 
   return (
-    <section aria-labelledby="research-queries-title" className="bg-white py-24">
+    <section
+      aria-labelledby="research-queries-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="research-queries-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Query your corpus.
           </h2>
@@ -425,7 +518,7 @@ function ResearchExampleQueriesSection() {
                 <Sym name={e.icon} className="text-[#3525cd]" />
               </div>
               <div>
-                <p className="mb-2 text-[24px] font-semibold leading-8 text-[#3525cd]">
+                <p className="mb-2 text-[24px] leading-8 font-semibold text-[#3525cd]">
                   {e.question}
                 </p>
                 <p className="text-base leading-6 text-[#464555]">{e.answer}</p>
@@ -458,7 +551,7 @@ function ResearchFinalCtaSection({
           <div className="relative z-10 mx-auto max-w-2xl">
             <h2
               id="research-cta-title"
-              className="mb-8 text-4xl font-bold leading-tight tracking-tight lg:text-[48px] lg:leading-[56px]"
+              className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
               Ready to upgrade your research infrastructure?
             </h2>
@@ -500,7 +593,10 @@ export function ResearchSolutionPage() {
       <ResearchDocumentSourcesSection />
       <ResearchPipelineSection />
       <ResearchExampleQueriesSection />
-      <ResearchFinalCtaSection demoHref={links.startTrial} contactHref={links.requestDemo} />
+      <ResearchFinalCtaSection
+        demoHref={links.startTrial}
+        contactHref={links.requestDemo}
+      />
     </>
   );
 }

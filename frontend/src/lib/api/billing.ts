@@ -23,9 +23,7 @@ function getBillingEndpoints() {
     usageUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_USAGE_URL),
     quotasUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_QUOTAS_URL),
     invoicesUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_INVOICES_URL),
-    billingContactUrl: trimToNull(
-      process.env.NEXT_PUBLIC_BILLING_CONTACT_URL,
-    ),
+    billingContactUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_CONTACT_URL),
     updateBillingContactUrl: trimToNull(
       process.env.NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL,
     ),
@@ -166,7 +164,9 @@ export type BillingContact = {
 type RawRecord = Record<string, unknown>;
 
 function toRaw(payload: unknown): RawRecord {
-  return typeof payload === "object" && payload !== null && !Array.isArray(payload)
+  return typeof payload === "object" &&
+    payload !== null &&
+    !Array.isArray(payload)
     ? (payload as RawRecord)
     : {};
 }
@@ -237,7 +237,9 @@ function normalizePlanInfo(payload: unknown): BillingPlanInfo {
     agent_allowance_used: asNumberOrNull(r.agent_allowance_used),
     agent_allowance_included: asNumberOrNull(r.agent_allowance_included),
     connector_allowance_used: asNumberOrNull(r.connector_allowance_used),
-    connector_allowance_included: asNumberOrNull(r.connector_allowance_included),
+    connector_allowance_included: asNumberOrNull(
+      r.connector_allowance_included,
+    ),
     can_manage_subscription: asBoolean(r.can_manage_subscription, false),
     can_cancel_plan: asBoolean(r.can_cancel_plan, false),
   };
@@ -350,7 +352,8 @@ export async function getBillingQuotas(): Promise<BillingQuota[]> {
 
 export async function getInvoices(): Promise<Invoice[]> {
   const { invoicesUrl } = getBillingEndpoints();
-  if (!invoicesUrl) throw new BillingEndpointUnavailableError("invoicesEnabled");
+  if (!invoicesUrl)
+    throw new BillingEndpointUnavailableError("invoicesEnabled");
   const payload = await apiRequest<unknown>(invoicesUrl, {
     method: "GET",
     retry: false,

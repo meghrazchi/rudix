@@ -59,9 +59,9 @@ vi.mock("@/lib/settings-preferences", async () => {
 });
 
 vi.mock("@/lib/schemas/settings", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/schemas/settings")
-  >("@/lib/schemas/settings");
+  const actual = await vi.importActual<typeof import("@/lib/schemas/settings")>(
+    "@/lib/schemas/settings",
+  );
 
   return {
     ...actual,
@@ -229,7 +229,9 @@ describe("ProfileSettingsTab", () => {
     renderTab();
 
     expect(
-      await screen.findByRole("region", { name: "Personal preferences section" }),
+      await screen.findByRole("region", {
+        name: "Personal preferences section",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Display Language")).toBeInTheDocument();
     expect(screen.getByLabelText("Timezone")).toBeInTheDocument();
@@ -269,9 +271,7 @@ describe("ProfileSettingsTab", () => {
     expect(
       await screen.findByText("Unsaved changes were discarded."),
     ).toBeInTheDocument();
-    expect(
-      mockSchemas.saveProfileUiPreferences,
-    ).not.toHaveBeenCalled();
+    expect(mockSchemas.saveProfileUiPreferences).not.toHaveBeenCalled();
   });
 
   // ── AI / RAG Defaults ─────────────────────────────────────────────────────
@@ -390,7 +390,9 @@ describe("ProfileSettingsTab", () => {
 
     const securityAlertsLabel = screen
       .getAllByRole("checkbox")
-      .find((cb) => cb.closest("label")?.textContent?.includes("Security alerts"));
+      .find((cb) =>
+        cb.closest("label")?.textContent?.includes("Security alerts"),
+      );
     const docProcessingLabel = screen
       .getAllByRole("checkbox")
       .find((cb) =>

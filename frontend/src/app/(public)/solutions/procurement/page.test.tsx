@@ -101,7 +101,9 @@ describe("Procurement solution page (/solutions/procurement)", () => {
     expect(
       screen.getByRole("heading", { name: "Flag Risk" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Approve" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Approve" }),
+    ).toBeInTheDocument();
   });
 
   it("renders example queries with cited answers", () => {

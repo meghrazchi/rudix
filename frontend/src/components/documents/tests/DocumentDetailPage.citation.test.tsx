@@ -147,9 +147,7 @@ describe("DocumentDetailPage — citation deep-link support", () => {
     renderPage("doc-indexed");
 
     await screen.findByRole("heading", { name: "Policy.pdf" });
-    expect(
-      screen.queryByText("Citation evidence"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Citation evidence")).not.toBeInTheDocument();
   });
 
   it("shows the citation callout card when chunk_id is in URL", async () => {

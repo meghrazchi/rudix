@@ -127,7 +127,13 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
   });
 
   const membersQuery = useQuery({
-    queryKey: ["team", "members", TEAM_MEMBERS_PAGE_SIZE, memberOffset, searchQuery],
+    queryKey: [
+      "team",
+      "members",
+      TEAM_MEMBERS_PAGE_SIZE,
+      memberOffset,
+      searchQuery,
+    ],
     queryFn: () =>
       listTeamMembers({
         limit: TEAM_MEMBERS_PAGE_SIZE,
@@ -289,7 +295,7 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#777587]"
+            className="absolute top-1/2 left-3 -translate-y-1/2 text-[#777587]"
             aria-hidden="true"
           >
             <circle cx="11" cy="11" r="8" />
@@ -301,14 +307,14 @@ export function TeamManagementSection({ role }: TeamManagementSectionProps) {
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search by name or email…"
             aria-label="Search members"
-            className="h-9 w-full rounded-lg border border-[#d2cee6] bg-white pl-8 pr-8 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+            className="h-9 w-full rounded-lg border border-[#d2cee6] bg-white pr-8 pl-8 text-sm text-[#2f2a46] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => setSearchInput("")}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#777587] hover:text-[#2f2a46] transition-colors"
+              className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-0.5 text-[#777587] transition-colors hover:text-[#2f2a46]"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

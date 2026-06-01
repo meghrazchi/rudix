@@ -7,7 +7,10 @@ import {
 } from "@/components/public/sections/PublicSections";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import type { SolutionAudience } from "@/lib/public-site/solutions";
-import { SOLUTION_AUDIENCES, SOLUTION_ROLE_NAV } from "@/lib/public-site/solutions";
+import {
+  SOLUTION_AUDIENCES,
+  SOLUTION_ROLE_NAV,
+} from "@/lib/public-site/solutions";
 
 type SolutionDetailPageProps = {
   solution: SolutionAudience;
@@ -171,10 +174,7 @@ function SolutionOutcomesSection({ outcomes }: { outcomes: string[] }) {
             key={outcome}
             className="flex items-start gap-3 rounded-2xl border border-[#d8dce7] bg-white p-5 shadow-sm"
           >
-            <span
-              aria-hidden="true"
-              className="mt-0.5 shrink-0 text-[#3a35e8]"
-            >
+            <span aria-hidden="true" className="mt-0.5 shrink-0 text-[#3a35e8]">
               ✓
             </span>
             <span className="text-sm leading-7 text-[#4e5160]">{outcome}</span>
@@ -289,7 +289,10 @@ export function SolutionDetailPage({ solution }: SolutionDetailPageProps) {
 
       {solution.workflowSteps ? (
         <WorkflowStripSection
-          title={solution.workflowTitle ?? `How ${solution.shortLabel} teams use Rudix`}
+          title={
+            solution.workflowTitle ??
+            `How ${solution.shortLabel} teams use Rudix`
+          }
           description={
             solution.workflowDescription ??
             "A repeatable process from first upload to consistently answered questions."

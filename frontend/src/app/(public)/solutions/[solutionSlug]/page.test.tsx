@@ -27,7 +27,9 @@ describe("HR solution page (/solutions/hr)", () => {
     render(<HRSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "HR answers from your actual policies." }),
+      screen.getByRole("heading", {
+        name: "HR answers from your actual policies.",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("Enterprise HR Solutions")).toBeInTheDocument();
   });
@@ -36,11 +38,19 @@ describe("HR solution page (/solutions/hr)", () => {
     render(<HRSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: /HR teams answer the same questions/i }),
+      screen.getByRole("heading", {
+        name: /HR teams answer the same questions/i,
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Repeated Questions" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Hard to Search" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Accuracy Gaps" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Repeated Questions" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Hard to Search" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Accuracy Gaps" }),
+    ).toBeInTheDocument();
   });
 
   it("renders the 4-step policy infrastructure flow", () => {
@@ -97,22 +107,24 @@ describe("HR solution page (/solutions/hr)", () => {
     expect(
       screen.getByText(/does not make employment decisions/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Role-scoped access/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Complete audit log/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Role-scoped access/i)).toBeInTheDocument();
+    expect(screen.getByText(/Complete audit log/i)).toBeInTheDocument();
   });
 
   it("renders CTA links pointing to demo and solutions", () => {
     render(<HRSolutionPage />);
 
-    const demoLinks = screen.getAllByRole("link", { name: "Speak to us about HR" });
+    const demoLinks = screen.getAllByRole("link", {
+      name: "Speak to us about HR",
+    });
     expect(demoLinks.length).toBeGreaterThanOrEqual(1);
-    demoLinks.forEach((link) => expect(link).toHaveAttribute("href", "/contact"));
+    demoLinks.forEach((link) =>
+      expect(link).toHaveAttribute("href", "/contact"),
+    );
 
-    const solutionsLinks = screen.getAllByRole("link", { name: "View all solutions" });
+    const solutionsLinks = screen.getAllByRole("link", {
+      name: "View all solutions",
+    });
     expect(solutionsLinks.length).toBeGreaterThanOrEqual(1);
     solutionsLinks.forEach((link) =>
       expect(link).toHaveAttribute("href", "/solutions"),
@@ -124,7 +136,9 @@ describe("HR solution page (/solutions/hr)", () => {
 
     render(<HRSolutionPage />);
 
-    const demoLinks = screen.getAllByRole("link", { name: "Speak to us about HR" });
+    const demoLinks = screen.getAllByRole("link", {
+      name: "Speak to us about HR",
+    });
     demoLinks.forEach((link) =>
       expect(link).toHaveAttribute("href", "https://demo.example.com"),
     );

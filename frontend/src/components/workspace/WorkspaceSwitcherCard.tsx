@@ -172,7 +172,7 @@ export function WorkspaceSwitcherCard({ session }: WorkspaceSwitcherCardProps) {
         <div
           role="menu"
           aria-label="Workspace menu"
-          className="absolute bottom-full left-0 right-0 z-50 mb-1 overflow-hidden rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
+          className="absolute right-0 bottom-full left-0 z-50 mb-1 overflow-hidden rounded-xl border border-[#d7d4e8] bg-white shadow-xl"
         >
           <div className="border-b border-[#f0eeff] px-3 py-2.5">
             <p className="text-[10px] font-bold tracking-[0.14em] text-[#5d58a8] uppercase">

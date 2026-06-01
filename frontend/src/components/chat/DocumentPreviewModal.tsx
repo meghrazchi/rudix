@@ -107,7 +107,11 @@ function formatScore(value: number | null | undefined): string {
   return value.toFixed(3);
 }
 
-export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: Props) {
+export function DocumentPreviewModal({
+  citations,
+  initialIndex = 0,
+  onClose,
+}: Props) {
   const [activeIndex, setActiveIndex] = useState(
     Math.min(initialIndex, Math.max(0, citations.length - 1)),
   );
@@ -164,8 +168,7 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
     isDocRestricted || isDocDeleted || isChunksRestricted || isChunksDeleted;
 
   const displayFileType = doc?.file_type ?? null;
-  const displayFilename =
-    citation.filename ?? doc?.filename ?? "Document";
+  const displayFilename = citation.filename ?? doc?.filename ?? "Document";
   const displayStatus = doc?.status ?? null;
   const canDownload =
     !isDocDeleted && !isDocRestricted && !downloadMutation.isPending;
@@ -212,7 +215,7 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
             </h2>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
               {displayFileType ? (
-                <span className="rounded bg-[#f0ecf9] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase text-[#3525cd]">
+                <span className="rounded bg-[#f0ecf9] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#3525cd] uppercase">
                   {fileTypeLabel(displayFileType)}
                 </span>
               ) : null}
@@ -222,11 +225,11 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
                 </span>
               ) : null}
               {displayStatus === "indexed" ? (
-                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">
+                <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 uppercase">
                   indexed
                 </span>
               ) : displayStatus ? (
-                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-600">
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
                   {displayStatus}
                 </span>
               ) : null}
@@ -250,7 +253,7 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
 
         {/* Citation navigation */}
         {hasSiblings ? (
-          <div className="shrink-0 flex items-center justify-between border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
             <span className="text-[11px] font-semibold text-[#6a6780]">
               Citation {activeIndex + 1} of {citations.length}
             </span>
@@ -262,7 +265,10 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
                 aria-label="Previous citation"
                 className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  aria-hidden="true"
+                >
                   chevron_left
                 </span>
               </button>
@@ -273,7 +279,10 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
                 aria-label="Next citation"
                 className="rounded p-1 text-[#464555] transition-colors hover:bg-[#f0ecf9] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  aria-hidden="true"
+                >
                   chevron_right
                 </span>
               </button>
@@ -282,11 +291,11 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
         ) : null}
 
         {/* Metadata strip */}
-        {(citation.chunk_id ||
-          doc?.created_at ||
-          citation.rerank_score != null ||
-          citation.similarity_score != null ||
-          citation.score != null) ? (
+        {citation.chunk_id ||
+        doc?.created_at ||
+        citation.rerank_score != null ||
+        citation.similarity_score != null ||
+        citation.score != null ? (
           <div className="shrink-0 border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-[#6a6780]">
               {citation.chunk_id ? (
@@ -316,10 +325,10 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
         {/* Cited passage banner */}
         {citation.text_snippet ? (
           <div className="shrink-0 border-b border-[#e4e1ee] bg-[#f5f2ff] px-5 py-3">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-[#3525cd]">
+            <p className="mb-1.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
               Cited passage
             </p>
-            <p className="rounded-r border-l-4 border-[#3525cd] bg-white py-2 pl-3 pr-2 text-sm italic text-[#1b1b24]">
+            <p className="rounded-r border-l-4 border-[#3525cd] bg-white py-2 pr-2 pl-3 text-sm text-[#1b1b24] italic">
               {citation.text_snippet}
             </p>
           </div>
@@ -388,12 +397,12 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
             /* Chunks */
             <div className="space-y-2 p-5">
               {displayFileType && extractionNote(displayFileType) ? (
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6a6780]">
+                <p className="text-[10px] font-semibold tracking-wide text-[#6a6780] uppercase">
                   {extractionNote(displayFileType)}
                 </p>
               ) : null}
               {chunksQuery.data.total > chunksQuery.data.items.length ? (
-                <p className="mb-1 text-[10px] uppercase tracking-wide text-[#6a6780]">
+                <p className="mb-1 text-[10px] tracking-wide text-[#6a6780] uppercase">
                   Showing {chunksQuery.data.items.length} of{" "}
                   {chunksQuery.data.total} passages
                 </p>
@@ -421,14 +430,14 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
                     }`}
                   >
                     {isHighlighted && chunk.page_number != null ? (
-                      <p className="mb-1 font-sans text-[10px] font-semibold uppercase tracking-wide text-[#3525cd]">
+                      <p className="mb-1 font-sans text-[10px] font-semibold tracking-wide text-[#3525cd] uppercase">
                         Page {chunk.page_number}
                       </p>
                     ) : null}
                     {parts ? (
                       <p>
                         {parts.before}
-                        <mark className="rounded bg-[#3525cd]/20 px-0.5 font-bold not-italic text-[#3525cd]">
+                        <mark className="rounded bg-[#3525cd]/20 px-0.5 font-bold text-[#3525cd] not-italic">
                           {parts.match}
                         </mark>
                         {parts.after}
@@ -436,8 +445,9 @@ export function DocumentPreviewModal({ citations, initialIndex = 0, onClose }: P
                     ) : isHighlighted ? (
                       <>
                         <p>{chunkText}</p>
-                        <p className="mt-2 font-sans text-[10px] italic text-[#6a6780]">
-                          Exact highlight unavailable — passage is shown in full.
+                        <p className="mt-2 font-sans text-[10px] text-[#6a6780] italic">
+                          Exact highlight unavailable — passage is shown in
+                          full.
                         </p>
                       </>
                     ) : (

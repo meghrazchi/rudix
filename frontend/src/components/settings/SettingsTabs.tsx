@@ -48,8 +48,8 @@ export function SettingsTabs({ activeTab, onTabChange }: SettingsTabsProps) {
           aria-controls={`settings-tabpanel-${tab.id}`}
           onClick={() => onTabChange(tab.id)}
           className={[
-            "whitespace-nowrap px-5 py-3 text-sm font-semibold transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]/40",
+            "px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors",
+            "focus-visible:ring-2 focus-visible:ring-[#3525cd]/40 focus-visible:outline-none",
             activeTab === tab.id
               ? "border-b-2 border-[#3525cd] text-[#3525cd]"
               : "border-b-2 border-transparent text-[#6a6780] hover:text-[#2d2a3f]",

@@ -307,9 +307,7 @@ describe("OrganizationSettingsTab", () => {
 
     renderTab();
 
-    expect(
-      await screen.findByDisplayValue("acme-corp"),
-    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("acme-corp")).toBeInTheDocument();
     expect(screen.getByDisplayValue("acme.com")).toBeInTheDocument();
     expect(screen.getByDisplayValue("support@acme.com")).toBeInTheDocument();
   });
@@ -415,7 +413,9 @@ describe("OrganizationSettingsTab", () => {
     renderTab();
 
     await screen.findByText("acme-corp");
-    expect(screen.queryByRole("button", { name: "Save organization profile" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save organization profile" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Slug")).not.toBeInTheDocument();
   });
 
@@ -427,7 +427,9 @@ describe("OrganizationSettingsTab", () => {
 
     await screen.findByRole("region", { name: "Workspace defaults section" });
     expect(
-      screen.getByText(/workspace defaults are not available.*deployment-controlled/i),
+      screen.getByText(
+        /workspace defaults are not available.*deployment-controlled/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -510,7 +512,9 @@ describe("OrganizationSettingsTab", () => {
       name: "Document and ingestion defaults section",
     });
     expect(
-      screen.getByText(/ingestion defaults are not available.*deployment-controlled/i),
+      screen.getByText(
+        /ingestion defaults are not available.*deployment-controlled/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -541,12 +545,8 @@ describe("OrganizationSettingsTab", () => {
     expect(
       await screen.findByRole("button", { name: "Save ingestion defaults" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Allowed File Types"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText("Duplicate Handling"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Allowed File Types")).toBeInTheDocument();
+    expect(screen.getByLabelText("Duplicate Handling")).toBeInTheDocument();
   });
 
   it("saves ingestion defaults successfully", async () => {

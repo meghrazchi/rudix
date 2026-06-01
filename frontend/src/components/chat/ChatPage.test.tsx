@@ -78,7 +78,9 @@ function renderPage() {
 async function openSessionMenu(sessionTitle: string) {
   const item = await screen.findByText(sessionTitle);
   const row = item.closest("li") as HTMLElement;
-  await userEvent.click(within(row).getByRole("button", { name: /Session actions/i }));
+  await userEvent.click(
+    within(row).getByRole("button", { name: /Session actions/i }),
+  );
 }
 
 async function openContextSelector() {
@@ -335,12 +337,12 @@ describe("ChatPage", () => {
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "When is the policy active?",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(vi.mocked(createChatSession)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(createChatSession)).toHaveBeenCalledWith({
@@ -429,12 +431,12 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "check debug visibility",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("normal answer")).toBeInTheDocument();
     expect(screen.queryByText("Retrieval debug")).not.toBeInTheDocument();
@@ -515,12 +517,12 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "show debug",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("Retrieval debug")).toBeInTheDocument();
     expect(screen.getByText("retrieval_count")).toBeInTheDocument();
@@ -721,12 +723,12 @@ describe("ChatPage", () => {
 
     await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "scope check",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     await waitFor(() => {
       expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
@@ -847,16 +849,14 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "agentic question",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(
       await screen.findByText("Agent generated grounded answer."),
@@ -923,16 +923,14 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "agentic failing question",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(
       await screen.findByText("Unable to complete the query."),
@@ -1020,16 +1018,14 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "fallback question",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("Fallback chat answer")).toBeInTheDocument();
     expect(vi.mocked(createAgentRun)).toHaveBeenCalledTimes(1);
@@ -1162,16 +1158,14 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /Agentic/i }),
-    );
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agentic/i }));
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "approval question",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(await screen.findByText("Approvals")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -1248,12 +1242,12 @@ describe("ChatPage", () => {
 
     await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "hello",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     await waitFor(() => {
       expect(
@@ -1340,7 +1334,9 @@ describe("ChatPage", () => {
     });
     expect(screen.getByDisplayValue("retry me")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
     expect(await screen.findByText("Recovered answer")).toBeInTheDocument();
   });
 
@@ -1704,12 +1700,12 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("button", { name: /Context \([1-9]/i });
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "unknown question",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(
       await screen.findByText(
@@ -1792,23 +1788,23 @@ describe("ChatPage", () => {
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "first",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
     expect(
       await screen.findByText("First answer stays visible"),
     ).toBeInTheDocument();
 
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "second",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     expect(
       await screen.findByText("Unable to complete the query."),
@@ -1913,12 +1909,12 @@ describe("ChatPage", () => {
     await screen.findByRole("button", { name: /Context \([1-9]/i });
 
     await userEvent.type(
-      screen.getByPlaceholderText(
-        "Type a message or use '/' for commands...",
-      ),
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "repeat me",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
     expect(await screen.findByText("Initial answer")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Regenerate" }));
@@ -1980,7 +1976,9 @@ describe("ChatPage", () => {
     expect(await screen.findByText("Policy Review")).toBeInTheDocument();
     expect(screen.getByText("Budget Planning")).toBeInTheDocument();
 
-    const searchInput = screen.getByRole("textbox", { name: /Search sessions/i });
+    const searchInput = screen.getByRole("textbox", {
+      name: /Search sessions/i,
+    });
     await userEvent.type(searchInput, "policy");
 
     await waitFor(() => {
@@ -2010,7 +2008,9 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("textbox", { name: /Search sessions/i });
 
-    const searchInput = screen.getByRole("textbox", { name: /Search sessions/i });
+    const searchInput = screen.getByRole("textbox", {
+      name: /Search sessions/i,
+    });
     await userEvent.type(searchInput, "xyz");
 
     await waitFor(() => {
@@ -2049,7 +2049,9 @@ describe("ChatPage", () => {
     await openSessionMenu("My Session");
     await userEvent.click(screen.getByRole("menuitem", { name: /Rename/i }));
 
-    expect(screen.getByRole("textbox", { name: /Session title/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: /Session title/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
@@ -2097,7 +2099,9 @@ describe("ChatPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(vi.mocked(updateChatSession)).toHaveBeenCalledWith("s1", { title: "New Title" });
+      expect(vi.mocked(updateChatSession)).toHaveBeenCalledWith("s1", {
+        title: "New Title",
+      });
     });
   });
 
@@ -2272,10 +2276,26 @@ describe("ChatPage", () => {
 
     const scopeSelect = screen.getByRole("combobox", { name: /Scope type/i });
     expect(scopeSelect).toBeInTheDocument();
-    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /All files/i })).toBeInTheDocument();
-    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /^Collection$/i })).toBeInTheDocument();
-    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /^Files$/i })).toBeInTheDocument();
-    expect(within(scopeSelect as HTMLSelectElement).getByRole("option", { name: /No RAG/i })).toBeInTheDocument();
+    expect(
+      within(scopeSelect as HTMLSelectElement).getByRole("option", {
+        name: /All files/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(scopeSelect as HTMLSelectElement).getByRole("option", {
+        name: /^Collection$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(scopeSelect as HTMLSelectElement).getByRole("option", {
+        name: /^Files$/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(scopeSelect as HTMLSelectElement).getByRole("option", {
+        name: /No RAG/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("shows warning when documents scope selected with no files chosen", async () => {
@@ -2310,9 +2330,13 @@ describe("ChatPage", () => {
     );
 
     expect(
-      await screen.findByText("Select at least one document to use document scope."),
+      await screen.findByText(
+        "Select at least one document to use document scope.",
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Send message/i }),
+    ).toBeDisabled();
   });
 
   it("shows warning when collection scope selected with no collection chosen", async () => {
@@ -2349,7 +2373,9 @@ describe("ChatPage", () => {
     expect(
       await screen.findByText("Select a collection to scope retrieval."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Send message/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Send message/i }),
+    ).toBeDisabled();
   });
 
   it("enables submit in No RAG mode even when no documents are indexed", async () => {
@@ -2410,9 +2436,13 @@ describe("ChatPage", () => {
     expect(textarea).not.toBeDisabled();
 
     await userEvent.type(textarea, "What is the capital of France?");
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
-    expect(await screen.findByText("The capital of France is Paris.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("The capital of France is Paris."),
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
@@ -2490,7 +2520,9 @@ describe("ChatPage", () => {
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "What is the policy?",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     // The scope label chip in the answer header should show "All files (N)".
     // The Context button in the toolbar also shows "Context (N)", so findAllByText on the
@@ -2559,15 +2591,23 @@ describe("ChatPage", () => {
     renderPage();
 
     const contextDialog = await openContextSelector();
-    const docLabel = (await within(contextDialog).findByText("scoped.pdf")).closest("label");
-    await userEvent.click(within(docLabel as HTMLLabelElement).getByRole("checkbox"));
-    await userEvent.click(within(contextDialog).getByRole("button", { name: "Done" }));
+    const docLabel = (
+      await within(contextDialog).findByText("scoped.pdf")
+    ).closest("label");
+    await userEvent.click(
+      within(docLabel as HTMLLabelElement).getByRole("checkbox"),
+    );
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Done" }),
+    );
 
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "Scoped query",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
 
     await waitFor(() => {
       expect(vi.mocked(queryChat)).toHaveBeenCalledWith(

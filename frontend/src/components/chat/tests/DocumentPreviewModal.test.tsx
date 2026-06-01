@@ -17,10 +17,7 @@ import userEvent from "@testing-library/user-event";
 import type { ChatCitationResponse } from "@/lib/api/chat";
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
 import { renderWithProviders } from "@/test/render";
-import {
-  mockDocumentDetail,
-  mockDocumentChunks,
-} from "@/test/msw/fixtures";
+import { mockDocumentDetail, mockDocumentChunks } from "@/test/msw/fixtures";
 
 const apiBaseUrl = "http://api.test";
 
@@ -153,9 +150,7 @@ describe("DocumentPreviewModal", () => {
 
     render([baseCitation]);
 
-    expect(
-      await screen.findByText("Document unavailable"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Document unavailable")).toBeInTheDocument();
     expect(
       screen.getByText("Rudix processes enterprise documents securely."),
     ).toBeInTheDocument();
@@ -198,7 +193,9 @@ describe("DocumentPreviewModal", () => {
     render([baseCitation], 0, onClose);
 
     await screen.findByText("Employee-Handbook.pdf");
-    await userEvent.click(screen.getByRole("button", { name: /close preview/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /close preview/i }),
+    );
     expect(onClose).toHaveBeenCalledOnce();
   });
 

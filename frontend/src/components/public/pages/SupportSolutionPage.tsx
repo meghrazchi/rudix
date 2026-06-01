@@ -5,7 +5,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -61,12 +64,12 @@ function SupportHeroSection({
       <div className="absolute top-0 right-0 -z-10 h-full w-1/2 bg-gradient-to-l from-[#e2dfff]/20 to-transparent" />
       <div className="mx-auto grid max-w-[1440px] items-center gap-6 px-10 lg:grid-cols-2">
         <div className="z-10">
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3323cc]">
+          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
             Support Solutions
           </span>
           <h1
             id="support-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Help support agents answer faster.
           </h1>
@@ -97,15 +100,17 @@ function SupportHeroSection({
             <div className="rounded-xl border border-[#e3e2e8] bg-[#f4f3f9] p-5">
               <div className="mb-4 flex items-center gap-2">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
-                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3525cd]">
+                <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
                   Support Workspace — Active
                 </span>
               </div>
-              <div className="mb-3 rounded-full border border-[#c7c4d8] bg-white px-4 py-2.5 text-sm italic text-[#464555] shadow-sm">
+              <div className="mb-3 rounded-full border border-[#c7c4d8] bg-white px-4 py-2.5 text-sm text-[#464555] italic shadow-sm">
                 "How do I escalate a P1 incident under the SLA?"
               </div>
               <div className="rounded-xl bg-[#1F1E24] p-4 font-mono text-[14px] leading-5 text-[#eeedf3]">
-                <p className="mb-2 text-[#c3c0ff]"># Source: Escalation_Playbook_v4.pdf</p>
+                <p className="mb-2 text-[#c3c0ff]">
+                  # Source: Escalation_Playbook_v4.pdf
+                </p>
                 <p className="text-[#eeedf3]">
                   1. Acknowledge within 15 minutes via on-call channel...
                   <br />
@@ -120,16 +125,18 @@ function SupportHeroSection({
                   <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[#e3e2e8]">
                     <div className="h-full w-[94%] rounded-full bg-[#108548]" />
                   </div>
-                  <span className="text-xs font-semibold text-[#108548]">94%</span>
+                  <span className="text-xs font-semibold text-[#108548]">
+                    94%
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="absolute -bottom-6 -right-6 z-20 rounded-xl bg-[#1F1E24] p-5 shadow-2xl">
+          <div className="absolute -right-6 -bottom-6 z-20 rounded-xl bg-[#1F1E24] p-5 shadow-2xl">
             <div className="mb-2 flex items-center gap-2">
-              <Sym name="query_stats" className="text-[#c3c0ff] text-base" />
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-[#777587]">
+              <Sym name="query_stats" className="text-base text-[#c3c0ff]" />
+              <span className="text-[11px] font-semibold tracking-widest text-[#777587] uppercase">
                 Response Metric
               </span>
             </div>
@@ -168,12 +175,15 @@ function SupportProblemSection() {
   ];
 
   return (
-    <section aria-labelledby="support-problem-title" className="bg-[#f4f3f9] py-24">
+    <section
+      aria-labelledby="support-problem-title"
+      className="bg-[#f4f3f9] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="support-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Support knowledge is often scattered.
           </h2>
@@ -185,7 +195,7 @@ function SupportProblemSection() {
           {problems.map((p) => (
             <li key={p.title} className="rudix-landing-glass rounded-2xl p-8">
               <Sym name={p.icon} className="mb-4 text-[36px] text-[#3525cd]" />
-              <h3 className="mb-3 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -216,7 +226,10 @@ function SupportDocumentSourcesSection() {
   ];
 
   return (
-    <section aria-labelledby="support-doc-sources-title" className="bg-white py-24">
+    <section
+      aria-labelledby="support-doc-sources-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto grid max-w-[1440px] items-center gap-16 px-10 lg:grid-cols-2">
         <div className="order-2 grid grid-cols-2 gap-4 lg:order-1">
           {sources.map((s) => (
@@ -228,7 +241,7 @@ function SupportDocumentSourcesSection() {
                 name={s.icon}
                 className="mb-4 text-[#464555] transition group-hover:text-[#3525cd]"
               />
-              <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#777587]">
+              <p className="mb-1 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
                 Data Source
               </p>
               <p className="font-bold text-[#1a1b20]">{s.label}</p>
@@ -239,7 +252,7 @@ function SupportDocumentSourcesSection() {
         <div className="order-1 lg:order-2">
           <h2
             id="support-doc-sources-title"
-            className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Connect all your support assets.
           </h2>
@@ -249,7 +262,10 @@ function SupportDocumentSourcesSection() {
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
-              <li key={f} className="flex items-start gap-3 text-base leading-6">
+              <li
+                key={f}
+                className="flex items-start gap-3 text-base leading-6"
+              >
                 <Sym name="check_circle" className="mt-0.5 text-[#108548]" />
                 <span>{f}</span>
               </li>
@@ -296,12 +312,15 @@ function SupportHowItWorksSection() {
   ];
 
   return (
-    <section aria-labelledby="support-flow-title" className="overflow-hidden bg-[#0A0A0F] py-24">
+    <section
+      aria-labelledby="support-flow-title"
+      className="overflow-hidden bg-[#0A0A0F] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="support-flow-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#faf9ff]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#faf9ff]"
           >
             How it works
           </h2>
@@ -320,7 +339,10 @@ function SupportHowItWorksSection() {
               <div
                 className={`mb-6 flex h-16 w-16 items-center justify-center rounded-full text-3xl ${s.accent}`}
               >
-                <Sym name={s.icon} className={s.iconColor || "text-[#3525cd]"} />
+                <Sym
+                  name={s.icon}
+                  className={s.iconColor || "text-[#3525cd]"}
+                />
               </div>
               <h3 className="mb-2 font-bold text-white">{s.label}</h3>
               <p className="text-sm leading-5 text-[#777587]">{s.desc}</p>
@@ -336,13 +358,16 @@ function SupportHowItWorksSection() {
 
 function SupportExampleQueriesSection() {
   return (
-    <section aria-labelledby="support-queries-title" className="bg-[#faf9ff] py-24">
+    <section
+      aria-labelledby="support-queries-title"
+      className="bg-[#faf9ff] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-12 flex flex-col items-end justify-between gap-6 md:flex-row">
           <div>
             <h2
               id="support-queries-title"
-              className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Precision retrieval in action.
             </h2>
@@ -351,29 +376,32 @@ function SupportExampleQueriesSection() {
             </p>
           </div>
           <div className="flex shrink-0 gap-1 rounded-full bg-[#e3e2e8] p-1.5">
-            <span className="rounded-full bg-white px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.05em] shadow-sm">
+            <span className="rounded-full bg-white px-5 py-2 text-[12px] font-semibold tracking-[0.05em] uppercase shadow-sm">
               Agent view
             </span>
-            <span className="px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+            <span className="px-5 py-2 text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
               Admin view
             </span>
           </div>
         </div>
 
-        <div className="grid h-auto grid-cols-1 gap-6 md:grid-cols-12 md:h-[500px]">
+        <div className="grid h-auto grid-cols-1 gap-6 md:h-[500px] md:grid-cols-12">
           <div className="rudix-landing-glass group relative col-span-1 flex flex-col justify-between overflow-hidden rounded-2xl p-8 md:col-span-8">
             <div>
               <div className="mb-6 flex items-center gap-2">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
-                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3525cd]">
+                <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
                   Active Query
                 </span>
               </div>
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
-                "How do I troubleshoot login failures for users on Enterprise Plan v2?"
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
+                "How do I troubleshoot login failures for users on Enterprise
+                Plan v2?"
               </h3>
               <div className="rounded-xl bg-[#1F1E24] p-6 font-mono text-[14px] leading-5 text-[#eeedf3]">
-                <p className="mb-2 text-[#c3c0ff]"># Source: Auth_Runbook_v2.1.pdf</p>
+                <p className="mb-2 text-[#c3c0ff]">
+                  # Source: Auth_Runbook_v2.1.pdf
+                </p>
                 <p>
                   1. Verify the 'client_id' matches the region...
                   <br />
@@ -387,9 +415,12 @@ function SupportExampleQueriesSection() {
 
           <div className="col-span-1 space-y-6 md:col-span-4">
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#3525cd] p-6">
-              <h4 className="mb-2 font-bold text-[#1a1b20]">"Which plan includes SSO?"</h4>
+              <h4 className="mb-2 font-bold text-[#1a1b20]">
+                "Which plan includes SSO?"
+              </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                "SSO is available on Enterprise and Custom plans. See pricing.md for details."
+                "SSO is available on Enterprise and Custom plans. See pricing.md
+                for details."
               </p>
             </div>
             <div className="rudix-landing-glass rounded-2xl border-l-4 border-[#E24329] p-6">
@@ -397,13 +428,14 @@ function SupportExampleQueriesSection() {
                 "What changed in the latest release?"
               </h4>
               <p className="text-sm leading-5 text-[#464555]">
-                "Release 4.2 introduced Webhooks and enhanced API rate limiting. See CHANGELOG.txt"
+                "Release 4.2 introduced Webhooks and enhanced API rate limiting.
+                See CHANGELOG.txt"
               </p>
             </div>
             <div className="rounded-2xl bg-[#3525cd] p-6 text-white">
               <div className="mb-3 flex items-center justify-between">
                 <Sym name="auto_awesome" className="text-base" />
-                <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">
+                <span className="text-[11px] font-bold tracking-widest uppercase opacity-80">
                   Smart Suggest
                 </span>
               </div>
@@ -429,20 +461,23 @@ function SupportFinalCtaSection({
   contactHref: string;
 }) {
   return (
-    <section aria-labelledby="support-cta-title" className="relative overflow-hidden py-24">
+    <section
+      aria-labelledby="support-cta-title"
+      className="relative overflow-hidden py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="relative overflow-hidden rounded-3xl bg-[#0A0A0F] p-16 text-center">
           <div className="absolute -top-1/2 -left-1/4 h-full w-full rounded-full bg-[#3525cd]/20 blur-[120px]" />
           <div className="relative z-10">
             <h2
               id="support-cta-title"
-              className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
+              className="mb-6 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
             >
               Give your support team a document-backed copilot.
             </h2>
             <p className="mx-auto mb-10 max-w-2xl text-lg leading-7 text-[#777587]">
-              Reduce ticket resolution time and increase CSAT by empowering
-              your agents with the right information at the right time.
+              Reduce ticket resolution time and increase CSAT by empowering your
+              agents with the right information at the right time.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <PublicActionLink
@@ -473,12 +508,18 @@ export function SupportSolutionPage() {
   return (
     <>
       <SupportBreadcrumb />
-      <SupportHeroSection demoHref={links.requestDemo} contactHref={links.contact} />
+      <SupportHeroSection
+        demoHref={links.requestDemo}
+        contactHref={links.contact}
+      />
       <SupportProblemSection />
       <SupportDocumentSourcesSection />
       <SupportHowItWorksSection />
       <SupportExampleQueriesSection />
-      <SupportFinalCtaSection demoHref={links.startTrial} contactHref={links.requestDemo} />
+      <SupportFinalCtaSection
+        demoHref={links.startTrial}
+        contactHref={links.requestDemo}
+      />
     </>
   );
 }

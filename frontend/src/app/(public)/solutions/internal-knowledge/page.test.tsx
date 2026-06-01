@@ -29,7 +29,9 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
         name: /Your team's knowledge, instantly accessible\./i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Internal Knowledge Assistant")).toBeInTheDocument();
+    expect(
+      screen.getByText("Internal Knowledge Assistant"),
+    ).toBeInTheDocument();
   });
 
   it("renders the hero chat mockup with citation", () => {
@@ -40,7 +42,9 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     ).toBeInTheDocument();
     expect(screen.getByText(/Global Employee Handbook/i)).toBeInTheDocument();
     expect(screen.getByText(/SOP-HR-042\.pdf/i)).toBeInTheDocument();
-    expect(screen.getByText(/\$500 initial setup stipend/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/\$500 initial setup stipend/i),
+    ).toBeInTheDocument();
   });
 
   it("renders hero CTAs pointing to trial and demo", () => {
@@ -60,11 +64,19 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     render(<InternalKnowledgeSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "The high cost of hidden knowledge" }),
+      screen.getByRole("heading", {
+        name: "The high cost of hidden knowledge",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Information Silos" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Onboarding Friction" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Slack Overload" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Information Silos" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Onboarding Friction" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Slack Overload" }),
+    ).toBeInTheDocument();
   });
 
   it("renders document support section with four doc types and three features", () => {
@@ -77,9 +89,15 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     expect(screen.getByText("Handbooks")).toBeInTheDocument();
     expect(screen.getByText("Playbooks")).toBeInTheDocument();
     expect(screen.getByText("Manuals")).toBeInTheDocument();
-    expect(screen.getByText("Preserves original citations and links")).toBeInTheDocument();
-    expect(screen.getByText("Automatic re-indexing on file updates")).toBeInTheDocument();
-    expect(screen.getByText("Strict data permission mirroring")).toBeInTheDocument();
+    expect(
+      screen.getByText("Preserves original citations and links"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Automatic re-indexing on file updates"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Strict data permission mirroring"),
+    ).toBeInTheDocument();
   });
 
   it("renders the four-step Rudix Flow section with technical card", () => {
@@ -88,10 +106,18 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     expect(
       screen.getByRole("heading", { name: "The Rudix Flow" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Upload SOPs" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Vector Index" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Ask Anything" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Verify & Cite" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Upload SOPs" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Vector Index" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Ask Anything" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Verify & Cite" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/RAG ENGINE STATUS: ACTIVE/i)).toBeInTheDocument();
   });
 
@@ -101,9 +127,15 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
     expect(
       screen.getByRole("heading", { name: "Ask Rudix Anything" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText(/"What is the budget approval process\?"/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/"Where is the brand style guide\?"/)).toBeInTheDocument();
-    expect(screen.getByText(/"How do I request temporary VPN access\?"/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/"What is the budget approval process\?"/i).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByText(/"Where is the brand style guide\?"/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/"How do I request temporary VPN access\?"/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/working from abroad/i)).toBeInTheDocument();
   });
 
@@ -126,7 +158,9 @@ describe("Internal Knowledge solution page (/solutions/internal-knowledge)", () 
   it("mentions citation-backed answers and access control", () => {
     render(<InternalKnowledgeSolutionPage />);
 
-    expect(screen.getByText(/Strict data permission mirroring/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Strict data permission mirroring/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/verifiable sources/i)).toBeInTheDocument();
   });
 

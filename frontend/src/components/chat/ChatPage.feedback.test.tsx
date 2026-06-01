@@ -192,7 +192,13 @@ describe("ChatPage feedback", () => {
         tool_calls_executed: 0,
         total_tokens: 0,
         total_cost_usd: 0,
-        outcome: { answer: "", citations: [], confidence: { score: 0.8, category: "high" }, not_found: false, mode: "answer" },
+        outcome: {
+          answer: "",
+          citations: [],
+          confidence: { score: 0.8, category: "high" },
+          not_found: false,
+          mode: "answer",
+        },
         error: null,
       },
     });
@@ -263,21 +269,29 @@ describe("ChatPage feedback", () => {
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "When is the policy active?",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Send message/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
     await screen.findByText("The policy is active.");
   }
 
   it("renders helpful and not-helpful buttons after an answer", async () => {
     await submitQuestion();
 
-    expect(screen.getByRole("button", { name: /Mark answer helpful/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Report an issue/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Mark answer helpful/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    ).toBeInTheDocument();
   });
 
   it("thumbs-up calls submitMessageFeedback with rating=up", async () => {
     await submitQuestion();
 
-    await userEvent.click(screen.getByRole("button", { name: /Mark answer helpful/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Mark answer helpful/i }),
+    );
 
     await waitFor(() => {
       expect(vi.mocked(submitMessageFeedback)).toHaveBeenCalledWith(
@@ -301,10 +315,16 @@ describe("ChatPage feedback", () => {
 
     await submitQuestion();
 
-    await userEvent.click(screen.getByRole("button", { name: /Mark answer helpful/i }));
-    await waitFor(() => expect(vi.mocked(submitMessageFeedback)).toHaveBeenCalledTimes(1));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Mark answer helpful/i }),
+    );
+    await waitFor(() =>
+      expect(vi.mocked(submitMessageFeedback)).toHaveBeenCalledTimes(1),
+    );
 
-    await userEvent.click(screen.getByRole("button", { name: /Mark answer helpful/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Mark answer helpful/i }),
+    );
     await waitFor(() => {
       expect(vi.mocked(deleteMessageFeedback)).toHaveBeenCalledWith("msg-1");
     });
@@ -313,19 +333,29 @@ describe("ChatPage feedback", () => {
   it("thumbs-down opens FeedbackModal", async () => {
     await submitQuestion();
 
-    await userEvent.click(screen.getByRole("button", { name: /Report an issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    );
 
-    expect(screen.getByRole("dialog", { name: /Report an issue/i })).toBeInTheDocument();
-    expect(screen.getByText(/What's wrong with this answer/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /Report an issue/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/What's wrong with this answer/i),
+    ).toBeInTheDocument();
   });
 
   it("FeedbackModal cancel closes without API call", async () => {
     await submitQuestion();
 
-    await userEvent.click(screen.getByRole("button", { name: /Report an issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    );
     await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
 
-    expect(screen.queryByRole("dialog", { name: /Report an issue/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: /Report an issue/i }),
+    ).not.toBeInTheDocument();
     expect(vi.mocked(submitMessageFeedback)).not.toHaveBeenCalled();
   });
 
@@ -343,8 +373,12 @@ describe("ChatPage feedback", () => {
 
     await submitQuestion();
 
-    await userEvent.click(screen.getByRole("button", { name: /Report an issue/i }));
-    await userEvent.click(screen.getByRole("radio", { name: /Wrong or missing citation/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    );
+    await userEvent.click(
+      screen.getByRole("radio", { name: /Wrong or missing citation/i }),
+    );
     await userEvent.click(screen.getByRole("button", { name: /Submit/i }));
 
     await waitFor(() => {
@@ -353,7 +387,9 @@ describe("ChatPage feedback", () => {
         expect.objectContaining({ rating: "down", reason: "wrong_citation" }),
       );
     });
-    expect(screen.queryByRole("dialog", { name: /Report an issue/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: /Report an issue/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("FeedbackModal remove-feedback calls deleteMessageFeedback", async () => {
@@ -371,33 +407,69 @@ describe("ChatPage feedback", () => {
     await submitQuestion();
 
     // submit feedback first
-    await userEvent.click(screen.getByRole("button", { name: /Report an issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    );
     await userEvent.click(screen.getByRole("button", { name: /Submit/i }));
-    await waitFor(() => expect(vi.mocked(submitMessageFeedback)).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(vi.mocked(submitMessageFeedback)).toHaveBeenCalledTimes(1),
+    );
 
     // open modal again for editing
-    await userEvent.click(screen.getByRole("button", { name: /Report an issue/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Report an issue/i }),
+    );
     const dialog = screen.getByRole("dialog", { name: /Edit feedback/i });
     expect(dialog).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /Remove feedback/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Remove feedback/i }),
+    );
     await waitFor(() => {
       expect(vi.mocked(deleteMessageFeedback)).toHaveBeenCalledWith("msg-1");
     });
   });
 
   it("loads existing feedback when opening a historical session", async () => {
-    vi.mocked(listDocuments).mockResolvedValue({ ...INDEXED_DOCS_RESPONSE, items: [], total: 0 });
+    vi.mocked(listDocuments).mockResolvedValue({
+      ...INDEXED_DOCS_RESPONSE,
+      items: [],
+      total: 0,
+    });
     vi.mocked(listChatSessions).mockResolvedValue({
-      items: [{ session_id: "session-hist", title: "History", message_count: 2, created_at: "2026-06-01T09:00:00Z", updated_at: "2026-06-01T09:01:00Z" }],
+      items: [
+        {
+          session_id: "session-hist",
+          title: "History",
+          message_count: 2,
+          created_at: "2026-06-01T09:00:00Z",
+          updated_at: "2026-06-01T09:01:00Z",
+        },
+      ],
       total: 1,
       limit: 50,
       offset: 0,
     });
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [
-        { message_id: "msg-hist-1", role: "user", content: "Q?", confidence_score: null, confidence_category: null, citations: [], created_at: "2026-06-01T09:00:00Z" },
-        { message_id: "msg-hist-2", role: "assistant", content: "A!", confidence_score: 0.8, confidence_category: "high", citations: [], created_at: "2026-06-01T09:00:10Z" },
+        {
+          message_id: "msg-hist-1",
+          role: "user",
+          content: "Q?",
+          confidence_score: null,
+          confidence_category: null,
+          citations: [],
+          created_at: "2026-06-01T09:00:00Z",
+        },
+        {
+          message_id: "msg-hist-2",
+          role: "assistant",
+          content: "A!",
+          confidence_score: 0.8,
+          confidence_category: "high",
+          citations: [],
+          created_at: "2026-06-01T09:00:10Z",
+        },
       ],
       total: 2,
       limit: 500,
@@ -419,13 +491,17 @@ describe("ChatPage feedback", () => {
       total: 1,
     });
 
-    mockNavigation.searchParams = new URLSearchParams({ session_id: "session-hist" });
+    mockNavigation.searchParams = new URLSearchParams({
+      session_id: "session-hist",
+    });
 
     renderPage();
 
     await screen.findByText("A!");
     await waitFor(() => {
-      expect(vi.mocked(listSessionFeedback)).toHaveBeenCalledWith("session-hist");
+      expect(vi.mocked(listSessionFeedback)).toHaveBeenCalledWith(
+        "session-hist",
+      );
     });
   });
 });

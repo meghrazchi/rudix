@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function ProcurementBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Procurement
         </li>
@@ -58,12 +65,12 @@ function ProcurementHeroSection({
     >
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div className="z-10">
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3323cc]">
+          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
             Procurement &amp; Vendor Review
           </span>
           <h1
             id="proc-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Evaluate vendors with AI-powered document review.
           </h1>
@@ -139,12 +146,15 @@ function ProcurementProblemSection() {
   ];
 
   return (
-    <section aria-labelledby="proc-problem-title" className="bg-[#f4f3f9] py-24">
+    <section
+      aria-labelledby="proc-problem-title"
+      className="bg-[#f4f3f9] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="proc-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             The Procurement Bottleneck
           </h2>
@@ -160,7 +170,7 @@ function ProcurementProblemSection() {
               className="rounded-xl border border-[#c7c4d8] bg-white p-8 transition hover:border-[#3525cd]"
             >
               <Sym name={p.icon} className="mb-6 text-4xl text-[#3525cd]" />
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -206,7 +216,7 @@ function ProcurementDocumentSourcesSection() {
         <div className="order-1 lg:order-2">
           <h2
             id="proc-doc-title"
-            className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Unified Knowledge Ingestion
           </h2>
@@ -217,7 +227,10 @@ function ProcurementDocumentSourcesSection() {
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
-              <li key={f} className="flex items-center gap-3 text-base leading-6">
+              <li
+                key={f}
+                className="flex items-center gap-3 text-base leading-6"
+              >
                 <Sym name="check_circle" className="shrink-0 text-[#108548]" />
                 <span>{f}</span>
               </li>
@@ -233,12 +246,15 @@ function ProcurementDocumentSourcesSection() {
 
 function ProcurementEngineSection() {
   return (
-    <section aria-labelledby="proc-engine-title" className="bg-[#0A0A0F] py-24 text-[#faf9ff]">
+    <section
+      aria-labelledby="proc-engine-title"
+      className="bg-[#0A0A0F] py-24 text-[#faf9ff]"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="proc-engine-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-white"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
             The Rudix Engine for Procurement
           </h2>
@@ -247,7 +263,7 @@ function ProcurementEngineSection() {
           </p>
         </div>
 
-        <div className="grid h-auto grid-cols-1 gap-6 md:grid-cols-4 md:grid-rows-2 md:h-[600px]">
+        <div className="grid h-auto grid-cols-1 gap-6 md:h-[600px] md:grid-cols-4 md:grid-rows-2">
           {/* Step 01 — large card */}
           <div className="group relative col-span-1 flex flex-col justify-end overflow-hidden rounded-2xl border border-white/10 bg-[#3525cd]/10 p-10 md:col-span-2 md:row-span-2">
             <div
@@ -265,16 +281,16 @@ function ProcurementEngineSection() {
               }}
             />
             <div className="relative z-10">
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 01
               </span>
-              <h3 className="mb-4 text-[30px] font-semibold leading-[38px] text-white">
+              <h3 className="mb-4 text-[30px] leading-[38px] font-semibold text-white">
                 Deep Semantic Indexing
               </h3>
               <p className="text-base leading-6 text-[#464555]">
                 We don't just search keywords. Rudix understands the context of
-                security controls and legal obligations across your entire vendor
-                library.
+                security controls and legal obligations across your entire
+                vendor library.
               </p>
             </div>
           </div>
@@ -282,10 +298,10 @@ function ProcurementEngineSection() {
           {/* Step 02 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8 md:col-span-2">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 02
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Automated Extraction
               </h3>
             </div>
@@ -298,10 +314,10 @@ function ProcurementEngineSection() {
           {/* Step 03 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 03
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Flag Risk
               </h3>
             </div>
@@ -311,10 +327,10 @@ function ProcurementEngineSection() {
           {/* Step 04 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-[#3525cd] bg-[#3525cd] p-8 text-white">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-white/60">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-white/60 uppercase">
                 Step 04
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Approve
               </h3>
             </div>
@@ -331,7 +347,8 @@ function ProcurementEngineSection() {
 function ProcurementExampleQueriesSection() {
   const examples = [
     {
-      question: "Which vendor meets our data residency requirements for the EU?",
+      question:
+        "Which vendor meets our data residency requirements for the EU?",
       answer:
         "Vendor A (CloudFlow) specifies in Section 4.2 of their DPA that data is stored in Frankfurt. Vendor B (DataMesh) lacks specific EU region commitments in their current SOC2 report.",
     },
@@ -343,11 +360,14 @@ function ProcurementExampleQueriesSection() {
   ];
 
   return (
-    <section aria-labelledby="proc-queries-title" className="overflow-hidden bg-white py-24">
+    <section
+      aria-labelledby="proc-queries-title"
+      className="overflow-hidden bg-white py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <h2
           id="proc-queries-title"
-          className="mb-16 text-center text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+          className="mb-16 text-center text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
           Ask Anything. Get Citations.
         </h2>
@@ -358,9 +378,12 @@ function ProcurementExampleQueriesSection() {
               className="rounded-xl border-l-4 border-[#3525cd] bg-[#eeedf3] p-6 shadow-sm"
             >
               <div className="flex items-start gap-4">
-                <Sym name="help_center" className="mt-1 shrink-0 text-[#3525cd]" />
+                <Sym
+                  name="help_center"
+                  className="mt-1 shrink-0 text-[#3525cd]"
+                />
                 <div>
-                  <p className="mb-4 text-lg font-semibold leading-7 text-[#0A0A0F]">
+                  <p className="mb-4 text-lg leading-7 font-semibold text-[#0A0A0F]">
                     {e.question}
                   </p>
                   <div className="rounded-lg border border-[#c7c4d8]/30 bg-white p-4 text-base leading-6 text-[#464555]">
@@ -401,7 +424,7 @@ function ProcurementFinalCtaSection({
         <div className="rudix-landing-glass mx-auto max-w-3xl rounded-3xl border border-[#3525cd]/20 p-12 lg:p-16">
           <h2
             id="proc-cta-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Stop Reviewing, Start Deciding.
           </h2>
@@ -424,7 +447,7 @@ function ProcurementFinalCtaSection({
               Get Started Free
             </PublicActionLink>
           </div>
-          <p className="mt-8 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#777587]">
+          <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
             Rudix surfaces answers for review — it does not replace legal or
             procurement approval workflows.
           </p>
@@ -442,12 +465,18 @@ export function ProcurementSolutionPage() {
   return (
     <>
       <ProcurementBreadcrumb />
-      <ProcurementHeroSection trialHref={links.startTrial} demoHref={links.requestDemo} />
+      <ProcurementHeroSection
+        trialHref={links.startTrial}
+        demoHref={links.requestDemo}
+      />
       <ProcurementProblemSection />
       <ProcurementDocumentSourcesSection />
       <ProcurementEngineSection />
       <ProcurementExampleQueriesSection />
-      <ProcurementFinalCtaSection demoHref={links.requestDemo} trialHref={links.startTrial} />
+      <ProcurementFinalCtaSection
+        demoHref={links.requestDemo}
+        trialHref={links.startTrial}
+      />
     </>
   );
 }

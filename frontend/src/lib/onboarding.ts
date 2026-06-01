@@ -68,7 +68,8 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   {
     id: "inspect_citations",
     title: "Inspect citations",
-    description: "Click a source citation to verify where the answer came from.",
+    description:
+      "Click a source citation to verify where the answer came from.",
     href: "/chat",
     actionLabel: "Open Chat",
     requiresRoles: null,
@@ -152,8 +153,7 @@ export function writeOnboardingState(
 
 export function resolveVisibleSteps(role: AppRole): OnboardingStep[] {
   return ONBOARDING_STEPS.filter(
-    (step) =>
-      step.requiresRoles === null || step.requiresRoles.includes(role),
+    (step) => step.requiresRoles === null || step.requiresRoles.includes(role),
   );
 }
 

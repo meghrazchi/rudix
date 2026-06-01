@@ -35,7 +35,8 @@ export function QuotaProgress({
   warnAt = 80,
   criticalAt = 90,
 }: QuotaProgressProps) {
-  const pct = total !== null && total > 0 ? Math.min((used / total) * 100, 100) : 0;
+  const pct =
+    total !== null && total > 0 ? Math.min((used / total) * 100, 100) : 0;
   const isUnlimited = total === null;
 
   const barColor =
@@ -58,14 +59,14 @@ export function QuotaProgress({
 
   return (
     <div>
-      <div className="flex items-end justify-between mb-1.5">
+      <div className="mb-1.5 flex items-end justify-between">
         <div>
           <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
           {description && (
             <p className="text-xs text-[#464555]">{description}</p>
           )}
         </div>
-        <p className="shrink-0 font-mono text-xs text-[#464555] ml-4">
+        <p className="ml-4 shrink-0 font-mono text-xs text-[#464555]">
           {isUnlimited ? (
             <span>
               {formatValue(used, unit)}
@@ -85,7 +86,7 @@ export function QuotaProgress({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${label}: ${pctLabel}`}
-        className="h-2 w-full rounded-full bg-[#e4e1ee] overflow-hidden"
+        className="h-2 w-full overflow-hidden rounded-full bg-[#e4e1ee]"
       >
         {!isUnlimited && (
           <div

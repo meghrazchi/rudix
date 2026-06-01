@@ -139,7 +139,8 @@ const AGENTIC_CHAT_ENABLED =
 const DEFAULT_AGENTIC_MODE =
   process.env.NEXT_PUBLIC_CHAT_AGENTIC_DEFAULT === "true";
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
-const CHAT_FEEDBACK_ENABLED = process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
+const CHAT_FEEDBACK_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED === "true";
 const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
 
@@ -193,7 +194,6 @@ function formatPercent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-
 function confidenceBadgeClass(
   _confidence: ChatQueryResponse["confidence_category"],
 ): string {
@@ -209,7 +209,6 @@ function agentRunStatusClass(status: string): string {
   }
   return "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-amber-800";
 }
-
 
 function isTerminalAgentRunStatus(status: string): boolean {
   return (
@@ -551,7 +550,6 @@ function isPreviewableFile(filename: string | null | undefined): boolean {
   return ext === "pdf" || ext === "docx" || ext === "doc";
 }
 
-
 export function ChatPage() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -588,22 +586,31 @@ export function ChatPage() {
   const [feedbackByMessageId, setFeedbackByMessageId] = useState<
     Record<string, MessageFeedbackResponse>
   >({});
-  const [feedbackModalMessageId, setFeedbackModalMessageId] = useState<string | null>(null);
-  const [activeCitation, setActiveCitation] = useState<ChatCitationResponse | null>(null);
+  const [feedbackModalMessageId, setFeedbackModalMessageId] = useState<
+    string | null
+  >(null);
+  const [activeCitation, setActiveCitation] =
+    useState<ChatCitationResponse | null>(null);
   const [previewCitationSet, setPreviewCitationSet] = useState<{
     citations: ChatCitationResponse[];
     initialIndex: number;
   } | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(
-    () => persistedSettings?.selectedCollectionId ?? null,
-  );
+  const [selectedCollectionId, setSelectedCollectionId] = useState<
+    string | null
+  >(() => persistedSettings?.selectedCollectionId ?? null);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
+    null,
+  );
   const [renameValue, setRenameValue] = useState("");
-  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<string | null>(null);
-  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(null);
+  const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<
+    string | null
+  >(null);
+  const [openSessionMenuId, setOpenSessionMenuId] = useState<string | null>(
+    null,
+  );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -813,9 +820,13 @@ export function ChatPage() {
 
   const scopeWarning = useMemo<string | null>(() => {
     if (scopeMode === "collection") {
-      if (!selectedCollectionId) return "Select a collection to scope retrieval.";
+      if (!selectedCollectionId)
+        return "Select a collection to scope retrieval.";
       if (collectionDocsQuery.isLoading) return null;
-      if (collectionDocumentIdSet !== null && collectionDocumentIdSet.size === 0) {
+      if (
+        collectionDocumentIdSet !== null &&
+        collectionDocumentIdSet.size === 0
+      ) {
         return "The selected collection has no indexed documents.";
       }
     }
@@ -888,7 +899,14 @@ export function ChatPage() {
       CHAT_SETTINGS_STORAGE_KEY,
       JSON.stringify(payload),
     );
-  }, [agenticMode, filteredSelectedDocumentIds, rerank, topK, scopeMode, selectedCollectionId]);
+  }, [
+    agenticMode,
+    filteredSelectedDocumentIds,
+    rerank,
+    topK,
+    scopeMode,
+    selectedCollectionId,
+  ]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -925,7 +943,6 @@ export function ChatPage() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [openSessionMenuId]);
-
 
   const activeSession =
     sessions.find((item) => item.session_id === activeSessionId) ?? null;
@@ -1002,7 +1019,10 @@ export function ChatPage() {
       );
       const nextTurn: ChatTurn = {
         question: payload.question,
-        response: toTurnResponseFromQuery(response, payload._scopeLabel ?? null),
+        response: toTurnResponseFromQuery(
+          response,
+          payload._scopeLabel ?? null,
+        ),
       };
 
       setThreadsBySession((previous) => {
@@ -1051,8 +1071,13 @@ export function ChatPage() {
   });
 
   const renameSessionMutation = useMutation({
-    mutationFn: ({ sessionId, title }: { sessionId: string; title: string | null }) =>
-      updateChatSession(sessionId, { title }),
+    mutationFn: ({
+      sessionId,
+      title,
+    }: {
+      sessionId: string;
+      title: string | null;
+    }) => updateChatSession(sessionId, { title }),
     onSuccess: async () => {
       await invalidateAfterMutation(queryClient, "chat.session.rename");
     },
@@ -1074,10 +1099,22 @@ export function ChatPage() {
   });
 
   const feedbackSubmitMutation = useMutation({
-    mutationFn: ({ messageId, rating, reason, comment }: { messageId: string; rating: "up" | "down"; reason?: FeedbackReason | null; comment?: string | null }) =>
-      submitMessageFeedback(messageId, { rating, reason, comment }),
+    mutationFn: ({
+      messageId,
+      rating,
+      reason,
+      comment,
+    }: {
+      messageId: string;
+      rating: "up" | "down";
+      reason?: FeedbackReason | null;
+      comment?: string | null;
+    }) => submitMessageFeedback(messageId, { rating, reason, comment }),
     onSuccess: (data) => {
-      setFeedbackByMessageId((previous) => ({ ...previous, [data.message_id]: data }));
+      setFeedbackByMessageId((previous) => ({
+        ...previous,
+        [data.message_id]: data,
+      }));
     },
   });
 
@@ -1277,7 +1314,10 @@ export function ChatPage() {
         const response = await agentRunMutation.mutateAsync(payload);
         const nextTurn: ChatTurn = {
           question: trimmedQuestion,
-          response: { ...toTurnResponseFromAgentRun(response.run), scope_label: currentScopeLabel },
+          response: {
+            ...toTurnResponseFromAgentRun(response.run),
+            scope_label: currentScopeLabel,
+          },
         };
         setThreadsBySession((previous) => {
           const sourceThread = previous[previousThreadKey] ?? [];
@@ -1423,7 +1463,9 @@ export function ChatPage() {
           </div>
         </header>
 
-        <div className={`grid min-h-0 flex-1 gap-4 ${(isKnowledgeHubOpen || activeCitation !== null) ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}>
+        <div
+          className={`grid min-h-0 flex-1 gap-4 ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
+        >
           <aside className="hide-scrollbar min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
@@ -1445,8 +1487,10 @@ export function ChatPage() {
                   <ul className="space-y-2">
                     {sessions.map((session) => {
                       const isActive = session.session_id === activeSessionId;
-                      const isRenaming = renamingSessionId === session.session_id;
-                      const isConfirmingDelete = confirmDeleteSessionId === session.session_id;
+                      const isRenaming =
+                        renamingSessionId === session.session_id;
+                      const isConfirmingDelete =
+                        confirmDeleteSessionId === session.session_id;
                       const displayTitle =
                         sessionDisplayTitleById.get(session.session_id) ??
                         "Untitled session";
@@ -1464,7 +1508,9 @@ export function ChatPage() {
                               <div className="flex gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteConfirm(session.session_id)}
+                                  onClick={() =>
+                                    handleDeleteConfirm(session.session_id)
+                                  }
                                   disabled={deleteSessionMutation.isPending}
                                   className="flex-1 rounded bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
                                 >
@@ -1538,7 +1584,9 @@ export function ChatPage() {
                                 }}
                                 className="w-full px-3 py-2 pr-8 text-left text-sm"
                               >
-                                <p className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}>
+                                <p
+                                  className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}
+                                >
                                   {displayTitle}
                                 </p>
                                 <p className="mt-1 text-xs text-[#7a758f]">
@@ -1547,27 +1595,36 @@ export function ChatPage() {
                                 </p>
                               </button>
                               <div
-                                className={`absolute right-1 top-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${openSessionMenuId === session.session_id ? "opacity-100" : "opacity-0"}`}
+                                className={`absolute top-1 right-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${openSessionMenuId === session.session_id ? "opacity-100" : "opacity-0"}`}
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
                                   aria-label="Session actions"
-                                  aria-expanded={openSessionMenuId === session.session_id}
+                                  aria-expanded={
+                                    openSessionMenuId === session.session_id
+                                  }
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setOpenSessionMenuId((prev) =>
-                                      prev === session.session_id ? null : session.session_id,
+                                      prev === session.session_id
+                                        ? null
+                                        : session.session_id,
                                     );
                                   }}
                                   className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-[#6a6780] hover:text-[#2f2a46]"
                                 >
-                                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">more_vert</span>
+                                  <span
+                                    className="material-symbols-outlined text-[16px]"
+                                    aria-hidden="true"
+                                  >
+                                    more_vert
+                                  </span>
                                 </button>
                                 {openSessionMenuId === session.session_id && (
                                   <div
                                     role="menu"
-                                    className="absolute right-0 top-7 z-20 min-w-[130px] overflow-hidden rounded-lg border border-[#d7d4e8] bg-white py-1 shadow-lg"
+                                    className="absolute top-7 right-0 z-20 min-w-[130px] overflow-hidden rounded-lg border border-[#d7d4e8] bg-white py-1 shadow-lg"
                                     onMouseDown={(e) => e.stopPropagation()}
                                   >
                                     <button
@@ -1576,11 +1633,19 @@ export function ChatPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setOpenSessionMenuId(null);
-                                        handleRenameStart(session.session_id, session.title);
+                                        handleRenameStart(
+                                          session.session_id,
+                                          session.title,
+                                        );
                                       }}
                                       className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-[#2f2a46] hover:bg-[#f5f2ff]"
                                     >
-                                      <span className="material-symbols-outlined text-[14px] text-[#6a6780]" aria-hidden="true">edit</span>
+                                      <span
+                                        className="material-symbols-outlined text-[14px] text-[#6a6780]"
+                                        aria-hidden="true"
+                                      >
+                                        edit
+                                      </span>
                                       Rename
                                     </button>
                                     <button
@@ -1593,7 +1658,12 @@ export function ChatPage() {
                                       }}
                                       className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
                                     >
-                                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">delete</span>
+                                      <span
+                                        className="material-symbols-outlined text-[14px]"
+                                        aria-hidden="true"
+                                      >
+                                        delete
+                                      </span>
                                       Delete
                                     </button>
                                   </div>
@@ -1637,25 +1707,25 @@ export function ChatPage() {
             <div className="flex h-full min-h-0 flex-col">
               <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
                 <div className="min-w-0">
-                <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                  Conversation
-                </h2>
-                <p className="mt-1 text-xs text-[#5f5a74]">
-                  {activeSession ? (
-                    <>
-                      Session:{" "}
-                      <span className="font-semibold text-[#2f2a46]">
-                        {activeSessionDisplayTitle}
-                      </span>
-                      {" • "}
-                      {activeSession.message_count} messages
-                      {" • "}
-                      updated {formatDate(activeSession.updated_at)}
-                    </>
-                  ) : (
-                    "New chat draft. Start with a question to create a session."
-                  )}
-                </p>
+                  <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
+                    Conversation
+                  </h2>
+                  <p className="mt-1 text-xs text-[#5f5a74]">
+                    {activeSession ? (
+                      <>
+                        Session:{" "}
+                        <span className="font-semibold text-[#2f2a46]">
+                          {activeSessionDisplayTitle}
+                        </span>
+                        {" • "}
+                        {activeSession.message_count} messages
+                        {" • "}
+                        updated {formatDate(activeSession.updated_at)}
+                      </>
+                    ) : (
+                      "New chat draft. Start with a question to create a session."
+                    )}
+                  </p>
                 </div>
                 {activeSessionId && thread.length > 0 ? (
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -1672,7 +1742,12 @@ export function ChatPage() {
                       }}
                       className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
-                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">content_copy</span>
+                      <span
+                        className="material-symbols-outlined text-[14px]"
+                        aria-hidden="true"
+                      >
+                        content_copy
+                      </span>
                       Copy
                     </button>
                     <button
@@ -1691,7 +1766,12 @@ export function ChatPage() {
                       }}
                       className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
-                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">download</span>
+                      <span
+                        className="material-symbols-outlined text-[14px]"
+                        aria-hidden="true"
+                      >
+                        download
+                      </span>
                       Export
                     </button>
                     <button
@@ -1701,7 +1781,12 @@ export function ChatPage() {
                       onClick={() => setIsShareModalOpen(true)}
                       className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
-                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">share</span>
+                      <span
+                        className="material-symbols-outlined text-[14px]"
+                        aria-hidden="true"
+                      >
+                        share
+                      </span>
                       Share
                     </button>
                   </div>
@@ -1767,250 +1852,336 @@ export function ChatPage() {
                                 auto_awesome
                               </span>
                             </div>
-                            <div className="flex min-w-0 max-w-[92%] flex-1 flex-col">
-                            <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
-                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span
-                                    className={confidenceBadgeClass(
-                                      turn.response.confidence_category,
-                                    )}
-                                  >
+                            <div className="flex max-w-[92%] min-w-0 flex-1 flex-col">
+                              <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
+                                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span
-                                      className="material-symbols-outlined text-xs"
-                                      aria-hidden="true"
-                                      style={{ fontVariationSettings: "'FILL' 1" }}
-                                    >
-                                      check_circle
-                                    </span>
-                                    Confidence{" "}
-                                    {formatPercent(turn.response.confidence_score)}
-                                  </span>
-                                  {turn.response.scope_label ? (
-                                    <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-[10px] font-semibold text-[#3525cd]">
-                                      <span className="material-symbols-outlined text-[11px]" aria-hidden="true">filter_alt</span>
-                                      {turn.response.scope_label}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {turn.response.agent_run_status ? (
-                                    <span
-                                      className={agentRunStatusClass(
-                                        turn.response.agent_run_status,
+                                      className={confidenceBadgeClass(
+                                        turn.response.confidence_category,
                                       )}
                                     >
-                                      Agent {turn.response.agent_run_status}
+                                      <span
+                                        className="material-symbols-outlined text-xs"
+                                        aria-hidden="true"
+                                        style={{
+                                          fontVariationSettings: "'FILL' 1",
+                                        }}
+                                      >
+                                        check_circle
+                                      </span>
+                                      Confidence{" "}
+                                      {formatPercent(
+                                        turn.response.confidence_score,
+                                      )}
                                     </span>
-                                  ) : null}
-                                  <span className="font-mono text-xs text-[#6a6780]">
-                                    {formatDate(turn.response.created_at)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {turn.response.confidence_category === "low" &&
-                              !turn.response.not_found ? (
-                                <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
-                                  Low confidence warning: validate this answer
-                                  against the cited source text.
-                                </p>
-                              ) : null}
-
-                              {turn.response.not_found ? (
-                                <div className="space-y-2">
-                                  <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
-                                    No grounded answer was found in the selected
-                                    documents.
-                                  </p>
-                                  <p className="text-xs text-[#6a6780]">
-                                    Try refining your question, changing
-                                    document scope, or adjusting retrieval
-                                    settings.
-                                  </p>
-                                </div>
-                              ) : (
-                                <>
-                                  <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
-                                    {turn.response.answer}
-                                  </p>
-                                  {turn.response.citations.length > 0 && (
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
-                                      {turn.response.citations.map((citation, ci) => (
-                                        <div
-                                          key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                          className="relative flex items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
+                                    {turn.response.scope_label ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-[10px] font-semibold text-[#3525cd]">
+                                        <span
+                                          className="material-symbols-outlined text-[11px]"
+                                          aria-hidden="true"
                                         >
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setSelectedResponseMessageId(turn.response.message_id);
-                                              setIsKnowledgeHubOpen(false);
-                                              setActiveCitation(citation);
-                                            }}
-                                            className="flex flex-1 cursor-pointer items-start gap-2 overflow-hidden p-2 text-left"
-                                          >
-                                            <span
-                                              className={`material-symbols-outlined shrink-0 text-base ${getFileTypeColorClass(citation.filename)}`}
-                                              aria-hidden="true"
+                                          filter_alt
+                                        </span>
+                                        {turn.response.scope_label}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {turn.response.agent_run_status ? (
+                                      <span
+                                        className={agentRunStatusClass(
+                                          turn.response.agent_run_status,
+                                        )}
+                                      >
+                                        Agent {turn.response.agent_run_status}
+                                      </span>
+                                    ) : null}
+                                    <span className="font-mono text-xs text-[#6a6780]">
+                                      {formatDate(turn.response.created_at)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {turn.response.confidence_category === "low" &&
+                                !turn.response.not_found ? (
+                                  <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
+                                    Low confidence warning: validate this answer
+                                    against the cited source text.
+                                  </p>
+                                ) : null}
+
+                                {turn.response.not_found ? (
+                                  <div className="space-y-2">
+                                    <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
+                                      No grounded answer was found in the
+                                      selected documents.
+                                    </p>
+                                    <p className="text-xs text-[#6a6780]">
+                                      Try refining your question, changing
+                                      document scope, or adjusting retrieval
+                                      settings.
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="hide-scrollbar max-h-80 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                                      {turn.response.answer}
+                                    </p>
+                                    {turn.response.citations.length > 0 && (
+                                      <div className="mt-3 grid grid-cols-2 gap-2">
+                                        {turn.response.citations.map(
+                                          (citation, ci) => (
+                                            <div
+                                              key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                              className="relative flex items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
                                             >
-                                              {getFileIcon(citation.filename)}
-                                            </span>
-                                            <div className="min-w-0 overflow-hidden">
-                                              <p className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}>
-                                                {getFileTypeLabel(citation.filename)}
-                                              </p>
-                                              <p
-                                                className="truncate text-xs font-bold text-[#1b1b24]"
-                                                title={citation.filename ?? "Document"}
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedResponseMessageId(
+                                                    turn.response.message_id,
+                                                  );
+                                                  setIsKnowledgeHubOpen(false);
+                                                  setActiveCitation(citation);
+                                                }}
+                                                className="flex flex-1 cursor-pointer items-start gap-2 overflow-hidden p-2 text-left"
                                               >
-                                                {citation.filename ?? "Document"}
-                                              </p>
-                                              {citation.text_snippet && (
-                                                <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
-                                                  {citation.text_snippet}
-                                                </p>
+                                                <span
+                                                  className={`material-symbols-outlined shrink-0 text-base ${getFileTypeColorClass(citation.filename)}`}
+                                                  aria-hidden="true"
+                                                >
+                                                  {getFileIcon(
+                                                    citation.filename,
+                                                  )}
+                                                </span>
+                                                <div className="min-w-0 overflow-hidden">
+                                                  <p
+                                                    className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                                  >
+                                                    {getFileTypeLabel(
+                                                      citation.filename,
+                                                    )}
+                                                  </p>
+                                                  <p
+                                                    className="truncate text-xs font-bold text-[#1b1b24]"
+                                                    title={
+                                                      citation.filename ??
+                                                      "Document"
+                                                    }
+                                                  >
+                                                    {citation.filename ??
+                                                      "Document"}
+                                                  </p>
+                                                  {citation.text_snippet && (
+                                                    <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
+                                                      {citation.text_snippet}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              </button>
+                                              {isPreviewableFile(
+                                                citation.filename,
+                                              ) && (
+                                                <button
+                                                  type="button"
+                                                  aria-label={`Preview ${citation.filename ?? "document"}`}
+                                                  onClick={() => {
+                                                    const siblings =
+                                                      turn.response.citations.filter(
+                                                        (c) =>
+                                                          c.document_id ===
+                                                          citation.document_id,
+                                                      );
+                                                    const idx =
+                                                      siblings.indexOf(
+                                                        citation,
+                                                      );
+                                                    setPreviewCitationSet({
+                                                      citations: siblings,
+                                                      initialIndex:
+                                                        idx >= 0 ? idx : 0,
+                                                    });
+                                                  }}
+                                                  className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
+                                                >
+                                                  <span
+                                                    className="material-symbols-outlined text-[16px]"
+                                                    aria-hidden="true"
+                                                  >
+                                                    visibility
+                                                  </span>
+                                                </button>
                                               )}
                                             </div>
-                                          </button>
-                                          {isPreviewableFile(citation.filename) && (
-                                            <button
-                                              type="button"
-                                              aria-label={`Preview ${citation.filename ?? "document"}`}
-                                              onClick={() => {
-                                                const siblings = turn.response.citations.filter(
-                                                  (c) => c.document_id === citation.document_id,
-                                                );
-                                                const idx = siblings.indexOf(citation);
-                                                setPreviewCitationSet({
-                                                  citations: siblings,
-                                                  initialIndex: idx >= 0 ? idx : 0,
-                                                });
-                                              }}
-                                              className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
-                                            >
-                                              <span
-                                                className="material-symbols-outlined text-[16px]"
-                                                aria-hidden="true"
-                                              >
-                                                visibility
-                                              </span>
-                                            </button>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {turn.response.citations[0]?.text_snippet && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedResponseMessageId(turn.response.message_id);
-                                        setActiveCitation(null);
-                                        setIsKnowledgeHubOpen(true);
-                                      }}
-                                      className="mt-3 w-full cursor-pointer rounded-r border-l-4 border-[#3525cd] bg-white px-3 py-2 text-left italic text-sm text-[#464555] shadow-sm hover:bg-[#f5f2ff] transition-colors"
-                                    >
-                                      {turn.response.citations[0].text_snippet}
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                              {turn.response.agent_run_error ? (
-                                <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                                  Agent stop reason:{" "}
-                                  {turn.response.agent_run_error.message}
-                                </p>
-                              ) : null}
-                            </article>
-                            <div className="mt-1 flex items-center gap-0.5 px-1">
-                              {!turn.response.not_found ? (
-                                <div className="group/copy relative">
-                                  <button
-                                    type="button"
-                                    aria-label="Copy answer"
-                                    onClick={() => {
-                                      const md = formatAnswerAsMarkdown({
-                                        question: turn.question,
-                                        answer: turn.response.answer,
-                                        citations: turn.response.citations,
-                                        created_at: turn.response.created_at,
-                                      });
-                                      void copyToClipboard(md).then(() => {
-                                        setCopiedMessageId(turn.response.message_id);
-                                        setTimeout(() => setCopiedMessageId(null), 2000);
-                                      });
-                                    }}
-                                    className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
-                                  >
-                                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">
-                                      {copiedMessageId === turn.response.message_id ? "check" : "content_copy"}
-                                    </span>
-                                  </button>
-                                  <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/copy:opacity-100">
-                                    {copiedMessageId === turn.response.message_id ? "Copied!" : "Copy"}
-                                  </span>
-                                </div>
-                              ) : null}
-                              {CHAT_FEEDBACK_ENABLED ? (
-                                <>
-                                  <div className="group/up relative">
-                                    <button
-                                      type="button"
-                                      aria-label="Mark answer helpful"
-                                      onClick={() => {
-                                        const msgId = turn.response.message_id;
-                                        if (feedbackByMessageId[msgId]?.rating === "up") {
-                                          feedbackDeleteMutation.mutate(msgId);
-                                        } else {
-                                          feedbackSubmitMutation.mutate({ messageId: msgId, rating: "up" });
+                                          ),
+                                        )}
+                                      </div>
+                                    )}
+                                    {turn.response.citations[0]
+                                      ?.text_snippet && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedResponseMessageId(
+                                            turn.response.message_id,
+                                          );
+                                          setActiveCitation(null);
+                                          setIsKnowledgeHubOpen(true);
+                                        }}
+                                        className="mt-3 w-full cursor-pointer rounded-r border-l-4 border-[#3525cd] bg-white px-3 py-2 text-left text-sm text-[#464555] italic shadow-sm transition-colors hover:bg-[#f5f2ff]"
+                                      >
+                                        {
+                                          turn.response.citations[0]
+                                            .text_snippet
                                         }
-                                      }}
-                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
-                                    >
-                                      <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_up</span>
-                                    </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/up:opacity-100">
-                                      Helpful
-                                    </span>
-                                  </div>
-                                  <div className="group/down relative">
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                                {turn.response.agent_run_error ? (
+                                  <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                                    Agent stop reason:{" "}
+                                    {turn.response.agent_run_error.message}
+                                  </p>
+                                ) : null}
+                              </article>
+                              <div className="mt-1 flex items-center gap-0.5 px-1">
+                                {!turn.response.not_found ? (
+                                  <div className="group/copy relative">
                                     <button
                                       type="button"
-                                      aria-label="Report an issue"
-                                      onClick={() => setFeedbackModalMessageId(turn.response.message_id)}
-                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                      aria-label="Copy answer"
+                                      onClick={() => {
+                                        const md = formatAnswerAsMarkdown({
+                                          question: turn.question,
+                                          answer: turn.response.answer,
+                                          citations: turn.response.citations,
+                                          created_at: turn.response.created_at,
+                                        });
+                                        void copyToClipboard(md).then(() => {
+                                          setCopiedMessageId(
+                                            turn.response.message_id,
+                                          );
+                                          setTimeout(
+                                            () => setCopiedMessageId(null),
+                                            2000,
+                                          );
+                                        });
+                                      }}
+                                      className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${copiedMessageId === turn.response.message_id ? "text-[#3525cd]" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
                                     >
-                                      <span className="material-symbols-outlined text-[13px]" aria-hidden="true">thumb_down</span>
+                                      <span
+                                        className="material-symbols-outlined text-[13px]"
+                                        aria-hidden="true"
+                                      >
+                                        {copiedMessageId ===
+                                        turn.response.message_id
+                                          ? "check"
+                                          : "content_copy"}
+                                      </span>
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/down:opacity-100">
-                                      Not helpful
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/copy:opacity-100">
+                                      {copiedMessageId ===
+                                      turn.response.message_id
+                                        ? "Copied!"
+                                        : "Copy"}
                                     </span>
                                   </div>
-                                </>
-                              ) : null}
-                              {isLatestTurn ? (
-                                <div className="group/regen relative">
-                                  <button
-                                    type="button"
-                                    aria-label="Regenerate answer"
-                                    onClick={() => { void submitQuestionText(turn.question, false); }}
-                                    disabled={
-                                      queryMutation.isPending ||
-                                      agentRunMutation.isPending ||
-                                      createSessionMutation.isPending ||
-                                      (!hasIndexedDocuments && scopeMode !== "none")
-                                    }
-                                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
-                                  >
-                                    <span className="material-symbols-outlined text-[13px]" aria-hidden="true">refresh</span>
-                                  </button>
-                                  <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-[#2a2640] px-2 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover/regen:opacity-100">
-                                    Regenerate
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
+                                ) : null}
+                                {CHAT_FEEDBACK_ENABLED ? (
+                                  <>
+                                    <div className="group/up relative">
+                                      <button
+                                        type="button"
+                                        aria-label="Mark answer helpful"
+                                        onClick={() => {
+                                          const msgId =
+                                            turn.response.message_id;
+                                          if (
+                                            feedbackByMessageId[msgId]
+                                              ?.rating === "up"
+                                          ) {
+                                            feedbackDeleteMutation.mutate(
+                                              msgId,
+                                            );
+                                          } else {
+                                            feedbackSubmitMutation.mutate({
+                                              messageId: msgId,
+                                              rating: "up",
+                                            });
+                                          }
+                                        }}
+                                        className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "up" ? "text-emerald-600" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                      >
+                                        <span
+                                          className="material-symbols-outlined text-[13px]"
+                                          aria-hidden="true"
+                                        >
+                                          thumb_up
+                                        </span>
+                                      </button>
+                                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/up:opacity-100">
+                                        Helpful
+                                      </span>
+                                    </div>
+                                    <div className="group/down relative">
+                                      <button
+                                        type="button"
+                                        aria-label="Report an issue"
+                                        onClick={() =>
+                                          setFeedbackModalMessageId(
+                                            turn.response.message_id,
+                                          )
+                                        }
+                                        className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f1f0f5] ${feedbackByMessageId[turn.response.message_id]?.rating === "down" ? "text-rose-500" : "text-[#9d98b5] hover:text-[#6a6780]"}`}
+                                      >
+                                        <span
+                                          className="material-symbols-outlined text-[13px]"
+                                          aria-hidden="true"
+                                        >
+                                          thumb_down
+                                        </span>
+                                      </button>
+                                      <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/down:opacity-100">
+                                        Not helpful
+                                      </span>
+                                    </div>
+                                  </>
+                                ) : null}
+                                {isLatestTurn ? (
+                                  <div className="group/regen relative">
+                                    <button
+                                      type="button"
+                                      aria-label="Regenerate answer"
+                                      onClick={() => {
+                                        void submitQuestionText(
+                                          turn.question,
+                                          false,
+                                        );
+                                      }}
+                                      disabled={
+                                        queryMutation.isPending ||
+                                        agentRunMutation.isPending ||
+                                        createSessionMutation.isPending ||
+                                        (!hasIndexedDocuments &&
+                                          scopeMode !== "none")
+                                      }
+                                      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <span
+                                        className="material-symbols-outlined text-[13px]"
+                                        aria-hidden="true"
+                                      >
+                                        refresh
+                                      </span>
+                                    </button>
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/regen:opacity-100">
+                                      Regenerate
+                                    </span>
+                                  </div>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         </li>
@@ -2077,16 +2248,22 @@ export function ChatPage() {
                   <div className="relative overflow-hidden rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm">
                     {/* Integrated toolbar */}
                     <div className="flex items-center gap-3 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
-
                       {/* ── Scope ── */}
                       <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[14px] text-[#6a6780]" aria-hidden="true">travel_explore</span>
-                        <span className="uppercase tracking-wider">Scope</span>
+                        <span
+                          className="material-symbols-outlined text-[14px] text-[#6a6780]"
+                          aria-hidden="true"
+                        >
+                          travel_explore
+                        </span>
+                        <span className="tracking-wider uppercase">Scope</span>
                         <select
                           value={scopeMode}
-                          onChange={(e) => setScopeMode(e.target.value as ChatScopeMode)}
+                          onChange={(e) =>
+                            setScopeMode(e.target.value as ChatScopeMode)
+                          }
                           aria-label="Scope type"
-                          className="rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20 cursor-pointer"
+                          className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                         >
                           <option value="all">All files</option>
                           <option value="collection">Collection</option>
@@ -2098,17 +2275,29 @@ export function ChatPage() {
                       {/* Collection value picker */}
                       {scopeMode === "collection" && (
                         <>
-                          <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                          <span
+                            className="h-3 w-px bg-[#c7c4d8]"
+                            aria-hidden="true"
+                          />
                           <select
                             value={selectedCollectionId ?? ""}
-                            onChange={(e) => setSelectedCollectionId(e.target.value || null)}
+                            onChange={(e) =>
+                              setSelectedCollectionId(e.target.value || null)
+                            }
                             aria-label="Select collection"
-                            className="max-w-[160px] rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20 cursor-pointer"
+                            className="max-w-[160px] cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                           >
                             <option value="">— choose collection —</option>
-                            {(collectionsListQuery.data?.items ?? []).map((col) => (
-                              <option key={col.collection_id} value={col.collection_id}>{col.name}</option>
-                            ))}
+                            {(collectionsListQuery.data?.items ?? []).map(
+                              (col) => (
+                                <option
+                                  key={col.collection_id}
+                                  value={col.collection_id}
+                                >
+                                  {col.name}
+                                </option>
+                              ),
+                            )}
                           </select>
                         </>
                       )}
@@ -2116,28 +2305,52 @@ export function ChatPage() {
                       {/* Files value picker */}
                       {scopeMode === "documents" && (
                         <>
-                          <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                          <span
+                            className="h-3 w-px bg-[#c7c4d8]"
+                            aria-hidden="true"
+                          />
                           <button
                             type="button"
-                            onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
-                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] hover:bg-[#e8e4f8] transition-colors"
+                            onClick={() => {
+                              setIsContextModalOpen(true);
+                              setContextSearchQuery("");
+                              setContextPage(1);
+                            }}
+                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] transition-colors hover:bg-[#e8e4f8]"
                           >
-                            <span className="material-symbols-outlined text-[13px]" aria-hidden="true">upload_file</span>
+                            <span
+                              className="material-symbols-outlined text-[13px]"
+                              aria-hidden="true"
+                            >
+                              upload_file
+                            </span>
                             Select Files
                           </button>
                           {filteredSelectedDocumentIds.length > 0 && (
-                            <span className="bg-[#ece8ff] text-[#3525cd] px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                              {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                            <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
+                              {filteredSelectedDocumentIds.length} file
+                              {filteredSelectedDocumentIds.length !== 1
+                                ? "s"
+                                : ""}{" "}
+                              selected
                             </span>
                           )}
                         </>
                       )}
 
-                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                      <span
+                        className="h-3 w-px bg-[#c7c4d8]"
+                        aria-hidden="true"
+                      />
 
                       {/* ── Top-k ── */}
                       <div className="flex items-center gap-2">
-                        <label htmlFor="top-k-slider" className="uppercase tracking-wider">Top-k</label>
+                        <label
+                          htmlFor="top-k-slider"
+                          className="tracking-wider uppercase"
+                        >
+                          Top-k
+                        </label>
                         <input
                           id="top-k-slider"
                           type="range"
@@ -2145,42 +2358,81 @@ export function ChatPage() {
                           max={MAX_TOP_K}
                           value={topK}
                           onChange={(event) => {
-                            const parsed = Number.parseInt(event.target.value, 10);
-                            if (Number.isFinite(parsed)) setTopK(Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)));
+                            const parsed = Number.parseInt(
+                              event.target.value,
+                              10,
+                            );
+                            if (Number.isFinite(parsed))
+                              setTopK(
+                                Math.min(
+                                  MAX_TOP_K,
+                                  Math.max(MIN_TOP_K, parsed),
+                                ),
+                              );
                           }}
                           className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-[#c7c4d8] accent-[#3525cd]"
                         />
                         <span className="font-mono text-[#3525cd]">{topK}</span>
-                        <input id="top-k-input" type="number" min={MIN_TOP_K} max={MAX_TOP_K} value={topK}
+                        <input
+                          id="top-k-input"
+                          type="number"
+                          min={MIN_TOP_K}
+                          max={MAX_TOP_K}
+                          value={topK}
                           onChange={(event) => {
-                            const parsed = Number.parseInt(event.target.value, 10);
-                            if (Number.isFinite(parsed)) setTopK(Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, parsed)));
+                            const parsed = Number.parseInt(
+                              event.target.value,
+                              10,
+                            );
+                            if (Number.isFinite(parsed))
+                              setTopK(
+                                Math.min(
+                                  MAX_TOP_K,
+                                  Math.max(MIN_TOP_K, parsed),
+                                ),
+                              );
                           }}
                           className="sr-only"
                           aria-label="Top K"
                         />
                       </div>
 
-                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                      <span
+                        className="h-3 w-px bg-[#c7c4d8]"
+                        aria-hidden="true"
+                      />
 
                       {/* ── Rerank ── */}
-                      <label className="flex items-center gap-1.5 cursor-pointer">
+                      <label className="flex cursor-pointer items-center gap-1.5">
                         <span>Rerank</span>
                         <span className="relative inline-flex items-center">
-                          <input type="checkbox" checked={rerank} onChange={(e) => setRerank(e.target.checked)} className="peer sr-only" />
+                          <input
+                            type="checkbox"
+                            checked={rerank}
+                            onChange={(e) => setRerank(e.target.checked)}
+                            className="peer sr-only"
+                          />
                           <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd]" />
                           <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5" />
                         </span>
                       </label>
 
-                      <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
+                      <span
+                        className="h-3 w-px bg-[#c7c4d8]"
+                        aria-hidden="true"
+                      />
 
                       {/* ── Agentic ── */}
-                      <label className="flex items-center gap-1.5 cursor-pointer">
+                      <label className="flex cursor-pointer items-center gap-1.5">
                         <span>Agentic</span>
                         <span className="relative inline-flex items-center">
-                          <input type="checkbox" checked={agenticMode} disabled={!AGENTIC_CHAT_ENABLED}
-                            onChange={(e) => setAgenticMode(e.target.checked)} className="peer sr-only" />
+                          <input
+                            type="checkbox"
+                            checked={agenticMode}
+                            disabled={!AGENTIC_CHAT_ENABLED}
+                            onChange={(e) => setAgenticMode(e.target.checked)}
+                            className="peer sr-only"
+                          />
                           <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd] peer-disabled:opacity-50" />
                           <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 peer-disabled:opacity-80" />
                         </span>
@@ -2189,11 +2441,20 @@ export function ChatPage() {
                       {/* ── Context button (far right) ── */}
                       <button
                         type="button"
-                        onClick={() => { setIsContextModalOpen(true); setContextSearchQuery(""); setContextPage(1); }}
+                        onClick={() => {
+                          setIsContextModalOpen(true);
+                          setContextSearchQuery("");
+                          setContextPage(1);
+                        }}
                         className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[#3525cd] transition-colors hover:bg-[#ece8ff]/60"
                         aria-label={`Context (${contextScopeDocumentCount} documents in scope) — click to view or change`}
                       >
-                        <span className="material-symbols-outlined text-[13px]" aria-hidden="true">history</span>
+                        <span
+                          className="material-symbols-outlined text-[13px]"
+                          aria-hidden="true"
+                        >
+                          history
+                        </span>
                         Context ({contextScopeDocumentCount})
                       </button>
                     </div>
@@ -2201,7 +2462,12 @@ export function ChatPage() {
                     {/* Scope warning banner */}
                     {scopeWarning && (
                       <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">warning</span>
+                        <span
+                          className="material-symbols-outlined text-[14px]"
+                          aria-hidden="true"
+                        >
+                          warning
+                        </span>
                         {scopeWarning}
                       </div>
                     )}
@@ -2212,7 +2478,10 @@ export function ChatPage() {
                         value={question}
                         onChange={(event) => setQuestion(event.target.value)}
                         onKeyDown={(event) => {
-                          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                          if (
+                            (event.metaKey || event.ctrlKey) &&
+                            event.key === "Enter"
+                          ) {
                             event.preventDefault();
                             void submitQuestion();
                           }
@@ -2220,34 +2489,47 @@ export function ChatPage() {
                         rows={2}
                         placeholder="Type a message or use '/' for commands..."
                         disabled={scopeMode !== "none" && !hasIndexedDocuments}
-                        className="w-full resize-none border-none bg-transparent py-3 pl-3 pr-14 text-sm text-[#2f2a46] outline-none focus:ring-0"
+                        className="w-full resize-none border-none bg-transparent py-3 pr-14 pl-3 text-sm text-[#2f2a46] outline-none focus:ring-0"
                       />
-                      <div className="absolute bottom-2.5 right-3">
+                      <div className="absolute right-3 bottom-2.5">
                         <button
                           type="submit"
                           disabled={isComposerDisabled}
                           aria-label={
-                            createSessionMutation.isPending ? "Starting session…"
-                            : agentRunMutation.isPending ? "Running agent…"
-                            : queryMutation.isPending ? "Generating answer…"
-                            : "Send message"
+                            createSessionMutation.isPending
+                              ? "Starting session…"
+                              : agentRunMutation.isPending
+                                ? "Running agent…"
+                                : queryMutation.isPending
+                                  ? "Generating answer…"
+                                  : "Send message"
                           }
-                          className="flex items-center justify-center rounded-xl bg-[#3525cd] p-2 text-white hover:shadow-lg active:scale-90 transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                          className="flex items-center justify-center rounded-xl bg-[#3525cd] p-2 text-white transition-all hover:shadow-lg active:scale-90 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">arrow_upward</span>
+                          <span
+                            className="material-symbols-outlined text-[20px]"
+                            aria-hidden="true"
+                          >
+                            arrow_upward
+                          </span>
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {!AGENTIC_CHAT_ENABLED && (
-                    <p className="mt-2 text-xs text-[#8a4762]">Agentic Mode is disabled for this deployment.</p>
+                    <p className="mt-2 text-xs text-[#8a4762]">
+                      Agentic Mode is disabled for this deployment.
+                    </p>
                   )}
                   {!hasIndexedDocuments && scopeMode !== "none" && (
                     <p className="mt-2 text-center text-xs text-[#777587]">
-                      <span>Chat is disabled until at least one document is indexed.</span>
-                      {" "}
-                      <span>Switch to No RAG mode to chat without documents.</span>
+                      <span>
+                        Chat is disabled until at least one document is indexed.
+                      </span>{" "}
+                      <span>
+                        Switch to No RAG mode to chat without documents.
+                      </span>
                     </p>
                   )}
                 </form>
@@ -2255,20 +2537,31 @@ export function ChatPage() {
             </div>
           </section>
 
-          <aside className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${(isKnowledgeHubOpen || activeCitation !== null) ? "" : "hidden"}`}>
+          <aside
+            className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm ${isKnowledgeHubOpen || activeCitation !== null ? "" : "hidden"}`}
+          >
             {/* ── Header ── */}
             <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
               <div>
-                <h2 className="text-lg font-semibold text-[#1b1b24]">Knowledge Hub</h2>
-                <p className="text-xs text-[#464555]">Live insights from current context</p>
+                <h2 className="text-lg font-semibold text-[#1b1b24]">
+                  Knowledge Hub
+                </h2>
+                <p className="text-xs text-[#464555]">
+                  Live insights from current context
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsKnowledgeHubOpen(false)}
                 aria-label="Close Knowledge Hub"
-                className="rounded-full p-1.5 text-[#464555] hover:bg-[#f0ecf9] transition-colors"
+                className="rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
               >
-                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                <span
+                  className="material-symbols-outlined text-[20px]"
+                  aria-hidden="true"
+                >
+                  close
+                </span>
               </button>
             </div>
 
@@ -2277,25 +2570,60 @@ export function ChatPage() {
               {/* Context Map */}
               <div className="p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Context Map</span>
-                  <button type="button" className="text-[10px] font-bold text-[#3525cd]">EXPAND</button>
+                  <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                    Context Map
+                  </span>
+                  <button
+                    type="button"
+                    className="text-[10px] font-bold text-[#3525cd]"
+                  >
+                    EXPAND
+                  </button>
                 </div>
-                <div className="relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9] group">
+                <div className="group relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9]">
                   <div className="pointer-events-none absolute inset-0 opacity-20">
                     <svg className="h-full w-full">
-                      <line stroke="#3525cd" strokeWidth="1" x1="20%" y1="30%" x2="50%" y2="50%" />
-                      <line stroke="#3525cd" strokeWidth="1" x1="50%" y1="50%" x2="80%" y2="20%" />
-                      <line stroke="#3525cd" strokeWidth="1" x1="50%" y1="50%" x2="70%" y2="80%" />
+                      <line
+                        stroke="#3525cd"
+                        strokeWidth="1"
+                        x1="20%"
+                        y1="30%"
+                        x2="50%"
+                        y2="50%"
+                      />
+                      <line
+                        stroke="#3525cd"
+                        strokeWidth="1"
+                        x1="50%"
+                        y1="50%"
+                        x2="80%"
+                        y2="20%"
+                      />
+                      <line
+                        stroke="#3525cd"
+                        strokeWidth="1"
+                        x1="50%"
+                        y1="50%"
+                        x2="70%"
+                        y2="80%"
+                      />
                     </svg>
                   </div>
                   <div className="absolute top-[30%] left-[20%] h-3 w-3 rounded-full bg-[#3525cd] shadow-lg" />
                   <div className="absolute top-[50%] left-[50%] flex h-6 w-6 items-center justify-center rounded-full bg-[#3525cd] shadow-lg">
-                    <span className="material-symbols-outlined text-xs text-white" style={{ fontVariationSettings: "'FILL' 1" }}>stars</span>
+                    <span
+                      className="material-symbols-outlined text-xs text-white"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      stars
+                    </span>
                   </div>
                   <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
                   <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
-                  <div className="absolute bottom-2 left-2 right-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
-                    CONNECTED: {selectedCitationTurn?.response.citations.length ?? 0} SOURCES
+                  <div className="absolute right-2 bottom-2 left-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
+                    CONNECTED:{" "}
+                    {selectedCitationTurn?.response.citations.length ?? 0}{" "}
+                    SOURCES
                   </div>
                 </div>
               </div>
@@ -2303,49 +2631,75 @@ export function ChatPage() {
               {/* Source Documents */}
               <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Source Documents</span>
-                  <span className="material-symbols-outlined text-sm text-[#464555]" aria-hidden="true">filter_list</span>
+                  <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                    Source Documents
+                  </span>
+                  <span
+                    className="material-symbols-outlined text-sm text-[#464555]"
+                    aria-hidden="true"
+                  >
+                    filter_list
+                  </span>
                 </div>
 
                 {!selectedCitationTurn ? (
-                  <p className="text-xs text-[#777587]">Ask a question to see source documents.</p>
+                  <p className="text-xs text-[#777587]">
+                    Ask a question to see source documents.
+                  </p>
                 ) : selectedCitationTurn.response.not_found ? (
-                  <p className="text-xs text-[#777587]">No citations are shown because the assistant did not find grounded evidence for this response.</p>
+                  <p className="text-xs text-[#777587]">
+                    No citations are shown because the assistant did not find
+                    grounded evidence for this response.
+                  </p>
                 ) : selectedCitationTurn.response.citations.length === 0 ? (
-                  <p className="text-xs text-[#777587]">No citations for this response.</p>
+                  <p className="text-xs text-[#777587]">
+                    No citations for this response.
+                  </p>
                 ) : (
                   <div className="space-y-2">
-                    {selectedCitationTurn.response.citations.map((citation, ci) => (
-                      <button
-                        key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                        type="button"
-                        onClick={() => { setActiveCitation(citation); setIsKnowledgeHubOpen(false); }}
-                        className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
-                      >
-                        <div className="mb-1 flex items-center justify-between">
-                          <span className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}>
-                            {getFileTypeLabel(citation.filename)}
-                          </span>
-                          <span className="material-symbols-outlined text-xs text-[#464555] group-hover:text-[#3525cd]" aria-hidden="true">open_in_new</span>
-                        </div>
-                        <h4
-                          className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
-                          title={citation.filename ?? "Unknown document"}
+                    {selectedCitationTurn.response.citations.map(
+                      (citation, ci) => (
+                        <button
+                          key={`hub:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                          type="button"
+                          onClick={() => {
+                            setActiveCitation(citation);
+                            setIsKnowledgeHubOpen(false);
+                          }}
+                          className="group w-full rounded-lg border border-[#c7c4d8] bg-white p-3 text-left transition-all hover:border-[#3525cd]"
                         >
-                          {citation.filename ?? "Unknown document"}
-                        </h4>
-                        <div className="flex items-center gap-2">
-                          {citation.page_number ? (
-                            <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
-                              PAGE {citation.page_number}
+                          <div className="mb-1 flex items-center justify-between">
+                            <span
+                              className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                            >
+                              {getFileTypeLabel(citation.filename)}
                             </span>
-                          ) : null}
-                          <span className="text-[9px] text-[#464555]">
-                            score {formatScore(citation.score)}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                            <span
+                              className="material-symbols-outlined text-xs text-[#464555] group-hover:text-[#3525cd]"
+                              aria-hidden="true"
+                            >
+                              open_in_new
+                            </span>
+                          </div>
+                          <h4
+                            className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
+                            title={citation.filename ?? "Unknown document"}
+                          >
+                            {citation.filename ?? "Unknown document"}
+                          </h4>
+                          <div className="flex items-center gap-2">
+                            {citation.page_number ? (
+                              <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-[9px]">
+                                PAGE {citation.page_number}
+                              </span>
+                            ) : null}
+                            <span className="text-[9px] text-[#464555]">
+                              score {formatScore(citation.score)}
+                            </span>
+                          </div>
+                        </button>
+                      ),
+                    )}
                     {selectedCitationPipelineHref ? (
                       <Link
                         href={selectedCitationPipelineHref}
@@ -2360,40 +2714,102 @@ export function ChatPage() {
                 {/* Agent timeline */}
                 {selectedAgentRunId ? (
                   <div className="mt-4">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#464555]">Agent timeline</p>
+                    <p className="mb-2 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                      Agent timeline
+                    </p>
                     {selectedAgentRunQuery.isLoading ? (
                       <LoadingState compact title="Loading timeline..." />
                     ) : selectedAgentRunQuery.isError ? (
-                      <ErrorState compact error={selectedAgentRunQuery.error} description={getApiErrorMessage(selectedAgentRunQuery.error)} onRetry={() => { void selectedAgentRunQuery.refetch(); }} />
+                      <ErrorState
+                        compact
+                        error={selectedAgentRunQuery.error}
+                        description={getApiErrorMessage(
+                          selectedAgentRunQuery.error,
+                        )}
+                        onRetry={() => {
+                          void selectedAgentRunQuery.refetch();
+                        }}
+                      />
                     ) : selectedAgentRunQuery.data ? (
                       <div className="space-y-1.5 text-xs text-[#4f4b63]">
                         <div className="flex flex-wrap items-center gap-2 rounded border border-[#ebe8f7] px-2 py-1.5">
-                          <span className={agentRunStatusClass(selectedAgentRunQuery.data.status)}>{selectedAgentRunQuery.data.status}</span>
-                          <span className="truncate text-[#6a6780]">run {selectedAgentRunQuery.data.run_id.slice(0, 8)}…</span>
+                          <span
+                            className={agentRunStatusClass(
+                              selectedAgentRunQuery.data.status,
+                            )}
+                          >
+                            {selectedAgentRunQuery.data.status}
+                          </span>
+                          <span className="truncate text-[#6a6780]">
+                            run {selectedAgentRunQuery.data.run_id.slice(0, 8)}…
+                          </span>
                         </div>
                         {selectedAgentRunQuery.data.approvals.length > 0 && (
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#464555]">Approvals</p>
+                          <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                            Approvals
+                          </p>
                         )}
-                        {selectedAgentRunQuery.data.approvals.filter((a) => a.status === "pending").map((approval) => (
-                          <div key={approval.approval_id} className="rounded border border-amber-200 bg-amber-50 px-2 py-2">
-                            <p className="mb-1 text-xs text-amber-800">{approval.request_summary ?? "Approval needed"}</p>
-                            {canDecideApprovals && (
-                              <div className="flex gap-2">
-                                <button type="button" disabled={decideApprovalMutation.isPending}
-                                  onClick={() => { void handleApprovalDecision({ runId: selectedAgentRunQuery.data.run_id, approvalId: approval.approval_id, status: "approved" }); }}
-                                  className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60">Approve</button>
-                                <button type="button" disabled={decideApprovalMutation.isPending}
-                                  onClick={() => { void handleApprovalDecision({ runId: selectedAgentRunQuery.data.run_id, approvalId: approval.approval_id, status: "rejected" }); }}
-                                  className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60">Reject</button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                        {selectedAgentRunQuery.data.approvals
+                          .filter((a) => a.status === "pending")
+                          .map((approval) => (
+                            <div
+                              key={approval.approval_id}
+                              className="rounded border border-amber-200 bg-amber-50 px-2 py-2"
+                            >
+                              <p className="mb-1 text-xs text-amber-800">
+                                {approval.request_summary ?? "Approval needed"}
+                              </p>
+                              {canDecideApprovals && (
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={decideApprovalMutation.isPending}
+                                    onClick={() => {
+                                      void handleApprovalDecision({
+                                        runId:
+                                          selectedAgentRunQuery.data.run_id,
+                                        approvalId: approval.approval_id,
+                                        status: "approved",
+                                      });
+                                    }}
+                                    className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={decideApprovalMutation.isPending}
+                                    onClick={() => {
+                                      void handleApprovalDecision({
+                                        runId:
+                                          selectedAgentRunQuery.data.run_id,
+                                        approvalId: approval.approval_id,
+                                        status: "rejected",
+                                      });
+                                    }}
+                                    className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60"
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         <ol className="space-y-1">
                           {selectedAgentRunQuery.data.steps.map((step) => (
-                            <li key={step.step_id} className="rounded border border-[#ebe8f7] px-2 py-1.5">
-                              <p className="font-semibold text-[#3f3b58]">{step.sequence}. {step.step_name}</p>
-                              <p className="text-[#6a6780]">{step.status}{step.duration_ms !== null ? ` • ${step.duration_ms}ms` : ""}</p>
+                            <li
+                              key={step.step_id}
+                              className="rounded border border-[#ebe8f7] px-2 py-1.5"
+                            >
+                              <p className="font-semibold text-[#3f3b58]">
+                                {step.sequence}. {step.step_name}
+                              </p>
+                              <p className="text-[#6a6780]">
+                                {step.status}
+                                {step.duration_ms !== null
+                                  ? ` • ${step.duration_ms}ms`
+                                  : ""}
+                              </p>
                             </li>
                           ))}
                         </ol>
@@ -2410,13 +2826,35 @@ export function ChatPage() {
                 {/* Debug details for admins */}
                 {showDebugDetails && selectedCitationTurn?.response.debug ? (
                   <details className="mt-4">
-                    <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-widest text-[#464555]">Retrieval debug</summary>
+                    <summary className="cursor-pointer text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                      Retrieval debug
+                    </summary>
                     <div className="mt-2 space-y-1 text-xs text-[#4f4b63]">
                       <dl className="grid grid-cols-2 gap-1 rounded border border-[#ebe8f7] px-2 py-2">
-                        {(["retrieval_count","selected_count","rerank_applied","embedding_model","llm_model"] as const).map((key) => (
-                          <div key={key} className={key === "llm_model" ? "col-span-2" : ""}>
+                        {(
+                          [
+                            "retrieval_count",
+                            "selected_count",
+                            "rerank_applied",
+                            "embedding_model",
+                            "llm_model",
+                          ] as const
+                        ).map((key) => (
+                          <div
+                            key={key}
+                            className={key === "llm_model" ? "col-span-2" : ""}
+                          >
                             <dt className="font-semibold">{key}</dt>
-                            <dd>{String((selectedCitationTurn.response.debug as Record<string,unknown>)[key] ?? "N/A")}</dd>
+                            <dd>
+                              {String(
+                                (
+                                  selectedCitationTurn.response.debug as Record<
+                                    string,
+                                    unknown
+                                  >
+                                )[key] ?? "N/A",
+                              )}
+                            </dd>
                           </div>
                         ))}
                       </dl>
@@ -2430,17 +2868,25 @@ export function ChatPage() {
             <div className="border-t border-[#e4e1ee] bg-white p-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
-                  <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#464555]">Confidence</p>
+                  <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
+                    Confidence
+                  </p>
                   <p className="text-lg font-semibold text-[#3525cd]">
                     {selectedCitationTurn
-                      ? selectedCitationTurn.response.confidence_category === "high" ? "High"
-                        : selectedCitationTurn.response.confidence_category === "medium" ? "Medium"
-                        : "Low"
+                      ? selectedCitationTurn.response.confidence_category ===
+                        "high"
+                        ? "High"
+                        : selectedCitationTurn.response.confidence_category ===
+                            "medium"
+                          ? "Medium"
+                          : "Low"
                       : "—"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
-                  <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#464555]">Sources</p>
+                  <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
+                    Sources
+                  </p>
                   <p className="text-lg font-semibold text-[#3525cd]">
                     {selectedCitationDocumentCount > 0
                       ? String(selectedCitationDocumentCount).padStart(2, "0")
@@ -2455,13 +2901,20 @@ export function ChatPage() {
               <div className="absolute inset-0 z-50 flex flex-col bg-white">
                 <div className="flex items-center gap-2 border-b border-[#e4e1ee] p-4">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-base font-semibold text-[#1b1b24]">Citation Details</h2>
+                    <h2 className="text-base font-semibold text-[#1b1b24]">
+                      Citation Details
+                    </h2>
                     <p className="flex items-center gap-1 font-mono text-xs text-[#464555]">
-                      <span className="truncate" title={activeCitation.filename ?? "Document"}>
+                      <span
+                        className="truncate"
+                        title={activeCitation.filename ?? "Document"}
+                      >
                         {activeCitation.filename ?? "Document"}
                       </span>
                       {activeCitation.page_number ? (
-                        <span className="shrink-0">• Page {activeCitation.page_number}</span>
+                        <span className="shrink-0">
+                          • Page {activeCitation.page_number}
+                        </span>
                       ) : null}
                     </p>
                   </div>
@@ -2471,34 +2924,54 @@ export function ChatPage() {
                     aria-label="Close citation detail"
                     className="shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
                   >
-                    <span className="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                    <span
+                      className="material-symbols-outlined text-[20px]"
+                      aria-hidden="true"
+                    >
+                      close
+                    </span>
                   </button>
                 </div>
 
                 <div className="hide-scrollbar flex-1 overflow-y-auto bg-[#f5f2ff] p-4">
                   <div className="min-h-[300px] rounded-lg border border-[#c7c4d8] bg-white p-5 font-serif text-sm leading-relaxed text-[#1b1b24] shadow-md">
-                    <div className="mb-4 flex items-end justify-between border-b pb-2 font-sans text-xs italic text-[#464555]">
-                      <span className="max-w-[70%] truncate" title={activeCitation.filename ?? "DOCUMENT"}>
+                    <div className="mb-4 flex items-end justify-between border-b pb-2 font-sans text-xs text-[#464555] italic">
+                      <span
+                        className="max-w-[70%] truncate"
+                        title={activeCitation.filename ?? "DOCUMENT"}
+                      >
                         {activeCitation.filename ?? "DOCUMENT"}
                       </span>
-                      {activeCitation.page_number ? <span>PAGE {activeCitation.page_number}</span> : null}
+                      {activeCitation.page_number ? (
+                        <span>PAGE {activeCitation.page_number}</span>
+                      ) : null}
                     </div>
                     <p className="mb-3 text-xs leading-relaxed opacity-40">
-                      The passage below was retrieved from the indexed knowledge base as a high-relevance match for your query.
+                      The passage below was retrieved from the indexed knowledge
+                      base as a high-relevance match for your query.
                     </p>
                     {activeCitation.text_snippet ? (
                       <div className="my-3 rounded-r border-l-4 border-[#3525cd] bg-[#e2dfff]/30 p-3">
                         <span className="mr-1 rounded bg-[#3525cd]/10 px-1 font-sans text-xs font-bold text-[#3525cd]">
                           CIT
                         </span>
-                        <span className="font-bold">{activeCitation.text_snippet}</span>
+                        <span className="font-bold">
+                          {activeCitation.text_snippet}
+                        </span>
                       </div>
                     ) : (
-                      <p className="text-xs italic text-[#464555]">Snippet not available for this citation.</p>
+                      <p className="text-xs text-[#464555] italic">
+                        Snippet not available for this citation.
+                      </p>
                     )}
                     <p className="mt-3 text-xs leading-relaxed opacity-40">
                       Retrieval score:{" "}
-                      {formatScore(activeCitation.rerank_score ?? activeCitation.similarity_score ?? activeCitation.score)}.
+                      {formatScore(
+                        activeCitation.rerank_score ??
+                          activeCitation.similarity_score ??
+                          activeCitation.score,
+                      )}
+                      .
                     </p>
                   </div>
                 </div>
@@ -2507,24 +2980,34 @@ export function ChatPage() {
                   {activeCitation.document_id ? (
                     <Link
                       href={
-                      `/documents/${encodeURIComponent(activeCitation.document_id)}` +
-                      `?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}` +
-                      (activeCitation.text_snippet ? `&snippet=${encodeURIComponent(activeCitation.text_snippet)}` : "") +
-                      (activeCitation.page_number != null ? `&page=${encodeURIComponent(String(activeCitation.page_number))}` : "") +
-                      `&back=${encodeURIComponent("/chat")}`
-                    }
+                        `/documents/${encodeURIComponent(activeCitation.document_id)}` +
+                        `?chunk_id=${encodeURIComponent(activeCitation.chunk_id)}` +
+                        (activeCitation.text_snippet
+                          ? `&snippet=${encodeURIComponent(activeCitation.text_snippet)}`
+                          : "") +
+                        (activeCitation.page_number != null
+                          ? `&page=${encodeURIComponent(String(activeCitation.page_number))}`
+                          : "") +
+                        `&back=${encodeURIComponent("/chat")}`
+                      }
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
                     >
-                      <span className="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        open_in_new
+                      </span>
                       Jump to Source
                     </Link>
                   ) : (
-                    <p className="text-center text-xs text-[#777587]">Document link unavailable.</p>
+                    <p className="text-center text-xs text-[#777587]">
+                      Document link unavailable.
+                    </p>
                   )}
                 </div>
               </div>
             ) : null}
-
           </aside>
         </div>
       </section>
@@ -2594,7 +3077,8 @@ export function ChatPage() {
                     void contextModalQuery.refetch();
                   }}
                 />
-              ) : contextModalQuery.data?.items.length === 0 && !contextSearchQuery.trim() ? (
+              ) : contextModalQuery.data?.items.length === 0 &&
+                !contextSearchQuery.trim() ? (
                 <EmptyState
                   compact
                   title="No indexed documents available. Upload and index documents first."
@@ -2640,7 +3124,9 @@ export function ChatPage() {
                     onClick={() => {
                       setContextPage((previous) => Math.max(1, previous - 1));
                     }}
-                    disabled={boundedContextPage <= 1 || contextModalQuery.isFetching}
+                    disabled={
+                      boundedContextPage <= 1 || contextModalQuery.isFetching
+                    }
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Previous
@@ -2655,7 +3141,10 @@ export function ChatPage() {
                         Math.min(contextPageCount, previous + 1),
                       );
                     }}
-                    disabled={boundedContextPage >= contextPageCount || contextModalQuery.isFetching}
+                    disabled={
+                      boundedContextPage >= contextPageCount ||
+                      contextModalQuery.isFetching
+                    }
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Next
@@ -2666,11 +3155,17 @@ export function ChatPage() {
             <div className="flex items-center justify-between border-t border-[#e2dff1] bg-[#faf9ff] px-4 py-3">
               {filteredSelectedDocumentIds.length > 0 ? (
                 <p className="text-xs text-[#5f5a74]">
-                  {filteredSelectedDocumentIds.length} file{filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                  {filteredSelectedDocumentIds.length} file
+                  {filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
                 </p>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
-                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">check_circle</span>
+                  <span
+                    className="material-symbols-outlined text-[14px]"
+                    aria-hidden="true"
+                  >
+                    check_circle
+                  </span>
                   All {contextScopeDocumentCount} indexed files included
                 </span>
               )}
@@ -2714,7 +3209,12 @@ export function ChatPage() {
           isDeleting={feedbackDeleteMutation.isPending}
           onSubmit={(reason, comment) => {
             feedbackSubmitMutation.mutate(
-              { messageId: feedbackModalMessageId, rating: "down", reason, comment },
+              {
+                messageId: feedbackModalMessageId,
+                rating: "down",
+                reason,
+                comment,
+              },
               { onSuccess: () => setFeedbackModalMessageId(null) },
             );
           }}

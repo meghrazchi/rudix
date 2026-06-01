@@ -7,9 +7,7 @@
   "paths": {
     "/api/v1/health": {
       "get": {
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "summary": "Health",
         "operationId": "health_api_v1_health_get",
         "responses": {
@@ -28,9 +26,7 @@
     },
     "/api/v1/ready": {
       "get": {
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "summary": "Ready",
         "operationId": "ready_api_v1_ready_get",
         "responses": {
@@ -49,9 +45,7 @@
     },
     "/api/v1/configz": {
       "get": {
-        "tags": [
-          "health"
-        ],
+        "tags": ["health"],
         "summary": "Configz",
         "operationId": "configz_api_v1_configz_get",
         "responses": {
@@ -72,9 +66,7 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Login",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
@@ -113,9 +105,7 @@
     },
     "/api/v1/auth/token/refresh": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Refresh Access Token",
         "operationId": "refresh_access_token_api_v1_auth_token_refresh_post",
         "requestBody": {
@@ -161,9 +151,7 @@
     },
     "/api/v1/auth/logout": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Logout",
         "operationId": "logout_api_v1_auth_logout_post",
         "requestBody": {
@@ -209,9 +197,7 @@
     },
     "/api/v1/documents/upload": {
       "post": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Upload Document",
         "operationId": "upload_document_api_v1_documents_upload_post",
         "requestBody": {
@@ -250,9 +236,7 @@
     },
     "/api/v1/documents/upload-url": {
       "post": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Create Upload Url",
         "operationId": "create_upload_url_api_v1_documents_upload_url_post",
         "requestBody": {
@@ -291,9 +275,7 @@
     },
     "/api/v1/documents": {
       "get": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "List Documents",
         "operationId": "list_documents_api_v1_documents_get",
         "parameters": [
@@ -341,12 +323,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": [
-                "created_at",
-                "updated_at",
-                "filename",
-                "status"
-              ],
+              "enum": ["created_at", "updated_at", "filename", "status"],
               "type": "string",
               "default": "created_at",
               "title": "Sort By"
@@ -357,10 +334,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": [
-                "asc",
-                "desc"
-              ],
+              "enum": ["asc", "desc"],
               "type": "string",
               "default": "desc",
               "title": "Sort Order"
@@ -427,9 +401,7 @@
     },
     "/api/v1/documents/{document_id}/chunks": {
       "get": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Get Document Chunks",
         "operationId": "get_document_chunks_api_v1_documents__document_id__chunks_get",
         "parameters": [
@@ -502,9 +474,7 @@
     },
     "/api/v1/documents/{document_id}": {
       "get": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Get Document",
         "operationId": "get_document_api_v1_documents__document_id__get",
         "parameters": [
@@ -542,9 +512,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Delete Document Endpoint",
         "operationId": "delete_document_endpoint_api_v1_documents__document_id__delete",
         "parameters": [
@@ -584,9 +552,7 @@
     },
     "/api/v1/documents/{document_id}/download": {
       "get": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Download Document",
         "operationId": "download_document_api_v1_documents__document_id__download_get",
         "parameters": [
@@ -624,9 +590,7 @@
     },
     "/api/v1/documents/{document_id}/reindex": {
       "post": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Reindex Document Endpoint",
         "operationId": "reindex_document_endpoint_api_v1_documents__document_id__reindex_post",
         "parameters": [
@@ -666,9 +630,7 @@
     },
     "/api/v1/documents/{document_id}/status": {
       "get": {
-        "tags": [
-          "documents"
-        ],
+        "tags": ["documents"],
         "summary": "Get Document Status",
         "operationId": "get_document_status_api_v1_documents__document_id__status_get",
         "parameters": [
@@ -708,9 +670,7 @@
     },
     "/api/v1/chat/sessions": {
       "post": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "Create Chat Session",
         "operationId": "create_chat_session_api_v1_chat_sessions_post",
         "requestBody": {
@@ -747,9 +707,7 @@
         }
       },
       "get": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "List Chat Sessions",
         "operationId": "list_chat_sessions_api_v1_chat_sessions_get",
         "parameters": [
@@ -803,9 +761,7 @@
     },
     "/api/v1/chat/sessions/{session_id}": {
       "get": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "Get Chat Session",
         "operationId": "get_chat_session_api_v1_chat_sessions__session_id__get",
         "parameters": [
@@ -845,9 +801,7 @@
     },
     "/api/v1/chat/sessions/{session_id}/messages": {
       "get": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "List Chat Session Messages",
         "operationId": "list_chat_session_messages_api_v1_chat_sessions__session_id__messages_get",
         "parameters": [
@@ -908,9 +862,7 @@
         }
       },
       "post": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "Create Chat Message",
         "operationId": "create_chat_message_api_v1_chat_sessions__session_id__messages_post",
         "parameters": [
@@ -960,9 +912,7 @@
     },
     "/api/v1/chat": {
       "post": {
-        "tags": [
-          "chat"
-        ],
+        "tags": ["chat"],
         "summary": "Query Chat",
         "operationId": "query_chat_api_v1_chat_post",
         "requestBody": {
@@ -1001,9 +951,7 @@
     },
     "/api/v1/agent/runs": {
       "post": {
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "summary": "Create Agent Run",
         "operationId": "create_agent_run_api_v1_agent_runs_post",
         "requestBody": {
@@ -1042,9 +990,7 @@
     },
     "/api/v1/agent/runs/{run_id}": {
       "get": {
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "summary": "Get Agent Run",
         "operationId": "get_agent_run_api_v1_agent_runs__run_id__get",
         "parameters": [
@@ -1084,9 +1030,7 @@
     },
     "/api/v1/agent/runs/{run_id}/stream": {
       "get": {
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "summary": "Stream Agent Run",
         "operationId": "stream_agent_run_api_v1_agent_runs__run_id__stream_get",
         "parameters": [
@@ -1130,9 +1074,7 @@
     },
     "/api/v1/agent/runs/{run_id}/approvals/{approval_id}/decision": {
       "post": {
-        "tags": [
-          "agent"
-        ],
+        "tags": ["agent"],
         "summary": "Decide Agent Run Approval",
         "operationId": "decide_agent_run_approval_api_v1_agent_runs__run_id__approvals__approval_id__decision_post",
         "parameters": [
@@ -1191,9 +1133,7 @@
     },
     "/api/v1/evaluation-sets": {
       "post": {
-        "tags": [
-          "evaluation-sets"
-        ],
+        "tags": ["evaluation-sets"],
         "summary": "Create Evaluation Set",
         "operationId": "create_evaluation_set_api_v1_evaluation_sets_post",
         "requestBody": {
@@ -1230,9 +1170,7 @@
         }
       },
       "get": {
-        "tags": [
-          "evaluation-sets"
-        ],
+        "tags": ["evaluation-sets"],
         "summary": "List Evaluation Sets",
         "operationId": "list_evaluation_sets_api_v1_evaluation_sets_get",
         "parameters": [
@@ -1286,9 +1224,7 @@
     },
     "/api/v1/evaluation-sets/{evaluation_set_id}/questions": {
       "post": {
-        "tags": [
-          "evaluation-sets"
-        ],
+        "tags": ["evaluation-sets"],
         "summary": "Create Evaluation Question",
         "operationId": "create_evaluation_question_api_v1_evaluation_sets__evaluation_set_id__questions_post",
         "parameters": [
@@ -1336,9 +1272,7 @@
         }
       },
       "get": {
-        "tags": [
-          "evaluation-sets"
-        ],
+        "tags": ["evaluation-sets"],
         "summary": "List Evaluation Questions",
         "operationId": "list_evaluation_questions_api_v1_evaluation_sets__evaluation_set_id__questions_get",
         "parameters": [
@@ -1401,9 +1335,7 @@
     },
     "/api/v1/evaluations/run": {
       "post": {
-        "tags": [
-          "evaluations"
-        ],
+        "tags": ["evaluations"],
         "summary": "Trigger Evaluation",
         "operationId": "trigger_evaluation_api_v1_evaluations_run_post",
         "requestBody": {
@@ -1442,9 +1374,7 @@
     },
     "/api/v1/evaluations/runs/{evaluation_run_id}": {
       "get": {
-        "tags": [
-          "evaluations"
-        ],
+        "tags": ["evaluations"],
         "summary": "Get Evaluation Run Detail",
         "operationId": "get_evaluation_run_detail_api_v1_evaluations_runs__evaluation_run_id__get",
         "parameters": [
@@ -1507,9 +1437,7 @@
     },
     "/api/v1/pipeline/steps": {
       "get": {
-        "tags": [
-          "pipeline"
-        ],
+        "tags": ["pipeline"],
         "summary": "List Pipeline Steps",
         "operationId": "list_pipeline_steps_api_v1_pipeline_steps_get",
         "responses": {
@@ -1528,9 +1456,7 @@
     },
     "/api/v1/pipeline/runs/resolve": {
       "get": {
-        "tags": [
-          "pipeline"
-        ],
+        "tags": ["pipeline"],
         "summary": "Resolve Pipeline Run",
         "operationId": "resolve_pipeline_run_api_v1_pipeline_runs_resolve_get",
         "parameters": [
@@ -1628,9 +1554,7 @@
     },
     "/api/v1/pipeline/runs/{run_id}": {
       "get": {
-        "tags": [
-          "pipeline"
-        ],
+        "tags": ["pipeline"],
         "summary": "Get Pipeline Run Graph",
         "operationId": "get_pipeline_run_graph_api_v1_pipeline_runs__run_id__get",
         "parameters": [
@@ -1670,9 +1594,7 @@
     },
     "/api/v1/pipeline/runs/{run_id}/nodes/{node_id}": {
       "get": {
-        "tags": [
-          "pipeline"
-        ],
+        "tags": ["pipeline"],
         "summary": "Get Pipeline Node Detail",
         "operationId": "get_pipeline_node_detail_api_v1_pipeline_runs__run_id__nodes__node_id__get",
         "parameters": [
@@ -1721,9 +1643,7 @@
     },
     "/api/v1/admin/usage": {
       "get": {
-        "tags": [
-          "admin"
-        ],
+        "tags": ["admin"],
         "summary": "Get Admin Usage Summary",
         "operationId": "get_admin_usage_summary_api_v1_admin_usage_get",
         "parameters": [
@@ -1766,11 +1686,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": [
-                "day",
-                "week",
-                "month"
-              ],
+              "enum": ["day", "week", "month"],
               "type": "string",
               "default": "day",
               "title": "Granularity"
@@ -1820,9 +1736,7 @@
     },
     "/api/v1/admin/agent/diagnostics": {
       "get": {
-        "tags": [
-          "admin"
-        ],
+        "tags": ["admin"],
         "summary": "Get Admin Agent Diagnostics",
         "operationId": "get_admin_agent_diagnostics_api_v1_admin_agent_diagnostics_get",
         "parameters": [
@@ -1865,11 +1779,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "enum": [
-                "day",
-                "week",
-                "month"
-              ],
+              "enum": ["day", "week", "month"],
               "type": "string",
               "default": "day",
               "title": "Granularity"
@@ -1919,9 +1829,7 @@
     },
     "/api/v1/admin/audit-logs": {
       "get": {
-        "tags": [
-          "admin"
-        ],
+        "tags": ["admin"],
         "summary": "List Admin Audit Logs",
         "operationId": "list_admin_audit_logs_api_v1_admin_audit_logs_get",
         "parameters": [
@@ -2062,9 +1970,7 @@
     },
     "/api/v1/admin/governance": {
       "get": {
-        "tags": [
-          "admin"
-        ],
+        "tags": ["admin"],
         "summary": "Get Governance Policy",
         "operationId": "get_governance_policy_api_v1_admin_governance_get",
         "responses": {
@@ -2081,9 +1987,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "admin"
-        ],
+        "tags": ["admin"],
         "summary": "Update Governance Policy",
         "operationId": "update_governance_policy_api_v1_admin_governance_patch",
         "requestBody": {
@@ -2122,9 +2026,7 @@
     },
     "/api/v1/team/members": {
       "get": {
-        "tags": [
-          "team"
-        ],
+        "tags": ["team"],
         "summary": "List Team Members",
         "operationId": "list_team_members_api_v1_team_members_get",
         "parameters": [
@@ -2178,9 +2080,7 @@
     },
     "/api/v1/team/members/invite": {
       "post": {
-        "tags": [
-          "team"
-        ],
+        "tags": ["team"],
         "summary": "Invite Team Member",
         "operationId": "invite_team_member_api_v1_team_members_invite_post",
         "requestBody": {
@@ -2219,9 +2119,7 @@
     },
     "/api/v1/team/members/{member_id}/role": {
       "patch": {
-        "tags": [
-          "team"
-        ],
+        "tags": ["team"],
         "summary": "Update Team Member Role",
         "operationId": "update_team_member_role_api_v1_team_members__member_id__role_patch",
         "parameters": [
@@ -2271,9 +2169,7 @@
     },
     "/api/v1/team/members/{member_id}": {
       "delete": {
-        "tags": [
-          "team"
-        ],
+        "tags": ["team"],
         "summary": "Remove Team Member",
         "operationId": "remove_team_member_api_v1_team_members__member_id__delete",
         "parameters": [
@@ -2340,9 +2236,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "status"
-        ],
+        "required": ["status"],
         "title": "AgentApprovalDecisionRequest"
       },
       "AgentApprovalResponse": {
@@ -2467,12 +2361,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "approval_id",
-          "status",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["approval_id", "status", "created_at", "updated_at"],
         "title": "AgentApprovalResponse"
       },
       "AgentBudgetConfig": {
@@ -2668,12 +2557,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "organization_id",
-          "range",
-          "totals",
-          "series"
-        ],
+        "required": ["organization_id", "range", "totals", "series"],
         "title": "AgentDiagnosticsResponse"
       },
       "AgentDiagnosticsTotalsResponse": {
@@ -2778,9 +2662,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "request"
-        ],
+        "required": ["request"],
         "title": "AgentRunCreateRequest"
       },
       "AgentRunCreateResponse": {
@@ -2790,9 +2672,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "run"
-        ],
+        "required": ["run"],
         "title": "AgentRunCreateResponse"
       },
       "AgentRunDetailResponse": {
@@ -3033,20 +2913,12 @@
           }
         },
         "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
+        "required": ["code", "message"],
         "title": "AgentRuntimeError"
       },
       "AgentRuntimeMode": {
         "type": "string",
-        "enum": [
-          "auto",
-          "answer",
-          "summarize",
-          "compare"
-        ],
+        "enum": ["auto", "answer", "summarize", "compare"],
         "title": "AgentRuntimeMode"
       },
       "AgentRuntimeOutcome": {
@@ -3078,10 +2950,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "answer",
-          "mode"
-        ],
+        "required": ["answer", "mode"],
         "title": "AgentRuntimeOutcome"
       },
       "AgentRuntimeRequest": {
@@ -3177,9 +3046,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "objective"
-        ],
+        "required": ["objective"],
         "title": "AgentRuntimeRequest"
       },
       "AgentRuntimeResult": {
@@ -3235,10 +3102,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "run_id",
-          "status"
-        ],
+        "required": ["run_id", "status"],
         "title": "AgentRuntimeResult"
       },
       "AgentStepResponse": {
@@ -3588,13 +3452,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset",
-          "range"
-        ],
+        "required": ["items", "total", "limit", "offset", "range"],
         "title": "AuditLogListResponse"
       },
       "AuthLoginRequest": {
@@ -3613,10 +3471,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
+        "required": ["email", "password"],
         "title": "AuthLoginRequest"
       },
       "AuthLogoutRequest": {
@@ -3696,10 +3551,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "access_token",
-          "expires_in"
-        ],
+        "required": ["access_token", "expires_in"],
         "title": "AuthRefreshResponse"
       },
       "AuthSessionResponse": {
@@ -3764,13 +3616,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "access_token",
-          "expires_in",
-          "user_id",
-          "email",
-          "role"
-        ],
+        "required": ["access_token", "expires_in", "user_id", "email", "role"],
         "title": "AuthSessionResponse"
       },
       "Body_upload_document_api_v1_documents_upload_post": {
@@ -3782,9 +3628,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "file"
-        ],
+        "required": ["file"],
         "title": "Body_upload_document_api_v1_documents_upload_post"
       },
       "ChatCitationResponse": {
@@ -3876,10 +3720,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "chunk_id"
-        ],
+        "required": ["document_id", "chunk_id"],
         "title": "ChatCitationResponse"
       },
       "ChatConfidenceExplanationResponse": {
@@ -4062,9 +3903,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "message"
-        ],
+        "required": ["message"],
         "title": "ChatMessageRequest"
       },
       "ChatMessageResponse": {
@@ -4101,12 +3940,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "session_id",
-          "message_id",
-          "answer",
-          "created_at"
-        ],
+        "required": ["session_id", "message_id", "answer", "created_at"],
         "title": "ChatMessageResponse"
       },
       "ChatQueryRequest": {
@@ -4156,9 +3990,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "question"
-        ],
+        "required": ["question"],
         "title": "ChatQueryRequest"
       },
       "ChatQueryResponse": {
@@ -4183,11 +4015,7 @@
           },
           "confidence_category": {
             "type": "string",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
+            "enum": ["low", "medium", "high"],
             "title": "Confidence Category"
           },
           "confidence_explanation": {
@@ -4250,12 +4078,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["items", "total", "limit", "offset"],
         "title": "ChatSessionListResponse"
       },
       "ChatSessionMessageListResponse": {
@@ -4281,12 +4104,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["items", "total", "limit", "offset"],
         "title": "ChatSessionMessageListResponse"
       },
       "ChatSessionMessageResponse": {
@@ -4297,11 +4115,7 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "user",
-              "assistant",
-              "system"
-            ],
+            "enum": ["user", "assistant", "system"],
             "title": "Role"
           },
           "content": {
@@ -4323,11 +4137,7 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "low",
-                  "medium",
-                  "high"
-                ]
+                "enum": ["low", "medium", "high"]
               },
               {
                 "type": "null"
@@ -4349,12 +4159,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "message_id",
-          "role",
-          "content",
-          "created_at"
-        ],
+        "required": ["message_id", "role", "content", "created_at"],
         "title": "ChatSessionMessageResponse"
       },
       "ChatSessionResponse": {
@@ -4391,11 +4196,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "session_id",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["session_id", "created_at", "updated_at"],
         "title": "ChatSessionResponse"
       },
       "Citation": {
@@ -4432,10 +4233,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "chunk_id"
-        ],
+        "required": ["document_id", "chunk_id"],
         "title": "Citation"
       },
       "CreateChatSessionRequest": {
@@ -4515,9 +4313,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "question"
-        ],
+        "required": ["question"],
         "title": "CreateEvaluationQuestionRequest"
       },
       "CreateEvaluationSetRequest": {
@@ -4542,9 +4338,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "CreateEvaluationSetRequest"
       },
       "CreateUploadUrlRequest": {
@@ -4557,11 +4351,7 @@
           },
           "file_type": {
             "type": "string",
-            "enum": [
-              "pdf",
-              "txt",
-              "docx"
-            ],
+            "enum": ["pdf", "txt", "docx"],
             "title": "File Type"
           },
           "file_size_bytes": {
@@ -4572,11 +4362,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "filename",
-          "file_type",
-          "file_size_bytes"
-        ],
+        "required": ["filename", "file_type", "file_size_bytes"],
         "title": "CreateUploadUrlRequest"
       },
       "CreateUploadUrlResponse": {
@@ -4600,11 +4386,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "upload_url",
-          "object_key"
-        ],
+        "required": ["document_id", "upload_url", "object_key"],
         "title": "CreateUploadUrlResponse"
       },
       "DeleteDocumentResponse": {
@@ -4615,18 +4397,12 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "deleting",
-              "deleted"
-            ],
+            "enum": ["deleting", "deleted"],
             "title": "Status"
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "status"
-        ],
+        "required": ["document_id", "status"],
         "title": "DeleteDocumentResponse"
       },
       "DocumentChunkPreviewResponse": {
@@ -4727,13 +4503,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["document_id", "items", "total", "limit", "offset"],
         "title": "DocumentChunksResponse"
       },
       "DocumentDetailResponse": {
@@ -4748,11 +4518,7 @@
           },
           "file_type": {
             "type": "string",
-            "enum": [
-              "pdf",
-              "txt",
-              "docx"
-            ],
+            "enum": ["pdf", "txt", "docx"],
             "title": "File Type"
           },
           "status": {
@@ -4859,13 +4625,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "stage",
-          "code",
-          "category",
-          "retryable",
-          "message"
-        ],
+        "required": ["stage", "code", "category", "retryable", "message"],
         "title": "DocumentErrorDetails"
       },
       "DocumentLifecycleTimelineStepResponse": {
@@ -4884,13 +4644,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "running",
-              "completed",
-              "failed",
-              "skipped"
-            ],
+            "enum": ["pending", "running", "completed", "failed", "skipped"],
             "title": "Status"
           },
           "document_id": {
@@ -4975,13 +4729,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "step",
-          "label",
-          "description",
-          "status",
-          "document_id"
-        ],
+        "required": ["step", "label", "description", "status", "document_id"],
         "title": "DocumentLifecycleTimelineStepResponse"
       },
       "DocumentListItemResponse": {
@@ -4996,11 +4744,7 @@
           },
           "file_type": {
             "type": "string",
-            "enum": [
-              "pdf",
-              "txt",
-              "docx"
-            ],
+            "enum": ["pdf", "txt", "docx"],
             "title": "File Type"
           },
           "status": {
@@ -5098,20 +4842,12 @@
           },
           "sort_by": {
             "type": "string",
-            "enum": [
-              "created_at",
-              "updated_at",
-              "filename",
-              "status"
-            ],
+            "enum": ["created_at", "updated_at", "filename", "status"],
             "title": "Sort By"
           },
           "sort_order": {
             "type": "string",
-            "enum": [
-              "asc",
-              "desc"
-            ],
+            "enum": ["asc", "desc"],
             "title": "Sort Order"
           }
         },
@@ -5182,10 +4918,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "status"
-        ],
+        "required": ["document_id", "status"],
         "title": "DocumentStatusResponse"
       },
       "EvaluationQuestionListResponse": {
@@ -5215,13 +4948,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "evaluation_set_id",
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["evaluation_set_id", "items", "total", "limit", "offset"],
         "title": "EvaluationQuestionListResponse"
       },
       "EvaluationQuestionResponse": {
@@ -5381,12 +5108,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "queued",
-              "running",
-              "completed",
-              "failed"
-            ],
+            "enum": ["queued", "running", "completed", "failed"],
             "title": "Status"
           },
           "config": {
@@ -5500,12 +5222,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["items", "total", "limit", "offset"],
         "title": "EvaluationRunResultListResponse"
       },
       "EvaluationRunResultResponse": {
@@ -5669,12 +5386,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["items", "total", "limit", "offset"],
         "title": "EvaluationSetListResponse"
       },
       "EvaluationSetResponse": {
@@ -5715,12 +5427,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "evaluation_set_id",
-          "name",
-          "created_at",
-          "updated_at"
-        ],
+        "required": ["evaluation_set_id", "name", "created_at", "updated_at"],
         "title": "EvaluationSetResponse"
       },
       "ExternalMCPServerPolicy": {
@@ -5821,10 +5528,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "server_id",
-          "base_url"
-        ],
+        "required": ["server_id", "base_url"],
         "title": "ExternalMCPServerPolicy"
       },
       "GovernanceBudgetConfig-Input": {
@@ -6086,11 +5790,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "organization_id",
-          "policy",
-          "mcp_status"
-        ],
+        "required": ["organization_id", "policy", "mcp_status"],
         "title": "GovernancePolicyResponse"
       },
       "GovernancePolicyState": {
@@ -6370,9 +6070,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "ok"
-        ],
+        "required": ["ok"],
         "title": "HealthDependency"
       },
       "HealthResponse": {
@@ -6402,10 +6100,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "status",
-          "timestamp"
-        ],
+        "required": ["status", "timestamp"],
         "title": "HealthResponse"
       },
       "InviteTeamMemberRequest": {
@@ -6418,19 +6113,13 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "member",
-              "viewer"
-            ],
+            "enum": ["admin", "member", "viewer"],
             "title": "Role",
             "default": "member"
           }
         },
         "type": "object",
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "title": "InviteTeamMemberRequest"
       },
       "InviteTeamMemberResponse": {
@@ -6444,26 +6133,17 @@
           }
         },
         "type": "object",
-        "required": [
-          "member",
-          "invited"
-        ],
+        "required": ["member", "invited"],
         "title": "InviteTeamMemberResponse"
       },
       "MCPServerAuthType": {
         "type": "string",
-        "enum": [
-          "none",
-          "bearer",
-          "header"
-        ],
+        "enum": ["none", "bearer", "header"],
         "title": "MCPServerAuthType"
       },
       "MCPServerTransport": {
         "type": "string",
-        "enum": [
-          "streamable_http"
-        ],
+        "enum": ["streamable_http"],
         "title": "MCPServerTransport"
       },
       "PipelineEdgeResponse": {
@@ -6482,11 +6162,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "source",
-          "target"
-        ],
+        "required": ["id", "source", "target"],
         "title": "PipelineEdgeResponse"
       },
       "PipelineNodeDetailResponse": {
@@ -6505,13 +6181,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "running",
-              "completed",
-              "failed",
-              "skipped"
-            ],
+            "enum": ["pending", "running", "completed", "failed", "skipped"],
             "title": "Status"
           },
           "inputs": {
@@ -6594,12 +6264,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "node_id",
-          "title",
-          "description",
-          "status"
-        ],
+        "required": ["node_id", "title", "description", "status"],
         "title": "PipelineNodeDetailResponse"
       },
       "PipelineNodeResponse": {
@@ -6614,11 +6279,7 @@
           },
           "section": {
             "type": "string",
-            "enum": [
-              "ingestion",
-              "query",
-              "evaluation"
-            ],
+            "enum": ["ingestion", "query", "evaluation"],
             "title": "Section"
           },
           "description": {
@@ -6634,13 +6295,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "pending",
-              "running",
-              "completed",
-              "failed",
-              "skipped"
-            ],
+            "enum": ["pending", "running", "completed", "failed", "skipped"],
             "title": "Status"
           },
           "started_at": {
@@ -6685,12 +6340,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "label",
-          "section",
-          "status"
-        ],
+        "required": ["id", "label", "section", "status"],
         "title": "PipelineNodeResponse"
       },
       "PipelineRunGraphResponse": {
@@ -6748,11 +6398,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "pipeline_run_id",
-          "pipeline_type",
-          "status"
-        ],
+        "required": ["pipeline_run_id", "pipeline_type", "status"],
         "title": "PipelineRunResolveResponse"
       },
       "PipelineStepListResponse": {
@@ -6766,9 +6412,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "steps"
-        ],
+        "required": ["steps"],
         "title": "PipelineStepListResponse"
       },
       "ReindexDocumentResponse": {
@@ -6789,11 +6433,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "document_id",
-          "status",
-          "queue_status"
-        ],
+        "required": ["document_id", "status", "queue_status"],
         "title": "ReindexDocumentResponse"
       },
       "RunEvaluationRequest": {
@@ -6809,9 +6449,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "evaluation_set_id"
-        ],
+        "required": ["evaluation_set_id"],
         "title": "RunEvaluationRequest"
       },
       "RunEvaluationResponse": {
@@ -6828,9 +6466,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "evaluation_run_id"
-        ],
+        "required": ["evaluation_run_id"],
         "title": "RunEvaluationResponse"
       },
       "TeamMemberListResponse": {
@@ -6856,12 +6492,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "items",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["items", "total", "limit", "offset"],
         "title": "TeamMemberListResponse"
       },
       "TeamMemberRemoveResponse": {
@@ -6906,13 +6537,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "active",
-              "invited",
-              "disabled",
-              "suspended",
-              "unknown"
-            ],
+            "enum": ["active", "invited", "disabled", "suspended", "unknown"],
             "title": "Status"
           },
           "created_at": {
@@ -6957,18 +6582,12 @@
         "properties": {
           "role": {
             "type": "string",
-            "enum": [
-              "admin",
-              "member",
-              "viewer"
-            ],
+            "enum": ["admin", "member", "viewer"],
             "title": "Role"
           }
         },
         "type": "object",
-        "required": [
-          "role"
-        ],
+        "required": ["role"],
         "title": "UpdateTeamMemberRoleRequest"
       },
       "UploadDocumentResponse": {
@@ -6988,10 +6607,7 @@
           },
           "queue_status": {
             "type": "string",
-            "enum": [
-              "queued",
-              "deferred"
-            ],
+            "enum": ["queued", "deferred"],
             "title": "Queue Status"
           },
           "checksum": {
@@ -7101,10 +6717,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "from",
-          "to"
-        ],
+        "required": ["from", "to"],
         "title": "UsageSummaryRange"
       },
       "UsageSummaryResponse": {
@@ -7118,11 +6731,7 @@
           },
           "granularity": {
             "type": "string",
-            "enum": [
-              "day",
-              "week",
-              "month"
-            ],
+            "enum": ["day", "week", "month"],
             "title": "Granularity"
           },
           "totals": {
@@ -7240,11 +6849,7 @@
           }
         },
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       }
     }

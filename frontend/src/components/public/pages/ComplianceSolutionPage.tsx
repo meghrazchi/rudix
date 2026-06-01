@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function ComplianceBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Compliance
         </li>
@@ -53,12 +60,12 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(53,37,205,0.05),transparent_50%)]" />
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div className="space-y-8">
-          <span className="inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3323cc]">
+          <span className="inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
             Solution: Compliance
           </span>
           <h1
             id="compliance-hero-title"
-            className="max-w-xl text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="max-w-xl text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Find audit evidence faster.
           </h1>
@@ -69,7 +76,7 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
           <div className="flex flex-wrap gap-4 pt-4">
             <PublicActionLink
               href={demoHref}
-              className="rounded-xl bg-[#3525cd] px-8 py-4 text-[24px] font-semibold leading-8 text-white shadow-lg transition hover:opacity-90 active:scale-95"
+              className="rounded-xl bg-[#3525cd] px-8 py-4 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-95"
             >
               Speak to us about compliance
             </PublicActionLink>
@@ -82,7 +89,7 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
             <div className="mb-6 flex items-center justify-between border-b border-[#c7c4d8] pb-4">
               <div className="flex items-center gap-3">
                 <Sym name="shield" className="text-[#3525cd]" />
-                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+                <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
                   Compliance Engine
                 </span>
               </div>
@@ -95,7 +102,7 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
             <div className="space-y-4 font-mono text-[14px] leading-5">
               <div className="flex items-start gap-4 rounded-lg border border-[#c7c4d8]/20 bg-[#eeedf3] p-3">
                 <Sym name="search" className="mt-1 shrink-0 text-[#3525cd]" />
-                <p className="italic text-[#464555]">
+                <p className="text-[#464555] italic">
                   "What supports our access review process?"
                 </p>
               </div>
@@ -145,12 +152,15 @@ function ComplianceProblemSection() {
   ];
 
   return (
-    <section aria-labelledby="compliance-problem-title" className="bg-[#f4f3f9] py-24">
+    <section
+      aria-labelledby="compliance-problem-title"
+      className="bg-[#f4f3f9] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 space-y-4 text-center">
           <h2
             id="compliance-problem-title"
-            className="text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Audit evidence is difficult to find when it is spread across files.
           </h2>
@@ -170,7 +180,7 @@ function ComplianceProblemSection() {
               >
                 <Sym name={p.icon} />
               </div>
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -194,12 +204,15 @@ function ComplianceDocumentSourcesSection() {
   ];
 
   return (
-    <section aria-labelledby="compliance-doc-sources-title" className="bg-white py-24">
+    <section
+      aria-labelledby="compliance-doc-sources-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div>
           <h2
             id="compliance-doc-sources-title"
-            className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Upload everything. Find anything.
           </h2>
@@ -214,7 +227,9 @@ function ComplianceDocumentSourcesSection() {
                 className="flex items-center gap-3 rounded-lg border border-[#c7c4d8] bg-[#faf9ff] p-4"
               >
                 <Sym name={s.icon} className="text-[#3525cd]" />
-                <span className="text-base leading-6 text-[#1a1b20]">{s.label}</span>
+                <span className="text-base leading-6 text-[#1a1b20]">
+                  {s.label}
+                </span>
               </li>
             ))}
           </ul>
@@ -297,7 +312,7 @@ function ComplianceExampleQuestionsSection() {
         <div className="mb-16">
           <h2
             id="compliance-questions-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-white"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
             Interrogate your evidence.
           </h2>
@@ -313,7 +328,7 @@ function ComplianceExampleQuestionsSection() {
               className="group rounded-xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition hover:border-[#3525cd]"
             >
               <Sym name={e.icon} className="mb-6 block text-[#c3c0ff]" />
-              <p className="mb-4 text-lg font-semibold italic leading-7">
+              <p className="mb-4 text-lg leading-7 font-semibold italic">
                 "{e.question}"
               </p>
               <div className="mb-6 h-px w-12 bg-white/10 transition-all group-hover:w-full" />
@@ -376,7 +391,10 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
   ];
 
   return (
-    <section aria-labelledby="compliance-trust-title" className="bg-white py-24">
+    <section
+      aria-labelledby="compliance-trust-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="relative overflow-hidden rounded-3xl border border-[#c7c4d8] bg-[#eeedf3] p-12 lg:p-16">
           <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-[#3525cd]/5 blur-3xl" />
@@ -385,7 +403,7 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
               <div>
                 <h2
                   id="compliance-trust-title"
-                  className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+                  className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
                 >
                   Built for enterprise-grade trust.
                 </h2>
@@ -402,10 +420,12 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                       <Sym name={f.icon} className="text-[#3525cd]" />
                     </div>
                     <div>
-                      <h3 className="mb-2 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+                      <h3 className="mb-2 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                         {f.title}
                       </h3>
-                      <p className="text-base leading-6 text-[#464555]">{f.body}</p>
+                      <p className="text-base leading-6 text-[#464555]">
+                        {f.body}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -414,7 +434,7 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
               <div className="rounded-xl border border-[#c7c4d8] bg-[#f4f3f9] p-5">
                 <div className="mb-2 flex items-center gap-2 text-[#777587]">
                   <Sym name="info" className="text-base" />
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em]">
+                  <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
                     Compliance disclaimer
                   </span>
                 </div>
@@ -438,9 +458,12 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
               <div className="space-y-6 rounded-2xl border border-[#c7c4d8] bg-white p-8 shadow-xl">
                 <div className="mb-2 flex items-center gap-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#3525cd]/10">
-                    <Sym name="history" className="text-[20px] text-[#3525cd]" />
+                    <Sym
+                      name="history"
+                      className="text-[20px] text-[#3525cd]"
+                    />
                   </div>
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#464555]">
+                  <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
                     Activity Stream
                   </span>
                 </div>
@@ -472,7 +495,7 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                 </ul>
 
                 <div className="flex justify-center border-t border-[#c7c4d8] pt-4">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3525cd]">
+                  <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
                     View Full Audit Trail
                   </span>
                 </div>
@@ -503,7 +526,7 @@ function ComplianceFinalCtaSection({
       <div className="mx-auto max-w-4xl px-10 text-center">
         <h2
           id="compliance-cta-title"
-          className="mb-8 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+          className="mb-8 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
         >
           Make compliance evidence easier to find.
         </h2>
@@ -514,13 +537,13 @@ function ComplianceFinalCtaSection({
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <PublicActionLink
             href={demoHref}
-            className="rounded-xl bg-[#3525cd] px-10 py-5 text-[24px] font-semibold leading-8 text-white shadow-lg transition hover:shadow-xl active:scale-95"
+            className="rounded-xl bg-[#3525cd] px-10 py-5 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
           >
             Speak to us
           </PublicActionLink>
           <PublicActionLink
             href={docsHref}
-            className="rounded-xl border border-[#3525cd] bg-white px-10 py-5 text-[24px] font-semibold leading-8 text-[#3525cd] transition hover:bg-[#e2dfff]/30 active:scale-95"
+            className="rounded-xl border border-[#3525cd] bg-white px-10 py-5 text-[24px] leading-8 font-semibold text-[#3525cd] transition hover:bg-[#e2dfff]/30 active:scale-95"
           >
             View Documentation
           </PublicActionLink>
@@ -543,7 +566,10 @@ export function ComplianceSolutionPage() {
       <ComplianceDocumentSourcesSection />
       <ComplianceExampleQuestionsSection />
       <ComplianceTrustSection securityHref={links.security} />
-      <ComplianceFinalCtaSection demoHref={links.requestDemo} docsHref={links.docs} />
+      <ComplianceFinalCtaSection
+        demoHref={links.requestDemo}
+        docsHref={links.docs}
+      />
     </>
   );
 }

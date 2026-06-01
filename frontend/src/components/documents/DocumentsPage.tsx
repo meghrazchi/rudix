@@ -316,7 +316,14 @@ export function DocumentsPage() {
       sort_order: sortOrder,
       filename_query: debouncedFilenameSearch || undefined,
     }),
-    [offset, sortBy, sortOrder, statusFilter, fileTypeFilter, debouncedFilenameSearch],
+    [
+      offset,
+      sortBy,
+      sortOrder,
+      statusFilter,
+      fileTypeFilter,
+      debouncedFilenameSearch,
+    ],
   );
 
   const documentsQuery = useQuery({
@@ -1028,7 +1035,13 @@ export function DocumentsPage() {
         total: prev.total,
         items: prev.items.map((item, i) => {
           if (i !== index) return item;
-          return { ...item, state: "pending" as const, message: null, requestId: null, canRetry: false };
+          return {
+            ...item,
+            state: "pending" as const,
+            message: null,
+            requestId: null,
+            canRetry: false,
+          };
         }),
       };
     });
@@ -1235,7 +1248,7 @@ export function DocumentsPage() {
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Search
               <div className="relative">
-                <span className="material-symbols-outlined pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-base text-[#9993b8]">
+                <span className="material-symbols-outlined pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-base text-[#9993b8]">
                   search
                 </span>
                 <input
@@ -1243,7 +1256,7 @@ export function DocumentsPage() {
                   value={filenameSearch}
                   onChange={(event) => setFilenameSearch(event.target.value)}
                   placeholder="Search filenames…"
-                  className="h-9 w-44 rounded-lg border border-[#d2cee6] bg-white pl-8 pr-3 text-sm font-medium text-[#2a2640] placeholder:font-normal placeholder:text-[#b0abc8] outline-none transition-[width] duration-200 focus:w-64 focus:ring-2 focus:ring-[#3525cd]/20"
+                  className="h-9 w-44 rounded-lg border border-[#d2cee6] bg-white pr-3 pl-8 text-sm font-medium text-[#2a2640] transition-[width] duration-200 outline-none placeholder:font-normal placeholder:text-[#b0abc8] focus:w-64 focus:ring-2 focus:ring-[#3525cd]/20"
                 />
               </div>
             </label>
@@ -1900,11 +1913,12 @@ export function DocumentsPage() {
           documentName={assignDocumentName}
           collectionList={assignCollectionsListQuery.data?.items ?? []}
           loadingCollections={
-            assignCollectionsListQuery.isLoading || docCollectionsQuery.isLoading
+            assignCollectionsListQuery.isLoading ||
+            docCollectionsQuery.isLoading
           }
-          currentCollectionIds={(
-            docCollectionsQuery.data?.items ?? []
-          ).map((c) => c.collection_id)}
+          currentCollectionIds={(docCollectionsQuery.data?.items ?? []).map(
+            (c) => c.collection_id,
+          )}
           saving={assignCollectionsMutation.isPending}
           saveError={assignSaveError}
           onSave={(collectionIds) =>

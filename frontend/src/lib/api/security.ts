@@ -110,8 +110,7 @@ export async function revokeAllOtherSessions(): Promise<void> {
   const url = trimToNull(
     process.env.NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL,
   );
-  if (!url)
-    throw new Error("Revoke all sessions endpoint is not configured.");
+  if (!url) throw new Error("Revoke all sessions endpoint is not configured.");
   await apiRequest(url, { method: "POST", retry: false });
 }
 

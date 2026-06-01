@@ -73,7 +73,9 @@ describe("Research solution page (/solutions/research)", () => {
     render(<ResearchSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Ingest everything. Analyze anything." }),
+      screen.getByRole("heading", {
+        name: "Ingest everything. Analyze anything.",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("Whitepapers")).toBeInTheDocument();
     expect(screen.getByText("Market Research")).toBeInTheDocument();

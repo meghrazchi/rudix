@@ -5,7 +5,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -57,13 +60,13 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
         <div className="relative z-10">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#3525cd]/10 px-3 py-1 text-[#3525cd]">
             <Sym name="gavel" className="text-[18px]" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.05em]">
+            <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
               Legal Intelligence
             </span>
           </div>
           <h1
             id="legal-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
           >
             Ask contracts and policies with source-backed answers.
           </h1>
@@ -85,14 +88,16 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
           <div className="rudix-landing-glass relative rounded-2xl border border-[#c7c4d8]/50 p-6 shadow-[0_0_20px_rgba(53,37,205,0.1)]">
             <div className="mb-4 flex items-center gap-4 rounded-lg border border-white/10 bg-[#0A0A0F] p-4">
               <Sym name="search" className="text-[#c3c0ff]" />
-              <span className="text-sm italic text-[#c3c0ff]/60">
+              <span className="text-sm text-[#c3c0ff]/60 italic">
                 "When is the termination notice for the AWS contract?"
               </span>
             </div>
             <div className="rounded-lg bg-[#eeedf3] p-4">
               <p className="mb-3 text-base leading-relaxed text-[#1a1b20]">
                 The AWS Master Service Agreement requires a{" "}
-                <strong className="text-[#3525cd]">90-day written notice</strong>{" "}
+                <strong className="text-[#3525cd]">
+                  90-day written notice
+                </strong>{" "}
                 prior to the end of the current term for non-renewal.
               </p>
               <div className="flex flex-wrap gap-2">
@@ -105,7 +110,7 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
               </div>
             </div>
           </div>
-          <div className="absolute -bottom-8 -right-8 -z-10 h-full w-full rounded-3xl bg-[#3525cd]/5" />
+          <div className="absolute -right-8 -bottom-8 -z-10 h-full w-full rounded-3xl bg-[#3525cd]/5" />
         </div>
       </div>
     </section>
@@ -137,12 +142,15 @@ function LegalProblemSection() {
   ];
 
   return (
-    <section aria-labelledby="legal-problem-title" className="bg-[#f4f3f9] py-24">
+    <section
+      aria-labelledby="legal-problem-title"
+      className="bg-[#f4f3f9] py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-16 text-center">
           <h2
             id="legal-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Contracts are too important to search manually.
           </h2>
@@ -162,7 +170,7 @@ function LegalProblemSection() {
               >
                 <Sym name={p.icon} />
               </div>
-              <h3 className="mb-3 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -187,13 +195,16 @@ function LegalDocumentSourcesSection() {
   ];
 
   return (
-    <section aria-labelledby="legal-doc-sources-title" className="bg-white py-24">
+    <section
+      aria-labelledby="legal-doc-sources-title"
+      className="bg-white py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="flex flex-col items-center gap-16 lg:flex-row">
           <div className="lg:w-1/2">
             <h2
               id="legal-doc-sources-title"
-              className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Built for every legal asset.
             </h2>
@@ -208,7 +219,9 @@ function LegalDocumentSourcesSection() {
                   className="flex items-center gap-3 rounded-lg border border-[#c7c4d8] bg-[#e8e7ed] p-4"
                 >
                   <Sym name={s.icon} className="text-[#3525cd]" />
-                  <span className="font-semibold text-[#1a1b20]">{s.label}</span>
+                  <span className="font-semibold text-[#1a1b20]">
+                    {s.label}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -254,16 +267,19 @@ function LegalExampleQuestionsSection() {
   ];
 
   return (
-    <section aria-labelledby="legal-questions-title" className="bg-[#0A0A0F] py-24 text-white">
+    <section
+      aria-labelledby="legal-questions-title"
+      className="bg-[#0A0A0F] py-24 text-white"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-12 flex flex-col items-end justify-between gap-6 md:flex-row">
           <div>
-            <span className="mb-4 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+            <span className="mb-4 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
               Use Cases
             </span>
             <h2
               id="legal-questions-title"
-              className="text-[30px] font-semibold leading-[38px] text-white"
+              className="text-[30px] leading-[38px] font-semibold text-white"
             >
               Ask your data anything.
             </h2>
@@ -283,7 +299,7 @@ function LegalExampleQuestionsSection() {
                 name="chat_bubble"
                 className="mb-4 text-[#c3c0ff] transition group-hover:translate-x-1"
               />
-              <p className="text-lg font-semibold leading-7">"{q}"</p>
+              <p className="text-lg leading-7 font-semibold">"{q}"</p>
             </li>
           ))}
         </ul>
@@ -296,7 +312,10 @@ function LegalExampleQuestionsSection() {
 
 function LegalCitationsSection({ securityHref }: { securityHref: string }) {
   return (
-    <section aria-labelledby="legal-citations-title" className="overflow-hidden py-24">
+    <section
+      aria-labelledby="legal-citations-title"
+      className="overflow-hidden py-24"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="grid items-center gap-20 lg:grid-cols-2">
           <div className="relative">
@@ -307,7 +326,7 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   <span className="h-3 w-3 rounded-full bg-[#E24329]/40" />
                   <span className="h-3 w-3 rounded-full bg-[#108548]/40" />
                 </div>
-                <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#777587]/50">
+                <span className="text-[12px] font-semibold tracking-[0.05em] text-[#777587]/50 uppercase">
                   Contract_Viewer_v2
                 </span>
               </div>
@@ -316,7 +335,7 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   <p className="mb-1 font-mono text-[14px] text-[#3525cd]">
                     Snippet from: MSA_Enterprise_Final.pdf
                   </p>
-                  <p className="text-sm italic leading-5 text-[#464555]">
+                  <p className="text-sm leading-5 text-[#464555] italic">
                     "…either party may terminate this Agreement upon ninety (90)
                     days prior written notice if the other party materially
                     breaches any term…"
@@ -326,45 +345,54 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   <p className="mb-1 font-mono text-[14px] text-[#3525cd]">
                     Snippet from: Addendum_C.pdf
                   </p>
-                  <p className="text-sm italic leading-5 text-[#464555]">
+                  <p className="text-sm leading-5 text-[#464555] italic">
                     "…notwithstanding Section 12, the pricing tier remains fixed
                     for the duration of the initial term…"
                   </p>
                 </div>
               </div>
             </div>
-            <div className="absolute -bottom-6 -right-6 -z-10 h-full w-full rounded-3xl bg-[#3525cd]/5" />
+            <div className="absolute -right-6 -bottom-6 -z-10 h-full w-full rounded-3xl bg-[#3525cd]/5" />
           </div>
 
           <div>
             <h2
               id="legal-citations-title"
-              className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+              className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
               Trust the source.
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Every answer from Rudix includes specific source snippets, document
-              names, and page numbers. We never hallucinate terms — we only
-              retrieve facts.
+              Every answer from Rudix includes specific source snippets,
+              document names, and page numbers. We never hallucinate terms — we
+              only retrieve facts.
             </p>
             <ul className="mb-8 space-y-4">
               <li className="flex items-start gap-4 text-base leading-6">
-                <Sym name="check_circle" className="mt-0.5 shrink-0 text-[#108548]" />
+                <Sym
+                  name="check_circle"
+                  className="mt-0.5 shrink-0 text-[#108548]"
+                />
                 <div>
                   <strong>Deep linking:</strong> Click a citation to jump
                   directly to the paragraph in the original document.
                 </div>
               </li>
               <li className="flex items-start gap-4 text-base leading-6">
-                <Sym name="check_circle" className="mt-0.5 shrink-0 text-[#108548]" />
+                <Sym
+                  name="check_circle"
+                  className="mt-0.5 shrink-0 text-[#108548]"
+                />
                 <div>
                   <strong>Audit trails:</strong> Full history of who asked what
                   and which documents were referenced.
                 </div>
               </li>
               <li className="flex items-start gap-4 text-base leading-6">
-                <Sym name="check_circle" className="mt-0.5 shrink-0 text-[#108548]" />
+                <Sym
+                  name="check_circle"
+                  className="mt-0.5 shrink-0 text-[#108548]"
+                />
                 <div>
                   <strong>Access controls:</strong> Role-scoped workspaces keep
                   privileged documents separate.
@@ -375,21 +403,22 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
             <div className="rounded-xl border border-[#c7c4d8] bg-[#f4f3f9] p-5">
               <div className="mb-2 flex items-center gap-2 text-[#777587]">
                 <Sym name="info" className="text-base" />
-                <span className="text-[12px] font-semibold uppercase tracking-[0.05em]">
+                <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
                   Responsible use
                 </span>
               </div>
               <p className="text-sm leading-5 text-[#464555]">
-                Rudix supports legal research and document workflows. It does not
-                replace attorney review or constitute legal advice. All retrieved
-                information should be verified by qualified legal counsel before
-                reliance.
+                Rudix supports legal research and document workflows. It does
+                not replace attorney review or constitute legal advice. All
+                retrieved information should be verified by qualified legal
+                counsel before reliance.
               </p>
               <PublicActionLink
                 href={securityHref}
                 className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3525cd] hover:underline"
               >
-                Security &amp; Compliance <Sym name="arrow_forward" className="text-sm" />
+                Security &amp; Compliance{" "}
+                <Sym name="arrow_forward" className="text-sm" />
               </PublicActionLink>
             </div>
           </div>
@@ -412,12 +441,12 @@ function LegalFinalCtaSection({
     <section aria-labelledby="legal-cta-title" className="mb-24 py-24">
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="relative overflow-hidden rounded-[2rem] bg-[#4f46e5] p-12 text-center text-[#dad7ff] lg:p-20">
-          <div className="absolute top-0 right-0 h-96 w-96 -translate-y-1/2 translate-x-1/2 rounded-full bg-white/10 blur-[100px]" />
+          <div className="absolute top-0 right-0 h-96 w-96 translate-x-1/2 -translate-y-1/2 rounded-full bg-white/10 blur-[100px]" />
           <div className="absolute bottom-0 left-0 h-96 w-96 -translate-x-1/2 translate-y-1/2 rounded-full bg-[#0A0A0F]/20 blur-[100px]" />
           <div className="relative z-10 mx-auto max-w-3xl">
             <h2
               id="legal-cta-title"
-              className="mb-8 text-4xl font-bold leading-tight tracking-tight lg:text-[48px] lg:leading-[56px]"
+              className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
               Find contract answers faster.
             </h2>
@@ -459,7 +488,10 @@ export function LegalSolutionPage() {
       <LegalDocumentSourcesSection />
       <LegalExampleQuestionsSection />
       <LegalCitationsSection securityHref={links.security} />
-      <LegalFinalCtaSection demoHref={links.requestDemo} trialHref={links.startTrial} />
+      <LegalFinalCtaSection
+        demoHref={links.requestDemo}
+        trialHref={links.startTrial}
+      />
     </>
   );
 }

@@ -64,9 +64,9 @@ vi.mock("@/lib/settings-preferences", async () => {
 });
 
 vi.mock("@/lib/schemas/settings", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/lib/schemas/settings")
-  >("@/lib/schemas/settings");
+  const actual = await vi.importActual<typeof import("@/lib/schemas/settings")>(
+    "@/lib/schemas/settings",
+  );
   return {
     ...actual,
     loadProfileUiPreferences: () => actual.createDefaultProfileUiPreferences(),
@@ -113,9 +113,10 @@ vi.mock("@/lib/api/security", () => ({
 }));
 
 vi.mock("@/lib/api/request", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api/request")>(
-    "@/lib/api/request",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/api/request")>(
+      "@/lib/api/request",
+    );
   return {
     ...actual,
     getJwtExpirationTimeMs: () => null,
@@ -402,9 +403,7 @@ describe("SettingsPage", () => {
     renderPage();
     await screen.findByRole("region", { name: "Account actions section" });
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Sign out$/ }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /^Sign out$/ }));
 
     await waitFor(() => {
       expect(mockState.signOut).toHaveBeenCalledTimes(1);

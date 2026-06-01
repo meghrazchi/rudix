@@ -224,17 +224,17 @@ describe("SecuritySettingsTab", () => {
     it("never renders the access token value in the DOM", () => {
       mockAuth.state = { ...OWNER_SESSION };
       renderTab();
-      expect(
-        document.body.textContent?.includes(FAKE_ACCESS_TOKEN),
-      ).toBe(false);
+      expect(document.body.textContent?.includes(FAKE_ACCESS_TOKEN)).toBe(
+        false,
+      );
     });
 
     it("never renders the refresh token value in the DOM", () => {
       mockAuth.state = { ...OWNER_SESSION };
       renderTab();
-      expect(
-        document.body.textContent?.includes(FAKE_REFRESH_TOKEN),
-      ).toBe(false);
+      expect(document.body.textContent?.includes(FAKE_REFRESH_TOKEN)).toBe(
+        false,
+      );
     });
 
     it("shows Yes/No booleans for token presence instead of token values", () => {
@@ -256,9 +256,9 @@ describe("SecuritySettingsTab", () => {
     it("never renders tokens even when member session has token strings", () => {
       mockAuth.state = { ...MEMBER_SESSION };
       renderTab();
-      expect(
-        document.body.textContent?.includes(FAKE_ACCESS_TOKEN),
-      ).toBe(false);
+      expect(document.body.textContent?.includes(FAKE_ACCESS_TOKEN)).toBe(
+        false,
+      );
     });
   });
 
@@ -324,9 +324,7 @@ describe("SecuritySettingsTab", () => {
     it("renders session devices when loaded", async () => {
       renderTab();
       await waitFor(() => {
-        expect(
-          screen.getByText("MacBook Pro (Chrome)"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("MacBook Pro (Chrome)")).toBeInTheDocument();
       });
       expect(screen.getByText("iPhone 15 (App)")).toBeInTheDocument();
     });
@@ -348,9 +346,7 @@ describe("SecuritySettingsTab", () => {
     });
 
     it("shows confirmation dialog before revoking a session", async () => {
-      const confirmSpy = vi
-        .spyOn(window, "confirm")
-        .mockReturnValue(false);
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
       mockSecurityApi.revokeSession.mockResolvedValue(undefined);
 
       renderTab();
@@ -393,9 +389,7 @@ describe("SecuritySettingsTab", () => {
     });
 
     it("shows confirmation before revoking all sessions", async () => {
-      const confirmSpy = vi
-        .spyOn(window, "confirm")
-        .mockReturnValue(false);
+      const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
       mockSecurityApi.revokeAllOtherSessions.mockResolvedValue(undefined);
 
       renderTab();
@@ -436,9 +430,7 @@ describe("SecuritySettingsTab", () => {
       mockAuth.state = { ...OWNER_SESSION };
       renderTab();
       await waitFor(() => {
-        expect(
-          screen.getByLabelText(/Domain Allowlist/i),
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText(/Domain Allowlist/i)).toBeInTheDocument();
       });
     });
 
@@ -446,9 +438,7 @@ describe("SecuritySettingsTab", () => {
       mockAuth.state = { ...ADMIN_SESSION };
       renderTab();
       await waitFor(() => {
-        expect(
-          screen.getByLabelText(/Session Timeout/i),
-        ).toBeInTheDocument();
+        expect(screen.getByLabelText(/Session Timeout/i)).toBeInTheDocument();
       });
     });
   });

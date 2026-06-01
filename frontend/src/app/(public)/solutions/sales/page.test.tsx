@@ -46,10 +46,9 @@ describe("Sales solution page (/solutions/sales)", () => {
   it("renders the hero CTAs pointing to trial and demo", () => {
     render(<SalesSolutionPage />);
 
-    expect(screen.getByRole("link", { name: /Start for free/i })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
+    expect(
+      screen.getByRole("link", { name: /Start for free/i }),
+    ).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "View Demo" })).toHaveAttribute(
       "href",
       "/contact",
@@ -87,10 +86,14 @@ describe("Sales solution page (/solutions/sales)", () => {
     expect(screen.getByText("Proposal Decks")).toBeInTheDocument();
 
     expect(
-      screen.getByAltText("Professional sales collateral and technical product brochures"),
+      screen.getByAltText(
+        "Professional sales collateral and technical product brochures",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByAltText("Enterprise account executives collaborating in a sales strategy meeting"),
+      screen.getByAltText(
+        "Enterprise account executives collaborating in a sales strategy meeting",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -104,7 +107,9 @@ describe("Sales solution page (/solutions/sales)", () => {
       screen.getByText(/"Which case study fits a healthcare prospect/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/"What are our competitive advantages against Enterprise-X\?"/i),
+      screen.getByText(
+        /"What are our competitive advantages against Enterprise-X\?"/i,
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Can we offer a 15% discount/i),
@@ -127,9 +132,10 @@ describe("Sales solution page (/solutions/sales)", () => {
     expect(
       screen.getByRole("link", { name: "Schedule a Demo" }),
     ).toHaveAttribute("href", "/contact");
-    expect(
-      screen.getByRole("link", { name: "View Pricing" }),
-    ).toHaveAttribute("href", "/pricing");
+    expect(screen.getByRole("link", { name: "View Pricing" })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
   });
 
   it("applies env-driven trial URL when configured", () => {
@@ -137,10 +143,9 @@ describe("Sales solution page (/solutions/sales)", () => {
 
     render(<SalesSolutionPage />);
 
-    expect(screen.getByRole("link", { name: /Start for free/i })).toHaveAttribute(
-      "href",
-      "https://trial.example.com",
-    );
+    expect(
+      screen.getByRole("link", { name: /Start for free/i }),
+    ).toHaveAttribute("href", "https://trial.example.com");
   });
 
   it("applies env-driven demo URL when configured", () => {
@@ -148,10 +153,9 @@ describe("Sales solution page (/solutions/sales)", () => {
 
     render(<SalesSolutionPage />);
 
-    expect(screen.getByRole("link", { name: "Schedule a Demo" })).toHaveAttribute(
-      "href",
-      "https://demo.example.com",
-    );
+    expect(
+      screen.getByRole("link", { name: "Schedule a Demo" }),
+    ).toHaveAttribute("href", "https://demo.example.com");
   });
 
   it("renders breadcrumb navigation back to solutions", () => {

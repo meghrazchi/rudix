@@ -106,7 +106,9 @@ function routeDisabledReason(
   return "Unavailable";
 }
 
-const NAV_ICONS: Partial<Record<AppNavigationItem["key"], ComponentType<LucideProps>>> = {
+const NAV_ICONS: Partial<
+  Record<AppNavigationItem["key"], ComponentType<LucideProps>>
+> = {
   dashboard: LayoutGrid,
   documents: FileText,
   collections: Folder,
@@ -812,7 +814,7 @@ export function AppShell({
                   type="button"
                   onClick={openCommandMenu}
                   aria-label="Open global search"
-                  className="relative inline-flex h-11 min-w-[220px] items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pl-10 pr-2 text-left text-sm font-medium text-[#4a4662] outline-none transition hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:w-80 lg:w-[26rem]"
+                  className="relative inline-flex h-11 min-w-[220px] items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pr-2 pl-10 text-left text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:w-80 lg:w-[26rem]"
                 >
                   <span
                     aria-hidden="true"
@@ -823,7 +825,7 @@ export function AppShell({
                   <span className="mr-2 flex-1 truncate">
                     Search knowledge base...
                   </span>
-                  <span className="ml-2 hidden shrink-0 whitespace-nowrap rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-[#6f6b87] sm:inline">
+                  <span className="ml-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] sm:inline">
                     ⌘/Ctrl K
                   </span>
                 </button>
@@ -844,7 +846,7 @@ export function AppShell({
                       notifications
                     </span>
                     {notificationCount > 0 ? (
-                      <span className="absolute -right-1 -top-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="absolute -top-1 -right-1 inline-flex min-w-5 justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                         {notificationCount}
                       </span>
                     ) : null}
@@ -1153,7 +1155,7 @@ export function AppShell({
       </div>
 
       {onboardingVisible ? (
-        <div className="fixed bottom-5 right-5 z-40 w-[340px]">
+        <div className="fixed right-5 bottom-5 z-40 w-[340px]">
           <OnboardingChecklist
             session={session}
             state={onboardingState}

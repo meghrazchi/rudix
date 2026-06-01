@@ -169,7 +169,9 @@ function timelineStepGlyph(state: TimelineStepState): string {
   return "✓";
 }
 
-function buildLifecycleTimeline(detail: DocumentDetailResponse): TimelineStep[] {
+function buildLifecycleTimeline(
+  detail: DocumentDetailResponse,
+): TimelineStep[] {
   const backendTimeline = Array.isArray(detail.lifecycle_timeline)
     ? detail.lifecycle_timeline.map((step) =>
         fromBackendLifecycleTimelineStep(step),
@@ -258,13 +260,17 @@ function extractOcrMetadata(timeline: TimelineStep[]): OcrMetadata | null {
     required,
     mode: String(ocrOut?.mode ?? detectOut?.mode ?? "unknown"),
     status: String(ocrOut?.status ?? "unknown"),
-    languages: Array.isArray(ocrOut?.languages) ? (ocrOut.languages as string[]) : [],
+    languages: Array.isArray(ocrOut?.languages)
+      ? (ocrOut.languages as string[])
+      : [],
     pagesProcessed: Number(ocrOut?.pages_processed ?? 0),
     pagesCompleted: Number(ocrOut?.pages_completed ?? 0),
     pagesFailed: Number(ocrOut?.pages_failed ?? 0),
     nativeTextPages: Number(detectOut?.native_text_pages ?? 0),
     durationMs: ocrOut?.duration_ms != null ? Number(ocrOut.duration_ms) : null,
-    warnings: Array.isArray(ocrOut?.warnings) ? (ocrOut.warnings as string[]) : [],
+    warnings: Array.isArray(ocrOut?.warnings)
+      ? (ocrOut.warnings as string[])
+      : [],
   };
 }
 
@@ -577,10 +583,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const chunkStatus = currentStatus ?? detail?.status ?? null;
   const selectedChunks = chunksQuery.data;
   const lifecycle = useMemo(
-    () =>
-      detail && currentStatus
-        ? buildLifecycleTimeline(detail)
-        : [],
+    () => (detail && currentStatus ? buildLifecycleTimeline(detail) : []),
     [currentStatus, detail],
   );
   const errorRows = useMemo(
@@ -894,12 +897,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   >
                     format_quote
                   </span>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#3525cd]">
+                  <p className="text-xs font-bold tracking-wide text-[#3525cd] uppercase">
                     Citation evidence
                   </p>
                 </div>
                 {highlightedSnippet ? (
-                  <p className="rounded-r border-l-4 border-[#3525cd] bg-white py-2 pl-3 pr-2 text-sm italic text-[#1b1b24]">
+                  <p className="rounded-r border-l-4 border-[#3525cd] bg-white py-2 pr-2 pl-3 text-sm text-[#1b1b24] italic">
                     {highlightedSnippet}
                   </p>
                 ) : null}
@@ -940,493 +943,547 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                 </div>
 
                 <section className="rounded-xl border border-[#e4e1f2] bg-white shadow-sm">
-              <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
-                {(["overview", "chunks", "errors"] as const).map((tabKey) => (
-                  <button
-                    key={tabKey}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === tabKey}
-                    onClick={() => setActiveTab(tabKey)}
-                    className={`px-4 py-3 text-sm font-semibold capitalize transition-colors ${
-                      activeTab === tabKey
-                        ? "border-b-2 border-[#3525cd] text-[#3525cd]"
-                        : "text-[#69637f] hover:text-[#2a2640]"
-                    }`}
-                  >
-                    {tabKey}
-                    {tabKey === "errors" ? (
-                      <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
-                        {errorRows.length}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-4 p-4">
-                {activeTab === "overview" ? (
-                  <div className="space-y-4">
-                      {detail.error_message ? (
-                        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
-                          <p className="font-semibold">Processing error</p>
-                          <p className="mt-1">{detail.error_message}</p>
-                          {detail.error_details ? (
-                            <ul className="mt-2 space-y-1 text-xs">
-                              <li>
-                                <span className="font-semibold">Stage:</span>{" "}
-                                {detail.error_details.stage}
-                              </li>
-                              <li>
-                                <span className="font-semibold">Code:</span>{" "}
-                                {detail.error_details.code}
-                              </li>
-                              <li>
-                                <span className="font-semibold">Category:</span>{" "}
-                                {detail.error_details.category}
-                              </li>
-                              <li>
-                                <span className="font-semibold">
-                                  Retryable:
-                                </span>{" "}
-                                {detail.error_details.retryable ? "yes" : "no"}
-                              </li>
-                              <li>
-                                <span className="font-semibold">Message:</span>{" "}
-                                {detail.error_details.message}
-                              </li>
-                            </ul>
+                  <div className="flex flex-wrap items-center border-b border-[#e9e6f5] px-4">
+                    {(["overview", "chunks", "errors"] as const).map(
+                      (tabKey) => (
+                        <button
+                          key={tabKey}
+                          type="button"
+                          role="tab"
+                          aria-selected={activeTab === tabKey}
+                          onClick={() => setActiveTab(tabKey)}
+                          className={`px-4 py-3 text-sm font-semibold capitalize transition-colors ${
+                            activeTab === tabKey
+                              ? "border-b-2 border-[#3525cd] text-[#3525cd]"
+                              : "text-[#69637f] hover:text-[#2a2640]"
+                          }`}
+                        >
+                          {tabKey}
+                          {tabKey === "errors" ? (
+                            <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                              {errorRows.length}
+                            </span>
                           ) : null}
-                        </div>
-                      ) : null}
-
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            File summary
-                          </h4>
-                          <div className="space-y-2 text-sm text-[#2a2640]">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">Filename</span>
-                              <span className="font-semibold">
-                                {detail.filename}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">File type</span>
-                              <span className="font-semibold">
-                                {detail.file_type.toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">Created</span>
-                              <span className="font-semibold">
-                                {formatDate(detail.created_at)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">Updated</span>
-                              <span className="font-semibold">
-                                {formatDate(detail.updated_at)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Indexing intelligence
-                          </h4>
-                          <div className="space-y-2 text-sm text-[#2a2640]">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">Status</span>
-                              <span className={statusBadge(currentStatus)}>
-                                {currentStatus}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">
-                                Embedding model
-                              </span>
-                              <span className="font-semibold">
-                                {selectedChunks?.items[0]?.embedding_model ??
-                                  "-"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">
-                                Index version
-                              </span>
-                              <span className="font-semibold">
-                                {selectedChunks?.items[0]?.index_version ?? "-"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">
-                                Pipeline surface
-                              </span>
-                              <span className="font-semibold">
-                                Backend worker
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {ocrMetadata && detail.file_type === "pdf" ? (
-                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            OCR extraction
-                          </h4>
-                          <div className="space-y-2 text-sm text-[#2a2640]">
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">OCR required</span>
-                              <span className="font-semibold">
-                                {ocrMetadata.required ? "Yes" : "No"}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-[#69637f]">Detection mode</span>
-                              <span className="font-semibold capitalize">
-                                {ocrMetadata.mode}
-                              </span>
-                            </div>
-                            {ocrMetadata.required ? (
-                              <>
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-[#69637f]">OCR status</span>
-                                  <span className={`font-semibold capitalize ${ocrMetadata.status === "failed" ? "text-rose-600" : ocrMetadata.status === "partial" ? "text-amber-600" : "text-emerald-700"}`}>
-                                    {ocrMetadata.status}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-[#69637f]">Languages</span>
-                                  <span className="font-semibold">
-                                    {ocrMetadata.languages.length > 0 ? ocrMetadata.languages.join(", ") : "-"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-[#69637f]">Native pages</span>
-                                  <span className="font-semibold">{ocrMetadata.nativeTextPages}</span>
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <span className="text-[#69637f]">OCR pages</span>
-                                  <span className="font-semibold">{ocrMetadata.pagesCompleted} / {ocrMetadata.pagesProcessed}</span>
-                                </div>
-                                {ocrMetadata.durationMs !== null ? (
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[#69637f]">OCR duration</span>
-                                    <span className="font-semibold">{(ocrMetadata.durationMs / 1000).toFixed(1)}s</span>
-                                  </div>
-                                ) : null}
-                                {ocrMetadata.warnings.length > 0 ? (
-                                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
-                                    <p className="mb-1 text-xs font-semibold text-amber-700 uppercase tracking-wide">Warnings</p>
-                                    <ul className="space-y-1 text-xs text-amber-800">
-                                      {ocrMetadata.warnings.map((w, i) => (
-                                        <li key={i}>{w}</li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                              </>
-                            ) : (
-                              <p className="text-xs text-[#69637f]">
-                                This document contains sufficient native text — OCR was skipped.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                        <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          AI summary
-                        </h4>
-                        <p className="text-sm leading-relaxed text-[#2a2640]">
-                          Document is currently <strong>{currentStatus}</strong>{" "}
-                          with {detail.chunk_count} indexed chunks
-                          {detail.page_count !== null
-                            ? ` across ${detail.page_count} pages`
-                            : ""}{" "}
-                          and checksum persisted for ingestion integrity checks.
-                        </p>
-                      </div>
+                        </button>
+                      ),
+                    )}
                   </div>
-                ) : null}
 
-                {activeTab === "chunks" ? (
-                  <section className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <h3 className="text-base font-bold text-[#2a2640]">
-                        Chunk preview
-                      </h3>
-                      <div className="flex items-center gap-3">
-                        {capabilities.canViewChunkFullText ? (
-                          <label className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
-                            <input
-                              type="checkbox"
-                              checked={includeFullText}
-                              onChange={(event) => {
-                                setChunksOffset(0);
-                                setIncludeFullText(event.target.checked);
-                              }}
-                              className="h-4 w-4 rounded border-[#c9c4de]"
-                            />
-                            Include full chunk text
-                          </label>
+                  <div className="space-y-4 p-4">
+                    {activeTab === "overview" ? (
+                      <div className="space-y-4">
+                        {detail.error_message ? (
+                          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
+                            <p className="font-semibold">Processing error</p>
+                            <p className="mt-1">{detail.error_message}</p>
+                            {detail.error_details ? (
+                              <ul className="mt-2 space-y-1 text-xs">
+                                <li>
+                                  <span className="font-semibold">Stage:</span>{" "}
+                                  {detail.error_details.stage}
+                                </li>
+                                <li>
+                                  <span className="font-semibold">Code:</span>{" "}
+                                  {detail.error_details.code}
+                                </li>
+                                <li>
+                                  <span className="font-semibold">
+                                    Category:
+                                  </span>{" "}
+                                  {detail.error_details.category}
+                                </li>
+                                <li>
+                                  <span className="font-semibold">
+                                    Retryable:
+                                  </span>{" "}
+                                  {detail.error_details.retryable
+                                    ? "yes"
+                                    : "no"}
+                                </li>
+                                <li>
+                                  <span className="font-semibold">
+                                    Message:
+                                  </span>{" "}
+                                  {detail.error_details.message}
+                                </li>
+                              </ul>
+                            ) : null}
+                          </div>
                         ) : null}
-                        {chunksQuery.isFetching ? (
-                          <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                            Refreshing...
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
 
-                    {chunksQuery.isLoading ? (
-                      <LoadingState compact title="Loading chunks..." />
-                    ) : null}
-
-                    {chunksQuery.isError ? (
-                      <ErrorState
-                        compact
-                        error={chunksQuery.error}
-                        description={getApiErrorMessage(chunksQuery.error)}
-                        onRetry={() => {
-                          void chunksQuery.refetch();
-                        }}
-                        retryLabel="Retry chunk load"
-                      />
-                    ) : null}
-
-                    {selectedChunks &&
-                    selectedChunks.items.length === 0 &&
-                    chunkStatus ? (
-                      <EmptyState
-                        compact
-                        title={noChunksMessage(chunkStatus)}
-                      />
-                    ) : null}
-
-                    {selectedChunks && selectedChunks.items.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedChunks.items.map((chunk) => {
-                          const isCited = chunk.chunk_id === highlightedChunkId;
-                          return (
-                          <article
-                            key={chunk.chunk_id}
-                            ref={isCited ? (el) => { highlightedChunkRef.current = el; } : undefined}
-                            className={`rounded-lg border px-3 py-3 ${
-                              isCited
-                                ? "border-[#3525cd]/30 bg-[#f0ecff] shadow-sm ring-1 ring-[#3525cd]/20"
-                                : "border-[#e4e1f2] bg-[#faf9ff]"
-                            }`}
-                          >
-                            <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                              {isCited ? (
-                                <span className="rounded bg-[#3525cd] px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
-                                  cited
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              File summary
+                            </h4>
+                            <div className="space-y-2 text-sm text-[#2a2640]">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">Filename</span>
+                                <span className="font-semibold">
+                                  {detail.filename}
                                 </span>
-                              ) : null}
-                              <span>Chunk #{chunk.chunk_index}</span>
-                              <span>Page {chunk.page_number ?? "-"}</span>
-                              <span>{chunk.token_count} tokens</span>
-                              <span>Model {chunk.embedding_model}</span>
-                              <span>Index {chunk.index_version}</span>
-                              <span>
-                                Created {formatDate(chunk.created_at)}
-                              </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  File type
+                                </span>
+                                <span className="font-semibold">
+                                  {detail.file_type.toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">Created</span>
+                                <span className="font-semibold">
+                                  {formatDate(detail.created_at)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">Updated</span>
+                                <span className="font-semibold">
+                                  {formatDate(detail.updated_at)}
+                                </span>
+                              </div>
                             </div>
-                            <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
-                              {includeFullText && chunk.text
-                                ? chunk.text
-                                : truncateChunkPreview(chunk.text_preview)}
-                            </p>
-                          </article>
-                        ); })}
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <p className="text-xs text-[#6e6a86]">
-                            Showing {selectedChunks.items.length} of{" "}
-                            {selectedChunks.total} chunks.
+                          </div>
+
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              Indexing intelligence
+                            </h4>
+                            <div className="space-y-2 text-sm text-[#2a2640]">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">Status</span>
+                                <span className={statusBadge(currentStatus)}>
+                                  {currentStatus}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  Embedding model
+                                </span>
+                                <span className="font-semibold">
+                                  {selectedChunks?.items[0]?.embedding_model ??
+                                    "-"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  Index version
+                                </span>
+                                <span className="font-semibold">
+                                  {selectedChunks?.items[0]?.index_version ??
+                                    "-"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  Pipeline surface
+                                </span>
+                                <span className="font-semibold">
+                                  Backend worker
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {ocrMetadata && detail.file_type === "pdf" ? (
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              OCR extraction
+                            </h4>
+                            <div className="space-y-2 text-sm text-[#2a2640]">
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  OCR required
+                                </span>
+                                <span className="font-semibold">
+                                  {ocrMetadata.required ? "Yes" : "No"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  Detection mode
+                                </span>
+                                <span className="font-semibold capitalize">
+                                  {ocrMetadata.mode}
+                                </span>
+                              </div>
+                              {ocrMetadata.required ? (
+                                <>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">
+                                      OCR status
+                                    </span>
+                                    <span
+                                      className={`font-semibold capitalize ${ocrMetadata.status === "failed" ? "text-rose-600" : ocrMetadata.status === "partial" ? "text-amber-600" : "text-emerald-700"}`}
+                                    >
+                                      {ocrMetadata.status}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">
+                                      Languages
+                                    </span>
+                                    <span className="font-semibold">
+                                      {ocrMetadata.languages.length > 0
+                                        ? ocrMetadata.languages.join(", ")
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">
+                                      Native pages
+                                    </span>
+                                    <span className="font-semibold">
+                                      {ocrMetadata.nativeTextPages}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">
+                                      OCR pages
+                                    </span>
+                                    <span className="font-semibold">
+                                      {ocrMetadata.pagesCompleted} /{" "}
+                                      {ocrMetadata.pagesProcessed}
+                                    </span>
+                                  </div>
+                                  {ocrMetadata.durationMs !== null ? (
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-[#69637f]">
+                                        OCR duration
+                                      </span>
+                                      <span className="font-semibold">
+                                        {(
+                                          ocrMetadata.durationMs / 1000
+                                        ).toFixed(1)}
+                                        s
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                  {ocrMetadata.warnings.length > 0 ? (
+                                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                                      <p className="mb-1 text-xs font-semibold tracking-wide text-amber-700 uppercase">
+                                        Warnings
+                                      </p>
+                                      <ul className="space-y-1 text-xs text-amber-800">
+                                        {ocrMetadata.warnings.map((w, i) => (
+                                          <li key={i}>{w}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <p className="text-xs text-[#69637f]">
+                                  This document contains sufficient native text
+                                  — OCR was skipped.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            AI summary
+                          </h4>
+                          <p className="text-sm leading-relaxed text-[#2a2640]">
+                            Document is currently{" "}
+                            <strong>{currentStatus}</strong> with{" "}
+                            {detail.chunk_count} indexed chunks
+                            {detail.page_count !== null
+                              ? ` across ${detail.page_count} pages`
+                              : ""}{" "}
+                            and checksum persisted for ingestion integrity
+                            checks.
                           </p>
-                          {!highlightedChunkId ? (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={!canGoPrevChunks}
-                                onClick={() =>
-                                  setChunksOffset((current) =>
-                                    Math.max(0, current - CHUNK_PAGE_SIZE),
-                                  )
-                                }
-                                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Previous
-                              </button>
-                              <button
-                                type="button"
-                                disabled={!canGoNextChunks}
-                                onClick={() =>
-                                  setChunksOffset(
-                                    (current) => current + CHUNK_PAGE_SIZE,
-                                  )
-                                }
-                                className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Next
-                              </button>
-                            </div>
-                          ) : null}
                         </div>
                       </div>
                     ) : null}
-                  </section>
-                ) : null}
 
-                {activeTab === "errors" ? (
-                  <section className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                        <p className="text-2xl font-bold text-[#2a2640]">
-                          {errorSummary.critical}
-                        </p>
-                        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          Critical errors
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
-                        <p className="text-2xl font-bold text-[#2a2640]">
-                          {errorSummary.warnings}
-                        </p>
-                        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          Warnings
-                        </p>
-                      </div>
-                    </div>
+                    {activeTab === "chunks" ? (
+                      <section className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <h3 className="text-base font-bold text-[#2a2640]">
+                            Chunk preview
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            {capabilities.canViewChunkFullText ? (
+                              <label className="flex items-center gap-2 text-xs font-semibold tracking-wide text-[#5f5b72] uppercase">
+                                <input
+                                  type="checkbox"
+                                  checked={includeFullText}
+                                  onChange={(event) => {
+                                    setChunksOffset(0);
+                                    setIncludeFullText(event.target.checked);
+                                  }}
+                                  className="h-4 w-4 rounded border-[#c9c4de]"
+                                />
+                                Include full chunk text
+                              </label>
+                            ) : null}
+                            {chunksQuery.isFetching ? (
+                              <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                                Refreshing...
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
 
-                    <div className="overflow-hidden rounded-lg border border-[#e9e6f5]">
-                      <div className="border-b border-[#e9e6f5] bg-[#faf9ff] px-3 py-2 text-sm font-semibold text-[#2a2640]">
-                        Error log
-                      </div>
-                      {errorRows.length === 0 ? (
-                        <p className="px-3 py-4 text-sm text-[#69637f]">
-                          No backend error entries were reported for this
-                          document.
-                        </p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full text-left text-sm">
-                            <thead className="bg-[#f7f5ff] text-xs tracking-wide text-[#69637f] uppercase">
-                              <tr>
-                                <th className="px-3 py-2 font-semibold">
-                                  Type
-                                </th>
-                                <th className="px-3 py-2 font-semibold">
-                                  Severity
-                                </th>
-                                <th className="px-3 py-2 font-semibold">
-                                  Message
-                                </th>
-                                <th className="px-3 py-2 font-semibold">
-                                  Timestamp
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {errorRows.map((row) => (
-                                <tr
-                                  key={row.key}
-                                  className="border-t border-[#ece9f8]"
+                        {chunksQuery.isLoading ? (
+                          <LoadingState compact title="Loading chunks..." />
+                        ) : null}
+
+                        {chunksQuery.isError ? (
+                          <ErrorState
+                            compact
+                            error={chunksQuery.error}
+                            description={getApiErrorMessage(chunksQuery.error)}
+                            onRetry={() => {
+                              void chunksQuery.refetch();
+                            }}
+                            retryLabel="Retry chunk load"
+                          />
+                        ) : null}
+
+                        {selectedChunks &&
+                        selectedChunks.items.length === 0 &&
+                        chunkStatus ? (
+                          <EmptyState
+                            compact
+                            title={noChunksMessage(chunkStatus)}
+                          />
+                        ) : null}
+
+                        {selectedChunks && selectedChunks.items.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedChunks.items.map((chunk) => {
+                              const isCited =
+                                chunk.chunk_id === highlightedChunkId;
+                              return (
+                                <article
+                                  key={chunk.chunk_id}
+                                  ref={
+                                    isCited
+                                      ? (el) => {
+                                          highlightedChunkRef.current = el;
+                                        }
+                                      : undefined
+                                  }
+                                  className={`rounded-lg border px-3 py-3 ${
+                                    isCited
+                                      ? "border-[#3525cd]/30 bg-[#f0ecff] shadow-sm ring-1 ring-[#3525cd]/20"
+                                      : "border-[#e4e1f2] bg-[#faf9ff]"
+                                  }`}
                                 >
-                                  <td className="px-3 py-3 text-[#2a2640]">
-                                    {row.type}
-                                  </td>
-                                  <td className="px-3 py-3">
-                                    <span
-                                      className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${severityBadgeClass(row.severity)}`}
-                                    >
-                                      {row.severity}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-3 text-[#2a2640]">
-                                    {row.message}
-                                    {row.code ? (
-                                      <span className="ml-1 font-mono text-xs text-[#69637f]">
-                                        ({row.code})
+                                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                                    {isCited ? (
+                                      <span className="rounded bg-[#3525cd] px-1.5 py-0.5 text-[10px] font-bold text-white uppercase">
+                                        cited
                                       </span>
                                     ) : null}
-                                  </td>
-                                  <td className="px-3 py-3 font-mono text-xs text-[#69637f]">
-                                    {formatDate(row.timestamp)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                    <span>Chunk #{chunk.chunk_index}</span>
+                                    <span>Page {chunk.page_number ?? "-"}</span>
+                                    <span>{chunk.token_count} tokens</span>
+                                    <span>Model {chunk.embedding_model}</span>
+                                    <span>Index {chunk.index_version}</span>
+                                    <span>
+                                      Created {formatDate(chunk.created_at)}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
+                                    {includeFullText && chunk.text
+                                      ? chunk.text
+                                      : truncateChunkPreview(
+                                          chunk.text_preview,
+                                        )}
+                                  </p>
+                                </article>
+                              );
+                            })}
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <p className="text-xs text-[#6e6a86]">
+                                Showing {selectedChunks.items.length} of{" "}
+                                {selectedChunks.total} chunks.
+                              </p>
+                              {!highlightedChunkId ? (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={!canGoPrevChunks}
+                                    onClick={() =>
+                                      setChunksOffset((current) =>
+                                        Math.max(0, current - CHUNK_PAGE_SIZE),
+                                      )
+                                    }
+                                    className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Previous
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={!canGoNextChunks}
+                                    onClick={() =>
+                                      setChunksOffset(
+                                        (current) => current + CHUNK_PAGE_SIZE,
+                                      )
+                                    }
+                                    className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
+                      </section>
+                    ) : null}
+
+                    {activeTab === "errors" ? (
+                      <section className="space-y-4">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <p className="text-2xl font-bold text-[#2a2640]">
+                              {errorSummary.critical}
+                            </p>
+                            <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              Critical errors
+                            </p>
+                          </div>
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <p className="text-2xl font-bold text-[#2a2640]">
+                              {errorSummary.warnings}
+                            </p>
+                            <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              Warnings
+                            </p>
+                          </div>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="rounded-lg border border-[#d9d4f1] bg-[#f5f3ff] px-4 py-3">
-                      <p className="mb-2 text-sm font-semibold text-[#2a2640]">
-                        Re-indexing recommendations
-                      </p>
-                      <ul className="list-disc space-y-1 pl-4 text-sm text-[#4d4868]">
-                        {recommendations.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-            </section>
-          </div>
-          <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm lg:col-span-4">
-            <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Lifecycle timeline
-            </h3>
-            <ol className="relative space-y-3">
-              <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
-              {lifecycle.map((step) => (
-                <li
-                  key={step.key}
-                  className="relative z-10 flex items-start gap-3"
-                >
-                  <span
-                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${timelineStepClass(step.state)}`}
-                  >
-                    {timelineStepGlyph(step.state)}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-[#2a2640]">
-                        {step.label}
-                      </p>
-                      <p className="text-[11px] text-[#68647b]">
-                        {step.timestamp ? formatDate(step.timestamp) : "-"}
-                      </p>
-                    </div>
-                    <p className="mt-0.5 text-xs text-[#5f5a74]">
-                      {step.description}
-                    </p>
-                    {step.logs.slice(0, 1).map((line, index) => (
-                      <p
-                        key={`${step.key}-timeline-${index}`}
-                        className="mt-1 text-xs break-words text-[#4c4970]"
-                      >
-                        {line}
-                      </p>
-                    ))}
+                        <div className="overflow-hidden rounded-lg border border-[#e9e6f5]">
+                          <div className="border-b border-[#e9e6f5] bg-[#faf9ff] px-3 py-2 text-sm font-semibold text-[#2a2640]">
+                            Error log
+                          </div>
+                          {errorRows.length === 0 ? (
+                            <p className="px-3 py-4 text-sm text-[#69637f]">
+                              No backend error entries were reported for this
+                              document.
+                            </p>
+                          ) : (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-left text-sm">
+                                <thead className="bg-[#f7f5ff] text-xs tracking-wide text-[#69637f] uppercase">
+                                  <tr>
+                                    <th className="px-3 py-2 font-semibold">
+                                      Type
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                      Severity
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                      Message
+                                    </th>
+                                    <th className="px-3 py-2 font-semibold">
+                                      Timestamp
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {errorRows.map((row) => (
+                                    <tr
+                                      key={row.key}
+                                      className="border-t border-[#ece9f8]"
+                                    >
+                                      <td className="px-3 py-3 text-[#2a2640]">
+                                        {row.type}
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        <span
+                                          className={`rounded px-2 py-1 text-[10px] font-bold uppercase ${severityBadgeClass(row.severity)}`}
+                                        >
+                                          {row.severity}
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-3 text-[#2a2640]">
+                                        {row.message}
+                                        {row.code ? (
+                                          <span className="ml-1 font-mono text-xs text-[#69637f]">
+                                            ({row.code})
+                                          </span>
+                                        ) : null}
+                                      </td>
+                                      <td className="px-3 py-3 font-mono text-xs text-[#69637f]">
+                                        {formatDate(row.timestamp)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="rounded-lg border border-[#d9d4f1] bg-[#f5f3ff] px-4 py-3">
+                          <p className="mb-2 text-sm font-semibold text-[#2a2640]">
+                            Re-indexing recommendations
+                          </p>
+                          <ul className="list-disc space-y-1 pl-4 text-sm text-[#4d4868]">
+                            {recommendations.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </section>
+                    ) : null}
                   </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        </div>
+                </section>
+              </div>
+              <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm lg:col-span-4">
+                <h3 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                  Lifecycle timeline
+                </h3>
+                <ol className="relative space-y-3">
+                  <div className="absolute top-1 bottom-1 left-[11px] w-[2px] bg-[#e1e0eb]" />
+                  {lifecycle.map((step) => (
+                    <li
+                      key={step.key}
+                      className="relative z-10 flex items-start gap-3"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-[12px] font-bold ${timelineStepClass(step.state)}`}
+                      >
+                        {timelineStepGlyph(step.state)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-[#2a2640]">
+                            {step.label}
+                          </p>
+                          <p className="text-[11px] text-[#68647b]">
+                            {step.timestamp ? formatDate(step.timestamp) : "-"}
+                          </p>
+                        </div>
+                        <p className="mt-0.5 text-xs text-[#5f5a74]">
+                          {step.description}
+                        </p>
+                        {step.logs.slice(0, 1).map((line, index) => (
+                          <p
+                            key={`${step.key}-timeline-${index}`}
+                            className="mt-1 text-xs break-words text-[#4c4970]"
+                          >
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            </div>
 
-        <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
+            <section className="rounded-xl border border-[#e4e1f2] bg-white p-4 shadow-sm">
               <h3 className="mb-3 text-base font-bold text-[#2a2640]">
                 Document preview
               </h3>

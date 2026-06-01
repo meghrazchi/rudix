@@ -48,7 +48,9 @@ function CitationCard({ citation }: { citation: ChatCitationResponse }) {
   return (
     <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
       <div className="min-w-0 overflow-hidden">
-        <p className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}>
+        <p
+          className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+        >
           {getFileTypeLabel(citation.filename)}
         </p>
         <p
@@ -58,7 +60,9 @@ function CitationCard({ citation }: { citation: ChatCitationResponse }) {
           {citation.filename ?? "Document"}
         </p>
         {citation.page_number != null && (
-          <p className="text-[10px] text-[#6a6780]">Page {citation.page_number}</p>
+          <p className="text-[10px] text-[#6a6780]">
+            Page {citation.page_number}
+          </p>
         )}
         {citation.text_snippet && (
           <p className="mt-0.5 line-clamp-2 text-[10px] text-[#464555]">
@@ -140,7 +144,8 @@ export function SharedSessionPage({ token }: Props) {
               {sessionTitle}
             </h1>
             <p className="mt-1 text-xs text-[#6a6780]">
-              Shared {formatDate(data.shared_at)} • {data.total_messages} messages
+              Shared {formatDate(data.shared_at)} • {data.total_messages}{" "}
+              messages
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -149,7 +154,10 @@ export function SharedSessionPage({ token }: Props) {
               onClick={() => void handleCopyAll()}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3e376f] hover:bg-[#f5f3ff]"
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+              <span
+                className="material-symbols-outlined text-[16px]"
+                aria-hidden="true"
+              >
                 content_copy
               </span>
               Copy all
@@ -159,7 +167,10 @@ export function SharedSessionPage({ token }: Props) {
               onClick={handleDownload}
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
             >
-              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+              <span
+                className="material-symbols-outlined text-[16px]"
+                aria-hidden="true"
+              >
                 download
               </span>
               Download .md
@@ -170,11 +181,15 @@ export function SharedSessionPage({ token }: Props) {
 
       <div className="min-h-0 flex-1 rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
         <div className="hide-scrollbar h-full overflow-y-auto p-4">
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 mb-4">
-            <span className="material-symbols-outlined mr-1 align-middle text-[14px]" aria-hidden="true">
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <span
+              className="material-symbols-outlined mr-1 align-middle text-[14px]"
+              aria-hidden="true"
+            >
               info
             </span>
-            Answers are AI-generated and grounded in cited source evidence. Verify against source documents before acting on them.
+            Answers are AI-generated and grounded in cited source evidence.
+            Verify against source documents before acting on them.
           </div>
 
           {turns.length === 0 ? (
@@ -204,8 +219,12 @@ export function SharedSessionPage({ token }: Props) {
                     </div>
                     <article className="max-w-[92%] flex-1 rounded-xl rounded-tl-none border border-[#c7c4d8] bg-[#f0ecf9] px-4 py-3 shadow-sm">
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#e4e1ee] px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800">
-                          <span className="material-symbols-outlined text-xs" aria-hidden="true" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#e4e1ee] px-2 py-1 text-xs font-bold tracking-wide text-emerald-800 uppercase">
+                          <span
+                            className="material-symbols-outlined text-xs"
+                            aria-hidden="true"
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                          >
                             check_circle
                           </span>
                           AI-generated answer

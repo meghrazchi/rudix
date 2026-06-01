@@ -436,9 +436,7 @@ describe("BillingSettingsTab — quota warnings", () => {
     await waitFor(() => {
       expect(screen.getByText("Seats")).toBeInTheDocument();
     });
-    expect(
-      screen.queryByText(/approaching limit/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/approaching limit/i)).not.toBeInTheDocument();
   });
 
   it("shows warning at 80% usage", async () => {

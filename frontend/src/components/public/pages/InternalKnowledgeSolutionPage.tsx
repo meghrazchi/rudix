@@ -7,7 +7,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -27,13 +30,17 @@ function InternalKnowledgeBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Internal Knowledge
         </li>
@@ -58,12 +65,12 @@ function InternalKnowledgeHeroSection({
     >
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div>
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3323cc]">
+          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
             Internal Knowledge Assistant
           </span>
           <h1
             id="ik-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Your team's knowledge,{" "}
             <span className="text-[#3525cd]">instantly accessible.</span>
@@ -90,8 +97,14 @@ function InternalKnowledgeHeroSection({
         </div>
 
         <div className="relative">
-          <div aria-hidden="true" className="absolute -top-10 -right-10 -z-10 h-64 w-64 animate-pulse rounded-full bg-[#3525cd]/10 blur-3xl" />
-          <div aria-hidden="true" className="absolute -bottom-10 -left-10 -z-10 h-48 w-48 animate-pulse rounded-full bg-[#75db94]/20 blur-3xl [animation-delay:2s]" />
+          <div
+            aria-hidden="true"
+            className="absolute -top-10 -right-10 -z-10 h-64 w-64 animate-pulse rounded-full bg-[#3525cd]/10 blur-3xl"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-10 -left-10 -z-10 h-48 w-48 animate-pulse rounded-full bg-[#75db94]/20 blur-3xl [animation-delay:2s]"
+          />
 
           <div className="rudix-animate-float rudix-landing-glass relative z-10 rounded-2xl border border-white/30 p-6 shadow-2xl">
             <div className="mb-6 flex items-center gap-2">
@@ -120,9 +133,17 @@ function InternalKnowledgeHeroSection({
                     <strong>Global Employee Handbook (2024)</strong>:
                   </p>
                   <ul className="list-disc space-y-1.5 pl-4 text-xs text-[#464555]">
-                    <li>Full-time remote workers are eligible for a $500 initial setup stipend.</li>
-                    <li>An annual $200 recurring tech refresh budget applies.</li>
-                    <li>International receipts must be converted to USD using the OANDA rate at date of purchase.</li>
+                    <li>
+                      Full-time remote workers are eligible for a $500 initial
+                      setup stipend.
+                    </li>
+                    <li>
+                      An annual $200 recurring tech refresh budget applies.
+                    </li>
+                    <li>
+                      International receipts must be converted to USD using the
+                      OANDA rate at date of purchase.
+                    </li>
                   </ul>
                   <div className="mt-4 flex items-center justify-between border-t border-[#c7c4d8]/50 pt-3">
                     <span className="flex items-center gap-1 text-[10px] text-[#3525cd]">
@@ -130,8 +151,14 @@ function InternalKnowledgeHeroSection({
                       Source: SOP-HR-042.pdf
                     </span>
                     <div className="flex gap-2">
-                      <Sym name="thumb_up" className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]" />
-                      <Sym name="thumb_down" className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]" />
+                      <Sym
+                        name="thumb_up"
+                        className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]"
+                      />
+                      <Sym
+                        name="thumb_down"
+                        className="cursor-pointer text-sm text-[#777587] hover:text-[#3525cd]"
+                      />
                     </div>
                   </div>
                 </div>
@@ -174,7 +201,7 @@ function InternalKnowledgeProblemSection() {
         <div className="mb-16 text-center">
           <h2
             id="ik-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             The high cost of hidden knowledge
           </h2>
@@ -194,7 +221,7 @@ function InternalKnowledgeProblemSection() {
               >
                 <Sym name={p.icon} />
               </div>
-              <h3 className="mb-3 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -210,10 +237,26 @@ function InternalKnowledgeProblemSection() {
 
 function InternalKnowledgeDocumentSection() {
   const docTypes = [
-    { icon: "description", label: "SOPs", desc: "Standard Operating Procedures for all departments." },
-    { icon: "menu_book", label: "Handbooks", desc: "Culture, benefits, and administrative guides." },
-    { icon: "play_circle", label: "Playbooks", desc: "Sales, marketing, and engineering strategies." },
-    { icon: "school", label: "Manuals", desc: "Technical documentation and training kits." },
+    {
+      icon: "description",
+      label: "SOPs",
+      desc: "Standard Operating Procedures for all departments.",
+    },
+    {
+      icon: "menu_book",
+      label: "Handbooks",
+      desc: "Culture, benefits, and administrative guides.",
+    },
+    {
+      icon: "play_circle",
+      label: "Playbooks",
+      desc: "Sales, marketing, and engineering strategies.",
+    },
+    {
+      icon: "school",
+      label: "Manuals",
+      desc: "Technical documentation and training kits.",
+    },
   ];
 
   const features = [
@@ -241,7 +284,7 @@ function InternalKnowledgeDocumentSection() {
         <div className="order-1 lg:order-2">
           <h2
             id="ik-doc-title"
-            className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             One Brain, Every Document
           </h2>
@@ -252,7 +295,10 @@ function InternalKnowledgeDocumentSection() {
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
-              <li key={f} className="flex items-center gap-3 text-base leading-6">
+              <li
+                key={f}
+                className="flex items-center gap-3 text-base leading-6"
+              >
                 <Sym name="check_circle" className="shrink-0 text-[#108548]" />
                 <span className="font-semibold text-[#1a1b20]">{f}</span>
               </li>
@@ -278,10 +324,30 @@ const CODE_CONTENT = `{
 
 function InternalKnowledgeHowItWorksSection() {
   const steps = [
-    { n: "01", icon: "upload_file", label: "Upload SOPs", desc: "Drag and drop your unstructured documents." },
-    { n: "02", icon: "database", label: "Vector Index", desc: "Automatic semantic embedding and storage." },
-    { n: "03", icon: "chat_paste_go", label: "Ask Anything", desc: "Natural language queries via web or Slack." },
-    { n: "04", icon: "fact_check", label: "Verify & Cite", desc: "Answer delivered with verifiable sources." },
+    {
+      n: "01",
+      icon: "upload_file",
+      label: "Upload SOPs",
+      desc: "Drag and drop your unstructured documents.",
+    },
+    {
+      n: "02",
+      icon: "database",
+      label: "Vector Index",
+      desc: "Automatic semantic embedding and storage.",
+    },
+    {
+      n: "03",
+      icon: "chat_paste_go",
+      label: "Ask Anything",
+      desc: "Natural language queries via web or Slack.",
+    },
+    {
+      n: "04",
+      icon: "fact_check",
+      label: "Verify & Cite",
+      desc: "Answer delivered with verifiable sources.",
+    },
   ];
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -322,12 +388,15 @@ function InternalKnowledgeHowItWorksSection() {
   }, [started]);
 
   return (
-    <section aria-labelledby="ik-flow-title" className="overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]">
+    <section
+      aria-labelledby="ik-flow-title"
+      className="overflow-hidden bg-[#0A0A0F] py-24 text-[#faf9ff]"
+    >
       <div className="mx-auto max-w-[1440px] px-10">
         <div className="mb-20 text-center">
           <h2
             id="ik-flow-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-white"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
             The Rudix Flow
           </h2>
@@ -365,7 +434,10 @@ function InternalKnowledgeHowItWorksSection() {
         </div>
 
         {/* technical card with typing animation */}
-        <div ref={cardRef} className="mt-20 rounded-2xl border border-white/10 bg-[#1F1E24] p-8 transition duration-700 hover:border-[#3525cd]/50">
+        <div
+          ref={cardRef}
+          className="mt-20 rounded-2xl border border-white/10 bg-[#1F1E24] p-8 transition duration-700 hover:border-[#3525cd]/50"
+        >
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 animate-pulse rounded-full bg-[#3525cd]" />
@@ -373,12 +445,17 @@ function InternalKnowledgeHowItWorksSection() {
                 RAG ENGINE STATUS: ACTIVE
               </span>
             </div>
-            <span className="font-mono text-xs text-[#464555]">latency: 240ms</span>
+            <span className="font-mono text-xs text-[#464555]">
+              latency: 240ms
+            </span>
           </div>
           <pre className="overflow-x-auto font-mono text-[13px] leading-5 text-[#e2dfff]">
             <code>{typedText || " "}</code>
             {typedText.length < CODE_CONTENT.length && (
-              <span aria-hidden="true" className="rudix-cursor-blink text-[#e2dfff]" />
+              <span
+                aria-hidden="true"
+                className="rudix-cursor-blink text-[#e2dfff]"
+              />
             )}
           </pre>
         </div>
@@ -402,7 +479,7 @@ function InternalKnowledgeExampleQueriesSection() {
       <div className="mx-auto max-w-[1440px] px-10">
         <h2
           id="ik-queries-title"
-          className="mb-12 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+          className="mb-12 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
           Ask Rudix Anything
         </h2>
@@ -435,7 +512,10 @@ function InternalKnowledgeFinalCtaSection({
   pricingHref: string;
 }) {
   return (
-    <section aria-labelledby="ik-cta-title" className="relative overflow-hidden bg-[#faf9ff] py-24">
+    <section
+      aria-labelledby="ik-cta-title"
+      className="relative overflow-hidden bg-[#faf9ff] py-24"
+    >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-1/2 -z-0 h-[400px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-[100%] bg-[#e2dfff]/30 blur-[120px]"
@@ -444,7 +524,7 @@ function InternalKnowledgeFinalCtaSection({
         <div className="rounded-3xl bg-[#3525cd] p-12 text-center lg:p-20">
           <h2
             id="ik-cta-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
           >
             Stop searching. Start knowing.
           </h2>
@@ -455,13 +535,13 @@ function InternalKnowledgeFinalCtaSection({
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <PublicActionLink
               href={demoHref}
-              className="rounded-xl bg-white px-8 py-4 font-bold text-lg text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
+              className="rounded-xl bg-white px-8 py-4 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
             >
               Speak to us
             </PublicActionLink>
             <PublicActionLink
               href={pricingHref}
-              className="rounded-xl border border-white/20 bg-white/10 px-8 py-4 font-bold text-lg text-white transition hover:bg-white/20 active:scale-95"
+              className="rounded-xl border border-white/20 bg-white/10 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/20 active:scale-95"
             >
               View Pricing
             </PublicActionLink>
@@ -480,12 +560,18 @@ export function InternalKnowledgeSolutionPage() {
   return (
     <>
       <InternalKnowledgeBreadcrumb />
-      <InternalKnowledgeHeroSection trialHref={links.startTrial} demoHref={links.requestDemo} />
+      <InternalKnowledgeHeroSection
+        trialHref={links.startTrial}
+        demoHref={links.requestDemo}
+      />
       <InternalKnowledgeProblemSection />
       <InternalKnowledgeDocumentSection />
       <InternalKnowledgeHowItWorksSection />
       <InternalKnowledgeExampleQueriesSection />
-      <InternalKnowledgeFinalCtaSection demoHref={links.requestDemo} pricingHref={links.pricing} />
+      <InternalKnowledgeFinalCtaSection
+        demoHref={links.requestDemo}
+        pricingHref={links.pricing}
+      />
     </>
   );
 }

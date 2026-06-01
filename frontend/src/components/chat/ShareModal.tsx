@@ -18,7 +18,11 @@ type Props = {
 
 type ExpiryOption = "never" | "24h" | "7d" | "30d";
 
-const EXPIRY_OPTIONS: { label: string; value: ExpiryOption; hours: number | null }[] = [
+const EXPIRY_OPTIONS: {
+  label: string;
+  value: ExpiryOption;
+  hours: number | null;
+}[] = [
   { label: "Never", value: "never", hours: null },
   { label: "24 hours", value: "24h", hours: 24 },
   { label: "7 days", value: "7d", hours: 168 },
@@ -58,14 +62,18 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
       });
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["chat", "shares", sessionId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["chat", "shares", sessionId],
+      });
     },
   });
 
   const revokeMutation = useMutation({
     mutationFn: (shareId: string) => revokeChatShare(sessionId, shareId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["chat", "shares", sessionId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["chat", "shares", sessionId],
+      });
     },
   });
 
@@ -105,8 +113,12 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#e2dff1] px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-[#2a2640]">Share session</h2>
-            <p className="mt-0.5 truncate text-xs text-[#6a6780]">{displayTitle}</p>
+            <h2 className="text-base font-semibold text-[#2a2640]">
+              Share session
+            </h2>
+            <p className="mt-0.5 truncate text-xs text-[#6a6780]">
+              {displayTitle}
+            </p>
           </div>
           <button
             type="button"
@@ -114,7 +126,10 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
             aria-label="Close"
             className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46]"
           >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+            <span
+              className="material-symbols-outlined text-[20px]"
+              aria-hidden="true"
+            >
               close
             </span>
           </button>
@@ -123,25 +138,34 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
         {/* Body */}
         <div className="space-y-4 px-5 py-4">
           <div className="rounded-lg border border-[#f5c842]/60 bg-[#fffbe6] px-3 py-2 text-xs text-[#7a6000]">
-            <span className="material-symbols-outlined mr-1 align-middle text-[14px]" aria-hidden="true">
+            <span
+              className="material-symbols-outlined mr-1 align-middle text-[14px]"
+              aria-hidden="true"
+            >
               lock
             </span>
-            Share links are only accessible to signed-in members of your organization.
+            Share links are only accessible to signed-in members of your
+            organization.
           </div>
 
           {/* Create new share */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-[#464555] uppercase tracking-wide">
+            <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
               Create link
             </p>
             <div className="flex items-center gap-2">
-              <label htmlFor="share-expiry" className="text-xs text-[#6a6780] shrink-0">
+              <label
+                htmlFor="share-expiry"
+                className="shrink-0 text-xs text-[#6a6780]"
+              >
                 Expires:
               </label>
               <select
                 id="share-expiry"
                 value={selectedExpiry}
-                onChange={(e) => setSelectedExpiry(e.target.value as ExpiryOption)}
+                onChange={(e) =>
+                  setSelectedExpiry(e.target.value as ExpiryOption)
+                }
                 className="rounded border border-[#d2cee6] bg-white px-2 py-1 text-xs text-[#2f2a46] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
               >
                 {EXPIRY_OPTIONS.map((opt) => (
@@ -175,7 +199,7 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
             </p>
           ) : shares.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-[#464555] uppercase tracking-wide">
+              <p className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
                 Active links
               </p>
               <ul className="space-y-2">
@@ -202,7 +226,9 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
                         className="material-symbols-outlined text-[16px]"
                         aria-hidden="true"
                       >
-                        {copiedShareId === share.share_id ? "check" : "content_copy"}
+                        {copiedShareId === share.share_id
+                          ? "check"
+                          : "content_copy"}
                       </span>
                     </button>
                     <button
@@ -224,7 +250,9 @@ export function ShareModal({ sessionId, sessionTitle, onClose }: Props) {
               </ul>
             </div>
           ) : (
-            <p className="text-xs text-[#6a6780]">No active share links for this session.</p>
+            <p className="text-xs text-[#6a6780]">
+              No active share links for this session.
+            </p>
           )}
         </div>
       </div>

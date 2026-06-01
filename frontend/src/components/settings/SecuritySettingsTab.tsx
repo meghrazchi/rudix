@@ -110,7 +110,7 @@ function SectionHeader({
   badge?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="mb-6 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Icon size={20} className="text-[#3525cd]" aria-hidden="true" />
         <h2 className="text-lg font-semibold text-[#1b1b24]">{title}</h2>
@@ -145,9 +145,7 @@ function UnavailableRow({
     >
       <div>
         <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
-        {description && (
-          <p className="text-xs text-[#464555]">{description}</p>
-        )}
+        {description && <p className="text-xs text-[#464555]">{description}</p>}
         <p className="mt-1 text-xs text-[#777587]">
           Not available — deployment-controlled.
         </p>
@@ -215,7 +213,7 @@ function FieldLabel({
   return (
     <label
       htmlFor={htmlFor}
-      className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]"
+      className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
     >
       {children}
     </label>
@@ -266,24 +264,24 @@ function SecurityPostureCard({
 
   return (
     <div
-      className={`border-l-4 ${borderColor} rounded-lg bg-[#f5f2ff]/60 border border-[#c7c4d8] px-4 py-3`}
+      className={`border-l-4 ${borderColor} rounded-lg border border-[#c7c4d8] bg-[#f5f2ff]/60 px-4 py-3`}
     >
-      <div className="flex items-center gap-2 mb-1">
+      <div className="mb-1 flex items-center gap-2">
         <Icon size={16} className={iconColor} aria-hidden="true" />
         <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
         {status !== null && (
           <span
             className={
               status
-                ? "ml-auto text-[10px] font-bold text-emerald-700 uppercase tracking-wider"
-                : "ml-auto text-[10px] font-bold text-rose-600 uppercase tracking-wider"
+                ? "ml-auto text-[10px] font-bold tracking-wider text-emerald-700 uppercase"
+                : "ml-auto text-[10px] font-bold tracking-wider text-rose-600 uppercase"
             }
           >
             {status ? "Active" : "Inactive"}
           </span>
         )}
         {status === null && (
-          <span className="ml-auto text-[10px] font-bold text-[#777587] uppercase tracking-wider">
+          <span className="ml-auto text-[10px] font-bold tracking-wider text-[#777587] uppercase">
             Unknown
           </span>
         )}
@@ -304,7 +302,7 @@ function AuditEventPreview({ event }: { event: AuditEvent }) {
         aria-hidden="true"
       />
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#1b1b24] truncate">
+        <p className="truncate text-sm font-semibold text-[#1b1b24]">
           {event.summary}
         </p>
         <p className="text-xs text-[#464555]">
@@ -319,7 +317,10 @@ function AuditEventPreview({ event }: { event: AuditEvent }) {
 // ── Login policy form schema ──────────────────────────────────────────────────
 
 const loginPolicySchema = z.object({
-  domainAllowlist: z.string().trim().transform((v) => v ?? ""),
+  domainAllowlist: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
   sessionTimeoutHours: z.string(),
   ssoRequired: z.boolean(),
   inviteOnly: z.boolean(),
@@ -629,12 +630,12 @@ export function SecuritySettingsTab() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
       {/* ── Left column ── */}
-      <div className="lg:col-span-8 space-y-6">
+      <div className="space-y-6 lg:col-span-8">
         {/* 1. Auth Diagnostics */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Authentication diagnostics section"
         >
           <SectionHeader icon={ShieldCheck} title="Authentication & Session" />
@@ -664,13 +665,15 @@ export function SecuritySettingsTab() {
 
         {/* 2. Active Sessions */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Active sessions section"
         >
           <SectionHeader
             icon={Users}
             title="Active Sessions"
-            badge={!capabilities.sessionsEnabled && <DeploymentControlledBadge />}
+            badge={
+              !capabilities.sessionsEnabled && <DeploymentControlledBadge />
+            }
           />
 
           {!capabilities.sessionsEnabled ? (
@@ -711,7 +714,7 @@ export function SecuritySettingsTab() {
             <>
               <div className="overflow-x-auto rounded-xl border border-[#e4e1ee]">
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-[#f5f2ff] text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <thead className="bg-[#f5f2ff] text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     <tr>
                       <th className="px-4 py-3">Device</th>
                       <th className="px-4 py-3">Location</th>
@@ -733,7 +736,7 @@ export function SecuritySettingsTab() {
                     {(sessionsQuery.data ?? []).map((s) => (
                       <tr
                         key={s.id}
-                        className="hover:bg-[#f5f2ff]/40 transition-colors"
+                        className="transition-colors hover:bg-[#f5f2ff]/40"
                       >
                         <td className="px-4 py-3">
                           <span className="font-semibold text-[#1b1b24]">
@@ -766,7 +769,7 @@ export function SecuritySettingsTab() {
                               onClick={() =>
                                 handleRevokeSession(s.id, s.device)
                               }
-                              className="text-sm font-semibold text-[#777587] hover:text-rose-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                              className="text-sm font-semibold text-[#777587] transition-colors hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {revokingId === s.id ? "Revoking…" : "Revoke"}
                             </button>
@@ -791,7 +794,7 @@ export function SecuritySettingsTab() {
                         revokeSessionMutation.isPending
                       }
                       onClick={handleRevokeAll}
-                      className="ml-auto rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                      className="ml-auto rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {revokeAllMutation.isPending
                         ? "Revoking all…"
@@ -811,16 +814,14 @@ export function SecuritySettingsTab() {
 
         {/* 3. Login Policy */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Login policy section"
         >
           <SectionHeader
             icon={SlidersHorizontal}
             title="Login & Authentication Policy"
             badge={
-              !capabilities.loginPolicyEnabled && (
-                <DeploymentControlledBadge />
-              )
+              !capabilities.loginPolicyEnabled && <DeploymentControlledBadge />
             }
           />
 
@@ -829,7 +830,7 @@ export function SecuritySettingsTab() {
             {changePasswordUrl ? (
               <a
                 href={changePasswordUrl}
-                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
               >
                 Change password
               </a>
@@ -885,7 +886,7 @@ export function SecuritySettingsTab() {
                     id="sec-domain-allowlist"
                     {...loginPolicyForm.register("domainAllowlist")}
                     placeholder="example.com, partner.org"
-                    className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                    className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   />
                   <p className="text-xs text-[#777587]">
                     Comma-separated allowed email domains.
@@ -899,7 +900,7 @@ export function SecuritySettingsTab() {
                   <select
                     id="sec-session-timeout"
                     {...loginPolicyForm.register("sessionTimeoutHours")}
-                    className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                    className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   >
                     <option value="8">8 hours</option>
                     <option value="24">24 hours</option>
@@ -991,7 +992,7 @@ export function SecuritySettingsTab() {
                     void handleSaveLoginPolicy();
                   }}
                   disabled={loginPolicySaveMutation.isPending}
-                  className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loginPolicySaveMutation.isPending
                     ? "Saving…"
@@ -1004,7 +1005,7 @@ export function SecuritySettingsTab() {
 
         {/* 4. Role & Access Policy */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Role and access policy section"
         >
           <SectionHeader icon={ShieldCheck} title="Role & Access Policy" />
@@ -1023,7 +1024,7 @@ export function SecuritySettingsTab() {
                   key={cap.label}
                   className="flex flex-col rounded-lg border border-[#ebe8f7] bg-[#f5f2ff]/40 px-4 py-3"
                 >
-                  <dt className="text-xs font-semibold uppercase tracking-widest text-[#464555]">
+                  <dt className="text-xs font-semibold tracking-widest text-[#464555] uppercase">
                     {cap.label}
                   </dt>
                   <dd className="mt-1 text-sm text-[#1b1b24]">
@@ -1033,13 +1034,15 @@ export function SecuritySettingsTab() {
               ))}
             </dl>
           ) : (
-            <p className="text-sm text-[#777587]">Role information unavailable.</p>
+            <p className="text-sm text-[#777587]">
+              Role information unavailable.
+            </p>
           )}
         </section>
 
         {/* 5. Rate Limits & Abuse Protection */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Rate limits section"
         >
           <SectionHeader
@@ -1057,7 +1060,10 @@ export function SecuritySettingsTab() {
                 label: "Upload rate limit",
                 description: "Deployment-controlled",
               },
-              { label: "Chat rate limit", description: "Deployment-controlled" },
+              {
+                label: "Chat rate limit",
+                description: "Deployment-controlled",
+              },
               {
                 label: "Delete rate limit",
                 description: "Deployment-controlled",
@@ -1082,7 +1088,9 @@ export function SecuritySettingsTab() {
                 <span className="text-sm font-semibold text-[#1b1b24]">
                   {row.label}
                 </span>
-                <span className="text-xs text-[#777587]">{row.description}</span>
+                <span className="text-xs text-[#777587]">
+                  {row.description}
+                </span>
               </div>
             ))}
           </div>
@@ -1090,16 +1098,18 @@ export function SecuritySettingsTab() {
       </div>
 
       {/* ── Right column ── */}
-      <div className="lg:col-span-4 space-y-6">
+      <div className="space-y-6 lg:col-span-4">
         {/* 6. AI Safety Posture */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="AI safety posture section"
         >
           <SectionHeader
             icon={Bot}
             title="AI Safety Posture"
-            badge={!capabilities.postureEnabled && <DeploymentControlledBadge />}
+            badge={
+              !capabilities.postureEnabled && <DeploymentControlledBadge />
+            }
           />
 
           {!capabilities.postureEnabled ? (
@@ -1107,7 +1117,7 @@ export function SecuritySettingsTab() {
               {postureCards.map((card) => (
                 <SecurityPostureCard key={card.label} {...card} />
               ))}
-              <p className="text-xs text-[#777587] pt-1">
+              <p className="pt-1 text-xs text-[#777587]">
                 Live posture data is not available — deployment-controlled.
                 Showing default configuration.
               </p>
@@ -1129,9 +1139,8 @@ export function SecuritySettingsTab() {
                 <SecurityPostureCard key={card.label} {...card} />
               ))}
               {postureQuery.data?.last_audit_at && (
-                <p className="text-xs text-[#777587] pt-1">
-                  Last audit:{" "}
-                  {formatTimestamp(postureQuery.data.last_audit_at)}
+                <p className="pt-1 text-xs text-[#777587]">
+                  Last audit: {formatTimestamp(postureQuery.data.last_audit_at)}
                 </p>
               )}
             </div>
@@ -1140,7 +1149,7 @@ export function SecuritySettingsTab() {
 
         {/* 7. Audit Log */}
         <section
-          className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+          className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Audit log section"
         >
           <SectionHeader
@@ -1186,7 +1195,7 @@ export function SecuritySettingsTab() {
             {auditPageUrl && (
               <a
                 href={auditPageUrl}
-                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
               >
                 Open audit logs
               </a>
@@ -1194,7 +1203,7 @@ export function SecuritySettingsTab() {
             {auditExportUrl && isAdmin && (
               <a
                 href={auditExportUrl}
-                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] hover:bg-[#f5f3ff] transition-colors"
+                className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#f5f3ff]"
               >
                 Export log
               </a>

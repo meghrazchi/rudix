@@ -5,7 +5,10 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 function Sym({ name, className = "" }: { name: string; className?: string }) {
   return (
-    <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>
+    <span
+      aria-hidden="true"
+      className={`material-symbols-outlined ${className}`}
+    >
       {name}
     </span>
   );
@@ -25,13 +28,17 @@ function ClientPortalBreadcrumb() {
             Home
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
             Solutions
           </PublicActionLink>
         </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">/</li>
+        <li aria-hidden="true" className="text-[#c7c4d8]">
+          /
+        </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
           Client Portal
         </li>
@@ -56,12 +63,12 @@ function ClientPortalHeroSection({
     >
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div className="z-10">
-          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#3323cc]">
+          <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
             Client Knowledge Portal
           </span>
           <h1
             id="cp-hero-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Give clients instant answers from your approved documentation.
           </h1>
@@ -100,13 +107,13 @@ function ClientPortalHeroSection({
               <div className="h-3 w-3 rounded-full bg-[#ba1a1a]" />
               <div className="h-3 w-3 rounded-full bg-[#E24329]" />
               <div className="h-3 w-3 rounded-full bg-[#108548]" />
-              <span className="ml-auto font-mono text-[10px] uppercase tracking-widest text-[#777587]">
+              <span className="ml-auto font-mono text-[10px] tracking-widest text-[#777587] uppercase">
                 Portal Q&A
               </span>
             </div>
             <div className="space-y-5 font-mono text-sm">
               <div>
-                <p className="mb-1 text-[10px] uppercase tracking-widest text-[#c3c0ff]">
+                <p className="mb-1 text-[10px] tracking-widest text-[#c3c0ff] uppercase">
                   Customer
                 </p>
                 <p className="text-white">
@@ -114,7 +121,7 @@ function ClientPortalHeroSection({
                 </p>
               </div>
               <div className="border-t border-white/10 pt-5">
-                <p className="mb-2 text-[10px] uppercase tracking-widest text-[#75db94]">
+                <p className="mb-2 text-[10px] tracking-widest text-[#75db94] uppercase">
                   Rudix
                 </p>
                 <p className="text-[#e3e2e8]">
@@ -165,7 +172,7 @@ function ClientPortalProblemSection() {
         <div className="mb-16 text-center">
           <h2
             id="cp-problem-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             The Client Knowledge Gap
           </h2>
@@ -181,7 +188,7 @@ function ClientPortalProblemSection() {
               className="rounded-xl border border-[#c7c4d8] bg-white p-8 transition hover:border-[#3525cd]"
             >
               <Sym name={p.icon} className="mb-6 text-4xl text-[#3525cd]" />
-              <h3 className="mb-4 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-4 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {p.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{p.body}</p>
@@ -232,7 +239,7 @@ function ClientPortalDocumentSourcesSection() {
         <div className="order-1 lg:order-2">
           <h2
             id="cp-doc-title"
-            className="mb-6 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Approved sources, scoped access.
           </h2>
@@ -244,7 +251,10 @@ function ClientPortalDocumentSourcesSection() {
           </p>
           <ul className="space-y-4">
             {features.map((f) => (
-              <li key={f} className="flex items-center gap-3 text-base leading-6">
+              <li
+                key={f}
+                className="flex items-center gap-3 text-base leading-6"
+              >
                 <Sym name="check_circle" className="shrink-0 text-[#108548]" />
                 <span>{f}</span>
               </li>
@@ -268,7 +278,7 @@ function ClientPortalWorkflowSection() {
         <div className="mb-16 text-center">
           <h2
             id="cp-workflow-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-white"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
             From document approval to client Q&A
           </h2>
@@ -278,7 +288,7 @@ function ClientPortalWorkflowSection() {
           </p>
         </div>
 
-        <div className="grid h-auto grid-cols-1 gap-6 md:grid-cols-4 md:grid-rows-2 md:h-[600px]">
+        <div className="grid h-auto grid-cols-1 gap-6 md:h-[600px] md:grid-cols-4 md:grid-rows-2">
           {/* Step 01 — large card */}
           <div className="group relative col-span-1 flex flex-col justify-end overflow-hidden rounded-2xl border border-white/10 bg-[#3525cd]/10 p-10 md:col-span-2 md:row-span-2">
             <div
@@ -295,10 +305,10 @@ function ClientPortalWorkflowSection() {
               }}
             />
             <div className="relative z-10">
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 01
               </span>
-              <h3 className="mb-4 text-[30px] font-semibold leading-[38px] text-white">
+              <h3 className="mb-4 text-[30px] leading-[38px] font-semibold text-white">
                 Approve Client-Facing Docs
               </h3>
               <p className="text-base leading-6 text-[#464555]">
@@ -313,10 +323,10 @@ function ClientPortalWorkflowSection() {
           {/* Step 02 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8 md:col-span-2">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 02
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Index & Scope Access
               </h3>
             </div>
@@ -330,10 +340,10 @@ function ClientPortalWorkflowSection() {
           {/* Step 03 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-white/10 bg-white/5 p-8">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-[#c3c0ff]">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
                 Step 03
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Expose Q&A
               </h3>
             </div>
@@ -343,10 +353,10 @@ function ClientPortalWorkflowSection() {
           {/* Step 04 */}
           <div className="col-span-1 flex flex-col justify-between rounded-2xl border border-[#3525cd] bg-[#3525cd] p-8 text-white">
             <div>
-              <span className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.05em] text-white/60">
+              <span className="mb-2 block text-[12px] font-semibold tracking-[0.05em] text-white/60 uppercase">
                 Step 04
               </span>
-              <h3 className="mb-2 text-[24px] font-semibold leading-8 text-white">
+              <h3 className="mb-2 text-[24px] leading-8 font-semibold text-white">
                 Verify & Improve
               </h3>
             </div>
@@ -395,13 +405,13 @@ function ClientPortalUseCasesSection() {
         <div className="mb-16 text-center">
           <h2
             id="cp-usecases-title"
-            className="mb-4 text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+            className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
             Built for every client touchpoint
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            From first login to long-term account management, Rudix supports
-            the moments where clients need answers fast.
+            From first login to long-term account management, Rudix supports the
+            moments where clients need answers fast.
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -411,7 +421,7 @@ function ClientPortalUseCasesSection() {
               className="rounded-xl border border-[#c7c4d8] bg-white p-8 transition hover:border-[#3525cd]"
             >
               <Sym name={u.icon} className="mb-4 text-4xl text-[#3525cd]" />
-              <h3 className="mb-3 text-[24px] font-semibold leading-8 text-[#1a1b20]">
+              <h3 className="mb-3 text-[24px] leading-8 font-semibold text-[#1a1b20]">
                 {u.title}
               </h3>
               <p className="text-base leading-6 text-[#464555]">{u.body}</p>
@@ -449,7 +459,7 @@ function ClientPortalExampleQueriesSection() {
       <div className="mx-auto max-w-[1440px] px-10">
         <h2
           id="cp-queries-title"
-          className="mb-16 text-center text-[30px] font-semibold leading-[38px] text-[#0A0A0F]"
+          className="mb-16 text-center text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
         >
           Cited answers. Every time.
         </h2>
@@ -465,7 +475,7 @@ function ClientPortalExampleQueriesSection() {
                   className="mt-1 shrink-0 text-[#3525cd]"
                 />
                 <div>
-                  <p className="mb-4 text-lg font-semibold leading-7 text-[#0A0A0F]">
+                  <p className="mb-4 text-lg leading-7 font-semibold text-[#0A0A0F]">
                     {e.question}
                   </p>
                   <div className="rounded-lg border border-[#c7c4d8]/30 bg-white p-4 text-base leading-6 text-[#464555]">
@@ -509,7 +519,7 @@ function ClientPortalRelatedSolutionsSection() {
       <div className="mx-auto max-w-[1440px] px-10">
         <h2
           id="cp-related-title"
-          className="mb-8 text-center text-[24px] font-semibold leading-8 text-[#1a1b20]"
+          className="mb-8 text-center text-[24px] leading-8 font-semibold text-[#1a1b20]"
         >
           Explore related solutions
         </h2>
@@ -552,7 +562,7 @@ function ClientPortalFinalCtaSection({
         <div className="rudix-landing-glass mx-auto max-w-3xl rounded-3xl border border-[#3525cd]/20 p-12 lg:p-16">
           <h2
             id="cp-cta-title"
-            className="mb-6 text-4xl font-bold leading-tight tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
+            className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
             Your clients deserve better answers.
           </h2>
@@ -575,7 +585,7 @@ function ClientPortalFinalCtaSection({
               Get Started Free
             </PublicActionLink>
           </div>
-          <p className="mt-8 text-[12px] font-semibold uppercase tracking-[0.05em] text-[#777587]">
+          <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">
             Rudix surfaces answers from approved documents — it does not replace
             a full external client portal or manage client identity and access.
           </p>

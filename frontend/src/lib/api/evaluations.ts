@@ -14,8 +14,10 @@ export type CreateEvaluationQuestionRequest =
 export type EvaluationRunConfig = Schemas["EvaluationRunConfig"];
 export type RunEvaluationRequest = Schemas["RunEvaluationRequest"];
 export type RunEvaluationResponse = Schemas["RunEvaluationResponse"];
-export type EvaluationRunResultResponse = Schemas["EvaluationRunResultResponse"];
-export type EvaluationRunDetailResponse = Schemas["EvaluationRunDetailResponse"];
+export type EvaluationRunResultResponse =
+  Schemas["EvaluationRunResultResponse"];
+export type EvaluationRunDetailResponse =
+  Schemas["EvaluationRunDetailResponse"];
 
 export async function createEvaluationSet(
   payload: CreateEvaluationSetRequest,

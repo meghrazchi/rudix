@@ -73,7 +73,9 @@ function filteredQuestions(
     return (
       question.question.toLowerCase().includes(normalized) ||
       (question.expected_answer ?? "").toLowerCase().includes(normalized) ||
-      (question.tags ?? []).some((tag) => tag.toLowerCase().includes(normalized))
+      (question.tags ?? []).some((tag) =>
+        tag.toLowerCase().includes(normalized),
+      )
     );
   });
 

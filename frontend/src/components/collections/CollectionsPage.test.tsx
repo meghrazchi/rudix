@@ -111,9 +111,7 @@ describe("CollectionsPage", () => {
     renderWithProviders(<CollectionsPage />, { queryClient });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("No collections yet."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("No collections yet.")).toBeInTheDocument();
     });
   });
 
@@ -155,7 +153,9 @@ describe("CollectionsPage", () => {
       screen.getAllByRole("button", { name: /new collection/i })[0],
     );
 
-    expect(screen.getByRole("heading", { name: "New Collection" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "New Collection" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("e.g. Engineering Handbook"),
     ).toBeInTheDocument();
@@ -276,9 +276,7 @@ describe("CollectionsPage", () => {
       expect(screen.getByText("Engineering Handbook")).toBeInTheDocument(),
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: /inspect/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /inspect/i }));
 
     await waitFor(() => {
       expect(screen.getByText("Collection detail")).toBeInTheDocument();

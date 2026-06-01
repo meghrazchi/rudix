@@ -66,7 +66,9 @@ function getOrgEndpoints() {
   return {
     profileUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_PROFILE_URL),
     settingsUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL),
-    ingestionUrl: trimToNull(process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL),
+    ingestionUrl: trimToNull(
+      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL,
+    ),
     transferOwnershipUrl: trimToNull(
       process.env.NEXT_PUBLIC_ORGANIZATION_TRANSFER_OWNERSHIP_URL,
     ),

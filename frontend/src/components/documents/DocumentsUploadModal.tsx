@@ -234,9 +234,10 @@ export function DocumentsUploadModal({
   }
 
   const hasHistory = uploadHistory.length > 0;
-  const activeUploads = progress?.items.filter(
-    (i) => i.state === "pending" || i.state === "uploading",
-  ).length ?? 0;
+  const activeUploads =
+    progress?.items.filter(
+      (i) => i.state === "pending" || i.state === "uploading",
+    ).length ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -278,7 +279,12 @@ export function DocumentsUploadModal({
                 title="Upload history"
                 className={`rounded-full p-1.5 text-[#6f6b86] transition-colors hover:bg-[#f1eff9] hover:text-[#1b1b24] ${historyOpen ? "bg-[#f1eff9] text-[#1b1b24]" : ""}`}
               >
-                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">history</span>
+                <span
+                  className="material-symbols-outlined text-[20px]"
+                  aria-hidden="true"
+                >
+                  history
+                </span>
               </button>
             )}
             <button
@@ -413,12 +419,18 @@ export function DocumentsUploadModal({
                 className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3525cd] hover:bg-[#faf9ff]"
               >
                 <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                  <span
+                    className="material-symbols-outlined text-[18px]"
+                    aria-hidden="true"
+                  >
                     tune
                   </span>
                   Upload details (optional)
                 </span>
-                <span className="material-symbols-outlined text-[18px] text-[#9993b8]" aria-hidden="true">
+                <span
+                  className="material-symbols-outlined text-[18px] text-[#9993b8]"
+                  aria-hidden="true"
+                >
                   {metaOpen ? "expand_less" : "expand_more"}
                 </span>
               </button>
@@ -454,7 +466,7 @@ export function DocumentsUploadModal({
                       className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase"
                     >
                       Tags
-                      <span className="ml-1 font-normal normal-case text-[#9993b8]">
+                      <span className="ml-1 font-normal text-[#9993b8] normal-case">
                         (comma-separated)
                       </span>
                     </label>
@@ -613,7 +625,9 @@ export function DocumentsUploadModal({
                           <span
                             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${progressStateClass(item.state)}`}
                           >
-                            {item.state === "queued" ? "queued for indexing" : item.state}
+                            {item.state === "queued"
+                              ? "queued for indexing"
+                              : item.state}
                           </span>
                         </div>
                         {item.state === "uploading" ? (
@@ -631,22 +645,24 @@ export function DocumentsUploadModal({
                         ) : null}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        {item.state === "failed" && item.canRetry && canUpload && (
-                          <button
-                            type="button"
-                            onClick={() => onRetryItem(index)}
-                            aria-label={`Retry upload for ${item.fileName}`}
-                            title="Retry upload"
-                            className="rounded p-1 text-[#3525cd] transition-colors hover:bg-[#3525cd]/10"
-                          >
-                            <span className="material-symbols-outlined text-[18px]">
-                              refresh
-                            </span>
-                          </button>
-                        )}
+                        {item.state === "failed" &&
+                          item.canRetry &&
+                          canUpload && (
+                            <button
+                              type="button"
+                              onClick={() => onRetryItem(index)}
+                              aria-label={`Retry upload for ${item.fileName}`}
+                              title="Retry upload"
+                              className="rounded p-1 text-[#3525cd] transition-colors hover:bg-[#3525cd]/10"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                refresh
+                              </span>
+                            </button>
+                          )}
                         {(item.state === "pending" ||
                           item.state === "uploading") &&
-                          canUpload ? (
+                        canUpload ? (
                           <button
                             type="button"
                             onClick={() => onCancelItem(index)}

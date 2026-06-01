@@ -44,8 +44,7 @@ import { orgAvatarColor, orgInitials } from "@/lib/workspace";
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
 const slugPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$|^[a-z0-9]$/;
-const domainPattern =
-  /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
+const domainPattern = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/;
 
 const orgProfileSchema = z.object({
   name: z.string().trim().min(1, "Organization name is required."),
@@ -62,7 +61,10 @@ const orgProfileSchema = z.object({
       "Enter a valid domain (e.g. example.com).",
     )
     .transform((v) => v ?? ""),
-  domainAllowlist: z.string().trim().transform((v) => v ?? ""),
+  domainAllowlist: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
   supportEmail: z
     .string()
     .trim()
@@ -71,7 +73,10 @@ const orgProfileSchema = z.object({
       "Enter a valid support email address.",
     )
     .transform((v) => v ?? ""),
-  description: z.string().trim().transform((v) => v ?? ""),
+  description: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
 });
 
 type OrgProfileFormValues = z.infer<typeof orgProfileSchema>;
@@ -79,9 +84,15 @@ type OrgProfileFormValues = z.infer<typeof orgProfileSchema>;
 const workspaceDefaultsSchema = z.object({
   defaultMemberRole: z.enum(["member", "viewer"]),
   inviteOnly: z.boolean(),
-  allowedEmailDomains: z.string().trim().transform((v) => v ?? ""),
+  allowedEmailDomains: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
   defaultDocumentVisibility: z.enum(["public", "private"]),
-  defaultCollection: z.string().trim().transform((v) => v ?? ""),
+  defaultCollection: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
   retentionDays: z.string().transform((v) => v ?? ""),
   sourceDownload: z.enum(["all", "admins", "none"]),
   evaluationAccess: z.boolean(),
@@ -92,14 +103,20 @@ const workspaceDefaultsSchema = z.object({
 type WorkspaceDefaultsFormValues = z.infer<typeof workspaceDefaultsSchema>;
 
 const ingestionDefaultsSchema = z.object({
-  allowedFileTypes: z.string().trim().transform((v) => v ?? ""),
+  allowedFileTypes: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
   maxUploadSizeMb: z.string().transform((v) => v ?? ""),
   maxPageCount: z.string().transform((v) => v ?? ""),
   duplicateHandling: z.enum(["allow", "skip", "replace"]),
   autoIndex: z.boolean(),
   reindexPolicy: z.enum(["on_update", "manual"]),
   retryPolicy: z.enum(["never", "once", "three_times"]),
-  defaultMetadataTags: z.string().trim().transform((v) => v ?? ""),
+  defaultMetadataTags: z
+    .string()
+    .trim()
+    .transform((v) => v ?? ""),
 });
 
 type IngestionDefaultsFormValues = z.infer<typeof ingestionDefaultsSchema>;
@@ -197,21 +214,33 @@ function DeploymentControlledBadge() {
   );
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
+function FieldLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label
       htmlFor={htmlFor}
-      className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]"
+      className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
     >
       {children}
     </label>
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string | null | undefined }) {
+function ReadOnlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+      <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
         {label}
       </p>
       <div className="rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2 text-sm text-[#464555]">
@@ -279,9 +308,7 @@ function UnavailableRow({
     >
       <div>
         <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
-        {description && (
-          <p className="text-xs text-[#464555]">{description}</p>
-        )}
+        {description && <p className="text-xs text-[#464555]">{description}</p>}
         <p className="mt-1 text-xs text-[#777587]">
           Not available — deployment-controlled.
         </p>
@@ -400,7 +427,9 @@ export function OrganizationSettingsTab() {
 
   // ── Workspace defaults form ─────────────────────────────────────────────────
   const [workspaceSaveState, setWorkspaceSaveState] = useState<SaveState>(null);
-  const workspaceLastSavedRef = useRef<WorkspaceDefaultsFormValues | null>(null);
+  const workspaceLastSavedRef = useRef<WorkspaceDefaultsFormValues | null>(
+    null,
+  );
 
   const defaultWorkspaceValues: WorkspaceDefaultsFormValues = {
     defaultMemberRole: "member",
@@ -481,7 +510,9 @@ export function OrganizationSettingsTab() {
 
   // ── Ingestion defaults form ─────────────────────────────────────────────────
   const [ingestionSaveState, setIngestionSaveState] = useState<SaveState>(null);
-  const ingestionLastSavedRef = useRef<IngestionDefaultsFormValues | null>(null);
+  const ingestionLastSavedRef = useRef<IngestionDefaultsFormValues | null>(
+    null,
+  );
 
   const defaultIngestionValues: IngestionDefaultsFormValues = {
     allowedFileTypes: "",
@@ -633,12 +664,16 @@ export function OrganizationSettingsTab() {
     <div className="space-y-6">
       {/* ── 1. Organization Identity ── */}
       <section
-        className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+        className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Organization section"
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Building2 size={20} className="text-[#3525cd]" aria-hidden="true" />
+            <Building2
+              size={20}
+              className="text-[#3525cd]"
+              aria-hidden="true"
+            />
             <h2 className="text-lg font-semibold text-[#1b1b24]">
               Organization Profile
             </h2>
@@ -649,7 +684,7 @@ export function OrganizationSettingsTab() {
         {/* Always-visible: org ID + basic session info */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+            <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
               Organization ID
             </p>
             {session?.organizationId ? (
@@ -661,7 +696,7 @@ export function OrganizationSettingsTab() {
                   type="button"
                   onClick={handleCopyOrgId}
                   aria-label="Copy organization ID"
-                  className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+                  className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                 >
                   {orgIdCopied ? (
                     <CopyCheck size={12} aria-hidden="true" />
@@ -726,7 +761,8 @@ export function OrganizationSettingsTab() {
                   {watchedOrgName.trim() || "Workspace name"}
                 </p>
                 <p className="text-xs text-[#7a7693]">
-                  Initials and color are derived from the workspace name and shown throughout the app.
+                  Initials and color are derived from the workspace name and
+                  shown throughout the app.
                 </p>
               </div>
             </div>
@@ -737,7 +773,7 @@ export function OrganizationSettingsTab() {
                 <input
                   id="org-name"
                   {...profileForm.register("name")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
                 {profileForm.formState.errors.name?.message && (
                   <p role="alert" className="text-xs text-rose-700">
@@ -751,7 +787,7 @@ export function OrganizationSettingsTab() {
                 <input
                   id="org-slug"
                   {...profileForm.register("slug")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] font-mono outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 font-mono text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   placeholder="my-org"
                 />
                 {profileForm.formState.errors.slug?.message && (
@@ -772,7 +808,7 @@ export function OrganizationSettingsTab() {
                   id="org-primary-domain"
                   {...profileForm.register("primaryDomain")}
                   placeholder="example.com"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
                 {profileForm.formState.errors.primaryDomain?.message && (
                   <p role="alert" className="text-xs text-rose-700">
@@ -790,7 +826,7 @@ export function OrganizationSettingsTab() {
                   type="email"
                   {...profileForm.register("supportEmail")}
                   placeholder="support@example.com"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
                 {profileForm.formState.errors.supportEmail?.message && (
                   <p role="alert" className="text-xs text-rose-700">
@@ -808,10 +844,15 @@ export function OrganizationSettingsTab() {
                 id="org-domain-allowlist"
                 {...profileForm.register("domainAllowlist")}
                 placeholder="example.com, partner.org"
-                className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
               <p className="text-xs text-[#777587]">
-                Comma-separated list of domains (e.g. <code className="rounded bg-[#f0eeff] px-1 font-mono text-[#3525cd]">acme.com, partner.org</code>). Users with matching email addresses can join this workspace without an invitation.
+                Comma-separated list of domains (e.g.{" "}
+                <code className="rounded bg-[#f0eeff] px-1 font-mono text-[#3525cd]">
+                  acme.com, partner.org
+                </code>
+                ). Users with matching email addresses can join this workspace
+                without an invitation.
               </p>
             </div>
 
@@ -821,7 +862,7 @@ export function OrganizationSettingsTab() {
                 id="org-description"
                 {...profileForm.register("description")}
                 rows={3}
-                className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all resize-none"
+                className="w-full resize-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
             </div>
 
@@ -829,7 +870,7 @@ export function OrganizationSettingsTab() {
             {profileQuery.data && (
               <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#e4e1ee] bg-[#f5f2ff]/50 p-4 sm:grid-cols-2">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     Created
                   </p>
                   <p className="mt-0.5 text-sm text-[#2f2a46]">
@@ -837,14 +878,14 @@ export function OrganizationSettingsTab() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     Current Plan
                   </p>
                   <p className="mt-0.5 text-sm text-[#2f2a46]">
                     {profileQuery.data.plan ?? "Not available"}{" "}
                     <Link
                       href={billingHref}
-                      className="text-[#3525cd] underline-offset-2 hover:underline text-xs"
+                      className="text-xs text-[#3525cd] underline-offset-2 hover:underline"
                     >
                       View billing
                     </Link>
@@ -859,7 +900,7 @@ export function OrganizationSettingsTab() {
                 type="button"
                 onClick={handleDiscardProfile}
                 disabled={profileSaveMutation.isPending}
-                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Discard
               </button>
@@ -870,7 +911,7 @@ export function OrganizationSettingsTab() {
                 }}
                 disabled={profileSaveMutation.isPending}
                 aria-label="Save organization profile"
-                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {profileSaveMutation.isPending ? "Saving…" : "Save profile"}
               </button>
@@ -906,10 +947,10 @@ export function OrganizationSettingsTab() {
 
       {/* ── 2. Workspace Defaults ── */}
       <section
-        className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+        className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Workspace defaults section"
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Settings2
               size={20}
@@ -956,7 +997,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ws-default-role"
                   {...workspaceForm.register("defaultMemberRole")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="member">member</option>
                   <option value="viewer">viewer</option>
@@ -970,7 +1011,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ws-visibility"
                   {...workspaceForm.register("defaultDocumentVisibility")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="private">private</option>
                   <option value="public">public</option>
@@ -984,7 +1025,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ws-source-download"
                   {...workspaceForm.register("sourceDownload")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="all">all members</option>
                   <option value="admins">admins only</option>
@@ -999,7 +1040,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ws-retention"
                   {...workspaceForm.register("retentionDays")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="">No retention limit</option>
                   <option value="30">30 days</option>
@@ -1018,7 +1059,7 @@ export function OrganizationSettingsTab() {
                   id="ws-allowed-domains"
                   {...workspaceForm.register("allowedEmailDomains")}
                   placeholder="example.com, partner.org"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
               </div>
 
@@ -1030,7 +1071,7 @@ export function OrganizationSettingsTab() {
                   id="ws-collection"
                   {...workspaceForm.register("defaultCollection")}
                   placeholder="general"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
               </div>
             </div>
@@ -1136,7 +1177,7 @@ export function OrganizationSettingsTab() {
                 type="button"
                 onClick={handleDiscardWorkspace}
                 disabled={workspaceSaveMutation.isPending}
-                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Discard
               </button>
@@ -1147,7 +1188,7 @@ export function OrganizationSettingsTab() {
                 }}
                 disabled={workspaceSaveMutation.isPending}
                 aria-label="Save workspace defaults"
-                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {workspaceSaveMutation.isPending
                   ? "Saving…"
@@ -1163,10 +1204,10 @@ export function OrganizationSettingsTab() {
 
       {/* ── 4. Document & Ingestion Defaults ── */}
       <section
-        className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+        className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Document and ingestion defaults section"
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <FileStack
               size={20}
@@ -1214,7 +1255,7 @@ export function OrganizationSettingsTab() {
                   id="ing-file-types"
                   {...ingestionForm.register("allowedFileTypes")}
                   placeholder="pdf, docx, txt"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
                 <p className="text-xs text-[#777587]">Comma-separated.</p>
               </div>
@@ -1229,7 +1270,7 @@ export function OrganizationSettingsTab() {
                   min={1}
                   {...ingestionForm.register("maxUploadSizeMb")}
                   placeholder="50"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
               </div>
 
@@ -1241,7 +1282,7 @@ export function OrganizationSettingsTab() {
                   min={1}
                   {...ingestionForm.register("maxPageCount")}
                   placeholder="500"
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
               </div>
 
@@ -1252,7 +1293,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ing-duplicate"
                   {...ingestionForm.register("duplicateHandling")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="skip">skip (ignore duplicate)</option>
                   <option value="replace">replace (overwrite existing)</option>
@@ -1265,7 +1306,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ing-reindex"
                   {...ingestionForm.register("reindexPolicy")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="on_update">on update</option>
                   <option value="manual">manual only</option>
@@ -1279,7 +1320,7 @@ export function OrganizationSettingsTab() {
                 <select
                   id="ing-retry"
                   {...ingestionForm.register("retryPolicy")}
-                  className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all appearance-none"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   <option value="never">never</option>
                   <option value="once">retry once</option>
@@ -1296,7 +1337,7 @@ export function OrganizationSettingsTab() {
                 id="ing-metadata-tags"
                 {...ingestionForm.register("defaultMetadataTags")}
                 placeholder="internal, knowledge-base"
-                className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10 transition-all"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
               <p className="text-xs text-[#777587]">Comma-separated.</p>
             </div>
@@ -1330,7 +1371,7 @@ export function OrganizationSettingsTab() {
                 type="button"
                 onClick={handleDiscardIngestion}
                 disabled={ingestionSaveMutation.isPending}
-                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Discard
               </button>
@@ -1341,7 +1382,7 @@ export function OrganizationSettingsTab() {
                 }}
                 disabled={ingestionSaveMutation.isPending}
                 aria-label="Save ingestion defaults"
-                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {ingestionSaveMutation.isPending
                   ? "Saving…"
@@ -1354,7 +1395,7 @@ export function OrganizationSettingsTab() {
 
       {/* ── 5. Admin Controls ── */}
       <section
-        className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+        className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Admin controls section"
       >
         <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
@@ -1387,10 +1428,10 @@ export function OrganizationSettingsTab() {
       {/* ── 6. Danger Zone (owner only) ── */}
       {isOwner && (
         <section
-          className="bg-white border border-rose-200 rounded-2xl p-6"
+          className="rounded-2xl border border-rose-200 bg-white p-6"
           aria-label="Danger zone section"
         >
-          <div className="flex items-center gap-3 mb-2">
+          <div className="mb-2 flex items-center gap-3">
             <AlertTriangle
               size={20}
               className="text-rose-600"
@@ -1438,7 +1479,7 @@ export function OrganizationSettingsTab() {
                       setDangerState(null);
                       transferMutation.mutate(target);
                     }}
-                    className="shrink-0 rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                    className="shrink-0 rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {transferMutation.isPending
                       ? "Transferring…"
@@ -1476,7 +1517,7 @@ export function OrganizationSettingsTab() {
                     setDangerState(null);
                     archiveMutation.mutate();
                   }}
-                  className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {archiveMutation.isPending ? "Archiving…" : "Archive"}
                 </button>
@@ -1511,7 +1552,7 @@ export function OrganizationSettingsTab() {
                     setDangerState(null);
                     exportMutation.mutate();
                   }}
-                  className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {exportMutation.isPending ? "Requesting…" : "Export data"}
                 </button>
@@ -1532,8 +1573,8 @@ export function OrganizationSettingsTab() {
                   </p>
                   <p className="text-xs text-[#464555]">
                     Permanently delete this organization and all associated
-                    documents, chunks, vectors, object files, chats, evaluations,
-                    and audit logs. This cannot be undone.
+                    documents, chunks, vectors, object files, chats,
+                    evaluations, and audit logs. This cannot be undone.
                   </p>
                 </div>
                 <button
@@ -1549,7 +1590,7 @@ export function OrganizationSettingsTab() {
                     setDangerState(null);
                     deleteMutation.mutate();
                   }}
-                  className="shrink-0 rounded-xl bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+                  className="shrink-0 rounded-xl bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {deleteMutation.isPending ? "Deleting…" : "Delete"}
                 </button>

@@ -28,13 +28,17 @@ describe("Operations solution page (/solutions/operations)", () => {
         name: "Runbook answers when your team needs them.",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Operations & Incident Response")).toBeInTheDocument();
+    expect(
+      screen.getByText("Operations & Incident Response"),
+    ).toBeInTheDocument();
   });
 
   it("renders the hero CTAs for demo and documentation", () => {
     render(<OperationsSolutionPage />);
 
-    const demoLinks = screen.getAllByRole("link", { name: "Speak to us about operations" });
+    const demoLinks = screen.getAllByRole("link", {
+      name: "Speak to us about operations",
+    });
     expect(demoLinks.length).toBeGreaterThanOrEqual(1);
     demoLinks.forEach((l) => expect(l).toHaveAttribute("href", "/contact"));
     expect(

@@ -40,9 +40,15 @@ describe("Legal solution page (/solutions/legal)", () => {
         name: /Contracts are too important to search manually/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Long Contracts" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Repeated Questions" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Missed Deadlines" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Long Contracts" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Repeated Questions" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Missed Deadlines" }),
+    ).toBeInTheDocument();
   });
 
   it("renders document sources section with six legal document types", () => {
@@ -92,14 +98,18 @@ describe("Legal solution page (/solutions/legal)", () => {
 
     expect(screen.getByText("Responsible use")).toBeInTheDocument();
     expect(
-      screen.getByText(/does not replace attorney review or constitute legal advice/i),
+      screen.getByText(
+        /does not replace attorney review or constitute legal advice/i,
+      ),
     ).toBeInTheDocument();
   });
 
   it("renders Security and Compliance link in the citations section", () => {
     render(<LegalSolutionPage />);
 
-    const securityLink = screen.getByRole("link", { name: /Security.*Compliance/i });
+    const securityLink = screen.getByRole("link", {
+      name: /Security.*Compliance/i,
+    });
     expect(securityLink).toHaveAttribute("href", "/security");
   });
 
@@ -109,10 +119,9 @@ describe("Legal solution page (/solutions/legal)", () => {
     expect(
       screen.getByRole("heading", { name: "Find contract answers faster." }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start Free Trial" })).toHaveAttribute(
-      "href",
-      "/signup",
-    );
+    expect(
+      screen.getByRole("link", { name: "Start Free Trial" }),
+    ).toHaveAttribute("href", "/signup");
     expect(screen.getByRole("link", { name: "Book a Demo" })).toHaveAttribute(
       "href",
       "/contact",
@@ -122,7 +131,9 @@ describe("Legal solution page (/solutions/legal)", () => {
   it("renders hero CTA link pointing to demo", () => {
     render(<LegalSolutionPage />);
 
-    const heroLink = screen.getByRole("link", { name: /Speak to us about legal workflows/i });
+    const heroLink = screen.getByRole("link", {
+      name: /Speak to us about legal workflows/i,
+    });
     expect(heroLink).toHaveAttribute("href", "/contact");
   });
 
@@ -131,7 +142,9 @@ describe("Legal solution page (/solutions/legal)", () => {
 
     render(<LegalSolutionPage />);
 
-    const heroLink = screen.getByRole("link", { name: /Speak to us about legal workflows/i });
+    const heroLink = screen.getByRole("link", {
+      name: /Speak to us about legal workflows/i,
+    });
     expect(heroLink).toHaveAttribute("href", "https://demo.example.com");
   });
 

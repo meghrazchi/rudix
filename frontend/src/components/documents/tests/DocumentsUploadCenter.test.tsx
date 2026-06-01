@@ -47,7 +47,10 @@ describe("DocumentsUploadModal (upload center)", () => {
   it("calls onRequestClose when close button is clicked", async () => {
     const onRequestClose = vi.fn();
     render(
-      <DocumentsUploadModal {...defaultProps} onRequestClose={onRequestClose} />,
+      <DocumentsUploadModal
+        {...defaultProps}
+        onRequestClose={onRequestClose}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: /close/i }));
     expect(onRequestClose).toHaveBeenCalledOnce();
@@ -62,9 +65,7 @@ describe("DocumentsUploadModal (upload center)", () => {
 
   it("shows uploading text when isUploading is true", () => {
     render(<DocumentsUploadModal {...defaultProps} isUploading={true} />);
-    expect(
-      screen.getByText(/Uploads are running/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Uploads are running/i)).toBeInTheDocument();
   });
 
   it("shows file type badges when no progress", () => {
@@ -95,7 +96,12 @@ describe("DocumentsUploadModal (upload center)", () => {
         items: [
           { fileName: "a.pdf", state: "queued" },
           { fileName: "b.pdf", state: "uploading" },
-          { fileName: "c.pdf", state: "failed", message: "Server error", canRetry: true },
+          {
+            fileName: "c.pdf",
+            state: "failed",
+            message: "Server error",
+            canRetry: true,
+          },
         ],
       };
       render(<DocumentsUploadModal {...defaultProps} progress={progress} />);
@@ -298,9 +304,7 @@ describe("DocumentsUploadModal (upload center)", () => {
         <DocumentsUploadModal {...defaultProps} uploadHistory={history} />,
       );
       const btn = screen.getByRole("button", { name: /upload history/i });
-      expect(
-        screen.queryByText(/Upload History/i),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Upload History/i)).not.toBeInTheDocument();
       await userEvent.click(btn);
       expect(screen.getByText(/Upload History/i)).toBeInTheDocument();
     });
@@ -333,10 +337,7 @@ describe("DocumentsUploadModal (upload center)", () => {
         },
       ];
       render(
-        <DocumentsUploadModal
-          {...defaultProps}
-          collections={collections}
-        />,
+        <DocumentsUploadModal {...defaultProps} collections={collections} />,
       );
       await userEvent.click(
         screen.getByRole("button", { name: /upload details/i }),

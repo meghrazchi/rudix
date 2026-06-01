@@ -1,7 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Brain, Moon, Monitor, ShieldCheck, SlidersHorizontal, Sun } from "lucide-react";
+import {
+  Brain,
+  Moon,
+  Monitor,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sun,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -67,7 +74,9 @@ export function ProfileSettingsTab() {
   const [userIdCopied, setUserIdCopied] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("Profile settings saved successfully.");
+  const [toastMessage, setToastMessage] = useState(
+    "Profile settings saved successfully.",
+  );
   const [isSavingAll, setIsSavingAll] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -180,24 +189,26 @@ export function ProfileSettingsTab() {
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         {/* ── Left column ── */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="space-y-6 lg:col-span-7">
           {/* 1) Account Identity */}
           <section
-            className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+            className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
             aria-label="Account identity section"
           >
-            <div className="flex items-center gap-3 mb-6">
+            <div className="mb-6 flex items-center gap-3">
               <ShieldCheck size={20} className="text-[#3525cd]" />
-              <h3 className="text-lg font-semibold text-[#1b1b24]">Account Identity</h3>
+              <h3 className="text-lg font-semibold text-[#1b1b24]">
+                Account Identity
+              </h3>
             </div>
 
-            <div className="flex flex-col md:flex-row items-start gap-8">
+            <div className="flex flex-col items-start gap-8 md:flex-row">
               {/* Avatar */}
               <div className="relative shrink-0">
                 <div
-                  className="w-32 h-32 rounded-full border-4 border-[#eae6f4] flex items-center justify-center bg-[#e2dfff] text-3xl font-bold text-[#3525cd]"
+                  className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#eae6f4] bg-[#e2dfff] text-3xl font-bold text-[#3525cd]"
                   aria-label="User initials avatar"
                 >
                   {initials}
@@ -205,37 +216,37 @@ export function ProfileSettingsTab() {
               </div>
 
               {/* Fields */}
-              <div className="flex-1 w-full grid grid-cols-1 gap-4">
+              <div className="grid w-full flex-1 grid-cols-1 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     Full Name
                   </label>
                   <input
                     readOnly
                     value={displayName}
-                    className="w-full bg-[#fcf8ff] border border-[#c7c4d8] rounded-xl px-4 py-2 text-sm text-[#1b1b24] outline-none focus:ring-2 focus:ring-[#3525cd]/10 focus:border-[#3525cd] transition-all"
+                    className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     Email Address
                   </label>
                   <input
                     readOnly
                     value={session?.email ?? ""}
-                    className="w-full bg-[#fcf8ff] border border-[#c7c4d8] rounded-xl px-4 py-2 text-sm text-[#1b1b24] outline-none focus:ring-2 focus:ring-[#3525cd]/10 focus:border-[#3525cd] transition-all"
+                    className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+                  <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     Role
                   </label>
-                  <div className="flex items-center gap-2 px-4 py-2 bg-[#f5f2ff] border border-[#c7c4d8] rounded-xl text-[#464555]">
+                  <div className="flex items-center gap-2 rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2 text-[#464555]">
                     <ShieldCheck
                       size={16}
-                      className="text-[#3525cd] shrink-0"
+                      className="shrink-0 text-[#3525cd]"
                       aria-hidden="true"
                     />
                     <span className="text-sm font-semibold text-[#1b1b24] capitalize">
@@ -245,14 +256,14 @@ export function ProfileSettingsTab() {
                 </div>
 
                 {session?.userId ? (
-                  <div className="flex items-center justify-between gap-2 px-4 py-2 bg-[#f5f2ff] border border-[#c7c4d8] rounded-xl">
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2">
                     <span className="max-w-[200px] truncate font-mono text-xs text-[#464555]">
                       {session.userId}
                     </span>
                     <button
                       type="button"
                       onClick={handleCopyUserId}
-                      className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition-colors"
+                      className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                     >
                       {userIdCopied ? "Copied!" : "Copy ID"}
                     </button>
@@ -264,26 +275,28 @@ export function ProfileSettingsTab() {
 
           {/* 2) Personal Preferences */}
           <section
-            className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+            className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
             aria-label="Personal preferences section"
           >
-            <div className="flex items-center gap-3 mb-6">
+            <div className="mb-6 flex items-center gap-3">
               <SlidersHorizontal size={20} className="text-[#3525cd]" />
-              <h3 className="text-lg font-semibold text-[#1b1b24]">Personal Preferences</h3>
+              <h3 className="text-lg font-semibold text-[#1b1b24]">
+                Personal Preferences
+              </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-1">
                 <label
                   htmlFor="language"
-                  className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]"
+                  className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
                 >
                   Display Language
                 </label>
                 <select
                   id="language"
                   {...personalForm.register("language")}
-                  className="w-full bg-[#fcf8ff] border border-[#c7c4d8] rounded-xl px-4 py-2 text-sm text-[#1b1b24] outline-none focus:ring-2 focus:ring-[#3525cd]/10 focus:border-[#3525cd] appearance-none transition-all"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   {LANGUAGE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -296,14 +309,14 @@ export function ProfileSettingsTab() {
               <div className="space-y-1">
                 <label
                   htmlFor="timezone"
-                  className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555]"
+                  className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
                 >
                   Timezone
                 </label>
                 <select
                   id="timezone"
                   {...personalForm.register("timezone")}
-                  className="w-full bg-[#fcf8ff] border border-[#c7c4d8] rounded-xl px-4 py-2 text-sm text-[#1b1b24] outline-none focus:ring-2 focus:ring-[#3525cd]/10 focus:border-[#3525cd] appearance-none transition-all"
+                  className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
                   {TIMEZONE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -316,7 +329,7 @@ export function ProfileSettingsTab() {
 
             {/* Theme picker */}
             <div className="mt-6">
-              <p className="block text-[10px] font-semibold uppercase tracking-widest text-[#464555] mb-3">
+              <p className="mb-3 block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                 Interface Theme
               </p>
               <div className="grid grid-cols-3 gap-4">
@@ -327,10 +340,10 @@ export function ProfileSettingsTab() {
                     <label
                       key={opt}
                       className={[
-                        "flex flex-col items-center gap-2 p-4 border-2 rounded-2xl cursor-pointer transition-all",
+                        "flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 p-4 transition-all",
                         isActive
                           ? "border-[#3525cd] bg-[#3525cd]/5"
-                          : "border-transparent hover:border-[#c7c4d8] bg-[#f0ecf9]",
+                          : "border-transparent bg-[#f0ecf9] hover:border-[#c7c4d8]",
                       ].join(" ")}
                     >
                       <input
@@ -341,7 +354,9 @@ export function ProfileSettingsTab() {
                       />
                       <Icon
                         size={20}
-                        className={isActive ? "text-[#3525cd]" : "text-[#464555]"}
+                        className={
+                          isActive ? "text-[#3525cd]" : "text-[#464555]"
+                        }
                       />
                       <span
                         className={[
@@ -362,14 +377,14 @@ export function ProfileSettingsTab() {
         </div>
 
         {/* ── Right column ── */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="space-y-6 lg:col-span-5">
           {/* 3) AI/RAG Defaults */}
           {preferencesQuery.isLoading ? (
-            <div className="bg-white border border-[#c7c4d8] rounded-2xl p-6">
+            <div className="rounded-2xl border border-[#c7c4d8] bg-white p-6">
               <LoadingState compact title="Loading preferences..." />
             </div>
           ) : preferencesQuery.isError ? (
-            <div className="bg-white border border-[#c7c4d8] rounded-2xl p-6">
+            <div className="rounded-2xl border border-[#c7c4d8] bg-white p-6">
               <ErrorState
                 compact
                 error={preferencesQuery.error}
@@ -382,15 +397,17 @@ export function ProfileSettingsTab() {
           ) : (
             <>
               <section
-                className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+                className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
                 aria-label="AI and retrieval defaults section"
               >
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Brain size={20} className="text-[#3525cd]" />
-                    <h3 className="text-lg font-semibold text-[#1b1b24]">AI/RAG Defaults</h3>
+                    <h3 className="text-lg font-semibold text-[#1b1b24]">
+                      AI/RAG Defaults
+                    </h3>
                   </div>
-                  <span className="px-2 py-1 bg-[#d0e1fb] text-[#54647a] text-[10px] font-semibold rounded uppercase tracking-wider">
+                  <span className="rounded bg-[#d0e1fb] px-2 py-1 text-[10px] font-semibold tracking-wider text-[#54647a] uppercase">
                     Expert Mode
                   </span>
                 </div>
@@ -405,7 +422,7 @@ export function ProfileSettingsTab() {
                       >
                         Top-K Retrieval
                       </label>
-                      <span className="font-mono text-sm bg-[#f0ecf9] px-2 py-0.5 rounded text-[#3525cd]">
+                      <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-sm text-[#3525cd]">
                         {watchedTopK ?? settingsTopKBounds.defaultValue}
                       </span>
                     </div>
@@ -415,20 +432,26 @@ export function ProfileSettingsTab() {
                       min={settingsTopKBounds.min}
                       max={settingsTopKBounds.max}
                       step={1}
-                      {...ragForm.register("defaultTopK", { valueAsNumber: true })}
-                      className="w-full h-1.5 bg-[#c7c4d8] rounded-lg appearance-none cursor-pointer accent-[#3525cd]"
+                      {...ragForm.register("defaultTopK", {
+                        valueAsNumber: true,
+                      })}
+                      className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[#c7c4d8] accent-[#3525cd]"
                     />
-                    <div className="flex justify-between text-[10px] text-[#464555] font-semibold uppercase tracking-widest">
+                    <div className="flex justify-between text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                       <span>Precision</span>
                       <span>Diversity</span>
                     </div>
                   </div>
 
                   {/* Rerank toggle */}
-                  <div className="flex items-center justify-between p-4 bg-[#fcf8ff] border border-[#c7c4d8] rounded-xl">
+                  <div className="flex items-center justify-between rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] p-4">
                     <div>
-                      <p className="text-sm font-semibold text-[#1b1b24]">Cross-Encoder Rerank</p>
-                      <p className="text-xs text-[#464555]">Enable secondary reranking for accuracy</p>
+                      <p className="text-sm font-semibold text-[#1b1b24]">
+                        Cross-Encoder Rerank
+                      </p>
+                      <p className="text-xs text-[#464555]">
+                        Enable secondary reranking for accuracy
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -440,13 +463,13 @@ export function ProfileSettingsTab() {
                         })
                       }
                       className={[
-                        "w-12 h-6 rounded-full relative flex items-center px-1 transition-colors shrink-0",
+                        "relative flex h-6 w-12 shrink-0 items-center rounded-full px-1 transition-colors",
                         watchedRerank ? "bg-[#3525cd]" : "bg-[#c7c4d8]",
                       ].join(" ")}
                     >
                       <div
                         className={[
-                          "w-4 h-4 bg-white rounded-full transition-transform shadow-sm",
+                          "h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
                           watchedRerank ? "translate-x-6" : "translate-x-0",
                         ].join(" ")}
                       />
@@ -455,14 +478,18 @@ export function ProfileSettingsTab() {
 
                   {/* Confidence threshold (display only) */}
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-[#1b1b24]">Confidence Threshold</p>
-                    <div className="relative h-12 bg-[#f0ecf9] rounded-xl overflow-hidden flex items-center px-4 border border-[#c7c4d8]">
-                      <div className="absolute left-0 top-0 bottom-0 bg-[#3525cd]/10 w-[82%] border-r-2 border-[#3525cd]" />
+                    <p className="text-sm font-semibold text-[#1b1b24]">
+                      Confidence Threshold
+                    </p>
+                    <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9] px-4">
+                      <div className="absolute top-0 bottom-0 left-0 w-[82%] border-r-2 border-[#3525cd] bg-[#3525cd]/10" />
                       <span className="relative z-10 font-mono text-xl text-[#3525cd]">
                         0.82{" "}
-                        <span className="text-sm font-normal text-[#464555]">/ 1.0</span>
+                        <span className="text-sm font-normal text-[#464555]">
+                          / 1.0
+                        </span>
                       </span>
-                      <span className="ml-auto relative z-10 text-[10px] font-semibold uppercase tracking-wider bg-[#3525cd] text-white px-2 py-1 rounded-lg">
+                      <span className="relative z-10 ml-auto rounded-lg bg-[#3525cd] px-2 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">
                         High Trust
                       </span>
                     </div>
@@ -472,10 +499,10 @@ export function ProfileSettingsTab() {
 
               {/* 4) Notifications */}
               <section
-                className="bg-white border border-[#c7c4d8] rounded-2xl p-6"
+                className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
                 aria-label="Notifications section"
               >
-                <div className="flex items-center gap-3 mb-6">
+                <div className="mb-6 flex items-center gap-3">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="20"
@@ -494,20 +521,22 @@ export function ProfileSettingsTab() {
                     <path d="M4 2C2.8 3.7 2 5.7 2 8" />
                     <path d="M22 8c0-2.3-.8-4.3-2-6" />
                   </svg>
-                  <h3 className="text-lg font-semibold text-[#1b1b24]">Notifications</h3>
+                  <h3 className="text-lg font-semibold text-[#1b1b24]">
+                    Notifications
+                  </h3>
                 </div>
 
                 <fieldset className="space-y-4">
                   <legend className="sr-only">Notification preferences</legend>
 
-                  <label className="flex items-start gap-4 cursor-pointer group">
+                  <label className="group flex cursor-pointer items-start gap-4">
                     <input
                       type="checkbox"
                       {...ragForm.register("notifications.documentProcessing")}
-                      className="mt-0.5 w-5 h-5 rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20 transition-all"
+                      className="mt-0.5 h-5 w-5 rounded border-[#c7c4d8] text-[#3525cd] transition-all focus:ring-[#3525cd]/20"
                     />
                     <div>
-                      <span className="block text-sm font-semibold text-[#1b1b24] group-hover:text-[#3525cd] transition-colors">
+                      <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
                         Processing Alerts
                       </span>
                       <span className="block text-xs text-[#464555]">
@@ -516,30 +545,33 @@ export function ProfileSettingsTab() {
                     </div>
                   </label>
 
-                  <label className="flex items-start gap-4 cursor-pointer group">
+                  <label className="group flex cursor-pointer items-start gap-4">
                     <input
                       type="checkbox"
                       {...ragForm.register("notifications.securityAlerts")}
-                      className="mt-0.5 w-5 h-5 rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20 transition-all"
+                      className="mt-0.5 h-5 w-5 rounded border-[#c7c4d8] text-[#3525cd] transition-all focus:ring-[#3525cd]/20"
                     />
                     <div>
-                      <span className="block text-sm font-semibold text-[#1b1b24] group-hover:text-[#3525cd] transition-colors">
+                      <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
                         Security Warnings
                       </span>
                       <span className="block text-xs text-[#464555]">
-                        Alerts for unauthorized API attempts or credential changes
+                        Alerts for unauthorized API attempts or credential
+                        changes
                       </span>
                     </div>
                   </label>
 
-                  <label className="flex items-start gap-4 cursor-pointer group opacity-60">
+                  <label className="group flex cursor-pointer items-start gap-4 opacity-60">
                     <input
                       type="checkbox"
-                      {...ragForm.register("notifications.evaluationCompletion")}
-                      className="mt-0.5 w-5 h-5 rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20 transition-all"
+                      {...ragForm.register(
+                        "notifications.evaluationCompletion",
+                      )}
+                      className="mt-0.5 h-5 w-5 rounded border-[#c7c4d8] text-[#3525cd] transition-all focus:ring-[#3525cd]/20"
                     />
                     <div>
-                      <span className="block text-sm font-semibold text-[#1b1b24] group-hover:text-[#3525cd] transition-colors">
+                      <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
                         Daily Evaluation Reports
                       </span>
                       <span className="block text-xs text-[#464555]">
@@ -560,7 +592,7 @@ export function ProfileSettingsTab() {
           type="button"
           onClick={handleDiscard}
           disabled={isSavingAll}
-          className="px-6 py-3 text-sm font-semibold text-[#464555] hover:bg-[#eae6f4] rounded-2xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="rounded-2xl px-6 py-3 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Discard Changes
         </button>
@@ -570,7 +602,7 @@ export function ProfileSettingsTab() {
             void handleUpdateProfile();
           }}
           disabled={isSavingAll}
-          className="px-8 py-3 bg-[#3525cd] text-white text-sm font-semibold rounded-2xl shadow-lg hover:shadow-[#3525cd]/30 active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+          className="rounded-2xl bg-[#3525cd] px-8 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-[#3525cd]/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSavingAll ? "Saving…" : "Update Profile"}
         </button>
@@ -578,10 +610,10 @@ export function ProfileSettingsTab() {
 
       {/* ── Account Actions ── */}
       <section
-        className="mt-8 bg-white border border-[#c7c4d8] rounded-2xl p-6"
+        className="mt-8 rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Account actions section"
       >
-        <h3 className="mb-4 text-[10px] font-semibold uppercase tracking-widest text-[#464555]">
+        <h3 className="mb-4 text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
           Account Actions
         </h3>
 
@@ -589,7 +621,9 @@ export function ProfileSettingsTab() {
           <div className="flex items-start justify-between gap-4 rounded-xl border border-[#eae6f4] px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-[#1b1b24]">Sign out</p>
-              <p className="text-xs text-[#464555]">End your current session on this device.</p>
+              <p className="text-xs text-[#464555]">
+                End your current session on this device.
+              </p>
             </div>
             <button
               type="button"
@@ -597,7 +631,7 @@ export function ProfileSettingsTab() {
                 void handleSignOut();
               }}
               disabled={isSigningOut}
-              className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSigningOut ? "Signing out…" : "Sign out"}
             </button>
@@ -611,16 +645,22 @@ export function ProfileSettingsTab() {
             }`}
           >
             <div>
-              <p className="text-sm font-semibold text-[#1b1b24]">Sign out from all devices</p>
-              <p className="text-xs text-[#464555]">Revoke all active sessions and sign out everywhere.</p>
+              <p className="text-sm font-semibold text-[#1b1b24]">
+                Sign out from all devices
+              </p>
+              <p className="text-xs text-[#464555]">
+                Revoke all active sessions and sign out everywhere.
+              </p>
               {!profileCapabilities.signOutAllDevicesEnabled && (
-                <p className="mt-1 text-xs text-[#777587]">Not available — deployment-controlled.</p>
+                <p className="mt-1 text-xs text-[#777587]">
+                  Not available — deployment-controlled.
+                </p>
               )}
             </div>
             {profileCapabilities.signOutAllDevicesEnabled ? (
               <button
                 type="button"
-                className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
               >
                 Sign out everywhere
               </button>
@@ -639,16 +679,22 @@ export function ProfileSettingsTab() {
             }`}
           >
             <div>
-              <p className="text-sm font-semibold text-rose-700">Delete personal account</p>
-              <p className="text-xs text-[#464555]">Permanently remove your account and associated data.</p>
+              <p className="text-sm font-semibold text-rose-700">
+                Delete personal account
+              </p>
+              <p className="text-xs text-[#464555]">
+                Permanently remove your account and associated data.
+              </p>
               {!profileCapabilities.deleteAccountEnabled && (
-                <p className="mt-1 text-xs text-[#777587]">Not available — deployment-controlled.</p>
+                <p className="mt-1 text-xs text-[#777587]">
+                  Not available — deployment-controlled.
+                </p>
               )}
             </div>
             {profileCapabilities.deleteAccountEnabled ? (
               <button
                 type="button"
-                className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 transition-colors"
+                className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
               >
                 Delete account
               </button>
@@ -666,9 +712,11 @@ export function ProfileSettingsTab() {
         aria-live="polite"
         aria-atomic="true"
         className={[
-          "fixed bottom-8 right-8 z-50 flex items-center gap-3 rounded-2xl shadow-2xl px-6 py-4 transition-all duration-500",
+          "fixed right-8 bottom-8 z-50 flex items-center gap-3 rounded-2xl px-6 py-4 shadow-2xl transition-all duration-500",
           "bg-[#302f39] text-white",
-          showToast ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none",
+          showToast
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-20 opacity-0",
         ].join(" ")}
       >
         <svg
@@ -681,7 +729,7 @@ export function ProfileSettingsTab() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-[#c3c0ff] shrink-0"
+          className="shrink-0 text-[#c3c0ff]"
           aria-hidden="true"
         >
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />

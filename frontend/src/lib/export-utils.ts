@@ -1,4 +1,7 @@
-import type { ChatCitationResponse, ChatSessionMessageResponse } from "@/lib/api/chat";
+import type {
+  ChatCitationResponse,
+  ChatSessionMessageResponse,
+} from "@/lib/api/chat";
 
 export type ExportTurn = {
   question: string;
@@ -73,7 +76,9 @@ export function formatSourceListAsMarkdown(turns: ExportTurn[]): string {
   return `# Source List\n\n${lines.join("\n")}\n`;
 }
 
-export function turnsFromMessages(messages: ChatSessionMessageResponse[]): ExportTurn[] {
+export function turnsFromMessages(
+  messages: ChatSessionMessageResponse[],
+): ExportTurn[] {
   const turns: ExportTurn[] = [];
   let lastQuestion: string | null = null;
   for (const msg of messages) {

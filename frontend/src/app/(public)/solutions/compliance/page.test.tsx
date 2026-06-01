@@ -34,7 +34,9 @@ describe("Compliance solution page (/solutions/compliance)", () => {
     render(<ComplianceSolutionPage />);
 
     expect(screen.getByText("Compliance Engine")).toBeInTheDocument();
-    expect(screen.getByText(/What supports our access review process/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/What supports our access review process/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/SOC2_Evidence_Q4\.pdf/i)).toBeInTheDocument();
     expect(screen.getByText(/Access_Policy_v2\.docx/i)).toBeInTheDocument();
   });
@@ -47,16 +49,24 @@ describe("Compliance solution page (/solutions/compliance)", () => {
         name: /Audit evidence is difficult to find when it is spread across files/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Evidence Fragmentation" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Traceability Gaps" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Manual Collection Drain" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Evidence Fragmentation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Traceability Gaps" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Manual Collection Drain" }),
+    ).toBeInTheDocument();
   });
 
   it("renders document sources section with five compliance document types", () => {
     render(<ComplianceSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Upload everything. Find anything." }),
+      screen.getByRole("heading", {
+        name: "Upload everything. Find anything.",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("Security Policies")).toBeInTheDocument();
     expect(screen.getByText("Audit Evidence")).toBeInTheDocument();
@@ -86,7 +96,9 @@ describe("Compliance solution page (/solutions/compliance)", () => {
     render(<ComplianceSolutionPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Built for enterprise-grade trust." }),
+      screen.getByRole("heading", {
+        name: "Built for enterprise-grade trust.",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Audit-friendly source references" }),
@@ -113,14 +125,18 @@ describe("Compliance solution page (/solutions/compliance)", () => {
 
     expect(screen.getByText("Compliance disclaimer")).toBeInTheDocument();
     expect(
-      screen.getByText(/does not issue certifications or replace auditor review/i),
+      screen.getByText(
+        /does not issue certifications or replace auditor review/i,
+      ),
     ).toBeInTheDocument();
   });
 
   it("renders Security and Compliance link", () => {
     render(<ComplianceSolutionPage />);
 
-    const securityLink = screen.getByRole("link", { name: /Security.*Compliance/i });
+    const securityLink = screen.getByRole("link", {
+      name: /Security.*Compliance/i,
+    });
     expect(securityLink).toHaveAttribute("href", "/security");
   });
 
@@ -132,9 +148,10 @@ describe("Compliance solution page (/solutions/compliance)", () => {
         name: "Make compliance evidence easier to find.",
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Speak to us" }),
-    ).toHaveAttribute("href", "/contact");
+    expect(screen.getByRole("link", { name: "Speak to us" })).toHaveAttribute(
+      "href",
+      "/contact",
+    );
     expect(
       screen.getByRole("link", { name: "View Documentation" }),
     ).toHaveAttribute("href", "/documents");
