@@ -375,7 +375,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     const headerActions = page.locator("header");
 
     await expect(
-      page.getByRole("heading", { name: /Scale Precision AI/i }),
+      page.getByRole("heading", { name: /Ask your documents/i }),
     ).toBeVisible();
 
     await primaryNavigation
@@ -458,7 +458,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
 
     const loginEmail = page.getByLabel("Email");
     const documentsHeading = page.getByRole("heading", {
-      name: "Upload, Index, and Manage Documents",
+      name: "Upload Documents",
     });
 
     await Promise.race([
@@ -485,7 +485,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await page.goto("/dashboard");
     await waitForSessionBootstrap(page);
     await expect(
-      page.getByRole("heading", { name: "Organization Metrics Overview" }),
+      page.getByRole("heading", { name: "Enterprise RAG Command Center" }),
     ).toBeVisible();
     await expect(page.getByText("Recent activity")).toBeVisible();
   });
@@ -498,7 +498,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await waitForSessionBootstrap(page);
     await expect(
       page.getByRole("heading", {
-        name: "Upload, Index, and Manage Documents",
+        name: "Upload Documents",
       }),
     ).toBeVisible();
     await expect(page.getByText("Employee-Handbook.pdf")).toBeVisible();
