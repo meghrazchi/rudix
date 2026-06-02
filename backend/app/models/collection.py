@@ -23,7 +23,7 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "access_policy IN ('org_wide', 'admin_only', 'selected_roles', 'selected_members')",
             name="collections_access_policy_allowed",
         ),
-        CheckConstraint("char_length(trim(name)) >= 1", name="collections_name_not_blank"),
+        CheckConstraint("length(trim(name)) >= 1", name="collections_name_not_blank"),
         Index("idx_collections_org_id", "organization_id"),
         Index("idx_collections_owner_id", "owner_id"),
     )

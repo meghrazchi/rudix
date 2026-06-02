@@ -1,13 +1,14 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.chat import ChatMessage, ChatSession
-from app.models.notification import Notification
 from app.models.chat_share import ChatShare
-from app.models.message_feedback import MessageFeedback
+from app.models.chunking_profile import OrganizationChunkingProfile
 from app.models.citation import Citation
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
 from app.models.governance import OrganizationGovernancePolicy
+from app.models.message_feedback import MessageFeedback
+from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
@@ -24,7 +25,6 @@ __all__ = [
     "ChatSession",
     "ChatShare",
     "Citation",
-    "MessageFeedback",
     "Collection",
     "CollectionDocument",
     "Document",
@@ -34,11 +34,13 @@ __all__ = [
     "EvaluationResult",
     "EvaluationRun",
     "EvaluationSet",
+    "MessageFeedback",
+    "Notification",
     "Organization",
+    "OrganizationChunkingProfile",
     "OrganizationGovernancePolicy",
     "OrganizationMember",
     "PipelineEvent",
-    "Notification",
     "PipelineRun",
     "UsageEvent",
     "User",

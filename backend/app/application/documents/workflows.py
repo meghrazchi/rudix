@@ -598,6 +598,7 @@ async def reindex_document_workflow(
     document_repository: DocumentRepository,
     audit_log_service: AuditLogService,
     reindex_document_task: Any,
+    chunking_profile_config: dict | None = None,
 ) -> ReindexDocumentResponse:
     if document.status == DocumentStatus.deleted.value:
         raise HTTPException(
@@ -634,17 +635,22 @@ async def reindex_document_workflow(
         metadata={
             "previous_status": previous_status,
             "next_status": DocumentStatus.processing.value,
+            "chunking_strategy": chunking_profile_config.get("strategy")
+            if chunking_profile_config
+            else None,
         },
     )
     await db_session.commit()
 
     try:
-        task_result = reindex_document_task.delay(
-            str(document.id),
-            request_id=request_id,
-            organization_id=str(actor_organization_id),
-            user_id=str(actor_user_id),
-        )
+        task_kwargs: dict[str, Any] = {
+            "request_id": request_id,
+            "organization_id": str(actor_organization_id),
+            "user_id": str(actor_user_id),
+        }
+        if chunking_profile_config is not None:
+            task_kwargs["chunking_profile_config"] = chunking_profile_config
+        task_result = reindex_document_task.delay(str(document.id), **task_kwargs)
     except Exception as exc:
         await audit_log_service.record(
             db_session,
@@ -696,6 +702,9 @@ async def reindex_document_workflow(
             "task_id": str(task_result.id),
             "status_code": status.HTTP_202_ACCEPTED,
             "previous_status": previous_status,
+            "chunking_strategy": chunking_profile_config.get("strategy")
+            if chunking_profile_config
+            else None,
         },
     )
     await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)

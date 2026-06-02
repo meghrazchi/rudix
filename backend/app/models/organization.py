@@ -34,3 +34,8 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     collections = relationship(
         "Collection", back_populates="organization", cascade="all, delete-orphan"
     )
+    chunking_profiles = relationship(
+        "OrganizationChunkingProfile",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )

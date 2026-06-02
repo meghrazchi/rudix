@@ -32,9 +32,10 @@ from app.core.config import settings
 from app.core.document_errors import decode_document_error
 from app.core.logging import log_document_event
 from app.db.session import get_db_session
+from app.domains.admin.schemas.chunking_profiles import ReindexWithProfileRequest
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.documents.repositories.documents import DocumentRepository
-from app.models.collection import Collection, CollectionDocument
 from app.domains.documents.schemas.documents import (
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
@@ -55,6 +56,7 @@ from app.domains.documents.schemas.documents import (
     _parse_tags_string,
 )
 from app.domains.documents.services.malware_scan import MalwareScanService
+from app.models.collection import Collection, CollectionDocument
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_graph_service import (
     canonical_pipeline_type,
@@ -81,6 +83,7 @@ document_repository = DocumentRepository()
 pipeline_repository = PipelineRepository()
 audit_log_service = AuditLogService()
 malware_scan_service = MalwareScanService(clamav_client_provider=clamav_module.get_clamav_client)
+_chunking_profile_service = ChunkingProfileService()
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -901,10 +904,21 @@ async def reindex_document_endpoint(
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
     document: Annotated[Document, Depends(require_document_access)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    body: ReindexWithProfileRequest | None = None,
 ) -> ReindexDocumentResponse:
     del document_id
     request_id = _request_id_from_request(request)
     actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    chunking_profile_config: dict | None = None
+    if body is not None:
+        chunking_profile_config = await _chunking_profile_service.resolve_profile_config_for_reindex(
+            db_session,
+            profile_id=body.chunking_profile_id,
+            inline_config=body.chunking_profile_config,
+            organization_id=actor_organization_id,
+        )
+
     return await reindex_document_workflow(
         request_id=request_id,
         actor_user_id=actor_user_id,
@@ -914,6 +928,7 @@ async def reindex_document_endpoint(
         document_repository=document_repository,
         audit_log_service=audit_log_service,
         reindex_document_task=reindex_document_task,
+        chunking_profile_config=chunking_profile_config,
     )
 
 

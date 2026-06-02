@@ -46,3 +46,13 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="updated_by_user",
     )
     owned_collections = relationship("Collection", back_populates="owner")
+    chunking_profiles_created = relationship(
+        "OrganizationChunkingProfile",
+        foreign_keys="OrganizationChunkingProfile.created_by_user_id",
+        back_populates="created_by_user",
+    )
+    chunking_profiles_updated = relationship(
+        "OrganizationChunkingProfile",
+        foreign_keys="OrganizationChunkingProfile.updated_by_user_id",
+        back_populates="updated_by_user",
+    )
