@@ -123,9 +123,7 @@ describe("AppShell notifications menu states", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Notifications" }),
     );
-    expect(
-      await screen.findByText(/all caught up/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/all caught up/)).toBeInTheDocument();
   });
 
   it("shows error state when notification endpoint fails", async () => {

@@ -96,7 +96,9 @@ function NotificationItem({
   onMarkUnread: (id: string) => void;
   onNavigate: () => void;
 }) {
-  const isExternal = notification.href ? isExternalHref(notification.href) : false;
+  const isExternal = notification.href
+    ? isExternalHref(notification.href)
+    : false;
 
   const content = (
     <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -121,7 +123,9 @@ function NotificationItem({
           </span>
         </div>
         {notification.message ? (
-          <p className="mt-0.5 text-xs text-[#5f5a74]">{notification.message}</p>
+          <p className="mt-0.5 text-xs text-[#5f5a74]">
+            {notification.message}
+          </p>
         ) : null}
         <p className="mt-1 text-[11px] text-[#9c98b0]">
           {formatTime(notification.created_at)}
@@ -183,14 +187,18 @@ function NotificationItem({
 const PREFERENCE_GROUPS = [
   { label: "Documents", keys: ["upload_indexed", "upload_failed"] },
   { label: "Evaluations", keys: ["evaluation_complete", "evaluation_failed"] },
-  { label: "Team & Security", keys: ["invite_received", "security_warning", "quota_warning", "connector_sync_issue"] },
+  {
+    label: "Team & Security",
+    keys: [
+      "invite_received",
+      "security_warning",
+      "quota_warning",
+      "connector_sync_issue",
+    ],
+  },
 ] as const;
 
-function NotificationPreferences({
-  onClose,
-}: {
-  onClose: () => void;
-}) {
+function NotificationPreferences({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-3 p-1">
       <div className="flex items-center justify-between">

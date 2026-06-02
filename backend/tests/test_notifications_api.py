@@ -80,9 +80,7 @@ async def _seed_principal(
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 

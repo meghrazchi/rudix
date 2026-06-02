@@ -333,9 +333,7 @@ async def delete_collection(
     collection_id: str,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)
-        ),
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DeleteCollectionResponse:
@@ -379,14 +377,13 @@ async def delete_collection(
 
 # ── Access policy endpoints ────────────────────────────────────────────────────
 
+
 @router.get("/{collection_id}/access-policy", response_model=CollectionPolicyResponse)
 async def get_collection_access_policy(
     collection_id: str,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)
-        ),
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionPolicyResponse:
@@ -426,9 +423,7 @@ async def update_collection_access_policy(
     payload: UpdateCollectionPolicyRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)
-        ),
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionPolicyResponse:
@@ -499,6 +494,7 @@ async def update_collection_access_policy(
 
 
 # ── Document management endpoints ─────────────────────────────────────────────
+
 
 @router.get("/{collection_id}/documents", response_model=CollectionDocumentsResponse)
 async def list_collection_documents(

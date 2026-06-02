@@ -28,6 +28,11 @@ const mockApi = vi.hoisted(() => ({
   downloadDocumentFile: vi.fn(),
 }));
 
+const mockChunkingApi = vi.hoisted(() => ({
+  getChunkingStrategyCatalog: vi.fn(),
+  listChunkingProfiles: vi.fn(),
+}));
+
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
     state: mockState.authState,
@@ -43,9 +48,16 @@ vi.mock("@/lib/api/documents", () => ({
   getDocumentChunks: (documentId: string, options?: unknown) =>
     mockApi.getDocumentChunks(documentId, options),
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
-  reindexDocument: (documentId: string) => mockApi.reindexDocument(documentId),
+  reindexDocument: (documentId: string, payload?: unknown) =>
+    mockApi.reindexDocument(documentId, payload),
   downloadDocumentFile: (documentId: string) =>
     mockApi.downloadDocumentFile(documentId),
+}));
+
+vi.mock("@/lib/api/chunking-profiles", () => ({
+  getChunkingStrategyCatalog: () =>
+    mockChunkingApi.getChunkingStrategyCatalog(),
+  listChunkingProfiles: () => mockChunkingApi.listChunkingProfiles(),
 }));
 
 function renderPage(documentId = "doc-1") {
@@ -104,6 +116,37 @@ describe("DocumentDetailPage", () => {
       checksum: "abc123",
       error_message: null,
       error_details: null,
+      language: "en",
+      chunking_diagnostics: {
+        strategy: "adaptive_hybrid",
+        selected_strategy: "page_aware",
+        profile_version: "1.0",
+        profile_source: "custom_profile",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        embedding_model: "text-embedding-3-small",
+        index_version: "v1",
+        ocr_applied: true,
+        hierarchical_mode: false,
+        parent_chunk_count: null,
+        child_chunk_count: null,
+        reason_codes: ["pdf_ocr_applied"],
+        adaptive_signals: {
+          file_type: "pdf",
+          page_count: 12,
+          total_token_count: 5200,
+          ocr_applied: true,
+          heading_density: 0.3,
+          avg_chars_per_page: null,
+          avg_paragraph_tokens: null,
+        },
+        token_distribution: {
+          min_tokens: 120,
+          max_tokens: 260,
+          avg_tokens: 188.5,
+          total_tokens: 7917,
+        },
+      },
       lifecycle_timeline: [
         {
           step: "extract",
@@ -139,6 +182,12 @@ describe("DocumentDetailPage", () => {
           token_count: 42,
           embedding_model: "text-embedding-3-small",
           index_version: "v1",
+          section_path: "Policy > Overview",
+          language: "en",
+          chunk_level: 0,
+          child_count: 0,
+          source_start_offset: 0,
+          source_end_offset: 240,
           text_preview: "Preview text for the first chunk.",
           text: null,
           created_at: "2026-05-14T11:00:00Z",
@@ -161,6 +210,63 @@ describe("DocumentDetailPage", () => {
     mockApi.downloadDocumentFile.mockResolvedValue(
       new Blob(["fake file payload"], { type: "application/pdf" }),
     );
+    mockChunkingApi.getChunkingStrategyCatalog.mockReset();
+    mockChunkingApi.listChunkingProfiles.mockReset();
+    mockChunkingApi.getChunkingStrategyCatalog.mockResolvedValue({
+      strategies: [
+        {
+          name: "adaptive_hybrid",
+          display_name: "Adaptive Hybrid",
+          description: "Adaptive default.",
+          suitable_for: ["mixed content"],
+          requires_page_structure: false,
+          supports_hierarchical: false,
+        },
+        {
+          name: "page_aware",
+          display_name: "Page Aware",
+          description: "Preserve page boundaries.",
+          suitable_for: ["pdf"],
+          requires_page_structure: true,
+          supports_hierarchical: false,
+        },
+      ],
+      default_config: {
+        strategy: "adaptive_hybrid",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        language: null,
+        min_tokens: 88,
+        strategy_options: {},
+      },
+      feature_chunking_profiles_enabled: true,
+    });
+    mockChunkingApi.listChunkingProfiles.mockResolvedValue({
+      profiles: [
+        {
+          profile_id: "profile-1",
+          organization_id: "org-1",
+          name: "Operations Default",
+          slug: "operations-default",
+          config: {
+            strategy: "adaptive_hybrid",
+            chunk_size_tokens: 700,
+            chunk_overlap_tokens: 120,
+            language: "en",
+            min_tokens: 88,
+            strategy_options: {},
+          },
+          is_default: true,
+          is_system: false,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:00:00Z",
+          created_by_user_id: "u-1",
+          updated_by_user_id: "u-1",
+        },
+      ],
+      total: 1,
+      has_org_default: true,
+    });
   });
 
   it("renders indexed metadata and actions with preserved back link", async () => {
@@ -195,6 +301,11 @@ describe("DocumentDetailPage", () => {
     await userEvent.click(screen.getByText("More actions"));
     expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Re-index" })).toBeEnabled();
+    expect(
+      screen.getByRole("heading", { name: "Chunking diagnostics" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("pdf_ocr_applied")).toBeInTheDocument();
+    expect(screen.getByText("Operations Default")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(
@@ -261,6 +372,12 @@ describe("DocumentDetailPage", () => {
           token_count: 42,
           embedding_model: "text-embedding-3-small",
           index_version: "v1",
+          section_path: "Policy > Overview",
+          language: "en",
+          chunk_level: 0,
+          child_count: 0,
+          source_start_offset: 0,
+          source_end_offset: 240,
           text_preview: "Preview text for the first chunk.",
           text: null,
           created_at: "2026-05-14T11:00:00Z",
@@ -281,6 +398,12 @@ describe("DocumentDetailPage", () => {
           token_count: 42,
           embedding_model: "text-embedding-3-small",
           index_version: "v1",
+          section_path: "Policy > Overview",
+          language: "en",
+          chunk_level: 0,
+          child_count: 0,
+          source_start_offset: 0,
+          source_end_offset: 240,
           text_preview: "Preview text for the first chunk.",
           text: "FULL CHUNK TEXT",
           created_at: "2026-05-14T11:00:00Z",
@@ -310,6 +433,35 @@ describe("DocumentDetailPage", () => {
       );
     });
     expect(await screen.findByText("FULL CHUNK TEXT")).toBeInTheDocument();
+  });
+
+  it("filters chunk samples by metadata without exposing empty-state confusion", async () => {
+    renderPage();
+
+    await screen.findByRole("heading", { name: "policy.pdf" });
+    await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
+
+    expect(
+      await screen.findByText("Section Policy > Overview"),
+    ).toBeInTheDocument();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /search sample chunks/i }),
+      "overview",
+    );
+    expect(
+      await screen.findByText("Section Policy > Overview"),
+    ).toBeInTheDocument();
+
+    await userEvent.clear(
+      screen.getByRole("textbox", { name: /search sample chunks/i }),
+    );
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /search sample chunks/i }),
+      "missing-section",
+    );
+    expect(
+      await screen.findByText("No chunk samples matched this filter."),
+    ).toBeInTheDocument();
   });
 
   it("shows failed document safe error details and disables ask in chat", async () => {
@@ -493,13 +645,41 @@ describe("DocumentDetailPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "policy.pdf" });
 
+    await screen.findByRole("button", { name: "Queue re-index" });
     await userEvent.click(screen.getByText("More actions"));
     await userEvent.click(screen.getByRole("button", { name: "Re-index" }));
     await waitFor(() => {
-      expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1");
+      expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1", undefined);
     });
     expect(
-      await screen.findByText(/Re-index requested\. Queue status: queued\./i),
+      await screen.findByText(
+        /Re-index requested using the system default profile\. Queue status: queued\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("queues a re-index with a selected organization profile", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "policy.pdf" });
+
+    await screen.findByRole("button", { name: "Queue re-index" });
+    await userEvent.selectOptions(
+      screen.getAllByRole("combobox")[0],
+      "profile-1",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Queue re-index" }),
+    );
+
+    await waitFor(() => {
+      expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1", {
+        chunking_profile_id: "profile-1",
+      });
+    });
+    expect(
+      await screen.findByText(
+        /Re-index requested using Operations Default\. Queue status: queued\./i,
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -15,6 +15,11 @@ import type {
   DocumentStatusResponse,
 } from "@/lib/api/documents";
 import type {
+  ChunkingProfileList,
+  ChunkingProfilePreviewResponse,
+  ChunkingStrategyCatalog,
+} from "@/lib/schemas/chunking-profiles";
+import type {
   EvaluationQuestionListResponse,
   EvaluationRunDetailResponse,
   EvaluationSetListResponse,
@@ -76,6 +81,37 @@ export const mockDocumentDetail: DocumentDetailResponse = {
   checksum: "sha256:fixture",
   error_message: null,
   error_details: null,
+  language: "en",
+  chunking_diagnostics: {
+    strategy: "adaptive_hybrid",
+    selected_strategy: "page_aware",
+    profile_version: "1.0",
+    profile_source: "custom_profile",
+    chunk_size_tokens: 700,
+    chunk_overlap_tokens: 120,
+    embedding_model: "text-embedding-3-small",
+    index_version: "v1",
+    ocr_applied: true,
+    hierarchical_mode: false,
+    parent_chunk_count: null,
+    child_chunk_count: null,
+    reason_codes: ["pdf_ocr_applied"],
+    adaptive_signals: {
+      file_type: "pdf",
+      page_count: 12,
+      total_token_count: 5200,
+      ocr_applied: true,
+      heading_density: 0.3,
+      avg_chars_per_page: null,
+      avg_paragraph_tokens: null,
+    },
+    token_distribution: {
+      min_tokens: 120,
+      max_tokens: 260,
+      avg_tokens: 188.5,
+      total_tokens: 7917,
+    },
+  },
   created_at: "2026-05-19T09:30:00Z",
   updated_at: "2026-05-20T08:30:00Z",
 };
@@ -98,6 +134,12 @@ export const mockDocumentChunks: DocumentChunksResponse = {
       token_count: 180,
       embedding_model: "text-embedding-3-small",
       index_version: "v1",
+      section_path: "Handbook > Introduction",
+      language: "en",
+      chunk_level: 0,
+      child_count: 0,
+      source_start_offset: 0,
+      source_end_offset: 280,
       text_preview: "Rudix processes enterprise documents securely.",
       text: null,
       created_at: "2026-05-20T08:10:00Z",
@@ -107,6 +149,84 @@ export const mockDocumentChunks: DocumentChunksResponse = {
   limit: 8,
   offset: 0,
   include_full_text: false,
+};
+
+export const mockChunkingStrategyCatalog: ChunkingStrategyCatalog = {
+  strategies: [
+    {
+      name: "adaptive_hybrid",
+      display_name: "Adaptive Hybrid",
+      description:
+        "Selects a concrete chunking strategy based on structure and OCR signals.",
+      suitable_for: ["mixed enterprise content", "production defaults"],
+      requires_page_structure: false,
+      supports_hierarchical: false,
+    },
+    {
+      name: "page_aware",
+      display_name: "Page Aware",
+      description: "Preserves page boundaries for citation-heavy documents.",
+      suitable_for: ["pdf", "ocr", "evidence packets"],
+      requires_page_structure: true,
+      supports_hierarchical: false,
+    },
+  ],
+  default_config: {
+    strategy: "adaptive_hybrid",
+    chunk_size_tokens: 700,
+    chunk_overlap_tokens: 120,
+    language: null,
+    min_tokens: 88,
+    strategy_options: {},
+  },
+  feature_chunking_profiles_enabled: true,
+};
+
+export const mockChunkingProfiles: ChunkingProfileList = {
+  profiles: [
+    {
+      profile_id: "9f3d5d4a-6dc0-4bca-8cff-433e1e019611",
+      organization_id: "c8ae2f17-c58e-499e-88bf-e6b0a8648c21",
+      name: "Operations Default",
+      slug: "operations-default",
+      config: {
+        strategy: "adaptive_hybrid",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        language: "en",
+        min_tokens: 88,
+        strategy_options: {},
+      },
+      is_default: true,
+      is_system: false,
+      created_at: "2026-05-20T08:00:00Z",
+      updated_at: "2026-05-20T08:00:00Z",
+      created_by_user_id: "11111111-1111-4111-8111-111111111111",
+      updated_by_user_id: "11111111-1111-4111-8111-111111111111",
+    },
+  ],
+  total: 1,
+  has_org_default: true,
+};
+
+export const mockChunkingProfilePreview: ChunkingProfilePreviewResponse = {
+  strategy_used: "page_aware",
+  chunk_count: 6,
+  min_tokens: 90,
+  max_tokens: 210,
+  avg_tokens: 153.5,
+  total_tokens: 921,
+  reason_codes: ["pdf_ocr_applied"],
+  sample_chunks: [
+    {
+      chunk_index: 0,
+      token_count: 180,
+      section_path: "Handbook > Introduction",
+      chunk_level: 0,
+      is_parent: false,
+    },
+  ],
+  warnings: [],
 };
 
 export const mockChatSessions: ChatSessionListResponse = {

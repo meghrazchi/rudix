@@ -41,8 +41,7 @@ IDX = "v-test"
 
 def _pages(*texts: str) -> list[ExtractedSection]:
     return [
-        ExtractedSection(page_number=i + 1, text=t, char_count=len(t))
-        for i, t in enumerate(texts)
+        ExtractedSection(page_number=i + 1, text=t, char_count=len(t)) for i, t in enumerate(texts)
     ]
 
 
@@ -119,8 +118,7 @@ async def test_hierarchical_parent_child_count_matches_actual_children() -> None
 
     for parent in (c for c in chunks if c.chunk_level == 0):
         actual = sum(
-            1 for c in chunks
-            if c.chunk_level == 1 and c.parent_chunk_index == parent.chunk_index
+            1 for c in chunks if c.chunk_level == 1 and c.parent_chunk_index == parent.chunk_index
         )
         assert parent.child_count == actual, (
             f"parent at index {parent.chunk_index} has child_count={parent.child_count} "

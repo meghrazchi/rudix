@@ -33,6 +33,11 @@ const mockTeamApi = vi.hoisted(() => ({
   removeTeamMember: vi.fn(),
 }));
 
+const mockChunkingApi = vi.hoisted(() => ({
+  getChunkingStrategyCatalog: vi.fn(),
+  listChunkingProfiles: vi.fn(),
+}));
+
 vi.mock("@/lib/use-auth-session", () => ({
   useAuthSession: () => ({
     state: mockState.authState,
@@ -91,6 +96,12 @@ vi.mock("@/lib/api/team", () => ({
   removeTeamMember: (...args: unknown[]) =>
     mockTeamApi.removeTeamMember(...args),
   isTeamEndpointUnavailableError: () => false,
+}));
+
+vi.mock("@/lib/api/chunking-profiles", () => ({
+  getChunkingStrategyCatalog: () =>
+    mockChunkingApi.getChunkingStrategyCatalog(),
+  listChunkingProfiles: () => mockChunkingApi.listChunkingProfiles(),
 }));
 
 vi.mock("@/lib/api/security", () => ({
@@ -207,6 +218,55 @@ describe("SettingsPage", () => {
         developerMode: true,
       } satisfies SettingsPreferences,
       persistenceScope: "remote",
+    });
+    mockChunkingApi.getChunkingStrategyCatalog.mockReset();
+    mockChunkingApi.listChunkingProfiles.mockReset();
+    mockChunkingApi.getChunkingStrategyCatalog.mockResolvedValue({
+      strategies: [
+        {
+          name: "adaptive_hybrid",
+          display_name: "Adaptive Hybrid",
+          description: "Adaptive default.",
+          suitable_for: ["mixed content"],
+          requires_page_structure: false,
+          supports_hierarchical: false,
+        },
+      ],
+      default_config: {
+        strategy: "adaptive_hybrid",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        language: null,
+        min_tokens: 88,
+        strategy_options: {},
+      },
+      feature_chunking_profiles_enabled: true,
+    });
+    mockChunkingApi.listChunkingProfiles.mockResolvedValue({
+      profiles: [
+        {
+          profile_id: "profile-1",
+          organization_id: "org-1",
+          name: "Operations Default",
+          slug: "operations-default",
+          config: {
+            strategy: "adaptive_hybrid",
+            chunk_size_tokens: 700,
+            chunk_overlap_tokens: 120,
+            language: "en",
+            min_tokens: 88,
+            strategy_options: {},
+          },
+          is_default: true,
+          is_system: false,
+          created_at: "2026-05-20T08:00:00Z",
+          updated_at: "2026-05-20T08:00:00Z",
+          created_by_user_id: "user-2",
+          updated_by_user_id: "user-2",
+        },
+      ],
+      total: 1,
+      has_org_default: true,
     });
   });
 

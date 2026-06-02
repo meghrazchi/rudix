@@ -56,16 +56,17 @@ class ChatRepository:
         offset: int = 0,
         search: str | None = None,
     ) -> list[ChatSession]:
-        query = (
-            select(ChatSession)
-            .where(
-                ChatSession.organization_id == organization_id,
-                ChatSession.user_id == user_id,
-            )
+        query = select(ChatSession).where(
+            ChatSession.organization_id == organization_id,
+            ChatSession.user_id == user_id,
         )
         if search:
             query = query.where(ChatSession.title.ilike(f"%{search}%"))
-        query = query.order_by(ChatSession.updated_at.desc(), ChatSession.id.desc()).offset(offset).limit(limit)
+        query = (
+            query.order_by(ChatSession.updated_at.desc(), ChatSession.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
         result = await session.execute(query)
         return list(result.scalars().all())
 

@@ -99,6 +99,8 @@ class ChunkingService:
         # Capture adaptive selection metadata without importing the strategy class
         # (avoids potential circular imports at module load time).
         raw_selection = getattr(resolved_strategy, "last_selection", None)
-        self.last_adaptive_selection = raw_selection if isinstance(raw_selection, SelectionResult) else None
+        self.last_adaptive_selection = (
+            raw_selection if isinstance(raw_selection, SelectionResult) else None
+        )
 
         return chunks

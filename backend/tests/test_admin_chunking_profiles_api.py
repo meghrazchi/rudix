@@ -1,6 +1,7 @@
 import os
+from collections.abc import Sequence
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -31,6 +32,7 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.documents.chunking.protocol import ChunkPayload, PageLike
 from app.interfaces.http import documents as documents_api
 from app.main import app
 from app.models.chunking_profile import OrganizationChunkingProfile
@@ -374,7 +376,11 @@ async def test_list_profiles_returns_org_scoped_results(
         headers=_auth_headers(token=token_a, organization_id=str(org_a.id)),
         json={
             "name": "Org A Profile",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 100},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 100,
+            },
         },
     )
 
@@ -406,7 +412,11 @@ async def test_list_profiles_shows_default_first(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Not Default",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 100},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 100,
+            },
         },
     )
     await profile_client.post(
@@ -414,7 +424,11 @@ async def test_list_profiles_shows_default_first(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Default Profile",
-            "config": {"strategy": "paragraph_recursive", "chunk_size_tokens": 600, "chunk_overlap_tokens": 80},
+            "config": {
+                "strategy": "paragraph_recursive",
+                "chunk_size_tokens": 600,
+                "chunk_overlap_tokens": 80,
+            },
             "set_as_default": True,
         },
     )
@@ -453,7 +467,11 @@ async def test_get_profile_returns_correct_data(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Get Test",
-            "config": {"strategy": "sentence_window", "chunk_size_tokens": 400, "chunk_overlap_tokens": 50},
+            "config": {
+                "strategy": "sentence_window",
+                "chunk_size_tokens": 400,
+                "chunk_overlap_tokens": 50,
+            },
         },
     )
     profile_id = create_response.json()["profile_id"]
@@ -489,7 +507,11 @@ async def test_get_profile_from_other_org_returns_404(
         headers=_auth_headers(token=token_a, organization_id=str(org_a.id)),
         json={
             "name": "Private Profile",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 100},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 100,
+            },
         },
     )
     profile_id = create_response.json()["profile_id"]
@@ -524,7 +546,11 @@ async def test_update_profile_changes_config_and_audits(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Original",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 120},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 120,
+            },
         },
     )
     profile_id = create_response.json()["profile_id"]
@@ -534,7 +560,11 @@ async def test_update_profile_changes_config_and_audits(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Updated Name",
-            "config": {"strategy": "heading_aware", "chunk_size_tokens": 500, "chunk_overlap_tokens": 80},
+            "config": {
+                "strategy": "heading_aware",
+                "chunk_size_tokens": 500,
+                "chunk_overlap_tokens": 80,
+            },
         },
     )
 
@@ -574,7 +604,11 @@ async def test_delete_profile_removes_row_and_audits(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "To Delete",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 100},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 100,
+            },
         },
     )
     profile_id = create_response.json()["profile_id"]
@@ -587,6 +621,7 @@ async def test_delete_profile_removes_row_and_audits(
     assert del_response.status_code == 204
 
     from uuid import UUID as _UUID
+
     still_there = await db_session.scalar(
         select(OrganizationChunkingProfile).where(
             OrganizationChunkingProfile.id == _UUID(profile_id)
@@ -625,7 +660,11 @@ async def test_set_default_clears_previous_default(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Alpha",
-            "config": {"strategy": "token_recursive", "chunk_size_tokens": 700, "chunk_overlap_tokens": 100},
+            "config": {
+                "strategy": "token_recursive",
+                "chunk_size_tokens": 700,
+                "chunk_overlap_tokens": 100,
+            },
             "set_as_default": True,
         },
     )
@@ -634,7 +673,11 @@ async def test_set_default_clears_previous_default(
         headers=_auth_headers(token=token, organization_id=str(org.id)),
         json={
             "name": "Beta",
-            "config": {"strategy": "paragraph_recursive", "chunk_size_tokens": 600, "chunk_overlap_tokens": 80},
+            "config": {
+                "strategy": "paragraph_recursive",
+                "chunk_size_tokens": 600,
+                "chunk_overlap_tokens": 80,
+            },
         },
     )
     id_a = resp_a.json()["profile_id"]
@@ -648,6 +691,7 @@ async def test_set_default_clears_previous_default(
     assert set_resp.json()["is_default"] is True
 
     from uuid import UUID as _UUID
+
     old_default = await db_session.get(OrganizationChunkingProfile, _UUID(id_a))
     new_default = await db_session.get(OrganizationChunkingProfile, _UUID(id_b))
     assert old_default is not None
@@ -673,7 +717,54 @@ async def test_set_default_clears_previous_default(
 async def test_preview_returns_stats_without_raw_text(
     profile_client: AsyncClient,
     db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    class _FakeStrategy:
+        last_selection = None
+
+        async def chunk(
+            self,
+            *,
+            document_id: UUID,
+            pages: Sequence[PageLike],
+        ) -> list[ChunkPayload]:
+            del pages
+            return [
+                ChunkPayload(
+                    document_id=document_id,
+                    page_number=1,
+                    chunk_index=0,
+                    text="chunk one",
+                    token_count=80,
+                    embedding_model="test-embedding-model",
+                    index_version="v-test",
+                    strategy_name="token_recursive",
+                ),
+                ChunkPayload(
+                    document_id=document_id,
+                    page_number=1,
+                    chunk_index=1,
+                    text="chunk two",
+                    token_count=72,
+                    embedding_model="test-embedding-model",
+                    index_version="v-test",
+                    strategy_name="token_recursive",
+                ),
+            ]
+
+    class _FakeRegistry:
+        def known_strategies(self) -> list[str]:
+            return ["token_recursive"]
+
+        def resolve(self, *args: object, **kwargs: object) -> _FakeStrategy:
+            del args, kwargs
+            return _FakeStrategy()
+
+    monkeypatch.setattr(
+        "app.domains.documents.chunking.registry.get_registry",
+        lambda: _FakeRegistry(),
+    )
+
     user, org = await _seed_principal(db_session, role=OrganizationRole.admin)
     token = create_app_access_token(
         subject=user.external_auth_id,
@@ -710,6 +801,7 @@ async def test_preview_returns_stats_without_raw_text(
     assert payload["max_tokens"] >= payload["min_tokens"]
     assert payload["total_tokens"] > 0
     assert payload["strategy_used"] == "token_recursive"
+    assert payload["reason_codes"] == []
 
     for chunk_meta in payload["sample_chunks"]:
         assert "token_count" in chunk_meta
@@ -858,9 +950,9 @@ async def test_reindex_with_both_profile_id_and_config_returns_422(
     profile_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    from app.domains.admin.schemas.chunking_profiles import ReindexWithProfileRequest
-
     import pytest as _pytest
+
+    from app.domains.admin.schemas.chunking_profiles import ReindexWithProfileRequest
 
     with _pytest.raises(Exception) as exc_info:
         ReindexWithProfileRequest(

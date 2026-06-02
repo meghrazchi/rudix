@@ -60,9 +60,7 @@ async def get_unread_count(
     db: AsyncSession = Depends(get_db_session),
 ) -> UnreadCountResponse:
     user_id, org_id = _principal_user_and_org(principal)
-    count = await _notification_repository.count_unread(
-        db, organization_id=org_id, user_id=user_id
-    )
+    count = await _notification_repository.count_unread(db, organization_id=org_id, user_id=user_id)
     return UnreadCountResponse(unread_count=count)
 
 

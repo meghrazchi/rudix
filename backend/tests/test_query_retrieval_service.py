@@ -318,7 +318,10 @@ def test_retrieve_candidates_extracts_hierarchical_fields_from_payload() -> None
     candidate = candidates[0]
     assert candidate.chunk_level == 1
     assert candidate.parent_chunk_id == parent_chunk_id
-    assert candidate.parent_text == "Parent context: the full leave policy section covering types of leave."
+    assert (
+        candidate.parent_text
+        == "Parent context: the full leave policy section covering types of leave."
+    )
     assert candidate.section_path == "Policy > Leave"
 
 

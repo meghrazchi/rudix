@@ -153,9 +153,7 @@ class QdrantService:
                         "parent_chunk_id": (
                             str(chunk.parent_chunk_id) if chunk.parent_chunk_id else None
                         ),
-                        "parent_text": (
-                            (parent_text_by_chunk_id or {}).get(chunk.id)
-                        ),
+                        "parent_text": ((parent_text_by_chunk_id or {}).get(chunk.id)),
                         "child_count": chunk.child_count,
                     },
                 )

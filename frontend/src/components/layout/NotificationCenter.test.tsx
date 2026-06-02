@@ -94,9 +94,7 @@ describe("NotificationCenter", () => {
 
       renderCenter();
 
-      expect(
-        await screen.findByText(/all caught up/),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/all caught up/)).toBeInTheDocument();
     });
   });
 
@@ -162,12 +160,16 @@ describe("NotificationCenter", () => {
 
       renderCenter();
 
-      expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "Retry" }),
+      ).toBeInTheDocument();
     });
 
     it("renders notification href as a menuitem link", async () => {
       vi.mocked(notifApi.listNotifications).mockResolvedValue(
-        buildResponse([buildNotification({ href: "/documents?highlight=doc-1" })]),
+        buildResponse([
+          buildNotification({ href: "/documents?highlight=doc-1" }),
+        ]),
       );
 
       renderCenter();
@@ -293,9 +295,7 @@ describe("NotificationCenter", () => {
         screen.getByRole("button", { name: "Notification preferences" }),
       );
 
-      expect(
-        screen.getByText("Notification preferences"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Notification preferences")).toBeInTheDocument();
       expect(
         screen.getByText(/Per-category preferences are coming soon/),
       ).toBeInTheDocument();
@@ -313,9 +313,7 @@ describe("NotificationCenter", () => {
       await user.click(
         screen.getByRole("button", { name: "Notification preferences" }),
       );
-      expect(
-        screen.getByText("Notification preferences"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Notification preferences")).toBeInTheDocument();
 
       await user.click(
         screen.getByRole("button", { name: "Close preferences" }),

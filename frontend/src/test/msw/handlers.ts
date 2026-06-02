@@ -7,6 +7,9 @@ import {
   mockChatQueryResponse,
   mockChatSession,
   mockChatSessions,
+  mockChunkingProfilePreview,
+  mockChunkingProfiles,
+  mockChunkingStrategyCatalog,
   mockDocumentChunks,
   mockDocumentDetail,
   mockDocumentsList,
@@ -97,6 +100,15 @@ export function createMockApiHandlers(
         offset,
       });
     }),
+    http.get(`${apiBaseUrl}/admin/chunking-profiles/strategies`, () =>
+      HttpResponse.json(mockChunkingStrategyCatalog),
+    ),
+    http.get(`${apiBaseUrl}/admin/chunking-profiles`, () =>
+      HttpResponse.json(mockChunkingProfiles),
+    ),
+    http.post(`${apiBaseUrl}/admin/chunking-profiles/preview`, () =>
+      HttpResponse.json(mockChunkingProfilePreview),
+    ),
     http.post(`${apiBaseUrl}/documents/upload`, () =>
       HttpResponse.json(
         {

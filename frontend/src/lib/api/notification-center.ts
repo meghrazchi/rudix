@@ -29,10 +29,9 @@ export async function getUnreadCount(): Promise<UnreadCountResponse> {
 export async function markNotificationRead(
   notificationId: string,
 ): Promise<MarkReadResponse> {
-  return apiRequest<MarkReadResponse>(
-    `/notifications/${notificationId}/read`,
-    { method: "PATCH" },
-  );
+  return apiRequest<MarkReadResponse>(`/notifications/${notificationId}/read`, {
+    method: "PATCH",
+  });
 }
 
 export async function markNotificationUnread(

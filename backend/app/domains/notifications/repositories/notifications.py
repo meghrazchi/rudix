@@ -75,9 +75,7 @@ class NotificationRepository:
         total = await self.count_notifications(
             session, organization_id=organization_id, user_id=user_id
         )
-        unread = await self.count_unread(
-            session, organization_id=organization_id, user_id=user_id
-        )
+        unread = await self.count_unread(session, organization_id=organization_id, user_id=user_id)
         return items, total, unread
 
     async def count_notifications(

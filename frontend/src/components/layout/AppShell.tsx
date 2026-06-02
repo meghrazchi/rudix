@@ -271,7 +271,7 @@ export function AppShell({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOnboardingState(stored);
     if (!stored.dismissed) {
-        setOnboardingVisible(true);
+      setOnboardingVisible(true);
     }
   }, [session.userId]);
 

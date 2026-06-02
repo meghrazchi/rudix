@@ -67,6 +67,8 @@ def _make_chunking_service(profile_config: dict | None = None) -> ChunkingServic
         chunk_size_tokens=profile_config.get("chunk_size_tokens"),
         chunk_overlap_tokens=profile_config.get("chunk_overlap_tokens"),
     )
+
+
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
 
@@ -542,9 +544,7 @@ async def _extract_and_store_document_pages_async(
                 sections = extract_pdf_pages_native(content)
             else:
                 try:
-                    sections = extract_text_sections(
-                        file_type=document.file_type, content=content
-                    )
+                    sections = extract_text_sections(file_type=document.file_type, content=content)
                 except ValueError as exc:
                     raise DocumentPipelinePermanentError(
                         stage="extract",
@@ -571,9 +571,7 @@ async def _extract_and_store_document_pages_async(
 
             if ocr_enabled:
                 current_stage = "detect_ocr"
-                await pipeline_recorder.emit_stage(
-                    stage="detect_ocr", stage_status="started"
-                )
+                await pipeline_recorder.emit_stage(stage="detect_ocr", stage_status="started")
                 detection = detect_ocr_need(
                     sections,
                     min_chars_per_page=settings.ocr_min_text_chars_per_page,
@@ -637,17 +635,9 @@ async def _extract_and_store_document_pages_async(
                         ocr_result,
                         min_chars_per_page=settings.ocr_min_text_chars_per_page,
                     )
-                    ocr_completed = sum(
-                        1 for p in ocr_result.pages if p.status == "completed"
-                    )
-                    ocr_failed = sum(
-                        1 for p in ocr_result.pages if p.status == "failed"
-                    )
-                    ocr_stage_status = (
-                        "failed"
-                        if ocr_result.status == "failed"
-                        else "completed"
-                    )
+                    ocr_completed = sum(1 for p in ocr_result.pages if p.status == "completed")
+                    ocr_failed = sum(1 for p in ocr_result.pages if p.status == "failed")
+                    ocr_stage_status = "failed" if ocr_result.status == "failed" else "completed"
                     await pipeline_recorder.emit_stage(
                         stage="ocr",
                         stage_status=ocr_stage_status,
@@ -659,11 +649,7 @@ async def _extract_and_store_document_pages_async(
                             "pages_completed": ocr_completed,
                             "pages_failed": ocr_failed,
                             "duration_ms": ocr_result.duration_ms,
-                            "warnings": [
-                                p.warning
-                                for p in ocr_result.pages
-                                if p.warning
-                            ],
+                            "warnings": [p.warning for p in ocr_result.pages if p.warning],
                         },
                     )
                     page_warnings = [p.warning for p in ocr_result.pages if p.warning]
@@ -894,8 +880,7 @@ async def _extract_and_store_document_pages_async(
                 parent_text_by_child_id: dict[UUID, str] = {}
                 if is_hierarchical:
                     created_by_index = {
-                        p.chunk_index: c
-                        for p, c in zip(chunks, all_created_chunks, strict=True)
+                        p.chunk_index: c for p, c in zip(chunks, all_created_chunks, strict=True)
                     }
                     for chunk_payload, created in zip(chunks, all_created_chunks, strict=True):
                         if (

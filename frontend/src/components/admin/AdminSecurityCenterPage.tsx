@@ -872,9 +872,8 @@ export function AdminSecurityCenterPage() {
             </span>
           </div>
           <p className="max-w-2xl text-sm text-[#68647b]">
-            Review key security settings, warnings, and access controls for
-            this organization. Ensure compliance with global enterprise
-            standards.
+            Review key security settings, warnings, and access controls for this
+            organization. Ensure compliance with global enterprise standards.
           </p>
         </div>
         <div className="flex gap-2">
@@ -898,24 +897,22 @@ export function AdminSecurityCenterPage() {
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               Authentication
             </p>
             <div className="flex items-center justify-between gap-1">
               <p className="truncate text-sm font-bold text-[#2a2640]">
                 {runtimeConfig.authProviderRaw || "Configured"}
               </p>
-              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-800">
+              <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black tracking-wide text-emerald-800 uppercase">
                 ACTIVE
               </span>
             </div>
-            <p className="mt-2 text-[10px] text-[#6a6780]">
-              {sessionSummary}
-            </p>
+            <p className="mt-2 text-[10px] text-[#6a6780]">{sessionSummary}</p>
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               Roles &amp; Access
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
@@ -939,11 +936,14 @@ export function AdminSecurityCenterPage() {
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               Domain Restrictions
             </p>
             <div className="flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 shrink-0 text-[#3525cd]" aria-hidden />
+              <Globe
+                className="h-3.5 w-3.5 shrink-0 text-[#3525cd]"
+                aria-hidden
+              />
               <p className="text-sm font-bold text-[#2a2640]">
                 {allowedDomainList.length > 0
                   ? `${allowedDomainList.length} Domain${allowedDomainList.length !== 1 ? "s" : ""}`
@@ -958,7 +958,7 @@ export function AdminSecurityCenterPage() {
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               API &amp; Webhooks
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
@@ -978,7 +978,7 @@ export function AdminSecurityCenterPage() {
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               Data Retention
             </p>
             <p className="text-sm font-bold text-[#2a2640]">
@@ -986,16 +986,21 @@ export function AdminSecurityCenterPage() {
                 ? `${organizationSettingsQuery.data.retention_days}d`
                 : "Default Policy"}
             </p>
-            <p className="mt-2 text-[10px] text-[#6a6780]">{retentionSummary}</p>
+            <p className="mt-2 text-[10px] text-[#6a6780]">
+              {retentionSummary}
+            </p>
           </article>
 
           <article className="rounded-xl border border-[#e4e1f2] bg-white p-4 transition-colors hover:border-[#3525cd]">
-            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[#6a6780]">
+            <p className="mb-2 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
               Audit Health
             </p>
             <div className="flex items-center gap-1.5">
               {isAuditHealthy ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden />
+                <CheckCircle2
+                  className="h-4 w-4 text-emerald-600"
+                  aria-hidden
+                />
               ) : (
                 <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden />
               )}
@@ -1129,7 +1134,7 @@ export function AdminSecurityCenterPage() {
               return (
                 <article
                   key={item.id}
-                  className={`flex items-center gap-4 rounded-r-xl border border-[#e4e1f2] border-l-4 bg-white p-5 ${style.borderClass}`}
+                  className={`flex items-center gap-4 rounded-r-xl border border-l-4 border-[#e4e1f2] bg-white p-5 ${style.borderClass}`}
                 >
                   <div
                     className={`shrink-0 rounded-lg p-2.5 ${style.iconBgClass}`}
@@ -1145,7 +1150,7 @@ export function AdminSecurityCenterPage() {
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${style.badgeClass}`}
+                        className={`rounded px-2 py-0.5 text-[9px] font-black tracking-wider uppercase ${style.badgeClass}`}
                       >
                         {style.badgeLabel}
                       </span>
@@ -1202,7 +1207,10 @@ export function AdminSecurityCenterPage() {
                     </p>
                   </div>
                   {control.href ? (
-                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-[#c7c4d8] transition-colors group-hover:text-[#3525cd]" aria-hidden />
+                    <ChevronRight
+                      className="ml-auto h-4 w-4 shrink-0 text-[#c7c4d8] transition-colors group-hover:text-[#3525cd]"
+                      aria-hidden
+                    />
                   ) : (
                     <span className="ml-auto shrink-0 rounded-lg bg-[#f0ecf9] px-2 py-1 text-[10px] font-semibold text-[#6a6780]">
                       N/A
@@ -1231,7 +1239,11 @@ export function AdminSecurityCenterPage() {
                 );
               }
               return (
-                <Link key={control.id} href={control.href} className={sharedClass}>
+                <Link
+                  key={control.id}
+                  href={control.href}
+                  className={sharedClass}
+                >
                   {inner}
                 </Link>
               );
@@ -1266,4 +1278,3 @@ export function AdminSecurityCenterPage() {
     </section>
   );
 }
-

@@ -48,8 +48,7 @@ IDX = "v-test"
 
 def _pages(*texts: str) -> list[ExtractedSection]:
     return [
-        ExtractedSection(page_number=i + 1, text=t, char_count=len(t))
-        for i, t in enumerate(texts)
+        ExtractedSection(page_number=i + 1, text=t, char_count=len(t)) for i, t in enumerate(texts)
     ]
 
 
@@ -269,9 +268,7 @@ async def test_page_aware_single_short_page() -> None:
 async def test_page_aware_never_crosses_page_boundary() -> None:
     p1 = " ".join(["alpha"] * 60)
     p2 = " ".join(["beta"] * 60)
-    chunks = await _page_aware(size=50, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(p1, p2)
-    )
+    chunks = await _page_aware(size=50, overlap=10).chunk(document_id=uuid4(), pages=_pages(p1, p2))
     _common(chunks, name="page_aware", max_tokens=50)
     # Every chunk must belong to exactly one page — no merging across pages.
     for c in chunks:
@@ -320,7 +317,9 @@ async def test_page_aware_is_deterministic() -> None:
 @pytest.mark.asyncio
 async def test_page_aware_chunk_indexes_sequential() -> None:
     pages = [
-        ExtractedSection(page_number=i + 1, text=" ".join(f"w{j}" for j in range(80)), char_count=80)
+        ExtractedSection(
+            page_number=i + 1, text=" ".join(f"w{j}" for j in range(80)), char_count=80
+        )
         for i in range(4)
     ]
     chunks = await _page_aware(size=50, overlap=10).chunk(document_id=uuid4(), pages=pages)
@@ -330,9 +329,7 @@ async def test_page_aware_chunk_indexes_sequential() -> None:
 @pytest.mark.asyncio
 async def test_page_aware_multilingual_no_crash() -> None:
     text = "Hello world. 你好世界。مرحبا بالعالم."
-    chunks = await _page_aware(size=30, overlap=5).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _page_aware(size=30, overlap=5).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
 
 
@@ -354,23 +351,17 @@ async def test_heading_aware_blank_text_returns_empty() -> None:
 @pytest.mark.asyncio
 async def test_heading_aware_no_headings_plain_text() -> None:
     text = " ".join(f"word{i}" for i in range(50))
-    chunks = await _heading(size=100, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=100, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     _common(chunks, name="heading_aware", max_tokens=100)
 
 
 @pytest.mark.asyncio
 async def test_heading_aware_flushes_at_heading_boundary() -> None:
     text = (
-        "# Introduction\n\n"
-        + " ".join(["intro"] * 30) + "\n\n"
-        "# Methods\n\n"
-        + " ".join(["method"] * 30)
+        "# Introduction\n\n" + " ".join(["intro"] * 30) + "\n\n"
+        "# Methods\n\n" + " ".join(["method"] * 30)
     )
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     _common(chunks, name="heading_aware", max_tokens=200)
     assert len(chunks) >= 2
     intro_chunk = next((c for c in chunks if "intro" in c.text), None)
@@ -391,9 +382,7 @@ async def test_heading_aware_section_path_in_metadata() -> None:
         "### Annual Leave\n\n"
         "Annual leave details."
     )
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     # Chunks under ## Leave should carry at least "Policy > Leave" in path.
     leave_chunk = next((c for c in chunks if "Leave rules" in c.text), None)
@@ -406,9 +395,7 @@ async def test_heading_aware_section_path_in_metadata() -> None:
 async def test_heading_aware_table_kept_atomic() -> None:
     table = "Name | Score | Grade\nAlice | 95 | A\nBob | 82 | B\nCarol | 78 | C"
     text = "# Results\n\n" + table + "\n\nSome summary paragraph."
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     # The table rows should appear in a single chunk (not split across two).
     table_chunks = [c for c in chunks if "Alice" in c.text]
@@ -426,9 +413,7 @@ async def test_heading_aware_code_block_kept_atomic() -> None:
         "```\n\n"
         "More text follows."
     )
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     code_chunks = [c for c in chunks if "factorial" in c.text]
     assert len(code_chunks) == 1, "code block was split"
@@ -436,16 +421,8 @@ async def test_heading_aware_code_block_kept_atomic() -> None:
 
 @pytest.mark.asyncio
 async def test_heading_aware_bullet_list_grouped() -> None:
-    text = (
-        "# Checklist\n\n"
-        "- Item one\n"
-        "- Item two\n"
-        "- Item three\n\n"
-        "Conclusion."
-    )
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    text = "# Checklist\n\n- Item one\n- Item two\n- Item three\n\nConclusion."
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     list_chunks = [c for c in chunks if "Item one" in c.text]
     assert list_chunks, "list items not found"
@@ -456,9 +433,7 @@ async def test_heading_aware_bullet_list_grouped() -> None:
 @pytest.mark.asyncio
 async def test_heading_aware_block_type_in_metadata() -> None:
     text = "# Code Section\n\n```\nsome code\n```"
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     code_chunk = next((c for c in chunks if "some code" in c.text), None)
     if code_chunk:
@@ -469,9 +444,7 @@ async def test_heading_aware_block_type_in_metadata() -> None:
 async def test_heading_aware_oversized_section_split() -> None:
     long_section = " ".join(f"word{i}" for i in range(300))
     text = f"# Big Section\n\n{long_section}"
-    chunks = await _heading(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     _common(chunks, name="heading_aware", max_tokens=80)
     assert len(chunks) > 1
 
@@ -480,9 +453,7 @@ async def test_heading_aware_oversized_section_split() -> None:
 async def test_heading_aware_docx_caps_heading_detected() -> None:
     # ALL-CAPS lines as in DOCX exports should be treated as headings.
     text = "LEAVE POLICY\n\nEmployees are entitled to 20 days.\n\nRETIREMENT POLICY\n\nAge 65 is standard."
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
     # Should have at least two chunks (one per policy section).
     leave = next((c for c in chunks if "20 days" in c.text), None)
@@ -508,12 +479,9 @@ async def test_heading_aware_is_deterministic() -> None:
 @pytest.mark.asyncio
 async def test_heading_aware_chunk_indexes_sequential() -> None:
     text = "\n\n".join(
-        f"# Section {i}\n\n" + " ".join(f"w{j}" for j in range(40))
-        for i in range(5)
+        f"# Section {i}\n\n" + " ".join(f"w{j}" for j in range(40)) for i in range(5)
     )
-    chunks = await _heading(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))
 
 
@@ -521,9 +489,7 @@ async def test_heading_aware_chunk_indexes_sequential() -> None:
 async def test_heading_aware_multi_page() -> None:
     p1 = "# Introduction\n\nThis is the introduction page."
     p2 = "# Methodology\n\nThis is the methodology page."
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(p1, p2)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(p1, p2))
     assert chunks
     page_numbers = {c.page_number for c in chunks if c.page_number is not None}
     assert 1 in page_numbers and 2 in page_numbers
@@ -532,9 +498,7 @@ async def test_heading_aware_multi_page() -> None:
 @pytest.mark.asyncio
 async def test_heading_aware_multilingual_no_crash() -> None:
     text = "# Hello\n\nHello world.\n\n# Bonjour\n\nBonjour le monde.\n\n# こんにちは\n\nこんにちは世界。"
-    chunks = await _heading(size=100, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=100, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
 
 
@@ -542,9 +506,7 @@ async def test_heading_aware_multilingual_no_crash() -> None:
 async def test_heading_aware_fallback_no_structure() -> None:
     # Plain text with no headings should still produce chunks.
     text = " ".join(f"word{i}" for i in range(200))
-    chunks = await _heading(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     _common(chunks, name="heading_aware", max_tokens=80)
 
 
@@ -571,18 +533,14 @@ def test_chunk_payload_section_path_defaults_none() -> None:
 
 @pytest.mark.asyncio
 async def test_page_aware_chunk_payload_has_section_path() -> None:
-    chunks = await _page_aware().chunk(
-        document_id=uuid4(), pages=_pages("Hello world.")
-    )
+    chunks = await _page_aware().chunk(document_id=uuid4(), pages=_pages("Hello world."))
     assert chunks[0].section_path == "page:1"
 
 
 @pytest.mark.asyncio
 async def test_heading_aware_chunk_has_section_path_when_heading_present() -> None:
     text = "# My Heading\n\nContent under heading."
-    chunks = await _heading(size=200, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _heading(size=200, overlap=20).chunk(document_id=uuid4(), pages=_pages(text))
     content_chunk = next((c for c in chunks if "Content" in c.text), None)
     if content_chunk:
         assert content_chunk.section_path == "My Heading"

@@ -41,6 +41,7 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 const chunkRequests: Array<{ offset: number; includeFullText: boolean }> = [];
+const reindexRequests: Array<unknown> = [];
 const indexedChunks = Array.from({ length: 9 }, (_, index) => ({
   chunk_id: `chunk-${index + 1}`,
   page_number: index + 1,
@@ -48,6 +49,12 @@ const indexedChunks = Array.from({ length: 9 }, (_, index) => ({
   token_count: 20 + index,
   embedding_model: "text-embedding-3-small",
   index_version: "v1",
+  section_path: `Handbook > Section ${index + 1}`,
+  language: "en",
+  chunk_level: 0,
+  child_count: 0,
+  source_start_offset: index * 200,
+  source_end_offset: index * 200 + 160,
   text_preview: `Preview ${index + 1}`,
   text: `Full text ${index + 1}`,
   created_at: "2026-05-15T12:00:00Z",
@@ -103,6 +110,37 @@ const server = setupServer(
       checksum: "sum-indexed",
       error_message: null,
       error_details: null,
+      language: "en",
+      chunking_diagnostics: {
+        strategy: "adaptive_hybrid",
+        selected_strategy: "page_aware",
+        profile_version: "1.0",
+        profile_source: "custom_profile",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        embedding_model: "text-embedding-3-small",
+        index_version: "v1",
+        ocr_applied: true,
+        hierarchical_mode: false,
+        parent_chunk_count: null,
+        child_chunk_count: null,
+        reason_codes: ["pdf_ocr_applied"],
+        adaptive_signals: {
+          file_type: "pdf",
+          page_count: 9,
+          total_token_count: 5200,
+          ocr_applied: true,
+          heading_density: 0.3,
+          avg_chars_per_page: null,
+          avg_paragraph_tokens: null,
+        },
+        token_distribution: {
+          min_tokens: 120,
+          max_tokens: 260,
+          avg_tokens: 188.5,
+          total_tokens: 7917,
+        },
+      },
       lifecycle_timeline: [
         {
           step: "index",
@@ -185,6 +223,71 @@ const server = setupServer(
       });
     },
   ),
+  http.get(`${apiBaseUrl}/admin/chunking-profiles/strategies`, () =>
+    HttpResponse.json({
+      strategies: [
+        {
+          name: "adaptive_hybrid",
+          display_name: "Adaptive Hybrid",
+          description: "Adaptive default.",
+          suitable_for: ["mixed content"],
+          requires_page_structure: false,
+          supports_hierarchical: false,
+        },
+      ],
+      default_config: {
+        strategy: "adaptive_hybrid",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        language: null,
+        min_tokens: 88,
+        strategy_options: {},
+      },
+      feature_chunking_profiles_enabled: true,
+    }),
+  ),
+  http.get(`${apiBaseUrl}/admin/chunking-profiles`, () =>
+    HttpResponse.json({
+      profiles: [
+        {
+          profile_id: "profile-1",
+          organization_id: "org-1",
+          name: "Operations Default",
+          slug: "operations-default",
+          config: {
+            strategy: "adaptive_hybrid",
+            chunk_size_tokens: 700,
+            chunk_overlap_tokens: 120,
+            language: "en",
+            min_tokens: 88,
+            strategy_options: {},
+          },
+          is_default: true,
+          is_system: false,
+          created_at: "2026-05-20T08:00:00Z",
+          updated_at: "2026-05-20T08:00:00Z",
+          created_by_user_id: "u-1",
+          updated_by_user_id: "u-1",
+        },
+      ],
+      total: 1,
+      has_org_default: true,
+    }),
+  ),
+  http.post(
+    `${apiBaseUrl}/documents/:documentId/reindex`,
+    async ({ request }) => {
+      reindexRequests.push(await request.json());
+      return HttpResponse.json(
+        {
+          document_id: "doc-indexed",
+          status: "processing",
+          queue_status: "queued",
+        },
+        { status: 202 },
+      );
+    },
+  ),
 );
 
 function renderPage(documentId: string) {
@@ -217,6 +320,7 @@ afterAll(() => {
 beforeEach(() => {
   process.env.NEXT_PUBLIC_API_URL = apiBaseUrl;
   chunkRequests.length = 0;
+  reindexRequests.length = 0;
   mockNavigation.searchParams = new URLSearchParams();
   mockState.authState = {
     status: "authenticated",
@@ -229,6 +333,10 @@ beforeEach(() => {
       accessToken: "token-1",
     },
   };
+  Object.defineProperty(window, "confirm", {
+    writable: true,
+    value: vi.fn(() => true),
+  });
 });
 
 describe("DocumentDetailPage MSW", () => {
@@ -243,6 +351,10 @@ describe("DocumentDetailPage MSW", () => {
     expect(screen.getByText("upserted 80 chunks")).toBeInTheDocument();
     expect(screen.getByText("Document preview")).toBeInTheDocument();
     expect(screen.getByText("View Original PDF")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Chunking diagnostics" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("pdf_ocr_applied")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(await screen.findByText("Preview 1")).toBeInTheDocument();

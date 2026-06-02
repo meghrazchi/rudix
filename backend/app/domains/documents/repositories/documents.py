@@ -296,3 +296,31 @@ class DocumentRepository:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement)
         return int(result.scalar_one())
+
+    async def get_document_chunk_token_distribution(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        index_version: str | None = None,
+    ) -> dict[str, int | float] | None:
+        statement = select(
+            func.min(DocumentChunk.token_count),
+            func.max(DocumentChunk.token_count),
+            func.avg(DocumentChunk.token_count),
+            func.sum(DocumentChunk.token_count),
+        ).where(DocumentChunk.document_id == document_id)
+        if index_version is not None:
+            statement = statement.where(DocumentChunk.index_version == index_version)
+
+        result = await session.execute(statement)
+        min_tokens, max_tokens, avg_tokens, total_tokens = result.one()
+        if min_tokens is None or max_tokens is None or avg_tokens is None or total_tokens is None:
+            return None
+
+        return {
+            "min_tokens": int(min_tokens),
+            "max_tokens": int(max_tokens),
+            "avg_tokens": round(float(avg_tokens), 1),
+            "total_tokens": int(total_tokens),
+        }

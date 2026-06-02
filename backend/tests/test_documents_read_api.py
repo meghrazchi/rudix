@@ -162,6 +162,7 @@ async def _seed_document(
     status: DocumentStatus,
     page_count: int | None = None,
     error_message: str | None = None,
+    language: str | None = None,
 ) -> Document:
     repository = DocumentRepository()
     document = await repository.create_document(
@@ -173,6 +174,7 @@ async def _seed_document(
         storage_bucket="documents",
         storage_object_key=f"seed/{filename}-{uuid4()}.pdf",
         status=status.value,
+        language=language,
     )
     if page_count is not None or error_message is not None:
         _ = await repository.update_document_status(
@@ -492,6 +494,145 @@ async def test_document_chunks_endpoint_paginates_and_hides_full_text_by_default
     assert payload["offset"] == 1
     assert payload["include_full_text"] is False
     assert len(payload["items"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_document_detail_exposes_safe_chunking_diagnostics_and_chunk_metadata(
+    documents_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org, _ = await _seed_principal(db_session)
+    document = await _seed_document(
+        db_session,
+        organization=org,
+        uploader=user,
+        filename="diagnostics.pdf",
+        status=DocumentStatus.indexed,
+        page_count=4,
+        language="en",
+    )
+    repository = DocumentRepository()
+    _ = await repository.update_document_status(
+        db_session,
+        document_id=document.id,
+        status=DocumentStatus.indexed.value,
+        page_count=4,
+        chunk_count=2,
+        chunking_strategy="adaptive_hybrid",
+        chunking_profile_version="1.0",
+        chunking_config_snapshot={
+            "strategy": "adaptive_hybrid",
+            "strategy_version": "1.0",
+            "adaptive_selected_strategy": "page_aware",
+            "adaptive_reason_codes": ["pdf_ocr_applied"],
+            "adaptive_signals": {
+                "file_type": "pdf",
+                "page_count": 4,
+                "total_token_count": 240,
+                "ocr_applied": True,
+                "heading_density": 0.25,
+            },
+            "chunk_size_tokens": 700,
+            "chunk_overlap_tokens": 120,
+            "embedding_model": settings.openai_embedding_model,
+            "index_version": settings.document_index_version,
+            "profile_source": "custom_profile",
+            "ocr_applied": True,
+        },
+    )
+    await repository.create_document_chunk(
+        db_session,
+        document_id=document.id,
+        page_number=1,
+        chunk_index=0,
+        text="First chunk text " + ("x" * 220),
+        token_count=110,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document.id}:{settings.document_index_version}:0",
+        section_path="Policy > Intro",
+        language="en",
+        chunk_level=0,
+        child_count=1,
+        source_start_offset=0,
+        source_end_offset=320,
+    )
+    await repository.create_document_chunk(
+        db_session,
+        document_id=document.id,
+        page_number=2,
+        chunk_index=1,
+        text="Second chunk text " + ("y" * 220),
+        token_count=130,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document.id}:{settings.document_index_version}:1",
+        section_path="Policy > Details",
+        language="en",
+        chunk_level=1,
+        child_count=0,
+        source_start_offset=321,
+        source_end_offset=680,
+    )
+    await db_session.commit()
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+
+    detail_response = await documents_client.get(
+        f"/api/v1/documents/{document.id}",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+    )
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()
+    assert detail_payload["language"] == "en"
+    assert detail_payload["chunking_diagnostics"] == {
+        "strategy": "adaptive_hybrid",
+        "selected_strategy": "page_aware",
+        "profile_version": "1.0",
+        "profile_source": "custom_profile",
+        "chunk_size_tokens": 700,
+        "chunk_overlap_tokens": 120,
+        "embedding_model": settings.openai_embedding_model,
+        "index_version": settings.document_index_version,
+        "ocr_applied": True,
+        "hierarchical_mode": False,
+        "parent_chunk_count": None,
+        "child_chunk_count": None,
+        "reason_codes": ["pdf_ocr_applied"],
+        "adaptive_signals": {
+            "file_type": "pdf",
+            "page_count": 4,
+            "total_token_count": 240,
+            "ocr_applied": True,
+            "heading_density": 0.25,
+            "avg_chars_per_page": None,
+            "avg_paragraph_tokens": None,
+        },
+        "token_distribution": {
+            "min_tokens": 110,
+            "max_tokens": 130,
+            "avg_tokens": 120.0,
+            "total_tokens": 240,
+        },
+    }
+
+    chunks_response = await documents_client.get(
+        f"/api/v1/documents/{document.id}/chunks",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        params={"limit": 2, "offset": 0},
+    )
+    assert chunks_response.status_code == 200
+    chunks_payload = chunks_response.json()
+    assert chunks_payload["items"][0]["section_path"] == "Policy > Intro"
+    assert chunks_payload["items"][0]["language"] == "en"
+    assert chunks_payload["items"][0]["chunk_level"] == 0
+    assert chunks_payload["items"][0]["child_count"] == 1
+    assert chunks_payload["items"][0]["source_start_offset"] == 0
+    assert chunks_payload["items"][0]["source_end_offset"] == 320
 
 
 @pytest.mark.asyncio

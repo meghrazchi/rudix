@@ -196,11 +196,28 @@ Response:
   "filename": "policy.pdf",
   "file_type": "pdf",
   "status": "processing",
+  "language": "en",
   "page_count": 24,
   "chunk_count": 92,
   "checksum": "sha256:...",
   "error_message": null,
   "error_details": null,
+  "chunking_diagnostics": {
+    "strategy": "adaptive_hybrid",
+    "selected_strategy": "page_aware",
+    "profile_source": "custom_profile",
+    "profile_version": "1.0",
+    "chunk_size_tokens": 700,
+    "chunk_overlap_tokens": 120,
+    "ocr_applied": true,
+    "reason_codes": ["pdf_ocr_applied"],
+    "token_distribution": {
+      "min_tokens": 120,
+      "max_tokens": 260,
+      "avg_tokens": 188.5,
+      "total_tokens": 7917
+    }
+  },
   "lifecycle_timeline": [
     {
       "step": "extract",
@@ -220,6 +237,11 @@ Response:
   "updated_at": "2026-05-07T10:04:00Z"
 }
 ```
+
+Notes:
+
+- `chunking_diagnostics` is nullable for documents indexed before diagnostics were recorded.
+- The diagnostics payload is safe for UI display: it contains strategy metadata, heuristics, and aggregate counts only.
 
 Failed response example:
 
@@ -286,7 +308,13 @@ Response:
       "text": null,
       "token_count": 690,
       "embedding_model": "text-embedding-3-small",
-      "index_version": "v1"
+      "index_version": "v1",
+      "section_path": "Policy > Leave",
+      "language": "en",
+      "chunk_level": 0,
+      "child_count": 0,
+      "source_start_offset": 820,
+      "source_end_offset": 1510
     }
   ],
   "total": 92
@@ -321,6 +349,29 @@ If the record is already deleted, the endpoint is idempotent and may return:
 
 Queue a re-index run for an existing document.
 
+Optional request body:
+
+```json
+{
+  "chunking_profile_id": "uuid"
+}
+```
+
+or
+
+```json
+{
+  "chunking_profile_config": {
+    "strategy": "page_aware",
+    "chunk_size_tokens": 700,
+    "chunk_overlap_tokens": 120,
+    "language": "en",
+    "min_tokens": 88,
+    "strategy_options": {}
+  }
+}
+```
+
 Response status: `202 Accepted`
 
 Response:
@@ -342,6 +393,7 @@ Conflict cases (`409 Conflict`):
 Notes:
 
 - Access is restricted to `owner` and `admin` roles.
+- Supply at most one override: `chunking_profile_id` or `chunking_profile_config`.
 - Enqueue failure returns `503` and restores the previous document status/error fields.
 - Re-index worker uses index-version scoped cleanup before upsert to keep retries idempotent:
   - Deletes prior Qdrant points for `{organization_id, document_id, index_version}`.
@@ -1053,6 +1105,22 @@ Notes:
 - Cross-organization runs/approvals return safe `404`.
 
 ## Admin endpoints
+
+### GET `/admin/chunking-profiles/strategies`
+
+Returns the safe chunking strategy catalog, deployment default config, and the
+feature-flag state used by the admin settings UI.
+
+### GET `/admin/chunking-profiles`
+
+Returns organization-scoped chunking profiles, including the current default
+profile marker.
+
+### POST `/admin/chunking-profiles/preview`
+
+Returns safe preview statistics for a candidate config. The response includes
+aggregate counts, reason codes, warnings, and sample chunk metadata only; it
+does not include raw chunk text.
 
 ### GET `/admin/usage`
 

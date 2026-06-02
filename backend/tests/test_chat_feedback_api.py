@@ -79,9 +79,7 @@ async def _seed_principal(
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -93,9 +91,13 @@ def _headers(*, token: str, organization_id: str) -> dict[str, str]:
     }
 
 
-async def _seed_assistant_message(db_session: AsyncSession, *, org: Organization, user: User) -> tuple:
+async def _seed_assistant_message(
+    db_session: AsyncSession, *, org: Organization, user: User
+) -> tuple:
     repo = ChatRepository()
-    session = await repo.create_chat_session(db_session, organization_id=org.id, user_id=user.id, title="Test")
+    session = await repo.create_chat_session(
+        db_session, organization_id=org.id, user_id=user.id, title="Test"
+    )
     msg = await repo.create_chat_message(
         db_session, chat_session_id=session.id, role="assistant", content="Test answer."
     )
@@ -366,7 +368,11 @@ async def test_list_session_feedback_scoped_to_user(
     )
     db_session.add(user_b)
     await db_session.flush()
-    db_session.add(OrganizationMember(organization_id=org.id, user_id=user_b.id, role=OrganizationRole.member.value))
+    db_session.add(
+        OrganizationMember(
+            organization_id=org.id, user_id=user_b.id, role=OrganizationRole.member.value
+        )
+    )
     await db_session.commit()
 
     chat_session, msg = await _seed_assistant_message(db_session, org=org, user=user_a)

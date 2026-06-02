@@ -694,7 +694,9 @@ async def query_chat(
                 initial_top_k=retrieval_top_k,
                 qdrant_client=_get_qdrant_client(),
             )
-            retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieved_candidates]
+            retrieved_chunks = [
+                _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
+            ]
         except Exception as exc:
             log_query_event(
                 event="query.failed.retrieve",
@@ -749,7 +751,9 @@ async def query_chat(
 
         prompt_started = perf_counter()
         prompt = (
-            _build_prompt(question=payload.question, chunks=selected_chunks) if not not_found else ""
+            _build_prompt(question=payload.question, chunks=selected_chunks)
+            if not not_found
+            else ""
         )
         latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
 
@@ -1230,7 +1234,10 @@ async def create_chat_share(
         resource_type="chat_session",
         resource_id=chat_session_id,
         request_id=request_id,
-        metadata={"share_id": str(share.id), "expires_at": expires_at.isoformat() if expires_at else None},
+        metadata={
+            "share_id": str(share.id),
+            "expires_at": expires_at.isoformat() if expires_at else None,
+        },
     )
     await db_session.commit()
     await db_session.refresh(share)
@@ -1544,9 +1551,13 @@ async def submit_message_feedback(
     try:
         msg_id = UUID(message_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+        ) from exc
 
-    await _get_assistant_message_for_org(db_session, message_id=msg_id, organization_id=organization_id)
+    await _get_assistant_message_for_org(
+        db_session, message_id=msg_id, organization_id=organization_id
+    )
 
     feedback = await feedback_repository.upsert_feedback(
         db_session,
@@ -1594,7 +1605,9 @@ async def delete_message_feedback(
     try:
         msg_id = UUID(message_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+        ) from exc
 
     deleted = await feedback_repository.delete_feedback(
         db_session,
@@ -1641,7 +1654,9 @@ async def list_session_feedback(
     try:
         chat_session_id = UUID(session_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Chat session not found"
+        ) from exc
 
     chat_session = await chat_repository.get_chat_session(
         db_session,

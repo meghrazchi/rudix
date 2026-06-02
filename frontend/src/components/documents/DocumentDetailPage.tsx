@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -9,9 +9,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { DocumentChunkingDiagnosticsPanel } from "@/components/documents/DocumentChunkingDiagnosticsPanel";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
+  ReindexDocumentRequest,
   DocumentStatus,
   DocumentStatusResponse,
 } from "@/lib/api/documents";
@@ -66,6 +68,11 @@ type ErrorRow = {
   message: string;
   timestamp: string | null;
   code: string | null;
+};
+
+type ReindexMutationInput = {
+  payload?: ReindexDocumentRequest;
+  label?: string;
 };
 
 const CHUNK_PAGE_SIZE = 8;
@@ -388,6 +395,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   );
   const [chunksOffset, setChunksOffset] = useState(0);
   const [includeFullText, setIncludeFullText] = useState(false);
+  const [chunkSearchQuery, setChunkSearchQuery] = useState("");
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
   const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
@@ -532,10 +540,15 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   });
 
   const reindexMutation = useMutation({
-    mutationFn: () => reindexDocument(documentId),
-    onSuccess: async (result) => {
+    mutationFn: (input?: ReindexMutationInput) =>
+      input?.payload
+        ? reindexDocument(documentId, input.payload)
+        : reindexDocument(documentId),
+    onSuccess: async (result, variables) => {
       setActionFeedback(
-        `Re-index requested. Queue status: ${result.queue_status}.`,
+        variables?.label
+          ? `Re-index requested using ${variables.label}. Queue status: ${result.queue_status}.`
+          : `Re-index requested. Queue status: ${result.queue_status}.`,
       );
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "document.reindex");
@@ -601,6 +614,35 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const recommendations = useMemo(
     () => (detail ? deriveRecommendations(detail, lifecycle) : []),
     [detail, lifecycle],
+  );
+  const deferredChunkSearchQuery = useDeferredValue(chunkSearchQuery.trim());
+  const filteredChunks = useMemo(() => {
+    const items = selectedChunks?.items ?? [];
+    if (!deferredChunkSearchQuery) {
+      return items;
+    }
+    const normalizedQuery = deferredChunkSearchQuery.toLowerCase();
+    return items.filter((chunk) => {
+      const haystack = [
+        chunk.text_preview,
+        chunk.text,
+        chunk.section_path,
+        chunk.language,
+        chunk.page_number != null ? `page ${chunk.page_number}` : null,
+        `chunk ${chunk.chunk_index}`,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [deferredChunkSearchQuery, selectedChunks?.items]);
+  const chunkingIssueCount = useMemo(
+    () =>
+      errorRows.filter((row) =>
+        /chunk|ocr|index/i.test(`${row.type} ${row.message}`),
+      ).length,
+    [errorRows],
   );
 
   const notFoundOrInaccessible = isSafeNotFoundError(detailQuery.error);
@@ -832,7 +874,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               )?.removeAttribute("open");
                               setActionFeedback(null);
                               setActionRequestId(null);
-                              reindexMutation.mutate();
+                              reindexMutation.mutate({
+                                label: "the system default profile",
+                              });
                             }}
                             className="inline-flex w-full items-center gap-2 rounded-md border border-[#cbc5e6] bg-white px-2.5 py-2 text-left text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                           >
@@ -1184,6 +1228,19 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           </div>
                         ) : null}
 
+                        <DocumentChunkingDiagnosticsPanel
+                          documentId={documentId}
+                          detail={detail}
+                          canReindex={canReindex}
+                          isReindexPending={reindexMutation.isPending}
+                          chunkingIssueCount={chunkingIssueCount}
+                          onQueueReindex={(payload, label) => {
+                            setActionFeedback(null);
+                            setActionRequestId(null);
+                            reindexMutation.mutate({ payload, label });
+                          }}
+                        />
+
                         <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
                           <h4 className="mb-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                             AI summary
@@ -1231,6 +1288,35 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           </div>
                         </div>
 
+                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                          <label className="space-y-1">
+                            <span className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
+                              Search sample chunks
+                            </span>
+                            <input
+                              value={chunkSearchQuery}
+                              onChange={(event) =>
+                                setChunkSearchQuery(event.target.value)
+                              }
+                              placeholder="Filter by preview text, section path, page, or language"
+                              className="w-full rounded-xl border border-[#c9c4de] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+                            />
+                          </label>
+                          <div className="rounded-xl border border-[#e4e1f2] bg-[#faf9ff] px-4 py-3 text-sm text-[#4d4963]">
+                            <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
+                              Search scope
+                            </p>
+                            <p className="mt-1">
+                              {selectedChunks?.items.length ?? 0} loaded chunk
+                              sample
+                              {(selectedChunks?.items.length ?? 0) === 1
+                                ? ""
+                                : "s"}
+                              .
+                            </p>
+                          </div>
+                        </div>
+
                         {chunksQuery.isLoading ? (
                           <LoadingState compact title="Loading chunks..." />
                         ) : null}
@@ -1256,9 +1342,19 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                           />
                         ) : null}
 
-                        {selectedChunks && selectedChunks.items.length > 0 ? (
+                        {selectedChunks &&
+                        selectedChunks.items.length > 0 &&
+                        filteredChunks.length === 0 ? (
+                          <EmptyState
+                            compact
+                            title="No chunk samples matched this filter."
+                            description="Try a shorter phrase, a page number, or clear the search."
+                          />
+                        ) : null}
+
+                        {selectedChunks && filteredChunks.length > 0 ? (
                           <div className="space-y-2">
-                            {selectedChunks.items.map((chunk) => {
+                            {filteredChunks.map((chunk) => {
                               const isCited =
                                 chunk.chunk_id === highlightedChunkId;
                               return (
@@ -1292,6 +1388,28 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                       Created {formatDate(chunk.created_at)}
                                     </span>
                                   </div>
+                                  <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-[#5f5a74]">
+                                    <span>
+                                      Section{" "}
+                                      {chunk.section_path ?? "not recorded"}
+                                    </span>
+                                    <span>·</span>
+                                    <span>
+                                      Language {chunk.language ?? "-"}
+                                    </span>
+                                    <span>·</span>
+                                    <span>Level {chunk.chunk_level ?? 0}</span>
+                                    {chunk.source_start_offset != null &&
+                                    chunk.source_end_offset != null ? (
+                                      <>
+                                        <span>·</span>
+                                        <span>
+                                          Offsets {chunk.source_start_offset}-
+                                          {chunk.source_end_offset}
+                                        </span>
+                                      </>
+                                    ) : null}
+                                  </div>
                                   <p className="text-sm break-words whitespace-pre-wrap text-[#2a2640]">
                                     {includeFullText && chunk.text
                                       ? chunk.text
@@ -1304,7 +1422,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             })}
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <p className="text-xs text-[#6e6a86]">
-                                Showing {selectedChunks.items.length} of{" "}
+                                Showing {filteredChunks.length} of{" "}
                                 {selectedChunks.total} chunks.
                               </p>
                               {!highlightedChunkId ? (

@@ -19,6 +19,7 @@ import { z } from "zod";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { ChunkingProfilesSection } from "@/components/settings/ChunkingProfilesSection";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
@@ -1393,7 +1394,10 @@ export function OrganizationSettingsTab() {
         )}
       </section>
 
-      {/* ── 5. Admin Controls ── */}
+      {/* ── 5. Chunking Profiles ── */}
+      <ChunkingProfilesSection />
+
+      {/* ── 6. Admin Controls ── */}
       <section
         className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Admin controls section"
@@ -1425,7 +1429,7 @@ export function OrganizationSettingsTab() {
         )}
       </section>
 
-      {/* ── 6. Danger Zone (owner only) ── */}
+      {/* ── 7. Danger Zone (owner only) ── */}
       {isOwner && (
         <section
           className="rounded-2xl border border-rose-200 bg-white p-6"

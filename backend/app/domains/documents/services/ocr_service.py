@@ -133,15 +133,15 @@ def merge_ocr_with_sections(
     from app.domains.documents.services.text_extraction import _coerce_section
 
     ocr_text_by_page = {
-        p.page_number: p.text
-        for p in ocr_result.pages
-        if p.status == "completed" and p.text
+        p.page_number: p.text for p in ocr_result.pages if p.status == "completed" and p.text
     }
 
     merged: list[ExtractedSection] = []
     for section in native_sections:
         if section.char_count < min_chars_per_page and section.page_number in ocr_text_by_page:
-            merged.append(_coerce_section(section.page_number, ocr_text_by_page[section.page_number]))
+            merged.append(
+                _coerce_section(section.page_number, ocr_text_by_page[section.page_number])
+            )
         else:
             merged.append(section)
     return merged

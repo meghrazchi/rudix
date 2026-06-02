@@ -75,7 +75,9 @@ class HierarchicalStrategy:
         self.parent_strategy_name = parent_strategy_name
         self.embedding_model = embedding_model.strip()
         self.index_version = index_version.strip()
-        self.tiny_chunk_min_tokens = tiny_chunk_min_tokens or max(1, min(32, chunk_size_tokens // 8))
+        self.tiny_chunk_min_tokens = tiny_chunk_min_tokens or max(
+            1, min(32, chunk_size_tokens // 8)
+        )
 
     @classmethod
     def from_profile(
@@ -85,9 +87,7 @@ class HierarchicalStrategy:
         index_version: str,
     ) -> HierarchicalStrategy:
         opts = profile.strategy_options
-        default_parent_size = min(
-            profile.chunk_size_tokens * _DEFAULT_PARENT_SIZE_MULTIPLIER, 3000
-        )
+        default_parent_size = min(profile.chunk_size_tokens * _DEFAULT_PARENT_SIZE_MULTIPLIER, 3000)
         parent_size = int(opts.get("parent_chunk_size_tokens", default_parent_size))
         parent_overlap = int(opts.get("parent_chunk_overlap_tokens", 0))
         parent_strategy = str(opts.get("parent_strategy", "token_recursive"))

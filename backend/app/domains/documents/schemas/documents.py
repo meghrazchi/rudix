@@ -9,9 +9,37 @@ AllowedFileType = Literal["pdf", "txt", "docx"]
 
 ALLOWED_LANGUAGES = frozenset(
     {
-        "en", "de", "fr", "es", "pt", "it", "nl", "pl", "sv", "no",
-        "da", "fi", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "lt",
-        "lv", "et", "el", "tr", "ar", "fa", "zh", "ja", "ko", "ru", "uk",
+        "en",
+        "de",
+        "fr",
+        "es",
+        "pt",
+        "it",
+        "nl",
+        "pl",
+        "sv",
+        "no",
+        "da",
+        "fi",
+        "cs",
+        "sk",
+        "hu",
+        "ro",
+        "bg",
+        "hr",
+        "sl",
+        "lt",
+        "lv",
+        "et",
+        "el",
+        "tr",
+        "ar",
+        "fa",
+        "zh",
+        "ja",
+        "ko",
+        "ru",
+        "uk",
     }
 )
 
@@ -166,6 +194,41 @@ class DocumentLifecycleTimelineStepResponse(BaseModel):
     outputs: dict[str, Any] | None = None
 
 
+class DocumentChunkTokenDistributionResponse(BaseModel):
+    min_tokens: int
+    max_tokens: int
+    avg_tokens: float
+    total_tokens: int
+
+
+class DocumentChunkingAdaptiveSignalsResponse(BaseModel):
+    file_type: str
+    page_count: int
+    total_token_count: int
+    ocr_applied: bool = False
+    heading_density: float | None = None
+    avg_chars_per_page: float | None = None
+    avg_paragraph_tokens: float | None = None
+
+
+class DocumentChunkingDiagnosticsResponse(BaseModel):
+    strategy: str | None = None
+    selected_strategy: str | None = None
+    profile_version: str | None = None
+    profile_source: str | None = None
+    chunk_size_tokens: int | None = None
+    chunk_overlap_tokens: int | None = None
+    embedding_model: str | None = None
+    index_version: str | None = None
+    ocr_applied: bool | None = None
+    hierarchical_mode: bool = False
+    parent_chunk_count: int | None = None
+    child_chunk_count: int | None = None
+    reason_codes: list[str] = Field(default_factory=list)
+    adaptive_signals: DocumentChunkingAdaptiveSignalsResponse | None = None
+    token_distribution: DocumentChunkTokenDistributionResponse | None = None
+
+
 class DocumentDetailResponse(BaseModel):
     document_id: str
     filename: str
@@ -181,6 +244,7 @@ class DocumentDetailResponse(BaseModel):
     retention_class: str | None = None
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
+    chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
@@ -193,6 +257,12 @@ class DocumentChunkPreviewResponse(BaseModel):
     token_count: int
     embedding_model: str
     index_version: str
+    section_path: str | None = None
+    language: str | None = None
+    chunk_level: int | None = None
+    child_count: int | None = None
+    source_start_offset: int | None = None
+    source_end_offset: int | None = None
     text_preview: str
     text: str | None = None
     created_at: datetime

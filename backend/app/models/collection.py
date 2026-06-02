@@ -40,9 +40,7 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    access_policy: Mapped[str] = mapped_column(
-        String(32), nullable=False, default="org_wide"
-    )
+    access_policy: Mapped[str] = mapped_column(String(32), nullable=False, default="org_wide")
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     organization = relationship("Organization", back_populates="collections")

@@ -31,7 +31,5 @@ class ChatShare(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     token: Mapped[str] = mapped_column(String(86), nullable=False, unique=True)
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

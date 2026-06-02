@@ -15,9 +15,7 @@ class UnknownStrategyError(ValueError):
     def __init__(self, name: str, known: list[str]) -> None:
         self.strategy_name = name
         known_str = ", ".join(sorted(known)) if known else "(none registered)"
-        super().__init__(
-            f"Unknown chunking strategy {name!r}. Known strategies: {known_str}"
-        )
+        super().__init__(f"Unknown chunking strategy {name!r}. Known strategies: {known_str}")
 
 
 class StrategyRegistry:

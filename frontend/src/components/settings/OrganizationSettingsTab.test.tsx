@@ -91,6 +91,15 @@ const mockTeamApi = vi.hoisted(() => ({
   removeTeamMember: vi.fn(),
 }));
 
+const mockChunkingApi = vi.hoisted(() => ({
+  getChunkingStrategyCatalog: vi.fn(),
+  listChunkingProfiles: vi.fn(),
+  createChunkingProfile: vi.fn(),
+  updateChunkingProfile: vi.fn(),
+  setDefaultChunkingProfile: vi.fn(),
+  previewChunkingProfile: vi.fn(),
+}));
+
 vi.mock("@/lib/api/team", () => ({
   getTeamCapabilities: () => mockTeamApi.capabilities,
   listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
@@ -101,6 +110,20 @@ vi.mock("@/lib/api/team", () => ({
   removeTeamMember: (...args: unknown[]) =>
     mockTeamApi.removeTeamMember(...args),
   isTeamEndpointUnavailableError: () => false,
+}));
+
+vi.mock("@/lib/api/chunking-profiles", () => ({
+  getChunkingStrategyCatalog: () =>
+    mockChunkingApi.getChunkingStrategyCatalog(),
+  listChunkingProfiles: () => mockChunkingApi.listChunkingProfiles(),
+  createChunkingProfile: (...args: unknown[]) =>
+    mockChunkingApi.createChunkingProfile(...args),
+  updateChunkingProfile: (...args: unknown[]) =>
+    mockChunkingApi.updateChunkingProfile(...args),
+  setDefaultChunkingProfile: (...args: unknown[]) =>
+    mockChunkingApi.setDefaultChunkingProfile(...args),
+  previewChunkingProfile: (...args: unknown[]) =>
+    mockChunkingApi.previewChunkingProfile(...args),
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -234,6 +257,78 @@ describe("OrganizationSettingsTab", () => {
       download_url: "https://example.com/export.zip",
     });
     mockOrgApi.deleteOrganization.mockResolvedValue(undefined);
+    mockChunkingApi.getChunkingStrategyCatalog.mockReset();
+    mockChunkingApi.listChunkingProfiles.mockReset();
+    mockChunkingApi.createChunkingProfile.mockReset();
+    mockChunkingApi.updateChunkingProfile.mockReset();
+    mockChunkingApi.setDefaultChunkingProfile.mockReset();
+    mockChunkingApi.previewChunkingProfile.mockReset();
+    mockChunkingApi.getChunkingStrategyCatalog.mockResolvedValue({
+      strategies: [
+        {
+          name: "adaptive_hybrid",
+          display_name: "Adaptive Hybrid",
+          description: "Adaptive default.",
+          suitable_for: ["mixed content"],
+          requires_page_structure: false,
+          supports_hierarchical: false,
+        },
+      ],
+      default_config: {
+        strategy: "adaptive_hybrid",
+        chunk_size_tokens: 700,
+        chunk_overlap_tokens: 120,
+        language: null,
+        min_tokens: 88,
+        strategy_options: {},
+      },
+      feature_chunking_profiles_enabled: true,
+    });
+    mockChunkingApi.listChunkingProfiles.mockResolvedValue({
+      profiles: [
+        {
+          profile_id: "profile-1",
+          organization_id: "org-123",
+          name: "Operations Default",
+          slug: "operations-default",
+          config: {
+            strategy: "adaptive_hybrid",
+            chunk_size_tokens: 700,
+            chunk_overlap_tokens: 120,
+            language: "en",
+            min_tokens: 88,
+            strategy_options: {},
+          },
+          is_default: true,
+          is_system: false,
+          created_at: "2026-05-20T08:00:00Z",
+          updated_at: "2026-05-20T08:00:00Z",
+          created_by_user_id: "user-2",
+          updated_by_user_id: "user-2",
+        },
+      ],
+      total: 1,
+      has_org_default: true,
+    });
+    mockChunkingApi.previewChunkingProfile.mockResolvedValue({
+      strategy_used: "page_aware",
+      chunk_count: 6,
+      min_tokens: 90,
+      max_tokens: 210,
+      avg_tokens: 153.5,
+      total_tokens: 921,
+      reason_codes: ["pdf_ocr_applied"],
+      sample_chunks: [
+        {
+          chunk_index: 0,
+          token_count: 180,
+          section_path: "Handbook > Introduction",
+          chunk_level: 0,
+          is_parent: false,
+        },
+      ],
+      warnings: [],
+    });
   });
 
   // ── Organization identity ─────────────────────────────────────────────────
@@ -531,6 +626,32 @@ describe("OrganizationSettingsTab", () => {
     expect(
       screen.queryByRole("button", { name: "Save ingestion defaults" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows chunking profile section as restricted for member", async () => {
+    mockAuth.state = { ...MEMBER_SESSION };
+
+    renderTab();
+
+    expect(
+      await screen.findByRole("region", { name: "Chunking profiles section" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Chunking profiles restricted"),
+    ).toBeInTheDocument();
+  });
+
+  it("loads chunking profile defaults for admin", async () => {
+    mockAuth.state = { ...ADMIN_SESSION };
+
+    renderTab();
+
+    expect(
+      await screen.findByRole("heading", { name: "Chunking Profiles" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByLabelText("Profile Name")).toHaveValue(
+      "Operations Default",
+    );
   });
 
   it("loads and shows editable ingestion defaults for admin when ingestionEnabled", async () => {

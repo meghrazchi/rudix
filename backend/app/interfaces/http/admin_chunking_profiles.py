@@ -158,9 +158,7 @@ async def get_chunking_profile(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="profile_id must be a valid UUID",
         ) from exc
-    return await _service.get_profile(
-        db_session, profile_id=pid, organization_id=organization_id
-    )
+    return await _service.get_profile(db_session, profile_id=pid, organization_id=organization_id)
 
 
 @router.put("/{profile_id}", response_model=ChunkingProfileResponse)
@@ -239,9 +237,7 @@ async def delete_chunking_profile(
             detail="profile_id must be a valid UUID",
         ) from exc
 
-    await _service.delete_profile(
-        db_session, profile_id=pid, organization_id=organization_id
-    )
+    await _service.delete_profile(db_session, profile_id=pid, organization_id=organization_id)
     await _audit_log_service.record(
         db_session,
         organization_id=organization_id,

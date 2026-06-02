@@ -37,12 +37,16 @@ class Notification(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    severity: Mapped[str] = mapped_column(String(16), nullable=False, default=NotificationSeverity.info.value)
+    severity: Mapped[str] = mapped_column(
+        String(16), nullable=False, default=NotificationSeverity.info.value
+    )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str | None] = mapped_column(Text(), nullable=True)
     href: Mapped[str | None] = mapped_column(String(512), nullable=True)
     source_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    is_read: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False, server_default="false")
+    is_read: Mapped[bool] = mapped_column(
+        Boolean(), nullable=False, default=False, server_default="false"
+    )
 
     organization = relationship("Organization")
     user = relationship("User")

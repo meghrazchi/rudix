@@ -30,13 +30,24 @@ describe("generated schema types", () => {
     expectTypeOf<Omit<DocumentListResponse, "items">>().toEqualTypeOf<
       Omit<Schemas["DocumentListResponse"], "items">
     >();
-    expectTypeOf<DocumentDetailResponse>().toEqualTypeOf<
-      Schemas["DocumentDetailResponse"]
+    expectTypeOf<
+      Omit<DocumentDetailResponse, "chunking_diagnostics" | "language">
+    >().toEqualTypeOf<Schemas["DocumentDetailResponse"]>();
+    expectTypeOf<Omit<DocumentChunksResponse, "items">>().toEqualTypeOf<
+      Omit<Schemas["DocumentChunksResponse"], "items">
     >();
+    expectTypeOf<
+      Omit<
+        DocumentChunksResponse["items"][number],
+        | "section_path"
+        | "language"
+        | "chunk_level"
+        | "child_count"
+        | "source_start_offset"
+        | "source_end_offset"
+      >
+    >().toEqualTypeOf<Schemas["DocumentChunkPreviewResponse"]>();
     expectTypeOf<DocumentStatus>().toEqualTypeOf<Schemas["DocumentStatus"]>();
-    expectTypeOf<DocumentChunksResponse>().toEqualTypeOf<
-      Schemas["DocumentChunksResponse"]
-    >();
   });
 
   it("chat types match generated schema", () => {

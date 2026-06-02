@@ -280,9 +280,7 @@ class CollectionRepository:
             delete(CollectionDocument).where(
                 CollectionDocument.document_id == document_id,
                 CollectionDocument.collection_id.in_(
-                    select(Collection.id).where(
-                        Collection.organization_id == organization_id
-                    )
+                    select(Collection.id).where(Collection.organization_id == organization_id)
                 ),
             )
         )
@@ -352,7 +350,9 @@ class CollectionRepository:
         *,
         collection: Collection,
         access_policy: str,
-        grants: list[dict],  # list of {"grantee_type": ..., "grantee_value": ..., "granted_by_id": ...}
+        grants: list[
+            dict
+        ],  # list of {"grantee_type": ..., "grantee_value": ..., "granted_by_id": ...}
     ) -> list[CollectionAccessGrant]:
         # Update the policy mode on the collection
         collection.access_policy = access_policy

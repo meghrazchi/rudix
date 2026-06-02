@@ -74,9 +74,7 @@ class CitationService:
     def _default_snippet(self, chunk: CitationContextChunk) -> str:
         return chunk.text[: self.max_text_snippet_chars].strip()
 
-    def _find_snippet_offsets(
-        self, *, snippet: str, chunk_text: str
-    ) -> tuple[int, int] | None:
+    def _find_snippet_offsets(self, *, snippet: str, chunk_text: str) -> tuple[int, int] | None:
         lower_chunk = chunk_text.lower()
         lower_snippet = snippet.lower()
         idx = lower_chunk.find(lower_snippet)
@@ -93,9 +91,9 @@ class CitationService:
         self, *, chunk: CitationContextChunk, text_snippet: str
     ) -> ChatCitationResponse:
         score = chunk.rerank_score if chunk.rerank_score is not None else chunk.similarity_score
-        clamped_snippet = (
-            text_snippet[: self.max_text_snippet_chars].strip() or self._default_snippet(chunk)
-        )
+        clamped_snippet = text_snippet[
+            : self.max_text_snippet_chars
+        ].strip() or self._default_snippet(chunk)
         offsets = self._find_snippet_offsets(snippet=clamped_snippet, chunk_text=chunk.text)
         start_offset, end_offset = offsets if offsets else (None, None)
         return ChatCitationResponse(

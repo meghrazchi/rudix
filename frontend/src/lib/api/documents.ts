@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles";
 
 type Schemas = components["schemas"];
 
@@ -12,6 +13,38 @@ export type UploadDocumentResponse = Schemas["UploadDocumentResponse"];
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
 export type DocumentStatusResponse = Schemas["DocumentStatusResponse"];
+export type DocumentChunkTokenDistributionResponse = {
+  min_tokens: number;
+  max_tokens: number;
+  avg_tokens: number;
+  total_tokens: number;
+};
+export type DocumentChunkingAdaptiveSignalsResponse = {
+  file_type: string;
+  page_count: number;
+  total_token_count: number;
+  ocr_applied: boolean;
+  heading_density?: number | null;
+  avg_chars_per_page?: number | null;
+  avg_paragraph_tokens?: number | null;
+};
+export type DocumentChunkingDiagnosticsResponse = {
+  strategy?: string | null;
+  selected_strategy?: string | null;
+  profile_version?: string | null;
+  profile_source?: string | null;
+  chunk_size_tokens?: number | null;
+  chunk_overlap_tokens?: number | null;
+  embedding_model?: string | null;
+  index_version?: string | null;
+  ocr_applied?: boolean | null;
+  hierarchical_mode?: boolean;
+  parent_chunk_count?: number | null;
+  child_chunk_count?: number | null;
+  reason_codes: string[];
+  adaptive_signals?: DocumentChunkingAdaptiveSignalsResponse | null;
+  token_distribution?: DocumentChunkTokenDistributionResponse | null;
+};
 export type DocumentCollectionSummary = {
   collection_id: string;
   name: string;
@@ -31,12 +64,30 @@ export type DocumentListResponse = Omit<
 > & {
   items: DocumentListItemResponse[];
 };
-export type DocumentDetailResponse = Schemas["DocumentDetailResponse"];
 export type DocumentLifecycleTimelineStepResponse =
   Schemas["DocumentLifecycleTimelineStepResponse"];
+export type DocumentDetailResponse = Omit<
+  Schemas["DocumentDetailResponse"],
+  "chunking_diagnostics" | "language"
+> & {
+  language?: string | null;
+  chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
+};
 export type DocumentChunkPreviewResponse =
-  Schemas["DocumentChunkPreviewResponse"];
-export type DocumentChunksResponse = Schemas["DocumentChunksResponse"];
+  Schemas["DocumentChunkPreviewResponse"] & {
+    section_path?: string | null;
+    language?: string | null;
+    chunk_level?: number | null;
+    child_count?: number | null;
+    source_start_offset?: number | null;
+    source_end_offset?: number | null;
+  };
+export type DocumentChunksResponse = Omit<
+  Schemas["DocumentChunksResponse"],
+  "items"
+> & {
+  items: DocumentChunkPreviewResponse[];
+};
 export type CreateUploadUrlRequest = Schemas["CreateUploadUrlRequest"];
 export type CreateUploadUrlResponse = Schemas["CreateUploadUrlResponse"];
 
@@ -104,6 +155,11 @@ export type DocumentChunksOptions = {
   limit?: number;
   offset?: number;
   include_full_text?: boolean;
+};
+
+export type ReindexDocumentRequest = {
+  chunking_profile_id?: string | null;
+  chunking_profile_config?: ChunkingProfileConfigInput | null;
 };
 
 export async function uploadDocument(
@@ -209,11 +265,13 @@ export async function deleteDocument(
 
 export async function reindexDocument(
   documentId: string,
+  payload?: ReindexDocumentRequest,
 ): Promise<ReindexDocumentResponse> {
   return apiRequest<ReindexDocumentResponse>(
     `/documents/${encodeURIComponent(documentId)}/reindex`,
     {
       method: "POST",
+      json: payload,
     },
   );
 }

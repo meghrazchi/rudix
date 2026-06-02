@@ -80,8 +80,7 @@ def _sent(size: int = 80, overlap: int = 15) -> SentenceWindowStrategy:
 
 def _pages(*texts: str) -> list[ExtractedSection]:
     return [
-        ExtractedSection(page_number=i + 1, text=t, char_count=len(t))
-        for i, t in enumerate(texts)
+        ExtractedSection(page_number=i + 1, text=t, char_count=len(t)) for i, t in enumerate(texts)
     ]
 
 
@@ -160,9 +159,7 @@ async def test_token_fixed_single_short_document() -> None:
 @pytest.mark.asyncio
 async def test_token_fixed_respects_chunk_size() -> None:
     text = " ".join(f"word{i}" for i in range(500))
-    chunks = await _fixed(size=50, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _fixed(size=50, overlap=10).chunk(document_id=uuid4(), pages=_pages(text))
     _assert_common(chunks, strategy_name="token_fixed", max_tokens=50)
     assert len(chunks) > 1
 
@@ -181,9 +178,7 @@ async def test_token_fixed_is_deterministic() -> None:
 @pytest.mark.asyncio
 async def test_token_fixed_overlap_produces_shared_tokens() -> None:
     text = " ".join(f"w{i}" for i in range(200))
-    chunks = await _fixed(size=40, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _fixed(size=40, overlap=15).chunk(document_id=uuid4(), pages=_pages(text))
     assert len(chunks) > 1
     for prev, curr in pairwise(chunks):
         assert set(prev.text.split()) & set(curr.text.split()), (
@@ -195,9 +190,7 @@ async def test_token_fixed_overlap_produces_shared_tokens() -> None:
 async def test_token_fixed_page_number_tracked() -> None:
     p1 = " ".join(["alpha"] * 60)
     p2 = " ".join(["beta"] * 60)
-    chunks = await _fixed(size=40, overlap=5).chunk(
-        document_id=uuid4(), pages=_pages(p1, p2)
-    )
+    chunks = await _fixed(size=40, overlap=5).chunk(document_id=uuid4(), pages=_pages(p1, p2))
     pages = {c.page_number for c in chunks}
     assert 1 in pages and 2 in pages
 
@@ -206,9 +199,7 @@ async def test_token_fixed_page_number_tracked() -> None:
 async def test_token_fixed_multilingual_does_not_crash() -> None:
     # Arabic + Chinese + Latin script in one page.
     mixed = "مرحبا بالعالم. 你好世界。Hello world!"
-    chunks = await _fixed(size=30, overlap=5).chunk(
-        document_id=uuid4(), pages=_pages(mixed)
-    )
+    chunks = await _fixed(size=30, overlap=5).chunk(document_id=uuid4(), pages=_pages(mixed))
     assert chunks  # doesn't crash; produces at least one chunk
 
 
@@ -216,9 +207,7 @@ async def test_token_fixed_multilingual_does_not_crash() -> None:
 async def test_token_fixed_tiny_trailing_dropped() -> None:
     # Craft text whose tail produces a trivially small chunk.
     text = " ".join(["word"] * 55) + " final"
-    chunks = await _fixed(size=50, overlap=0).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _fixed(size=50, overlap=0).chunk(document_id=uuid4(), pages=_pages(text))
     # The main chunk(s) should exist; the tiny tail may or may not be dropped.
     assert chunks
     for c in chunks:
@@ -229,9 +218,7 @@ async def test_token_fixed_tiny_trailing_dropped() -> None:
 async def test_token_fixed_no_overlap_contiguous() -> None:
     """With zero overlap, consecutive chunks should cover disjoint text regions."""
     text = " ".join(f"t{i}" for i in range(100))
-    chunks = await _fixed(size=40, overlap=0).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _fixed(size=40, overlap=0).chunk(document_id=uuid4(), pages=_pages(text))
     _assert_common(chunks, strategy_name="token_fixed", max_tokens=40)
     for prev, curr in pairwise(chunks):
         shared = set(prev.text.split()) & set(curr.text.split())
@@ -266,9 +253,7 @@ async def test_para_single_short_paragraph() -> None:
 async def test_para_multiple_short_paragraphs_merged() -> None:
     """Short paragraphs should be merged into a single chunk."""
     text = "Para one.\n\nPara two.\n\nPara three."
-    chunks = await _para(size=300, overlap=30).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _para(size=300, overlap=30).chunk(document_id=uuid4(), pages=_pages(text))
     _assert_common(chunks, strategy_name="paragraph_recursive", max_tokens=300)
     assert len(chunks) == 1
     assert "Para one" in chunks[0].text
@@ -278,9 +263,7 @@ async def test_para_multiple_short_paragraphs_merged() -> None:
 @pytest.mark.asyncio
 async def test_para_long_text_splits_across_paragraphs() -> None:
     paras = "\n\n".join(" ".join([f"word{j}"] * 40) for j in range(8))
-    chunks = await _para(size=100, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(paras)
-    )
+    chunks = await _para(size=100, overlap=20).chunk(document_id=uuid4(), pages=_pages(paras))
     _assert_common(chunks, strategy_name="paragraph_recursive", max_tokens=100)
     assert len(chunks) > 1
 
@@ -288,9 +271,7 @@ async def test_para_long_text_splits_across_paragraphs() -> None:
 @pytest.mark.asyncio
 async def test_para_oversized_paragraph_split_token_wise() -> None:
     huge = " ".join(f"x{n}" for n in range(300))  # way more tokens than chunk_size
-    chunks = await _para(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(huge)
-    )
+    chunks = await _para(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(huge))
     _assert_common(chunks, strategy_name="paragraph_recursive", max_tokens=80)
     assert len(chunks) > 1
 
@@ -308,9 +289,7 @@ async def test_para_is_deterministic() -> None:
 @pytest.mark.asyncio
 async def test_para_chunk_indexes_are_sequential() -> None:
     paras = "\n\n".join(f"P{i}: " + " ".join(["filler"] * 20) for i in range(20))
-    chunks = await _para(size=80, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(paras)
-    )
+    chunks = await _para(size=80, overlap=10).chunk(document_id=uuid4(), pages=_pages(paras))
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))
 
 
@@ -320,9 +299,7 @@ async def test_para_multi_page_page_number_preserved() -> None:
     # to force separate chunks at size=50.
     p1 = "\n\n".join(" ".join(f"pageone{j}" for j in range(30)) for _ in range(2))
     p2 = "\n\n".join(" ".join(f"pagetwo{j}" for j in range(30)) for _ in range(2))
-    chunks = await _para(size=50, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(p1, p2)
-    )
+    chunks = await _para(size=50, overlap=10).chunk(document_id=uuid4(), pages=_pages(p1, p2))
     page_numbers = {c.page_number for c in chunks}
     assert 1 in page_numbers and 2 in page_numbers
 
@@ -330,9 +307,7 @@ async def test_para_multi_page_page_number_preserved() -> None:
 @pytest.mark.asyncio
 async def test_para_overlap_carried_forward() -> None:
     paras = "\n\n".join(" ".join([f"t{i}w{j}" for j in range(25)]) for i in range(6))
-    chunks = await _para(size=80, overlap=20).chunk(
-        document_id=uuid4(), pages=_pages(paras)
-    )
+    chunks = await _para(size=80, overlap=20).chunk(document_id=uuid4(), pages=_pages(paras))
     if len(chunks) > 1:
         for prev, curr in pairwise(chunks):
             assert set(prev.text.split()) & set(curr.text.split()), (
@@ -343,9 +318,7 @@ async def test_para_overlap_carried_forward() -> None:
 @pytest.mark.asyncio
 async def test_para_multilingual_does_not_crash() -> None:
     text = "Bonjour le monde.\n\nHola mundo.\n\nこんにちは世界。"
-    chunks = await _para(size=50, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _para(size=50, overlap=10).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks
 
 
@@ -375,12 +348,8 @@ async def test_sent_single_short_sentence() -> None:
 
 @pytest.mark.asyncio
 async def test_sent_multiple_sentences_grouped() -> None:
-    sentences = " ".join(
-        f"This is sentence number {i}." for i in range(20)
-    )
-    chunks = await _sent(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(sentences)
-    )
+    sentences = " ".join(f"This is sentence number {i}." for i in range(20))
+    chunks = await _sent(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(sentences))
     _assert_common(chunks, strategy_name="sentence_window", max_tokens=80)
     assert len(chunks) >= 1
 
@@ -399,18 +368,14 @@ async def test_sent_is_deterministic() -> None:
 @pytest.mark.asyncio
 async def test_sent_chunk_indexes_are_sequential() -> None:
     text = " ".join(f"Item {i}: description text here." for i in range(30))
-    chunks = await _sent(size=60, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _sent(size=60, overlap=10).chunk(document_id=uuid4(), pages=_pages(text))
     assert [c.chunk_index for c in chunks] == list(range(len(chunks)))
 
 
 @pytest.mark.asyncio
 async def test_sent_oversized_sentence_split_token_wise() -> None:
     giant = " ".join(f"bigword{n}" for n in range(400))
-    chunks = await _sent(size=80, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(giant)
-    )
+    chunks = await _sent(size=80, overlap=15).chunk(document_id=uuid4(), pages=_pages(giant))
     _assert_common(chunks, strategy_name="sentence_window", max_tokens=80)
     assert len(chunks) > 1
 
@@ -418,9 +383,7 @@ async def test_sent_oversized_sentence_split_token_wise() -> None:
 @pytest.mark.asyncio
 async def test_sent_overlap_sentences_shared() -> None:
     sentences = " ".join(f"Sentence {i} says hello." for i in range(40))
-    chunks = await _sent(size=60, overlap=15).chunk(
-        document_id=uuid4(), pages=_pages(sentences)
-    )
+    chunks = await _sent(size=60, overlap=15).chunk(document_id=uuid4(), pages=_pages(sentences))
     if len(chunks) > 1:
         for prev, curr in pairwise(chunks):
             prev_words = set(prev.text.split())
@@ -431,18 +394,14 @@ async def test_sent_overlap_sentences_shared() -> None:
 @pytest.mark.asyncio
 async def test_sent_paragraph_breaks_as_sentence_boundaries() -> None:
     text = "First paragraph sentence one.\n\nSecond paragraph sentence one. Second sentence two."
-    chunks = await _sent(size=200, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _sent(size=200, overlap=10).chunk(document_id=uuid4(), pages=_pages(text))
     _assert_common(chunks, strategy_name="sentence_window", max_tokens=200)
 
 
 @pytest.mark.asyncio
 async def test_sent_multilingual_does_not_crash() -> None:
     text = "Hello world. Bonjour monde. مرحبا. 你好。こんにちは。"
-    chunks = await _sent(size=50, overlap=5).chunk(
-        document_id=uuid4(), pages=_pages(text)
-    )
+    chunks = await _sent(size=50, overlap=5).chunk(document_id=uuid4(), pages=_pages(text))
     assert chunks  # no crash; at least one chunk produced
 
 
@@ -450,9 +409,7 @@ async def test_sent_multilingual_does_not_crash() -> None:
 async def test_sent_multi_page_page_number_tracked() -> None:
     p1 = " ".join(f"First page sentence {i}." for i in range(15))
     p2 = " ".join(f"Second page sentence {i}." for i in range(15))
-    chunks = await _sent(size=60, overlap=10).chunk(
-        document_id=uuid4(), pages=_pages(p1, p2)
-    )
+    chunks = await _sent(size=60, overlap=10).chunk(document_id=uuid4(), pages=_pages(p1, p2))
     page_numbers = {c.page_number for c in chunks}
     assert 1 in page_numbers and 2 in page_numbers
 

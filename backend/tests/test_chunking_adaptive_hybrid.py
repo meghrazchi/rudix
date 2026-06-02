@@ -59,8 +59,7 @@ IDX = "v-test"
 
 def _pages(*texts: str) -> list[ExtractedSection]:
     return [
-        ExtractedSection(page_number=i + 1, text=t, char_count=len(t))
-        for i, t in enumerate(texts)
+        ExtractedSection(page_number=i + 1, text=t, char_count=len(t)) for i, t in enumerate(texts)
     ]
 
 
@@ -275,9 +274,7 @@ class TestSelectorResultContainsSignals:
 class TestComputeDocumentSignals:
     def test_empty_pages_returns_zero_counts(self) -> None:
         enc = _encoding()
-        signals = compute_document_signals(
-            [], file_type="pdf", ocr_applied=False, encoding=enc
-        )
+        signals = compute_document_signals([], file_type="pdf", ocr_applied=False, encoding=enc)
         assert signals.page_count == 0
         assert signals.total_token_count == 0
         assert signals.heading_density == 0.0
@@ -304,9 +301,7 @@ class TestComputeDocumentSignals:
     def test_language_preserved(self) -> None:
         enc = _encoding()
         pages = _pages("Bonjour le monde.")
-        sig = compute_document_signals(
-            pages, file_type="txt", language="fr", encoding=enc
-        )
+        sig = compute_document_signals(pages, file_type="txt", language="fr", encoding=enc)
         assert sig.language == "fr"
 
     def test_total_tokens_positive_for_nonempty_text(self) -> None:

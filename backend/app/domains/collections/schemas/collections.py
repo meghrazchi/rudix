@@ -81,6 +81,7 @@ class SetDocumentCollectionsRequest(BaseModel):
 
 # ── Access policy management ───────────────────────────────────────────────────
 
+
 class CollectionAccessGrantItem(BaseModel):
     grantee_type: GranteeType
     grantee_value: str  # role name (e.g. "member") or user_id string

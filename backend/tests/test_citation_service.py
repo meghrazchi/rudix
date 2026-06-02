@@ -116,7 +116,10 @@ def test_citation_offsets_exact_case_insensitive_match() -> None:
     citation = result.citations[0]
     assert citation.start_offset is not None
     assert citation.end_offset is not None
-    assert chunk_text[citation.start_offset : citation.end_offset].lower() == "twenty days of annual leave"
+    assert (
+        chunk_text[citation.start_offset : citation.end_offset].lower()
+        == "twenty days of annual leave"
+    )
 
 
 def test_citation_offsets_preserved_for_fallback_snippets() -> None:

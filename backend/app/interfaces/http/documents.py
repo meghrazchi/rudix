@@ -40,9 +40,12 @@ from app.domains.documents.schemas.documents import (
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
     DeleteDocumentResponse,
+    DocumentChunkingAdaptiveSignalsResponse,
+    DocumentChunkingDiagnosticsResponse,
     DocumentChunkPreviewResponse,
-    DocumentCollectionSummary,
     DocumentChunksResponse,
+    DocumentChunkTokenDistributionResponse,
+    DocumentCollectionSummary,
     DocumentDetailResponse,
     DocumentLifecycleTimelineStepResponse,
     DocumentListItemResponse,
@@ -56,7 +59,6 @@ from app.domains.documents.schemas.documents import (
     _parse_tags_string,
 )
 from app.domains.documents.services.malware_scan import MalwareScanService
-from app.models.collection import Collection, CollectionDocument
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_graph_service import (
     canonical_pipeline_type,
@@ -64,6 +66,7 @@ from app.domains.pipeline.services.pipeline_graph_service import (
     pipeline_node_description,
     pipeline_node_label,
 )
+from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.pipeline import PipelineEvent, PipelineRun
@@ -146,6 +149,108 @@ def _safe_log_lines(
     return lines
 
 
+def _build_chunking_diagnostics(
+    *,
+    file_type: str,
+    chunking_strategy: str | None,
+    chunking_profile_version: str | None,
+    chunking_config_snapshot: dict[str, object] | None,
+    token_distribution: dict[str, int | float] | None,
+) -> DocumentChunkingDiagnosticsResponse | None:
+    snapshot = chunking_config_snapshot if isinstance(chunking_config_snapshot, dict) else None
+    if chunking_strategy is None and chunking_profile_version is None and snapshot is None:
+        return None
+
+    adaptive_signals = None
+    raw_signals = snapshot.get("adaptive_signals") if snapshot else None
+    if isinstance(raw_signals, dict):
+        adaptive_signals = DocumentChunkingAdaptiveSignalsResponse(
+            file_type=str(raw_signals.get("file_type") or file_type),
+            page_count=int(raw_signals.get("page_count") or 0),
+            total_token_count=int(raw_signals.get("total_token_count") or 0),
+            ocr_applied=bool(raw_signals.get("ocr_applied", False)),
+            heading_density=(
+                float(raw_signals["heading_density"])
+                if raw_signals.get("heading_density") is not None
+                else None
+            ),
+            avg_chars_per_page=(
+                float(raw_signals["avg_chars_per_page"])
+                if raw_signals.get("avg_chars_per_page") is not None
+                else None
+            ),
+            avg_paragraph_tokens=(
+                float(raw_signals["avg_paragraph_tokens"])
+                if raw_signals.get("avg_paragraph_tokens") is not None
+                else None
+            ),
+        )
+
+    distribution_model = (
+        DocumentChunkTokenDistributionResponse(**token_distribution)
+        if token_distribution is not None
+        else None
+    )
+
+    return DocumentChunkingDiagnosticsResponse(
+        strategy=chunking_strategy,
+        selected_strategy=(
+            str(snapshot.get("adaptive_selected_strategy"))
+            if snapshot and snapshot.get("adaptive_selected_strategy")
+            else chunking_strategy
+        ),
+        profile_version=chunking_profile_version,
+        profile_source=(
+            str(snapshot.get("profile_source"))
+            if snapshot and snapshot.get("profile_source")
+            else None
+        ),
+        chunk_size_tokens=(
+            int(snapshot.get("chunk_size_tokens"))
+            if snapshot and snapshot.get("chunk_size_tokens") is not None
+            else None
+        ),
+        chunk_overlap_tokens=(
+            int(snapshot.get("chunk_overlap_tokens"))
+            if snapshot and snapshot.get("chunk_overlap_tokens") is not None
+            else None
+        ),
+        embedding_model=(
+            str(snapshot.get("embedding_model"))
+            if snapshot and snapshot.get("embedding_model")
+            else None
+        ),
+        index_version=(
+            str(snapshot.get("index_version"))
+            if snapshot and snapshot.get("index_version")
+            else None
+        ),
+        ocr_applied=(
+            bool(snapshot.get("ocr_applied"))
+            if snapshot and snapshot.get("ocr_applied") is not None
+            else None
+        ),
+        hierarchical_mode=bool(snapshot.get("hierarchical_mode", False)) if snapshot else False,
+        parent_chunk_count=(
+            int(snapshot.get("parent_chunk_count"))
+            if snapshot and snapshot.get("parent_chunk_count") is not None
+            else None
+        ),
+        child_chunk_count=(
+            int(snapshot.get("child_chunk_count"))
+            if snapshot and snapshot.get("child_chunk_count") is not None
+            else None
+        ),
+        reason_codes=(
+            [str(code) for code in snapshot.get("adaptive_reason_codes", [])]
+            if snapshot and isinstance(snapshot.get("adaptive_reason_codes"), list)
+            else []
+        ),
+        adaptive_signals=adaptive_signals,
+        token_distribution=distribution_model,
+    )
+
+
 def _duration_from_event(event: PipelineEvent) -> int | None:
     if event.duration_ms is not None and event.duration_ms >= 0:
         return event.duration_ms
@@ -213,9 +318,7 @@ def _build_lifecycle_timeline_from_pipeline(
         )
 
         safe_outputs = (
-            latest_event.outputs_json
-            if isinstance(latest_event.outputs_json, dict)
-            else None
+            latest_event.outputs_json if isinstance(latest_event.outputs_json, dict) else None
         )
         timeline.append(
             DocumentLifecycleTimelineStepResponse(
@@ -659,6 +762,12 @@ async def get_document_chunks(
             token_count=chunk.token_count,
             embedding_model=chunk.embedding_model,
             index_version=chunk.index_version,
+            section_path=chunk.section_path,
+            language=chunk.language,
+            chunk_level=chunk.chunk_level,
+            child_count=chunk.child_count,
+            source_start_offset=chunk.source_start_offset,
+            source_end_offset=chunk.source_end_offset,
             text_preview=_chunk_preview_text(chunk.text),
             text=chunk.text if include_full_text else None,
             created_at=chunk.created_at,
@@ -711,9 +820,21 @@ async def get_document(
     doc_retention_class = document.retention_class
     doc_notes = document.notes
     doc_tags = _parse_tags_string(document.tags)
+    chunking_strategy = document.chunking_strategy
+    chunking_profile_version = document.chunking_profile_version
+    chunking_config_snapshot = (
+        document.chunking_config_snapshot
+        if isinstance(document.chunking_config_snapshot, dict)
+        else None
+    )
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
+        db_session,
+        document_id=document_uuid,
+        index_version=settings.document_index_version,
+    )
+    token_distribution = await document_repository.get_document_chunk_token_distribution(
         db_session,
         document_id=document_uuid,
         index_version=settings.document_index_version,
@@ -779,6 +900,13 @@ async def get_document(
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,
+        chunking_diagnostics=_build_chunking_diagnostics(
+            file_type=file_type,
+            chunking_strategy=chunking_strategy,
+            chunking_profile_version=chunking_profile_version,
+            chunking_config_snapshot=chunking_config_snapshot,
+            token_distribution=token_distribution,
+        ),
         lifecycle_timeline=lifecycle_timeline,
         created_at=created_at,
         updated_at=updated_at,
@@ -912,11 +1040,13 @@ async def reindex_document_endpoint(
 
     chunking_profile_config: dict | None = None
     if body is not None:
-        chunking_profile_config = await _chunking_profile_service.resolve_profile_config_for_reindex(
-            db_session,
-            profile_id=body.chunking_profile_id,
-            inline_config=body.chunking_profile_config,
-            organization_id=actor_organization_id,
+        chunking_profile_config = (
+            await _chunking_profile_service.resolve_profile_config_for_reindex(
+                db_session,
+                profile_id=body.chunking_profile_id,
+                inline_config=body.chunking_profile_config,
+                organization_id=actor_organization_id,
+            )
         )
 
     return await reindex_document_workflow(

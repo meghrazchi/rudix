@@ -95,6 +95,221 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "/documents/doc-1" && request.method() === "GET") {
+      await fulfillJson(route, {
+        document_id: "doc-1",
+        filename: "Employee-Handbook.pdf",
+        file_type: "pdf",
+        status: "indexed",
+        page_count: 12,
+        chunk_count: 42,
+        checksum: "sha256:e2e-doc-1",
+        error_message: null,
+        error_details: null,
+        language: "en",
+        chunking_diagnostics: {
+          strategy: "adaptive_hybrid",
+          selected_strategy: "page_aware",
+          profile_version: "1.0",
+          profile_source: "custom_profile",
+          chunk_size_tokens: 700,
+          chunk_overlap_tokens: 120,
+          embedding_model: "text-embedding-3-small",
+          index_version: "v1",
+          ocr_applied: true,
+          hierarchical_mode: false,
+          parent_chunk_count: null,
+          child_chunk_count: null,
+          reason_codes: ["pdf_ocr_applied"],
+          adaptive_signals: {
+            file_type: "pdf",
+            page_count: 12,
+            total_token_count: 5200,
+            ocr_applied: true,
+            heading_density: 0.3,
+            avg_chars_per_page: null,
+            avg_paragraph_tokens: null,
+          },
+          token_distribution: {
+            min_tokens: 120,
+            max_tokens: 260,
+            avg_tokens: 188.5,
+            total_tokens: 7917,
+          },
+        },
+        lifecycle_timeline: [
+          {
+            step: "index",
+            label: "Index",
+            description: "Upsert embedded chunks into vector storage.",
+            status: "completed",
+            document_id: "doc-1",
+            pipeline_run_id: "run-doc-1",
+            pipeline_type: "document.process",
+            started_at: "2026-05-20T08:20:00Z",
+            completed_at: "2026-05-20T08:25:00Z",
+            duration_ms: 300000,
+            logs: ["upserted 42 chunks"],
+          },
+        ],
+        created_at: "2026-05-19T09:30:00Z",
+        updated_at: "2026-05-20T08:30:00Z",
+      });
+      return;
+    }
+
+    if (path === "/documents/doc-1/status" && request.method() === "GET") {
+      await fulfillJson(route, {
+        document_id: "doc-1",
+        status: "indexed",
+        error_message: null,
+        error_details: null,
+        updated_at: "2026-05-20T08:30:00Z",
+      });
+      return;
+    }
+
+    if (path === "/documents/doc-1/chunks" && request.method() === "GET") {
+      await fulfillJson(route, {
+        document_id: "doc-1",
+        items: [
+          {
+            chunk_id: "chunk-1",
+            page_number: 1,
+            chunk_index: 1,
+            token_count: 180,
+            embedding_model: "text-embedding-3-small",
+            index_version: "v1",
+            section_path: "Handbook > Introduction",
+            language: "en",
+            chunk_level: 0,
+            child_count: 0,
+            source_start_offset: 0,
+            source_end_offset: 280,
+            text_preview: "Rudix processes enterprise documents securely.",
+            text: null,
+            created_at: "2026-05-20T08:10:00Z",
+          },
+        ],
+        total: 1,
+        limit: Number.parseInt(requestUrl.searchParams.get("limit") ?? "8", 10),
+        offset: Number.parseInt(
+          requestUrl.searchParams.get("offset") ?? "0",
+          10,
+        ),
+        include_full_text:
+          requestUrl.searchParams.get("include_full_text") === "true",
+      });
+      return;
+    }
+
+    if (path === "/documents/doc-1/reindex" && request.method() === "POST") {
+      await fulfillJson(
+        route,
+        {
+          document_id: "doc-1",
+          status: "processing",
+          queue_status: "queued",
+        },
+        202,
+      );
+      return;
+    }
+
+    if (
+      path === "/admin/chunking-profiles/strategies" &&
+      request.method() === "GET"
+    ) {
+      await fulfillJson(route, {
+        strategies: [
+          {
+            name: "adaptive_hybrid",
+            display_name: "Adaptive Hybrid",
+            description:
+              "Selects a concrete chunking strategy based on structure and OCR signals.",
+            suitable_for: ["mixed enterprise content", "production defaults"],
+            requires_page_structure: false,
+            supports_hierarchical: false,
+          },
+          {
+            name: "page_aware",
+            display_name: "Page Aware",
+            description:
+              "Preserves page boundaries for citation-heavy documents.",
+            suitable_for: ["pdf", "ocr", "evidence packets"],
+            requires_page_structure: true,
+            supports_hierarchical: false,
+          },
+        ],
+        default_config: {
+          strategy: "adaptive_hybrid",
+          chunk_size_tokens: 700,
+          chunk_overlap_tokens: 120,
+          language: null,
+          min_tokens: 88,
+          strategy_options: {},
+        },
+        feature_chunking_profiles_enabled: true,
+      });
+      return;
+    }
+
+    if (path === "/admin/chunking-profiles" && request.method() === "GET") {
+      await fulfillJson(route, {
+        profiles: [
+          {
+            profile_id: "profile-1",
+            organization_id: ORG_ID,
+            name: "Operations Default",
+            slug: "operations-default",
+            config: {
+              strategy: "adaptive_hybrid",
+              chunk_size_tokens: 700,
+              chunk_overlap_tokens: 120,
+              language: "en",
+              min_tokens: 88,
+              strategy_options: {},
+            },
+            is_default: true,
+            is_system: false,
+            created_at: "2026-05-20T08:00:00Z",
+            updated_at: "2026-05-20T08:00:00Z",
+            created_by_user_id: "e2e-user-1",
+            updated_by_user_id: "e2e-user-1",
+          },
+        ],
+        total: 1,
+        has_org_default: true,
+      });
+      return;
+    }
+
+    if (
+      path === "/admin/chunking-profiles/preview" &&
+      request.method() === "POST"
+    ) {
+      await fulfillJson(route, {
+        strategy_used: "page_aware",
+        chunk_count: 6,
+        min_tokens: 90,
+        max_tokens: 210,
+        avg_tokens: 153.5,
+        total_tokens: 921,
+        reason_codes: ["pdf_ocr_applied"],
+        sample_chunks: [
+          {
+            chunk_index: 0,
+            token_count: 180,
+            section_path: "Handbook > Introduction",
+            chunk_level: 0,
+            is_parent: false,
+          },
+        ],
+        warnings: [],
+      });
+      return;
+    }
+
     if (path === "/chat/sessions" && request.method() === "GET") {
       await fulfillJson(route, {
         items: [
@@ -563,6 +778,43 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     ).toBeVisible();
   });
 
+  test("shows organization chunking profile defaults", async ({ page }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/settings?tab=organization");
+    await waitForSessionBootstrap(page);
+
+    await expect(
+      page.getByRole("heading", { name: "Chunking Profiles" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Profile Name")).toHaveValue(
+      "Operations Default",
+    );
+  });
+
+  test("shows document chunk diagnostics and queues re-index", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/documents/doc-1");
+    await waitForSessionBootstrap(page);
+
+    await expect(
+      page.getByRole("heading", { name: "Employee-Handbook.pdf" }),
+    ).toBeVisible();
+    await expect(page.getByText("Chunking diagnostics")).toBeVisible();
+
+    page.once("dialog", (dialog) => void dialog.accept());
+    await page.getByRole("button", { name: "Queue re-index" }).click();
+
+    await expect(
+      page.getByText(/Re-index requested using Operations Default/i),
+    ).toBeVisible();
+  });
+
   test("opens evaluations and starts a mocked evaluation run", async ({
     page,
   }) => {
@@ -615,9 +867,7 @@ test.describe("frontend e2e smoke (no real backend)", () => {
     await page.getByLabel("Notifications").click();
 
     // The failed document notification should be visible.
-    await expect(
-      page.getByText("Document processing failed"),
-    ).toBeVisible();
+    await expect(page.getByText("Document processing failed")).toBeVisible();
     await expect(page.getByText(/could not be indexed/)).toBeVisible();
 
     // Clicking the notification navigates to the documents page.

@@ -98,9 +98,7 @@ class AdaptiveHybridStrategy:
             encoding=self._encoding,
         )
 
-        selection = AdaptiveHybridSelector.select(
-            signals, force_strategy=self._force_strategy
-        )
+        selection = AdaptiveHybridSelector.select(signals, force_strategy=self._force_strategy)
         self.last_selection = selection
 
         # Build a concrete profile that reuses all size/overlap settings but

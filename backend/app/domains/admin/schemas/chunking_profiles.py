@@ -39,9 +39,7 @@ class ChunkingProfileConfigInput(BaseModel):
     @model_validator(mode="after")
     def _overlap_smaller_than_size(self) -> ChunkingProfileConfigInput:
         if self.chunk_overlap_tokens >= self.chunk_size_tokens:
-            raise ValueError(
-                "chunk_overlap_tokens must be smaller than chunk_size_tokens"
-            )
+            raise ValueError("chunk_overlap_tokens must be smaller than chunk_size_tokens")
         return self
 
 
@@ -128,6 +126,7 @@ class ChunkingProfilePreviewResponse(BaseModel):
     max_tokens: int
     avg_tokens: float
     total_tokens: int
+    reason_codes: list[str] = Field(default_factory=list)
     sample_chunks: list[ChunkingPreviewChunkMeta]
     warnings: list[str]
 

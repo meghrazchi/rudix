@@ -109,10 +109,14 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - explicit loading, empty, unavailable-backend, error, and forbidden states with safe request-id rendering
 - Settings page behavior:
   - profile and organization context sections for authenticated users
+  - organization tab includes admin-only chunking profile catalog, default-profile editor, validation hints, and preview stats without exposing raw sample chunk text
   - security section shows safe auth diagnostics only (provider and token availability flags)
   - preferences form validates and supports save/discard flow for default `top_k`, rerank, developer mode, and notification choices
   - optional backend persistence for preferences (`NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL`, `NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL`) with local fallback
   - admin-only controls section is permission-aware for non-admin users
+- Document detail behavior:
+  - overview panel shows safe chunk diagnostics including applied strategy, OCR flag, language, token distribution, reason codes, and profile-aware re-index controls
+  - chunk preview search matches preview text plus safe metadata (`section_path`, page, language, offsets) and keeps full chunk text permission-gated
 - Admin page behavior:
   - usage summary cards for events, tokens, cost, confidence, and latency
   - usage trend table sourced from `/admin/usage` with date-range filters

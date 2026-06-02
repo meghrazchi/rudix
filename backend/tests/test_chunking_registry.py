@@ -95,9 +95,7 @@ def test_registry_resolve_unknown_strategy_raises() -> None:
     registry = get_registry()
     profile = ChunkingProfileConfig(strategy="nonexistent_strategy")
     with pytest.raises(UnknownStrategyError, match="nonexistent_strategy"):
-        registry.resolve(
-            profile, embedding_model="text-embedding-3-small", index_version="v1"
-        )
+        registry.resolve(profile, embedding_model="text-embedding-3-small", index_version="v1")
 
 
 def test_registry_register_custom_factory() -> None:
@@ -119,9 +117,7 @@ def test_registry_register_custom_factory() -> None:
 
     registry.register("fake", _factory)
     profile = ChunkingProfileConfig(strategy="fake")
-    strategy = registry.resolve(
-        profile, embedding_model="model", index_version="v1"
-    )
+    strategy = registry.resolve(profile, embedding_model="model", index_version="v1")
     assert isinstance(strategy, _FakeStrategy)
     assert calls == ["fake"]
 
@@ -211,9 +207,7 @@ async def test_chunking_service_delegates_to_registry() -> None:
 
 @pytest.mark.asyncio
 async def test_chunking_service_empty_pages_returns_empty() -> None:
-    service = ChunkingService(
-        chunk_size_tokens=100, chunk_overlap_tokens=20, index_version="v1"
-    )
+    service = ChunkingService(chunk_size_tokens=100, chunk_overlap_tokens=20, index_version="v1")
     chunks = await service.chunk(document_id=uuid4(), pages=[])
     assert chunks == []
 

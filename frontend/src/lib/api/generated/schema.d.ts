@@ -3912,11 +3912,15 @@ export interface operations {
     responses: {
       200: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["NotificationListResponse"] };
+        content: {
+          "application/json": components["schemas"]["NotificationListResponse"];
+        };
       };
       422: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
       };
     };
   };
@@ -3931,7 +3935,9 @@ export interface operations {
     responses: {
       200: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["UnreadCountResponse"] };
+        content: {
+          "application/json": components["schemas"]["UnreadCountResponse"];
+        };
       };
     };
   };
@@ -3946,12 +3952,16 @@ export interface operations {
     responses: {
       200: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["MarkReadResponse"] };
+        content: {
+          "application/json": components["schemas"]["MarkReadResponse"];
+        };
       };
       404: { headers: { [name: string]: unknown }; content?: never };
       422: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
       };
     };
   };
@@ -3966,12 +3976,16 @@ export interface operations {
     responses: {
       200: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["MarkReadResponse"] };
+        content: {
+          "application/json": components["schemas"]["MarkReadResponse"];
+        };
       };
       404: { headers: { [name: string]: unknown }; content?: never };
       422: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["HTTPValidationError"] };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
       };
     };
   };
@@ -3986,7 +4000,9 @@ export interface operations {
     responses: {
       200: {
         headers: { [name: string]: unknown };
-        content: { "application/json": components["schemas"]["MarkAllReadResponse"] };
+        content: {
+          "application/json": components["schemas"]["MarkAllReadResponse"];
+        };
       };
     };
   };

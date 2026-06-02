@@ -21,9 +21,9 @@ from app.domains.documents.chunking.protocol import PageLike
 # Thresholds (module-level constants — configurable via subclassing or tests)
 # ---------------------------------------------------------------------------
 
-_HEADING_DENSITY_STRUCTURED: float = 0.5   # headings-per-page ≥ threshold → structured
-_SHORT_DOCUMENT_TOKENS: int = 500           # total tokens < threshold → short document
-_PDF_MULTI_PAGE_THRESHOLD: int = 1          # page_count > threshold → use page_aware
+_HEADING_DENSITY_STRUCTURED: float = 0.5  # headings-per-page ≥ threshold → structured
+_SHORT_DOCUMENT_TOKENS: int = 500  # total tokens < threshold → short document
+_PDF_MULTI_PAGE_THRESHOLD: int = 1  # page_count > threshold → use page_aware
 
 
 # ---------------------------------------------------------------------------
@@ -40,14 +40,14 @@ class DocumentSignals:
     document text.
     """
 
-    file_type: str                          # "pdf" | "docx" | "txt" | "md"
-    page_count: int                         # number of extracted pages
-    total_token_count: int                  # total tokens across all pages
-    ocr_applied: bool = False               # True if OCR was run on at least one page
-    avg_chars_per_page: float = 0.0        # text density
-    heading_density: float = 0.0           # headings per page (computed from blocks)
-    avg_paragraph_tokens: float = 0.0      # average paragraph length in tokens
-    language: str | None = None             # ISO 639-1 code
+    file_type: str  # "pdf" | "docx" | "txt" | "md"
+    page_count: int  # number of extracted pages
+    total_token_count: int  # total tokens across all pages
+    ocr_applied: bool = False  # True if OCR was run on at least one page
+    avg_chars_per_page: float = 0.0  # text density
+    heading_density: float = 0.0  # headings per page (computed from blocks)
+    avg_paragraph_tokens: float = 0.0  # average paragraph length in tokens
+    language: str | None = None  # ISO 639-1 code
 
 
 # ---------------------------------------------------------------------------
@@ -63,9 +63,9 @@ class SelectionResult:
     strategy was chosen.  They are safe to include in logs and metadata.
     """
 
-    strategy: str                    # e.g. "page_aware"
-    reason_codes: list[str] = field(default_factory=list)   # e.g. ["pdf_ocr_applied"]
-    signals: DocumentSignals | None = None   # the signals that drove the decision
+    strategy: str  # e.g. "page_aware"
+    reason_codes: list[str] = field(default_factory=list)  # e.g. ["pdf_ocr_applied"]
+    signals: DocumentSignals | None = None  # the signals that drove the decision
 
 
 # ---------------------------------------------------------------------------

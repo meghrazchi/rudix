@@ -154,11 +154,7 @@ class ChunkingProfileService:
         from app.domains.documents.chunking.registry import get_registry
 
         known = set(get_registry().known_strategies())
-        strategies = [
-            info
-            for name, info in sorted(_STRATEGY_CATALOG.items())
-            if name in known
-        ]
+        strategies = [info for name, info in sorted(_STRATEGY_CATALOG.items()) if name in known]
         return StrategyCatalogResponse(
             strategies=strategies,
             default_config=ChunkingProfileConfigInput(),
@@ -218,9 +214,7 @@ class ChunkingProfileService:
             )
 
         if payload.set_as_default:
-            await self._repository.clear_org_default(
-                session, organization_id=organization_id
-            )
+            await self._repository.clear_org_default(session, organization_id=organization_id)
 
         profile = await self._repository.create(
             session,
@@ -336,13 +330,15 @@ class ChunkingProfileService:
     ) -> ChunkingProfilePreviewResponse:
         from app.domains.documents.chunking.config import ChunkingProfileConfig
         from app.domains.documents.chunking.registry import get_registry
+        from app.domains.documents.chunking.selector import SelectionResult
 
         profile_cfg = ChunkingProfileConfig.model_construct(
             strategy=payload.config.strategy,
             chunk_size_tokens=payload.config.chunk_size_tokens,
             chunk_overlap_tokens=payload.config.chunk_overlap_tokens,
             language=payload.config.language,
-            min_tokens=payload.config.min_tokens or max(1, min(32, payload.config.chunk_size_tokens // 8)),
+            min_tokens=payload.config.min_tokens
+            or max(1, min(32, payload.config.chunk_size_tokens // 8)),
             strategy_options=dict(payload.config.strategy_options),
         )
 
@@ -356,6 +352,11 @@ class ChunkingProfileService:
         document_id = uuid4()
         chunks = await strategy.chunk(document_id=document_id, pages=pages)
 
+        raw_selection = getattr(strategy, "last_selection", None)
+        reason_codes = (
+            list(raw_selection.reason_codes) if isinstance(raw_selection, SelectionResult) else []
+        )
+
         if not chunks:
             return ChunkingProfilePreviewResponse(
                 strategy_used=payload.config.strategy,
@@ -364,6 +365,7 @@ class ChunkingProfileService:
                 max_tokens=0,
                 avg_tokens=0.0,
                 total_tokens=0,
+                reason_codes=reason_codes,
                 sample_chunks=[],
                 warnings=["No chunks produced — sample text may be too short."],
             )
@@ -395,6 +397,7 @@ class ChunkingProfileService:
             max_tokens=max(token_counts),
             avg_tokens=round(total_tokens / len(chunks), 1),
             total_tokens=total_tokens,
+            reason_codes=reason_codes,
             sample_chunks=sample_chunks,
             warnings=warnings,
         )
