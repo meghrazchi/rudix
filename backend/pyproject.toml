@@ -66,6 +66,9 @@ ignore = ["E501"]
 pythonpath = ["."]
 addopts = "-q"
 asyncio_mode = "auto"
+markers = [
+  "isolation: RAG and vector isolation regression tests (F144 — release blocker for v0.4.0)",
+]
 
 [tool.mypy]
 python_version = "3.12"
