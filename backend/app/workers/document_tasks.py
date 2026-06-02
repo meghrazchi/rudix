@@ -69,7 +69,9 @@ def _make_chunking_service(
     return ChunkingService(
         strategy=profile_config.get("strategy") if profile_config else settings.chunking_strategy,
         chunk_size_tokens=(
-            profile_config.get("chunk_size_tokens") if profile_config else settings.chunk_size_tokens
+            profile_config.get("chunk_size_tokens")
+            if profile_config
+            else settings.chunk_size_tokens
         ),
         chunk_overlap_tokens=(
             profile_config.get("chunk_overlap_tokens")
@@ -1191,7 +1193,9 @@ async def _extract_and_store_document_pages_async(
                 status="completed",
                 outputs={
                     "document_status": (
-                        DocumentStatus.indexed.value if persist_document_state else "evaluation_indexed"
+                        DocumentStatus.indexed.value
+                        if persist_document_state
+                        else "evaluation_indexed"
                     ),
                     "page_count": len(cleaned_sections),
                     "chunk_count": len(chunks),

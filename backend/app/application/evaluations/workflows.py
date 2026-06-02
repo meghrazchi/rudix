@@ -117,9 +117,7 @@ async def trigger_evaluation_workflow(
     if len(normalized_comparison_targets) == 1:
         single_target = normalized_comparison_targets[0]
         config_payload["chunking_profile_id"] = single_target.get("chunking_profile_id")
-        config_payload["chunking_profile_config"] = single_target.get(
-            "chunking_profile_config"
-        )
+        config_payload["chunking_profile_config"] = single_target.get("chunking_profile_config")
         config_payload["chunking_strategy"] = single_target.get("chunking_strategy")
         config_payload["profile_version"] = single_target.get("profile_version")
 
