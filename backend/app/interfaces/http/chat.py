@@ -46,6 +46,7 @@ from app.domains.chat.schemas.share import (
     CreateChatShareRequest,
     SharedSessionResponse,
 )
+from app.core.safety_guardrails import PromptInjectionGuard
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.domains.chat.services.llm_service import (
@@ -77,6 +78,7 @@ _prompt_service = PromptService()
 _citation_service = CitationService()
 _confidence_service = ConfidenceService()
 _llm_service = LLMService()
+_injection_guard = PromptInjectionGuard()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
 
@@ -599,6 +601,21 @@ async def query_chat(
             title=default_title,
         )
 
+    injection_check = _injection_guard.evaluate_request(
+        objective="",
+        question=payload.question,
+        document_query=None,
+    )
+    if injection_check.blocked:
+        log_query_event(
+            event="query.rejected.question_injection_detected",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            job_id=str(chat_session.id),
+            status_code=status.HTTP_200_OK,
+            reasons=injection_check.reasons,
+        )
+
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
     embedding_model = _query_retrieval_service.embedding_model
@@ -613,9 +630,23 @@ async def query_chat(
     llm_latency_ms = 0
     answer = _NOT_FOUND_ANSWER
     citations: list[ChatCitationResponse] = []
-    not_found = False
+    not_found = injection_check.blocked
+    citation_validation_failed = False
 
-    if payload.scope_mode == "none":
+    if injection_check.blocked:
+        # Question matched injection heuristics: return safe not-found without LLM call.
+        embedding_model = None
+        confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
+        confidence_result = _confidence_service.score(
+            chunks=confidence_signals,
+            citation_count=0,
+            citation_validation_score=1.0,
+            not_found_signal=True,
+        )
+        confidence_score = confidence_result.score
+        confidence_category = confidence_result.category
+        confidence_explanation = confidence_result.explanation
+    elif payload.scope_mode == "none":
         # General chat mode: skip retrieval, answer from LLM general knowledge.
         embedding_model = None
         prompt = _prompt_service.build_general_prompt(question=payload.question)
@@ -811,6 +842,7 @@ async def query_chat(
                     model_citations=llm_result.citations,
                 )
                 citations = citation_result.citations
+                citation_validation_failed = citation_result.invalid_chunk_id_count > 0
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
                     citation_count=len(citations),
@@ -833,6 +865,14 @@ async def query_chat(
                     metadata_mismatch_count=citation_result.metadata_mismatch_count,
                     snippet_mismatch_count=citation_result.snippet_mismatch_count,
                 )
+                if citation_validation_failed:
+                    log_query_event(
+                        event="query.citations.validation_failed",
+                        organization_id=principal.organization_id,
+                        user_id=principal.user_id,
+                        job_id=str(chat_session.id),
+                        invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
+                    )
 
             if not_found:
                 confidence_result = _confidence_service.score(
@@ -985,6 +1025,7 @@ async def query_chat(
         ),
         not_found=not_found,
         citations=[] if not_found else citations,
+        citation_validation_failed=citation_validation_failed,
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),

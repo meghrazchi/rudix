@@ -297,6 +297,7 @@ export const mockChatQueryResponse: ChatQueryResponse = {
     thresholds: {},
   },
   not_found: false,
+  citation_validation_failed: false,
   citations: [
     {
       document_id: "doc-1",

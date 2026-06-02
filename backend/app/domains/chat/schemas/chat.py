@@ -152,5 +152,6 @@ class ChatQueryResponse(BaseModel):
     confidence_explanation: ChatConfidenceExplanationResponse
     not_found: bool
     citations: list[ChatCitationResponse] = Field(default_factory=list)
+    citation_validation_failed: bool = False
     debug: ChatDebugResponse
     created_at: datetime

@@ -1360,6 +1360,8 @@ export interface components {
       not_found: boolean;
       /** Citations */
       citations?: components["schemas"]["ChatCitationResponse"][];
+      /** Citation Validation Failed */
+      citation_validation_failed?: boolean;
       debug: components["schemas"]["ChatDebugResponse"];
       /**
        * Created At

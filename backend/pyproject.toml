@@ -68,6 +68,7 @@ addopts = "-q"
 asyncio_mode = "auto"
 markers = [
   "isolation: RAG and vector isolation regression tests (F144 — release blocker for v0.4.0)",
+  "guardrails: Prompt injection and citation validation guardrail tests (F145 — release blocker for v0.4.0)",
 ]
 
 [tool.mypy]

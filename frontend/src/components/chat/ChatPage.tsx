@@ -160,6 +160,7 @@ type ChatTurn = {
     confidence_score: number;
     confidence_category: "low" | "medium" | "high";
     not_found: boolean;
+    citation_validation_failed: boolean;
     debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
     created_at: string;
@@ -348,6 +349,7 @@ function toTurnResponseFromQuery(
     confidence_score: response.confidence_score,
     confidence_category: response.confidence_category,
     not_found: response.not_found,
+    citation_validation_failed: response.citation_validation_failed ?? false,
     debug: response.debug ?? null,
     citations: response.citations ?? [],
     created_at: response.created_at,
@@ -371,6 +373,7 @@ function toTurnResponseFromHistoryMessage(
         : 0,
     confidence_category: message.confidence_category ?? "low",
     not_found: false,
+    citation_validation_failed: false,
     debug: null,
     citations: message.citations ?? [],
     created_at: message.created_at,
@@ -405,6 +408,7 @@ function toTurnResponseFromAgentRun(
     confidence_score: score,
     confidence_category: toConfidenceCategory(confidence.category, score),
     not_found: Boolean(outcome?.not_found),
+    citation_validation_failed: false,
     debug: null,
     citations,
     created_at: new Date().toISOString(),
@@ -1908,6 +1912,15 @@ export function ChatPage() {
                                   <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
                                     Low confidence warning: validate this answer
                                     against the cited source text.
+                                  </p>
+                                ) : null}
+
+                                {turn.response.citation_validation_failed &&
+                                !turn.response.not_found ? (
+                                  <p className="mb-3 rounded-lg border border-[#f5c6b0] bg-[#fff8f5] px-3 py-2 text-xs text-[#7a3a20]">
+                                    Some citations could not be verified against
+                                    the retrieved sources and were replaced with
+                                    the best available evidence.
                                   </p>
                                 ) : null}
 
