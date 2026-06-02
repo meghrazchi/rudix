@@ -13,7 +13,8 @@ type AdminSurfaceCard = {
     | "security-center"
     | "system-health"
     | "monitoring"
-    | "governance";
+    | "governance"
+    | "feedback-review";
   title: string;
   description: string;
   href: string;
@@ -87,6 +88,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       description:
         "Manage agent mode, MCP exposure, tool allowlists, and runtime budgets.",
       href: "/admin/governance",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "feedback-review",
+      title: "Feedback review queue",
+      description:
+        "Triage answer feedback, assign severity, link evaluation cases, and resolve knowledge gaps.",
+      href: "/admin/feedback-review",
       available: true,
       availabilityNote: "Available",
     },

@@ -101,3 +101,19 @@ class NotificationSeverity(StrEnum):
     info = "info"
     warning = "warning"
     error = "error"
+
+
+class FeedbackReviewStatus(StrEnum):
+    new = "new"
+    triaged = "triaged"
+    needs_document = "needs_document"
+    eval_created = "eval_created"
+    fixed = "fixed"
+    rejected = "rejected"
+    duplicate = "duplicate"
+
+
+class FeedbackSeverity(StrEnum):
+    low = "low"
+    medium = "medium"
+    high = "high"

@@ -150,6 +150,13 @@ export const queryKeys = {
       ["notifications", "list", params ?? {}] as const,
     unreadCount: ["notifications", "unread-count"] as const,
   },
+  feedbackReview: {
+    all: ["feedback-review"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["feedback-review", "list", params ?? {}] as const,
+    detail: (reviewId: string) =>
+      ["feedback-review", "detail", reviewId] as const,
+  },
 };
 
 export type FrontendMutationKind =

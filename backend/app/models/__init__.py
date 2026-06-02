@@ -7,6 +7,7 @@ from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
 from app.models.governance import OrganizationGovernancePolicy
+from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.message_feedback import MessageFeedback
 from app.models.notification import Notification
 from app.models.organization import Organization
@@ -34,6 +35,7 @@ __all__ = [
     "EvaluationResult",
     "EvaluationRun",
     "EvaluationSet",
+    "FeedbackReviewItem",
     "MessageFeedback",
     "Notification",
     "Organization",
