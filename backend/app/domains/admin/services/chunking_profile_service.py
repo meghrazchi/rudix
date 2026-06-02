@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
@@ -431,3 +433,64 @@ class ChunkingProfileService:
                 detail=f"Chunking profile {profile_id!r} not found",
             )
         return dict(profile.config_json)
+
+    @staticmethod
+    def _profile_version_for_config(config: dict[str, Any]) -> str:
+        normalized = json.dumps(config, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
+        return f"cfg-{digest}"
+
+    async def resolve_profile_target_for_evaluation(
+        self,
+        session: AsyncSession,
+        *,
+        profile_id: str | None,
+        inline_config: ChunkingProfileConfigInput | None,
+        organization_id: UUID,
+        label: str | None = None,
+    ) -> dict[str, Any]:
+        if profile_id is None and inline_config is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="chunking profile target requires profile_id or inline_config",
+            )
+
+        if inline_config is not None:
+            config = inline_config.model_dump(mode="json")
+            strategy = str(config.get("strategy") or "token_recursive")
+            return {
+                "label": label or f"Inline {strategy}",
+                "chunking_profile_id": None,
+                "chunking_profile_config": config,
+                "chunking_strategy": strategy,
+                "profile_version": self._profile_version_for_config(config),
+                "profile_source": "inline_profile",
+            }
+
+        try:
+            pid = UUID(profile_id)  # type: ignore[arg-type]
+        except (ValueError, AttributeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="chunking_profile_id must be a valid UUID",
+            ) from exc
+        profile = await self._repository.get_by_id(
+            session,
+            profile_id=pid,
+            organization_id=organization_id,
+        )
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Chunking profile {profile_id!r} not found",
+            )
+        config = dict(profile.config_json)
+        strategy = str(config.get("strategy") or "token_recursive")
+        return {
+            "label": label or profile.name or strategy,
+            "chunking_profile_id": str(profile.id),
+            "chunking_profile_config": config,
+            "chunking_strategy": strategy,
+            "profile_version": self._profile_version_for_config(config),
+            "profile_source": "organization_profile",
+        }

@@ -9,8 +9,11 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.core.logging import log_evaluation_event
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import RunEvaluationRequest, RunEvaluationResponse
+
+_chunking_profile_service = ChunkingProfileService()
 
 
 async def _safe_commit_audit_only(db_session: AsyncSession, *, wrote_audit: bool) -> None:
@@ -58,6 +61,32 @@ async def trigger_evaluation_workflow(
     )
     selected_document_ids_as_strings = [str(document_id) for document_id in selected_document_ids]
 
+    normalized_comparison_targets: list[dict[str, object]] = []
+    if payload.config.comparison_targets:
+        for target in payload.config.comparison_targets:
+            normalized_comparison_targets.append(
+                await _chunking_profile_service.resolve_profile_target_for_evaluation(
+                    db_session,
+                    profile_id=target.chunking_profile_id,
+                    inline_config=target.chunking_profile_config,
+                    organization_id=organization_id,
+                    label=target.label,
+                )
+            )
+    elif (
+        payload.config.chunking_profile_id is not None
+        or payload.config.chunking_profile_config is not None
+    ):
+        normalized_comparison_targets.append(
+            await _chunking_profile_service.resolve_profile_target_for_evaluation(
+                db_session,
+                profile_id=payload.config.chunking_profile_id,
+                inline_config=payload.config.chunking_profile_config,
+                organization_id=organization_id,
+                label=payload.config.run_name,
+            )
+        )
+
     if settings.evaluation_prevent_duplicate_active_runs:
         active_runs = await evaluation_repository.count_active_runs_for_set(
             db_session,
@@ -70,6 +99,7 @@ async def trigger_evaluation_workflow(
             )
 
     config_payload: dict[str, object] = {
+        "run_name": payload.config.run_name,
         "top_k": payload.config.top_k
         if payload.config.top_k is not None
         else settings.retrieval_final_top_k,
@@ -77,7 +107,21 @@ async def trigger_evaluation_workflow(
         "model_name": payload.config.model_name or settings.openai_llm_model,
         "selected_document_ids": selected_document_ids_as_strings,
         "metric_options": dict(payload.config.metric_options),
+        "comparison_targets": normalized_comparison_targets,
+        "regression_thresholds": (
+            payload.config.regression_thresholds.model_dump(exclude_none=True)
+            if payload.config.regression_thresholds is not None
+            else None
+        ),
     }
+    if len(normalized_comparison_targets) == 1:
+        single_target = normalized_comparison_targets[0]
+        config_payload["chunking_profile_id"] = single_target.get("chunking_profile_id")
+        config_payload["chunking_profile_config"] = single_target.get(
+            "chunking_profile_config"
+        )
+        config_payload["chunking_strategy"] = single_target.get("chunking_strategy")
+        config_payload["profile_version"] = single_target.get("profile_version")
 
     evaluation_run = await evaluation_repository.create_evaluation_run(
         db_session,
@@ -97,6 +141,8 @@ async def trigger_evaluation_workflow(
             "top_k": config_payload["top_k"],
             "rerank": config_payload["rerank"],
             "selected_document_count": len(selected_document_ids_as_strings),
+            "comparison_target_count": len(normalized_comparison_targets),
+            "chunking_strategy": config_payload.get("chunking_strategy"),
             "status_code": status.HTTP_202_ACCEPTED,
         },
     )

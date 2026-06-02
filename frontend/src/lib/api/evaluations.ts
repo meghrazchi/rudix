@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api/request";
 import type { components } from "@/lib/api/generated/schema";
+import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles";
 
 type Schemas = components["schemas"];
 
@@ -11,13 +12,45 @@ export type EvaluationQuestionListResponse =
   Schemas["EvaluationQuestionListResponse"];
 export type CreateEvaluationQuestionRequest =
   Schemas["CreateEvaluationQuestionRequest"];
-export type EvaluationRunConfig = Schemas["EvaluationRunConfig"];
-export type RunEvaluationRequest = Schemas["RunEvaluationRequest"];
+type BaseEvaluationRunConfig = Schemas["EvaluationRunConfig"];
+type BaseRunEvaluationRequest = Schemas["RunEvaluationRequest"];
 export type RunEvaluationResponse = Schemas["RunEvaluationResponse"];
 export type EvaluationRunResultResponse =
   Schemas["EvaluationRunResultResponse"];
 export type EvaluationRunDetailResponse =
   Schemas["EvaluationRunDetailResponse"];
+
+export type EvaluationChunkingComparisonTarget = {
+  label?: string | null;
+  chunking_profile_id?: string | null;
+  chunking_profile_config?: ChunkingProfileConfigInput | null;
+};
+
+export type EvaluationRegressionThresholds = {
+  retrieval_hit_rate_min?: number | null;
+  citation_accuracy_score_min?: number | null;
+  faithfulness_score_min?: number | null;
+  max_not_found_rate?: number | null;
+};
+
+export type EvaluationRunConfig = Omit<
+  BaseEvaluationRunConfig,
+  | "chunking_profile_id"
+  | "chunking_profile_config"
+  | "comparison_targets"
+  | "regression_thresholds"
+  | "run_name"
+> & {
+  run_name?: string | null;
+  chunking_profile_id?: string | null;
+  chunking_profile_config?: ChunkingProfileConfigInput | null;
+  comparison_targets?: EvaluationChunkingComparisonTarget[];
+  regression_thresholds?: EvaluationRegressionThresholds | null;
+};
+
+export type RunEvaluationRequest = Omit<BaseRunEvaluationRequest, "config"> & {
+  config?: EvaluationRunConfig;
+};
 
 export async function createEvaluationSet(
   payload: CreateEvaluationSetRequest,

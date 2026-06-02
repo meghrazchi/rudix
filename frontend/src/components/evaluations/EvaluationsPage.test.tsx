@@ -16,6 +16,7 @@ import type {
   EvaluationSetListResponse,
 } from "@/lib/api/evaluations";
 import type { DocumentListResponse } from "@/lib/api/documents";
+import type { ChunkingProfileList } from "@/lib/schemas/chunking-profiles";
 import type { SessionState } from "@/lib/auth-session";
 
 const RUN_HISTORY_KEY = "rudix.evaluations.run-history.v1";
@@ -42,6 +43,7 @@ const mockApi = vi.hoisted(() => ({
   runEvaluation: vi.fn(),
   getEvaluationRun: vi.fn(),
   listDocuments: vi.fn(),
+  listChunkingProfiles: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -67,6 +69,11 @@ vi.mock("@/lib/api/evaluations", () => ({
 
 vi.mock("@/lib/api/documents", () => ({
   listDocuments: (...args: unknown[]) => mockApi.listDocuments(...args),
+}));
+
+vi.mock("@/lib/api/chunking-profiles", () => ({
+  listChunkingProfiles: (...args: unknown[]) =>
+    mockApi.listChunkingProfiles(...args),
 }));
 
 function renderPage(initialRunId?: string | null) {
@@ -158,6 +165,55 @@ function buildDocuments(): DocumentListResponse {
   };
 }
 
+function buildChunkingProfiles(): ChunkingProfileList {
+  return {
+    profiles: [
+      {
+        profile_id: "profile-default",
+        organization_id: "org-1",
+        name: "Default Recursive",
+        slug: "default-recursive",
+        config: {
+          strategy: "token_recursive",
+          chunk_size_tokens: 700,
+          chunk_overlap_tokens: 120,
+          language: null,
+          min_tokens: null,
+          strategy_options: {},
+        },
+        is_default: true,
+        is_system: false,
+        created_at: "2026-05-16T10:00:00Z",
+        updated_at: "2026-05-16T10:00:00Z",
+        created_by_user_id: "u-1",
+        updated_by_user_id: "u-1",
+      },
+      {
+        profile_id: "profile-heading",
+        organization_id: "org-1",
+        name: "Heading Aware",
+        slug: "heading-aware",
+        config: {
+          strategy: "heading_aware",
+          chunk_size_tokens: 900,
+          chunk_overlap_tokens: 80,
+          language: null,
+          min_tokens: null,
+          strategy_options: {},
+        },
+        is_default: false,
+        is_system: false,
+        created_at: "2026-05-16T10:00:00Z",
+        updated_at: "2026-05-16T10:00:00Z",
+        created_by_user_id: "u-1",
+        updated_by_user_id: "u-1",
+      },
+    ],
+    total: 2,
+    has_org_default: true,
+  };
+}
+
 function buildRunDetail(
   overrides?: Partial<EvaluationRunDetailResponse>,
 ): EvaluationRunDetailResponse {
@@ -179,6 +235,51 @@ function buildRunDetail(
       baseline_score: 0.7,
       latest_score: 0.8,
       score_delta: 0.1,
+      comparison_targets: [
+        {
+          label: "Default Recursive",
+          chunking_strategy: "token_recursive",
+          profile_version: "cfg-default",
+          overall_score: 0.8,
+          retrieval_hit_rate: 0.9,
+          citation_accuracy_score: 0.75,
+          faithfulness_score: 0.82,
+          chunk_count_total: 8,
+          chunk_tokens_average: 140,
+          not_found_rate: 0.1,
+          regression_flags: [],
+        },
+        {
+          label: "Heading Aware",
+          chunking_strategy: "heading_aware",
+          profile_version: "cfg-heading",
+          overall_score: 0.74,
+          retrieval_hit_rate: 0.82,
+          citation_accuracy_score: 0.7,
+          faithfulness_score: 0.78,
+          chunk_count_total: 6,
+          chunk_tokens_average: 170,
+          not_found_rate: 0.15,
+          regression_flags: [
+            {
+              metric: "retrieval_hit_rate",
+              value: 0.82,
+            },
+          ],
+        },
+      ],
+      best_by_document_type: {
+        pdf: {
+          label: "Default Recursive",
+          score: 0.8,
+        },
+      },
+      best_by_use_case: {
+        unlabeled: {
+          label: "Default Recursive",
+          score: 0.8,
+        },
+      },
     },
     failure_reason: null,
     failure_type: null,
@@ -238,10 +339,12 @@ describe("EvaluationsPage redesign", () => {
     mockApi.runEvaluation.mockReset();
     mockApi.getEvaluationRun.mockReset();
     mockApi.listDocuments.mockReset();
+    mockApi.listChunkingProfiles.mockReset();
 
     mockApi.listEvaluationSets.mockResolvedValue(buildSetList());
     mockApi.listEvaluationQuestions.mockResolvedValue(buildQuestionList());
     mockApi.listDocuments.mockResolvedValue(buildDocuments());
+    mockApi.listChunkingProfiles.mockResolvedValue(buildChunkingProfiles());
     mockApi.runEvaluation.mockResolvedValue({
       evaluation_run_id: "run-created",
       status: "queued",
@@ -282,6 +385,9 @@ describe("EvaluationsPage redesign", () => {
     expect(await screen.findByText("Run detail")).toBeInTheDocument();
     expect(screen.getByText("Case results")).toBeInTheDocument();
     expect(screen.getByText("Baseline vs latest")).toBeInTheDocument();
+    expect(
+      screen.getByText("Chunking strategy comparison"),
+    ).toBeInTheDocument();
   });
 
   it("supports starting a run from the primary CTA", async () => {
@@ -293,18 +399,39 @@ describe("EvaluationsPage redesign", () => {
     );
 
     await screen.findByRole("dialog", { name: "Start evaluation run" });
-    await userEvent.clear(screen.getByLabelText("Model override"));
-    await userEvent.type(
-      screen.getByLabelText("Model override"),
-      "gpt-5.4-mini",
-    );
+    fireEvent.change(screen.getByLabelText("Model override"), {
+      target: { value: "gpt-5.4-mini" },
+    });
+    await userEvent.click(screen.getByLabelText(/Default Recursive/i));
+    await userEvent.click(screen.getByLabelText(/Heading Aware/i));
     fireEvent.change(screen.getByLabelText("Metric options JSON"), {
       target: { value: '{"faithfulness":true}' },
+    });
+    fireEvent.change(screen.getByLabelText("Min retrieval hit rate"), {
+      target: { value: "0.7" },
     });
     await userEvent.click(screen.getByRole("button", { name: "Queue run" }));
 
     await waitFor(() => {
-      expect(mockApi.runEvaluation).toHaveBeenCalled();
+      expect(mockApi.runEvaluation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          evaluation_set_id: "set-1",
+          config: expect.objectContaining({
+            top_k: 5,
+            rerank: true,
+            model_name: "gpt-5.4-mini",
+            selected_document_ids: [],
+            metric_options: { faithfulness: true },
+            comparison_targets: [
+              { chunking_profile_id: "profile-default" },
+              { chunking_profile_id: "profile-heading" },
+            ],
+            regression_thresholds: {
+              retrieval_hit_rate_min: 0.7,
+            },
+          }),
+        }),
+      );
       expect(mockNavigation.push).toHaveBeenCalledWith(
         "/evaluations/runs/run-created",
       );

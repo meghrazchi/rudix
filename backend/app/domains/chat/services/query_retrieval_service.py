@@ -119,6 +119,7 @@ class QueryRetrievalService:
         organization_id: UUID,
         document_ids: list[UUID],
         initial_top_k: int,
+        index_version: str | None = None,
         qdrant_client: QdrantClientLike | None = None,
     ) -> list[RetrievedCandidate]:
         if initial_top_k < 1:
@@ -130,6 +131,7 @@ class QueryRetrievalService:
         query_filter = build_organization_filter(
             organization_id=normalized_organization_id,
             document_ids=[str(document_id) for document_id in document_ids],
+            index_version=index_version,
         )
         client = qdrant_client or self._resolve_qdrant_client()
         results = self._search_results(
@@ -241,6 +243,7 @@ class QueryRetrievalService:
         organization_id: UUID,
         document_ids: list[UUID],
         initial_top_k: int,
+        index_version: str | None = None,
         openai_client: OpenAIClientLike | None = None,
         qdrant_client: QdrantClientLike | None = None,
     ) -> QueryRetrievalResult:
@@ -253,6 +256,7 @@ class QueryRetrievalService:
             organization_id=organization_id,
             document_ids=document_ids,
             initial_top_k=initial_top_k,
+            index_version=index_version,
             qdrant_client=qdrant_client,
         )
         return QueryRetrievalResult(

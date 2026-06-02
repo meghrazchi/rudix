@@ -33,10 +33,13 @@ def test_question_metrics_compute_retrieval_precision_recall_hit_rate() -> None:
     )
 
     assert metrics.retrieval_hit_rate == 1.0
+    assert metrics.retrieval_mrr == 1.0
     assert metrics.context_precision == 0.5
     assert metrics.context_recall == 1.0
     assert metrics.refusal_accuracy is None
     assert metrics.citation_accuracy_score == 0.9
+    assert metrics.retrieved_chunk_count == 2
+    assert metrics.selected_chunk_count == 2
 
 
 def test_question_metrics_refusal_accuracy_for_no_expected_answer() -> None:
@@ -155,3 +158,7 @@ def test_run_metrics_summary_aggregates_latency_cost_and_rates() -> None:
     assert summary["cost_usd_total"] == 0.0005
     assert summary["cost_usd_average"] == 0.00025
     assert summary["retrieval_hit_rate"] == 0.5
+    assert summary["retrieval_mrr"] == 1.0
+    assert summary["retrieved_chunk_count_average"] == 0.5
+    assert summary["selected_chunk_count_average"] == 0.5
+    assert summary["not_found_rate"] == 0.5

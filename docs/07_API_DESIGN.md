@@ -792,6 +792,7 @@ Request:
 {
   "evaluation_set_id": "uuid",
   "config": {
+    "run_name": "Chunking benchmark",
     "top_k": 5,
     "rerank": true,
     "model_name": "gpt-5.4-mini",
@@ -799,6 +800,16 @@ Request:
     "metric_options": {
       "faithfulness": true,
       "citation_accuracy": true
+    },
+    "comparison_targets": [
+      { "label": "Baseline profile", "chunking_profile_id": "uuid" },
+      { "label": "Candidate profile", "chunking_profile_id": "uuid" }
+    ],
+    "regression_thresholds": {
+      "retrieval_hit_rate_min": 0.7,
+      "citation_accuracy_score_min": 0.8,
+      "faithfulness_score_min": 0.8,
+      "max_not_found_rate": 0.2
     }
   }
 }
@@ -818,9 +829,12 @@ Notes:
 - Endpoint is role-protected (`owner|admin`).
 - `evaluation_set_id` must belong to the active organization.
 - `config.selected_document_ids` are org-scoped and validated before enqueue.
+- Leave `comparison_targets` empty to evaluate the current live index; send one target via `chunking_profile_id` to pin a profile or two-plus `comparison_targets` to compare strategies on the same dataset.
+- `comparison_targets` accept either `chunking_profile_id` or `chunking_profile_config`; the backend resolves and stores `chunking_strategy`, `profile_version`, and normalized config in `evaluation_runs.config`.
+- `regression_thresholds` are optional release/eval gates; failing targets are flagged in the run summary but do not change the API contract of the run itself.
 - If duplicate active-run prevention is enabled, concurrent queued/running runs for the same set return `409`.
-- Worker computes per-question metrics (`retrieval_hit_rate`, `context_precision`, `context_recall`, `faithfulness_score`, `answer_relevance_score`, `citation_accuracy_score`, `refusal_accuracy`, latency, and cost) and stores them in `evaluation_results.details.metrics`.
-- Worker also writes a run summary to `evaluation_runs.config.metrics_summary` with aggregated means/rates and latency/cost/token totals.
+- Worker computes per-question metrics (`retrieval_hit_rate`, `retrieval_mrr`, `context_precision`, `context_recall`, `faithfulness_score`, `answer_relevance_score`, `citation_accuracy_score`, `refusal_accuracy`, latency, cost, chunk counts, and not-found rate) and stores them in `evaluation_results.details.metrics`.
+- Worker also writes a run summary to `evaluation_runs.config.metrics_summary` with aggregated means/rates, latency/cost/token totals, and optional chunking comparison results.
 - `config.metric_options.faithfulness` and `config.metric_options.answer_relevance` toggle judge-based scoring; when enabled, `config.metric_options.judge_model_name` can override the judge model.
 
 ### GET `/evaluations/runs/{evaluation_run_id}`
@@ -840,6 +854,7 @@ Response:
   "evaluation_set_id": "uuid",
   "status": "completed",
   "config": {
+    "run_name": "Chunking benchmark",
     "top_k": 5,
     "rerank": true,
     "model_name": "gpt-5.4-mini",
@@ -847,6 +862,24 @@ Response:
     "metric_options": {
       "faithfulness": true,
       "answer_relevance": true
+    },
+    "comparison_targets": [
+      {
+        "label": "Baseline profile",
+        "chunking_profile_id": "uuid",
+        "chunking_strategy": "token_recursive",
+        "profile_version": "cfg-baseline"
+      },
+      {
+        "label": "Candidate profile",
+        "chunking_profile_id": "uuid",
+        "chunking_strategy": "heading_aware",
+        "profile_version": "cfg-candidate"
+      }
+    ],
+    "regression_thresholds": {
+      "retrieval_hit_rate_min": 0.7,
+      "citation_accuracy_score_min": 0.8
     }
   },
   "summary": {
@@ -854,6 +887,7 @@ Response:
     "question_success_count": 19,
     "question_failure_count": 1,
     "retrieval_hit_rate": 0.86,
+    "retrieval_mrr": 0.79,
     "context_precision": 0.71,
     "context_recall": 0.80,
     "faithfulness_score": 0.81,
@@ -863,7 +897,52 @@ Response:
     "latency_ms_total": 29000,
     "latency_ms_average": 1450.0,
     "cost_usd_total": 0.043,
-    "cost_usd_average": 0.0023
+    "cost_usd_average": 0.0023,
+    "retrieved_chunk_count_average": 7.4,
+    "selected_chunk_count_average": 4.1,
+    "not_found_rate": 0.05,
+    "comparison": {
+      "baseline_label": "Baseline profile",
+      "baseline_score": 0.82,
+      "latest_label": "Candidate profile",
+      "latest_score": 0.78,
+      "score_delta": -0.04
+    },
+    "comparison_targets": [
+      {
+        "label": "Baseline profile",
+        "chunking_strategy": "token_recursive",
+        "profile_version": "cfg-baseline",
+        "overall_score": 0.82,
+        "chunk_count_total": 188,
+        "chunk_tokens_average": 166.0,
+        "regression_flags": []
+      },
+      {
+        "label": "Candidate profile",
+        "chunking_strategy": "heading_aware",
+        "profile_version": "cfg-candidate",
+        "overall_score": 0.78,
+        "chunk_count_total": 144,
+        "chunk_tokens_average": 203.0,
+        "regression_flags": [
+          {
+            "metric": "citation_accuracy_score",
+            "status": "failed",
+            "threshold": 0.8,
+            "value": 0.76
+          }
+        ]
+      }
+    ],
+    "best_by_document_type": {
+      "pdf": { "label": "Baseline profile", "score": 0.82 }
+    },
+    "best_by_use_case": {
+      "policy_qa": { "label": "Candidate profile", "score": 0.81 }
+    },
+    "regressions_count": 1,
+    "regression_failed": true
   },
   "failure_reason": null,
   "failure_type": null,

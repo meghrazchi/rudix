@@ -149,6 +149,32 @@ async def test_get_evaluation_run_completed_returns_summary_and_paginated_result
                 "token_output_count_total": 50,
                 "judge_question_count": 0,
                 "judge_error_count": 0,
+                "comparison_targets": [
+                    {
+                        "label": "Baseline profile",
+                        "chunking_strategy": "token_recursive",
+                        "profile_version": "cfg-baseline",
+                        "overall_score": 0.82,
+                    },
+                    {
+                        "label": "Candidate profile",
+                        "chunking_strategy": "paragraph_recursive",
+                        "profile_version": "cfg-candidate",
+                        "overall_score": 0.76,
+                        "regression_failed": True,
+                    },
+                ],
+                "comparison": {
+                    "baseline_label": "Baseline profile",
+                    "baseline_score": 0.82,
+                    "latest_label": "Candidate profile",
+                    "latest_score": 0.76,
+                    "score_delta": -0.06,
+                },
+                "best_by_document_type": {"pdf": {"label": "Baseline profile", "score": 0.82}},
+                "best_by_use_case": {"unlabeled": {"label": "Baseline profile", "score": 0.82}},
+                "regressions_count": 1,
+                "regression_failed": True,
             },
         },
     )
@@ -195,6 +221,8 @@ async def test_get_evaluation_run_completed_returns_summary_and_paginated_result
     assert payload["evaluation_set_id"] == str(evaluation_set.id)
     assert payload["status"] == EvaluationRunStatus.completed.value
     assert payload["summary"]["retrieval_hit_rate"] == 1.0
+    assert payload["summary"]["comparison_targets"][1]["label"] == "Candidate profile"
+    assert payload["summary"]["comparison"]["score_delta"] == -0.06
     assert payload["config"]["top_k"] == 5
     assert payload["results"]["total"] == 2
     assert payload["results"]["limit"] == 1

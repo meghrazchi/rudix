@@ -28,6 +28,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.application.evaluations import workflows as evaluation_workflows
 from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
@@ -157,6 +158,7 @@ async def test_run_evaluation_queues_run_and_persists_config(
     evaluations_run_client: AsyncClient,
     db_session: AsyncSession,
     fake_run_evaluation_task: FakeRunEvaluationTask,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     evaluation_repository = EvaluationRepository()
     user, org = await _seed_org_user(
@@ -172,6 +174,44 @@ async def test_run_evaluation_queues_run_and_persists_config(
     )
     await db_session.commit()
 
+    normalized_targets = [
+        {
+            "label": "Baseline profile",
+            "chunking_profile_id": "profile-a",
+            "chunking_profile_config": {"strategy": "token_recursive"},
+            "chunking_strategy": "token_recursive",
+            "profile_version": "cfg-baseline",
+            "profile_source": "organization_profile",
+        },
+        {
+            "label": "Candidate profile",
+            "chunking_profile_id": "profile-b",
+            "chunking_profile_config": {"strategy": "paragraph_recursive"},
+            "chunking_strategy": "paragraph_recursive",
+            "profile_version": "cfg-candidate",
+            "profile_source": "organization_profile",
+        },
+    ]
+
+    async def fake_resolve_profile_target_for_evaluation(
+        _db_session: AsyncSession,
+        *,
+        profile_id: str | None,
+        inline_config: dict[str, object] | None,
+        organization_id: UUID,
+        label: str | None = None,
+    ) -> dict[str, object]:
+        del _db_session, inline_config, organization_id, label
+        if profile_id == "profile-a":
+            return normalized_targets[0]
+        return normalized_targets[1]
+
+    monkeypatch.setattr(
+        evaluation_workflows._chunking_profile_service,
+        "resolve_profile_target_for_evaluation",
+        fake_resolve_profile_target_for_evaluation,
+    )
+
     token = create_app_access_token(
         subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
     )
@@ -183,9 +223,18 @@ async def test_run_evaluation_queues_run_and_persists_config(
             "config": {
                 "top_k": 7,
                 "rerank": False,
+                "run_name": "Chunking benchmark",
                 "model_name": "gpt-5.4-mini",
                 "selected_document_ids": [str(document.id)],
                 "metric_options": {"faithfulness": True},
+                "comparison_targets": [
+                    {"label": "Baseline profile", "chunking_profile_id": "profile-a"},
+                    {"label": "Candidate profile", "chunking_profile_id": "profile-b"},
+                ],
+                "regression_thresholds": {
+                    "retrieval_hit_rate_min": 0.7,
+                    "citation_accuracy_score_min": 0.8,
+                },
             },
         },
     )
@@ -207,11 +256,17 @@ async def test_run_evaluation_queues_run_and_persists_config(
     )
     assert created_run is not None
     assert created_run.status == EvaluationRunStatus.queued.value
+    assert created_run.config["run_name"] == "Chunking benchmark"
     assert created_run.config["top_k"] == 7
     assert created_run.config["rerank"] is False
     assert created_run.config["model_name"] == "gpt-5.4-mini"
     assert created_run.config["selected_document_ids"] == [str(document.id)]
     assert created_run.config["metric_options"] == {"faithfulness": True}
+    assert created_run.config["comparison_targets"] == normalized_targets
+    assert created_run.config["regression_thresholds"] == {
+        "retrieval_hit_rate_min": 0.7,
+        "citation_accuracy_score_min": 0.8,
+    }
     audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
     assert len(audit_logs) == 2
     actions = {row.action for row in audit_logs}

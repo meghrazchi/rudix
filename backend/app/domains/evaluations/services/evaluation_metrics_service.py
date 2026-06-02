@@ -35,12 +35,16 @@ class EvaluationJudgeScores:
 @dataclass(frozen=True)
 class EvaluationQuestionMetrics:
     retrieval_hit_rate: float | None
+    retrieval_mrr: float | None
     context_precision: float | None
     context_recall: float | None
     faithfulness_score: float | None
     answer_relevance_score: float | None
     citation_accuracy_score: float | None
     refusal_accuracy: float | None
+    not_found: bool
+    retrieved_chunk_count: int
+    selected_chunk_count: int
     latency_ms: int
     cost_usd: float
     token_input_count: int
@@ -221,6 +225,15 @@ class EvaluationMetricsService:
             )
             # Current schema carries one expected source reference.
             context_recall = 1.0 if relevant_retrieved_count > 0 else 0.0
+        retrieval_mrr: float | None = None
+        if has_expected_reference:
+            for rank, chunk in enumerate(retrieved_chunks, start=1):
+                if expected_document_id is not None and chunk.document_id != expected_document_id:
+                    continue
+                if expected_page_number is not None and chunk.page_number != expected_page_number:
+                    continue
+                retrieval_mrr = 1.0 / rank
+                break
 
         refusal_accuracy: float | None = None
         if normalized_expected_answer is None:
@@ -255,12 +268,16 @@ class EvaluationMetricsService:
 
         return EvaluationQuestionMetrics(
             retrieval_hit_rate=self._clamp_score(retrieval_hit_rate),
+            retrieval_mrr=self._clamp_score(retrieval_mrr),
             context_precision=self._clamp_score(context_precision),
             context_recall=self._clamp_score(context_recall),
             faithfulness_score=self._clamp_score(faithfulness_score),
             answer_relevance_score=self._clamp_score(answer_relevance_score),
             citation_accuracy_score=self._clamp_score(citation_accuracy_score),
             refusal_accuracy=self._clamp_score(refusal_accuracy),
+            not_found=bool(not_found),
+            retrieved_chunk_count=max(0, len(retrieved_chunks)),
+            selected_chunk_count=max(0, int(selected_chunk_count)),
             latency_ms=max(0, int(latency_ms)),
             cost_usd=float(cost_usd or 0.0),
             token_input_count=max(0, int(token_input_count)),
@@ -299,6 +316,7 @@ class EvaluationMetricsService:
             "question_success_count": int(success_count),
             "question_failure_count": int(failure_count),
             "retrieval_hit_rate": self._mean_or_none([item.retrieval_hit_rate for item in metrics]),
+            "retrieval_mrr": self._mean_or_none([item.retrieval_mrr for item in metrics]),
             "context_precision": self._mean_or_none([item.context_precision for item in metrics]),
             "context_recall": self._mean_or_none([item.context_recall for item in metrics]),
             "faithfulness_score": self._mean_or_none([item.faithfulness_score for item in metrics]),
@@ -315,6 +333,21 @@ class EvaluationMetricsService:
             "cost_usd_average": average_cost_usd,
             "token_input_count_total": total_input_tokens,
             "token_output_count_total": total_output_tokens,
+            "retrieved_chunk_count_average": (
+                round(sum(item.retrieved_chunk_count for item in metrics) / success_count, 2)
+                if success_count > 0
+                else None
+            ),
+            "selected_chunk_count_average": (
+                round(sum(item.selected_chunk_count for item in metrics) / success_count, 2)
+                if success_count > 0
+                else None
+            ),
+            "not_found_rate": (
+                round(sum(1 for item in metrics if item.not_found) / success_count, 4)
+                if success_count > 0
+                else None
+            ),
             "judge_question_count": sum(1 for item in metrics if item.judge_used),
             "judge_error_count": sum(1 for item in metrics if item.judge_error is not None),
         }

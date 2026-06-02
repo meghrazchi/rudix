@@ -42,9 +42,17 @@ from app.workers import evaluation_tasks
 
 
 class FakeQueryRetrievalService:
-    def __init__(self, outcomes: list[list[RetrievedCandidate] | Exception]) -> None:
+    def __init__(
+        self,
+        outcomes: list[list[RetrievedCandidate] | Exception] | None = None,
+        *,
+        outcomes_by_index_version: (
+            dict[str | None, list[RetrievedCandidate] | Exception] | None
+        ) = None,
+    ) -> None:
         self.embedding_model = settings.openai_embedding_model
-        self._outcomes = outcomes
+        self._outcomes = outcomes or []
+        self._outcomes_by_index_version = outcomes_by_index_version or {}
         self._retrieve_calls = 0
 
     async def embed_query(
@@ -63,9 +71,15 @@ class FakeQueryRetrievalService:
         organization_id: UUID,
         document_ids: list[UUID],
         initial_top_k: int,
+        index_version: str | None = None,
         qdrant_client: object | None = None,
     ) -> list[RetrievedCandidate]:
         del query_vector, organization_id, document_ids, initial_top_k, qdrant_client
+        if self._outcomes_by_index_version:
+            outcome = self._outcomes_by_index_version.get(index_version, [])
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
         if self._retrieve_calls >= len(self._outcomes):
             return []
         outcome = self._outcomes[self._retrieve_calls]
@@ -364,3 +378,120 @@ async def test_evaluation_worker_audit_helper_writes_log(
     assert audit_logs[0].resource_id == UUID(run_id)
     assert audit_logs[0].metadata_json["question_total_count"] == 1
     assert audit_logs[0].metadata_json["request_id"] == "req-eval-task-audit"
+
+
+@pytest.mark.asyncio
+async def test_evaluation_worker_stores_chunking_comparison_summary(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_id, _, document_id, chunk_id = await _seed_evaluation_run(
+        db_session,
+        question_texts=["Question success"],
+        selected_document_ids=[],
+    )
+
+    run_row = (
+        await db_session.execute(select(EvaluationRun).where(EvaluationRun.id == UUID(run_id)))
+    ).scalar_one()
+    run_row.config = {
+        **run_row.config,
+        "comparison_targets": [
+            {
+                "label": "Baseline profile",
+                "chunking_profile_id": "profile-a",
+                "chunking_profile_config": {"strategy": "token_recursive"},
+                "chunking_strategy": "token_recursive",
+                "profile_version": "cfg-baseline",
+                "profile_source": "organization_profile",
+            },
+            {
+                "label": "Candidate profile",
+                "chunking_profile_id": "profile-b",
+                "chunking_profile_config": {"strategy": "paragraph_recursive"},
+                "chunking_strategy": "paragraph_recursive",
+                "profile_version": "cfg-candidate",
+                "profile_source": "organization_profile",
+            },
+        ],
+        "regression_thresholds": {
+            "retrieval_hit_rate_min": 0.5,
+            "citation_accuracy_score_min": 0.5,
+        },
+    }
+    await db_session.commit()
+
+    session_factory = async_sessionmaker(
+        bind=db_session.bind, class_=AsyncSession, expire_on_commit=False
+    )
+    monkeypatch.setattr(evaluation_tasks, "SessionLocal", session_factory)
+    monkeypatch.setattr(evaluation_tasks, "LLMService", FakeLLMService)
+
+    async def fake_prepare_chunking_target_corpus_async(
+        *,
+        evaluation_run_id: UUID,
+        target_index: int,
+        target: evaluation_tasks.ChunkingComparisonTarget,
+        document_ids: list[UUID],
+        request_id: str | None,
+        organization_id: str | None,
+        user_id: str | None,
+    ) -> tuple[str, evaluation_tasks.ChunkingCorpusStats]:
+        del evaluation_run_id, target, document_ids, request_id, organization_id, user_id
+        return (
+            f"eval-target-{target_index + 1}",
+            evaluation_tasks.ChunkingCorpusStats(
+                chunk_count_total=4 + target_index,
+                chunk_tokens_average=120.0 + target_index,
+                chunk_tokens_variance=12.5 + target_index,
+                chunk_tokens_min=80,
+                chunk_tokens_max=180,
+                document_type_breakdown={"pdf": 1},
+                language_breakdown={"en": 1},
+                ocr_breakdown={"native_text": 1},
+            ),
+        )
+
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_prepare_chunking_target_corpus_async",
+        fake_prepare_chunking_target_corpus_async,
+    )
+    monkeypatch.setattr(
+        evaluation_tasks,
+        "_query_retrieval_service",
+        FakeQueryRetrievalService(
+            outcomes_by_index_version={
+                "eval-target-1": [
+                    RetrievedCandidate(
+                        document_id=document_id,
+                        chunk_id=chunk_id,
+                        filename="policy.pdf",
+                        page_number=1,
+                        text="Employees receive twenty days of annual leave.",
+                        similarity_score=0.93,
+                    )
+                ],
+                "eval-target-2": [],
+            },
+        ),
+    )
+
+    result = await evaluation_tasks._run_evaluation_async(run_id)
+    assert result["question_total_count"] == 1
+    assert result["question_success_count"] == 1
+    assert result["question_failure_count"] == 0
+
+    refreshed_run = (
+        await db_session.execute(select(EvaluationRun).where(EvaluationRun.id == UUID(run_id)))
+    ).scalar_one()
+    await db_session.refresh(refreshed_run)
+    summary = refreshed_run.config["metrics_summary"]
+    assert summary["comparison"]["baseline_label"] == "Baseline profile"
+    assert summary["comparison"]["latest_label"] == "Candidate profile"
+    assert len(summary["comparison_targets"]) == 2
+    assert summary["comparison_targets"][0]["chunk_count_total"] == 4
+    assert summary["comparison_targets"][1]["regression_failed"] is True
+    assert summary["best_by_document_type"]["pdf"]["label"] == "Baseline profile"
+    assert summary["best_by_use_case"]["unlabeled"]["label"] == "Baseline profile"
+    assert summary["regression_failed"] is True

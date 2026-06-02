@@ -304,6 +304,7 @@ Run evaluations:
 ```text
 On every major prompt change
 On every retrieval setting change
+On every chunking profile or chunking strategy change
 On every embedding model change
 Nightly on a fixed test set
 Before production deployment
@@ -316,6 +317,7 @@ Do not deploy if:
 - Retrieval hit rate drops more than 5%.
 - Citation accuracy drops more than 5%.
 - Faithfulness drops below threshold.
+- A chunking comparison target fails a configured regression threshold for retrieval, citation accuracy, faithfulness, or not-found rate.
 - Average latency doubles.
 - Cost per answer increases unexpectedly.
 

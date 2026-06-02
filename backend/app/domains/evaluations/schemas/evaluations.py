@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.domains.admin.schemas.chunking_profiles import ChunkingProfileConfigInput
 
 
 class CreateEvaluationSetRequest(BaseModel):
@@ -102,12 +104,65 @@ class EvaluationQuestionListResponse(BaseModel):
     offset: int
 
 
+class EvaluationChunkingComparisonTargetInput(BaseModel):
+    label: str | None = Field(default=None, min_length=1, max_length=120)
+    chunking_profile_id: str | None = None
+    chunking_profile_config: ChunkingProfileConfigInput | None = None
+
+    @field_validator("label")
+    @classmethod
+    def validate_label(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("label must not be blank")
+        return trimmed
+
+    @model_validator(mode="after")
+    def validate_target(self) -> "EvaluationChunkingComparisonTargetInput":
+        if self.chunking_profile_id is not None and self.chunking_profile_config is not None:
+            raise ValueError(
+                "Provide either chunking_profile_id or chunking_profile_config, not both"
+            )
+        if self.chunking_profile_id is None and self.chunking_profile_config is None:
+            raise ValueError(
+                "comparison target requires chunking_profile_id or chunking_profile_config"
+            )
+        return self
+
+
+class EvaluationRegressionThresholds(BaseModel):
+    retrieval_hit_rate_min: float | None = Field(default=None, ge=0.0, le=1.0)
+    citation_accuracy_score_min: float | None = Field(default=None, ge=0.0, le=1.0)
+    faithfulness_score_min: float | None = Field(default=None, ge=0.0, le=1.0)
+    max_not_found_rate: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
 class EvaluationRunConfig(BaseModel):
+    run_name: str | None = Field(default=None, min_length=1, max_length=120)
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool = True
     model_name: str | None = Field(default=None, min_length=3, max_length=128)
     selected_document_ids: list[str] = Field(default_factory=list, max_length=50)
     metric_options: dict[str, bool | int | float | str] = Field(default_factory=dict)
+    chunking_profile_id: str | None = None
+    chunking_profile_config: ChunkingProfileConfigInput | None = None
+    comparison_targets: list[EvaluationChunkingComparisonTargetInput] = Field(
+        default_factory=list,
+        max_length=6,
+    )
+    regression_thresholds: EvaluationRegressionThresholds | None = None
+
+    @field_validator("run_name")
+    @classmethod
+    def validate_run_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("run_name must not be blank")
+        return trimmed
 
     @field_validator("model_name")
     @classmethod
@@ -129,6 +184,23 @@ class EvaluationRunConfig(BaseModel):
                 raise ValueError("selected_document_ids must not contain blank values")
             normalized_ids.append(trimmed)
         return normalized_ids
+
+    @model_validator(mode="after")
+    def validate_chunking_configuration(self) -> "EvaluationRunConfig":
+        has_single_target = (
+            self.chunking_profile_id is not None or self.chunking_profile_config is not None
+        )
+        if self.chunking_profile_id is not None and self.chunking_profile_config is not None:
+            raise ValueError(
+                "Provide either chunking_profile_id or chunking_profile_config, not both"
+            )
+        if has_single_target and self.comparison_targets:
+            raise ValueError(
+                "Provide either a single chunking profile override or comparison_targets, not both"
+            )
+        if self.comparison_targets and len(self.comparison_targets) < 2:
+            raise ValueError("comparison_targets must include at least two profiles")
+        return self
 
 
 class RunEvaluationRequest(BaseModel):
@@ -195,3 +267,7 @@ class EvaluationRunDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     results: EvaluationRunResultListResponse
+
+
+EvaluationRunConfig.model_rebuild()
+RunEvaluationRequest.model_rebuild()

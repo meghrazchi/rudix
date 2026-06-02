@@ -53,19 +53,30 @@ _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService(strategy=settings.chunking_strategy)
 
 
-def _make_chunking_service(profile_config: dict | None = None) -> ChunkingService:
+def _make_chunking_service(
+    profile_config: dict | None = None,
+    *,
+    index_version: str | None = None,
+) -> ChunkingService:
     """Return a ChunkingService for the given inline profile config, or the system default.
 
     Accepted profile_config keys: strategy, chunk_size_tokens, chunk_overlap_tokens.
     Unknown keys are ignored.  Raises ValueError for invalid combinations
     (e.g. overlap >= size); callers should convert this to PermanentTaskError.
     """
-    if not profile_config:
+    if not profile_config and index_version is None:
         return _chunking_service
     return ChunkingService(
-        strategy=profile_config.get("strategy"),
-        chunk_size_tokens=profile_config.get("chunk_size_tokens"),
-        chunk_overlap_tokens=profile_config.get("chunk_overlap_tokens"),
+        strategy=profile_config.get("strategy") if profile_config else settings.chunking_strategy,
+        chunk_size_tokens=(
+            profile_config.get("chunk_size_tokens") if profile_config else settings.chunk_size_tokens
+        ),
+        chunk_overlap_tokens=(
+            profile_config.get("chunk_overlap_tokens")
+            if profile_config
+            else settings.chunk_overlap_tokens
+        ),
+        index_version=index_version,
     )
 
 
@@ -451,6 +462,9 @@ async def _extract_and_store_document_pages_async(
     pipeline_type: str = "document.process",
     chunking_service: ChunkingService | None = None,
     profile_source: str = "system_default",
+    persist_document_state: bool = True,
+    persist_document_pages: bool = True,
+    record_usage_event: bool = True,
 ) -> tuple[int, int, TextCleaningStats, EmbeddingResult]:
     try:
         parsed_document_id = _parse_uuid(document_id)
@@ -476,6 +490,8 @@ async def _extract_and_store_document_pages_async(
 
         resolved_organization_id = organization_id or str(document.organization_id)
         resolved_user_id = user_id or str(document.uploaded_by_user_id)
+        svc = chunking_service if chunking_service is not None else _chunking_service
+        effective_index_version = svc.index_version
         pipeline_recorder = await PipelineRunRecorder.create(
             document_id=document_id,
             organization_id=resolved_organization_id,
@@ -490,13 +506,12 @@ async def _extract_and_store_document_pages_async(
                 "file_type": document.file_type,
             },
             config={
-                "index_version": settings.document_index_version,
+                "index_version": effective_index_version,
                 "embedding_model": settings.openai_embedding_model,
                 "qdrant_collection": settings.qdrant_collection,
             },
         )
 
-        svc = chunking_service if chunking_service is not None else _chunking_service
         current_stage = "extract"
         cleaned_sections = []
         chunks = []
@@ -693,18 +708,18 @@ async def _extract_and_store_document_pages_async(
                 user_id=resolved_user_id,
                 stage="index_cleanup",
                 stage_status="started",
-                index_version=settings.document_index_version,
+                index_version=effective_index_version,
             )
             await pipeline_recorder.emit_stage(
                 stage="index_cleanup",
                 stage_status="started",
-                config={"index_version": settings.document_index_version},
+                config={"index_version": effective_index_version},
             )
             try:
                 await _qdrant_service.delete_document_points(
                     organization_id=document.organization_id,
                     document_id=document.id,
-                    index_version=settings.document_index_version,
+                    index_version=effective_index_version,
                 )
             except ValueError as exc:
                 raise DocumentPipelinePermanentError(
@@ -728,12 +743,12 @@ async def _extract_and_store_document_pages_async(
                 user_id=resolved_user_id,
                 stage="index_cleanup",
                 stage_status="completed",
-                index_version=settings.document_index_version,
+                index_version=effective_index_version,
             )
             await pipeline_recorder.emit_stage(
                 stage="index_cleanup",
                 stage_status="completed",
-                outputs={"index_version": settings.document_index_version},
+                outputs={"index_version": effective_index_version},
             )
 
             try:
@@ -751,22 +766,23 @@ async def _extract_and_store_document_pages_async(
                     stage="chunk",
                     stage_status="started",
                     config={
-                        "chunk_size_tokens": settings.chunk_size_tokens,
-                        "chunk_overlap_tokens": settings.chunk_overlap_tokens,
-                        "index_version": settings.document_index_version,
+                        "chunk_size_tokens": svc.chunk_size_tokens,
+                        "chunk_overlap_tokens": svc.chunk_overlap_tokens,
+                        "index_version": effective_index_version,
                     },
                 )
-                await _document_repository.delete_document_pages(
-                    session, document_id=parsed_document_id
-                )
-                for section in cleaned_sections:
-                    await _document_repository.create_document_page(
-                        session,
-                        document_id=parsed_document_id,
-                        page_number=section.page_number,
-                        text=section.text,
-                        char_count=section.char_count,
+                if persist_document_pages:
+                    await _document_repository.delete_document_pages(
+                        session, document_id=parsed_document_id
                     )
+                    for section in cleaned_sections:
+                        await _document_repository.create_document_page(
+                            session,
+                            document_id=parsed_document_id,
+                            page_number=section.page_number,
+                            text=section.text,
+                            char_count=section.char_count,
+                        )
                 log_document_event(
                     event="document.chunking.started",
                     document_id=str(document.id),
@@ -829,7 +845,7 @@ async def _extract_and_store_document_pages_async(
                 await _document_repository.delete_document_chunks(
                     session,
                     document_id=parsed_document_id,
-                    index_version=settings.document_index_version,
+                    index_version=effective_index_version,
                 )
 
                 # Detect hierarchical mode: any child chunk (level=1) in the result.
@@ -1042,27 +1058,28 @@ async def _extract_and_store_document_pages_async(
                     },
                 )
 
-                await _usage_repository.create_usage_event(
-                    session,
-                    organization_id=document.organization_id,
-                    user_id=document.uploaded_by_user_id,
-                    event_type="document.embedding",
-                    model_name=embedding_result.model_name,
-                    input_tokens=embedding_result.input_tokens,
-                    output_tokens=None,
-                    cost_usd=embedding_result.approximate_cost_usd,
-                    metadata={
-                        "document_id": str(document.id),
-                        "chunk_count": len(created_chunks),
-                        "batch_count": embedding_result.batch_count,
-                        "retry_count": embedding_result.retry_count,
-                        "index_version": embedding_result.index_version,
-                        "latency_ms": embedding_result.latency_ms,
-                        "total_tokens": embedding_result.total_tokens,
-                        "qdrant_upserted_count": qdrant_result.upserted_count,
-                        "qdrant_batch_count": qdrant_result.batch_count,
-                    },
-                )
+                if record_usage_event:
+                    await _usage_repository.create_usage_event(
+                        session,
+                        organization_id=document.organization_id,
+                        user_id=document.uploaded_by_user_id,
+                        event_type="document.embedding",
+                        model_name=embedding_result.model_name,
+                        input_tokens=embedding_result.input_tokens,
+                        output_tokens=None,
+                        cost_usd=embedding_result.approximate_cost_usd,
+                        metadata={
+                            "document_id": str(document.id),
+                            "chunk_count": len(created_chunks),
+                            "batch_count": embedding_result.batch_count,
+                            "retry_count": embedding_result.retry_count,
+                            "index_version": embedding_result.index_version,
+                            "latency_ms": embedding_result.latency_ms,
+                            "total_tokens": embedding_result.total_tokens,
+                            "qdrant_upserted_count": qdrant_result.upserted_count,
+                            "qdrant_batch_count": qdrant_result.batch_count,
+                        },
+                    )
                 current_stage = "status"
                 _total_chunk_tokens = sum(c.token_count for c in chunks)
                 _chunking_config_snapshot: dict = {
@@ -1096,23 +1113,26 @@ async def _extract_and_store_document_pages_async(
                             "heading_density": sig.heading_density,
                             "total_token_count": sig.total_token_count,
                         }
-                updated = await _document_repository.update_document_status(
-                    session,
-                    document_id=parsed_document_id,
-                    status=DocumentStatus.indexed.value,
-                    error_message=None,
-                    page_count=len(cleaned_sections),
-                    chunk_count=len(chunks),
-                    chunking_strategy=_strategy_name,
-                    chunking_profile_version=_strategy_version,
-                    chunking_config_snapshot=_chunking_config_snapshot,
-                )
+                if persist_document_state:
+                    updated = await _document_repository.update_document_status(
+                        session,
+                        document_id=parsed_document_id,
+                        status=DocumentStatus.indexed.value,
+                        error_message=None,
+                        page_count=len(cleaned_sections),
+                        chunk_count=len(chunks),
+                        chunking_strategy=_strategy_name,
+                        chunking_profile_version=_strategy_version,
+                        chunking_config_snapshot=_chunking_config_snapshot,
+                    )
+                else:
+                    updated = object()
                 await session.commit()
             except Exception:
                 await session.rollback()
                 raise
 
-            if updated is None:
+            if persist_document_state and updated is None:
                 raise DocumentPipelineTransientError(
                     stage="status",
                     code="STATUS_INDEXED_UPDATE_FAILED",
@@ -1130,10 +1150,12 @@ async def _extract_and_store_document_pages_async(
             await pipeline_recorder.finalize_run(
                 status="completed",
                 outputs={
-                    "document_status": DocumentStatus.indexed.value,
+                    "document_status": (
+                        DocumentStatus.indexed.value if persist_document_state else "evaluation_indexed"
+                    ),
                     "page_count": len(cleaned_sections),
                     "chunk_count": len(chunks),
-                    "index_version": settings.document_index_version,
+                    "index_version": effective_index_version,
                 },
             )
             return len(cleaned_sections), len(chunks), cleaning_stats, embedding_result

@@ -59,6 +59,7 @@ import {
   listEvaluationSets,
   runEvaluation,
 } from "@/lib/api/evaluations";
+import { listChunkingProfiles } from "@/lib/api/chunking-profiles";
 import { listDocuments } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
@@ -123,6 +124,78 @@ function parseMetricOptionsJson(
   }
 
   return output;
+}
+
+type RegressionThresholdDraft = {
+  retrievalHitRateMin: string;
+  citationAccuracyScoreMin: string;
+  faithfulnessScoreMin: string;
+  maxNotFoundRate: string;
+};
+
+function regressionThresholdDefaults(): RegressionThresholdDraft {
+  return {
+    retrievalHitRateMin: "",
+    citationAccuracyScoreMin: "",
+    faithfulnessScoreMin: "",
+    maxNotFoundRate: "",
+  };
+}
+
+function parseRegressionThresholdValue(
+  label: string,
+  value: string,
+): number | null {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    throw new Error(`${label} must be a number between 0 and 1.`);
+  }
+  return parsed;
+}
+
+function parseRegressionThresholds(value: RegressionThresholdDraft):
+  | {
+      retrieval_hit_rate_min?: number;
+      citation_accuracy_score_min?: number;
+      faithfulness_score_min?: number;
+      max_not_found_rate?: number;
+    }
+  | undefined {
+  const retrievalHitRateMin = parseRegressionThresholdValue(
+    "Retrieval hit rate threshold",
+    value.retrievalHitRateMin,
+  );
+  const citationAccuracyScoreMin = parseRegressionThresholdValue(
+    "Citation accuracy threshold",
+    value.citationAccuracyScoreMin,
+  );
+  const faithfulnessScoreMin = parseRegressionThresholdValue(
+    "Faithfulness threshold",
+    value.faithfulnessScoreMin,
+  );
+  const maxNotFoundRate = parseRegressionThresholdValue(
+    "Not-found rate threshold",
+    value.maxNotFoundRate,
+  );
+
+  const payload = {
+    ...(retrievalHitRateMin != null
+      ? { retrieval_hit_rate_min: retrievalHitRateMin }
+      : {}),
+    ...(citationAccuracyScoreMin != null
+      ? { citation_accuracy_score_min: citationAccuracyScoreMin }
+      : {}),
+    ...(faithfulnessScoreMin != null
+      ? { faithfulness_score_min: faithfulnessScoreMin }
+      : {}),
+    ...(maxNotFoundRate != null ? { max_not_found_rate: maxNotFoundRate } : {}),
+  };
+
+  return Object.keys(payload).length > 0 ? payload : undefined;
 }
 
 function normalizePage(value: string): number | null {
@@ -340,6 +413,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [runModelName, setRunModelName] = useState("");
   const [runMetricOptions, setRunMetricOptions] = useState("");
   const [runDocumentIds, setRunDocumentIds] = useState<string[]>([]);
+  const [runChunkingProfileIds, setRunChunkingProfileIds] = useState<string[]>(
+    [],
+  );
+  const [runRegressionThresholds, setRunRegressionThresholds] =
+    useState<RegressionThresholdDraft>(regressionThresholdDefaults);
   const [runError, setRunError] = useState<string | null>(null);
 
   useOverlayFocus({
@@ -445,6 +523,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       }),
   });
 
+  const chunkingProfilesQuery = useQuery({
+    queryKey: queryKeys.admin.chunkingProfiles,
+    queryFn: listChunkingProfiles,
+    enabled: canRun,
+  });
+
   const runDetailQuery = useQuery({
     queryKey: queryKeys.evaluations.run(activeRunId ?? "", {
       limit: EVALUATION_RESULTS_PAGE_SIZE,
@@ -534,8 +618,19 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
       }
 
       const metricOptions = parseMetricOptionsJson(runMetricOptions);
+      const regressionThresholds = parseRegressionThresholds(
+        runRegressionThresholds,
+      );
       const modelName = runModelName.trim() || null;
       const topK = Math.max(MIN_TOP_K, Math.min(MAX_TOP_K, runTopK));
+      const selectedChunkingProfileIds = Array.from(
+        new Set(runChunkingProfileIds),
+      );
+      if (selectedChunkingProfileIds.length > 6) {
+        throw new Error(
+          "Choose at most 6 chunking profiles per evaluation run.",
+        );
+      }
 
       return runEvaluation({
         evaluation_set_id: selectedSetId,
@@ -545,6 +640,17 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           model_name: modelName,
           selected_document_ids: runDocumentIds,
           metric_options: metricOptions,
+          chunking_profile_id:
+            selectedChunkingProfileIds.length === 1
+              ? selectedChunkingProfileIds[0]
+              : undefined,
+          comparison_targets:
+            selectedChunkingProfileIds.length > 1
+              ? selectedChunkingProfileIds.map((profileId) => ({
+                  chunking_profile_id: profileId,
+                }))
+              : undefined,
+          regression_thresholds: regressionThresholds,
         },
       });
     },
@@ -1243,6 +1349,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         modelName={runModelName}
         metricOptions={runMetricOptions}
         selectedDocumentIds={runDocumentIds}
+        chunkingProfiles={chunkingProfilesQuery.data?.profiles ?? []}
+        isChunkingProfilesLoading={chunkingProfilesQuery.isLoading}
+        chunkingProfilesError={chunkingProfilesQuery.error}
+        selectedChunkingProfileIds={runChunkingProfileIds}
+        regressionThresholds={runRegressionThresholds}
         indexedDocuments={indexedDocuments}
         isDocumentsLoading={documentsQuery.isLoading}
         documentsError={documentsQuery.error}
@@ -1266,6 +1377,19 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               ? previous.filter((value) => value !== documentId)
               : [...previous, documentId],
           );
+        }}
+        onToggleChunkingProfile={(profileId) => {
+          setRunChunkingProfileIds((previous) =>
+            previous.includes(profileId)
+              ? previous.filter((value) => value !== profileId)
+              : [...previous, profileId],
+          );
+        }}
+        onRegressionThresholdChange={(key, value) => {
+          setRunRegressionThresholds((previous) => ({
+            ...previous,
+            [key]: value,
+          }));
         }}
       />
     </section>

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import Link from "next/link";
 
+import { ChunkingComparisonPanel } from "@/components/evaluations/chunking-comparison-panel";
 import { EmptyState } from "@/components/states/EmptyState";
 import type { EvaluationRunDetailResponse } from "@/lib/api/evaluations";
 import type {
@@ -407,6 +408,7 @@ export function EvaluationRunDetailSection({
       ) : null}
 
       <ComparisonCard comparison={comparison} />
+      <ChunkingComparisonPanel summaryValue={run.summary} />
     </section>
   );
 }

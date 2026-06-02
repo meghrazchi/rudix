@@ -3,6 +3,7 @@ import type { FormEvent, RefObject } from "react";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
+import type { ChunkingProfile } from "@/lib/schemas/chunking-profiles";
 import type { DocumentListResponse } from "@/lib/api/documents";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
@@ -137,6 +138,16 @@ type StartRunDialogProps = {
   modelName: string;
   metricOptions: string;
   selectedDocumentIds: string[];
+  chunkingProfiles: ChunkingProfile[];
+  isChunkingProfilesLoading: boolean;
+  chunkingProfilesError: unknown;
+  selectedChunkingProfileIds: string[];
+  regressionThresholds: {
+    retrievalHitRateMin: string;
+    citationAccuracyScoreMin: string;
+    faithfulnessScoreMin: string;
+    maxNotFoundRate: string;
+  };
   indexedDocuments: DocumentListResponse["items"];
   isDocumentsLoading: boolean;
   documentsError: unknown;
@@ -148,6 +159,15 @@ type StartRunDialogProps = {
   onModelNameChange: (next: string) => void;
   onMetricOptionsChange: (next: string) => void;
   onToggleDocument: (documentId: string) => void;
+  onToggleChunkingProfile: (profileId: string) => void;
+  onRegressionThresholdChange: (
+    key:
+      | "retrievalHitRateMin"
+      | "citationAccuracyScoreMin"
+      | "faithfulnessScoreMin"
+      | "maxNotFoundRate",
+    value: string,
+  ) => void;
 };
 
 export function StartEvaluationRunDialog({
@@ -160,6 +180,11 @@ export function StartEvaluationRunDialog({
   modelName,
   metricOptions,
   selectedDocumentIds,
+  chunkingProfiles,
+  isChunkingProfilesLoading,
+  chunkingProfilesError,
+  selectedChunkingProfileIds,
+  regressionThresholds,
   indexedDocuments,
   isDocumentsLoading,
   documentsError,
@@ -171,6 +196,8 @@ export function StartEvaluationRunDialog({
   onModelNameChange,
   onMetricOptionsChange,
   onToggleDocument,
+  onToggleChunkingProfile,
+  onRegressionThresholdChange,
 }: StartRunDialogProps) {
   if (!isOpen) {
     return null;
@@ -314,6 +341,150 @@ export function StartEvaluationRunDialog({
                 ))}
               </ul>
             )}
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                Chunking profiles
+              </p>
+              <p className="mt-1 text-xs text-[#6d6983]">
+                Leave all profiles unselected to evaluate the current live
+                index. Select one profile to pin the run. Select multiple
+                profiles to compare strategies on the same dataset.
+              </p>
+            </div>
+
+            {isChunkingProfilesLoading ? (
+              <LoadingState compact title="Loading chunking profiles..." />
+            ) : chunkingProfilesError ? (
+              <ErrorState
+                compact
+                error={chunkingProfilesError}
+                description={getApiErrorMessage(chunkingProfilesError)}
+              />
+            ) : chunkingProfiles.length === 0 ? (
+              <EmptyState
+                compact
+                title="No saved chunking profiles."
+                description="The run will use the current indexed corpus unless you create profiles first."
+              />
+            ) : (
+              <ul className="max-h-40 space-y-1 overflow-auto rounded-lg border border-[#e6e2f2] bg-white p-2">
+                {chunkingProfiles.map((profile) => (
+                  <li key={profile.profile_id}>
+                    <label className="flex items-start gap-2 text-xs text-[#35314f]">
+                      <input
+                        type="checkbox"
+                        checked={selectedChunkingProfileIds.includes(
+                          profile.profile_id,
+                        )}
+                        onChange={() =>
+                          onToggleChunkingProfile(profile.profile_id)
+                        }
+                      />
+                      <span>
+                        <span className="font-semibold">{profile.name}</span>
+                        <span className="ml-1 text-[#6d6983]">
+                          ({profile.config.strategy})
+                        </span>
+                        {profile.is_default ? (
+                          <span className="ml-1 rounded-full border border-[#d7d2e8] bg-[#f4f1ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#4d3fd1]">
+                            Default
+                          </span>
+                        ) : null}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                Regression thresholds
+              </p>
+              <p className="mt-1 text-xs text-[#6d6983]">
+                Optional release gates. Any configured threshold can flag a
+                comparison target as regressed.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                  Min retrieval hit rate
+                </span>
+                <input
+                  value={regressionThresholds.retrievalHitRateMin}
+                  onChange={(event) =>
+                    onRegressionThresholdChange(
+                      "retrievalHitRateMin",
+                      event.target.value,
+                    )
+                  }
+                  placeholder="0.70"
+                  inputMode="decimal"
+                  className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                  Min citation accuracy
+                </span>
+                <input
+                  value={regressionThresholds.citationAccuracyScoreMin}
+                  onChange={(event) =>
+                    onRegressionThresholdChange(
+                      "citationAccuracyScoreMin",
+                      event.target.value,
+                    )
+                  }
+                  placeholder="0.80"
+                  inputMode="decimal"
+                  className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                  Min faithfulness
+                </span>
+                <input
+                  value={regressionThresholds.faithfulnessScoreMin}
+                  onChange={(event) =>
+                    onRegressionThresholdChange(
+                      "faithfulnessScoreMin",
+                      event.target.value,
+                    )
+                  }
+                  placeholder="0.80"
+                  inputMode="decimal"
+                  className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                  Max not-found rate
+                </span>
+                <input
+                  value={regressionThresholds.maxNotFoundRate}
+                  onChange={(event) =>
+                    onRegressionThresholdChange(
+                      "maxNotFoundRate",
+                      event.target.value,
+                    )
+                  }
+                  placeholder="0.20"
+                  inputMode="decimal"
+                  className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
+                />
+              </label>
+            </div>
           </div>
 
           {error ? <p className="text-xs text-rose-700">{error}</p> : null}
