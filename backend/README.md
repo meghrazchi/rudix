@@ -67,7 +67,8 @@ make seed-dev
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
-- Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`).
+- Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
+- `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
 - Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
 - Production profile requires `SENTRY_DSN`.
 - Sentry runtime settings are environment-driven (`SENTRY_*`), including optional per-env sampling controls.
@@ -502,6 +503,8 @@ Notes:
 - Worker extraction currently supports PDF (page-by-page via PyMuPDF), TXT (UTF-8 with fallback), and DOCX (paragraphs + tables).
 - Worker normalization removes null/control characters, normalizes whitespace/blank lines, and records `cleaning_*` stats in processing logs.
 - Worker chunking stores `document_chunks` with deterministic `chunk_index`, `token_count`, `embedding_model`, and `index_version`; current-version chunks are replaced idempotently on reprocessing.
+- Chunking strategy is configurable per deployment via `CHUNKING_STRATEGY`. The `adaptive_hybrid` strategy automatically selects `page_aware` (OCR/multi-page PDFs), `heading_aware` (DOCX/Markdown/structured text), `paragraph_recursive` (short articles), or `token_recursive` (fallback) based on document signals. The selected strategy and reason codes are stored in `documents.chunking_config_snapshot` for debugging.
+- Admins can force a specific strategy for all documents by setting `CHUNKING_STRATEGY=<name>`, or for individual documents by passing `force_strategy` in `strategy_options` when using `adaptive_hybrid`.
 - Worker embedding generation batches chunk texts, retries transient provider failures with backoff, validates vector dimension, and records `document.embedding` usage events with token/cost metadata.
 - Worker qdrant indexing upserts chunk vectors in batches with deterministic point IDs (`{document_id}:{index_version}:{chunk_index}`).
 - Qdrant payloads include security and citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.

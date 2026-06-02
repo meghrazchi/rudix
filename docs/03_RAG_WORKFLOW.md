@@ -116,19 +116,56 @@ flowchart LR
 - Store section or paragraph index.
 - If page numbers are unavailable, cite section or paragraph.
 
-## Chunking strategy
+## Chunking strategies
 
-Start with recursive chunking.
+The chunking layer uses a registry-based strategy pattern.  Each strategy is
+chosen based on document type and structure; all share the same token-size and
+overlap settings.
 
-Recommended default:
+| Strategy | When used | Key behaviour |
+|---|---|---|
+| `token_recursive` | Default fallback | Sliding-window token chunking with page-separator tokens |
+| `token_fixed` | Benchmarking | Fixed-size windows, no inter-page separators |
+| `paragraph_recursive` | Short articles, FAQs | Paragraph-aligned boundaries |
+| `sentence_window` | Conversational text | Sentence-level grouping with overlap |
+| `page_aware` | PDFs, OCR documents | Never merges across page boundaries; preserves page provenance for citations |
+| `heading_aware` | DOCX, Markdown, structured text | Flushes at heading boundaries; treats tables/code/lists as atomic blocks; records `section_path` |
+| `adaptive_hybrid` | Recommended production default | Selects the best strategy automatically (see below) |
+
+### Adaptive hybrid selection
+
+When `CHUNKING_STRATEGY=adaptive_hybrid`, the pipeline derives heuristic signals
+from each document and picks a concrete strategy deterministically:
 
 ```text
-chunk_size_tokens = 700
-chunk_overlap_tokens = 120
-min_chunk_tokens = 80
+Priority  Condition                                    Strategy selected
+1         force_strategy set in config                 <forced value>
+2         PDF + OCR was applied                        page_aware
+3         PDF + page_count > 1                         page_aware
+4         PDF + heading density ≥ 0.5/page             heading_aware
+5         file_type = docx or md                       heading_aware
+6         heading density ≥ 0.5/page (any type)        heading_aware
+7         total_token_count < 500                      paragraph_recursive
+8         (fallback)                                   token_recursive
 ```
 
-Chunk metadata:
+Reason codes (e.g. `pdf_ocr_applied`, `docx_md_structured`, `short_document`,
+`fallback_low_confidence`) are stored in `documents.chunking_config_snapshot`
+alongside the heuristic signals, so operators can diagnose selection decisions
+without accessing raw document text.
+
+Admins can force a specific strategy for individual documents by setting
+`force_strategy` in `strategy_options`; this is recorded as reason code
+`force_override`.
+
+### Default chunk sizes
+
+```text
+CHUNK_SIZE_TOKENS    = 700
+CHUNK_OVERLAP_TOKENS = 120
+```
+
+### Chunk metadata stored per chunk
 
 ```json
 {
@@ -137,20 +174,11 @@ Chunk metadata:
   "page_number": 4,
   "chunk_index": 12,
   "token_count": 690,
-  "text": "..."
+  "section_path": "Policy > Leave > Annual Leave",
+  "block_type": "paragraph",
+  "chunk_hash": "<sha256>"
 }
 ```
-
-## Semantic chunking
-
-Add semantic chunking later.
-
-Use semantic chunking when documents have clear topic shifts, such as:
-
-- Legal documents.
-- Research papers.
-- Policy manuals.
-- Technical documentation.
 
 ## Embedding strategy
 

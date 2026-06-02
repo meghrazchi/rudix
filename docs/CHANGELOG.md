@@ -9,6 +9,14 @@ All notable changes to this documentation set are recorded here.
 - `docs/DOCUMENT_TEMPLATE.md` for standardized technical documents.
 - `docs/DOCUMENT_REVIEW_CHECKLIST.md` for document quality gating.
 
+## [2026-06-02] — F210 Adaptive hybrid chunking
+
+### Added
+
+- `docs/03_RAG_WORKFLOW.md`: replaced stale "Start with recursive chunking" section with a full strategy reference table, adaptive hybrid selection priority table, reason code description, and updated chunk metadata schema.
+- `docs/08_SERVICE_IMPLEMENTATION_GUIDE.md`: replaced single-function chunking snippet with strategy registry reference, adaptive hybrid description, `CHUNKING_STRATEGY` env var, and updated production requirements.
+- `backend/README.md`: documented `CHUNKING_STRATEGY` env var and adaptive selection behaviour in configuration notes and document processing notes.
+
 ### Changed
 
 - Expanded `docs/DOCUMENTATION_STANDARDS.md` into a formal standard.

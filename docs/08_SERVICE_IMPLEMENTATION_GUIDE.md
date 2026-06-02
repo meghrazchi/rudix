@@ -85,6 +85,10 @@ REDIS_URL=redis://redis:6379/0
 
 OPENAI_API_KEY=
 OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+
+CHUNK_SIZE_TOKENS=700
+CHUNK_OVERLAP_TOKENS=120
+CHUNKING_STRATEGY=token_recursive   # set to adaptive_hybrid for auto-selection
 OPENAI_LLM_MODEL=gpt-5.4-mini
 LLM_RETRY_MAX_ATTEMPTS=2
 LLM_RETRY_BASE_SECONDS=0.4
@@ -205,31 +209,50 @@ def clean_text(text: str) -> str:
 
 ## Chunking service
 
-Start with recursive word/token chunking.
+The chunking layer is a registry-based strategy system located at
+`app/domains/documents/chunking/`.
 
-```python
-def chunk_text(text: str, chunk_size: int = 700, overlap: int = 120):
-    tokens = tokenize(text)
-    chunks = []
-    start = 0
+### Available strategies
 
-    while start < len(tokens):
-        end = min(start + chunk_size, len(tokens))
-        chunk_tokens = tokens[start:end]
-        chunks.append(detokenize(chunk_tokens))
-        start += chunk_size - overlap
+| Name | Class | Best for |
+|---|---|---|
+| `token_recursive` | `TokenRecursiveStrategy` | Default fallback |
+| `token_fixed` | `TokenFixedStrategy` | Benchmarking / ablation |
+| `paragraph_recursive` | `ParagraphRecursiveStrategy` | Short articles, FAQs |
+| `sentence_window` | `SentenceWindowStrategy` | Conversational / QA text |
+| `page_aware` | `PageAwareStrategy` | PDFs, OCR documents |
+| `heading_aware` | `HeadingAwareStrategy` | DOCX, Markdown, structured text |
+| `adaptive_hybrid` | `AdaptiveHybridStrategy` | Recommended production default |
 
-    return chunks
+### Adaptive hybrid selection
+
+`adaptive_hybrid` analyses per-document signals (file type, OCR status, heading
+density, page count, total token count) and delegates to the best concrete
+strategy.  The selected strategy and machine-readable reason codes are stored in
+`documents.chunking_config_snapshot`.
+
+Force a specific strategy for an individual document by passing
+`force_strategy` in `strategy_options`; this bypasses all heuristics.
+
+### Configuration
+
+```env
+CHUNKING_STRATEGY=token_recursive     # strategy used for all documents
+CHUNK_SIZE_TOKENS=700
+CHUNK_OVERLAP_TOKENS=120
 ```
 
-Production requirements:
+Set `CHUNKING_STRATEGY=adaptive_hybrid` to enable automatic per-document
+selection in production.
+
+### Production requirements
 
 - Never create empty chunks.
 - Skip chunks below minimum token threshold unless document is very small.
-- Store page number.
-- Store chunk index.
-- Store token count.
-- Store index version.
+- Store page number, chunk index, token count, index version.
+- Store `section_path` (heading hierarchy) and `block_type` when available.
+- Store deterministic `chunk_hash` (SHA-256 of normalized text) for deduplication.
+- Chunking config snapshot (strategy, version, sizes, adaptive reason codes) stored on document row.
 
 ## Embedding service
 
