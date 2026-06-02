@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections.abc import Sequence
 from uuid import UUID
 
 from app.domains.documents.chunking.config import ChunkingProfileConfig
 from app.domains.documents.chunking.protocol import ChunkPayload, PageLike
 from app.domains.documents.chunking.strategies._base import (
-    TextUnit,
     dominant_page_number,
     encode_text,
-    overlap_tail,
     resolve_encoding,
 )
 
@@ -20,22 +19,15 @@ STRATEGY_VERSION = "1.0"
 _PARA_SPLIT = re.compile(r"\n{2,}")
 
 
-def _split_paragraphs(page_number: int, text: str) -> list[tuple[int, str]]:
-    return [
-        (page_number, p.strip())
-        for p in _PARA_SPLIT.split(text)
-        if p.strip()
-    ]
-
-
 class ParagraphRecursiveStrategy:
-    """Chunk at paragraph boundaries, merging short paragraphs and splitting long ones.
+    """Chunk with paragraph-aligned boundaries and token-level overlap.
 
-    Complete paragraphs are greedily accumulated up to *chunk_size_tokens*.
-    When the budget would be exceeded, the current buffer is emitted and the
-    overlap tail (measured in tokens) is carried forward.  Single paragraphs
-    that exceed the budget are split token-wise so every chunk stays within
-    the embedding provider's limits.
+    The document is tokenized into a flat stream.  Paragraph end positions are
+    recorded.  Each chunk window ends at the last paragraph boundary within
+    [cursor, cursor + chunk_size_tokens].  If no boundary exists (an oversized
+    single paragraph) the window falls back to the token limit.  Overlap is
+    token-based: the next window starts *chunk_overlap_tokens* tokens before
+    the previous window ended.
     """
 
     name: str = STRATEGY_NAME
@@ -80,43 +72,6 @@ class ParagraphRecursiveStrategy:
             tiny_chunk_min_tokens=profile.min_tokens,
         )
 
-    def _token_split(self, unit: TextUnit) -> list[TextUnit]:
-        """Split an oversized paragraph into fixed-window sub-units."""
-        stride = self.chunk_size_tokens - self.chunk_overlap_tokens
-        tokens = unit.token_ids
-        result: list[TextUnit] = []
-        cursor = 0
-        while cursor < len(tokens):
-            end = min(cursor + self.chunk_size_tokens, len(tokens))
-            sub_tokens = tokens[cursor:end]
-            sub_text = self._encoding.decode(sub_tokens).strip()
-            if sub_text:
-                result.append(TextUnit(unit.page_number, sub_text, list(sub_tokens)))
-            if end == len(tokens):
-                break
-            cursor += stride
-        return result
-
-    def _make_payload(
-        self,
-        buffer: list[TextUnit],
-        document_id: UUID,
-        chunk_index: int,
-    ) -> ChunkPayload:
-        joined = "\n\n".join(u.text for u in buffer)
-        tagged = [(u.page_number, t) for u in buffer for t in u.token_ids]
-        return ChunkPayload(
-            document_id=document_id,
-            page_number=dominant_page_number(tagged),
-            chunk_index=chunk_index,
-            text=joined,
-            token_count=len(tagged),
-            embedding_model=self.embedding_model,
-            index_version=self.index_version,
-            strategy_name=STRATEGY_NAME,
-            strategy_version=STRATEGY_VERSION,
-        )
-
     async def chunk(
         self,
         *,
@@ -127,55 +82,76 @@ class ParagraphRecursiveStrategy:
         if not ordered_pages:
             return []
 
-        all_units: list[TextUnit] = []
-        for page in ordered_pages:
-            for pnum, text in _split_paragraphs(page.page_number, page.text):
-                token_ids = encode_text(self._encoding, text)
-                if token_ids:
-                    all_units.append(TextUnit(pnum, text, token_ids))
+        # Build a flat (page_number, token_id) stream and record the exclusive
+        # end index of every paragraph so we can snap window boundaries to them.
+        token_stream: list[tuple[int, int]] = []
+        para_ends: list[int] = []  # sorted exclusive-end positions
 
-        if not all_units:
+        for page in ordered_pages:
+            for para_text in _PARA_SPLIT.split(page.text):
+                text = para_text.strip()
+                if not text:
+                    continue
+                ids = encode_text(self._encoding, text)
+                if not ids:
+                    continue
+                for tid in ids:
+                    token_stream.append((page.page_number, tid))
+                para_ends.append(len(token_stream))
+
+        if not token_stream:
             return []
 
+        total = len(token_stream)
+        stride = self.chunk_size_tokens - self.chunk_overlap_tokens
         result: list[ChunkPayload] = []
-        buffer: list[TextUnit] = []
-        buffer_tokens = 0
+        cursor = 0
 
-        def flush() -> None:
-            nonlocal buffer, buffer_tokens
-            result.append(self._make_payload(buffer, document_id, len(result)))
-            buffer = overlap_tail(buffer, self.chunk_overlap_tokens)
-            buffer_tokens = sum(u.token_count for u in buffer)
+        while cursor < total:
+            max_end = min(cursor + self.chunk_size_tokens, total)
 
-        for unit in all_units:
-            if unit.token_count > self.chunk_size_tokens:
-                if buffer:
-                    flush()
-                for sub in self._token_split(unit):
-                    result.append(
-                        ChunkPayload(
-                            document_id=document_id,
-                            page_number=sub.page_number,
-                            chunk_index=len(result),
-                            text=sub.text,
-                            token_count=sub.token_count,
-                            embedding_model=self.embedding_model,
-                            index_version=self.index_version,
-                            strategy_name=STRATEGY_NAME,
-                            strategy_version=STRATEGY_VERSION,
-                        )
-                    )
+            # Find the last paragraph boundary at or before max_end.
+            # bisect_right gives the index of the first para_end > max_end;
+            # the one before it is the last para_end <= max_end.
+            idx = bisect_right(para_ends, max_end) - 1
+            if idx >= 0 and para_ends[idx] > cursor:
+                # Snap to that paragraph boundary.
+                end = para_ends[idx]
+            else:
+                # No paragraph boundary in range — break at the token limit.
+                end = max_end
+
+            window = token_stream[cursor:end]
+            tokens = [t for _, t in window]
+            chunk_text = self._encoding.decode(tokens).strip()
+            token_count = len(tokens)
+            is_last = end >= total
+
+            if not chunk_text:
+                if is_last:
+                    break
+                cursor += stride
                 continue
 
-            if buffer_tokens + unit.token_count > self.chunk_size_tokens and buffer:
-                flush()
+            if is_last and result and token_count < self.tiny_chunk_min_tokens:
+                break
 
-            buffer.append(unit)
-            buffer_tokens += unit.token_count
+            result.append(
+                ChunkPayload(
+                    document_id=document_id,
+                    page_number=dominant_page_number(window),
+                    chunk_index=len(result),
+                    text=chunk_text,
+                    token_count=token_count,
+                    embedding_model=self.embedding_model,
+                    index_version=self.index_version,
+                    strategy_name=STRATEGY_NAME,
+                    strategy_version=STRATEGY_VERSION,
+                )
+            )
 
-        if buffer:
-            is_only_chunk = not result
-            if is_only_chunk or buffer_tokens >= self.tiny_chunk_min_tokens:
-                flush()
+            if is_last:
+                break
+            cursor = end - self.chunk_overlap_tokens
 
         return result

@@ -810,9 +810,13 @@ async def _extract_and_store_document_pages_async(
                             index_version=chunk.index_version,
                             chunk_hash=compute_chunk_hash(chunk.text),
                             section_path=(
-                                f"page:{chunk.page_number}"
-                                if chunk.page_number is not None
-                                else None
+                                chunk.section_path
+                                if chunk.section_path is not None
+                                else (
+                                    f"page:{chunk.page_number}"
+                                    if chunk.page_number is not None
+                                    else None
+                                )
                             ),
                             language=document.language,
                         )

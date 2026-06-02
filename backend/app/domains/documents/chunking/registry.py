@@ -51,6 +51,12 @@ _registry: StrategyRegistry | None = None
 def get_registry() -> StrategyRegistry:
     global _registry
     if _registry is None:
+        from app.domains.documents.chunking.strategies.heading_aware import (
+            HeadingAwareStrategy,
+        )
+        from app.domains.documents.chunking.strategies.page_aware import (
+            PageAwareStrategy,
+        )
         from app.domains.documents.chunking.strategies.paragraph_recursive import (
             ParagraphRecursiveStrategy,
         )
@@ -69,4 +75,6 @@ def get_registry() -> StrategyRegistry:
         _registry.register(TokenFixedStrategy.name, TokenFixedStrategy.from_profile)
         _registry.register(ParagraphRecursiveStrategy.name, ParagraphRecursiveStrategy.from_profile)
         _registry.register(SentenceWindowStrategy.name, SentenceWindowStrategy.from_profile)
+        _registry.register(PageAwareStrategy.name, PageAwareStrategy.from_profile)
+        _registry.register(HeadingAwareStrategy.name, HeadingAwareStrategy.from_profile)
     return _registry

@@ -22,6 +22,8 @@ class ChunkPayload:
     index_version: str
     strategy_name: str = "token_recursive"
     strategy_version: str = "1.0"
+    section_path: str | None = None
+    block_type: str | None = None
 
 
 class ChunkStrategy(Protocol):
