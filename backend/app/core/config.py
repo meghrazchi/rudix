@@ -383,6 +383,7 @@ class Settings(BaseSettings):
     feature_enable_pipeline_explorer: bool = True
     feature_enable_agents: bool | None = None
     feature_enable_chunking_profiles: bool = False
+    feature_enable_adaptive_chunking: bool = False
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
@@ -929,6 +930,8 @@ class Settings(BaseSettings):
                 "evaluations": self.feature_enable_evaluations,
                 "pipeline_explorer": self.feature_enable_pipeline_explorer,
                 "agents": self.feature_enable_agents,
+                "chunking_profiles": self.feature_enable_chunking_profiles,
+                "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "mcp": self.feature_enable_mcp,
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,

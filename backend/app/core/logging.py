@@ -291,6 +291,43 @@ def log_agent_event(
     )
 
 
+def log_chunking_event(
+    *,
+    event: str,
+    document_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+    strategy: str | None = None,
+    chunk_count: int | None = None,
+    avg_tokens: float | None = None,
+    max_tokens: int | None = None,
+    min_tokens: int | None = None,
+    duration_ms: int | None = None,
+    profile_source: str | None = None,
+    reason_codes: list[str] | None = None,
+    empty_pages: int | None = None,
+    language: str | None = None,
+    **fields: Any,
+) -> None:
+    get_logger("events.chunking").info(
+        event,
+        document_id=document_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        strategy=strategy,
+        chunk_count=chunk_count,
+        avg_tokens=avg_tokens,
+        max_tokens=max_tokens,
+        min_tokens=min_tokens,
+        duration_ms=duration_ms,
+        profile_source=profile_source,
+        reason_codes=reason_codes,
+        empty_pages=empty_pages,
+        language=language,
+        **fields,
+    )
+
+
 def log_task_failure(
     *,
     task_name: str,

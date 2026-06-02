@@ -39,7 +39,7 @@ _NODE_DESCRIPTIONS: dict[str, str] = {
     "ocr": "Run optical character recognition on image-based pages.",
     "clean": "Normalize extracted text before chunking.",
     "index_cleanup": "Remove stale vectors for re-index operations.",
-    "chunk": "Split text into retrieval-sized chunks.",
+    "chunk": "Split text into retrieval-sized chunks. Outputs include strategy, reason codes, token metrics (avg/max/min), empty page count, and stage duration.",
     "embed": "Generate vector embeddings for chunks.",
     "index": "Upsert embedded chunks into vector storage.",
     "retrieve": "Fetch context candidates for the query.",

@@ -14,7 +14,7 @@ from app.core.document_errors import (
     details_from_exception,
     encode_document_error,
 )
-from app.core.logging import log_document_event
+from app.core.logging import log_chunking_event, log_document_event
 from app.db.session import SessionLocal
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
@@ -766,9 +766,11 @@ async def _extract_and_store_document_pages_async(
                     stage="chunk",
                     stage_status="started",
                     config={
+                        "strategy": svc._profile.strategy,
                         "chunk_size_tokens": svc.chunk_size_tokens,
                         "chunk_overlap_tokens": svc.chunk_overlap_tokens,
                         "index_version": effective_index_version,
+                        "profile_source": profile_source,
                     },
                 )
                 if persist_document_pages:
@@ -783,16 +785,16 @@ async def _extract_and_store_document_pages_async(
                             text=section.text,
                             char_count=section.char_count,
                         )
-                log_document_event(
+                log_chunking_event(
                     event="document.chunking.started",
                     document_id=str(document.id),
-                    request_id=request_id,
                     organization_id=resolved_organization_id,
-                    user_id=resolved_user_id,
+                    user_id=user_id,
                     strategy=svc._profile.strategy,
-                    index_version=svc.index_version,
                     profile_source=profile_source,
+                    index_version=svc.index_version,
                 )
+                _chunk_stage_started_at = datetime.now(UTC)
                 chunks = await svc.chunk(
                     document_id=parsed_document_id,
                     pages=cleaned_sections,
@@ -808,13 +810,41 @@ async def _extract_and_store_document_pages_async(
                         category="validation",
                         message="cleaned document produced no chunks",
                     )
+                _chunk_duration_ms = _safe_duration_ms(
+                    started_at=_chunk_stage_started_at, ended_at=datetime.now(UTC)
+                )
+                _chunk_tokens = [c.token_count for c in chunks]
+                _avg_tokens = round(sum(_chunk_tokens) / len(_chunk_tokens), 1)
+                _max_tokens = max(_chunk_tokens)
+                _min_tokens = min(_chunk_tokens)
+                _empty_pages = sum(1 for s in cleaned_sections if not s.text.strip())
                 _adaptive_log: dict = {}
+                _reason_codes: list[str] | None = None
+                _adaptive_language: str | None = None
                 if svc.last_adaptive_selection is not None:
                     _sel = svc.last_adaptive_selection
                     _adaptive_log = {
                         "adaptive_selected_strategy": _sel.strategy,
                         "adaptive_reason_codes": _sel.reason_codes,
                     }
+                    _reason_codes = _sel.reason_codes
+                    if _sel.signals is not None:
+                        _adaptive_language = _sel.signals.language
+                _final_strategy = chunks[0].strategy_name if chunks else svc._profile.strategy
+                _chunk_metrics: dict = {
+                    "chunk_count": len(chunks),
+                    "avg_tokens": _avg_tokens,
+                    "max_tokens": _max_tokens,
+                    "min_tokens": _min_tokens,
+                    "empty_pages": _empty_pages,
+                    "duration_ms": _chunk_duration_ms,
+                    "strategy": _final_strategy,
+                    "profile_source": profile_source,
+                }
+                if _reason_codes is not None:
+                    _chunk_metrics["reason_codes"] = _reason_codes
+                if _adaptive_language is not None:
+                    _chunk_metrics["language"] = _adaptive_language
                 log_document_event(
                     event="document.pipeline.stage",
                     document_id=str(document.id),
@@ -826,21 +856,31 @@ async def _extract_and_store_document_pages_async(
                     chunk_count=len(chunks),
                     **_adaptive_log,
                 )
-                log_document_event(
+                log_chunking_event(
                     event="document.chunking.completed",
                     document_id=str(document.id),
-                    request_id=request_id,
                     organization_id=resolved_organization_id,
-                    user_id=resolved_user_id,
+                    user_id=user_id,
+                    strategy=_final_strategy,
                     chunk_count=len(chunks),
-                    strategy=chunks[0].strategy_name if chunks else svc._profile.strategy,
+                    avg_tokens=_avg_tokens,
+                    max_tokens=_max_tokens,
+                    min_tokens=_min_tokens,
+                    duration_ms=_chunk_duration_ms,
                     profile_source=profile_source,
-                    **_adaptive_log,
+                    reason_codes=_reason_codes,
+                    empty_pages=_empty_pages,
+                    language=_adaptive_language,
+                    index_version=svc.index_version,
                 )
                 await pipeline_recorder.emit_stage(
                     stage="chunk",
                     stage_status="completed",
-                    outputs={"chunk_count": len(chunks), **_adaptive_log},
+                    outputs={
+                        "chunk_count": len(chunks),
+                        **_adaptive_log,
+                        "metrics": _chunk_metrics,
+                    },
                 )
                 await _document_repository.delete_document_chunks(
                     session,
@@ -1165,10 +1205,9 @@ async def _extract_and_store_document_pages_async(
             if failing_stage == "unknown":
                 failing_stage = current_stage
             if failing_stage == "chunk":
-                log_document_event(
+                log_chunking_event(
                     event="document.chunking.failed",
                     document_id=document_id,
-                    request_id=request_id,
                     organization_id=organization_id,
                     user_id=user_id,
                     error_code=details.get("code", "UNKNOWN"),
