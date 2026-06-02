@@ -32,6 +32,9 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "page_count IS NULL OR page_count >= 0", name="documents_page_count_non_negative"
         ),
+        CheckConstraint(
+            "chunk_count IS NULL OR chunk_count >= 0", name="documents_chunk_count_non_negative"
+        ),
         Index("idx_documents_org_status", "organization_id", "status"),
         Index("idx_documents_uploaded_by", "uploaded_by_user_id"),
     )
@@ -56,6 +59,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chunk_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
     source: Mapped[str | None] = mapped_column(String(512), nullable=True)

@@ -135,6 +135,7 @@ class DocumentRepository:
         status: str,
         error_message: str | None = None,
         page_count: int | None = None,
+        chunk_count: int | None = None,
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
         chunking_config_snapshot: dict | None = None,
@@ -147,6 +148,8 @@ class DocumentRepository:
         document.error_message = error_message
         if page_count is not None:
             document.page_count = page_count
+        if chunk_count is not None:
+            document.chunk_count = chunk_count
         if chunking_strategy is not None:
             document.chunking_strategy = chunking_strategy
         if chunking_profile_version is not None:

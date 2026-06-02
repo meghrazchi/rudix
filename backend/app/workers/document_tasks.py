@@ -51,6 +51,22 @@ _pipeline_repository = PipelineRepository()
 _usage_repository = UsageRepository()
 _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService(strategy=settings.chunking_strategy)
+
+
+def _make_chunking_service(profile_config: dict | None = None) -> ChunkingService:
+    """Return a ChunkingService for the given inline profile config, or the system default.
+
+    Accepted profile_config keys: strategy, chunk_size_tokens, chunk_overlap_tokens.
+    Unknown keys are ignored.  Raises ValueError for invalid combinations
+    (e.g. overlap >= size); callers should convert this to PermanentTaskError.
+    """
+    if not profile_config:
+        return _chunking_service
+    return ChunkingService(
+        strategy=profile_config.get("strategy"),
+        chunk_size_tokens=profile_config.get("chunk_size_tokens"),
+        chunk_overlap_tokens=profile_config.get("chunk_overlap_tokens"),
+    )
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
 
@@ -431,6 +447,8 @@ async def _extract_and_store_document_pages_async(
     organization_id: str | None = None,
     user_id: str | None = None,
     pipeline_type: str = "document.process",
+    chunking_service: ChunkingService | None = None,
+    profile_source: str = "system_default",
 ) -> tuple[int, int, TextCleaningStats, EmbeddingResult]:
     try:
         parsed_document_id = _parse_uuid(document_id)
@@ -476,6 +494,7 @@ async def _extract_and_store_document_pages_async(
             },
         )
 
+        svc = chunking_service if chunking_service is not None else _chunking_service
         current_stage = "extract"
         cleaned_sections = []
         chunks = []
@@ -762,7 +781,17 @@ async def _extract_and_store_document_pages_async(
                         text=section.text,
                         char_count=section.char_count,
                     )
-                chunks = await _chunking_service.chunk(
+                log_document_event(
+                    event="document.chunking.started",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    strategy=svc._profile.strategy,
+                    index_version=svc.index_version,
+                    profile_source=profile_source,
+                )
+                chunks = await svc.chunk(
                     document_id=parsed_document_id,
                     pages=cleaned_sections,
                     document_context={
@@ -778,8 +807,8 @@ async def _extract_and_store_document_pages_async(
                         message="cleaned document produced no chunks",
                     )
                 _adaptive_log: dict = {}
-                if _chunking_service.last_adaptive_selection is not None:
-                    _sel = _chunking_service.last_adaptive_selection
+                if svc.last_adaptive_selection is not None:
+                    _sel = svc.last_adaptive_selection
                     _adaptive_log = {
                         "adaptive_selected_strategy": _sel.strategy,
                         "adaptive_reason_codes": _sel.reason_codes,
@@ -793,6 +822,17 @@ async def _extract_and_store_document_pages_async(
                     stage="chunk",
                     stage_status="completed",
                     chunk_count=len(chunks),
+                    **_adaptive_log,
+                )
+                log_document_event(
+                    event="document.chunking.completed",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    chunk_count=len(chunks),
+                    strategy=chunks[0].strategy_name if chunks else svc._profile.strategy,
+                    profile_source=profile_source,
                     **_adaptive_log,
                 )
                 await pipeline_recorder.emit_stage(
@@ -1039,13 +1079,18 @@ async def _extract_and_store_document_pages_async(
                     },
                 )
                 current_stage = "status"
+                _total_chunk_tokens = sum(c.token_count for c in chunks)
                 _chunking_config_snapshot: dict = {
                     "strategy": _strategy_name,
                     "strategy_version": _strategy_version,
-                    "chunk_size_tokens": _chunking_service.chunk_size_tokens,
-                    "chunk_overlap_tokens": _chunking_service.chunk_overlap_tokens,
-                    "embedding_model": _chunking_service.embedding_model,
-                    "index_version": _chunking_service.index_version,
+                    "chunk_size_tokens": svc.chunk_size_tokens,
+                    "chunk_overlap_tokens": svc.chunk_overlap_tokens,
+                    "embedding_model": svc.embedding_model,
+                    "index_version": svc.index_version,
+                    "profile_source": profile_source,
+                    "ocr_applied": ocr_applied,
+                    "total_chunk_count": len(chunks),
+                    "total_chunk_tokens": _total_chunk_tokens,
                 }
                 if is_hierarchical:
                     parent_count = sum(1 for p in chunks if p.chunk_level == 0)
@@ -1053,7 +1098,7 @@ async def _extract_and_store_document_pages_async(
                     _chunking_config_snapshot["hierarchical_mode"] = True
                     _chunking_config_snapshot["parent_chunk_count"] = parent_count
                     _chunking_config_snapshot["child_chunk_count"] = child_count_total
-                _adaptive_sel = _chunking_service.last_adaptive_selection
+                _adaptive_sel = svc.last_adaptive_selection
                 if _adaptive_sel is not None:
                     _chunking_config_snapshot["adaptive_selected_strategy"] = _adaptive_sel.strategy
                     _chunking_config_snapshot["adaptive_reason_codes"] = _adaptive_sel.reason_codes
@@ -1072,6 +1117,7 @@ async def _extract_and_store_document_pages_async(
                     status=DocumentStatus.indexed.value,
                     error_message=None,
                     page_count=len(cleaned_sections),
+                    chunk_count=len(chunks),
                     chunking_strategy=_strategy_name,
                     chunking_profile_version=_strategy_version,
                     chunking_config_snapshot=_chunking_config_snapshot,
@@ -1111,6 +1157,16 @@ async def _extract_and_store_document_pages_async(
             failing_stage = details.get("stage", "unknown")
             if failing_stage == "unknown":
                 failing_stage = current_stage
+            if failing_stage == "chunk":
+                log_document_event(
+                    event="document.chunking.failed",
+                    document_id=document_id,
+                    request_id=request_id,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    error_code=details.get("code", "UNKNOWN"),
+                    error_message=details.get("message", str(exc)),
+                )
             await pipeline_recorder.fail_stage_if_open(
                 stage=failing_stage,
                 error_message=details.get("message", str(exc)),
@@ -1434,6 +1490,7 @@ def process_document(
     organization_id: str | None = None,
     user_id: str | None = None,
     force: bool = False,
+    chunking_profile_config: dict | None = None,
 ) -> dict[str, str | int | float]:
     """Extract text and persist document_pages before marking a document as indexed."""
     try:
@@ -1474,6 +1531,11 @@ def process_document(
         status_code=DocumentStatus.processing.value,
     )
 
+    try:
+        _svc = _make_chunking_service(chunking_profile_config)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid chunking_profile_config: {exc}") from exc
+
     page_count, chunk_count, cleaning_stats, embedding_result = _run(
         _extract_and_store_document_pages_async(
             document_id,
@@ -1481,6 +1543,8 @@ def process_document(
             organization_id=organization_id,
             user_id=user_id,
             pipeline_type="document.process",
+            chunking_service=_svc,
+            profile_source="custom_profile" if chunking_profile_config else "system_default",
         )
     )
 
@@ -1629,6 +1693,7 @@ def reindex_document(
     request_id: str | None = None,
     organization_id: str | None = None,
     user_id: str | None = None,
+    chunking_profile_config: dict | None = None,
 ) -> dict[str, str | int | float]:
     """Re-index a document idempotently for the active index/model version."""
     try:
@@ -1656,6 +1721,11 @@ def reindex_document(
         status_code=DocumentStatus.processing.value,
     )
 
+    try:
+        _svc = _make_chunking_service(chunking_profile_config)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid chunking_profile_config: {exc}") from exc
+
     page_count, chunk_count, cleaning_stats, embedding_result = _run(
         _extract_and_store_document_pages_async(
             document_id,
@@ -1663,6 +1733,8 @@ def reindex_document(
             organization_id=organization_id,
             user_id=user_id,
             pipeline_type="document.reindex",
+            chunking_service=_svc,
+            profile_source="custom_profile" if chunking_profile_config else "system_default",
         )
     )
 
@@ -1712,3 +1784,94 @@ def reindex_document(
         "embedding_cost_usd": float(embedding_result.approximate_cost_usd),
         "cleaning_pages_modified": cleaning_stats.pages_modified,
     }
+
+
+async def _backfill_dispatch_async(
+    organization_uuid: UUID,
+    *,
+    chunking_profile_config: dict | None,
+    request_id: str | None,
+    user_id: str | None,
+) -> int:
+    """Query all indexed documents for an org and dispatch reindex tasks for each."""
+    dispatched = 0
+    offset = 0
+    page_size = 100
+    while True:
+        async with SessionLocal() as session:
+            docs = await _document_repository.list_documents(
+                session,
+                organization_id=organization_uuid,
+                status=DocumentStatus.indexed.value,
+                limit=page_size,
+                offset=offset,
+            )
+        if not docs:
+            break
+        for doc in docs:
+            celery_app.send_task(
+                "documents.reindex",
+                kwargs={
+                    "document_id": str(doc.id),
+                    "organization_id": str(organization_uuid),
+                    "user_id": user_id,
+                    "request_id": request_id,
+                    "chunking_profile_config": chunking_profile_config,
+                },
+            )
+            dispatched += 1
+        offset += len(docs)
+        if len(docs) < page_size:
+            break
+    return dispatched
+
+
+@celery_app.task(name="documents.backfill", bind=True, base=DocumentTask, ignore_result=True)
+def backfill_documents(
+    self: DocumentTask,
+    *,
+    organization_id: str,
+    chunking_profile_config: dict | None = None,
+    request_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, str | int]:
+    """Queue reindex tasks for all indexed documents in the given organization.
+
+    Uses chunking_profile_config when provided; falls back to the system default.
+    Safe to re-run: each dispatched reindex task is itself idempotent.
+    """
+    try:
+        org_uuid = _parse_uuid(organization_id)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid organization_id: {organization_id}") from exc
+
+    try:
+        _make_chunking_service(chunking_profile_config)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid chunking_profile_config: {exc}") from exc
+
+    dispatched = _run(
+        _backfill_dispatch_async(
+            org_uuid,
+            chunking_profile_config=chunking_profile_config,
+            request_id=request_id,
+            user_id=user_id,
+        )
+    )
+    log_document_event(
+        event="document.backfill.completed",
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        dispatched_count=dispatched,
+    )
+    _record_worker_audit(
+        action="document.backfill.completed",
+        resource_type="organization",
+        resource_id=organization_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        request_id=request_id,
+        metadata={"dispatched_count": dispatched},
+    )
+    return {"organization_id": organization_id, "dispatched_count": dispatched}

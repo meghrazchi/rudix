@@ -109,6 +109,9 @@ class FakeQdrantService:
         file_type: str,
         chunks: list[Any],
         vectors_by_chunk_id: dict[UUID, list[float]],
+        chunking_strategy: str | None = None,
+        chunking_profile_version: str | None = None,
+        parent_text_by_chunk_id: dict[UUID, str] | None = None,
     ) -> Any:
         call_payload = {
             "organization_id": organization_id,
