@@ -1,6 +1,6 @@
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from typing import Annotated
 from uuid import UUID
@@ -18,6 +18,7 @@ from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.chat.repositories.chat import ChatRepository
+from app.domains.chat.repositories.feedback import FeedbackRepository
 from app.domains.chat.repositories.share import ChatShareRepository
 from app.domains.chat.schemas.chat import (
     ChatCitationResponse,
@@ -34,7 +35,6 @@ from app.domains.chat.schemas.chat import (
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
-from app.domains.chat.repositories.feedback import FeedbackRepository
 from app.domains.chat.schemas.feedback import (
     MessageFeedbackResponse,
     SessionFeedbackListResponse,
@@ -1147,7 +1147,7 @@ async def create_chat_message(
 # ---------------------------------------------------------------------------
 
 
-def _to_share_response(share: "ChatShare") -> ChatShareResponse:  # type: ignore[name-defined]
+def _to_share_response(share: "ChatShare") -> ChatShareResponse:  # type: ignore[name-defined]  # noqa: F821
     from app.models.chat_share import ChatShare as _ChatShare  # noqa: F401
 
     return ChatShareResponse(
@@ -1215,7 +1215,7 @@ async def create_chat_share(
 
     expires_at: datetime | None = None
     if payload.expires_in_hours is not None:
-        expires_at = datetime.now(tz=timezone.utc) + timedelta(hours=payload.expires_in_hours)
+        expires_at = datetime.now(tz=UTC) + timedelta(hours=payload.expires_in_hours)
 
     token = secrets.token_urlsafe(32)
     share = await share_repository.create_chat_share(
@@ -1485,7 +1485,7 @@ async def get_shared_session(
 # ---------------------------------------------------------------------------
 
 
-def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # type: ignore[name-defined]
+def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # type: ignore[name-defined]  # noqa: F821
     from app.models.message_feedback import MessageFeedback as _MessageFeedback  # noqa: F401
 
     return MessageFeedbackResponse(
@@ -1505,10 +1505,11 @@ async def _get_assistant_message_for_org(
     *,
     message_id: UUID,
     organization_id: UUID,
-) -> "ChatMessage":  # type: ignore[name-defined]
+) -> "ChatMessage":  # type: ignore[name-defined]  # noqa: F821
     from sqlalchemy import select as _select
 
-    from app.models.chat import ChatMessage as _ChatMessage, ChatSession as _ChatSession
+    from app.models.chat import ChatMessage as _ChatMessage
+    from app.models.chat import ChatSession as _ChatSession
 
     result = await db_session.execute(
         _select(_ChatMessage)

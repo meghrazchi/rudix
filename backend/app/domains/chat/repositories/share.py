@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -97,7 +97,7 @@ class ChatShareRepository:
         token: str,
         organization_id: UUID,
     ) -> ChatShare | None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         result = await session.execute(
             select(ChatShare).where(
                 ChatShare.token == token,

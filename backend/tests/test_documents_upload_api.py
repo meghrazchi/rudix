@@ -700,7 +700,6 @@ async def test_upload_with_collection_auto_assigns_document(
     fake_process_document_task: FakeProcessDocumentTask,
 ) -> None:
     from app.models.collection import Collection, CollectionDocument
-    from app.models.organization_member import OrganizationMember
 
     user, org = await _seed_principal(db_session)
     token = create_app_access_token(

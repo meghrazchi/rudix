@@ -111,7 +111,7 @@ async def test_submit_feedback_creates_record(
     db_session: AsyncSession,
 ) -> None:
     user, org = await _seed_principal(db_session)
-    chat_session, msg = await _seed_assistant_message(db_session, org=org, user=user)
+    _chat_session, msg = await _seed_assistant_message(db_session, org=org, user=user)
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),

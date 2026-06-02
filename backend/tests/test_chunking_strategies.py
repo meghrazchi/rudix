@@ -295,7 +295,7 @@ async def test_para_chunk_indexes_are_sequential() -> None:
 
 @pytest.mark.asyncio
 async def test_para_multi_page_page_number_preserved() -> None:
-    # Each page has enough tokens (2 paragraphs × 30 words × ~1 tok/word ≈ 60 tokens)
+    # Each page has enough tokens (2 paragraphs x 30 words x ~1 tok/word ~ 60 tokens)
     # to force separate chunks at size=50.
     p1 = "\n\n".join(" ".join(f"pageone{j}" for j in range(30)) for _ in range(2))
     p2 = "\n\n".join(" ".join(f"pagetwo{j}" for j in range(30)) for _ in range(2))

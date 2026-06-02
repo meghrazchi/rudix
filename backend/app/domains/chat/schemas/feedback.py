@@ -3,7 +3,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 FeedbackRatingLiteral = Literal["up", "down"]
 FeedbackReasonLiteral = Literal[
     "wrong_citation",

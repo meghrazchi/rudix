@@ -38,8 +38,8 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
 async def list_notifications(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    principal: AuthenticatedPrincipal = Depends(get_current_principal),
-    db: AsyncSession = Depends(get_db_session),
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> NotificationListResponse:
     user_id, org_id = _principal_user_and_org(principal)
     items, total, unread_count = await _notification_repository.list_with_counts(
@@ -56,8 +56,8 @@ async def list_notifications(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
-    principal: AuthenticatedPrincipal = Depends(get_current_principal),
-    db: AsyncSession = Depends(get_db_session),
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> UnreadCountResponse:
     user_id, org_id = _principal_user_and_org(principal)
     count = await _notification_repository.count_unread(db, organization_id=org_id, user_id=user_id)
@@ -67,8 +67,8 @@ async def get_unread_count(
 @router.patch("/{notification_id}/read", response_model=MarkReadResponse)
 async def mark_notification_read(
     notification_id: str,
-    principal: AuthenticatedPrincipal = Depends(get_current_principal),
-    db: AsyncSession = Depends(get_db_session),
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> MarkReadResponse:
     user_id, org_id = _principal_user_and_org(principal)
     try:
@@ -98,8 +98,8 @@ async def mark_notification_read(
 @router.patch("/{notification_id}/unread", response_model=MarkReadResponse)
 async def mark_notification_unread(
     notification_id: str,
-    principal: AuthenticatedPrincipal = Depends(get_current_principal),
-    db: AsyncSession = Depends(get_db_session),
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> MarkReadResponse:
     user_id, org_id = _principal_user_and_org(principal)
     try:
@@ -128,8 +128,8 @@ async def mark_notification_unread(
 
 @router.post("/mark-all-read", response_model=MarkAllReadResponse)
 async def mark_all_notifications_read(
-    principal: AuthenticatedPrincipal = Depends(get_current_principal),
-    db: AsyncSession = Depends(get_db_session),
+    principal: AuthenticatedPrincipal = Depends(get_current_principal),  # noqa: B008
+    db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> MarkAllReadResponse:
     user_id, org_id = _principal_user_and_org(principal)
     marked_count = await _notification_repository.mark_all_read(

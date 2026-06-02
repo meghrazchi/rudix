@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Coroutine
-from typing import Any
 from uuid import UUID
 
 from app.core.logging import get_logger
