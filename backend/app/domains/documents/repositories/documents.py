@@ -210,6 +210,9 @@ class DocumentRepository:
         language: str | None = None,
         source_start_offset: int | None = None,
         source_end_offset: int | None = None,
+        parent_chunk_id: UUID | None = None,
+        chunk_level: int | None = None,
+        child_count: int | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
             document_id=document_id,
@@ -225,6 +228,9 @@ class DocumentRepository:
             language=language,
             source_start_offset=source_start_offset,
             source_end_offset=source_end_offset,
+            parent_chunk_id=parent_chunk_id,
+            chunk_level=chunk_level,
+            child_count=child_count,
         )
         session.add(chunk)
         await session.flush()

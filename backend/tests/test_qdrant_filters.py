@@ -73,3 +73,30 @@ def test_build_organization_filter_rejects_blank_index_version() -> None:
             organization_id="org-1",
             index_version=" ",
         )
+
+
+def test_build_organization_filter_includes_chunk_level_when_provided() -> None:
+    payload_filter = build_organization_filter(
+        organization_id="org-1",
+        document_ids=["doc-1"],
+        chunk_level=1,
+    )
+
+    assert payload_filter.must is not None
+    assert len(payload_filter.must) == 3
+
+    chunk_level_condition = payload_filter.must[2]
+    assert chunk_level_condition.key == "chunk_level"
+    assert isinstance(chunk_level_condition.match, MatchValue)
+    assert chunk_level_condition.match.value == 1
+
+
+def test_build_organization_filter_omits_chunk_level_when_none() -> None:
+    payload_filter = build_organization_filter(
+        organization_id="org-1",
+        chunk_level=None,
+    )
+
+    assert payload_filter.must is not None
+    keys = [condition.key for condition in payload_filter.must]
+    assert "chunk_level" not in keys

@@ -39,6 +39,12 @@ class ChunkStub:
     qdrant_point_id: str | None
     embedding_model: str
     index_version: str
+    chunk_hash: str | None = None
+    section_path: str | None = None
+    language: str | None = None
+    chunk_level: int | None = None
+    parent_chunk_id: UUID | None = None
+    child_count: int | None = None
 
 
 class FakeQdrantClient:
@@ -334,3 +340,67 @@ async def test_delete_document_points_can_scope_to_index_version(
     assert condition_map["organization_id"] == str(organization_id)
     assert condition_map["document_id"] == str(document_id)
     assert condition_map["index_version"] == "v-next"
+
+
+@pytest.mark.asyncio
+async def test_upsert_chunks_includes_hierarchical_payload_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_client = FakeQdrantClient()
+    monkeypatch.setattr(qdrant_module, "qdrant_client", fake_client)
+    monkeypatch.setattr(qdrant_module, "ensure_qdrant_collection", lambda: None)
+
+    service = QdrantService(batch_size=128)
+    document_id = uuid4()
+    organization_id = uuid4()
+    user_id = uuid4()
+    parent_chunk_id = uuid4()
+    child_id = uuid4()
+
+    child_chunk = ChunkStub(
+        id=child_id,
+        document_id=document_id,
+        page_number=1,
+        chunk_index=1,
+        text="child chunk text",
+        token_count=45,
+        qdrant_point_id=service.build_point_id(
+            document_id=document_id,
+            chunk_index=1,
+            index_version="v1",
+        ),
+        embedding_model="text-embedding-3-small",
+        index_version="v1",
+        chunk_hash="abc123",
+        section_path="Policy > Leave",
+        language="en",
+        chunk_level=1,
+        parent_chunk_id=parent_chunk_id,
+        child_count=None,
+    )
+    vectors = {child_id: [0.005] * settings.qdrant_vector_size}
+    parent_text = "This is the larger parent context."
+
+    result = await service.upsert_chunks(
+        organization_id=organization_id,
+        user_id=user_id,
+        document_id=document_id,
+        filename="policy.pdf",
+        file_type="pdf",
+        chunks=[child_chunk],
+        vectors_by_chunk_id=vectors,
+        chunking_strategy="hierarchical",
+        chunking_profile_version="1.0",
+        parent_text_by_chunk_id={child_id: parent_text},
+    )
+
+    assert result.upserted_count == 1
+    payload = fake_client.upsert_calls[0]["points"][0].payload
+    assert payload["chunk_level"] == 1
+    assert payload["parent_chunk_id"] == str(parent_chunk_id)
+    assert payload["parent_text"] == parent_text
+    assert payload["child_count"] is None
+    assert payload["section_path"] == "Policy > Leave"
+    assert payload["chunk_hash"] == "abc123"
+    assert payload["chunking_strategy"] == "hierarchical"
+    assert payload["chunking_profile_version"] == "1.0"

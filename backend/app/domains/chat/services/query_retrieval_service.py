@@ -33,6 +33,10 @@ class RetrievedCandidate:
     page_number: int | None
     text: str
     similarity_score: float
+    section_path: str | None = None
+    chunk_level: int = 0
+    parent_chunk_id: UUID | None = None
+    parent_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -164,6 +168,17 @@ class QueryRetrievalService:
             )
             similarity_score = float(getattr(result, "score", 0.0) or 0.0)
 
+            section_path = str(payload.get("section_path") or "").strip() or None
+            chunk_level = int(payload.get("chunk_level") or 0)
+            parent_chunk_id: UUID | None = None
+            raw_parent_id = payload.get("parent_chunk_id")
+            if raw_parent_id:
+                try:
+                    parent_chunk_id = UUID(str(raw_parent_id))
+                except (ValueError, TypeError):
+                    parent_chunk_id = None
+            parent_text = str(payload.get("parent_text") or "").strip() or None
+
             candidates.append(
                 RetrievedCandidate(
                     document_id=document_id,
@@ -172,6 +187,10 @@ class QueryRetrievalService:
                     page_number=page_number,
                     text=text,
                     similarity_score=similarity_score,
+                    section_path=section_path,
+                    chunk_level=chunk_level,
+                    parent_chunk_id=parent_chunk_id,
+                    parent_text=parent_text,
                 )
             )
 

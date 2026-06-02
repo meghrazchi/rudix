@@ -278,3 +278,117 @@ async def test_embed_and_retrieve_returns_required_citation_metadata() -> None:
     assert candidate.page_number == 8
     assert candidate.text == "Benefits policy details."
     assert candidate.similarity_score == pytest.approx(0.87)
+
+
+def test_retrieve_candidates_extracts_hierarchical_fields_from_payload() -> None:
+    organization_id = uuid4()
+    document_id = uuid4()
+    chunk_id = uuid4()
+    parent_chunk_id = uuid4()
+
+    fake_qdrant = FakeQdrantClient(
+        results=[
+            FakeQdrantResult(
+                score=0.82,
+                payload={
+                    "organization_id": str(organization_id),
+                    "document_id": str(document_id),
+                    "chunk_id": str(chunk_id),
+                    "filename": "policy.pdf",
+                    "page_number": 3,
+                    "text": "Child chunk: specific leave policy details.",
+                    "chunk_level": 1,
+                    "parent_chunk_id": str(parent_chunk_id),
+                    "parent_text": "Parent context: the full leave policy section covering types of leave.",
+                    "section_path": "Policy > Leave",
+                },
+            )
+        ]
+    )
+    service = QueryRetrievalService(qdrant_client=fake_qdrant)
+
+    candidates = service.retrieve_candidates(
+        query_vector=[0.01] * settings.qdrant_vector_size,
+        organization_id=organization_id,
+        document_ids=[document_id],
+        initial_top_k=5,
+    )
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.chunk_level == 1
+    assert candidate.parent_chunk_id == parent_chunk_id
+    assert candidate.parent_text == "Parent context: the full leave policy section covering types of leave."
+    assert candidate.section_path == "Policy > Leave"
+
+
+def test_retrieve_candidates_returns_zero_chunk_level_for_flat_chunks() -> None:
+    organization_id = uuid4()
+    document_id = uuid4()
+    chunk_id = uuid4()
+
+    fake_qdrant = FakeQdrantClient(
+        results=[
+            FakeQdrantResult(
+                score=0.75,
+                payload={
+                    "organization_id": str(organization_id),
+                    "document_id": str(document_id),
+                    "chunk_id": str(chunk_id),
+                    "filename": "flat.pdf",
+                    "page_number": 1,
+                    "text": "Flat chunk with no hierarchical metadata.",
+                    # No chunk_level, parent_chunk_id, or parent_text fields
+                },
+            )
+        ]
+    )
+    service = QueryRetrievalService(qdrant_client=fake_qdrant)
+
+    candidates = service.retrieve_candidates(
+        query_vector=[0.01] * settings.qdrant_vector_size,
+        organization_id=organization_id,
+        document_ids=[document_id],
+        initial_top_k=5,
+    )
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.chunk_level == 0
+    assert candidate.parent_chunk_id is None
+    assert candidate.parent_text is None
+
+
+def test_retrieve_candidates_rejects_malformed_parent_chunk_id() -> None:
+    organization_id = uuid4()
+    document_id = uuid4()
+    chunk_id = uuid4()
+
+    fake_qdrant = FakeQdrantClient(
+        results=[
+            FakeQdrantResult(
+                score=0.70,
+                payload={
+                    "organization_id": str(organization_id),
+                    "document_id": str(document_id),
+                    "chunk_id": str(chunk_id),
+                    "filename": "doc.pdf",
+                    "page_number": 2,
+                    "text": "Chunk with bad parent id.",
+                    "chunk_level": 1,
+                    "parent_chunk_id": "not-a-uuid",
+                },
+            )
+        ]
+    )
+    service = QueryRetrievalService(qdrant_client=fake_qdrant)
+
+    candidates = service.retrieve_candidates(
+        query_vector=[0.01] * settings.qdrant_vector_size,
+        organization_id=organization_id,
+        document_ids=[document_id],
+        initial_top_k=5,
+    )
+
+    assert len(candidates) == 1
+    assert candidates[0].parent_chunk_id is None

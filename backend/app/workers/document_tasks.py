@@ -805,14 +805,25 @@ async def _extract_and_store_document_pages_async(
                     document_id=parsed_document_id,
                     index_version=settings.document_index_version,
                 )
-                created_chunks = []
+
+                # Detect hierarchical mode: any child chunk (level=1) in the result.
+                is_hierarchical = any(c.chunk_level == 1 for c in chunks)
+                payload_by_index: dict[int, Any] = {c.chunk_index: c for c in chunks}
+
+                all_created_chunks = []
                 for chunk in chunks:
-                    qdrant_point_id = _qdrant_service.build_point_id(
-                        document_id=chunk.document_id,
-                        chunk_index=chunk.chunk_index,
-                        index_version=chunk.index_version,
+                    # Parents (level=0) in hierarchical mode are not embedded; skip point ID.
+                    is_embeddable = not is_hierarchical or chunk.chunk_level == 1
+                    qdrant_point_id = (
+                        _qdrant_service.build_point_id(
+                            document_id=chunk.document_id,
+                            chunk_index=chunk.chunk_index,
+                            index_version=chunk.index_version,
+                        )
+                        if is_embeddable
+                        else None
                     )
-                    created_chunks.append(
+                    all_created_chunks.append(
                         await _document_repository.create_document_chunk(
                             session,
                             document_id=chunk.document_id,
@@ -834,8 +845,39 @@ async def _extract_and_store_document_pages_async(
                                 )
                             ),
                             language=document.language,
+                            chunk_level=chunk.chunk_level if is_hierarchical else None,
+                            child_count=chunk.child_count,
                         )
                     )
+
+                # Resolve parent_chunk_id FK and capture parent text for Qdrant payload.
+                parent_text_by_child_id: dict[UUID, str] = {}
+                if is_hierarchical:
+                    created_by_index = {
+                        p.chunk_index: c
+                        for p, c in zip(chunks, all_created_chunks, strict=True)
+                    }
+                    for chunk_payload, created in zip(chunks, all_created_chunks, strict=True):
+                        if (
+                            chunk_payload.chunk_level == 1
+                            and chunk_payload.parent_chunk_index is not None
+                        ):
+                            parent_db = created_by_index.get(chunk_payload.parent_chunk_index)
+                            if parent_db is not None:
+                                created.parent_chunk_id = parent_db.id
+                                parent_payload = payload_by_index.get(
+                                    chunk_payload.parent_chunk_index
+                                )
+                                if parent_payload is not None:
+                                    parent_text_by_child_id[created.id] = parent_payload.text
+                    await session.flush()
+
+                # Only embed chunks that go into the vector store.
+                created_chunks = [
+                    c
+                    for c, p in zip(all_created_chunks, chunks, strict=True)
+                    if not is_hierarchical or p.chunk_level == 1
+                ]
 
                 current_stage = "embed"
                 log_document_event(
@@ -937,6 +979,9 @@ async def _extract_and_store_document_pages_async(
                         vectors_by_chunk_id=embedding_result.vectors_by_chunk_id,
                         chunking_strategy=_strategy_name,
                         chunking_profile_version=_strategy_version,
+                        parent_text_by_chunk_id=(
+                            parent_text_by_child_id if parent_text_by_child_id else None
+                        ),
                     )
                 except ValueError as exc:
                     raise DocumentPipelinePermanentError(
@@ -1002,6 +1047,12 @@ async def _extract_and_store_document_pages_async(
                     "embedding_model": _chunking_service.embedding_model,
                     "index_version": _chunking_service.index_version,
                 }
+                if is_hierarchical:
+                    parent_count = sum(1 for p in chunks if p.chunk_level == 0)
+                    child_count_total = sum(1 for p in chunks if p.chunk_level == 1)
+                    _chunking_config_snapshot["hierarchical_mode"] = True
+                    _chunking_config_snapshot["parent_chunk_count"] = parent_count
+                    _chunking_config_snapshot["child_chunk_count"] = child_count_total
                 _adaptive_sel = _chunking_service.last_adaptive_selection
                 if _adaptive_sel is not None:
                     _chunking_config_snapshot["adaptive_selected_strategy"] = _adaptive_sel.strategy

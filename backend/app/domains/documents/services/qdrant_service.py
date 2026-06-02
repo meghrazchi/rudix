@@ -25,6 +25,10 @@ class ChunkLike(Protocol):
     chunk_hash: str | None
     section_path: str | None
     language: str | None
+    # Hierarchical fields (F211); None for flat chunks.
+    chunk_level: int | None
+    parent_chunk_id: UUID | None
+    child_count: int | None
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,7 @@ class QdrantService:
         vectors_by_chunk_id: dict[UUID, list[float]],
         chunking_strategy: str | None = None,
         chunking_profile_version: str | None = None,
+        parent_text_by_chunk_id: dict[UUID, str] | None = None,
     ) -> QdrantUpsertResult:
         if not chunks:
             return QdrantUpsertResult(point_ids_by_chunk_id={}, upserted_count=0, batch_count=0)
@@ -144,6 +149,14 @@ class QdrantService:
                         "language": chunk.language,
                         "chunking_strategy": chunking_strategy,
                         "chunking_profile_version": chunking_profile_version,
+                        "chunk_level": chunk.chunk_level,
+                        "parent_chunk_id": (
+                            str(chunk.parent_chunk_id) if chunk.parent_chunk_id else None
+                        ),
+                        "parent_text": (
+                            (parent_text_by_chunk_id or {}).get(chunk.id)
+                        ),
+                        "child_count": chunk.child_count,
                     },
                 )
             )

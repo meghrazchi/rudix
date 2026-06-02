@@ -111,8 +111,18 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("chunk_index >= 0", name="document_chunks_chunk_index_non_negative"),
         CheckConstraint("token_count >= 0", name="document_chunks_token_count_non_negative"),
+        CheckConstraint(
+            "chunk_level IS NULL OR chunk_level >= 0",
+            name="document_chunks_chunk_level_non_negative",
+        ),
+        CheckConstraint(
+            "child_count IS NULL OR child_count >= 0",
+            name="document_chunks_child_count_non_negative",
+        ),
         Index("idx_chunks_document_id", "document_id"),
         Index("idx_chunks_qdrant_point_id", "qdrant_point_id"),
+        Index("idx_chunks_parent_chunk_id", "parent_chunk_id"),
+        Index("idx_chunks_chunk_level", "chunk_level"),
     )
 
     document_id: Mapped[UUID] = mapped_column(
@@ -134,6 +144,17 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Character offsets into the original source text (populated by offset-aware strategies).
     source_start_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
     source_end_offset: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Hierarchical parent-child chunking (F211).
+    # chunk_level=0 means flat or parent; chunk_level=1 means child embedded for retrieval.
+    # parent_chunk_id links a child chunk to its parent row in this table.
+    # child_count records how many children a parent spawned (informational).
+    parent_chunk_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    chunk_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    child_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     document = relationship("Document", back_populates="chunks")
     citations = relationship("Citation", back_populates="chunk")

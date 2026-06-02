@@ -10,6 +10,7 @@ def build_organization_filter(
     organization_id: str,
     document_ids: Iterable[str] | None = None,
     index_version: str | None = None,
+    chunk_level: int | None = None,
 ) -> Filter:
     normalized_organization_id = organization_id.strip()
     if not normalized_organization_id:
@@ -54,6 +55,14 @@ def build_organization_filter(
             FieldCondition(
                 key="index_version",
                 match=MatchValue(value=normalized_index_version),
+            )
+        )
+
+    if chunk_level is not None:
+        conditions.append(
+            FieldCondition(
+                key="chunk_level",
+                match=MatchValue(value=chunk_level),
             )
         )
 

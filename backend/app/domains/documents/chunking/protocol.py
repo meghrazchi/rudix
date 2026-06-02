@@ -24,6 +24,13 @@ class ChunkPayload:
     strategy_version: str = "1.0"
     section_path: str | None = None
     block_type: str | None = None
+    # Hierarchical parent-child fields (F211).
+    # chunk_level=0 means flat chunk or parent; chunk_level=1 means child (embedded for retrieval).
+    # parent_chunk_index references the parent's chunk_index within the same document+version.
+    # child_count is set on parent payloads to record how many children were produced.
+    chunk_level: int = 0
+    parent_chunk_index: int | None = None
+    child_count: int | None = None
 
 
 class ChunkStrategy(Protocol):

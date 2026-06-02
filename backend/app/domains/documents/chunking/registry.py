@@ -57,6 +57,9 @@ def get_registry() -> StrategyRegistry:
         from app.domains.documents.chunking.strategies.heading_aware import (
             HeadingAwareStrategy,
         )
+        from app.domains.documents.chunking.strategies.hierarchical import (
+            HierarchicalStrategy,
+        )
         from app.domains.documents.chunking.strategies.page_aware import (
             PageAwareStrategy,
         )
@@ -81,4 +84,5 @@ def get_registry() -> StrategyRegistry:
         _registry.register(PageAwareStrategy.name, PageAwareStrategy.from_profile)
         _registry.register(HeadingAwareStrategy.name, HeadingAwareStrategy.from_profile)
         _registry.register(AdaptiveHybridStrategy.name, AdaptiveHybridStrategy.from_profile)
+        _registry.register(HierarchicalStrategy.name, HierarchicalStrategy.from_profile)
     return _registry
