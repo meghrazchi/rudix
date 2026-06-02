@@ -19,6 +19,8 @@ class DocumentStatus(StrEnum):
     processing = "processing"
     indexed = "indexed"
     failed = "failed"
+    quarantined = "quarantined"
+    blocked = "blocked"
     deleting = "deleting"
     deleted = "deleted"
 

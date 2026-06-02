@@ -17,6 +17,7 @@ from app.domains.documents.schemas.documents import (
     UploadDocumentMetadata,
     UploadDocumentResponse,
 )
+from app.domains.documents.services.duplicate_detection import check_for_duplicate
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
 from app.models.collection import Collection, CollectionDocument
@@ -234,6 +235,44 @@ async def upload_document_workflow(
                 detail="File security scan unavailable",
             )
 
+    # Duplicate detection — runs after scan so we don't record duplicates of infected files.
+    duplicate_result = await check_for_duplicate(
+        db_session,
+        checksum=validated.checksum_sha256,
+        organization_id=organization_id,
+        enabled=settings.duplicate_detection_enabled,
+        action=settings.duplicate_detection_action,  # type: ignore[arg-type]
+    )
+    if duplicate_result.is_duplicate and duplicate_result.action == "reject":
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="document.upload.rejected_duplicate",
+            resource_type="document",
+            resource_id=document_id,
+            request_id=request_id,
+            metadata={
+                "filename": validated.normalized_filename,
+                "checksum": validated.checksum_sha256,
+                "existing_document_id": str(duplicate_result.existing_document_id),
+            },
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
+        log_document_event(
+            event="document.upload.rejected_duplicate",
+            document_id=str(document_id),
+            organization_id=str(organization_id),
+            user_id=str(user_id),
+            request_id=request_id,
+            status_code=status.HTTP_409_CONFLICT,
+            existing_document_id=str(duplicate_result.existing_document_id),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A document with the same content already exists in this organization",
+        )
+
     if minio_client is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -264,6 +303,14 @@ async def upload_document_workflow(
     meta = upload_metadata or UploadDocumentMetadata()
     tags_str = ",".join(meta.tags) if meta.tags else None
 
+    security_scan_result = {
+        "scanner": scan_result.scanner,
+        "scanner_result": scan_result.status,
+        "duration_ms": scan_result.duration_ms,
+        "duplicate_detected": duplicate_result.is_duplicate,
+        "duplicate_action": duplicate_result.action if duplicate_result.is_duplicate else None,
+    }
+
     try:
         document = await document_repository.create_document(
             db_session,
@@ -281,6 +328,8 @@ async def upload_document_workflow(
             retention_class=meta.retention_class,
             notes=meta.notes,
             tags=tags_str,
+            duplicate_of_document_id=duplicate_result.existing_document_id,
+            security_scan_result=security_scan_result,
         )
 
         collection_assigned = False
@@ -310,6 +359,11 @@ async def upload_document_workflow(
                 "file_size_bytes": validated.file_size_bytes,
                 "status": DocumentStatus.uploaded.value,
                 "collection_assigned": collection_assigned,
+                "duplicate_detected": duplicate_result.is_duplicate,
+                "duplicate_action": duplicate_result.action if duplicate_result.is_duplicate else None,
+                "existing_document_id": str(duplicate_result.existing_document_id)
+                if duplicate_result.existing_document_id
+                else None,
             },
         )
         await db_session.commit()
@@ -385,6 +439,10 @@ async def upload_document_workflow(
                 checksum=validated.checksum_sha256,
                 message="Document uploaded; processing queue is temporarily unavailable.",
                 collection_assigned=collection_assigned,
+                duplicate_detected=duplicate_result.is_duplicate,
+                duplicate_document_id=str(duplicate_result.existing_document_id)
+                if duplicate_result.existing_document_id
+                else None,
             )
 
         wrote_audit = await audit_log_service.record(
@@ -425,14 +483,22 @@ async def upload_document_workflow(
         status_code=status.HTTP_201_CREATED,
     )
 
+    duplicate_message = ""
+    if duplicate_result.is_duplicate and duplicate_result.action == "warn":
+        duplicate_message = " A document with the same content already exists in this organization."
+
     return UploadDocumentResponse(
         document_id=str(document.id),
         filename=document.filename,
         status=DocumentStatus.uploaded.value,
         queue_status="queued",
         checksum=validated.checksum_sha256,
-        message="Document uploaded and queued for processing.",
+        message=f"Document uploaded and queued for processing.{duplicate_message}",
         collection_assigned=collection_assigned,
+        duplicate_detected=duplicate_result.is_duplicate,
+        duplicate_document_id=str(duplicate_result.existing_document_id)
+        if duplicate_result.existing_document_id
+        else None,
     )
 
 
@@ -607,6 +673,16 @@ async def reindex_document_workflow(
     if document.status == DocumentStatus.deleting.value:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Document is currently being deleted"
+        )
+    if document.status == DocumentStatus.quarantined.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Quarantined documents cannot be re-indexed without admin review",
+        )
+    if document.status == DocumentStatus.blocked.value:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Blocked documents cannot be re-indexed",
         )
     if document.status == DocumentStatus.processing.value:
         raise HTTPException(

@@ -34,6 +34,7 @@ export type UploadProgressItemState =
   | "pending"
   | "uploading"
   | "queued"
+  | "queued_duplicate"
   | "success"
   | "failed"
   | "canceled";
@@ -104,6 +105,9 @@ function progressStateClass(state: UploadProgressItemState): string {
   }
   if (state === "queued" || state === "success") {
     return "bg-emerald-100 text-emerald-800";
+  }
+  if (state === "queued_duplicate") {
+    return "bg-amber-100 text-amber-800";
   }
   if (state === "uploading") {
     return "bg-amber-100 text-amber-800";
@@ -627,7 +631,9 @@ export function DocumentsUploadModal({
                           >
                             {item.state === "queued"
                               ? "queued for indexing"
-                              : item.state}
+                              : item.state === "queued_duplicate"
+                                ? "duplicate — queued"
+                                : item.state}
                           </span>
                         </div>
                         {item.state === "uploading" ? (

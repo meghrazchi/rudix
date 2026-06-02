@@ -27,6 +27,7 @@ from app.domains.documents.services.embedding_service import (
     PermanentEmbeddingError,
     TransientEmbeddingError,
 )
+from app.domains.documents.services.dlp_service import scan_text_for_dlp
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
 from app.domains.documents.services.qdrant_service import QdrantService
@@ -700,6 +701,96 @@ async def _extract_and_store_document_pages_async(
                     category="validation",
                     message="extracted document contains no text after cleaning",
                 )
+
+            # DLP scan — runs on cleaned extracted text; never persists matched content.
+            if settings.dlp_enabled:
+                current_stage = "dlp"
+                await pipeline_recorder.emit_stage(
+                    stage="dlp",
+                    stage_status="started",
+                    config={
+                        "action": settings.dlp_action,
+                        "min_findings": settings.dlp_min_findings,
+                    },
+                )
+                full_text = "\n".join(
+                    section.text for section in cleaned_sections if section.text
+                )
+                dlp_result = scan_text_for_dlp(
+                    full_text,
+                    enabled=True,
+                    action=settings.dlp_action,  # type: ignore[arg-type]
+                    min_findings=settings.dlp_min_findings,
+                )
+                dlp_result_dict = dlp_result.to_dict()
+                log_document_event(
+                    event="document.pipeline.stage",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    stage="dlp",
+                    stage_status="completed",
+                    dlp_action=dlp_result.action,
+                    dlp_total_findings=dlp_result.total_findings,
+                )
+                await pipeline_recorder.emit_stage(
+                    stage="dlp",
+                    stage_status="completed",
+                    outputs={
+                        "action": dlp_result.action,
+                        "total_findings": dlp_result.total_findings,
+                        "categories": [f.category for f in dlp_result.findings],
+                    },
+                )
+                if dlp_result.action in ("quarantine", "reject"):
+                    terminal_status = (
+                        DocumentStatus.quarantined.value
+                        if dlp_result.action == "quarantine"
+                        else DocumentStatus.blocked.value
+                    )
+                    async with SessionLocal() as dlp_session:
+                        await _document_repository.update_document_dlp_result(
+                            dlp_session,
+                            document_id=parsed_document_id,
+                            status=terminal_status,
+                            dlp_scan_result=dlp_result_dict,
+                            error_message=f"DLP policy action: {dlp_result.action}",
+                        )
+                        await dlp_session.commit()
+                    await _record_worker_audit_async(
+                        action=f"document.processing.dlp_{dlp_result.action}",
+                        resource_type="document",
+                        resource_id=document_id,
+                        organization_id=resolved_organization_id,
+                        user_id=resolved_user_id,
+                        request_id=request_id,
+                        metadata={
+                            "status": terminal_status,
+                            "total_findings": dlp_result.total_findings,
+                            "categories": [f.category for f in dlp_result.findings],
+                        },
+                    )
+                    await pipeline_recorder.finalize_run(
+                        status="failed",
+                        outputs={"final_status": terminal_status},
+                        error_message=f"DLP scan blocked document: {dlp_result.action}",
+                    )
+                    raise DocumentPipelinePermanentError(
+                        stage="dlp",
+                        code="DLP_POLICY_BLOCKED",
+                        category="security",
+                        message=f"Document blocked by DLP policy (action: {dlp_result.action})",
+                    )
+                elif dlp_result.action == "warn":
+                    async with SessionLocal() as dlp_warn_session:
+                        await _document_repository.update_document_dlp_result(
+                            dlp_warn_session,
+                            document_id=parsed_document_id,
+                            status=DocumentStatus.processing.value,
+                            dlp_scan_result=dlp_result_dict,
+                        )
+                        await dlp_warn_session.commit()
 
             current_stage = "index_cleanup"
             log_document_event(

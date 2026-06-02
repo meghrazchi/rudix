@@ -26,7 +26,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="documents_file_type_allowed",
         ),
         CheckConstraint(
-            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'deleting', 'deleted')",
+            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'deleting', 'deleted')",
             name="documents_status_allowed",
         ),
         CheckConstraint(
@@ -67,6 +67,14 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     retention_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     tags: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Security scan results — stored without private content.
+    duplicate_of_document_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    security_scan_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    dlp_scan_result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Chunking provenance — written once when indexing starts; immutable after that.
     chunking_strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
     chunking_profile_version: Mapped[str | None] = mapped_column(String(32), nullable=True)

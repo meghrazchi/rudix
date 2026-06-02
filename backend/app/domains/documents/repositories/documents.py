@@ -26,6 +26,9 @@ class DocumentRepository:
         retention_class: str | None = None,
         notes: str | None = None,
         tags: str | None = None,
+        duplicate_of_document_id: UUID | None = None,
+        security_scan_result: dict | None = None,
+        dlp_scan_result: dict | None = None,
     ) -> Document:
         document_kwargs: dict[str, object] = {
             "organization_id": organization_id,
@@ -41,6 +44,9 @@ class DocumentRepository:
             "retention_class": retention_class,
             "notes": notes,
             "tags": tags,
+            "duplicate_of_document_id": duplicate_of_document_id,
+            "security_scan_result": security_scan_result,
+            "dlp_scan_result": dlp_scan_result,
         }
         if document_id is not None:
             document_kwargs["id"] = document_id
@@ -50,6 +56,31 @@ class DocumentRepository:
         await session.flush()
         await session.refresh(document)
         return document
+
+    async def find_active_document_id_by_checksum(
+        self,
+        session: AsyncSession,
+        *,
+        checksum: str,
+        organization_id: UUID,
+    ) -> UUID | None:
+        """Return the ID of the first non-deleted, non-blocked document with this checksum in the org."""
+        excluded_statuses = (
+            DocumentStatus.deleted.value,
+            DocumentStatus.deleting.value,
+            DocumentStatus.blocked.value,
+        )
+        result = await session.execute(
+            select(Document.id)
+            .where(
+                Document.organization_id == organization_id,
+                Document.checksum == checksum,
+                Document.status.not_in(excluded_statuses),
+            )
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        return row if row is None else UUID(str(row))
 
     async def get_document(
         self, session: AsyncSession, *, document_id: UUID, organization_id: UUID
@@ -126,6 +157,27 @@ class DocumentRepository:
                 statement = statement.where(Document.filename.ilike(f"%{normalized_query}%"))
         result = await session.execute(statement)
         return int(result.scalar_one())
+
+    async def update_document_dlp_result(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        status: str,
+        dlp_scan_result: dict,
+        error_message: str | None = None,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.status = status
+        document.dlp_scan_result = dlp_scan_result
+        if error_message is not None:
+            document.error_message = error_message
+        await session.flush()
+        await session.refresh(document)
+        return document
 
     async def update_document_status(
         self,

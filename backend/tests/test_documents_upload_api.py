@@ -791,3 +791,145 @@ async def test_upload_without_metadata_succeeds_with_defaults(
     assert document.retention_class is None
     assert document.notes is None
     assert document.tags is None
+
+
+# --- Duplicate detection ---
+
+
+@pytest.mark.asyncio
+async def test_upload_warns_on_duplicate_and_flags_second_upload(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "duplicate_detection_enabled", True)
+    monkeypatch.setattr(settings, "duplicate_detection_action", "warn")
+
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    # First upload — no duplicate.
+    first = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("same.txt", b"identical content", "text/plain")},
+    )
+    assert first.status_code == 201
+    first_payload = first.json()
+    assert first_payload["duplicate_detected"] is False
+    assert first_payload["duplicate_document_id"] is None
+
+    # Second upload with identical bytes — duplicate warning expected.
+    second = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("same_again.txt", b"identical content", "text/plain")},
+    )
+    assert second.status_code == 201
+    second_payload = second.json()
+    assert second_payload["duplicate_detected"] is True
+    assert second_payload["duplicate_document_id"] == first_payload["document_id"]
+    assert "already exists" in second_payload["message"]
+
+    # Both documents created; duplicate_of_document_id set on second.
+    assert await _document_count(db_session) == 2
+    second_doc = await _get_document(
+        db_session, document_id=UUID(second_payload["document_id"])
+    )
+    assert second_doc is not None
+    assert str(second_doc.duplicate_of_document_id) == first_payload["document_id"]
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_duplicate_with_action_reject(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "duplicate_detection_enabled", True)
+    monkeypatch.setattr(settings, "duplicate_detection_action", "reject")
+
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    first = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("original.txt", b"repeated content", "text/plain")},
+    )
+    assert first.status_code == 201
+
+    second = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("copy.txt", b"repeated content", "text/plain")},
+    )
+    assert second.status_code == 409
+    assert "already exists" in second.json()["detail"].lower()
+    assert len(fake_minio.put_calls) == 1
+    assert await _document_count(db_session) == 1
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    actions = {row.action for row in audit_logs}
+    assert "document.upload.rejected_duplicate" in actions
+
+
+@pytest.mark.asyncio
+async def test_upload_allows_duplicate_when_detection_disabled(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "duplicate_detection_enabled", False)
+
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    for _ in range(2):
+        response = await upload_client.post(
+            "/api/v1/documents/upload",
+            headers=_auth_headers(token=token, organization_id=str(org.id)),
+            files={"file": ("dup.txt", b"same bytes", "text/plain")},
+        )
+        assert response.status_code == 201
+        assert response.json()["duplicate_detected"] is False
+
+    assert await _document_count(db_session) == 2
+
+
+@pytest.mark.asyncio
+async def test_upload_response_includes_security_scan_result(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("scan_test.txt", b"benign content", "text/plain")},
+    )
+
+    assert response.status_code == 201
+    doc_id = UUID(response.json()["document_id"])
+    document = await _get_document(db_session, document_id=doc_id)
+    assert document is not None
+    assert document.security_scan_result is not None
+    assert document.security_scan_result["scanner"] == "clamav"
+    assert document.security_scan_result["scanner_result"] == "clean"

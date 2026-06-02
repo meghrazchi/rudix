@@ -9,7 +9,10 @@ export type DocumentStatus = Schemas["DocumentStatus"];
 export type DocumentSortBy = Schemas["DocumentListResponse"]["sort_by"];
 export type SortOrder = Schemas["DocumentListResponse"]["sort_order"];
 export type DocumentErrorDetails = Schemas["DocumentErrorDetails"];
-export type UploadDocumentResponse = Schemas["UploadDocumentResponse"];
+export type UploadDocumentResponse = Schemas["UploadDocumentResponse"] & {
+  duplicate_detected?: boolean;
+  duplicate_document_id?: string | null;
+};
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
 export type DocumentStatusResponse = Schemas["DocumentStatusResponse"];

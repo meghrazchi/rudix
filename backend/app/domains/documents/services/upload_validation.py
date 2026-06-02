@@ -10,6 +10,16 @@ _ALLOWED_MIME_BY_EXTENSION: dict[str, set[str]] = {
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
 }
 
+# Magic bytes per extension: (offset, expected_bytes)
+_MAGIC_BYTES: dict[str, tuple[int, bytes]] = {
+    "pdf": (0, b"%PDF"),
+    "docx": (0, b"PK\x03\x04"),
+}
+
+# Encrypted PDF marker — presence of /Encrypt dictionary in PDF structure.
+_PDF_ENCRYPT_MARKER = b"/Encrypt"
+_PDF_HEADER_SCAN_BYTES = 8192
+
 
 @dataclass(frozen=True)
 class UploadValidationResult:
@@ -26,6 +36,8 @@ def _normalize_filename(filename: str) -> str:
         raise ValueError("filename is required")
     if "/" in cleaned or "\\" in cleaned:
         raise ValueError("filename must not contain path separators")
+    if "\x00" in cleaned:
+        raise ValueError("filename must not contain null bytes")
     return cleaned
 
 
@@ -44,6 +56,24 @@ def _normalize_content_type(content_type: str | None) -> str:
         raise ValueError("content type is required")
     normalized = normalized.split(";", maxsplit=1)[0].strip()
     return normalized
+
+
+def _check_magic_bytes(*, extension: str, content: bytes) -> None:
+    """Verify file content starts with the expected magic bytes (MIME spoofing guard)."""
+    if extension not in _MAGIC_BYTES:
+        return
+    offset, expected = _MAGIC_BYTES[extension]
+    if len(content) < offset + len(expected) or content[offset : offset + len(expected)] != expected:
+        raise ValueError(f"file content does not match expected format for .{extension}")
+
+
+def _check_encrypted_pdf(*, extension: str, content: bytes) -> None:
+    """Reject password-protected PDFs by detecting the /Encrypt dictionary."""
+    if extension != "pdf":
+        return
+    header = content[:_PDF_HEADER_SCAN_BYTES]
+    if _PDF_ENCRYPT_MARKER in header or _PDF_ENCRYPT_MARKER.lower() in header.lower():
+        raise ValueError("encrypted or password-protected PDF files are not supported")
 
 
 def validate_upload(
@@ -66,6 +96,9 @@ def validate_upload(
         raise ValueError("empty file")
     if file_size_bytes > max_size_bytes:
         raise OverflowError("file size exceeds configured limit")
+
+    _check_magic_bytes(extension=extension, content=content)
+    _check_encrypted_pdf(extension=extension, content=content)
 
     checksum_sha256 = hashlib.sha256(content).hexdigest()
     return UploadValidationResult(

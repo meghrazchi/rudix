@@ -112,6 +112,8 @@ class UploadDocumentResponse(BaseModel):
     checksum: str
     message: str
     collection_assigned: bool = False
+    duplicate_detected: bool = False
+    duplicate_document_id: str | None = None
 
 
 class DeleteDocumentResponse(BaseModel):
@@ -244,6 +246,9 @@ class DocumentDetailResponse(BaseModel):
     retention_class: str | None = None
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
+    duplicate_of_document_id: str | None = None
+    security_scan_result: dict | None = None
+    dlp_scan_result: dict | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime

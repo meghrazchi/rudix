@@ -83,6 +83,8 @@ const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "processing", label: "Processing" },
   { value: "indexed", label: "Indexed" },
   { value: "failed", label: "Failed" },
+  { value: "quarantined", label: "Quarantined" },
+  { value: "blocked", label: "Blocked" },
   { value: "deleting", label: "Deleting" },
   { value: "deleted", label: "Deleted" },
 ];
@@ -110,6 +112,8 @@ function parseStatusFilter(value: string | null): StatusFilter {
     "processing",
     "indexed",
     "failed",
+    "quarantined",
+    "blocked",
     "deleting",
     "deleted",
   ];
@@ -160,6 +164,12 @@ function statusBadge(status: DocumentStatus): string {
   }
   if (status === "failed") {
     return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
+  }
+  if (status === "quarantined") {
+    return "rounded-full bg-orange-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-orange-800";
+  }
+  if (status === "blocked") {
+    return "rounded-full bg-red-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-red-800";
   }
   if (status === "deleting") {
     return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
@@ -874,10 +884,12 @@ export function DocumentsPage() {
         successCount += 1;
         latestSuccessDocumentId = result.document_id;
         completed += 1;
+        const uploadedState =
+          result.duplicate_detected ? "queued_duplicate" : "queued";
         progressItems = updateUploadProgressItem(
           progressItems,
           index,
-          "queued",
+          uploadedState,
           result.message,
         );
         setUploadProgress({

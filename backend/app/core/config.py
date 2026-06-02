@@ -329,6 +329,17 @@ class Settings(BaseSettings):
     malware_scan_timeout_seconds: float = Field(default=10.0, ge=0.1, le=120.0)
     malware_scan_max_bytes: int | None = Field(default=None, ge=1, le=536_870_912)
     malware_scan_stream_chunk_size_bytes: int = Field(default=65_536, ge=1024, le=4_194_304)
+    duplicate_detection_enabled: bool = True
+    duplicate_detection_action: str = Field(
+        default="warn",
+        pattern=r"^(allow|warn|reject)$",
+    )
+    dlp_enabled: bool = True
+    dlp_action: str = Field(
+        default="warn",
+        pattern=r"^(allow|warn|quarantine|reject)$",
+    )
+    dlp_min_findings: int = Field(default=3, ge=1, le=1000)
     ocr_enabled: bool = True
     ocr_default_languages: str = Field(default="eng", min_length=1, max_length=255)
     ocr_allowed_languages: str = Field(
@@ -898,6 +909,15 @@ class Settings(BaseSettings):
                 "timeout_seconds": self.malware_scan_timeout_seconds,
                 "max_bytes": self.malware_scan_max_bytes,
                 "stream_chunk_size_bytes": self.malware_scan_stream_chunk_size_bytes,
+            },
+            "duplicate_detection": {
+                "enabled": self.duplicate_detection_enabled,
+                "action": self.duplicate_detection_action,
+            },
+            "dlp": {
+                "enabled": self.dlp_enabled,
+                "action": self.dlp_action,
+                "min_findings": self.dlp_min_findings,
             },
             "retrieval_initial_top_k": self.retrieval_initial_top_k,
             "retrieval_final_top_k": self.retrieval_final_top_k,
