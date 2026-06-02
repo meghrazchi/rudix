@@ -16,6 +16,7 @@ from app.interfaces.http import (
     feedback_review,
     notifications,
     pipeline,
+    safety_evals,
     team,
 )
 
@@ -36,6 +37,7 @@ protected_router.include_router(evaluations.router)
 protected_router.include_router(pipeline.router)
 protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
+protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)

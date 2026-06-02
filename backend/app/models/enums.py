@@ -121,3 +121,19 @@ class FeedbackSeverity(StrEnum):
     low = "low"
     medium = "medium"
     high = "high"
+
+
+class SafetyViolationType(StrEnum):
+    injection = "injection"
+    cross_tenant_leakage = "cross_tenant_leakage"
+    private_source_exposure = "private_source_exposure"
+    unsupported_claims = "unsupported_claims"
+    malicious_document = "malicious_document"
+    unsafe_transform = "unsafe_transform"
+
+
+class SafetyEvalSeverity(StrEnum):
+    critical = "critical"
+    high = "high"
+    medium = "medium"
+    low = "low"
