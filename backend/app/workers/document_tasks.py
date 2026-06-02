@@ -50,7 +50,7 @@ _document_repository = DocumentRepository()
 _pipeline_repository = PipelineRepository()
 _usage_repository = UsageRepository()
 _audit_log_service = AuditLogService()
-_chunking_service = ChunkingService()
+_chunking_service = ChunkingService(strategy=settings.chunking_strategy)
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
 
@@ -481,6 +481,7 @@ async def _extract_and_store_document_pages_async(
         chunks = []
         embedding_result: EmbeddingResult | None = None
         updated = None
+        ocr_applied = False
         try:
             log_document_event(
                 event="document.pipeline.stage",
@@ -583,6 +584,7 @@ async def _extract_and_store_document_pages_async(
                 )
 
                 if detection.requires_ocr:
+                    ocr_applied = True
                     current_stage = "ocr"
                     await pipeline_recorder.emit_stage(
                         stage="ocr",
@@ -761,7 +763,12 @@ async def _extract_and_store_document_pages_async(
                         char_count=section.char_count,
                     )
                 chunks = await _chunking_service.chunk(
-                    document_id=parsed_document_id, pages=cleaned_sections
+                    document_id=parsed_document_id,
+                    pages=cleaned_sections,
+                    document_context={
+                        "file_type": document.file_type,
+                        "ocr_applied": ocr_applied,
+                    },
                 )
                 if not chunks:
                     raise DocumentPipelinePermanentError(
@@ -770,6 +777,13 @@ async def _extract_and_store_document_pages_async(
                         category="validation",
                         message="cleaned document produced no chunks",
                     )
+                _adaptive_log: dict = {}
+                if _chunking_service.last_adaptive_selection is not None:
+                    _sel = _chunking_service.last_adaptive_selection
+                    _adaptive_log = {
+                        "adaptive_selected_strategy": _sel.strategy,
+                        "adaptive_reason_codes": _sel.reason_codes,
+                    }
                 log_document_event(
                     event="document.pipeline.stage",
                     document_id=str(document.id),
@@ -779,11 +793,12 @@ async def _extract_and_store_document_pages_async(
                     stage="chunk",
                     stage_status="completed",
                     chunk_count=len(chunks),
+                    **_adaptive_log,
                 )
                 await pipeline_recorder.emit_stage(
                     stage="chunk",
                     stage_status="completed",
-                    outputs={"chunk_count": len(chunks)},
+                    outputs={"chunk_count": len(chunks), **_adaptive_log},
                 )
                 await _document_repository.delete_document_chunks(
                     session,
@@ -987,6 +1002,19 @@ async def _extract_and_store_document_pages_async(
                     "embedding_model": _chunking_service.embedding_model,
                     "index_version": _chunking_service.index_version,
                 }
+                _adaptive_sel = _chunking_service.last_adaptive_selection
+                if _adaptive_sel is not None:
+                    _chunking_config_snapshot["adaptive_selected_strategy"] = _adaptive_sel.strategy
+                    _chunking_config_snapshot["adaptive_reason_codes"] = _adaptive_sel.reason_codes
+                    if _adaptive_sel.signals is not None:
+                        sig = _adaptive_sel.signals
+                        _chunking_config_snapshot["adaptive_signals"] = {
+                            "file_type": sig.file_type,
+                            "page_count": sig.page_count,
+                            "ocr_applied": sig.ocr_applied,
+                            "heading_density": sig.heading_density,
+                            "total_token_count": sig.total_token_count,
+                        }
                 updated = await _document_repository.update_document_status(
                     session,
                     document_id=parsed_document_id,

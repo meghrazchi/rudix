@@ -358,6 +358,7 @@ class Settings(BaseSettings):
     confidence_citation_coverage_target: int = Field(default=2, ge=1, le=20)
     chunk_size_tokens: int = Field(default=700, ge=100, le=4000)
     chunk_overlap_tokens: int = Field(default=120, ge=0, le=2000)
+    chunking_strategy: str = Field(default="token_recursive", min_length=1, max_length=64)
     document_index_version: str = Field(default="v1", min_length=1, max_length=64)
     embedding_batch_max_items: int = Field(default=96, ge=1, le=2048)
     embedding_batch_max_tokens: int = Field(default=100000, ge=100, le=300000)

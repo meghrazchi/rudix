@@ -51,6 +51,9 @@ _registry: StrategyRegistry | None = None
 def get_registry() -> StrategyRegistry:
     global _registry
     if _registry is None:
+        from app.domains.documents.chunking.strategies.adaptive_hybrid import (
+            AdaptiveHybridStrategy,
+        )
         from app.domains.documents.chunking.strategies.heading_aware import (
             HeadingAwareStrategy,
         )
@@ -77,4 +80,5 @@ def get_registry() -> StrategyRegistry:
         _registry.register(SentenceWindowStrategy.name, SentenceWindowStrategy.from_profile)
         _registry.register(PageAwareStrategy.name, PageAwareStrategy.from_profile)
         _registry.register(HeadingAwareStrategy.name, HeadingAwareStrategy.from_profile)
+        _registry.register(AdaptiveHybridStrategy.name, AdaptiveHybridStrategy.from_profile)
     return _registry
