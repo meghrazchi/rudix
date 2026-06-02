@@ -14,6 +14,41 @@ export type UploadDocumentResponse = Schemas["UploadDocumentResponse"] & {
   duplicate_document_id?: string | null;
 };
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
+export type BulkDeleteDocumentResult = {
+  document_id: string;
+  status: "delete_requested" | "deleting" | "deleted" | "retained_by_policy" | "not_found" | "error";
+  hold_reason?: string | null;
+  error?: string | null;
+};
+export type BulkDeleteDocumentsResponse = {
+  accepted: number;
+  retained: number;
+  errors: number;
+  results: BulkDeleteDocumentResult[];
+};
+export type AdminDocumentDeletionItem = {
+  document_id: string;
+  filename: string;
+  file_type: string;
+  status: DocumentStatus;
+  organization_id: string;
+  deletion_requested_at?: string | null;
+  deletion_hold_reason?: string | null;
+  error_message?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type AdminDocumentDeletionListResponse = {
+  items: AdminDocumentDeletionItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+export type RetryDeleteDocumentResponse = {
+  document_id: string;
+  status: "delete_requested" | "deleting";
+  queue_status: "queued";
+};
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
 export type DocumentStatusResponse = Schemas["DocumentStatusResponse"];
 export type DocumentChunkTokenDistributionResponse = {
@@ -284,6 +319,47 @@ export async function downloadDocumentFile(documentId: string): Promise<Blob> {
     `/documents/${encodeURIComponent(documentId)}/download`,
     {
       responseType: "blob",
+    },
+  );
+}
+
+export async function bulkDeleteDocuments(
+  documentIds: string[],
+): Promise<BulkDeleteDocumentsResponse> {
+  return apiRequest<BulkDeleteDocumentsResponse>("/documents/bulk-delete", {
+    method: "POST",
+    json: { document_ids: documentIds },
+  });
+}
+
+export type AdminDeletionListOptions = {
+  include_failed?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export async function listAdminDocumentDeletion(
+  options: AdminDeletionListOptions = {},
+): Promise<AdminDocumentDeletionListResponse> {
+  return apiRequest<AdminDocumentDeletionListResponse>(
+    "/admin/documents/deletion",
+    {
+      query: {
+        include_failed: options.include_failed,
+        limit: options.limit,
+        offset: options.offset,
+      },
+    },
+  );
+}
+
+export async function retryDeleteDocument(
+  documentId: string,
+): Promise<RetryDeleteDocumentResponse> {
+  return apiRequest<RetryDeleteDocumentResponse>(
+    `/admin/documents/deletion/${encodeURIComponent(documentId)}/retry`,
+    {
+      method: "POST",
     },
   );
 }

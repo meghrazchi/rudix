@@ -20,6 +20,7 @@ from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.documents.workflows import (
+    bulk_delete_documents_workflow,
     delete_document_workflow,
     reindex_document_workflow,
     upload_document_workflow,
@@ -37,6 +38,8 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
+    BulkDeleteDocumentsRequest,
+    BulkDeleteDocumentsResponse,
     CreateUploadUrlRequest,
     CreateUploadUrlResponse,
     DeleteDocumentResponse,
@@ -1005,6 +1008,41 @@ async def delete_document_endpoint(
         actor_user_id=actor_user_id,
         actor_organization_id=actor_organization_id,
         document=document,
+        db_session=db_session,
+        document_repository=document_repository,
+        audit_log_service=audit_log_service,
+        delete_document_task=delete_document_task,
+    )
+
+
+@router.post(
+    "/bulk-delete",
+    response_model=BulkDeleteDocumentsResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def bulk_delete_documents_endpoint(
+    request: Request,
+    body: BulkDeleteDocumentsRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.delete))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> BulkDeleteDocumentsResponse:
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+    return await bulk_delete_documents_workflow(
+        request_id=request_id,
+        actor_user_id=actor_user_id,
+        actor_organization_id=actor_organization_id,
+        document_ids=body.document_ids,
         db_session=db_session,
         document_repository=document_repository,
         audit_log_service=audit_log_service,

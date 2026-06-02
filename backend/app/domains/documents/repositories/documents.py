@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -348,6 +349,50 @@ class DocumentRepository:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement)
         return int(result.scalar_one())
+
+    async def set_deletion_requested_at(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        deletion_requested_at: datetime,
+    ) -> None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is not None:
+            document.deletion_requested_at = deletion_requested_at
+            await session.flush()
+
+    async def list_documents_for_deletion_admin(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        statuses: list[str] | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[Document], int]:
+        deletion_statuses = statuses or [
+            DocumentStatus.delete_requested.value,
+            DocumentStatus.deleting.value,
+            DocumentStatus.retained_by_policy.value,
+        ]
+        base_filter = Document.organization_id == organization_id
+        status_filter = or_(*[Document.status == s for s in deletion_statuses])
+
+        count_result = await session.execute(
+            select(func.count(Document.id)).where(base_filter, status_filter)
+        )
+        total = int(count_result.scalar_one())
+
+        items_result = await session.execute(
+            select(Document)
+            .where(base_filter, status_filter)
+            .order_by(Document.deletion_requested_at.desc().nulls_last(), Document.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(items_result.scalars().all()), total
 
     async def get_document_chunk_token_distribution(
         self,

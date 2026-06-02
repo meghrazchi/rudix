@@ -1622,6 +1622,77 @@ class DocumentTask(RudixTask):
             return
 
 
+class DocumentDeleteTask(DocumentTask):
+    """Task base class for document deletion — leaves document in delete_requested on terminal failure."""
+
+    abstract = True
+
+    def on_terminal_failure(
+        self,
+        *,
+        exc: Exception,
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
+        document_id = kwargs.get("document_id")
+        if document_id is None and args:
+            document_id = args[0]
+        if not isinstance(document_id, str):
+            return
+        try:
+            error_details = details_from_exception(exc)
+            error_message = f"delete_failed: {encode_document_error(error_details)}"
+            # Revert to delete_requested so the admin can retry the cleanup.
+            set_document_status(
+                document_id,
+                status=DocumentStatus.delete_requested,
+                error_message=error_message,
+            )
+            log_document_event(
+                event="document.deletion.failed",
+                document_id=document_id,
+                request_id=kwargs.get("request_id"),
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                status_code=DocumentStatus.delete_requested.value,
+                error=str(exc),
+                error_stage=error_details["stage"],
+                error_code=error_details["code"],
+                error_category=error_details["category"],
+                retryable=error_details["retryable"],
+            )
+            _record_worker_audit(
+                action="document.delete.failed",
+                resource_type="document",
+                resource_id=document_id,
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                request_id=kwargs.get("request_id"),
+                metadata={
+                    "task_name": self.name,
+                    "status": DocumentStatus.delete_requested.value,
+                    "error_type": exc.__class__.__name__,
+                    "error_code": error_details["code"],
+                    "error_category": error_details["category"],
+                    "retryable": error_details["retryable"],
+                },
+            )
+            from app.workers.notification_helper import emit_notification
+
+            emit_notification(
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                event_type="security_warning",
+                severity="error",
+                title="Document deletion failed",
+                message="Cleanup could not complete. An admin can retry the deletion.",
+                href=f"/admin/documents/deletion?highlight={document_id}",
+                source_id=document_id,
+            )
+        except Exception:
+            return
+
+
 @celery_app.task(name="documents.process", bind=True, base=DocumentTask, ignore_result=True)
 def process_document(
     self: DocumentTask,
@@ -1749,9 +1820,9 @@ def process_document(
     }
 
 
-@celery_app.task(name="documents.delete", bind=True, base=DocumentTask, ignore_result=True)
+@celery_app.task(name="documents.delete", bind=True, base=DocumentDeleteTask, ignore_result=True)
 def delete_document(
-    self: DocumentTask,
+    self: DocumentDeleteTask,
     document_id: str,
     *,
     request_id: str | None = None,
@@ -1786,7 +1857,12 @@ def delete_document(
         )
         return {"document_id": document_id, "status": "skipped"}
 
-    if status != DocumentStatus.deleting.value:
+    if status not in {DocumentStatus.deleting.value, DocumentStatus.delete_requested.value}:
+        deleting_updated = set_document_status(document_id, status=DocumentStatus.deleting)
+        if not deleting_updated:
+            raise TransientTaskError(f"Unable to move document to deleting state: {document_id}")
+    elif status == DocumentStatus.delete_requested.value:
+        # Transition from delete_requested → deleting as the task begins.
         deleting_updated = set_document_status(document_id, status=DocumentStatus.deleting)
         if not deleting_updated:
             raise TransientTaskError(f"Unable to move document to deleting state: {document_id}")

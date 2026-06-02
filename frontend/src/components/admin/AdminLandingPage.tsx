@@ -14,7 +14,8 @@ type AdminSurfaceCard = {
     | "system-health"
     | "monitoring"
     | "governance"
-    | "feedback-review";
+    | "feedback-review"
+    | "deletion-status";
   title: string;
   description: string;
   href: string;
@@ -97,6 +98,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       description:
         "Triage answer feedback, assign severity, link evaluation cases, and resolve knowledge gaps.",
       href: "/admin/feedback-review",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "deletion-status",
+      title: "Document deletion status",
+      description:
+        "Monitor and retry document deletions in progress, failed, or blocked by retention policy.",
+      href: "/admin/documents/deletion",
       available: true,
       availabilityNote: "Available",
     },

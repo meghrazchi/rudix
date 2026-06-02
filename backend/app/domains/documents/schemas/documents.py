@@ -118,7 +118,52 @@ class UploadDocumentResponse(BaseModel):
 
 class DeleteDocumentResponse(BaseModel):
     document_id: str
-    status: Literal["deleting", "deleted"]
+    status: Literal["delete_requested", "deleting", "deleted", "retained_by_policy"]
+    hold_reason: str | None = None
+
+
+class BulkDeleteDocumentsRequest(BaseModel):
+    document_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class BulkDeleteDocumentResult(BaseModel):
+    document_id: str
+    status: Literal["delete_requested", "deleting", "deleted", "retained_by_policy", "not_found", "error"]
+    hold_reason: str | None = None
+    error: str | None = None
+
+
+class BulkDeleteDocumentsResponse(BaseModel):
+    accepted: int
+    retained: int
+    errors: int
+    results: list[BulkDeleteDocumentResult]
+
+
+class AdminDocumentDeletionItem(BaseModel):
+    document_id: str
+    filename: str
+    file_type: str
+    status: DocumentStatus
+    organization_id: str
+    deletion_requested_at: datetime | None = None
+    deletion_hold_reason: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdminDocumentDeletionListResponse(BaseModel):
+    items: list[AdminDocumentDeletionItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class RetryDeleteDocumentResponse(BaseModel):
+    document_id: str
+    status: Literal["delete_requested", "deleting"]
+    queue_status: Literal["queued"]
 
 
 class ReindexDocumentResponse(BaseModel):

@@ -4,6 +4,7 @@ from app.auth.dependencies import get_current_principal
 from app.interfaces.http import (
     admin,
     admin_chunking_profiles,
+    admin_documents,
     admin_governance,
     agent_runs,
     auth,
@@ -36,6 +37,7 @@ protected_router.include_router(pipeline.router)
 protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
 protected_router.include_router(admin.router)
+protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(team.router)

@@ -1,4 +1,5 @@
 import re
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -12,8 +13,11 @@ from app.core.logging import log_document_event
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
+    BulkDeleteDocumentResult,
+    BulkDeleteDocumentsResponse,
     DeleteDocumentResponse,
     ReindexDocumentResponse,
+    RetryDeleteDocumentResponse,
     UploadDocumentMetadata,
     UploadDocumentResponse,
 )
@@ -23,6 +27,8 @@ from app.domains.documents.services.upload_validation import validate_upload
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus
+
+_LEGAL_HOLD_RETENTION_CLASSES = frozenset({"legal_hold"})
 
 _SAFE_SIGNATURE_PATTERN = re.compile(r"^[A-Za-z0-9._:+\- ]+$")
 
@@ -513,6 +519,47 @@ async def delete_document_workflow(
     audit_log_service: AuditLogService,
     delete_document_task: Any,
 ) -> DeleteDocumentResponse:
+    # Retention/legal hold check — must run before any status transition.
+    if document.retention_class in _LEGAL_HOLD_RETENTION_CLASSES:
+        hold_reason = (
+            document.deletion_hold_reason
+            or f"Document is under {document.retention_class} and cannot be deleted."
+        )
+        updated = await document_repository.update_document_status(
+            db_session,
+            document_id=document.id,
+            status=DocumentStatus.retained_by_policy.value,
+            error_message=hold_reason,
+        )
+        if updated is not None:
+            await audit_log_service.record(
+                db_session,
+                organization_id=actor_organization_id,
+                user_id=actor_user_id,
+                action="document.delete.retained",
+                resource_type="document",
+                resource_id=document.id,
+                request_id=request_id,
+                metadata={
+                    "retention_class": document.retention_class,
+                    "hold_reason": hold_reason,
+                },
+            )
+            await db_session.commit()
+        log_document_event(
+            event="document.deletion.retained_by_policy",
+            document_id=str(document.id),
+            organization_id=str(actor_organization_id),
+            user_id=str(actor_user_id),
+            request_id=request_id,
+            retention_class=document.retention_class,
+        )
+        return DeleteDocumentResponse(
+            document_id=str(document.id),
+            status=DocumentStatus.retained_by_policy.value,
+            hold_reason=hold_reason,
+        )
+
     if document.status == DocumentStatus.deleted.value:
         wrote_audit = await audit_log_service.record(
             db_session,
@@ -537,7 +584,10 @@ async def delete_document_workflow(
             document_id=str(document.id), status=DocumentStatus.deleted.value
         )
 
-    if document.status == DocumentStatus.deleting.value:
+    if document.status in {
+        DocumentStatus.deleting.value,
+        DocumentStatus.delete_requested.value,
+    }:
         wrote_audit = await audit_log_service.record(
             db_session,
             organization_id=actor_organization_id,
@@ -558,13 +608,14 @@ async def delete_document_workflow(
             status_code=status.HTTP_202_ACCEPTED,
         )
         return DeleteDocumentResponse(
-            document_id=str(document.id), status=DocumentStatus.deleting.value
+            document_id=str(document.id), status=document.status
         )
 
+    # Transition to delete_requested before attempting to enqueue.
     updated = await document_repository.update_document_status(
         db_session,
         document_id=document.id,
-        status=DocumentStatus.deleting.value,
+        status=DocumentStatus.delete_requested.value,
         error_message=None,
     )
     if updated is None:
@@ -573,6 +624,11 @@ async def delete_document_workflow(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
+    await document_repository.set_deletion_requested_at(
+        db_session,
+        document_id=document.id,
+        deletion_requested_at=datetime.now(UTC),
+    )
     await audit_log_service.record(
         db_session,
         organization_id=actor_organization_id,
@@ -583,7 +639,7 @@ async def delete_document_workflow(
         request_id=request_id,
         metadata={
             "previous_status": document.status,
-            "next_status": DocumentStatus.deleting.value,
+            "next_status": DocumentStatus.delete_requested.value,
         },
     )
     await db_session.commit()
@@ -650,7 +706,194 @@ async def delete_document_workflow(
     )
     return DeleteDocumentResponse(
         document_id=str(document.id),
-        status=DocumentStatus.deleting.value,
+        status=DocumentStatus.delete_requested.value,
+    )
+
+
+async def bulk_delete_documents_workflow(
+    *,
+    request_id: str | None,
+    actor_user_id: UUID,
+    actor_organization_id: UUID,
+    document_ids: list[str],
+    db_session: AsyncSession,
+    document_repository: DocumentRepository,
+    audit_log_service: AuditLogService,
+    delete_document_task: Any,
+) -> BulkDeleteDocumentsResponse:
+    results: list[BulkDeleteDocumentResult] = []
+    accepted = 0
+    retained = 0
+    errors = 0
+
+    for doc_id in document_ids:
+        try:
+            doc_uuid = UUID(doc_id)
+        except ValueError:
+            results.append(
+                BulkDeleteDocumentResult(
+                    document_id=doc_id,
+                    status="error",
+                    error="Invalid document ID format",
+                )
+            )
+            errors += 1
+            continue
+
+        doc = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
+        if doc is None or doc.organization_id != actor_organization_id:
+            results.append(
+                BulkDeleteDocumentResult(document_id=doc_id, status="not_found")
+            )
+            errors += 1
+            continue
+
+        try:
+            response = await delete_document_workflow(
+                request_id=request_id,
+                actor_user_id=actor_user_id,
+                actor_organization_id=actor_organization_id,
+                document=doc,
+                db_session=db_session,
+                document_repository=document_repository,
+                audit_log_service=audit_log_service,
+                delete_document_task=delete_document_task,
+            )
+            result_status = response.status
+            if result_status == "retained_by_policy":
+                retained += 1
+            else:
+                accepted += 1
+            results.append(
+                BulkDeleteDocumentResult(
+                    document_id=doc_id,
+                    status=result_status,
+                    hold_reason=response.hold_reason,
+                )
+            )
+        except HTTPException as exc:
+            results.append(
+                BulkDeleteDocumentResult(
+                    document_id=doc_id,
+                    status="error",
+                    error=exc.detail,
+                )
+            )
+            errors += 1
+
+    return BulkDeleteDocumentsResponse(
+        accepted=accepted,
+        retained=retained,
+        errors=errors,
+        results=results,
+    )
+
+
+async def retry_delete_document_workflow(
+    *,
+    request_id: str | None,
+    actor_user_id: UUID,
+    actor_organization_id: UUID,
+    document: Document,
+    db_session: AsyncSession,
+    document_repository: DocumentRepository,
+    audit_log_service: AuditLogService,
+    delete_document_task: Any,
+) -> RetryDeleteDocumentResponse:
+    retryable_statuses = {
+        DocumentStatus.delete_requested.value,
+        DocumentStatus.deleting.value,
+        DocumentStatus.failed.value,
+    }
+    if document.status not in retryable_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Document status '{document.status}' is not retryable. "
+            "Only delete_requested, deleting, or failed documents can be retried.",
+        )
+
+    # Move back to delete_requested before re-enqueuing.
+    updated = await document_repository.update_document_status(
+        db_session,
+        document_id=document.id,
+        status=DocumentStatus.delete_requested.value,
+        error_message=None,
+    )
+    if updated is None:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+    if document.deletion_requested_at is None:
+        await document_repository.set_deletion_requested_at(
+            db_session,
+            document_id=document.id,
+            deletion_requested_at=datetime.now(UTC),
+        )
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.delete.retry_requested",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={"previous_status": document.status},
+    )
+    await db_session.commit()
+
+    try:
+        task_result = delete_document_task.delay(
+            str(document.id),
+            request_id=request_id,
+            organization_id=str(actor_organization_id),
+            user_id=str(actor_user_id),
+        )
+    except Exception as exc:
+        wrote_audit = await audit_log_service.record(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            action="document.delete.enqueue_failed",
+            resource_type="document",
+            resource_id=document.id,
+            request_id=request_id,
+            metadata={
+                "error_type": exc.__class__.__name__,
+                "retry": True,
+            },
+        )
+        await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Document marked for re-deletion but could not be queued",
+        ) from exc
+
+    wrote_audit = await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.delete.queued",
+        resource_type="document",
+        resource_id=document.id,
+        request_id=request_id,
+        metadata={"task_id": str(task_result.id), "retry": True},
+    )
+    await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)
+
+    log_document_event(
+        event="document.deletion.retry_queued",
+        document_id=str(document.id),
+        organization_id=str(actor_organization_id),
+        user_id=str(actor_user_id),
+        request_id=request_id,
+        task_id=str(task_result.id),
+    )
+    return RetryDeleteDocumentResponse(
+        document_id=str(document.id),
+        status=DocumentStatus.delete_requested.value,
+        queue_status="queued",
     )
 
 

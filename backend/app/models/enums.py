@@ -21,8 +21,10 @@ class DocumentStatus(StrEnum):
     failed = "failed"
     quarantined = "quarantined"
     blocked = "blocked"
+    delete_requested = "delete_requested"
     deleting = "deleting"
     deleted = "deleted"
+    retained_by_policy = "retained_by_policy"
 
 
 class ChatRole(StrEnum):

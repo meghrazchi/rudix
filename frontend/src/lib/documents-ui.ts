@@ -8,6 +8,7 @@ import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 const POLLING_STATUSES = new Set<DocumentStatus>([
   "uploaded",
   "processing",
+  "delete_requested",
   "deleting",
 ]);
 
@@ -67,7 +68,12 @@ export function shouldPollDocumentList(
 }
 
 export function canDeleteDocument(status: DocumentStatus): boolean {
-  return status !== "deleted" && status !== "deleting";
+  return (
+    status !== "deleted" &&
+    status !== "deleting" &&
+    status !== "delete_requested" &&
+    status !== "retained_by_policy"
+  );
 }
 
 export function canReindexDocument(status: DocumentStatus): boolean {
@@ -85,4 +91,12 @@ export function getDocumentLifecycleActionErrorMessage(
     return "Document cannot be re-indexed in its current lifecycle state. Wait for processing/deleting to finish, then refresh and retry.";
   }
   return getApiErrorMessage(error);
+}
+
+export function isDeletionInProgress(status: DocumentStatus): boolean {
+  return status === "delete_requested" || status === "deleting";
+}
+
+export function isRetainedByPolicy(status: DocumentStatus): boolean {
+  return status === "retained_by_policy";
 }

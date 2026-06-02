@@ -1,8 +1,11 @@
 from uuid import UUID
 
+from datetime import datetime
+
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -26,7 +29,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="documents_file_type_allowed",
         ),
         CheckConstraint(
-            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'deleting', 'deleted')",
+            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'delete_requested', 'deleting', 'deleted', 'retained_by_policy')",
             name="documents_status_allowed",
         ),
         CheckConstraint(
@@ -67,6 +70,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     retention_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     tags: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    # Deletion lifecycle tracking.
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deletion_hold_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     # Security scan results — stored without private content.
     duplicate_of_document_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),

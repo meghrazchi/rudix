@@ -1508,7 +1508,9 @@ export interface components {
        * Status
        * @enum {string}
        */
-      status: "deleting" | "deleted";
+      status: "delete_requested" | "deleting" | "deleted" | "retained_by_policy";
+      /** Hold Reason */
+      hold_reason?: string | null;
     };
     /** DocumentChunkPreviewResponse */
     DocumentChunkPreviewResponse: {
@@ -1692,8 +1694,12 @@ export interface components {
       | "processing"
       | "indexed"
       | "failed"
+      | "quarantined"
+      | "blocked"
+      | "delete_requested"
       | "deleting"
-      | "deleted";
+      | "deleted"
+      | "retained_by_policy";
     /** DocumentStatusResponse */
     DocumentStatusResponse: {
       /** Document Id */

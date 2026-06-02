@@ -14,6 +14,7 @@ import {
   type UploadProgressItemState,
   type UploadProgressState,
 } from "@/components/documents/DocumentsUploadModal";
+import { DeleteConfirmModal } from "@/components/documents/DeleteConfirmModal";
 import type { UploadDocumentMetadata } from "@/lib/api/documents";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -29,6 +30,7 @@ import type {
   SortOrder,
 } from "@/lib/api/documents";
 import {
+  bulkDeleteDocuments,
   deleteDocument,
   downloadDocumentFile,
   getDocument,
@@ -85,8 +87,10 @@ const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
   { value: "failed", label: "Failed" },
   { value: "quarantined", label: "Quarantined" },
   { value: "blocked", label: "Blocked" },
+  { value: "delete_requested", label: "Delete Requested" },
   { value: "deleting", label: "Deleting" },
   { value: "deleted", label: "Deleted" },
+  { value: "retained_by_policy", label: "Retained by Policy" },
 ];
 
 const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
@@ -114,8 +118,10 @@ function parseStatusFilter(value: string | null): StatusFilter {
     "failed",
     "quarantined",
     "blocked",
+    "delete_requested",
     "deleting",
     "deleted",
+    "retained_by_policy",
   ];
   return supported.includes(value as DocumentStatus)
     ? (value as DocumentStatus)
@@ -171,11 +177,17 @@ function statusBadge(status: DocumentStatus): string {
   if (status === "blocked") {
     return "rounded-full bg-red-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-red-800";
   }
+  if (status === "delete_requested") {
+    return "rounded-full bg-rose-50 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-600";
+  }
   if (status === "deleting") {
     return "rounded-full bg-slate-200 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-700";
   }
   if (status === "deleted") {
     return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
+  }
+  if (status === "retained_by_policy") {
+    return "rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-yellow-800";
   }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
@@ -307,6 +319,12 @@ export function DocumentsPage() {
   const [assignDocumentId, setAssignDocumentId] = useState<string | null>(null);
   const [assignDocumentName, setAssignDocumentName] = useState<string>("");
   const [assignSaveError, setAssignSaveError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteModalState, setDeleteModalState] = useState<{
+    open: boolean;
+    documentId: string | null;
+    filenames: string[];
+  }>({ open: false, documentId: null, filenames: [] });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -374,9 +392,13 @@ export function DocumentsPage() {
   const deleteMutation = useMutation({
     mutationFn: (documentId: string) => deleteDocument(documentId),
     onSuccess: async (result, documentId) => {
-      setActionFeedback(
-        `Delete requested for ${documentId}. Current status: ${result.status}.`,
-      );
+      if (result.status === "retained_by_policy") {
+        setActionFeedback(
+          `Document is retained by policy${result.hold_reason ? `: ${result.hold_reason}` : "."} Deletion blocked.`,
+        );
+      } else {
+        setActionFeedback(`Deletion requested. Status: ${result.status}.`);
+      }
       setActionRequestId(null);
       if (selectedDocumentId === documentId && result.status === "deleted") {
         setSelectedDocumentId(null);
@@ -387,6 +409,24 @@ export function DocumentsPage() {
       setActionFeedback(
         getDocumentLifecycleActionErrorMessage("delete", error),
       );
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (documentIds: string[]) => bulkDeleteDocuments(documentIds),
+    onSuccess: async (result) => {
+      const parts: string[] = [];
+      if (result.accepted > 0) parts.push(`${result.accepted} queued for deletion`);
+      if (result.retained > 0) parts.push(`${result.retained} retained by policy`);
+      if (result.errors > 0) parts.push(`${result.errors} errors`);
+      setActionFeedback(parts.join(", ") + ".");
+      setActionRequestId(null);
+      setSelectedIds(new Set());
+      await invalidateAfterMutation(queryClient, "document.delete");
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
       setActionRequestId(extractRequestIdFromError(error));
     },
   });
@@ -504,6 +544,15 @@ export function DocumentsPage() {
   const pendingDownloadDocumentId = downloadMutation.isPending
     ? downloadMutation.variables.documentId
     : null;
+  const isBulkDeleting = bulkDeleteMutation.isPending;
+
+  const selectableDocumentIds = documents
+    .filter((d) => canDeleteDocument(d.status))
+    .map((d) => d.document_id);
+  const allSelectableSelected =
+    selectableDocumentIds.length > 0 &&
+    selectableDocumentIds.every((id) => selectedIds.has(id));
+  const someSelected = selectedIds.size > 0;
 
   const canGoPrevDocuments = offset > 0;
   const canGoNextDocuments = Boolean(
@@ -1428,6 +1477,24 @@ export function DocumentsPage() {
               <table className="min-w-full border-collapse bg-white text-left">
                 <thead className="border-b border-[#e5e3f1] bg-[#f8f7ff]">
                   <tr className="text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase">
+                    {capabilities.canDelete ? (
+                      <th className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          aria-label="Select all"
+                          checked={allSelectableSelected}
+                          disabled={selectableDocumentIds.length === 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(new Set(selectableDocumentIds));
+                            } else {
+                              setSelectedIds(new Set());
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-[#c9c6dc] text-[#3525cd] accent-[#3525cd]"
+                        />
+                      </th>
+                    ) : null}
                     <th className="px-4 py-3">Filename</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Status</th>
@@ -1461,6 +1528,28 @@ export function DocumentsPage() {
                         key={document.document_id}
                         className="group align-top transition-colors hover:bg-[#faf9ff]"
                       >
+                        {capabilities.canDelete ? (
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              aria-label={`Select ${document.filename}`}
+                              checked={selectedIds.has(document.document_id)}
+                              disabled={!canDeleteDocument(document.status)}
+                              onChange={(e) => {
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) {
+                                    next.add(document.document_id);
+                                  } else {
+                                    next.delete(document.document_id);
+                                  }
+                                  return next;
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-[#c9c6dc] text-[#3525cd] accent-[#3525cd] disabled:opacity-40"
+                            />
+                          </td>
+                        ) : null}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <span
@@ -1588,13 +1677,11 @@ export function DocumentsPage() {
                               aria-label="Delete"
                               disabled={!deleteEnabled || deleteBusy}
                               onClick={() => {
-                                const confirmed = window.confirm(
-                                  `Delete document \"${document.filename}\"? This action cannot be undone.`,
-                                );
-                                if (!confirmed) {
-                                  return;
-                                }
-                                deleteMutation.mutate(document.document_id);
+                                setDeleteModalState({
+                                  open: true,
+                                  documentId: document.document_id,
+                                  filenames: [document.filename],
+                                });
                               }}
                               className="rounded p-1 text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -1625,6 +1712,35 @@ export function DocumentsPage() {
                 </tbody>
               </table>
             </div>
+
+            {someSelected && capabilities.canDelete ? (
+              <div className="flex items-center justify-between gap-3 border-t border-rose-100 bg-rose-50 px-4 py-2">
+                <p className="text-sm font-semibold text-rose-800">
+                  {selectedIds.size} document
+                  {selectedIds.size === 1 ? "" : "s"} selected
+                </p>
+                <button
+                  type="button"
+                  disabled={isBulkDeleting}
+                  onClick={() => {
+                    const filenames = documents
+                      .filter((d) => selectedIds.has(d.document_id))
+                      .map((d) => d.filename);
+                    setDeleteModalState({
+                      open: true,
+                      documentId: null,
+                      filenames,
+                    });
+                  }}
+                  className="flex items-center gap-1 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    delete
+                  </span>
+                  Delete selected ({selectedIds.size})
+                </button>
+              </div>
+            ) : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5e3f1] bg-[#fcfbff] px-4 py-3">
               <button
@@ -1943,6 +2059,22 @@ export function DocumentsPage() {
           }}
         />
       ) : null}
+
+      <DeleteConfirmModal
+        open={deleteModalState.open}
+        filenames={deleteModalState.filenames}
+        onCancel={() =>
+          setDeleteModalState({ open: false, documentId: null, filenames: [] })
+        }
+        onConfirm={() => {
+          if (deleteModalState.documentId) {
+            deleteMutation.mutate(deleteModalState.documentId);
+          } else {
+            bulkDeleteMutation.mutate(Array.from(selectedIds));
+          }
+          setDeleteModalState({ open: false, documentId: null, filenames: [] });
+        }}
+      />
     </section>
   );
 }
