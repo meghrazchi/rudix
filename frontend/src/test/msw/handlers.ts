@@ -37,6 +37,8 @@ import {
   mockSecurityAuditEvents,
   mockSecurityPosture,
   mockSecuritySessions,
+  mockTeamMemberInviteResponse,
+  mockTeamMembers,
   mockTopBarNotifications,
   mockUsageSummary,
   mockUserPreferences,
@@ -312,6 +314,27 @@ export function createMockApiHandlers(
     ),
     http.post(`${apiBaseUrl}/billing/portal-session`, () =>
       HttpResponse.json(mockBillingPortalSession, { status: 201 }),
+    ),
+
+    // ── Settings: Team ───────────────────────────────────────────────────────
+    http.get(`${apiBaseUrl}/team/members`, ({ request }) => {
+      const { limit, offset } = parsePaginationParams(request.url);
+      return HttpResponse.json({
+        ...mockTeamMembers,
+        items: pageItems(mockTeamMembers.items, limit, offset),
+        total: mockTeamMembers.items.length,
+        limit,
+        offset,
+      });
+    }),
+    http.post(`${apiBaseUrl}/team/members/invite`, () =>
+      HttpResponse.json(mockTeamMemberInviteResponse, { status: 201 }),
+    ),
+    http.patch(`${apiBaseUrl}/team/members/:memberId/role`, () =>
+      HttpResponse.json(mockTeamMembers.items[1]),
+    ),
+    http.delete(`${apiBaseUrl}/team/members/:memberId`, () =>
+      HttpResponse.json({ removed: true }),
     ),
   ];
 }

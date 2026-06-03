@@ -27,12 +27,14 @@ import {
 import {
   getSessions,
   getLoginPolicy,
+  updateLoginPolicy,
   getSecurityPosture,
   getRecentAuditEvents,
   isSecurityEndpointUnavailableError,
 } from "@/lib/api/security";
 import {
   getOrganizationProfile,
+  updateOrganizationProfile,
   getOrganizationSettings,
   getIngestionDefaults,
   isOrganizationEndpointUnavailableError,
@@ -43,8 +45,16 @@ import {
   getBillingQuotas,
   getInvoices,
   getBillingContact,
+  updateBillingContact,
   isBillingEndpointUnavailableError,
 } from "@/lib/api/billing";
+import {
+  listTeamMembers,
+  inviteTeamMember,
+  updateTeamMemberRole,
+  removeTeamMember,
+  isTeamEndpointUnavailableError,
+} from "@/lib/api/team";
 import {
   mockUserProfile,
   mockUserPreferences,
@@ -60,6 +70,8 @@ import {
   mockBillingQuotas,
   mockInvoices,
   mockBillingContact,
+  mockTeamMembers,
+  mockTeamMemberInviteResponse,
 } from "@/test/msw/fixtures";
 
 const API_BASE = "http://api.test";
@@ -97,6 +109,10 @@ afterEach(() => {
   delete process.env.NEXT_PUBLIC_BILLING_QUOTAS_URL;
   delete process.env.NEXT_PUBLIC_BILLING_INVOICES_URL;
   delete process.env.NEXT_PUBLIC_BILLING_CONTACT_URL;
+  delete process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL;
+  delete process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL;
+  delete process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE;
+  delete process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE;
 });
 afterAll(() => server.close());
 
@@ -117,6 +133,17 @@ function rateLimited() {
   return HttpResponse.json(
     { error_code: "RATE_LIMITED", detail: "Too many requests." },
     { status: 429 },
+  );
+}
+
+function validationError(field = "email", message = "Invalid value.") {
+  return HttpResponse.json(
+    {
+      error_code: "VALIDATION_ERROR",
+      detail: "Request body failed validation.",
+      errors: [{ field, message }],
+    },
+    { status: 422 },
   );
 }
 
@@ -638,6 +665,289 @@ describe("Billing API contracts", () => {
       const err = await getBillingContact().catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(429);
+    });
+  });
+});
+
+// ── Validation-error contracts (422) ──────────────────────────────────────────
+
+describe("Validation-error responses (422) for mutation endpoints", () => {
+  describe("PATCH /me — validation error", () => {
+    it("raises ApiClientError with status 422 on validation failure", async () => {
+      process.env.NEXT_PUBLIC_PROFILE_ME_URL = "/me";
+      server.use(http.patch(`${API_BASE}/me`, () => validationError("name", "Name too long.")));
+      const err = await updateMe({ name: "x".repeat(300) }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(422);
+    });
+  });
+
+  describe("PATCH /me/preferences — validation error", () => {
+    it("raises ApiClientError with status 422 on invalid field", async () => {
+      process.env.NEXT_PUBLIC_PROFILE_PREFERENCES_URL = "/me/preferences";
+      server.use(
+        http.patch(`${API_BASE}/me/preferences`, () =>
+          validationError("theme", "Must be one of: light, dark, system."),
+        ),
+      );
+      const err = await updateMyPreferences({ theme: "neon" as "light" }).catch(
+        (e: unknown) => e,
+      );
+      expect(isApiClientError(err)).toBe(true);
+      expect((err as { status: number }).status).toBe(422);
+    });
+  });
+
+  describe("PATCH /security/login-policy — validation error", () => {
+    it("raises ApiClientError with status 422 on invalid domain", async () => {
+      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL = "/security/login-policy";
+      server.use(
+        http.patch(`${API_BASE}/security/login-policy`, () =>
+          validationError("domain_allowlist", "Not a valid domain."),
+        ),
+      );
+      const err = await updateLoginPolicy({
+        domain_allowlist: ["not-a-domain!"],
+      }).catch((e: unknown) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect((err as { status: number }).status).toBe(422);
+    });
+  });
+
+  describe("PATCH /organization — validation error", () => {
+    it("raises ApiClientError with status 422 on invalid slug", async () => {
+      process.env.NEXT_PUBLIC_ORGANIZATION_PROFILE_URL = "/organization";
+      server.use(
+        http.patch(`${API_BASE}/organization`, () =>
+          validationError("slug", "Slug must be lowercase."),
+        ),
+      );
+      const err = await updateOrganizationProfile({ slug: "INVALID SLUG" }).catch(
+        (e: unknown) => e,
+      );
+      expect(isApiClientError(err)).toBe(true);
+      expect((err as { status: number }).status).toBe(422);
+    });
+  });
+
+  describe("PATCH /billing/contact — validation error", () => {
+    it("raises ApiClientError with status 422 on invalid email", async () => {
+      process.env.NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL = "/billing/contact";
+      server.use(
+        http.patch(`${API_BASE}/billing/contact`, () =>
+          validationError("email", "Must be a valid email address."),
+        ),
+      );
+      const err = await updateBillingContact({ email: "not-an-email" }).catch(
+        (e: unknown) => e,
+      );
+      expect(isApiClientError(err)).toBe(true);
+      expect((err as { status: number }).status).toBe(422);
+    });
+  });
+});
+
+// ── Team API contracts ─────────────────────────────────────────────────────────
+
+describe("Team API contracts", () => {
+  describe("GET /team/members", () => {
+    it("throws TeamEndpointUnavailableError when env var is unset", async () => {
+      const err = await listTeamMembers().catch((e) => e);
+      expect(isTeamEndpointUnavailableError(err)).toBe(true);
+      expect(err.endpointKey).toBe("listMembersEnabled");
+    });
+
+    it("returns paginated member list on 200", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL = "/team/members";
+      server.use(
+        http.get(`${API_BASE}/team/members`, () =>
+          HttpResponse.json(mockTeamMembers),
+        ),
+      );
+      const result = await listTeamMembers();
+      expect(result.items).toHaveLength(3);
+      expect(result.total).toBe(3);
+      expect(result.items[0]?.email).toBe("alice@example.com");
+      expect(result.items[0]?.role).toBe("owner");
+    });
+
+    it("returns empty list when no members exist", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL = "/team/members";
+      server.use(
+        http.get(`${API_BASE}/team/members`, () =>
+          HttpResponse.json({ items: [], total: 0, limit: 10, offset: 0 }),
+        ),
+      );
+      const result = await listTeamMembers();
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it("raises ApiClientError with status 403 on forbidden", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL = "/team/members";
+      server.use(http.get(`${API_BASE}/team/members`, forbidden));
+      const err = await listTeamMembers().catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(403);
+    });
+
+    it("raises ApiClientError with status 429 on rate limit", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL = "/team/members";
+      server.use(http.get(`${API_BASE}/team/members`, rateLimited));
+      const err = await listTeamMembers().catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(429);
+    });
+
+    it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL = "/team/members";
+      server.use(http.get(`${API_BASE}/team/members`, notImplemented));
+      const err = await listTeamMembers().catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(501);
+    });
+  });
+
+  describe("POST /team/members/invite", () => {
+    it("throws TeamEndpointUnavailableError when env var is unset", async () => {
+      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      expect(isTeamEndpointUnavailableError(err)).toBe(true);
+      expect(err.endpointKey).toBe("inviteEnabled");
+    });
+
+    it("returns invite response on 200/201", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
+      server.use(
+        http.post(`${API_BASE}/team/members/invite`, () =>
+          HttpResponse.json(mockTeamMemberInviteResponse, { status: 201 }),
+        ),
+      );
+      const result = await inviteTeamMember({ email: "carol@example.com", role: "member" });
+      expect(result.invited).toBe(true);
+      expect(result.member.email).toBe("carol@example.com");
+      expect(result.member.status).toBe("invited");
+    });
+
+    it("raises ApiClientError with status 403 on forbidden", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
+      server.use(http.post(`${API_BASE}/team/members/invite`, forbidden));
+      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(403);
+    });
+
+    it("raises ApiClientError with status 429 on rate limit", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
+      server.use(http.post(`${API_BASE}/team/members/invite`, rateLimited));
+      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(429);
+    });
+
+    it("raises ApiClientError with status 422 on invalid email", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
+      server.use(
+        http.post(`${API_BASE}/team/members/invite`, () =>
+          validationError("email", "Must be a valid email address."),
+        ),
+      );
+      const err = await inviteTeamMember({ email: "not-an-email", role: "member" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(422);
+    });
+
+    it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
+      server.use(http.post(`${API_BASE}/team/members/invite`, notImplemented));
+      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(501);
+    });
+  });
+
+  describe("PATCH /team/members/:memberId/role", () => {
+    it("throws TeamEndpointUnavailableError when env var is unset", async () => {
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      expect(isTeamEndpointUnavailableError(err)).toBe(true);
+      expect(err.endpointKey).toBe("updateRoleEnabled");
+    });
+
+    it("returns updated member on 200", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE =
+        "/team/members/{memberId}/role";
+      server.use(
+        http.patch(`${API_BASE}/team/members/:memberId/role`, () =>
+          HttpResponse.json({ ...mockTeamMembers.items[1], role: "viewer" }),
+        ),
+      );
+      const result = await updateTeamMemberRole("member-2", { role: "viewer" });
+      expect(result.role).toBe("viewer");
+    });
+
+    it("raises ApiClientError with status 403 on forbidden", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE =
+        "/team/members/{memberId}/role";
+      server.use(
+        http.patch(`${API_BASE}/team/members/:memberId/role`, forbidden),
+      );
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(403);
+    });
+
+    it("raises ApiClientError with status 422 on invalid role", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE =
+        "/team/members/{memberId}/role";
+      server.use(
+        http.patch(`${API_BASE}/team/members/:memberId/role`, () =>
+          validationError("role", "Cannot assign owner role via this endpoint."),
+        ),
+      );
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(422);
+    });
+  });
+
+  describe("DELETE /team/members/:memberId", () => {
+    it("throws TeamEndpointUnavailableError when env var is unset", async () => {
+      const err = await removeTeamMember("m-1").catch((e) => e);
+      expect(isTeamEndpointUnavailableError(err)).toBe(true);
+      expect(err.endpointKey).toBe("removeMemberEnabled");
+    });
+
+    it("returns removed confirmation on 200", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE =
+        "/team/members/{memberId}";
+      server.use(
+        http.delete(`${API_BASE}/team/members/:memberId`, () =>
+          HttpResponse.json({ removed: true }),
+        ),
+      );
+      const result = await removeTeamMember("member-2");
+      expect(result.removed).toBe(true);
+    });
+
+    it("raises ApiClientError with status 403 on forbidden", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE =
+        "/team/members/{memberId}";
+      server.use(
+        http.delete(`${API_BASE}/team/members/:memberId`, forbidden),
+      );
+      const err = await removeTeamMember("m-1").catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(403);
+    });
+
+    it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE =
+        "/team/members/{memberId}";
+      server.use(
+        http.delete(`${API_BASE}/team/members/:memberId`, notImplemented),
+      );
+      const err = await removeTeamMember("m-1").catch((e) => e);
+      expect(isApiClientError(err)).toBe(true);
+      expect(err.status).toBe(501);
     });
   });
 });

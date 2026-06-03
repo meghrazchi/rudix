@@ -40,6 +40,11 @@ import type {
   IngestionDefaults,
 } from "@/lib/api/organization";
 import type {
+  TeamMember,
+  TeamMemberListResponse,
+  InviteTeamMemberResponse,
+} from "@/lib/api/team";
+import type {
   PipelineNodeDetailResponse,
   PipelineRunGraphResponse,
   PipelineRunResolveResponse,
@@ -783,4 +788,51 @@ export const mockBillingContact: BillingContact = {
 export const mockBillingPortalSession: BillingPortalSession = {
   url: "https://billing.example.com/portal/session-token-abc123",
   expires_at: "2026-06-03T09:05:00Z",
+};
+
+// ── Team fixtures ─────────────────────────────────────────────────────────────
+
+export const mockTeamMemberOwner: TeamMember = {
+  member_id: "member-1",
+  user_id: "user-1",
+  name: "Alice Example",
+  email: "alice@example.com",
+  role: "owner",
+  status: "active",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-06-01T00:00:00Z",
+};
+
+export const mockTeamMemberAdmin: TeamMember = {
+  member_id: "member-2",
+  user_id: "user-2",
+  name: "Bob Admin",
+  email: "bob@example.com",
+  role: "admin",
+  status: "active",
+  created_at: "2026-02-01T00:00:00Z",
+  updated_at: "2026-06-01T00:00:00Z",
+};
+
+export const mockTeamMemberInvited: TeamMember = {
+  member_id: "member-3",
+  user_id: null,
+  name: "carol@example.com",
+  email: "carol@example.com",
+  role: "member",
+  status: "invited",
+  created_at: "2026-06-02T10:00:00Z",
+  updated_at: "2026-06-02T10:00:00Z",
+};
+
+export const mockTeamMembers: TeamMemberListResponse = {
+  items: [mockTeamMemberOwner, mockTeamMemberAdmin, mockTeamMemberInvited],
+  total: 3,
+  limit: 10,
+  offset: 0,
+};
+
+export const mockTeamMemberInviteResponse: InviteTeamMemberResponse = {
+  member: mockTeamMemberInvited,
+  invited: true,
 };

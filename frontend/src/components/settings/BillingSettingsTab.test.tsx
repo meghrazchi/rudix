@@ -552,3 +552,63 @@ describe("BillingSettingsTab — invoices", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("BillingSettingsTab — sensitive data safety", () => {
+  const RAW_CARD_NUMBERS = [
+    "4111111111111111",
+    "5500005555555559",
+    "378282246310005",
+    "4242424242424242",
+  ];
+
+  beforeEach(() => {
+    mockAuth.state = ownerSession();
+    mockBillingApi.capabilities = {
+      planEnabled: true,
+      usageEnabled: true,
+      quotasEnabled: true,
+      invoicesEnabled: true,
+      billingContactEnabled: false,
+      updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
+    };
+    mockBillingApi.getBillingPlanInfo.mockResolvedValue(basePlan);
+    mockBillingApi.getBillingUsageSummary.mockResolvedValue(baseUsage);
+    mockBillingApi.getBillingQuotas.mockResolvedValue(baseQuotas);
+    mockBillingApi.getInvoices.mockResolvedValue(baseInvoices);
+  });
+
+  it("never renders raw card numbers after plan data loads", async () => {
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Enterprise Pro")).toBeInTheDocument();
+    });
+    for (const cardNumber of RAW_CARD_NUMBERS) {
+      expect(document.body.textContent?.includes(cardNumber)).toBe(false);
+    }
+  });
+
+  it("never renders raw card numbers in the unavailable state", () => {
+    mockBillingApi.capabilities = {
+      planEnabled: false,
+      usageEnabled: false,
+      quotasEnabled: false,
+      invoicesEnabled: false,
+      billingContactEnabled: false,
+      updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
+    };
+    renderTab();
+    for (const cardNumber of RAW_CARD_NUMBERS) {
+      expect(document.body.textContent?.includes(cardNumber)).toBe(false);
+    }
+  });
+
+  it("never renders raw card numbers for a member role forbidden state", () => {
+    mockAuth.state = memberSession();
+    renderTab();
+    for (const cardNumber of RAW_CARD_NUMBERS) {
+      expect(document.body.textContent?.includes(cardNumber)).toBe(false);
+    }
+  });
+});
