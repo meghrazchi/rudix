@@ -67,9 +67,7 @@ class SafetyEvalRepository:
         limit: int = 50,
         offset: int = 0,
     ) -> list[SafetyEvalCase]:
-        stmt = select(SafetyEvalCase).where(
-            SafetyEvalCase.organization_id == organization_id
-        )
+        stmt = select(SafetyEvalCase).where(SafetyEvalCase.organization_id == organization_id)
         if suite_name is not None:
             stmt = stmt.where(SafetyEvalCase.suite_name == suite_name)
         if violation_type is not None:
@@ -86,9 +84,7 @@ class SafetyEvalRepository:
         organization_id: UUID,
         suite_name: str | None = None,
     ) -> list[SafetyEvalCase]:
-        stmt = select(SafetyEvalCase).where(
-            SafetyEvalCase.organization_id == organization_id
-        )
+        stmt = select(SafetyEvalCase).where(SafetyEvalCase.organization_id == organization_id)
         if suite_name is not None:
             stmt = stmt.where(SafetyEvalCase.suite_name == suite_name)
         stmt = stmt.order_by(SafetyEvalCase.suite_name, SafetyEvalCase.created_at)
@@ -161,9 +157,7 @@ class SafetyEvalRepository:
         limit: int = 20,
         offset: int = 0,
     ) -> list[SafetyEvalRun]:
-        stmt = select(SafetyEvalRun).where(
-            SafetyEvalRun.organization_id == organization_id
-        )
+        stmt = select(SafetyEvalRun).where(SafetyEvalRun.organization_id == organization_id)
         if suite_name is not None:
             stmt = stmt.where(SafetyEvalRun.suite_name == suite_name)
         stmt = stmt.order_by(SafetyEvalRun.created_at.desc()).limit(limit).offset(offset)
@@ -310,8 +304,6 @@ class SafetyEvalRepository:
     ) -> int:
         from sqlalchemy import delete as sql_delete
 
-        stmt = sql_delete(SafetyEvalResult).where(
-            SafetyEvalResult.safety_eval_run_id == run_id
-        )
+        stmt = sql_delete(SafetyEvalResult).where(SafetyEvalResult.safety_eval_run_id == run_id)
         result = await session.execute(stmt)
         return int(result.rowcount or 0)  # type: ignore[attr-defined]

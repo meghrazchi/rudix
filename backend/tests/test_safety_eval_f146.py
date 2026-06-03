@@ -190,9 +190,7 @@ def test_scoring_injection_does_not_block_benign_questions(name: str, prompt: st
     from app.core.safety_guardrails import PromptInjectionGuard
 
     guard = PromptInjectionGuard()
-    result = guard.evaluate_request(
-        objective="", question=prompt, document_query=None
-    )
+    result = guard.evaluate_request(objective="", question=prompt, document_query=None)
     assert result.blocked is False, (
         f"Benign question '{name}' must not be blocked by the injection guard"
     )
@@ -243,9 +241,7 @@ _CROSS_TENANT_PAYLOADS: list[tuple[str, str]] = [
 
 
 @pytest.mark.parametrize("name,payload_text", _CROSS_TENANT_PAYLOADS)
-def test_scoring_cross_tenant_leakage_drops_foreign_chunks(
-    name: str, payload_text: str
-) -> None:
+def test_scoring_cross_tenant_leakage_drops_foreign_chunks(name: str, payload_text: str) -> None:
     service = SafetyEvalScoringService()
     result = service.score(
         violation_type="cross_tenant_leakage",
@@ -369,7 +365,8 @@ _MALICIOUS_DOC_FIXTURES: list[tuple[str, str]] = [
 
 @pytest.mark.parametrize("fixture_name,malicious_text", _MALICIOUS_DOC_FIXTURES)
 def test_scoring_malicious_document_text_stays_in_context_block(
-    fixture_name: str, malicious_text: str,
+    fixture_name: str,
+    malicious_text: str,
 ) -> None:
     service = SafetyEvalScoringService()
     result = service.score(
@@ -486,9 +483,7 @@ async def test_repository_create_and_retrieve_case(db_session: AsyncSession) -> 
     )
     await db_session.commit()
 
-    fetched = await repo.get_case_by_id(
-        db_session, case_id=case.id, organization_id=org_id
-    )
+    fetched = await repo.get_case_by_id(db_session, case_id=case.id, organization_id=org_id)
     assert fetched is not None
     assert fetched.name == "Classic ignore-previous"
     assert fetched.violation_type == "injection"
@@ -507,9 +502,7 @@ async def test_repository_create_and_retrieve_run(db_session: AsyncSession) -> N
     )
     await db_session.commit()
 
-    fetched = await repo.get_run_by_id(
-        db_session, run_id=run.id, organization_id=org_id
-    )
+    fetched = await repo.get_run_by_id(db_session, run_id=run.id, organization_id=org_id)
     assert fetched is not None
     assert fetched.status == "queued"
     assert fetched.suite_name == "tenant_isolation"
@@ -555,14 +548,10 @@ async def test_repository_list_cases_by_suite(db_session: AsyncSession) -> None:
         )
     await db_session.commit()
 
-    core_cases = await repo.list_cases(
-        db_session, organization_id=org_id, suite_name="core_safety"
-    )
+    core_cases = await repo.list_cases(db_session, organization_id=org_id, suite_name="core_safety")
     assert len(core_cases) == 2
 
-    doc_cases = await repo.list_cases(
-        db_session, organization_id=org_id, suite_name="doc_safety"
-    )
+    doc_cases = await repo.list_cases(db_session, organization_id=org_id, suite_name="doc_safety")
     assert len(doc_cases) == 1
 
 
@@ -678,7 +667,6 @@ async def test_api_trigger_safety_eval_run_returns_202(
         organization_id=str(org.id),
         expires_in_seconds=600,
     )
-
 
     queued_ids: list[str] = []
 

@@ -138,9 +138,7 @@ async def _run_safety_eval_async(
     try:
         parsed_run_id = _parse_uuid(safety_eval_run_id)
     except ValueError as exc:
-        raise PermanentTaskError(
-            f"Invalid safety_eval_run_id: {safety_eval_run_id}"
-        ) from exc
+        raise PermanentTaskError(f"Invalid safety_eval_run_id: {safety_eval_run_id}") from exc
 
     org_uuid = _parse_optional_uuid(organization_id)
     if org_uuid is None:
@@ -194,9 +192,7 @@ async def _run_safety_eval_async(
 
         # Idempotent: clear stale results before re-running.
         try:
-            await _safety_eval_repository.delete_results_for_run(
-                session, run_id=parsed_run_id
-            )
+            await _safety_eval_repository.delete_results_for_run(session, run_id=parsed_run_id)
             await session.commit()
         except Exception as exc:
             await session.rollback()
