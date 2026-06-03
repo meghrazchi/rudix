@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Coroutine
 from dataclasses import dataclass
-from time import perf_counter
 from typing import Any
 from uuid import UUID
 
@@ -48,7 +48,7 @@ def _parse_optional_uuid(value: str | None) -> UUID | None:
         return None
 
 
-def _run[T](coro: Any) -> T:
+def _run[T](coro: Coroutine[Any, Any, T]) -> T:
     return run_async(coro)
 
 
@@ -261,13 +261,13 @@ async def _run_safety_eval_async(
     # Persist results and final run state.
     async with SessionLocal() as session:
         for item in scored_results:
-            case: SafetyEvalCase = item["case"]
+            scored_case: SafetyEvalCase = item["case"]
             scored = item["scored"]
             try:
                 await _safety_eval_repository.create_result(
                     session,
                     safety_eval_run_id=parsed_run_id,
-                    safety_eval_case_id=case.id,
+                    safety_eval_case_id=scored_case.id,
                     passed=scored.passed,
                     violation_detected=scored.violation_detected,
                     violation_type=scored.violation_type,
@@ -275,16 +275,16 @@ async def _run_safety_eval_async(
                     latency_ms=scored.latency_ms,
                     details={
                         **scored.details,
-                        "case_name": case.name,
-                        "case_suite": case.suite_name,
-                        "case_severity": case.severity,
-                        "prompt_text_preview": case.prompt_text[:200],
+                        "case_name": scored_case.name,
+                        "case_suite": scored_case.suite_name,
+                        "case_severity": scored_case.severity,
+                        "prompt_text_preview": scored_case.prompt_text[:200],
                     },
                 )
             except Exception as exc:
                 await session.rollback()
                 raise TransientTaskError(
-                    f"Unable to persist safety eval result for case {case.id}"
+                    f"Unable to persist safety eval result for case {scored_case.id}"
                 ) from exc
 
         try:
@@ -404,7 +404,7 @@ def run_safety_eval(
             f"Unable to mark safety eval run as running: {safety_eval_run_id}"
         ) from exc
 
-    result = _run(
+    result: dict[str, Any] = _run(
         _run_safety_eval_async(
             safety_eval_run_id,
             request_id=request_id,

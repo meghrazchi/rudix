@@ -56,7 +56,7 @@ class SafetyEvalCase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     severity: Mapped[str] = mapped_column(String(32), nullable=False, default="high")
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
 
-    results: "list[SafetyEvalResult]" = relationship(
+    results = relationship(
         "SafetyEvalResult",
         back_populates="safety_eval_case",
         cascade="all, delete-orphan",
@@ -88,7 +88,7 @@ class SafetyEvalRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     total_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     summary: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    results: "list[SafetyEvalResult]" = relationship(
+    results = relationship(
         "SafetyEvalResult",
         back_populates="safety_eval_run",
         cascade="all, delete-orphan",
@@ -119,5 +119,5 @@ class SafetyEvalResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    safety_eval_run: "SafetyEvalRun" = relationship("SafetyEvalRun", back_populates="results")
-    safety_eval_case: "SafetyEvalCase" = relationship("SafetyEvalCase", back_populates="results")
+    safety_eval_run = relationship("SafetyEvalRun", back_populates="results")
+    safety_eval_case = relationship("SafetyEvalCase", back_populates="results")

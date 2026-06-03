@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import AuthenticatedPrincipal
@@ -25,7 +26,7 @@ async def trigger_safety_eval_workflow(
     db_session: AsyncSession,
     safety_eval_repository: SafetyEvalRepository,
     audit_log_service: AuditLogService,
-    run_safety_eval_task: object,
+    run_safety_eval_task: Any,
 ) -> TriggerSafetyEvalRunResponse:
     regression_threshold = payload.regression_threshold
     model_version = payload.model_version

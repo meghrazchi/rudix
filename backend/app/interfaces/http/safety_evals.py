@@ -28,6 +28,7 @@ from app.domains.safety_evals.schemas.safety_evals import (
     TriggerSafetyEvalRunResponse,
 )
 from app.models.enums import OrganizationRole
+from app.models.safety_eval import SafetyEvalCase, SafetyEvalRun
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.safety_eval_tasks import run_safety_eval as run_safety_eval_task
 
@@ -78,7 +79,7 @@ def _request_id(request: Request) -> str | None:
     return request.headers.get("x-request-id")
 
 
-def _case_response(case: object) -> SafetyEvalCaseResponse:
+def _case_response(case: SafetyEvalCase) -> SafetyEvalCaseResponse:
     return SafetyEvalCaseResponse(
         case_id=str(case.id),
         suite_name=case.suite_name,
@@ -93,7 +94,7 @@ def _case_response(case: object) -> SafetyEvalCaseResponse:
     )
 
 
-def _run_response(run: object) -> SafetyEvalRunResponse:
+def _run_response(run: SafetyEvalRun) -> SafetyEvalRunResponse:
     pass_count = run.pass_count
     total_count = run.total_count
     pass_rate = (

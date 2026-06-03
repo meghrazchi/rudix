@@ -314,4 +314,4 @@ class SafetyEvalRepository:
             SafetyEvalResult.safety_eval_run_id == run_id
         )
         result = await session.execute(stmt)
-        return result.rowcount
+        return int(result.rowcount or 0)  # type: ignore[attr-defined]

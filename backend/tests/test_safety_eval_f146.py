@@ -22,9 +22,7 @@ CI: these tests block v0.4.0 production releases.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
-from types import SimpleNamespace
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -60,13 +58,12 @@ from app.domains.safety_evals.repositories.safety_evals import SafetyEvalReposit
 from app.domains.safety_evals.services.safety_eval_scoring_service import (
     SafetyEvalScoringService,
 )
-from app.domains.safety_evals.schemas.safety_evals import TriggerSafetyEvalRunRequest
-from app.workers.safety_eval_tasks import _build_summary, _CaseSummary
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
+from app.workers.safety_eval_tasks import _build_summary, _CaseSummary
 
 pytestmark = pytest.mark.safety
 
@@ -682,7 +679,6 @@ async def test_api_trigger_safety_eval_run_returns_202(
         expires_in_seconds=600,
     )
 
-    from app.application.safety_evals import workflows as wf_module
 
     queued_ids: list[str] = []
 

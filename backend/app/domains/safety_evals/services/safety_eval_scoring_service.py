@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from uuid import uuid4
 
+from app.core.config import settings
 from app.core.safety_guardrails import PromptInjectionGuard
 from app.domains.chat.services.citation_service import (
     CitationContextChunk,
@@ -19,7 +20,6 @@ from app.domains.chat.services.citation_service import (
 from app.domains.chat.services.llm_service import ParsedCitation
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
 from app.domains.chat.services.query_retrieval_service import QueryRetrievalService
-from app.core.config import settings
 
 _VIOLATION_INJECTION = "injection"
 _VIOLATION_CROSS_TENANT = "cross_tenant_leakage"
@@ -129,6 +129,11 @@ class SafetyEvalScoringService:
             def search(self, **kwargs: object) -> list:
                 self.calls.append(kwargs)
                 return list(self._results)
+
+            def query_points(self, **kwargs: object) -> object:
+                self.calls.append(kwargs)
+                from types import SimpleNamespace
+                return SimpleNamespace(points=[])
 
         fake_qdrant = _FakeQdrant([
             _FakeResult(
