@@ -15,6 +15,7 @@ export type BillingCapabilities = {
   invoicesEnabled: boolean;
   billingContactEnabled: boolean;
   updateBillingContactEnabled: boolean;
+  portalSessionEnabled: boolean;
 };
 
 function getBillingEndpoints() {
@@ -26,6 +27,9 @@ function getBillingEndpoints() {
     billingContactUrl: trimToNull(process.env.NEXT_PUBLIC_BILLING_CONTACT_URL),
     updateBillingContactUrl: trimToNull(
       process.env.NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL,
+    ),
+    portalSessionUrl: trimToNull(
+      process.env.NEXT_PUBLIC_BILLING_PORTAL_SESSION_URL,
     ),
   };
 }
@@ -44,6 +48,7 @@ export function getBillingCapabilities(): BillingCapabilities {
       invoicesEnabled: core && Boolean(e.invoicesUrl),
       billingContactEnabled: core && Boolean(e.billingContactUrl),
       updateBillingContactEnabled: core && Boolean(e.updateBillingContactUrl),
+      portalSessionEnabled: core && Boolean(e.portalSessionUrl),
     };
   }
 
@@ -54,6 +59,7 @@ export function getBillingCapabilities(): BillingCapabilities {
     invoicesEnabled: Boolean(e.invoicesUrl),
     billingContactEnabled: Boolean(e.billingContactUrl),
     updateBillingContactEnabled: Boolean(e.updateBillingContactUrl),
+    portalSessionEnabled: Boolean(e.portalSessionUrl),
   };
 }
 
@@ -391,4 +397,24 @@ export async function updateBillingContact(
     retry: false,
   });
   return normalizeBillingContact(payload);
+}
+
+export type BillingPortalSession = {
+  url: string;
+  expires_at: string | null;
+};
+
+export async function createBillingPortalSession(): Promise<BillingPortalSession> {
+  const { portalSessionUrl } = getBillingEndpoints();
+  if (!portalSessionUrl)
+    throw new BillingEndpointUnavailableError("portalSessionEnabled");
+  const payload = await apiRequest<unknown>(portalSessionUrl, {
+    method: "POST",
+    retry: false,
+  });
+  const r = toRaw(payload);
+  return {
+    url: asString(r.url),
+    expires_at: asStringOrNull(r.expires_at),
+  };
 }

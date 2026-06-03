@@ -50,6 +50,7 @@ const mockBillingApi = vi.hoisted(() => ({
     invoicesEnabled: false,
     billingContactEnabled: false,
     updateBillingContactEnabled: false,
+    portalSessionEnabled: false,
   } as BillingCapabilities,
   getBillingPlanInfo: vi.fn(),
   getBillingUsageSummary: vi.fn(),
@@ -210,6 +211,7 @@ beforeEach(() => {
     invoicesEnabled: false,
     billingContactEnabled: false,
     updateBillingContactEnabled: false,
+    portalSessionEnabled: false,
   };
   vi.clearAllMocks();
 });
@@ -287,6 +289,7 @@ describe("BillingSettingsTab — plan card", () => {
       invoicesEnabled: true,
       billingContactEnabled: false,
       updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
     };
     mockBillingApi.getBillingUsageSummary.mockResolvedValue(baseUsage);
     mockBillingApi.getBillingQuotas.mockResolvedValue(baseQuotas);
@@ -368,6 +371,7 @@ describe("BillingSettingsTab — usage summary", () => {
       invoicesEnabled: false,
       billingContactEnabled: false,
       updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
     };
     mockBillingApi.getBillingQuotas.mockResolvedValue([]);
     mockBillingApi.getInvoices.mockResolvedValue([]);
@@ -423,6 +427,7 @@ describe("BillingSettingsTab — quota warnings", () => {
       invoicesEnabled: false,
       billingContactEnabled: false,
       updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
     };
     mockBillingApi.getBillingUsageSummary.mockResolvedValue(baseUsage);
     mockBillingApi.getInvoices.mockResolvedValue([]);
@@ -494,6 +499,7 @@ describe("BillingSettingsTab — invoices", () => {
       invoicesEnabled: true,
       billingContactEnabled: false,
       updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
     };
     mockBillingApi.getBillingUsageSummary.mockResolvedValue(baseUsage);
     mockBillingApi.getBillingQuotas.mockResolvedValue([]);
@@ -536,6 +542,7 @@ describe("BillingSettingsTab — invoices", () => {
       invoicesEnabled: false,
       billingContactEnabled: false,
       updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
     };
     mockBillingApi.getBillingQuotas.mockResolvedValue([]);
     mockBillingApi.getInvoices.mockResolvedValue([]);

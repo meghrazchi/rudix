@@ -120,6 +120,8 @@ describe("ProfileSettingsTab", () => {
     vi.clearAllMocks();
     mockState.signOut.mockResolvedValue(undefined);
     mockProfileApi.capabilities = {
+      meEnabled: false,
+      preferencesEnabled: false,
       signOutAllDevicesEnabled: false,
       deleteAccountEnabled: false,
     };
@@ -455,6 +457,8 @@ describe("ProfileSettingsTab", () => {
 
   it("shows sign-out-everywhere button when capability is enabled", async () => {
     mockProfileApi.capabilities = {
+      meEnabled: false,
+      preferencesEnabled: false,
       signOutAllDevicesEnabled: true,
       deleteAccountEnabled: false,
     };
@@ -479,6 +483,8 @@ describe("ProfileSettingsTab", () => {
 
   it("shows delete account button when capability is enabled", async () => {
     mockProfileApi.capabilities = {
+      meEnabled: false,
+      preferencesEnabled: false,
       signOutAllDevicesEnabled: false,
       deleteAccountEnabled: true,
     };

@@ -157,6 +157,37 @@ export const queryKeys = {
     detail: (reviewId: string) =>
       ["feedback-review", "detail", reviewId] as const,
   },
+  profile: {
+    me: ["profile", "me"] as const,
+    preferences: ["profile", "preferences"] as const,
+  },
+  organization: {
+    all: ["organization"] as const,
+    profile: ["organization", "profile"] as const,
+    settings: ["organization", "settings"] as const,
+    ingestion: ["organization", "ingestion"] as const,
+  },
+  team: {
+    all: ["team"] as const,
+    members: (params?: Record<string, unknown>) =>
+      ["team", "members", params ?? {}] as const,
+  },
+  security: {
+    all: ["security"] as const,
+    sessions: ["security", "sessions"] as const,
+    loginPolicy: ["security", "login-policy"] as const,
+    posture: ["security", "posture"] as const,
+    auditEvents: (params?: Record<string, unknown>) =>
+      ["security", "audit-events", params ?? {}] as const,
+  },
+  billing: {
+    all: ["billing"] as const,
+    plan: ["billing", "plan"] as const,
+    usage: (range?: string) => ["billing", "usage", range ?? "30d"] as const,
+    quotas: ["billing", "quotas"] as const,
+    invoices: ["billing", "invoices"] as const,
+    contact: ["billing", "contact"] as const,
+  },
 };
 
 export type FrontendMutationKind =
@@ -176,7 +207,19 @@ export type FrontendMutationKind =
   | "evaluation.run"
   | "notification.read"
   | "notification.unread"
-  | "notification.mark-all-read";
+  | "notification.mark-all-read"
+  | "profile.update"
+  | "profile.preferences.update"
+  | "organization.profile.update"
+  | "organization.settings.update"
+  | "organization.ingestion.update"
+  | "team.invite"
+  | "team.role.update"
+  | "team.remove"
+  | "security.session.revoke"
+  | "security.session.revoke-all"
+  | "security.login-policy.update"
+  | "billing.contact.update";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -251,6 +294,60 @@ export async function invalidateAfterMutation(
     await queryClient.invalidateQueries({
       queryKey: queryKeys.notifications.all,
     });
+    return;
+  }
+
+  if (kind === "profile.update") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.profile.me });
+    return;
+  }
+
+  if (kind === "profile.preferences.update") {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.profile.preferences,
+    });
+    return;
+  }
+
+  if (
+    kind === "organization.profile.update" ||
+    kind === "organization.settings.update" ||
+    kind === "organization.ingestion.update"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.organization.all,
+    });
+    return;
+  }
+
+  if (
+    kind === "team.invite" ||
+    kind === "team.role.update" ||
+    kind === "team.remove"
+  ) {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.team.all });
+    return;
+  }
+
+  if (
+    kind === "security.session.revoke" ||
+    kind === "security.session.revoke-all"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.security.sessions,
+    });
+    return;
+  }
+
+  if (kind === "security.login-policy.update") {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.security.loginPolicy,
+    });
+    return;
+  }
+
+  if (kind === "billing.contact.update") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.billing.contact });
     return;
   }
 }
