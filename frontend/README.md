@@ -108,12 +108,15 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
   - resilient fallback rendering for missing backend fields (for example comparison deltas, cost/owner fields, or citation payloads)
   - explicit loading, empty, unavailable-backend, error, and forbidden states with safe request-id rendering
 - Settings page behavior:
-  - profile and organization context sections for authenticated users
-  - organization tab includes admin-only chunking profile catalog, default-profile editor, validation hints, and preview stats without exposing raw sample chunk text
-  - security section shows safe auth diagnostics only (provider and token availability flags)
-  - preferences form validates and supports save/discard flow for default `top_k`, rerank, developer mode, and notification choices
-  - optional backend persistence for preferences (`NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL`, `NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL`) with local fallback
-  - admin-only controls section is permission-aware for non-admin users
+  - four tabs: Profile, Organization, Security, and Billing — navigated via `?tab=<id>` query param, defaulting to `profile`
+  - Profile tab: display name and email from `/me`, personal preferences from `/me/preferences`, sign-out-all-devices, and account deletion; each action shows an unavailable state when its endpoint is not configured
+  - Organization tab: org profile and workspace defaults from `/organization` and `/organization/settings`, ingestion config from `/organization/ingestion`, team member management from `/team/members*`, chunking profile catalog (admin-only, preview stats without raw chunk text), and danger-zone actions when endpoint URLs are configured
+  - Security tab: active sessions from `/security/sessions` with per-session revoke actions; login policy from `/security/login-policy` (owner/admin); security posture from `/security/posture`; recent audit events from `/security/audit-events` (owner/admin); role capability summary
+  - Billing tab: plan info, usage, quotas, invoices, and billing contact from `/billing/*`; portal redirect for card/subscription management; restricted to owner/admin roles
+  - each section renders a clear unavailable state when its backend endpoint URL is not configured or returns `501` — tabs remain navigable while backend stubs are in place
+  - local fallback for preferences only: when `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true`, personal preferences persist to `localStorage` under key `rudix.settings.preferences.v1` when the remote endpoint is absent or fails; no tokens, session data, or backend-derived private content are stored locally
+  - role-based access: all roles can view and edit their own Profile; Organization workspace defaults and team management require admin or owner; Security login policy and audit events require owner or admin; Billing requires owner or admin; danger-zone actions (transfer, archive, delete org) require owner
+  - sensitive-value redaction: access tokens and refresh tokens are never rendered — only boolean presence flags are shown; billing card numbers and CVVs are never displayed; raw chunk text, raw prompts, and retrieved document content are never shown in settings views; backend error strings are not rendered verbatim
 - Document detail behavior:
   - overview panel shows safe chunk diagnostics including applied strategy, OCR flag, language, token distribution, reason codes, and profile-aware re-index controls
   - chunk preview search matches preview text plus safe metadata (`section_path`, page, language, offsets) and keeps full chunk text permission-gated
@@ -167,6 +170,144 @@ Implementation notes:
 - Keep the same visual language as `/rag-pipeline` (spacing, color scale, card treatment).
 - Use typed API clients and show explicit loading, empty, and error states.
 - Preserve permission-aware behavior for organization-scoped data.
+
+## Settings Dashboard
+
+The `/settings` page provides four tab-scoped management surfaces, all backed by stub endpoints returning `501` until backend implementation is complete. Tabs remain fully navigable in stub mode — each section shows a clear unavailable state for any endpoint that is missing or returns `501`.
+
+### Tabs and URL navigation
+
+| Tab | `?tab=` value | Default |
+| --- | --- | --- |
+| Profile | `profile` | yes (fallback when `?tab` is absent or invalid) |
+| Organization | `organization` | — |
+| Security | `security` | — |
+| Billing | `billing` | — |
+
+### Backend endpoints
+
+Set `NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false` only after all endpoints for a given tab are live and tested.
+
+**Profile tab** — `src/lib/api/profile.ts`
+
+| Env var | Default path | Methods | Notes |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_PROFILE_ME_URL` | `/me` | `GET` `PATCH` | User profile read/update |
+| `NEXT_PUBLIC_PROFILE_PREFERENCES_URL` | `/me/preferences` | `GET` `PATCH` | Personal preferences |
+| `NEXT_PUBLIC_PROFILE_SIGN_OUT_ALL_URL` | `/me/sign-out-all` | `POST` | Revoke all other sessions |
+| `NEXT_PUBLIC_PROFILE_DELETE_ACCOUNT_URL` | `/me` | `DELETE` | Permanent account deletion |
+
+**Security tab** — `src/lib/api/security.ts`
+
+| Env var | Default path | Methods | Notes |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_SECURITY_SESSIONS_URL` | `/security/sessions` | `GET` | List active sessions |
+| `NEXT_PUBLIC_SECURITY_REVOKE_SESSION_URL` | `/security/sessions` | `DELETE /{id}` | Revoke one session |
+| `NEXT_PUBLIC_SECURITY_REVOKE_ALL_SESSIONS_URL` | `/security/sessions/revoke-all` | `POST` | Revoke all other sessions |
+| `NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL` | `/security/login-policy` | `GET` `PATCH` | Login policy (owner/admin) |
+| `NEXT_PUBLIC_SECURITY_POSTURE_URL` | `/security/posture` | `GET` | Security posture summary |
+| `NEXT_PUBLIC_SECURITY_AUDIT_URL` | `/security/audit-events` | `GET` | Recent audit events (owner/admin) |
+| `NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL` | _(empty)_ | link | Optional password-change link |
+| `NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL` | _(empty)_ | link | Optional audit export download |
+
+**Organization tab** — `src/lib/api/organization.ts`, `src/lib/api/team.ts`
+
+| Env var | Default path | Methods | Notes |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_ORGANIZATION_PROFILE_URL` | `/organization` | `GET` `PATCH` | Org profile read/update |
+| `NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL` | `/organization/settings` | `GET` `PATCH` | Workspace defaults (admin+) |
+| `NEXT_PUBLIC_ORGANIZATION_INGESTION_URL` | `/organization/ingestion` | `GET` `PATCH` | Ingestion config (admin+) |
+| `NEXT_PUBLIC_TEAM_MEMBERS_LIST_URL` | `/team/members` | `GET` | List team members (admin+) |
+| `NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL` | `/team/members/invite` | `POST` | Invite member (admin+) |
+| `NEXT_PUBLIC_TEAM_MEMBER_ROLE_UPDATE_URL_TEMPLATE` | `/team/members/{memberId}/role` | `PATCH` | Update role (admin+) |
+| `NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE` | `/team/members/{memberId}` | `DELETE` | Remove member (admin+) |
+| `NEXT_PUBLIC_ORGANIZATION_TRANSFER_OWNERSHIP_URL` | _(empty)_ | `POST` | Transfer ownership (owner) |
+| `NEXT_PUBLIC_ORGANIZATION_ARCHIVE_URL` | _(empty)_ | `POST` | Archive org (owner) |
+| `NEXT_PUBLIC_ORGANIZATION_EXPORT_URL` | _(empty)_ | `GET` | Export org data (owner) |
+| `NEXT_PUBLIC_ORGANIZATION_DELETE_URL` | _(empty)_ | `DELETE` | Delete org (owner) |
+
+**Billing tab** — `src/lib/api/billing.ts`
+
+| Env var | Default path | Methods | Notes |
+| --- | --- | --- | --- |
+| `NEXT_PUBLIC_BILLING_PLAN_URL` | `/billing/plan` | `GET` | Plan info (owner/admin) |
+| `NEXT_PUBLIC_BILLING_USAGE_URL` | `/billing/usage` | `GET` | Usage metrics (owner/admin) |
+| `NEXT_PUBLIC_BILLING_QUOTAS_URL` | `/billing/quotas` | `GET` | Quota status (owner/admin) |
+| `NEXT_PUBLIC_BILLING_INVOICES_URL` | `/billing/invoices` | `GET` | Invoice list (owner/admin) |
+| `NEXT_PUBLIC_BILLING_CONTACT_URL` | `/billing/contact` | `GET` | Billing contact read (owner/admin) |
+| `NEXT_PUBLIC_BILLING_CONTACT_UPDATE_URL` | `/billing/contact` | `PATCH` | Billing contact update (owner/admin) |
+| `NEXT_PUBLIC_BILLING_PORTAL_SESSION_URL` | `/billing/portal-session` | `POST` | Create billing portal session |
+
+### Role and permission matrix
+
+| Capability | owner | admin | member | viewer |
+| --- | --- | --- | --- | --- |
+| Profile — view/edit own profile and preferences | yes | yes | yes | yes |
+| Profile — sign out all devices | yes | yes | yes | yes |
+| Profile — delete account | yes | yes | yes | yes |
+| Organization — view org profile | yes | yes | read-only | read-only |
+| Organization — edit workspace defaults | yes | yes | no | no |
+| Organization — team invite / role / remove | yes | yes | no | no |
+| Organization — danger zone (transfer / archive / delete) | yes | no | no | no |
+| Security — view / revoke own sessions | yes | yes | yes | yes |
+| Security — login policy (view/edit) | yes | yes | read-only | read-only |
+| Security — security posture | yes | yes | no | no |
+| Security — audit events | yes | yes | no | no |
+| Billing — all | yes | yes | no | no |
+
+### Sensitive-value redaction
+
+- **Auth tokens**: access tokens and refresh tokens are never rendered — only boolean presence flags (`token attached`, `refresh available`) are shown.
+- **Passwords**: never exposed; password-change actions use the configurable external link `NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL`.
+- **Billing card data**: card numbers, CVVs, and expiry dates are never displayed — subscription and card management always redirect to an external billing portal session.
+- **API keys and signing secrets**: never shown in any settings view.
+- **Raw chunk text, prompts, and retrieved document content**: chunking profile sections display stats only (token counts, strategy, reason codes) — never raw text.
+- **Backend error messages**: never rendered verbatim; only safe request/trace IDs from `ApiClientError` payloads are exposed.
+- Audit export transmits sanitized metadata only — no raw document text or prompt content.
+
+### Local fallback for preferences
+
+Only safe personal UI preferences are stored locally. No tokens, session data, or backend-derived private content are ever saved to local storage.
+
+When `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true` (default in non-production and when explicitly set):
+
+1. Preferences are written to `localStorage` key `rudix.settings.preferences.v1` on every save.
+2. On load: remote endpoint is tried first; local storage is used as fallback; factory defaults apply when both are absent.
+3. Set `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=false` in production to remove the local fallback and make remote failures throw.
+
+Fields covered: `defaultTopK`, `rerankEnabled`, `developerMode`, `answerDetailLevel`, `showConfidenceScore`, `expandCitations`, and all `notifications.*` booleans.
+
+Profile, Organization, Security, and Billing tabs do **not** use local fallback — they show unavailable states when backend endpoints are missing.
+
+### Rollout notes
+
+All four backend endpoint groups (profile, security, organization, billing) are **stub placeholders returning `501 Not Implemented`**. Progressive rollout is supported — enable endpoint groups one at a time:
+
+1. Set the relevant `NEXT_PUBLIC_<GROUP>_*_URL` env vars to point at real backend endpoints.
+2. Leave any endpoint URL empty when the backend is not yet implemented — the UI shows an unavailable state instead of an error.
+3. Set `NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false` only after a tab's full endpoint set is live and tested.
+
+The settings E2E spec (`e2e/settings.spec.ts`) verifies unavailable-state behavior, token-flag redaction, and permission-aware tab access against stubs — no real backend is required.
+
+### Testing Settings locally
+
+```bash
+# 1. Start the dev server — all tabs load; backend sections show unavailable state
+npm run dev
+# Navigate to http://localhost:3000/settings
+
+# 2. Unit tests: API clients and Zod schemas
+npm run test -- src/lib/api/settings.test.ts src/lib/schemas/settings.test.ts
+
+# 3. Component tests: all four tab components and supporting sections
+npm run test -- src/components/settings/
+
+# 4. MSW contract tests: 501 stubs and 422 validation-error contracts
+npm run test -- src/test/msw/settings-contracts.msw.test.ts
+
+# 5. E2E smoke tests: auth redirect, tab nav, redaction, role-gating, save/discard
+npm run test:e2e -- e2e/settings.spec.ts
+```
 
 ## Setup
 
@@ -281,8 +422,14 @@ If refresh/logout endpoints are available, set `NEXT_PUBLIC_AUTH_REFRESH_URL` an
 Set `NEXT_PUBLIC_FEATURE_DEVELOPER_MODE=true` to default the Settings preference toggle to developer mode.
 Set `NEXT_PUBLIC_CHAT_FEEDBACK_ENABLED=true` to show chat feedback controls.
 Set `NEXT_PUBLIC_FEATURE_EXPORTS_ENABLED=false` to hide CSV export actions globally, even when export URLs are configured.
-Set `NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false` to require full backend endpoint coverage before enabling team-management endpoint actions.
+Set `NEXT_PUBLIC_FEATURE_UNAVAILABLE_BACKEND_ENDPOINTS=false` to require full backend endpoint coverage before any Settings tab action is enabled; keep `true` (the default) while backend stubs are in place.
 Team-management endpoints default to `/team/members*` on the same API base; keep these values unless your deployment uses custom routes.
+Settings endpoint URLs default to the paths shown in `.env.example`; configure each URL to point at your backend or leave empty to show an unavailable state for that section (see [Settings Dashboard](#settings-dashboard) for the full endpoint table).
+Set `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOAD_URL` and `NEXT_PUBLIC_SETTINGS_PREFERENCES_SAVE_URL` to persist personal preferences remotely; leave both empty to use local storage only.
+Set `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=false` in production to make remote preference failures throw instead of falling back to local storage.
+Set `NEXT_PUBLIC_SETTINGS_BILLING_URL` to override the billing portal deep link shown in the Organization tab's admin action area.
+Set `NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL` to show a change-password link in the Security tab (useful for external identity provider or password manager flows).
+Set `NEXT_PUBLIC_SECURITY_AUDIT_EXPORT_URL` to enable the audit event export download in the Security tab.
 Set `NEXT_PUBLIC_ADMIN_MONITORING_URL` to enable the Admin Monitoring card and deep link.
 Set `NEXT_PUBLIC_SENTRY_DSN` to enable frontend observability event capture (breadcrumbs + sanitized exceptions). Leave it empty to keep monitoring disabled.
 Set `NEXT_PUBLIC_SENTRY_ERROR_SAMPLE_RATE` to control client-side error sampling (`0` to disable transport, `1` for full sampling).
