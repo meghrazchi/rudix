@@ -8,6 +8,7 @@ from app.interfaces.http import (
     admin_governance,
     agent_runs,
     auth,
+    billing,
     chat,
     collections,
     documents,
@@ -15,8 +16,11 @@ from app.interfaces.http import (
     evaluations,
     feedback_review,
     notifications,
+    org_settings,
     pipeline,
+    profile,
     safety_evals,
+    security_settings,
     team,
 )
 
@@ -43,5 +47,9 @@ protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(team.router)
+protected_router.include_router(profile.router)
+protected_router.include_router(security_settings.router)
+protected_router.include_router(org_settings.router)
+protected_router.include_router(billing.router)
 
 api_router.include_router(protected_router)

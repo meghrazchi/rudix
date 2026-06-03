@@ -3,6 +3,14 @@ import type {
   UsageSummaryResponse,
 } from "@/lib/api/admin-usage";
 import type {
+  BillingContact,
+  BillingPlanInfo,
+  BillingPortalSession,
+  BillingQuota,
+  BillingUsageSummary,
+  Invoice,
+} from "@/lib/api/billing";
+import type {
   ChatQueryResponse,
   ChatSessionListResponse,
   ChatSessionMessageListResponse,
@@ -27,12 +35,24 @@ import type {
 } from "@/lib/api/evaluations";
 import type { HealthResponse } from "@/lib/api/health";
 import type {
+  OrganizationProfile,
+  OrganizationSettings,
+  IngestionDefaults,
+} from "@/lib/api/organization";
+import type {
   PipelineNodeDetailResponse,
   PipelineRunGraphResponse,
   PipelineRunResolveResponse,
   PipelineStepListResponse,
 } from "@/lib/api/pipeline";
+import type {
+  AuditEvent,
+  LoginPolicy,
+  SecurityPosture,
+  SecuritySession,
+} from "@/lib/api/security";
 import type { TopBarNotificationsResponse } from "@/lib/api/notifications";
+import type { UserPreferences, UserProfile } from "@/lib/schemas/settings";
 
 export const MSW_FIXTURES_API_BASE_URL = "http://api.test";
 
@@ -549,4 +569,218 @@ export const mockTopBarNotifications: TopBarNotificationsResponse = {
       allowed_roles: ["owner", "admin"],
     },
   ],
+};
+
+// ── Settings fixtures ─────────────────────────────────────────────────────────
+
+export const mockUserProfile: UserProfile = {
+  id: "user-1",
+  email: "alice@example.com",
+  name: "Alice Example",
+  avatarUrl: null,
+  createdAt: "2026-01-15T10:00:00Z",
+};
+
+export const mockUserPreferences: UserPreferences = {
+  language: "en",
+  timezone: "America/New_York",
+  dateFormat: "MM/DD/YYYY",
+  theme: "light",
+  landingPage: "dashboard",
+  keyboardShortcutHints: true,
+  emailNotifications: true,
+  digestFrequency: "weekly",
+};
+
+export const mockSecuritySessions: SecuritySession[] = [
+  {
+    id: "session-1",
+    device: "Chrome on macOS",
+    ip_address: "203.0.113.10",
+    location: "New York, US",
+    created_at: "2026-06-01T08:00:00Z",
+    last_active_at: "2026-06-03T09:00:00Z",
+    is_current: true,
+  },
+  {
+    id: "session-2",
+    device: "Safari on iPhone",
+    ip_address: "203.0.113.20",
+    location: "Brooklyn, US",
+    created_at: "2026-05-28T14:30:00Z",
+    last_active_at: "2026-06-02T19:00:00Z",
+    is_current: false,
+  },
+];
+
+export const mockLoginPolicy: LoginPolicy = {
+  domain_allowlist: ["example.com"],
+  session_timeout_hours: 24,
+  sso_required: false,
+  invite_only: true,
+  mfa_required: false,
+};
+
+export const mockSecurityPosture: SecurityPosture = {
+  prompt_injection_protection: true,
+  citation_validation: true,
+  tenant_isolation: true,
+  output_validation: false,
+  tool_policy_enforced: null,
+  last_audit_at: "2026-05-30T00:00:00Z",
+};
+
+export const mockSecurityAuditEvents: AuditEvent[] = [
+  {
+    id: "audit-1",
+    event_type: "team.member.invited",
+    actor_email: "alice@example.com",
+    created_at: "2026-06-02T11:00:00Z",
+    summary: "Invited bob@example.com as member",
+  },
+  {
+    id: "audit-2",
+    event_type: "document.deleted",
+    actor_email: "alice@example.com",
+    created_at: "2026-06-01T15:30:00Z",
+    summary: "Deleted document 'Runbook.txt'",
+  },
+];
+
+export const mockOrganizationProfile: OrganizationProfile = {
+  id: "org-1",
+  name: "Example Corp",
+  slug: "example-corp",
+  primary_domain: "example.com",
+  domain_allowlist: ["example.com"],
+  support_email: "support@example.com",
+  description: "An example organization for testing.",
+  created_at: "2026-01-01T00:00:00Z",
+  plan: "Team",
+};
+
+export const mockOrganizationSettings: OrganizationSettings = {
+  default_member_role: "member",
+  invite_only: true,
+  allowed_email_domains: ["example.com"],
+  default_document_visibility: "private",
+  default_collection: null,
+  retention_days: 365,
+  source_download: "admins",
+  evaluation_access: true,
+  agentic_access: false,
+  mcp_access: false,
+};
+
+export const mockIngestionDefaults: IngestionDefaults = {
+  allowed_file_types: ["pdf", "docx", "txt", "md"],
+  max_upload_size_mb: 25,
+  max_page_count: 500,
+  duplicate_handling: "skip",
+  auto_index: true,
+  reindex_policy: "on_update",
+  retry_policy: "once",
+  default_metadata_tags: [],
+};
+
+export const mockBillingPlanInfo: BillingPlanInfo = {
+  plan_name: "Team",
+  status: "active",
+  billing_cycle: "monthly",
+  renewal_date: "2026-07-01T00:00:00Z",
+  trial_end_date: null,
+  seats_used: 4,
+  seats_included: 10,
+  storage_used_gb: 1.2,
+  storage_included_gb: 50,
+  monthly_questions_used: 820,
+  monthly_questions_included: 5000,
+  token_allowance_used: 1200000,
+  token_allowance_included: 10000000,
+  evaluation_allowance_used: 12,
+  evaluation_allowance_included: 100,
+  agent_allowance_used: 0,
+  agent_allowance_included: 50,
+  connector_allowance_used: 0,
+  connector_allowance_included: 5,
+  can_manage_subscription: true,
+  can_cancel_plan: true,
+};
+
+export const mockBillingUsageSummary: BillingUsageSummary = {
+  range: { from: "2026-05-04T00:00:00Z", to: "2026-06-03T00:00:00Z" },
+  documents_uploaded: 18,
+  indexed_documents: 15,
+  storage_used_gb: 1.2,
+  total_chunks: 630,
+  questions_asked: 820,
+  avg_confidence: 0.82,
+  avg_latency_ms: 1340,
+  input_tokens: 900000,
+  output_tokens: 300000,
+  estimated_llm_cost_usd: 1.43,
+  evaluation_runs: 12,
+  agent_runs: 0,
+  connector_sync_jobs: 0,
+  failed_indexing_jobs: 3,
+};
+
+export const mockBillingQuotas: BillingQuota[] = [
+  { resource: "seats", label: "Team seats", used: 4, limit: 10, unit: "seats" },
+  {
+    resource: "storage",
+    label: "Storage",
+    used: 1.2,
+    limit: 50,
+    unit: "GB",
+  },
+  {
+    resource: "questions",
+    label: "Monthly questions",
+    used: 820,
+    limit: 5000,
+    unit: "questions",
+  },
+  {
+    resource: "evaluations",
+    label: "Evaluation runs",
+    used: 12,
+    limit: 100,
+    unit: "runs",
+  },
+];
+
+export const mockInvoices: Invoice[] = [
+  {
+    id: "inv-1",
+    date: "2026-06-01T00:00:00Z",
+    amount_usd: 49.0,
+    status: "paid",
+    download_url: null,
+  },
+  {
+    id: "inv-2",
+    date: "2026-05-01T00:00:00Z",
+    amount_usd: 49.0,
+    status: "paid",
+    download_url: null,
+  },
+];
+
+export const mockBillingContact: BillingContact = {
+  email: "billing@example.com",
+  name: "Example Corp",
+  address_line1: "123 Main St",
+  address_line2: null,
+  city: "New York",
+  state: "NY",
+  postal_code: "10001",
+  country: "US",
+  tax_id: null,
+  payment_method_summary: "Visa ending 4242",
+};
+
+export const mockBillingPortalSession: BillingPortalSession = {
+  url: "https://billing.example.com/portal/session-token-abc123",
+  expires_at: "2026-06-03T09:05:00Z",
 };

@@ -3,6 +3,11 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 import {
   MSW_FIXTURES_API_BASE_URL,
   mockAuditLogs,
+  mockBillingContact,
+  mockBillingPlanInfo,
+  mockBillingPortalSession,
+  mockBillingQuotas,
+  mockBillingUsageSummary,
   mockChatMessages,
   mockChatQueryResponse,
   mockChatSession,
@@ -19,13 +24,23 @@ import {
   mockEvaluationRunQueued,
   mockEvaluationSets,
   mockHealth,
+  mockIngestionDefaults,
+  mockInvoices,
+  mockLoginPolicy,
+  mockOrganizationProfile,
+  mockOrganizationSettings,
   mockPipelineNodeDetail,
   mockPipelineRunGraph,
   mockPipelineRunResolve,
   mockPipelineSteps,
   mockReadinessDegraded,
+  mockSecurityAuditEvents,
+  mockSecurityPosture,
+  mockSecuritySessions,
   mockTopBarNotifications,
   mockUsageSummary,
+  mockUserPreferences,
+  mockUserProfile,
 } from "@/test/msw/fixtures";
 import type { DocumentStatus } from "@/lib/api/documents";
 
@@ -215,6 +230,88 @@ export function createMockApiHandlers(
     }),
     http.get(`${apiBaseUrl}/notifications`, () =>
       HttpResponse.json(mockTopBarNotifications),
+    ),
+
+    // ── Settings: Profile ────────────────────────────────────────────────────
+    http.get(`${apiBaseUrl}/me`, () => HttpResponse.json(mockUserProfile)),
+    http.patch(`${apiBaseUrl}/me`, () => HttpResponse.json(mockUserProfile)),
+    http.get(`${apiBaseUrl}/me/preferences`, () =>
+      HttpResponse.json(mockUserPreferences),
+    ),
+    http.patch(`${apiBaseUrl}/me/preferences`, () =>
+      HttpResponse.json(mockUserPreferences),
+    ),
+    http.post(`${apiBaseUrl}/me/sign-out-all`, () =>
+      new HttpResponse(null, { status: 204 }),
+    ),
+    http.delete(`${apiBaseUrl}/me`, () =>
+      new HttpResponse(null, { status: 204 }),
+    ),
+
+    // ── Settings: Security ───────────────────────────────────────────────────
+    http.get(`${apiBaseUrl}/security/sessions`, () =>
+      HttpResponse.json({ items: mockSecuritySessions }),
+    ),
+    http.delete(`${apiBaseUrl}/security/sessions/:sessionId`, () =>
+      new HttpResponse(null, { status: 204 }),
+    ),
+    http.post(`${apiBaseUrl}/security/sessions/revoke-all`, () =>
+      HttpResponse.json({ revoked_count: 1 }),
+    ),
+    http.get(`${apiBaseUrl}/security/login-policy`, () =>
+      HttpResponse.json(mockLoginPolicy),
+    ),
+    http.patch(`${apiBaseUrl}/security/login-policy`, () =>
+      HttpResponse.json(mockLoginPolicy),
+    ),
+    http.get(`${apiBaseUrl}/security/posture`, () =>
+      HttpResponse.json(mockSecurityPosture),
+    ),
+    http.get(`${apiBaseUrl}/security/audit-events`, () =>
+      HttpResponse.json({ items: mockSecurityAuditEvents }),
+    ),
+
+    // ── Settings: Organization ───────────────────────────────────────────────
+    http.get(`${apiBaseUrl}/organization`, () =>
+      HttpResponse.json(mockOrganizationProfile),
+    ),
+    http.patch(`${apiBaseUrl}/organization`, () =>
+      HttpResponse.json(mockOrganizationProfile),
+    ),
+    http.get(`${apiBaseUrl}/organization/settings`, () =>
+      HttpResponse.json(mockOrganizationSettings),
+    ),
+    http.patch(`${apiBaseUrl}/organization/settings`, () =>
+      HttpResponse.json(mockOrganizationSettings),
+    ),
+    http.get(`${apiBaseUrl}/organization/ingestion`, () =>
+      HttpResponse.json(mockIngestionDefaults),
+    ),
+    http.patch(`${apiBaseUrl}/organization/ingestion`, () =>
+      HttpResponse.json(mockIngestionDefaults),
+    ),
+
+    // ── Settings: Billing ────────────────────────────────────────────────────
+    http.get(`${apiBaseUrl}/billing/plan`, () =>
+      HttpResponse.json(mockBillingPlanInfo),
+    ),
+    http.get(`${apiBaseUrl}/billing/usage`, () =>
+      HttpResponse.json(mockBillingUsageSummary),
+    ),
+    http.get(`${apiBaseUrl}/billing/quotas`, () =>
+      HttpResponse.json(mockBillingQuotas),
+    ),
+    http.get(`${apiBaseUrl}/billing/invoices`, () =>
+      HttpResponse.json(mockInvoices),
+    ),
+    http.get(`${apiBaseUrl}/billing/contact`, () =>
+      HttpResponse.json(mockBillingContact),
+    ),
+    http.patch(`${apiBaseUrl}/billing/contact`, () =>
+      HttpResponse.json(mockBillingContact),
+    ),
+    http.post(`${apiBaseUrl}/billing/portal-session`, () =>
+      HttpResponse.json(mockBillingPortalSession, { status: 201 }),
     ),
   ];
 }
