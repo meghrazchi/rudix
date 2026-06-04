@@ -288,6 +288,8 @@ class DocumentDetailResponse(BaseModel):
     error_details: DocumentErrorDetails | None = None
     source: str | None = None
     language: str | None = None
+    language_confidence: float | None = None
+    language_source: str | None = None
     retention_class: str | None = None
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)

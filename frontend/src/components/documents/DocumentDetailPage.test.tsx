@@ -26,6 +26,7 @@ const mockApi = vi.hoisted(() => ({
   deleteDocument: vi.fn(),
   reindexDocument: vi.fn(),
   downloadDocumentFile: vi.fn(),
+  overrideDocumentLanguage: vi.fn(),
 }));
 
 const mockChunkingApi = vi.hoisted(() => ({
@@ -52,6 +53,14 @@ vi.mock("@/lib/api/documents", () => ({
     mockApi.reindexDocument(documentId, payload),
   downloadDocumentFile: (documentId: string) =>
     mockApi.downloadDocumentFile(documentId),
+  overrideDocumentLanguage: (documentId: string, payload: unknown) =>
+    mockApi.overrideDocumentLanguage(documentId, payload),
+  UPLOAD_LANGUAGES: [
+    { code: "en", label: "English" },
+    { code: "de", label: "German" },
+    { code: "es", label: "Spanish" },
+    { code: "fr", label: "French" },
+  ],
 }));
 
 vi.mock("@/lib/api/chunking-profiles", () => ({
@@ -95,6 +104,7 @@ describe("DocumentDetailPage", () => {
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
     mockApi.downloadDocumentFile.mockReset();
+    mockApi.overrideDocumentLanguage.mockReset();
     Object.defineProperty(window, "confirm", {
       writable: true,
       value: vi.fn(() => true),
@@ -681,5 +691,136 @@ describe("DocumentDetailPage", () => {
         /Re-index requested using Operations Default\. Queue status: queued\./i,
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows detected language in the language panel", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      ...mockApi.getDocument.mock.results[0]?.value,
+      document_id: "doc-1",
+      filename: "report.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 5,
+      chunk_count: 40,
+      language: "de",
+      language_confidence: 0.85,
+      language_source: "auto_detected",
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:01:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "report.pdf" });
+
+    expect(screen.getByText("German")).toBeInTheDocument();
+    expect(screen.getByText("85%")).toBeInTheDocument();
+    expect(screen.getByText("auto detected")).toBeInTheDocument();
+  });
+
+  it("shows language panel with dash when no language detected", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      ...mockApi.getDocument.mock.results[0]?.value,
+      document_id: "doc-1",
+      filename: "unknown.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 1,
+      chunk_count: 5,
+      language: null,
+      language_confidence: null,
+      language_source: null,
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:01:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "unknown.pdf" });
+
+    expect(screen.getByText("Language")).toBeInTheDocument();
+    expect(screen.getByText("-")).toBeInTheDocument();
+  });
+
+  it("shows override button for admin and submits override", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      ...mockApi.getDocument.mock.results[0]?.value,
+      document_id: "doc-1",
+      filename: "policy.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 5,
+      chunk_count: 40,
+      language: "en",
+      language_confidence: 0.9,
+      language_source: "auto_detected",
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:01:00Z",
+    });
+    mockApi.overrideDocumentLanguage.mockResolvedValue({
+      document_id: "doc-1",
+      language: "fr",
+      language_source: "admin_override",
+      language_confidence: null,
+      updated_at: "2026-06-01T00:02:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "policy.pdf" });
+
+    const overrideBtn = await screen.findByRole("button", {
+      name: "Override language",
+    });
+    await userEvent.click(overrideBtn);
+
+    const select = screen.getByRole("combobox", {
+      name: "Select override language",
+    });
+    await userEvent.selectOptions(select, "fr");
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mockApi.overrideDocumentLanguage).toHaveBeenCalledWith("doc-1", {
+        language: "fr",
+      });
+    });
+  });
+
+  it("hides override button for viewer role", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-1",
+        email: "viewer@example.com",
+        role: "viewer",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    };
+    mockApi.getDocument.mockResolvedValue({
+      ...mockApi.getDocument.mock.results[0]?.value,
+      document_id: "doc-1",
+      filename: "policy.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 5,
+      chunk_count: 40,
+      language: "en",
+      language_confidence: null,
+      language_source: null,
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-01T00:00:00Z",
+      updated_at: "2026-06-01T00:01:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "policy.pdf" });
+
+    expect(
+      screen.queryByRole("button", { name: "Override language" }),
+    ).not.toBeInTheDocument();
   });
 });

@@ -640,6 +640,7 @@ async def list_documents(
     sort_order: SortOrder = "desc",
     filename_query: Annotated[str | None, Query(max_length=255)] = None,
     file_type: Annotated[str | None, Query(pattern="^(pdf|docx|txt)$")] = None,
+    language: Annotated[str | None, Query(max_length=32)] = None,
 ) -> DocumentListResponse:
     _, organization_id = _principal_user_and_org(principal)
 
@@ -649,6 +650,7 @@ async def list_documents(
         status=status_filter.value if status_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
+        language=language,
         limit=limit,
         offset=offset,
         sort_by=sort_by,
@@ -660,6 +662,7 @@ async def list_documents(
         status=status_filter.value if status_filter is not None else None,
         file_type=file_type,
         filename_query=filename_query,
+        language=language,
     )
 
     # Batch-fetch collection memberships for all documents in one query.
@@ -820,6 +823,8 @@ async def get_document(
     updated_at = document.updated_at
     doc_source = document.source
     doc_language = document.language
+    doc_language_confidence = document.language_confidence
+    doc_language_source = document.language_source
     doc_retention_class = document.retention_class
     doc_notes = document.notes
     doc_tags = _parse_tags_string(document.tags)
@@ -900,6 +905,8 @@ async def get_document(
         error_details=safe_error_details,
         source=doc_source,
         language=doc_language,
+        language_confidence=doc_language_confidence,
+        language_source=doc_language_source,
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,

@@ -331,6 +331,7 @@ async def upload_document_workflow(
             status=DocumentStatus.uploaded.value,
             source=meta.source,
             language=meta.language,
+            language_source="upload_provided" if meta.language else None,
             retention_class=meta.retention_class,
             notes=meta.notes,
             tags=tags_str,

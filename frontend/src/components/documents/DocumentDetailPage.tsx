@@ -16,13 +16,16 @@ import type {
   ReindexDocumentRequest,
   DocumentStatus,
   DocumentStatusResponse,
+  AdminLanguageOverrideRequest,
 } from "@/lib/api/documents";
 import {
   deleteDocument,
   downloadDocumentFile,
   getDocument,
   getDocumentChunks,
+  overrideDocumentLanguage,
   reindexDocument,
+  UPLOAD_LANGUAGES,
 } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
@@ -396,6 +399,8 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [chunksOffset, setChunksOffset] = useState(0);
   const [includeFullText, setIncludeFullText] = useState(false);
   const [chunkSearchQuery, setChunkSearchQuery] = useState("");
+  const [langOverrideValue, setLangOverrideValue] = useState<string>("");
+  const [langOverrideOpen, setLangOverrideOpen] = useState(false);
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
   const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
@@ -574,6 +579,23 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
       triggerBlobDownload(blob, filename);
       setActionFeedback(null);
       setActionRequestId(null);
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const langOverrideMutation = useMutation({
+    mutationFn: (payload: AdminLanguageOverrideRequest) =>
+      overrideDocumentLanguage(documentId, payload),
+    onSuccess: () => {
+      setLangOverrideOpen(false);
+      setActionFeedback("Language override saved.");
+      setActionRequestId(null);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.detail(documentId),
+      });
     },
     onError: (error) => {
       setActionFeedback(getApiErrorMessage(error));
@@ -1227,6 +1249,102 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             </div>
                           </div>
                         ) : null}
+
+                        <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                          <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                            Language
+                          </h4>
+                          <div className="space-y-2 text-sm text-[#2a2640]">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[#69637f]">
+                                Detected language
+                              </span>
+                              <span className="font-semibold">
+                                {detail.language
+                                  ? (UPLOAD_LANGUAGES.find(
+                                      (l) => l.code === detail.language,
+                                    )?.label ?? detail.language.toUpperCase())
+                                  : "-"}
+                              </span>
+                            </div>
+                            {detail.language_confidence !== null &&
+                            detail.language_confidence !== undefined ? (
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">
+                                  Confidence
+                                </span>
+                                <span className="font-semibold">
+                                  {(detail.language_confidence * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            ) : null}
+                            {detail.language_source ? (
+                              <div className="flex items-center justify-between gap-3">
+                                <span className="text-[#69637f]">Source</span>
+                                <span className="rounded-full bg-[#ece8ff] px-2 py-0.5 text-xs font-semibold text-[#3525cd]">
+                                  {detail.language_source.replace(/_/g, " ")}
+                                </span>
+                              </div>
+                            ) : null}
+                            {capabilities.canOverrideLanguage ? (
+                              <div className="mt-2 border-t border-[#e9e6f5] pt-2">
+                                {langOverrideOpen ? (
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={langOverrideValue}
+                                      onChange={(e) =>
+                                        setLangOverrideValue(e.target.value)
+                                      }
+                                      aria-label="Select override language"
+                                      className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
+                                    >
+                                      <option value="">— clear override —</option>
+                                      {UPLOAD_LANGUAGES.map((l) => (
+                                        <option key={l.code} value={l.code}>
+                                          {l.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      type="button"
+                                      disabled={langOverrideMutation.isPending}
+                                      onClick={() => {
+                                        langOverrideMutation.mutate({
+                                          language: langOverrideValue || null,
+                                        });
+                                      }}
+                                      className="rounded bg-[#3525cd] px-2 py-1 text-xs font-semibold text-white hover:bg-[#2a1eb0] disabled:opacity-50"
+                                    >
+                                      {langOverrideMutation.isPending
+                                        ? "Saving…"
+                                        : "Save"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setLangOverrideOpen(false)}
+                                      className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-medium text-[#69637f] hover:bg-[#f0ecf9]"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setLangOverrideValue(
+                                        detail.language ?? "",
+                                      );
+                                      setLangOverrideOpen(true);
+                                    }}
+                                    className="text-xs font-semibold text-[#3525cd] hover:underline"
+                                  >
+                                    Override language
+                                  </button>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
 
                         <DocumentChunkingDiagnosticsPanel
                           documentId={documentId}

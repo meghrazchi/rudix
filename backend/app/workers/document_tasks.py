@@ -28,6 +28,10 @@ from app.domains.documents.services.embedding_service import (
     TransientEmbeddingError,
 )
 from app.domains.documents.services.dlp_service import scan_text_for_dlp
+from app.domains.documents.services.language_detection_service import (
+    detect_language_from_text as _detect_language_from_text,
+    confidence_bucket as _language_confidence_bucket,
+)
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
 from app.domains.documents.services.qdrant_service import QdrantService
@@ -701,6 +705,54 @@ async def _extract_and_store_document_pages_async(
                     category="validation",
                     message="extracted document contains no text after cleaning",
                 )
+
+            # Language detection — runs on cleaned text if not already admin-overridden.
+            if document.language_source != "admin_override":
+                current_stage = "detect_language"
+                full_text_sample = "\n".join(
+                    section.text for section in cleaned_sections if section.text
+                )
+                lang_result = _detect_language_from_text(full_text_sample)
+                if lang_result.language_code is not None or document.language_source != "upload_provided":
+                    resolved_language = lang_result.language_code or document.language
+                    resolved_source = (
+                        "upload_provided"
+                        if document.language_source == "upload_provided" and document.language is not None
+                        else "auto_detected"
+                    )
+                    async with SessionLocal() as lang_session:
+                        await _document_repository.update_document_language(
+                            lang_session,
+                            document_id=parsed_document_id,
+                            language=resolved_language,
+                            language_confidence=lang_result.confidence if lang_result.language_code is not None else None,
+                            language_source=resolved_source,
+                        )
+                        await lang_session.commit()
+                    document.language = resolved_language
+                    document.language_source = resolved_source
+                    document.language_confidence = lang_result.confidence if lang_result.language_code is not None else None
+                    log_document_event(
+                        event="document.pipeline.stage",
+                        document_id=str(document.id),
+                        request_id=request_id,
+                        organization_id=resolved_organization_id,
+                        user_id=resolved_user_id,
+                        stage="detect_language",
+                        stage_status="completed",
+                        language_code=resolved_language,
+                        language_source=resolved_source,
+                        confidence_bucket=_language_confidence_bucket(lang_result.confidence),
+                    )
+                    await pipeline_recorder.emit_stage(
+                        stage="detect_language",
+                        stage_status="completed",
+                        outputs={
+                            "language_code": resolved_language,
+                            "language_source": resolved_source,
+                            "confidence_bucket": _language_confidence_bucket(lang_result.confidence),
+                        },
+                    )
 
             # DLP scan — runs on cleaned extracted text; never persists matched content.
             if settings.dlp_enabled:

@@ -109,7 +109,21 @@ export type DocumentDetailResponse = Omit<
   "chunking_diagnostics" | "language"
 > & {
   language?: string | null;
+  language_confidence?: number | null;
+  language_source?: string | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
+};
+
+export type AdminLanguageOverrideRequest = {
+  language: string | null;
+};
+
+export type AdminLanguageOverrideResponse = {
+  document_id: string;
+  language: string | null;
+  language_source: string | null;
+  language_confidence: number | null;
+  updated_at: string;
 };
 export type DocumentChunkPreviewResponse =
   Schemas["DocumentChunkPreviewResponse"] & {
@@ -360,6 +374,19 @@ export async function retryDeleteDocument(
     `/admin/documents/deletion/${encodeURIComponent(documentId)}/retry`,
     {
       method: "POST",
+    },
+  );
+}
+
+export async function overrideDocumentLanguage(
+  documentId: string,
+  payload: AdminLanguageOverrideRequest,
+): Promise<AdminLanguageOverrideResponse> {
+  return apiRequest<AdminLanguageOverrideResponse>(
+    `/admin/documents/${encodeURIComponent(documentId)}/language`,
+    {
+      method: "PATCH",
+      json: payload,
     },
   );
 }

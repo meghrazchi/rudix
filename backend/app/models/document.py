@@ -6,6 +6,7 @@ from sqlalchemy import (
     JSON,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -31,6 +32,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'delete_requested', 'deleting', 'deleted', 'retained_by_policy')",
             name="documents_status_allowed",
+        ),
+        CheckConstraint(
+            "language_source IS NULL OR language_source IN ('upload_provided', 'auto_detected', 'admin_override')",
+            name="documents_language_source_allowed",
         ),
         CheckConstraint(
             "page_count IS NULL OR page_count >= 0", name="documents_page_count_non_negative"
@@ -67,6 +72,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
     source: Mapped[str | None] = mapped_column(String(512), nullable=True)
     language: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    language_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    language_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
     retention_class: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     tags: Mapped[str | None] = mapped_column(Text(), nullable=True)

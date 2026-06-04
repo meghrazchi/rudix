@@ -17,6 +17,7 @@ export type DocumentCapabilities = {
   canDelete: boolean;
   canReindex: boolean;
   canViewChunkFullText: boolean;
+  canOverrideLanguage: boolean;
 };
 
 export function resolveDocumentCapabilities(
@@ -28,6 +29,7 @@ export function resolveDocumentCapabilities(
       canDelete: true,
       canReindex: true,
       canViewChunkFullText: true,
+      canOverrideLanguage: true,
     };
   }
   if (role === "admin") {
@@ -36,6 +38,7 @@ export function resolveDocumentCapabilities(
       canDelete: true,
       canReindex: true,
       canViewChunkFullText: true,
+      canOverrideLanguage: true,
     };
   }
   if (role === "member") {
@@ -44,6 +47,7 @@ export function resolveDocumentCapabilities(
       canDelete: true,
       canReindex: false,
       canViewChunkFullText: true,
+      canOverrideLanguage: false,
     };
   }
   return {
@@ -51,6 +55,7 @@ export function resolveDocumentCapabilities(
     canDelete: false,
     canReindex: false,
     canViewChunkFullText: false,
+    canOverrideLanguage: false,
   };
 }
 

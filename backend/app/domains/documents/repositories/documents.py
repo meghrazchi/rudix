@@ -24,6 +24,7 @@ class DocumentRepository:
         status: str = DocumentStatus.uploaded.value,
         source: str | None = None,
         language: str | None = None,
+        language_source: str | None = None,
         retention_class: str | None = None,
         notes: str | None = None,
         tags: str | None = None,
@@ -42,6 +43,7 @@ class DocumentRepository:
             "status": status,
             "source": source,
             "language": language,
+            "language_source": language_source,
             "retention_class": retention_class,
             "notes": notes,
             "tags": tags,
@@ -108,6 +110,7 @@ class DocumentRepository:
         status: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
+        language: str | None = None,
         limit: int = 20,
         offset: int = 0,
         sort_by: str = "created_at",
@@ -122,6 +125,8 @@ class DocumentRepository:
             normalized_query = filename_query.strip()
             if normalized_query:
                 statement = statement.where(Document.filename.ilike(f"%{normalized_query}%"))
+        if language is not None:
+            statement = statement.where(Document.language == language)
 
         sort_columns = {
             "created_at": Document.created_at,
@@ -144,6 +149,7 @@ class DocumentRepository:
         status: str | None = None,
         file_type: str | None = None,
         filename_query: str | None = None,
+        language: str | None = None,
     ) -> int:
         statement = select(func.count(Document.id)).where(
             Document.organization_id == organization_id
@@ -156,6 +162,8 @@ class DocumentRepository:
             normalized_query = filename_query.strip()
             if normalized_query:
                 statement = statement.where(Document.filename.ilike(f"%{normalized_query}%"))
+        if language is not None:
+            statement = statement.where(Document.language == language)
         result = await session.execute(statement)
         return int(result.scalar_one())
 
@@ -176,6 +184,26 @@ class DocumentRepository:
         document.dlp_scan_result = dlp_scan_result
         if error_message is not None:
             document.error_message = error_message
+        await session.flush()
+        await session.refresh(document)
+        return document
+
+    async def update_document_language(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        language: str | None,
+        language_confidence: float | None,
+        language_source: str,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.language = language
+        document.language_confidence = language_confidence
+        document.language_source = language_source
         await session.flush()
         await session.refresh(document)
         return document

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.documents.workflows import retry_delete_document_workflow
@@ -13,6 +15,7 @@ from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.schemas.documents import (
+    ALLOWED_LANGUAGES,
     AdminDocumentDeletionItem,
     AdminDocumentDeletionListResponse,
     RetryDeleteDocumentResponse,
@@ -21,6 +24,25 @@ from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import delete_document as delete_document_task
+
+
+class AdminLanguageOverrideRequest(BaseModel):
+    language: str | None = None
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, value: str | None) -> str | None:
+        if value is not None and value not in ALLOWED_LANGUAGES:
+            raise ValueError(f"Unsupported language code: {value}")
+        return value
+
+
+class AdminLanguageOverrideResponse(BaseModel):
+    document_id: str
+    language: str | None
+    language_source: str | None
+    language_confidence: float | None
+    updated_at: datetime
 
 router = APIRouter(prefix="/admin/documents", tags=["admin"])
 
@@ -166,4 +188,79 @@ async def retry_document_deletion(
         document_repository=document_repository,
         audit_log_service=audit_log_service,
         delete_document_task=delete_document_task,
+    )
+
+
+@router.patch(
+    "/{document_id}/language",
+    response_model=AdminLanguageOverrideResponse,
+)
+async def override_document_language(
+    request: Request,
+    document_id: str,
+    payload: AdminLanguageOverrideRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminLanguageOverrideResponse:
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    try:
+        doc_uuid = UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid document_id format",
+        ) from exc
+
+    document = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
+    if document is None or document.organization_id != actor_organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    updated = await document_repository.update_document_language(
+        db_session,
+        document_id=doc_uuid,
+        language=payload.language,
+        language_confidence=None,
+        language_source="admin_override",
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.language.override",
+        resource_type="document",
+        resource_id=doc_uuid,
+        request_id=request_id,
+        metadata={
+            "language": payload.language,
+            "language_source": "admin_override",
+        },
+    )
+    await db_session.commit()
+
+    return AdminLanguageOverrideResponse(
+        document_id=str(updated.id),
+        language=updated.language,
+        language_source=updated.language_source,
+        language_confidence=updated.language_confidence,
+        updated_at=updated.updated_at,
     )
