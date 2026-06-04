@@ -835,6 +835,9 @@ async def get_document(
         if isinstance(document.chunking_config_snapshot, dict)
         else None
     )
+    doc_ocr_languages_override = document.ocr_languages_override
+    doc_ocr_quality_snapshot = document.ocr_quality_snapshot
+    doc_extraction_snapshot = document.extraction_snapshot
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
@@ -907,9 +910,9 @@ async def get_document(
         language=doc_language,
         language_confidence=doc_language_confidence,
         language_source=doc_language_source,
-        ocr_languages_override=document.ocr_languages_override,
-        ocr_quality_snapshot=document.ocr_quality_snapshot,
-        extraction_snapshot=document.extraction_snapshot,
+        ocr_languages_override=doc_ocr_languages_override,
+        ocr_quality_snapshot=doc_ocr_quality_snapshot,
+        extraction_snapshot=doc_extraction_snapshot,
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,
