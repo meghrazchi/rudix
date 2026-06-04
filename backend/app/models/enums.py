@@ -149,3 +149,14 @@ class SafetyEvalSeverity(StrEnum):
     high = "high"
     medium = "medium"
     low = "low"
+
+
+class EvaluationDatasetStatus(StrEnum):
+    draft = "draft"
+    published = "published"
+
+
+class EvaluationCaseDifficulty(StrEnum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"

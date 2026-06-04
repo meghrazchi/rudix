@@ -1,3 +1,6 @@
+import csv
+import io
+import json
 from datetime import datetime
 from typing import Literal
 
@@ -29,10 +32,30 @@ class CreateEvaluationSetRequest(BaseModel):
         return trimmed
 
 
+class UpdateEvaluationSetRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None)
+    scope: dict[str, object] | None = Field(default=None)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("name must not be blank")
+        return trimmed
+
+
 class EvaluationSetResponse(BaseModel):
     evaluation_set_id: str
     name: str
     description: str | None = None
+    status: str = "draft"
+    version: int = 1
+    owner_id: str | None = None
+    scope: dict[str, object] = Field(default_factory=dict)
     question_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -50,6 +73,7 @@ class CreateEvaluationQuestionRequest(BaseModel):
     expected_answer: str | None = Field(default=None, max_length=8000)
     expected_document_id: str | None = None
     expected_page_number: int | None = Field(default=None, ge=1)
+    difficulty: Literal["easy", "medium", "hard"] | None = None
     tags: list[str] = Field(default_factory=list, max_length=50)
     metadata: dict[str, object] = Field(default_factory=dict)
 
@@ -83,6 +107,39 @@ class CreateEvaluationQuestionRequest(BaseModel):
         return normalized_tags
 
 
+class UpdateEvaluationQuestionRequest(BaseModel):
+    question: str | None = Field(default=None, min_length=1, max_length=8000)
+    expected_answer: str | None = Field(default=None)
+    expected_document_id: str | None = Field(default=None)
+    expected_page_number: int | None = Field(default=None, ge=1)
+    difficulty: Literal["easy", "medium", "hard"] | None = Field(default=None)
+    tags: list[str] | None = Field(default=None, max_length=50)
+    metadata: dict[str, object] | None = Field(default=None)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("question must not be blank")
+        return trimmed
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        normalized: list[str] = []
+        for tag in value:
+            trimmed = tag.strip()
+            if not trimmed:
+                raise ValueError("tags must not contain blank values")
+            normalized.append(trimmed)
+        return normalized
+
+
 class EvaluationQuestionResponse(BaseModel):
     evaluation_question_id: str
     evaluation_set_id: str
@@ -90,6 +147,8 @@ class EvaluationQuestionResponse(BaseModel):
     expected_answer: str | None = None
     expected_document_id: str | None = None
     expected_page_number: int | None = None
+    difficulty: str | None = None
+    owner_id: str | None = None
     tags: list[str] = Field(default_factory=list)
     metadata: dict[str, object] = Field(default_factory=dict)
     created_at: datetime
@@ -102,6 +161,131 @@ class EvaluationQuestionListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class ImportCaseRow(BaseModel):
+    question: str
+    expected_answer: str | None = None
+    expected_page_number: int | None = Field(default=None, ge=1)
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("question must not be blank")
+        return trimmed
+
+
+class ImportCasesRequest(BaseModel):
+    format: Literal["csv", "json"] = "json"
+    data: str = Field(min_length=1, max_length=500_000)
+    skip_duplicates: bool = True
+
+    @model_validator(mode="after")
+    def validate_data_parses(self) -> "ImportCasesRequest":
+        if self.format == "json":
+            try:
+                parsed = json.loads(self.data)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"data is not valid JSON: {exc}") from exc
+            if not isinstance(parsed, list):
+                raise ValueError("JSON data must be an array of case objects")
+        elif self.format == "csv":
+            reader = csv.DictReader(io.StringIO(self.data))
+            if reader.fieldnames is None or "question" not in reader.fieldnames:
+                raise ValueError("CSV data must include a 'question' column")
+        return self
+
+
+class ImportCasesResponse(BaseModel):
+    imported: int
+    skipped_duplicates: int
+    validation_errors: list[str]
+
+
+class ConvertFeedbackToCasesRequest(BaseModel):
+    evaluation_set_id: str = Field(min_length=3, max_length=64)
+    feedback_ids: list[str] = Field(min_length=1, max_length=100)
+    default_difficulty: Literal["easy", "medium", "hard"] | None = None
+
+    @field_validator("evaluation_set_id")
+    @classmethod
+    def validate_set_id(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("evaluation_set_id must not be blank")
+        return trimmed
+
+    @field_validator("feedback_ids")
+    @classmethod
+    def validate_feedback_ids(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for fid in value:
+            trimmed = fid.strip()
+            if not trimmed:
+                raise ValueError("feedback_ids must not contain blank values")
+            normalized.append(trimmed)
+        return normalized
+
+
+class ConvertFeedbackToCasesResponse(BaseModel):
+    created: int
+    skipped: int
+    evaluation_set_id: str
+
+
+class DatasetValidationIssue(BaseModel):
+    evaluation_question_id: str
+    question_preview: str
+    issue_type: Literal[
+        "missing_scope",
+        "deleted_source",
+        "inaccessible_document",
+        "no_expected_answer",
+        "duplicate",
+    ]
+    detail: str
+
+
+class ValidateDatasetResponse(BaseModel):
+    evaluation_set_id: str
+    is_valid: bool
+    issue_count: int
+    issues: list[DatasetValidationIssue]
+
+
+class EvaluationDatasetVersionResponse(BaseModel):
+    version_id: str
+    evaluation_set_id: str
+    version_number: int
+    question_count: int
+    published_by_id: str | None = None
+    published_at: datetime | None = None
+    created_at: datetime
+
+
+class EvaluationDatasetVersionListResponse(BaseModel):
+    evaluation_set_id: str
+    items: list[EvaluationDatasetVersionResponse]
+    total: int
+
+
+class PublishDatasetResponse(BaseModel):
+    evaluation_set_id: str
+    version_number: int
+    question_count: int
+    status: Literal["published"] = "published"
+
+
+class DuplicateDatasetResponse(BaseModel):
+    evaluation_set_id: str
+    name: str
+    question_count: int
+    status: Literal["draft"] = "draft"
+    created_at: datetime
 
 
 class EvaluationChunkingComparisonTargetInput(BaseModel):

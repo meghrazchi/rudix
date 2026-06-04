@@ -9,6 +9,7 @@ import {
   CreateEvaluationSetDialog,
   StartEvaluationRunDialog,
 } from "@/components/evaluations/evaluation-dialogs";
+import { DatasetBuilderPanel } from "@/components/evaluations/dataset-builder";
 import {
   readEvaluationRunHistory,
   upsertEvaluationRunHistory,
@@ -374,8 +375,9 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
   const role = state.session?.role ?? null;
   const canCreateSet = role === "owner" || role === "admin";
-  const canManageQuestions = role === "owner" || role === "admin";
+  const canManageQuestions = role === "owner" || role === "admin" || role === "member";
   const canRun = role === "owner" || role === "admin";
+  const canAdmin = role === "owner" || role === "admin";
 
   const [selectedSetPreferenceId, setSelectedSetPreferenceId] = useState<
     string | null
@@ -1303,6 +1305,31 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         addQuestionError={addQuestionError}
         isAddingQuestion={addQuestionMutation.isPending}
       />
+
+      {selectedSet && (
+        <DatasetBuilderPanel
+          evaluationSet={selectedSet}
+          questions={questions}
+          canManage={canManageQuestions}
+          canAdmin={canAdmin}
+          onRefreshSet={() => void setsQuery.refetch()}
+          onRefreshQuestions={() =>
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.evaluations.setQuestions(
+                selectedSet.evaluation_set_id,
+                { limit: EVALUATION_QUESTION_LIMIT, offset: 0 },
+              ),
+            })
+          }
+          onSetDeleted={() => {
+            setSelectedSetPreferenceId(null);
+            setSelectedRunId(null);
+          }}
+          onSetDuplicated={(newSetId) => {
+            setSelectedSetPreferenceId(newSetId);
+          }}
+        />
+      )}
 
       <CreateEvaluationSetDialog
         containerRef={createSetModalRef}

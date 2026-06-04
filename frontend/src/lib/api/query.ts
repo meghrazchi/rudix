@@ -119,6 +119,10 @@ export const queryKeys = {
       ["evaluations", "set-questions", evaluationSetId, params ?? {}] as const,
     run: (evaluationRunId: string, params?: Record<string, unknown>) =>
       ["evaluations", "run", evaluationRunId, params ?? {}] as const,
+    setVersions: (evaluationSetId: string) =>
+      ["evaluations", "set-versions", evaluationSetId] as const,
+    setValidation: (evaluationSetId: string) =>
+      ["evaluations", "set-validation", evaluationSetId] as const,
   },
   pipeline: {
     all: ["pipeline"] as const,
@@ -205,6 +209,13 @@ export type FrontendMutationKind =
   | "chat.session.delete"
   | "agent.run"
   | "evaluation.run"
+  | "evaluation.set.update"
+  | "evaluation.set.delete"
+  | "evaluation.set.publish"
+  | "evaluation.set.duplicate"
+  | "evaluation.set.import"
+  | "evaluation.question.update"
+  | "evaluation.question.delete"
   | "notification.read"
   | "notification.unread"
   | "notification.mark-all-read"
@@ -280,6 +291,21 @@ export async function invalidateAfterMutation(
   }
 
   if (kind === "evaluation.run") {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.evaluations.sets,
+    });
+    return;
+  }
+
+  if (
+    kind === "evaluation.set.update" ||
+    kind === "evaluation.set.delete" ||
+    kind === "evaluation.set.publish" ||
+    kind === "evaluation.set.duplicate" ||
+    kind === "evaluation.set.import" ||
+    kind === "evaluation.question.update" ||
+    kind === "evaluation.question.delete"
+  ) {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.evaluations.sets,
     });

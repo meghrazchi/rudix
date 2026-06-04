@@ -5,7 +5,7 @@ from app.models.chunking_profile import OrganizationChunkingProfile
 from app.models.citation import Citation
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document, DocumentChunk, DocumentPage
-from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
+from app.models.evaluation import EvaluationDatasetVersion, EvaluationQuestion, EvaluationResult, EvaluationRun, EvaluationSet
 from app.models.governance import OrganizationGovernancePolicy
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.message_feedback import MessageFeedback
@@ -31,6 +31,7 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentPage",
+    "EvaluationDatasetVersion",
     "EvaluationQuestion",
     "EvaluationResult",
     "EvaluationRun",
