@@ -619,7 +619,7 @@ class AgentRuntime:
                     step_name="discover_documents",
                     tool_name="search_documents",
                     arguments={
-                        "query": request.document_query or question[:120],
+                        "query": request.document_query or None,
                         "status": "indexed",
                         "sort_by": "updated_at",
                         "sort_order": "desc",

@@ -12,7 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.core.logging import log_agent_event
+from app.core.logging import get_logger, log_agent_event
+
+_logger = get_logger("agent.api")
 from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
@@ -299,6 +301,14 @@ async def create_agent_run(
     except HTTPException:
         raise
     except Exception as exc:
+        _logger.exception(
+            "agent.runtime.execute.failed",
+            error=exc.__class__.__name__,
+            error_detail=str(exc),
+            request_id=request_id,
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={

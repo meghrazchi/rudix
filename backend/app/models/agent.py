@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -68,9 +69,9 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "observations", JSON, nullable=False, default=dict
     )
     total_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    cancelled_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     trace_request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
     error_details_json: Mapped[dict] = mapped_column(
@@ -132,8 +133,8 @@ class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     error_details_json: Mapped[dict] = mapped_column(
         "error_details", JSON, nullable=False, default=dict
     )
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     agent_run = relationship("AgentRun", back_populates="steps")
@@ -206,8 +207,8 @@ class AgentToolCall(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     input_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     output_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     agent_run = relationship("AgentRun", back_populates="tool_calls")
     agent_step = relationship("AgentStep", back_populates="tool_calls")
@@ -266,8 +267,8 @@ class AgentApproval(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     decision_payload_json: Mapped[dict] = mapped_column(
         "decision_payload", JSON, nullable=False, default=dict
     )
-    expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    decided_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     organization = relationship("Organization", back_populates="agent_approvals")
     agent_run = relationship("AgentRun", back_populates="approvals")
