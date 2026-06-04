@@ -343,3 +343,109 @@ export async function getEvaluationRun(
     },
   );
 }
+
+export type EvaluationRunSummaryResponse = {
+  evaluation_run_id: string;
+  evaluation_set_id: string;
+  run_name: string | null;
+  status: string;
+  summary: Record<string, unknown> | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EvaluationRunListResponse = {
+  items: EvaluationRunSummaryResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type MetricDelta = {
+  metric: string;
+  label: string;
+  run_a_value: number | null;
+  run_b_value: number | null;
+  delta: number | null;
+  is_regression: boolean;
+  is_improvement: boolean;
+};
+
+export type CaseComparisonRow = {
+  evaluation_question_id: string;
+  question: string;
+  difficulty: string | null;
+  tags: string[];
+  run_a: EvaluationRunResultResponse | null;
+  run_b: EvaluationRunResultResponse | null;
+  regression: boolean;
+  improvement: boolean;
+};
+
+export type RunComparisonResponse = {
+  run_a: EvaluationRunSummaryResponse;
+  run_b: EvaluationRunSummaryResponse;
+  metric_deltas: MetricDelta[];
+  regression_count: number;
+  improvement_count: number;
+  cases: CaseComparisonRow[];
+  total_cases: number;
+  filters_applied: Record<string, unknown>;
+};
+
+export type CompareRunsParams = {
+  difficulty?: string | null;
+  tags?: string | null;
+  case_status?: "all" | "regression" | "improvement" | "failed_any";
+  failure_type?: string | null;
+};
+
+export async function listEvaluationRuns(
+  params: {
+    evaluation_set_id?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<EvaluationRunListResponse> {
+  return apiRequest<EvaluationRunListResponse>("/evaluations/runs", {
+    query: {
+      evaluation_set_id: params.evaluation_set_id,
+      status: params.status,
+      limit: params.limit,
+      offset: params.offset,
+    },
+  });
+}
+
+export async function compareEvaluationRuns(
+  runAId: string,
+  runBId: string,
+  params: CompareRunsParams = {},
+): Promise<RunComparisonResponse> {
+  return apiRequest<RunComparisonResponse>("/evaluations/compare", {
+    query: {
+      run_a: runAId,
+      run_b: runBId,
+      difficulty: params.difficulty ?? undefined,
+      tags: params.tags ?? undefined,
+      case_status: params.case_status,
+      failure_type: params.failure_type ?? undefined,
+    },
+  });
+}
+
+export function buildComparisonExportUrl(
+  runAId: string,
+  runBId: string,
+  format: "csv" | "json" = "csv",
+): string {
+  const params = new URLSearchParams({
+    run_a: runAId,
+    run_b: runBId,
+    format,
+  });
+  return `/api/v1/evaluations/compare/export?${params.toString()}`;
+}

@@ -24,6 +24,7 @@ import {
   EvaluationRunDetailSection,
   EvaluationRunDetailSkeleton,
 } from "@/components/evaluations/evaluation-run-detail";
+import { RunComparisonPanel } from "@/components/evaluations/run-comparison";
 import {
   buildCaseViews,
   buildRunComparison,
@@ -383,6 +384,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
     string | null
   >(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [compareRunId, setCompareRunId] = useState<string | null>(null);
   const [resultOffsetByRunId, setResultOffsetByRunId] = useState<
     Record<string, number>
   >({});
@@ -1162,13 +1164,20 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           <EvaluationRunsTable
             runs={filteredRuns}
             activeRunId={activeRunId}
+            compareRunId={compareRunId}
             onSelectRun={(runId) => {
               setSelectedRunId(runId);
+              setCompareRunId(null);
               setResultOffsetByRunId((previous) => ({
                 ...previous,
                 [runId]: 0,
               }));
               router.push(`/evaluations/runs/${encodeURIComponent(runId)}`);
+            }}
+            onCompareWith={(runId) => {
+              if (activeRunId && runId !== activeRunId) {
+                setCompareRunId(runId);
+              }
             }}
           />
         )}
@@ -1200,6 +1209,42 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           )
         ) : runDetail ? (
           <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCompareRunId(null)}
+                className={`rounded px-3 py-1.5 text-xs font-semibold border ${
+                  !compareRunId
+                    ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
+                    : "border-[#cbc6dd] text-[#403b5f] hover:bg-gray-50"
+                }`}
+              >
+                Run detail
+              </button>
+              {compareRunId && (
+                <button
+                  type="button"
+                  onClick={() => {}}
+                  className="rounded border border-[#8b5cf6] bg-[#8b5cf6] px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Comparison view
+                </button>
+              )}
+              {!compareRunId && filteredRuns.length > 1 && (
+                <span className="text-xs text-gray-400">
+                  Select a second run in the table above to compare
+                </span>
+              )}
+            </div>
+
+            {compareRunId && activeRunId ? (
+              <RunComparisonPanel
+                runAId={activeRunId}
+                runBId={compareRunId}
+                onClose={() => setCompareRunId(null)}
+              />
+            ) : (
+              <>
             <EvaluationRunDetailSection
               run={runDetail}
               datasetName={
@@ -1267,6 +1312,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
                 </button>
               </div>
             </div>
+              </>
+            )}
           </div>
         ) : null
       ) : (

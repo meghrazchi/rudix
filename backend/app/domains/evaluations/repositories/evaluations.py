@@ -766,3 +766,64 @@ class EvaluationRepository:
             delete(EvaluationResult).where(EvaluationResult.evaluation_run_id == evaluation_run_id)
         )
         return int(result.rowcount or 0)
+
+    async def list_evaluation_runs_for_organization(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        evaluation_set_id: UUID | None = None,
+        status_filter: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[EvaluationRun]:
+        query = (
+            select(EvaluationRun)
+            .join(EvaluationSet, EvaluationSet.id == EvaluationRun.evaluation_set_id)
+            .where(EvaluationSet.organization_id == organization_id)
+        )
+        if evaluation_set_id is not None:
+            query = query.where(EvaluationRun.evaluation_set_id == evaluation_set_id)
+        if status_filter is not None:
+            query = query.where(EvaluationRun.status == status_filter)
+        query = query.order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc())
+        query = query.offset(offset).limit(limit)
+        result = await session.execute(query)
+        return list(result.scalars().all())
+
+    async def count_evaluation_runs_for_organization(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        evaluation_set_id: UUID | None = None,
+        status_filter: str | None = None,
+    ) -> int:
+        query = (
+            select(func.count(EvaluationRun.id))
+            .join(EvaluationSet, EvaluationSet.id == EvaluationRun.evaluation_set_id)
+            .where(EvaluationSet.organization_id == organization_id)
+        )
+        if evaluation_set_id is not None:
+            query = query.where(EvaluationRun.evaluation_set_id == evaluation_set_id)
+        if status_filter is not None:
+            query = query.where(EvaluationRun.status == status_filter)
+        result = await session.execute(query)
+        return int(result.scalar_one())
+
+    async def list_all_evaluation_results_for_run(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+    ) -> list[tuple[EvaluationResult, EvaluationQuestion]]:
+        result = await session.execute(
+            select(EvaluationResult, EvaluationQuestion)
+            .join(
+                EvaluationQuestion,
+                EvaluationQuestion.id == EvaluationResult.evaluation_question_id,
+            )
+            .where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+            .order_by(EvaluationResult.created_at.asc(), EvaluationResult.id.asc())
+        )
+        return [(row[0], row[1]) for row in result.all()]

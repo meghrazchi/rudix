@@ -453,5 +453,56 @@ class EvaluationRunDetailResponse(BaseModel):
     results: EvaluationRunResultListResponse
 
 
+class EvaluationRunSummaryResponse(BaseModel):
+    evaluation_run_id: str
+    evaluation_set_id: str
+    run_name: str | None = None
+    status: str
+    summary: dict[str, object] | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class EvaluationRunListResponse(BaseModel):
+    items: list[EvaluationRunSummaryResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class MetricDelta(BaseModel):
+    metric: str
+    label: str
+    run_a_value: float | None = None
+    run_b_value: float | None = None
+    delta: float | None = None
+    is_regression: bool = False
+    is_improvement: bool = False
+
+
+class CaseComparisonRow(BaseModel):
+    evaluation_question_id: str
+    question: str
+    difficulty: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    run_a: EvaluationRunResultResponse | None = None
+    run_b: EvaluationRunResultResponse | None = None
+    regression: bool = False
+    improvement: bool = False
+
+
+class RunComparisonResponse(BaseModel):
+    run_a: EvaluationRunSummaryResponse
+    run_b: EvaluationRunSummaryResponse
+    metric_deltas: list[MetricDelta]
+    regression_count: int
+    improvement_count: int
+    cases: list[CaseComparisonRow]
+    total_cases: int
+    filters_applied: dict[str, object] = Field(default_factory=dict)
+
+
 EvaluationRunConfig.model_rebuild()
 RunEvaluationRequest.model_rebuild()

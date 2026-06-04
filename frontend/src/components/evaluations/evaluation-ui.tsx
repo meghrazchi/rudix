@@ -886,13 +886,17 @@ export function EvaluationRunsFilterBar({
 type RunsTableProps = {
   runs: EvaluationRunListItem[];
   activeRunId: string | null;
+  compareRunId?: string | null;
   onSelectRun: (runId: string) => void;
+  onCompareWith?: (runId: string) => void;
 };
 
 export function EvaluationRunsTable({
   runs,
   activeRunId,
+  compareRunId,
   onSelectRun,
+  onCompareWith,
 }: RunsTableProps) {
   if (runs.length === 0) {
     return (
@@ -937,15 +941,27 @@ export function EvaluationRunsTable({
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
               Created
             </th>
+            {onCompareWith && (
+              <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
+                Compare
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {runs.map((run) => {
             const isActive = run.runId === activeRunId;
+            const isCompare = run.runId === compareRunId;
             return (
               <tr
                 key={run.runId}
-                className={isActive ? "bg-indigo-50/40" : "bg-white"}
+                className={
+                  isCompare
+                    ? "bg-amber-50"
+                    : isActive
+                      ? "bg-indigo-50/40"
+                      : "bg-white"
+                }
               >
                 <td className="px-3 py-2 align-top">
                   <button
@@ -985,6 +1001,25 @@ export function EvaluationRunsTable({
                 <td className="px-3 py-2 align-top text-gray-700">
                   {formatDateTime(run.createdAt)}
                 </td>
+                {onCompareWith && (
+                  <td className="px-3 py-2 align-top">
+                    {isActive ? (
+                      <span className="text-xs text-gray-400">Active</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onCompareWith(run.runId)}
+                        className={`rounded border px-2 py-0.5 text-xs font-semibold ${
+                          isCompare
+                            ? "border-amber-400 bg-amber-100 text-amber-800"
+                            : "border-[#cbc6dd] text-[#403b5f] hover:bg-gray-50"
+                        }`}
+                      >
+                        {isCompare ? "Comparing" : "Compare"}
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             );
           })}

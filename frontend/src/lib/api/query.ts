@@ -119,6 +119,10 @@ export const queryKeys = {
       ["evaluations", "set-questions", evaluationSetId, params ?? {}] as const,
     run: (evaluationRunId: string, params?: Record<string, unknown>) =>
       ["evaluations", "run", evaluationRunId, params ?? {}] as const,
+    runs: (params?: Record<string, unknown>) =>
+      ["evaluations", "runs", params ?? {}] as const,
+    compare: (runAId: string, runBId: string, params?: Record<string, unknown>) =>
+      ["evaluations", "compare", runAId, runBId, params ?? {}] as const,
     setVersions: (evaluationSetId: string) =>
       ["evaluations", "set-versions", evaluationSetId] as const,
     setValidation: (evaluationSetId: string) =>
