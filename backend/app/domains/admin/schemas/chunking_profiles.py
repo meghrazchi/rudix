@@ -134,11 +134,21 @@ class ChunkingProfilePreviewResponse(BaseModel):
 class ReindexWithProfileRequest(BaseModel):
     chunking_profile_id: str | None = None
     chunking_profile_config: ChunkingProfileConfigInput | None = None
+    ocr_languages: list[str] | None = None
 
     @model_validator(mode="after")
-    def _mutually_exclusive(self) -> ReindexWithProfileRequest:
+    def _validate(self) -> ReindexWithProfileRequest:
         if self.chunking_profile_id is not None and self.chunking_profile_config is not None:
             raise ValueError(
                 "Provide either chunking_profile_id or chunking_profile_config, not both"
             )
+        if self.ocr_languages is not None:
+            from app.domains.documents.services.ocr_language_config import (
+                UnsupportedOcrLanguageError,
+                validate_iso_languages,
+            )
+            try:
+                self.ocr_languages = validate_iso_languages(self.ocr_languages)
+            except UnsupportedOcrLanguageError as exc:
+                raise ValueError(str(exc)) from exc
         return self

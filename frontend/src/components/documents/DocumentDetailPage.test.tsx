@@ -27,6 +27,7 @@ const mockApi = vi.hoisted(() => ({
   reindexDocument: vi.fn(),
   downloadDocumentFile: vi.fn(),
   overrideDocumentLanguage: vi.fn(),
+  configureDocumentOcr: vi.fn(),
 }));
 
 const mockChunkingApi = vi.hoisted(() => ({
@@ -55,11 +56,19 @@ vi.mock("@/lib/api/documents", () => ({
     mockApi.downloadDocumentFile(documentId),
   overrideDocumentLanguage: (documentId: string, payload: unknown) =>
     mockApi.overrideDocumentLanguage(documentId, payload),
+  configureDocumentOcr: (documentId: string, payload: unknown) =>
+    mockApi.configureDocumentOcr(documentId, payload),
   UPLOAD_LANGUAGES: [
     { code: "en", label: "English" },
     { code: "de", label: "German" },
     { code: "es", label: "Spanish" },
     { code: "fr", label: "French" },
+  ],
+  OCR_LANGUAGES: [
+    { code: "en", label: "English", tesseract: "eng" },
+    { code: "de", label: "German", tesseract: "deu" },
+    { code: "es", label: "Spanish", tesseract: "spa" },
+    { code: "fr", label: "French", tesseract: "fra" },
   ],
 }));
 
@@ -105,6 +114,7 @@ describe("DocumentDetailPage", () => {
     mockApi.reindexDocument.mockReset();
     mockApi.downloadDocumentFile.mockReset();
     mockApi.overrideDocumentLanguage.mockReset();
+    mockApi.configureDocumentOcr.mockReset();
     Object.defineProperty(window, "confirm", {
       writable: true,
       value: vi.fn(() => true),
@@ -822,5 +832,137 @@ describe("DocumentDetailPage", () => {
     expect(
       screen.queryByRole("button", { name: "Override language" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows OCR quality panel with avg confidence when quality snapshot present", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "scanned.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 5,
+      chunk_count: 40,
+      language: "de",
+      language_confidence: null,
+      language_source: null,
+      ocr_languages_override: "deu",
+      ocr_quality_snapshot: {
+        status: "completed",
+        mode: "scanned",
+        languages: ["deu"],
+        effective_languages_string: "deu",
+        pages_processed: 5,
+        pages_completed: 5,
+        pages_failed: 0,
+        duration_ms: 3100,
+        avg_confidence: 0.82,
+        page_confidences: [],
+        warnings: [],
+      },
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-04T00:00:00Z",
+      updated_at: "2026-06-04T00:01:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "scanned.pdf" });
+
+    expect(screen.getByText("OCR quality")).toBeInTheDocument();
+    expect(screen.getByText("82%")).toBeInTheDocument();
+    expect(screen.getByText("deu")).toBeInTheDocument();
+  });
+
+  it("shows low confidence warning when OCR quality is below 30%", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "lowquality.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 2,
+      chunk_count: 4,
+      language: null,
+      language_confidence: null,
+      language_source: null,
+      ocr_quality_snapshot: {
+        status: "partial",
+        mode: "mixed",
+        languages: ["eng"],
+        effective_languages_string: "eng",
+        pages_processed: 2,
+        pages_completed: 1,
+        pages_failed: 0,
+        duration_ms: 800,
+        avg_confidence: 0.12,
+        page_confidences: [],
+        warnings: [],
+      },
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-04T00:00:00Z",
+      updated_at: "2026-06-04T00:01:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "lowquality.pdf" });
+
+    expect(
+      screen.getByText(/Low OCR confidence/i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows admin Set OCR language button for admin role and submits", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "scanned.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 3,
+      chunk_count: 20,
+      language: null,
+      language_confidence: null,
+      language_source: null,
+      ocr_quality_snapshot: {
+        status: "completed",
+        mode: "scanned",
+        languages: ["eng"],
+        effective_languages_string: "eng",
+        pages_processed: 3,
+        pages_completed: 3,
+        pages_failed: 0,
+        duration_ms: 1200,
+        avg_confidence: 0.75,
+        page_confidences: [],
+        warnings: [],
+      },
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-04T00:00:00Z",
+      updated_at: "2026-06-04T00:01:00Z",
+    });
+    mockApi.configureDocumentOcr.mockResolvedValue({
+      document_id: "doc-1",
+      ocr_languages_override: "deu",
+      ocr_quality_snapshot: null,
+      updated_at: "2026-06-04T00:02:00Z",
+    });
+    renderPage();
+    await screen.findByRole("heading", { name: "scanned.pdf" });
+
+    const setOcrBtn = await screen.findByRole("button", {
+      name: "Set OCR language",
+    });
+    await userEvent.click(setOcrBtn);
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Select OCR language" }),
+      "de",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(mockApi.configureDocumentOcr).toHaveBeenCalledWith("doc-1", {
+        ocr_languages: ["de"],
+      });
+    });
   });
 });

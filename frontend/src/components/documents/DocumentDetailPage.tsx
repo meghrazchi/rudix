@@ -17,14 +17,18 @@ import type {
   DocumentStatus,
   DocumentStatusResponse,
   AdminLanguageOverrideRequest,
+  AdminOcrConfigRequest,
+  OcrQualitySnapshot,
 } from "@/lib/api/documents";
 import {
+  configureDocumentOcr,
   deleteDocument,
   downloadDocumentFile,
   getDocument,
   getDocumentChunks,
   overrideDocumentLanguage,
   reindexDocument,
+  OCR_LANGUAGES,
   UPLOAD_LANGUAGES,
 } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
@@ -401,6 +405,8 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const [chunkSearchQuery, setChunkSearchQuery] = useState("");
   const [langOverrideValue, setLangOverrideValue] = useState<string>("");
   const [langOverrideOpen, setLangOverrideOpen] = useState(false);
+  const [ocrLangOverrideValue, setOcrLangOverrideValue] = useState<string>("");
+  const [ocrLangOverrideOpen, setOcrLangOverrideOpen] = useState(false);
   const copyFadeTimeoutRef = useRef<number | null>(null);
   const copyClearTimeoutRef = useRef<number | null>(null);
   const lastLifecycleSyncAttemptRef = useRef<number | null>(null);
@@ -592,6 +598,23 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     onSuccess: () => {
       setLangOverrideOpen(false);
       setActionFeedback("Language override saved.");
+      setActionRequestId(null);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.detail(documentId),
+      });
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
+  const ocrConfigMutation = useMutation({
+    mutationFn: (payload: AdminOcrConfigRequest) =>
+      configureDocumentOcr(documentId, payload),
+    onSuccess: () => {
+      setOcrLangOverrideOpen(false);
+      setActionFeedback("OCR language configuration saved.");
       setActionRequestId(null);
       void queryClient.invalidateQueries({
         queryKey: queryKeys.documents.detail(documentId),
@@ -1246,6 +1269,136 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                   — OCR was skipped.
                                 </p>
                               )}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {/* OCR quality diagnostics (F232) */}
+                        {detail.file_type === "pdf" &&
+                        (detail.ocr_quality_snapshot ||
+                          detail.ocr_languages_override ||
+                          capabilities.canOverrideLanguage) ? (
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              OCR quality
+                            </h4>
+                            <div className="space-y-2 text-sm text-[#2a2640]">
+                              {detail.ocr_languages_override ? (
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">
+                                    Language override
+                                  </span>
+                                  <span className="rounded-full bg-[#ece8ff] px-2 py-0.5 text-xs font-semibold text-[#3525cd]">
+                                    {detail.ocr_languages_override}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {detail.ocr_quality_snapshot ? (
+                                <>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">
+                                      Avg confidence
+                                    </span>
+                                    <span
+                                      className={`font-semibold ${
+                                        (detail.ocr_quality_snapshot.avg_confidence ?? 0) >= 0.7
+                                          ? "text-emerald-700"
+                                          : (detail.ocr_quality_snapshot.avg_confidence ?? 0) >= 0.3
+                                            ? "text-amber-600"
+                                            : "text-rose-600"
+                                      }`}
+                                    >
+                                      {detail.ocr_quality_snapshot.avg_confidence !== null &&
+                                      detail.ocr_quality_snapshot.avg_confidence !== undefined
+                                        ? `${(detail.ocr_quality_snapshot.avg_confidence * 100).toFixed(0)}%`
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="text-[#69637f]">Languages used</span>
+                                    <span className="font-semibold">
+                                      {detail.ocr_quality_snapshot.languages.length > 0
+                                        ? detail.ocr_quality_snapshot.languages.join("+")
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                  {detail.ocr_quality_snapshot.pages_failed > 0 ? (
+                                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                                      <p className="text-xs font-semibold text-amber-700">
+                                        {detail.ocr_quality_snapshot.pages_failed} page
+                                        {detail.ocr_quality_snapshot.pages_failed !== 1
+                                          ? "s"
+                                          : ""}{" "}
+                                        failed OCR
+                                      </p>
+                                    </div>
+                                  ) : null}
+                                  {(detail.ocr_quality_snapshot.avg_confidence ?? 1) < 0.3 &&
+                                  detail.ocr_quality_snapshot.pages_completed > 0 ? (
+                                    <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                                      <p className="text-xs font-semibold text-amber-700">
+                                        Low OCR confidence — consider re-indexing with the correct
+                                        language pack.
+                                      </p>
+                                    </div>
+                                  ) : null}
+                                </>
+                              ) : null}
+                              {capabilities.canOverrideLanguage ? (
+                                <div className="mt-2 border-t border-[#e9e6f5] pt-2">
+                                  {ocrLangOverrideOpen ? (
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={ocrLangOverrideValue}
+                                        onChange={(e) =>
+                                          setOcrLangOverrideValue(e.target.value)
+                                        }
+                                        aria-label="Select OCR language"
+                                        className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
+                                      >
+                                        <option value="">— clear override —</option>
+                                        {OCR_LANGUAGES.map((l) => (
+                                          <option key={l.code} value={l.code}>
+                                            {l.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        type="button"
+                                        disabled={ocrConfigMutation.isPending}
+                                        onClick={() => {
+                                          ocrConfigMutation.mutate({
+                                            ocr_languages: ocrLangOverrideValue
+                                              ? [ocrLangOverrideValue]
+                                              : null,
+                                          });
+                                        }}
+                                        className="rounded bg-[#3525cd] px-2 py-1 text-xs font-semibold text-white hover:bg-[#2a1eb0] disabled:opacity-50"
+                                      >
+                                        {ocrConfigMutation.isPending ? "Saving…" : "Save"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setOcrLangOverrideOpen(false)}
+                                        className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-medium text-[#69637f] hover:bg-[#f0ecf9]"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setOcrLangOverrideValue("");
+                                        setOcrLangOverrideOpen(true);
+                                      }}
+                                      className="text-xs font-semibold text-[#3525cd] hover:underline"
+                                    >
+                                      Set OCR language
+                                    </button>
+                                  )}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         ) : null}

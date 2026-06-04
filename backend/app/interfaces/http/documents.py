@@ -907,6 +907,8 @@ async def get_document(
         language=doc_language,
         language_confidence=doc_language_confidence,
         language_source=doc_language_source,
+        ocr_languages_override=document.ocr_languages_override,
+        ocr_quality_snapshot=document.ocr_quality_snapshot,
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,
@@ -1093,6 +1095,14 @@ async def reindex_document_endpoint(
                 organization_id=actor_organization_id,
             )
         )
+        if body.ocr_languages:
+            from app.domains.documents.services.ocr_language_config import iso_list_to_tesseract_string
+            tesseract_str = iso_list_to_tesseract_string(body.ocr_languages)
+            await document_repository.update_document_ocr_config(
+                db_session,
+                document_id=document.id,
+                ocr_languages_override=tesseract_str,
+            )
 
     return await reindex_document_workflow(
         request_id=request_id,

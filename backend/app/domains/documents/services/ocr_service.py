@@ -1,13 +1,36 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 import fitz
 
 if TYPE_CHECKING:
     from app.domains.documents.services.text_extraction import ExtractedSection
+
+# Minimum character count to consider a completed OCR page as high-quality.
+_HIGH_QUALITY_CHAR_THRESHOLD = 100
+_MEDIUM_QUALITY_CHAR_THRESHOLD = 30
+
+
+def _char_density_confidence(text: str) -> float:
+    """Estimate OCR quality from character density.
+
+    Returns a value between 0.0 (no output) and 1.0 (high confidence).
+    This is a lightweight proxy because PyMuPDF's Tesseract integration does
+    not surface Tesseract word-level confidence scores directly.
+    """
+    char_count = len(text.strip())
+    if char_count >= _HIGH_QUALITY_CHAR_THRESHOLD:
+        return min(1.0, 0.7 + char_count / (_HIGH_QUALITY_CHAR_THRESHOLD * 10))
+    if char_count >= _MEDIUM_QUALITY_CHAR_THRESHOLD:
+        return 0.4 + (char_count - _MEDIUM_QUALITY_CHAR_THRESHOLD) / (
+            _HIGH_QUALITY_CHAR_THRESHOLD - _MEDIUM_QUALITY_CHAR_THRESHOLD
+        ) * 0.3
+    if char_count > 0:
+        return char_count / _MEDIUM_QUALITY_CHAR_THRESHOLD * 0.4
+    return 0.0
 
 
 @dataclass
@@ -17,6 +40,7 @@ class OcrPageResult:
     languages: list[str]
     status: Literal["completed", "failed", "skipped"]
     warning: str | None = None
+    confidence: float | None = None
 
 
 @dataclass
@@ -26,6 +50,7 @@ class OcrDocumentResult:
     duration_ms: int
     languages: list[str]
     mode: str = ""
+    avg_confidence: float | None = None
 
 
 def run_ocr(
@@ -43,7 +68,9 @@ def run_ocr(
     Celery's forked daemon worker processes on macOS and Linux.
     """
     started_at = time.monotonic()
-    lang_list = [lang.strip() for lang in languages.split(",") if lang.strip()]
+    # Support both '+'-delimited and ','-delimited language strings.
+    raw_codes = [c for part in languages.split("+") for c in part.split(",") if c.strip()]
+    lang_list = [lang.strip() for lang in raw_codes if lang.strip()]
     lang_str = "+".join(lang_list)
     limited_pages = candidate_pages[:max_pages]
 
@@ -69,11 +96,13 @@ def run_ocr(
                     languages=lang_list,
                     status="failed",
                     warning=f"PDF open failed: {exc}",
+                    confidence=0.0,
                 )
                 for p in limited_pages
             ],
             duration_ms=duration_ms,
             languages=lang_list,
+            avg_confidence=0.0,
         )
 
     try:
@@ -82,12 +111,14 @@ def run_ocr(
                 page = doc[page_number - 1]
                 textpage = page.get_textpage_ocr(language=lang_str, dpi=dpi, full=True)
                 text = page.get_text(textpage=textpage).strip()
+                confidence = _char_density_confidence(text)
                 ocr_pages.append(
                     OcrPageResult(
                         page_number=page_number,
                         text=text,
                         languages=lang_list,
                         status="completed",
+                        confidence=round(confidence, 3),
                     )
                 )
             except Exception as exc:
@@ -98,6 +129,7 @@ def run_ocr(
                         languages=lang_list,
                         status="failed",
                         warning=f"OCR failed on page {page_number}: {exc}",
+                        confidence=0.0,
                     )
                 )
     finally:
@@ -116,11 +148,23 @@ def run_ocr(
     else:
         overall = "skipped"
 
+    completed_confidences = [
+        p.confidence
+        for p in ocr_pages
+        if p.status == "completed" and p.confidence is not None
+    ]
+    avg_confidence = (
+        round(sum(completed_confidences) / len(completed_confidences), 3)
+        if completed_confidences
+        else None
+    )
+
     return OcrDocumentResult(
         status=overall,
         pages=ocr_pages,
         duration_ms=duration_ms,
         languages=lang_list,
+        avg_confidence=avg_confidence,
     )
 
 

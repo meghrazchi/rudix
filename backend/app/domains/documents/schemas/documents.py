@@ -296,6 +296,8 @@ class DocumentDetailResponse(BaseModel):
     duplicate_of_document_id: str | None = None
     security_scan_result: dict | None = None
     dlp_scan_result: dict | None = None
+    ocr_languages_override: str | None = None
+    ocr_quality_snapshot: dict | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime

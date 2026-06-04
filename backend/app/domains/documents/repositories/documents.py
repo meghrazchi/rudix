@@ -188,6 +188,38 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
+    async def update_document_ocr_config(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        ocr_languages_override: str | None,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.ocr_languages_override = ocr_languages_override
+        await session.flush()
+        await session.refresh(document)
+        return document
+
+    async def update_document_ocr_quality(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        ocr_quality_snapshot: dict,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.ocr_quality_snapshot = ocr_quality_snapshot
+        await session.flush()
+        await session.refresh(document)
+        return document
+
     async def update_document_language(
         self,
         session: AsyncSession,

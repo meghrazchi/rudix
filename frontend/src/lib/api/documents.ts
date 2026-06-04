@@ -111,7 +111,29 @@ export type DocumentDetailResponse = Omit<
   language?: string | null;
   language_confidence?: number | null;
   language_source?: string | null;
+  ocr_languages_override?: string | null;
+  ocr_quality_snapshot?: OcrQualitySnapshot | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
+};
+
+export type OcrPageQuality = {
+  page_number: number;
+  status: "completed" | "failed" | "skipped";
+  confidence: number | null;
+};
+
+export type OcrQualitySnapshot = {
+  status: string;
+  mode: string;
+  languages: string[];
+  effective_languages_string: string;
+  pages_processed: number;
+  pages_completed: number;
+  pages_failed: number;
+  duration_ms: number;
+  avg_confidence: number | null;
+  page_confidences: OcrPageQuality[];
+  warnings: string[];
 };
 
 export type AdminLanguageOverrideRequest = {
@@ -123,6 +145,17 @@ export type AdminLanguageOverrideResponse = {
   language: string | null;
   language_source: string | null;
   language_confidence: number | null;
+  updated_at: string;
+};
+
+export type AdminOcrConfigRequest = {
+  ocr_languages: string[] | null;
+};
+
+export type AdminOcrConfigResponse = {
+  document_id: string;
+  ocr_languages_override: string | null;
+  ocr_quality_snapshot: OcrQualitySnapshot | null;
   updated_at: string;
 };
 export type DocumentChunkPreviewResponse =
@@ -390,3 +423,24 @@ export async function overrideDocumentLanguage(
     },
   );
 }
+
+export async function configureDocumentOcr(
+  documentId: string,
+  payload: AdminOcrConfigRequest,
+): Promise<AdminOcrConfigResponse> {
+  return apiRequest<AdminOcrConfigResponse>(
+    `/admin/documents/${encodeURIComponent(documentId)}/ocr-config`,
+    {
+      method: "PATCH",
+      json: payload,
+    },
+  );
+}
+
+export const OCR_LANGUAGES: ReadonlyArray<{ code: string; label: string; tesseract: string }> =
+  [
+    { code: "en", label: "English", tesseract: "eng" },
+    { code: "de", label: "German", tesseract: "deu" },
+    { code: "es", label: "Spanish", tesseract: "spa" },
+    { code: "fr", label: "French", tesseract: "fra" },
+  ];

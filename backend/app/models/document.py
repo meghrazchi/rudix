@@ -94,6 +94,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chunking_strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
     chunking_profile_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     chunking_config_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # OCR configuration and quality diagnostics (F232).
+    # ocr_languages_override: comma-separated Tesseract codes set by admin to override system default.
+    ocr_languages_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # ocr_quality_snapshot: quality metrics from the most recent OCR pipeline run.
+    ocr_quality_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")

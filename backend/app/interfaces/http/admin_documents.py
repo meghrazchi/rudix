@@ -44,6 +44,32 @@ class AdminLanguageOverrideResponse(BaseModel):
     language_confidence: float | None
     updated_at: datetime
 
+
+class AdminOcrConfigRequest(BaseModel):
+    ocr_languages: list[str] | None = None
+
+    @field_validator("ocr_languages")
+    @classmethod
+    def validate_ocr_languages(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        from app.domains.documents.services.ocr_language_config import (
+            UnsupportedOcrLanguageError,
+            validate_iso_languages,
+        )
+        try:
+            return validate_iso_languages(value)
+        except UnsupportedOcrLanguageError as exc:
+            raise ValueError(str(exc)) from exc
+
+
+class AdminOcrConfigResponse(BaseModel):
+    document_id: str
+    ocr_languages_override: str | None
+    ocr_quality_snapshot: dict | None
+    updated_at: datetime
+
+
 router = APIRouter(prefix="/admin/documents", tags=["admin"])
 
 document_repository = DocumentRepository()
@@ -262,5 +288,83 @@ async def override_document_language(
         language=updated.language,
         language_source=updated.language_source,
         language_confidence=updated.language_confidence,
+        updated_at=updated.updated_at,
+    )
+
+
+@router.patch(
+    "/{document_id}/ocr-config",
+    response_model=AdminOcrConfigResponse,
+)
+async def configure_document_ocr(
+    request: Request,
+    document_id: str,
+    payload: AdminOcrConfigRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminOcrConfigResponse:
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    try:
+        doc_uuid = UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid document_id format",
+        ) from exc
+
+    document = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
+    if document is None or document.organization_id != actor_organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    if payload.ocr_languages is not None:
+        from app.domains.documents.services.ocr_language_config import iso_list_to_tesseract_string
+        tesseract_str = iso_list_to_tesseract_string(payload.ocr_languages) if payload.ocr_languages else None
+    else:
+        tesseract_str = None
+
+    updated = await document_repository.update_document_ocr_config(
+        db_session,
+        document_id=doc_uuid,
+        ocr_languages_override=tesseract_str,
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.ocr_config.updated",
+        resource_type="document",
+        resource_id=doc_uuid,
+        request_id=request_id,
+        metadata={
+            "ocr_languages": payload.ocr_languages,
+            "ocr_languages_override": tesseract_str,
+        },
+    )
+    await db_session.commit()
+
+    return AdminOcrConfigResponse(
+        document_id=str(updated.id),
+        ocr_languages_override=updated.ocr_languages_override,
+        ocr_quality_snapshot=updated.ocr_quality_snapshot,
         updated_at=updated.updated_at,
     )

@@ -32,6 +32,7 @@ from app.domains.documents.services.language_detection_service import (
     detect_language_from_text as _detect_language_from_text,
     confidence_bucket as _language_confidence_bucket,
 )
+from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
 from app.domains.documents.services.qdrant_service import QdrantService
@@ -625,21 +626,31 @@ async def _extract_and_store_document_pages_async(
                 if detection.requires_ocr:
                     ocr_applied = True
                     current_stage = "ocr"
+                    # Resolve effective OCR language: per-doc override → F230 document language → system default.
+                    effective_ocr_languages = resolve_ocr_tesseract_string(
+                        ocr_override=document.ocr_languages_override,
+                        document_language=document.language,
+                        system_default=settings.ocr_default_languages,
+                    )
                     await pipeline_recorder.emit_stage(
                         stage="ocr",
                         stage_status="started",
                         config={
-                            "languages": settings.ocr_default_languages,
+                            "languages": effective_ocr_languages,
                             "dpi": settings.ocr_image_dpi,
                             "max_pages": settings.ocr_max_pages,
                             "page_timeout_seconds": settings.ocr_page_timeout_seconds,
+                            "language_source": (
+                                "override" if document.ocr_languages_override
+                                else ("document_language" if document.language else "system_default")
+                            ),
                         },
                     )
                     try:
                         ocr_result = run_ocr(
                             content,
                             detection.ocr_candidate_pages,
-                            languages=settings.ocr_default_languages,
+                            languages=effective_ocr_languages,
                             dpi=settings.ocr_image_dpi,
                             page_timeout_seconds=settings.ocr_page_timeout_seconds,
                             max_pages=settings.ocr_max_pages,
@@ -660,6 +671,27 @@ async def _extract_and_store_document_pages_async(
                     ocr_completed = sum(1 for p in ocr_result.pages if p.status == "completed")
                     ocr_failed = sum(1 for p in ocr_result.pages if p.status == "failed")
                     ocr_stage_status = "failed" if ocr_result.status == "failed" else "completed"
+                    page_warnings = [p.warning for p in ocr_result.pages if p.warning]
+                    ocr_quality_snapshot = {
+                        "status": ocr_result.status,
+                        "mode": detection.mode,
+                        "languages": ocr_result.languages,
+                        "effective_languages_string": effective_ocr_languages,
+                        "pages_processed": len(ocr_result.pages),
+                        "pages_completed": ocr_completed,
+                        "pages_failed": ocr_failed,
+                        "duration_ms": ocr_result.duration_ms,
+                        "avg_confidence": ocr_result.avg_confidence,
+                        "page_confidences": [
+                            {
+                                "page_number": p.page_number,
+                                "status": p.status,
+                                "confidence": p.confidence,
+                            }
+                            for p in ocr_result.pages
+                        ],
+                        "warnings": page_warnings,
+                    }
                     await pipeline_recorder.emit_stage(
                         stage="ocr",
                         stage_status=ocr_stage_status,
@@ -671,10 +703,10 @@ async def _extract_and_store_document_pages_async(
                             "pages_completed": ocr_completed,
                             "pages_failed": ocr_failed,
                             "duration_ms": ocr_result.duration_ms,
-                            "warnings": [p.warning for p in ocr_result.pages if p.warning],
+                            "avg_confidence": ocr_result.avg_confidence,
+                            "warnings": page_warnings,
                         },
                     )
-                    page_warnings = [p.warning for p in ocr_result.pages if p.warning]
                     log_document_event(
                         event="document.pipeline.stage",
                         document_id=str(document.id),
@@ -686,8 +718,18 @@ async def _extract_and_store_document_pages_async(
                         ocr_status=ocr_result.status,
                         ocr_pages_processed=len(ocr_result.pages),
                         ocr_duration_ms=ocr_result.duration_ms,
-                        ocr_page_warnings=page_warnings,
+                        ocr_avg_confidence=ocr_result.avg_confidence,
+                        ocr_languages=ocr_result.languages,
                     )
+                    # Persist quality snapshot without logging document content.
+                    async with SessionLocal() as ocr_quality_session:
+                        await _document_repository.update_document_ocr_quality(
+                            ocr_quality_session,
+                            document_id=parsed_document_id,
+                            ocr_quality_snapshot=ocr_quality_snapshot,
+                        )
+                        await ocr_quality_session.commit()
+
                     if ocr_result.status == "failed":
                         first_warning = page_warnings[0] if page_warnings else "unknown error"
                         raise DocumentPipelinePermanentError(
