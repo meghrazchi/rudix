@@ -20,6 +20,7 @@ from app.interfaces.http import (
     pipeline,
     profile,
     quality_gates,
+    rag_profiles,
     safety_evals,
     security_settings,
     team,
@@ -43,6 +44,7 @@ protected_router.include_router(pipeline.router)
 protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
 protected_router.include_router(quality_gates.router)
+protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(admin_documents.router)

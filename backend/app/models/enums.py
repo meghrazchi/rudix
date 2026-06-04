@@ -166,3 +166,15 @@ class QualityGateVerdict(StrEnum):
     passed = "passed"
     failed = "failed"
     overridden = "overridden"
+
+
+class RagCitationStrictness(StrEnum):
+    strict = "strict"
+    moderate = "moderate"
+    lenient = "lenient"
+
+
+class RagSafetyMode(StrEnum):
+    strict = "strict"
+    standard = "standard"
+    permissive = "permissive"

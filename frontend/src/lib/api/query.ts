@@ -148,6 +148,18 @@ export const queryKeys = {
     chunkingStrategies: ["admin", "chunking-profiles", "strategies"] as const,
     chunkingProfiles: ["admin", "chunking-profiles", "profiles"] as const,
   },
+  ragProfiles: {
+    all: ["rag-profiles"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["rag-profiles", "list", params ?? {}] as const,
+    detail: (profileId: string) =>
+      ["rag-profiles", "detail", profileId] as const,
+    versions: (profileId: string) =>
+      ["rag-profiles", "versions", profileId] as const,
+    overrides: ["rag-profiles", "overrides"] as const,
+    resolve: (collectionId?: string) =>
+      ["rag-profiles", "resolve", collectionId ?? ""] as const,
+  },
   topBar: {
     notifications: (endpoint: string) =>
       ["top-bar", "notifications", endpoint] as const,
@@ -234,7 +246,15 @@ export type FrontendMutationKind =
   | "security.session.revoke"
   | "security.session.revoke-all"
   | "security.login-policy.update"
-  | "billing.contact.update";
+  | "billing.contact.update"
+  | "rag-profile.create"
+  | "rag-profile.update"
+  | "rag-profile.archive"
+  | "rag-profile.unarchive"
+  | "rag-profile.set-default"
+  | "rag-profile.rollback"
+  | "rag-profile.override.set"
+  | "rag-profile.override.delete";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -378,6 +398,34 @@ export async function invalidateAfterMutation(
 
   if (kind === "billing.contact.update") {
     await queryClient.invalidateQueries({ queryKey: queryKeys.billing.contact });
+    return;
+  }
+
+  if (
+    kind === "rag-profile.create" ||
+    kind === "rag-profile.update" ||
+    kind === "rag-profile.archive" ||
+    kind === "rag-profile.unarchive" ||
+    kind === "rag-profile.set-default" ||
+    kind === "rag-profile.rollback"
+  ) {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+    return;
+  }
+
+  if (
+    kind === "rag-profile.override.set" ||
+    kind === "rag-profile.override.delete"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.ragProfiles.overrides,
+    });
+    await queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === "rag-profiles" &&
+        query.queryKey[1] === "resolve",
+    });
     return;
   }
 }

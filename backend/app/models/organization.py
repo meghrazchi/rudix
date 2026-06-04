@@ -42,3 +42,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     quality_gates = relationship(
         "QualityGate", back_populates="organization", cascade="all, delete-orphan"
     )
+    rag_profiles = relationship(
+        "RagProfile", back_populates="organization", cascade="all, delete-orphan"
+    )
