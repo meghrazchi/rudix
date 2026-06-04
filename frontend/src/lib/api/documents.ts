@@ -113,6 +113,7 @@ export type DocumentDetailResponse = Omit<
   language_source?: string | null;
   ocr_languages_override?: string | null;
   ocr_quality_snapshot?: OcrQualitySnapshot | null;
+  extraction_snapshot?: ExtractionSnapshot | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
 };
 
@@ -134,6 +135,43 @@ export type OcrQualitySnapshot = {
   avg_confidence: number | null;
   page_confidences: OcrPageQuality[];
   warnings: string[];
+};
+
+export type DocumentProfile =
+  | "text_based"
+  | "scanned"
+  | "mixed"
+  | "table_heavy"
+  | "figure_heavy"
+  | "form_like"
+  | "encrypted"
+  | "corrupted"
+  | "unsupported";
+
+export type ExtractionPageSummary = {
+  page_number: number;
+  char_count: number;
+  text_coverage_ratio: number;
+  image_coverage_ratio: number;
+  requires_ocr: boolean;
+  text_block_count: number;
+  table_block_count: number;
+  image_block_count: number;
+  warnings: string[];
+};
+
+export type ExtractionSnapshot = {
+  document_profile: DocumentProfile;
+  page_count: number;
+  total_text_blocks: number;
+  total_table_blocks: number;
+  total_image_blocks: number;
+  extraction_engine: string;
+  extraction_confidence: number;
+  duration_ms: number;
+  is_encrypted: boolean;
+  warnings: string[];
+  pages: ExtractionPageSummary[];
 };
 
 export type AdminLanguageOverrideRequest = {

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { DocumentChunkingDiagnosticsPanel } from "@/components/documents/DocumentChunkingDiagnosticsPanel";
+import { DocumentExtractionDiagnosticsPanel } from "@/components/documents/DocumentExtractionDiagnosticsPanel";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
@@ -1498,6 +1499,19 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             ) : null}
                           </div>
                         </div>
+
+                        {/* Extraction diagnostics (F237) */}
+                        {detail.file_type === "pdf" &&
+                        detail.extraction_snapshot ? (
+                          <div className="rounded-lg border border-[#e9e6f5] bg-[#faf9ff] p-4">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+                              Extraction diagnostics
+                            </h4>
+                            <DocumentExtractionDiagnosticsPanel
+                              snapshot={detail.extraction_snapshot}
+                            />
+                          </div>
+                        ) : null}
 
                         <DocumentChunkingDiagnosticsPanel
                           documentId={documentId}

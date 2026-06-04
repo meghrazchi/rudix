@@ -220,6 +220,22 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
+    async def update_document_extraction_snapshot(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        extraction_snapshot: dict,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.extraction_snapshot = extraction_snapshot
+        await session.flush()
+        await session.refresh(document)
+        return document
+
     async def update_document_language(
         self,
         session: AsyncSession,

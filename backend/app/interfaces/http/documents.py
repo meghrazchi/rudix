@@ -909,6 +909,7 @@ async def get_document(
         language_source=doc_language_source,
         ocr_languages_override=document.ocr_languages_override,
         ocr_quality_snapshot=document.ocr_quality_snapshot,
+        extraction_snapshot=document.extraction_snapshot,
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,

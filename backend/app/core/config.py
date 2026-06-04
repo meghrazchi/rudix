@@ -399,6 +399,13 @@ class Settings(BaseSettings):
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
     feature_enable_language_aware_rag: bool = True
+    # PDF extraction pipeline (F237).
+    feature_enable_advanced_pdf_extraction: bool = True
+    pdf_extraction_enable_tables: bool = True
+    pdf_extraction_enable_images: bool = True
+    pdf_extraction_max_pages: int = Field(default=500, ge=1, le=5000)
+    pdf_extraction_scanned_coverage_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
+    pdf_extraction_mixed_coverage_threshold: float = Field(default=0.50, ge=0.0, le=1.0)
     answer_language_workspace_default: str = Field(
         default="en",
         pattern=r"^(en|de|es|fr)$",
@@ -961,6 +968,9 @@ class Settings(BaseSettings):
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
                 "language_aware_rag": self.feature_enable_language_aware_rag,
+                "advanced_pdf_extraction": self.feature_enable_advanced_pdf_extraction,
+                "pdf_extraction_tables": self.pdf_extraction_enable_tables,
+                "pdf_extraction_images": self.pdf_extraction_enable_images,
             },
             "answer_language_workspace_default": self.answer_language_workspace_default,
             "mcp": {

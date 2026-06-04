@@ -27,6 +27,18 @@ class DocumentStatus(StrEnum):
     retained_by_policy = "retained_by_policy"
 
 
+class DocumentProfile(StrEnum):
+    text_based = "text_based"
+    scanned = "scanned"
+    mixed = "mixed"
+    table_heavy = "table_heavy"
+    figure_heavy = "figure_heavy"
+    form_like = "form_like"
+    encrypted = "encrypted"
+    corrupted = "corrupted"
+    unsupported = "unsupported"
+
+
 class ChatRole(StrEnum):
     user = "user"
     assistant = "assistant"

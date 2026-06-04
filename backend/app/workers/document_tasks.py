@@ -32,6 +32,8 @@ from app.domains.documents.services.language_detection_service import (
     detect_language_from_text as _detect_language_from_text,
     confidence_bucket as _language_confidence_bucket,
 )
+from app.domains.documents.extraction import extract_document
+from app.domains.documents.extraction.models import DocumentProfile
 from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
@@ -524,6 +526,7 @@ async def _extract_and_store_document_pages_async(
         cleaned_sections = []
         chunks = []
         embedding_result: EmbeddingResult | None = None
+        extraction_result = None
         updated = None
         ocr_applied = False
         try:
@@ -562,12 +565,20 @@ async def _extract_and_store_document_pages_async(
                     category="infrastructure",
                     message=str(exc),
                 ) from exc
-            ocr_enabled = settings.ocr_enabled and document.file_type == "pdf"
-            if ocr_enabled:
-                sections = extract_pdf_pages_native(content)
-            else:
+
+            # Advanced extraction pipeline (F237): structured block extraction for PDFs,
+            # passthrough wrapping for other types.
+            use_advanced_extraction = settings.feature_enable_advanced_pdf_extraction
+            if use_advanced_extraction:
                 try:
-                    sections = extract_text_sections(file_type=document.file_type, content=content)
+                    extraction_result = extract_document(
+                        content,
+                        file_type=document.file_type,
+                        min_chars_per_page=settings.ocr_min_text_chars_per_page,
+                        max_pages=settings.pdf_extraction_max_pages,
+                        enable_table_extraction=settings.pdf_extraction_enable_tables,
+                        enable_image_extraction=settings.pdf_extraction_enable_images,
+                    )
                 except ValueError as exc:
                     raise DocumentPipelinePermanentError(
                         stage="extract",
@@ -576,21 +587,100 @@ async def _extract_and_store_document_pages_async(
                         message=str(exc),
                     ) from exc
 
-            log_document_event(
-                event="document.pipeline.stage",
-                document_id=str(document.id),
-                request_id=request_id,
-                organization_id=resolved_organization_id,
-                user_id=resolved_user_id,
-                stage="extract",
-                stage_status="completed",
-                page_count=len(sections),
-            )
-            await pipeline_recorder.emit_stage(
-                stage="extract",
-                stage_status="completed",
-                outputs={"page_count": len(sections)},
-            )
+                if extraction_result.document_profile == DocumentProfile.encrypted:
+                    raise DocumentPipelinePermanentError(
+                        stage="extract",
+                        code="PDF_ENCRYPTED",
+                        category="validation",
+                        message="Document is password-protected and cannot be extracted",
+                    )
+                if extraction_result.document_profile == DocumentProfile.corrupted:
+                    raise DocumentPipelinePermanentError(
+                        stage="extract",
+                        code="PDF_CORRUPTED",
+                        category="validation",
+                        message="Document appears to be corrupted or unreadable",
+                    )
+
+                sections = extraction_result.to_sections()
+                extraction_snapshot = extraction_result.to_snapshot()
+
+                async with SessionLocal() as extraction_session:
+                    await _document_repository.update_document_extraction_snapshot(
+                        extraction_session,
+                        document_id=parsed_document_id,
+                        extraction_snapshot=extraction_snapshot,
+                    )
+                    await extraction_session.commit()
+
+                log_document_event(
+                    event="document.pipeline.stage",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    stage="extract",
+                    stage_status="completed",
+                    page_count=len(sections),
+                    document_profile=extraction_result.document_profile.value,
+                    total_tables=extraction_result.total_table_blocks,
+                    total_images=extraction_result.total_image_blocks,
+                    extraction_engine=extraction_result.extraction_engine,
+                    extraction_confidence=extraction_result.extraction_confidence,
+                    extraction_duration_ms=extraction_result.duration_ms,
+                    extraction_warnings=len(extraction_result.warnings),
+                )
+                await pipeline_recorder.emit_stage(
+                    stage="extract",
+                    stage_status="completed",
+                    outputs={
+                        "page_count": len(sections),
+                        "document_profile": extraction_result.document_profile.value,
+                        "total_text_blocks": extraction_result.total_text_blocks,
+                        "total_table_blocks": extraction_result.total_table_blocks,
+                        "total_image_blocks": extraction_result.total_image_blocks,
+                        "extraction_engine": extraction_result.extraction_engine,
+                        "extraction_confidence": extraction_result.extraction_confidence,
+                        "extraction_duration_ms": extraction_result.duration_ms,
+                        "warnings": extraction_result.warnings[:5],
+                    },
+                )
+            else:
+                # Legacy extraction path (fallback when advanced extraction is disabled).
+                ocr_enabled_legacy = settings.ocr_enabled and document.file_type == "pdf"
+                if ocr_enabled_legacy:
+                    sections = extract_pdf_pages_native(content)
+                else:
+                    try:
+                        sections = extract_text_sections(
+                            file_type=document.file_type, content=content
+                        )
+                    except ValueError as exc:
+                        raise DocumentPipelinePermanentError(
+                            stage="extract",
+                            code="TEXT_EXTRACTION_FAILED",
+                            category="validation",
+                            message=str(exc),
+                        ) from exc
+                extraction_result = None
+
+                log_document_event(
+                    event="document.pipeline.stage",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    stage="extract",
+                    stage_status="completed",
+                    page_count=len(sections),
+                )
+                await pipeline_recorder.emit_stage(
+                    stage="extract",
+                    stage_status="completed",
+                    outputs={"page_count": len(sections)},
+                )
+
+            ocr_enabled = settings.ocr_enabled and document.file_type == "pdf"
 
             if ocr_enabled:
                 current_stage = "detect_ocr"
@@ -1321,6 +1411,16 @@ async def _extract_and_store_document_pages_async(
                     "total_chunk_count": len(chunks),
                     "total_chunk_tokens": _total_chunk_tokens,
                 }
+                if extraction_result is not None:
+                    _chunking_config_snapshot["document_profile"] = (
+                        extraction_result.document_profile.value
+                    )
+                    _chunking_config_snapshot["total_table_blocks"] = (
+                        extraction_result.total_table_blocks
+                    )
+                    _chunking_config_snapshot["total_image_blocks"] = (
+                        extraction_result.total_image_blocks
+                    )
                 if is_hierarchical:
                     parent_count = sum(1 for p in chunks if p.chunk_level == 0)
                     child_count_total = sum(1 for p in chunks if p.chunk_level == 1)

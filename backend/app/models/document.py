@@ -99,6 +99,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ocr_languages_override: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # ocr_quality_snapshot: quality metrics from the most recent OCR pipeline run.
     ocr_quality_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # extraction_snapshot: structured extraction diagnostics from the F237 PDF extraction pipeline.
+    extraction_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")

@@ -298,6 +298,7 @@ class DocumentDetailResponse(BaseModel):
     dlp_scan_result: dict | None = None
     ocr_languages_override: str | None = None
     ocr_quality_snapshot: dict | None = None
+    extraction_snapshot: dict | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime
