@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+AnswerLanguageMode = Literal["auto", "same_as_question", "workspace_default", "en", "de", "es", "fr"]
+
 
 class ChatMessageRequest(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
@@ -17,6 +19,7 @@ class ChatQueryRequest(BaseModel):
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool = True
     scope_mode: Literal["all", "collection", "documents", "none"] | None = None
+    answer_language: AnswerLanguageMode | None = None
 
     @field_validator("question")
     @classmethod
@@ -124,6 +127,8 @@ class ChatDebugResponse(BaseModel):
     rerank_applied: bool
     embedding_model: str | None = None
     llm_model: str | None = None
+    detected_language: str | None = None
+    answer_language_used: str | None = None
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

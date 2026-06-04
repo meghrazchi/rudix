@@ -398,6 +398,11 @@ class Settings(BaseSettings):
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
+    feature_enable_language_aware_rag: bool = True
+    answer_language_workspace_default: str = Field(
+        default="en",
+        pattern=r"^(en|de|es|fr)$",
+    )
     mcp_server_name: str = Field(default="Rudix MCP Server", min_length=3, max_length=120)
     mcp_transport: MCPTransport = MCPTransport.streamable_http
     mcp_http_host: str = Field(default="0.0.0.0", min_length=1, max_length=255)
@@ -955,7 +960,9 @@ class Settings(BaseSettings):
                 "mcp": self.feature_enable_mcp,
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
+                "language_aware_rag": self.feature_enable_language_aware_rag,
             },
+            "answer_language_workspace_default": self.answer_language_workspace_default,
             "mcp": {
                 "server_name": self.mcp_server_name,
                 "transport": self.mcp_transport.value,

@@ -1287,6 +1287,10 @@ export interface components {
       embedding_model?: string | null;
       /** Llm Model */
       llm_model?: string | null;
+      /** Detected Language */
+      detected_language?: string | null;
+      /** Answer Language Used */
+      answer_language_used?: string | null;
     };
     /** ChatMessageRequest */
     ChatMessageRequest: {
@@ -1339,6 +1343,8 @@ export interface components {
       rerank: boolean;
       /** Scope Mode */
       scope_mode?: "all" | "collection" | "documents" | "none" | null;
+      /** Answer Language */
+      answer_language?: "auto" | "same_as_question" | "workspace_default" | "en" | "de" | "es" | "fr" | null;
     };
     /** ChatQueryResponse */
     ChatQueryResponse: {

@@ -49,6 +49,7 @@ from app.domains.chat.schemas.share import (
 from app.core.safety_guardrails import PromptInjectionGuard
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
@@ -206,10 +207,13 @@ def _rerank_chunks(
     return selected_chunks
 
 
-def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
+def _build_prompt(
+    *, question: str, chunks: list[RetrievedChunk], answer_language: str | None = None
+) -> str:
     return _prompt_service.build_prompt(
         question=question,
         not_found_answer=_NOT_FOUND_ANSWER,
+        answer_language=answer_language,
         chunks=[
             PromptContextChunk(
                 document_id=str(chunk.document_id),
@@ -633,6 +637,25 @@ async def query_chat(
     not_found = injection_check.blocked
     citation_validation_failed = False
 
+    # Language detection and answer language resolution (F231).
+    detected_language: str | None = None
+    answer_language_used: str | None = None
+    if settings.feature_enable_language_aware_rag and not injection_check.blocked:
+        detected_language = detect_language(payload.question)
+        answer_language_used = resolve_answer_language(
+            mode=payload.answer_language,
+            detected_language=detected_language,
+            workspace_default=settings.answer_language_workspace_default,
+        )
+        log_query_event(
+            event="query.language.detected",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            detected_language=detected_language,
+            answer_language_mode=payload.answer_language,
+            answer_language_used=answer_language_used,
+        )
+
     if injection_check.blocked:
         # Question matched injection heuristics: return safe not-found without LLM call.
         embedding_model = None
@@ -649,7 +672,10 @@ async def query_chat(
     elif payload.scope_mode == "none":
         # General chat mode: skip retrieval, answer from LLM general knowledge.
         embedding_model = None
-        prompt = _prompt_service.build_general_prompt(question=payload.question)
+        prompt = _prompt_service.build_general_prompt(
+            question=payload.question,
+            answer_language=answer_language_used,
+        )
         try:
             llm_result = await _llm_service.generate_answer(
                 prompt=prompt,
@@ -782,7 +808,11 @@ async def query_chat(
 
         prompt_started = perf_counter()
         prompt = (
-            _build_prompt(question=payload.question, chunks=selected_chunks)
+            _build_prompt(
+                question=payload.question,
+                chunks=selected_chunks,
+                answer_language=answer_language_used,
+            )
             if not not_found
             else ""
         )
@@ -1000,6 +1030,9 @@ async def query_chat(
         confidence_category=confidence_category,
         retrieval_count=len(retrieved_chunks),
         selected_count=len(selected_chunks),
+        detected_language=detected_language,
+        answer_language_mode=payload.answer_language,
+        answer_language_used=answer_language_used,
     )
     return ChatQueryResponse(
         chat_session_id=str(chat_session.id),
@@ -1033,6 +1066,8 @@ async def query_chat(
             rerank_applied=payload.rerank,
             embedding_model=embedding_model,
             llm_model=llm_model,
+            detected_language=detected_language,
+            answer_language_used=answer_language_used,
         ),
         created_at=assistant_message.created_at,
     )

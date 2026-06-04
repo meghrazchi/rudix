@@ -87,6 +87,25 @@ import { useAuthSession } from "@/lib/use-auth-session";
 const DRAFT_SESSION_KEY = "__draft__";
 
 type ChatScopeMode = "all" | "collection" | "documents" | "none";
+type AnswerLanguageMode =
+  | "auto"
+  | "same_as_question"
+  | "en"
+  | "de"
+  | "es"
+  | "fr";
+
+const ANSWER_LANGUAGE_OPTIONS: ReadonlyArray<{
+  value: AnswerLanguageMode;
+  label: string;
+}> = [
+  { value: "auto", label: "Auto" },
+  { value: "same_as_question", label: "Match question" },
+  { value: "en", label: "English" },
+  { value: "de", label: "German" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+];
 
 function parsePositiveIntegerEnv(
   value: string | undefined,
@@ -150,6 +169,7 @@ type PersistedChatSettings = {
   agenticMode?: boolean;
   scopeMode?: ChatScopeMode;
   selectedCollectionId?: string | null;
+  answerLanguage?: AnswerLanguageMode;
 };
 
 type ChatTurn = {
@@ -511,6 +531,19 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
         ? parsed.selectedCollectionId
         : null;
 
+    const validLanguageModes: AnswerLanguageMode[] = [
+      "auto",
+      "same_as_question",
+      "en",
+      "de",
+      "es",
+      "fr",
+    ];
+    const answerLanguage: AnswerLanguageMode =
+      validLanguageModes.includes(parsed.answerLanguage as AnswerLanguageMode)
+        ? (parsed.answerLanguage as AnswerLanguageMode)
+        : "auto";
+
     return {
       topK: storedTopK,
       rerank: parsed.rerank !== false,
@@ -518,6 +551,7 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       agenticMode: parsed.agenticMode === true,
       scopeMode,
       selectedCollectionId,
+      answerLanguage,
     };
   } catch {
     return null;
@@ -571,6 +605,9 @@ export function ChatPage() {
   );
   const [scopeMode, setScopeMode] = useState<ChatScopeMode>(
     () => persistedSettings?.scopeMode ?? "all",
+  );
+  const [answerLanguage, setAnswerLanguage] = useState<AnswerLanguageMode>(
+    () => persistedSettings?.answerLanguage ?? "auto",
   );
   const [topK, setTopK] = useState(
     () => persistedSettings?.topK ?? DEFAULT_TOP_K,
@@ -898,6 +935,7 @@ export function ChatPage() {
       agenticMode,
       scopeMode,
       selectedCollectionId,
+      answerLanguage,
     };
     window.localStorage.setItem(
       CHAT_SETTINGS_STORAGE_KEY,
@@ -905,6 +943,7 @@ export function ChatPage() {
     );
   }, [
     agenticMode,
+    answerLanguage,
     filteredSelectedDocumentIds,
     rerank,
     topK,
@@ -1386,6 +1425,7 @@ export function ChatPage() {
         top_k: topK,
         rerank,
         scope_mode: scopeMode,
+        answer_language: answerLanguage !== "auto" ? answerLanguage : undefined,
         _scopeLabel: currentScopeLabel,
       },
       {
@@ -2415,6 +2455,40 @@ export function ChatPage() {
                         aria-hidden="true"
                       />
 
+                      {/* ── Answer language ── */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="material-symbols-outlined text-[14px] text-[#6a6780]"
+                          aria-hidden="true"
+                        >
+                          translate
+                        </span>
+                        <span className="tracking-wider uppercase">
+                          Answer
+                        </span>
+                        <select
+                          value={answerLanguage}
+                          onChange={(e) =>
+                            setAnswerLanguage(
+                              e.target.value as AnswerLanguageMode,
+                            )
+                          }
+                          aria-label="Answer language"
+                          className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
+                        >
+                          {ANSWER_LANGUAGE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <span
+                        className="h-3 w-px bg-[#c7c4d8]"
+                        aria-hidden="true"
+                      />
+
                       {/* ── Rerank ── */}
                       <label className="flex cursor-pointer items-center gap-1.5">
                         <span>Rerank</span>
@@ -2851,6 +2925,8 @@ export function ChatPage() {
                             "rerank_applied",
                             "embedding_model",
                             "llm_model",
+                            "detected_language",
+                            "answer_language_used",
                           ] as const
                         ).map((key) => (
                           <div

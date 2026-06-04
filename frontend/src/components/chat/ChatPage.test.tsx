@@ -2625,4 +2625,137 @@ describe("ChatPage", () => {
       );
     });
   });
+
+  it("renders the answer language selector in the composer toolbar", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: /Chat Session/i });
+
+    const selector = screen.getByRole("combobox", { name: "Answer language" });
+    expect(selector).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Auto" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "German" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "French" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Spanish" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "English" })).toBeInTheDocument();
+  });
+
+  it("passes answer_language=de to queryChat when German is selected", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: /Chat Session/i });
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: "Answer language" }),
+      "de",
+    );
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "How many leave days?",
+    );
+
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-lang",
+      message_id: "msg-lang",
+      answer: "Der Urlaub beträgt 30 Tage.",
+      confidence_score: 0.85,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.85,
+        average_similarity: 0.75,
+        top_rerank_score: 0.0,
+        citation_support_score: 0.7,
+        citation_validation_score: 1.0,
+        citation_coverage_score: 0.5,
+        retrieval_agreement_score: 0.8,
+        raw_score: 0.75,
+        citation_validation_multiplier: 1.0,
+        not_found_penalty_multiplier: 1.0,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      citation_validation_failed: false,
+      debug: {
+        latencies_ms: { total: 300 },
+        retrieval_count: 0,
+        selected_count: 0,
+        rerank_applied: false,
+        detected_language: "en",
+        answer_language_used: "de",
+      },
+      created_at: "2026-06-04T00:00:00Z",
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          answer_language: "de",
+        }),
+      );
+    });
+  });
+
+  it("omits answer_language from payload when auto is selected", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: /Chat Session/i });
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "Test question",
+    );
+
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-auto",
+      message_id: "msg-auto",
+      answer: "Answer.",
+      confidence_score: 0.5,
+      confidence_category: "medium",
+      confidence_explanation: {
+        top_similarity: 0.5,
+        average_similarity: 0.4,
+        top_rerank_score: 0.0,
+        citation_support_score: 0.5,
+        citation_validation_score: 1.0,
+        citation_coverage_score: 0.5,
+        retrieval_agreement_score: 0.5,
+        raw_score: 0.5,
+        citation_validation_multiplier: 1.0,
+        not_found_penalty_multiplier: 1.0,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      citation_validation_failed: false,
+      debug: {
+        latencies_ms: { total: 100 },
+        retrieval_count: 0,
+        selected_count: 0,
+        rerank_applied: false,
+      },
+      created_at: "2026-06-04T00:00:00Z",
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({ question: "Test question" }),
+      );
+    });
+
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call?.answer_language).toBeUndefined();
+  });
 });
