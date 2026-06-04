@@ -111,7 +111,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["evaluation_set_id"],
             ["evaluation_sets.id"],
-            name="fk_evaluation_dataset_versions_evaluation_set_id_evaluation_sets",
+            name="fk_eval_dataset_versions_evaluation_set_id",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
