@@ -37,4 +37,5 @@ include:
   - local: .gitlab/ci/security.yml
   - local: .gitlab/ci/build.yml
   - local: .gitlab/ci/integration.yml
+  - local: .gitlab/ci/quality_gate.yml
   - local: .gitlab/ci/deploy.yml

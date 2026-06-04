@@ -160,3 +160,9 @@ class EvaluationCaseDifficulty(StrEnum):
     easy = "easy"
     medium = "medium"
     hard = "hard"
+
+
+class QualityGateVerdict(StrEnum):
+    passed = "passed"
+    failed = "failed"
+    overridden = "overridden"
