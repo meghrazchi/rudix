@@ -21,7 +21,7 @@ Core tables:
 | `connector_sync_jobs` | Durable sync configuration and cursor state |
 | `connector_sync_runs` | Per-run lifecycle, counters, cursors, and safe error details |
 | `source_documents` | Mapping from normalized external items to Rudix `documents` rows |
-| `source_references` | Provider-neutral citation/source locators tied to documents and optional chunks |
+| `source_references` | Provider-neutral citation/source locators tied to documents and optional chunks with provider/title/section/deep-link snapshots |
 | `external_item_tombstones` | Deleted or inaccessible provider items retained for deletion lifecycle and delta sync |
 
 Every operational row carries `organization_id`. Connections, sources, items,
@@ -117,7 +117,10 @@ To add a provider:
 5. Hand connector content to the shared document ingestion path by creating or
    updating a `documents` row and linking it through `source_documents`.
 6. Store provider provenance in `source_references` without adding provider
-   branches to chat, citation, retrieval, or prompt services.
+   branches to chat, citation, retrieval, or prompt services. Snapshot provider
+   key, source title/key, section, ACL metadata, sync version, last synced
+   timestamp, and trust status at ingest time so citations stay stable after
+   source updates or tombstones.
 
 Provider-specific code must stay in connector adapters. Shared ingestion and
 chat services should depend only on `documents`, chunks, citations, and

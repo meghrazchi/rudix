@@ -718,6 +718,25 @@ class ConnectorSyncEngine:
 
         try:
             from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge  # noqa: F401
+            provenance_metadata = {
+                **norm_item.metadata,
+                "provider_key": norm_item.provider_key,
+                "provider_item_id": norm_item.provider_item_id,
+                "provider_label": getattr(connection.provider, "display_name", None),
+                "source_title": norm_item.title,
+                "source_url": norm_item.source_url,
+                "source_item_type": norm_item.item_type.value,
+                "source_item_content_hash": norm_item.content_hash,
+                "source_item_sync_version": norm_item.sync_version,
+                "sync_version": norm_item.sync_version,
+                "acl_snapshot": norm_item.permissions,
+                "trust_status": (
+                    "trusted"
+                    if norm_item.visibility.value == "org_wide"
+                    and not norm_item.permissions
+                    else "restricted"
+                ),
+            }
             result = await self.ingestion_bridge.ingest_item(
                 session,
                 external_item_id=ext_item.id,
@@ -730,7 +749,7 @@ class ConnectorSyncEngine:
                 mime_type=resolved_mime,
                 source_url=norm_item.source_url,
                 title=norm_item.title,
-                metadata=norm_item.metadata,
+                metadata=provenance_metadata,
                 sync_version=run.sync_version,
             )
             _logger.info(

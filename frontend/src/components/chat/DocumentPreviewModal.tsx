@@ -172,6 +172,10 @@ export function DocumentPreviewModal({
   const displayStatus = doc?.status ?? null;
   const canDownload =
     !isDocDeleted && !isDocRestricted && !downloadMutation.isPending;
+  const sourceProvider =
+    citation.source_provider_label ?? citation.source_provider ?? null;
+  const sourceSection = citation.source_section ?? null;
+  const sourceTrust = citation.source_trust_status ?? null;
 
   const hasSiblings = citations.length > 1;
   const canGoPrev = activeIndex > 0;
@@ -219,6 +223,24 @@ export function DocumentPreviewModal({
                   {fileTypeLabel(displayFileType)}
                 </span>
               ) : null}
+              {sourceProvider ? (
+                <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700 uppercase">
+                  {sourceProvider}
+                </span>
+              ) : null}
+              {citation.source_key ? (
+                <span
+                  className="rounded bg-[#f7f5ff] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#5d58a8]"
+                  title={citation.source_key}
+                >
+                  {citation.source_key}
+                </span>
+              ) : null}
+              {sourceTrust ? (
+                <span className="rounded bg-[#f0ecf9] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#5d58a8] uppercase">
+                  {sourceTrust}
+                </span>
+              ) : null}
               {citation.page_number != null ? (
                 <span className="font-mono text-xs text-[#6a6780]">
                   Page {citation.page_number}
@@ -250,6 +272,27 @@ export function DocumentPreviewModal({
             </span>
           </button>
         </div>
+
+        {sourceSection ||
+        citation.source_last_synced_at ||
+        citation.source_deep_link ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#e4e1ee] bg-[#faf9ff] px-5 py-2 text-[11px] text-[#6a6780]">
+            {sourceSection ? <span>Section: {sourceSection}</span> : null}
+            {citation.source_last_synced_at ? (
+              <span>Synced {formatDate(citation.source_last_synced_at)}</span>
+            ) : null}
+            {citation.source_deep_link ? (
+              <a
+                href={citation.source_deep_link}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-[#3525cd] hover:underline"
+              >
+                Open source
+              </a>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Citation navigation */}
         {hasSiblings ? (

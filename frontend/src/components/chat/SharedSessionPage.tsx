@@ -45,20 +45,50 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
 }
 
 function CitationCard({ citation }: { citation: ChatCitationResponse }) {
+  const providerLabel =
+    citation.source_provider_label ?? citation.source_provider ?? null;
+  const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
+  const sourceSection = citation.source_section ?? null;
+  const trustStatus = citation.source_trust_status ?? null;
   return (
     <div className="flex items-start gap-2 rounded-lg border border-[#c7c4d8] bg-white p-2">
       <div className="min-w-0 overflow-hidden">
-        <p
-          className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
-        >
-          {getFileTypeLabel(citation.filename)}
-        </p>
+        <div className="mb-0.5 flex flex-wrap items-center gap-1">
+          <p
+            className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+          >
+            {providerLabel
+              ? providerLabel.toUpperCase()
+              : getFileTypeLabel(citation.filename)}
+          </p>
+          {trustStatus ? (
+            <span className="rounded-full bg-[#f0ecf9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
+              {trustStatus}
+            </span>
+          ) : null}
+        </div>
         <p
           className="truncate text-xs font-bold text-[#1b1b24]"
-          title={citation.filename ?? "Document"}
+          title={sourceTitle}
         >
-          {citation.filename ?? "Document"}
+          {sourceTitle}
         </p>
+        {citation.source_key ? (
+          <p
+            className="truncate font-mono text-[10px] text-[#6a6780]"
+            title={citation.source_key}
+          >
+            {citation.source_key}
+          </p>
+        ) : null}
+        {sourceSection ? (
+          <p
+            className="truncate text-[10px] text-[#6a6780]"
+            title={sourceSection}
+          >
+            {sourceSection}
+          </p>
+        ) : null}
         {citation.page_number != null && (
           <p className="text-[10px] text-[#6a6780]">
             Page {citation.page_number}

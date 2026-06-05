@@ -2,7 +2,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
-from typing import Annotated
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -61,6 +61,7 @@ from app.domains.chat.services.query_retrieval_service import (
     RetrievedCandidate,
 )
 from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
+from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
@@ -81,6 +82,7 @@ _rerank_service = RerankService()
 _prompt_service = PromptService()
 _prompt_template_service = PromptTemplateService()
 _citation_service = CitationService()
+_source_provenance_service = SourceProvenanceService()
 _confidence_service = ConfidenceService()
 _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
@@ -163,6 +165,37 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
         page_number=candidate.page_number,
         text=candidate.text,
         similarity_score=candidate.similarity_score,
+    )
+
+
+def _with_provenance(
+    citation: ChatCitationResponse,
+    provenance: Any | None,
+) -> ChatCitationResponse:
+    if provenance is None:
+        return citation
+
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=provenance.provider_key,
+        source_provider_label=provenance.provider_label,
+        source_title=provenance.source_title,
+        source_key=provenance.source_key,
+        source_section=provenance.source_section,
+        source_deep_link=provenance.source_deep_link,
+        source_last_synced_at=provenance.source_last_synced_at,
+        source_trust_status=cast(Any, provenance.source_trust_status),
+        source_acl_snapshot=provenance.source_acl_snapshot,
     )
 
 
@@ -500,21 +533,31 @@ async def list_chat_session_messages(
                 db_session,
                 chat_message_id=message.id,
             )
+            provenance_by_document_id = (
+                await _source_provenance_service.load_citation_details_for_documents(
+                    db_session,
+                    organization_id=organization_id,
+                    document_ids=[citation.document_id for citation, _ in citation_rows],
+                )
+            )
             message_citations = [
-                ChatCitationResponse(
-                    document_id=str(citation.document_id),
-                    chunk_id=str(citation.chunk_id),
-                    filename=filename,
-                    page_number=citation.page_number,
-                    score=citation.rerank_score
-                    if citation.rerank_score is not None
-                    else citation.similarity_score,
-                    similarity_score=citation.similarity_score,
-                    rerank_score=citation.rerank_score,
-                    rerank_rank=None,
-                    text_snippet=citation.text_snippet,
-                    start_offset=citation.start_offset,
-                    end_offset=citation.end_offset,
+                _with_provenance(
+                    ChatCitationResponse(
+                        document_id=str(citation.document_id),
+                        chunk_id=str(citation.chunk_id),
+                        filename=filename,
+                        page_number=citation.page_number,
+                        score=citation.rerank_score
+                        if citation.rerank_score is not None
+                        else citation.similarity_score,
+                        similarity_score=citation.similarity_score,
+                        rerank_score=citation.rerank_score,
+                        rerank_rank=None,
+                        text_snippet=citation.text_snippet,
+                        start_offset=citation.start_offset,
+                        end_offset=citation.end_offset,
+                    ),
+                    provenance_by_document_id.get(citation.document_id),
                 )
                 for citation, filename in citation_rows
             ]
@@ -791,6 +834,11 @@ async def query_chat(
             retrieved_chunks = [
                 _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
             ]
+            retrieved_chunks = await _source_provenance_service.filter_active_chunks(
+                db_session,
+                organization_id=organization_id,
+                chunks=retrieved_chunks,
+            )
         except Exception as exc:
             log_query_event(
                 event="query.failed.retrieve",
@@ -909,7 +957,15 @@ async def query_chat(
                     ],
                     model_citations=llm_result.citations,
                 )
-                citations = citation_result.citations
+                provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
+                    db_session,
+                    organization_id=organization_id,
+                    chunk_ids=[UUID(citation.chunk_id) for citation in citation_result.citations],
+                )
+                citations = [
+                    _with_provenance(citation, provenance_by_chunk_id.get(UUID(citation.chunk_id)))
+                    for citation in citation_result.citations
+                ]
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,

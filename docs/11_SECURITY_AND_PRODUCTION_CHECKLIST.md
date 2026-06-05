@@ -51,6 +51,7 @@ Connector operations must also enforce:
   items, sync jobs, sync runs, source documents, source references, and tombstones
 - same-organization validation for optional `collection_id`
 - same-organization validation before linking an external item to a `documents` row
+- source-reference snapshots must record provider, deep link, ACL metadata, sync version, and last synced timestamp
 - encrypted credential storage with raw secrets limited to connector adapter execution
 - hashed, TTL-bound, single-use OAuth state validation
 - provider-specific least-privilege OAuth scope allowlists

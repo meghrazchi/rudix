@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
+from sqlalchemy import select
 
 from app.clients import minio_client as minio_module
 from app.core.config import settings
@@ -18,6 +19,8 @@ from app.core.logging import log_chunking_event, log_document_event
 from app.db.session import SessionLocal
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.connectors.repositories.connectors import ConnectorRepository
+from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.chunking.hashing import compute_chunk_hash
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.services.chunking_service import ChunkingService
@@ -49,16 +52,20 @@ from app.domains.documents.services.text_normalization import (
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 from app.models.enums import DocumentStatus
+from app.models.connector import ConnectorConnection, ExternalItem
+from app.models.connector import ConnectorProvider
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
 from app.workers.status_tracking import get_document_status, set_document_status
 
 _document_repository = DocumentRepository()
+_connector_repository = ConnectorRepository()
 _pipeline_repository = PipelineRepository()
 _usage_repository = UsageRepository()
 _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService(strategy=settings.chunking_strategy)
+_source_provenance_service = SourceProvenanceService()
 
 
 def _make_chunking_service(
@@ -419,6 +426,115 @@ def _object_key_prefix(object_key: str) -> str:
     if separator and suffix and "/" not in suffix:
         return stem
     return normalized
+
+
+async def _upsert_connector_chunk_references(
+    session,
+    *,
+    document,
+    chunks,
+) -> None:
+    if document.connector_external_item_id is None or not chunks:
+        return
+
+    source_document = await _connector_repository.get_source_document_for_document(
+        session,
+        organization_id=document.organization_id,
+        document_id=document.id,
+    )
+    if source_document is None:
+        return
+
+    result = await session.execute(
+        select(
+            ExternalItem.id,
+            ExternalItem.provider_item_id,
+            ExternalItem.title,
+            ExternalItem.source_url,
+            ExternalItem.item_type,
+            ExternalItem.permissions_json,
+            ExternalItem.content_hash,
+            ExternalItem.sync_version,
+            ExternalItem.deleted_at,
+            ConnectorConnection.status,
+            ConnectorProvider.key,
+            ConnectorProvider.display_name,
+        )
+        .join(ConnectorConnection, ConnectorConnection.id == ExternalItem.connection_id)
+        .join(ConnectorProvider, ConnectorProvider.id == ConnectorConnection.provider_id)
+        .where(
+            ExternalItem.id == document.connector_external_item_id,
+            ExternalItem.organization_id == document.organization_id,
+        )
+    )
+    row = result.first()
+    if row is None:
+        return
+
+    (
+        _external_item_id,
+        provider_item_id,
+        source_title,
+        source_url,
+        item_type,
+        permissions_json,
+        content_hash,
+        sync_version,
+        deleted_at,
+        connection_status,
+        provider_key,
+        provider_label,
+    ) = row
+
+    source_ref_status = "deleted"
+    if deleted_at is None and connection_status == "active":
+        source_ref_status = "trusted"
+
+    provider_meta = {
+        "provider_key": provider_key,
+        "provider_label": provider_label,
+        "source_title": source_title,
+        "source_key": provider_item_id,
+        "source_url": source_url,
+        "source_section": None,
+        "content_hash": source_document.content_hash,
+        "source_item_content_hash": content_hash,
+        "sync_version": source_document.sync_version,
+        "source_item_sync_version": sync_version,
+        "last_synced_at": source_document.updated_at,
+        "trust_status": source_ref_status,
+        "acl_snapshot": permissions_json or {},
+    }
+
+    for chunk in chunks:
+        locator = _source_provenance_service.build_locator_snapshot(
+            provider_key=provider_meta["provider_key"] or "connector",
+            item_type=str(item_type),
+            provider_item_id=provider_item_id,
+            source_url=source_url,
+            section_label=(
+                chunk.section_path
+                or (f"Page {chunk.page_number}" if chunk.page_number is not None else None)
+            ),
+            page_number=chunk.page_number,
+        )
+        metadata = {
+            **provider_meta,
+            "source_section": locator.get("source_section"),
+        }
+        await _connector_repository.upsert_source_reference(
+            session,
+            organization_id=document.organization_id,
+            source_document_id=source_document.id,
+            external_item_id=document.connector_external_item_id,
+            document_id=document.id,
+            reference_type="connector_chunk",
+            source_url=source_url,
+            chunk_id=chunk.id,
+            title=source_title,
+            locator=locator,
+            metadata=metadata,
+        )
 
 
 def _delete_objects_by_prefix(*, bucket: str, prefix: str) -> int:
@@ -1373,6 +1489,12 @@ async def _extract_and_store_document_pages_async(
                         "qdrant_upserted_count": qdrant_result.upserted_count,
                         "qdrant_batch_count": qdrant_result.batch_count,
                     },
+                )
+
+                await _upsert_connector_chunk_references(
+                    session,
+                    document=document,
+                    chunks=created_chunks,
                 )
 
                 if record_usage_event:

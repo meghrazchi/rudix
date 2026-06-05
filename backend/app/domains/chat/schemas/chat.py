@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -120,6 +120,22 @@ class ChatCitationResponse(BaseModel):
     text_snippet: str | None = None
     start_offset: int | None = None
     end_offset: int | None = None
+    source_provider: str | None = None
+    source_provider_label: str | None = None
+    source_title: str | None = None
+    source_key: str | None = None
+    source_section: str | None = None
+    source_deep_link: str | None = None
+    source_last_synced_at: datetime | None = None
+    source_trust_status: Literal[
+        "trusted",
+        "stale",
+        "revoked",
+        "deleted",
+        "unknown",
+        "uploaded",
+    ] | None = None
+    source_acl_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatDebugResponse(BaseModel):

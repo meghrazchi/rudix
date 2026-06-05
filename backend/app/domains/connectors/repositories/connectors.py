@@ -572,6 +572,70 @@ class ConnectorRepository:
         await session.refresh(reference)
         return reference
 
+    async def upsert_source_reference(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        source_document_id: UUID,
+        external_item_id: UUID,
+        document_id: UUID,
+        reference_type: str,
+        source_url: str,
+        chunk_id: UUID | None = None,
+        title: str | None = None,
+        locator: dict | None = None,
+        metadata: dict | None = None,
+    ) -> SourceReference:
+        result = await session.execute(
+            select(SourceReference).where(
+                SourceReference.organization_id == organization_id,
+                SourceReference.source_document_id == source_document_id,
+                SourceReference.reference_type == reference_type,
+                SourceReference.chunk_id == chunk_id,
+            )
+        )
+        reference = result.scalar_one_or_none()
+        if reference is not None:
+            reference.external_item_id = external_item_id
+            reference.document_id = document_id
+            reference.source_url = source_url
+            reference.title = title
+            reference.locator_json = locator or {}
+            reference.metadata_json = metadata or {}
+            await session.flush()
+            await session.refresh(reference)
+            return reference
+
+        return await self.create_source_reference(
+            session,
+            organization_id=organization_id,
+            source_document_id=source_document_id,
+            external_item_id=external_item_id,
+            document_id=document_id,
+            reference_type=reference_type,
+            source_url=source_url,
+            chunk_id=chunk_id,
+            title=title,
+            locator=locator,
+            metadata=metadata,
+        )
+
+    async def get_source_document_for_document(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        document_id: UUID,
+    ) -> SourceDocument | None:
+        result = await session.execute(
+            select(SourceDocument).where(
+                SourceDocument.organization_id == organization_id,
+                SourceDocument.document_id == document_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def record_tombstone(
         self,
         session: AsyncSession,

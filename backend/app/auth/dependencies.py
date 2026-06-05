@@ -5,14 +5,17 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
+from app.models.connector import ConnectorConnection, ExternalItem
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.document import Document
+from app.models.enums import ConnectorConnectionStatus
 
 _document_repository = DocumentRepository()
 
@@ -115,6 +118,30 @@ async def ensure_document_ids_access(
         )
         if document is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        if document.connector_external_item_id is not None:
+            result = await db_session.execute(
+                select(ExternalItem.deleted_at, ConnectorConnection.status)
+                .join(
+                    ConnectorConnection,
+                    ConnectorConnection.id == ExternalItem.connection_id,
+                )
+                .where(
+                    ExternalItem.id == document.connector_external_item_id,
+                    ExternalItem.organization_id == organization_id,
+                )
+            )
+            row = result.first()
+            if row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Document not found",
+                )
+            deleted_at, connection_status = row
+            if deleted_at is not None or connection_status != ConnectorConnectionStatus.active.value:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Document not found",
+                )
 
     return parsed_ids
 

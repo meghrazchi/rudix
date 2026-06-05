@@ -214,9 +214,7 @@ function formatPercent(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function confidenceBadgeClass(
-  _confidence: ChatQueryResponse["confidence_category"],
-): string {
+function confidenceBadgeClass(): string {
   return "inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
 }
 
@@ -539,10 +537,11 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       "es",
       "fr",
     ];
-    const answerLanguage: AnswerLanguageMode =
-      validLanguageModes.includes(parsed.answerLanguage as AnswerLanguageMode)
-        ? (parsed.answerLanguage as AnswerLanguageMode)
-        : "auto";
+    const answerLanguage: AnswerLanguageMode = validLanguageModes.includes(
+      parsed.answerLanguage as AnswerLanguageMode,
+    )
+      ? (parsed.answerLanguage as AnswerLanguageMode)
+      : "auto";
 
     return {
       topK: storedTopK,
@@ -579,6 +578,14 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
   if (["md", "txt", "doc", "docx"].includes(ext)) return "text-emerald-600";
   if (["xlsx", "xls", "csv"].includes(ext)) return "text-amber-600";
   return "text-[#464555]";
+}
+
+function citationProviderLabel(citation: ChatCitationResponse): string | null {
+  return citation.source_provider_label ?? citation.source_provider ?? null;
+}
+
+function citationTrustLabel(citation: ChatCitationResponse): string | null {
+  return citation.source_trust_status ?? null;
 }
 
 function isPreviewableFile(filename: string | null | undefined): boolean {
@@ -1900,11 +1907,7 @@ export function ChatPage() {
                               <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
                                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                      className={confidenceBadgeClass(
-                                        turn.response.confidence_category,
-                                      )}
-                                    >
+                                    <span className={confidenceBadgeClass()}>
                                       <span
                                         className="material-symbols-outlined text-xs"
                                         aria-hidden="true"
@@ -2009,23 +2012,57 @@ export function ChatPage() {
                                                   )}
                                                 </span>
                                                 <div className="min-w-0 overflow-hidden">
-                                                  <p
-                                                    className={`mb-0.5 text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
-                                                  >
-                                                    {getFileTypeLabel(
-                                                      citation.filename,
-                                                    )}
-                                                  </p>
+                                                  <div className="mb-0.5 flex flex-wrap items-center gap-1">
+                                                    <p
+                                                      className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                                    >
+                                                      {citationProviderLabel(
+                                                        citation,
+                                                      )
+                                                        ? citationProviderLabel(
+                                                            citation,
+                                                          )!.toUpperCase()
+                                                        : getFileTypeLabel(
+                                                            citation.filename,
+                                                          )}
+                                                    </p>
+                                                    {citationTrustLabel(
+                                                      citation,
+                                                    ) ? (
+                                                      <span className="rounded-full bg-[#f0ecf9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
+                                                        {citationTrustLabel(
+                                                          citation,
+                                                        )}
+                                                      </span>
+                                                    ) : null}
+                                                  </div>
                                                   <p
                                                     className="truncate text-xs font-bold text-[#1b1b24]"
                                                     title={
+                                                      citation.source_title ??
                                                       citation.filename ??
                                                       "Document"
                                                     }
                                                   >
-                                                    {citation.filename ??
+                                                    {citation.source_title ??
+                                                      citation.filename ??
                                                       "Document"}
                                                   </p>
+                                                  {citation.source_key ? (
+                                                    <p
+                                                      className="truncate font-mono text-[10px] text-[#6a6780]"
+                                                      title={
+                                                        citation.source_key
+                                                      }
+                                                    >
+                                                      {citation.source_key}
+                                                    </p>
+                                                  ) : null}
+                                                  {citation.source_section ? (
+                                                    <p className="truncate text-[10px] text-[#6a6780]">
+                                                      {citation.source_section}
+                                                    </p>
+                                                  ) : null}
                                                   {citation.text_snippet && (
                                                     <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
                                                       {citation.text_snippet}
@@ -2463,9 +2500,7 @@ export function ChatPage() {
                         >
                           translate
                         </span>
-                        <span className="tracking-wider uppercase">
-                          Answer
-                        </span>
+                        <span className="tracking-wider uppercase">Answer</span>
                         <select
                           value={answerLanguage}
                           onChange={(e) =>
@@ -3027,18 +3062,54 @@ export function ChatPage() {
                     <div className="mb-4 flex items-end justify-between border-b pb-2 font-sans text-xs text-[#464555] italic">
                       <span
                         className="max-w-[70%] truncate"
-                        title={activeCitation.filename ?? "DOCUMENT"}
+                        title={
+                          activeCitation.source_title ??
+                          activeCitation.filename ??
+                          "DOCUMENT"
+                        }
                       >
-                        {activeCitation.filename ?? "DOCUMENT"}
+                        {activeCitation.source_title ??
+                          activeCitation.filename ??
+                          "DOCUMENT"}
                       </span>
-                      {activeCitation.page_number ? (
-                        <span>PAGE {activeCitation.page_number}</span>
-                      ) : null}
+                      <span className="flex items-center gap-2">
+                        {citationProviderLabel(activeCitation) ? (
+                          <span className="rounded-full bg-[#f0ecf9] px-2 py-1 text-[10px] font-semibold text-[#5d58a8] uppercase">
+                            {citationProviderLabel(activeCitation)}
+                          </span>
+                        ) : null}
+                        {activeCitation.source_trust_status ? (
+                          <span className="rounded-full bg-[#e8f6ee] px-2 py-1 text-[10px] font-semibold text-emerald-800 uppercase">
+                            {activeCitation.source_trust_status}
+                          </span>
+                        ) : null}
+                        {activeCitation.page_number ? (
+                          <span>PAGE {activeCitation.page_number}</span>
+                        ) : null}
+                      </span>
                     </div>
                     <p className="mb-3 text-xs leading-relaxed opacity-40">
                       The passage below was retrieved from the indexed knowledge
                       base as a high-relevance match for your query.
                     </p>
+                    {activeCitation.source_section ||
+                    activeCitation.source_last_synced_at ? (
+                      <p className="mb-2 text-[11px] text-[#6a6780]">
+                        {activeCitation.source_section ? (
+                          <span>Section: {activeCitation.source_section}</span>
+                        ) : null}
+                        {activeCitation.source_section &&
+                        activeCitation.source_last_synced_at ? (
+                          <span> | </span>
+                        ) : null}
+                        {activeCitation.source_last_synced_at ? (
+                          <span>
+                            Synced{" "}
+                            {formatDate(activeCitation.source_last_synced_at)}
+                          </span>
+                        ) : null}
+                      </p>
+                    ) : null}
                     {activeCitation.text_snippet ? (
                       <div className="my-3 rounded-r border-l-4 border-[#3525cd] bg-[#e2dfff]/30 p-3">
                         <span className="mr-1 rounded bg-[#3525cd]/10 px-1 font-sans text-xs font-bold text-[#3525cd]">
@@ -3066,6 +3137,22 @@ export function ChatPage() {
                 </div>
 
                 <div className="border-t border-[#e4e1ee] bg-white p-4">
+                  {activeCitation.source_deep_link ? (
+                    <a
+                      href={activeCitation.source_deep_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-[#d2cee6] bg-white px-4 py-3 text-sm font-semibold text-[#3e376f] transition-colors hover:bg-[#f5f3ff]"
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        aria-hidden="true"
+                      >
+                        open_in_new
+                      </span>
+                      Open connected source
+                    </a>
+                  ) : null}
                   {activeCitation.document_id ? (
                     <Link
                       href={

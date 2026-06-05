@@ -81,7 +81,9 @@ Connector ingestion adds a provider-neutral pre-step before item 5:
    and optional collection scope.
 3. Connector service validates organization and collection boundaries.
 4. Shared ingestion creates or updates the `documents` row and links provenance
-   through `source_documents` and `source_references`.
+   through `source_documents` and `source_references`. Connector-backed
+   documents also carry provider snapshots so citations can deep-link to the
+   original Jira, Confluence, or Drive item even after the source changes.
 
 ### Ingestion Mermaid diagram
 
@@ -330,7 +332,13 @@ Each citation should include:
   "filename": "policy.pdf",
   "page_number": 4,
   "text_snippet": "Employees are entitled to 20 days...",
-  "similarity_score": 0.87
+  "similarity_score": 0.87,
+  "source_provider": "jira",
+  "source_title": "PROJ-123",
+  "source_section": "Comment 3",
+  "source_deep_link": "https://...",
+  "source_last_synced_at": "2026-06-05T12:34:56Z",
+  "source_trust_status": "trusted"
 }
 ```
 

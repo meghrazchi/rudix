@@ -6,7 +6,24 @@ type Schemas = components["schemas"];
 export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
 export type ChatSessionListResponse = Schemas["ChatSessionListResponse"];
-export type ChatCitationResponse = Schemas["ChatCitationResponse"];
+export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
+  source_provider?: string | null;
+  source_provider_label?: string | null;
+  source_title?: string | null;
+  source_key?: string | null;
+  source_section?: string | null;
+  source_deep_link?: string | null;
+  source_last_synced_at?: string | null;
+  source_trust_status?:
+    | "trusted"
+    | "stale"
+    | "revoked"
+    | "deleted"
+    | "unknown"
+    | "uploaded"
+    | null;
+  source_acl_snapshot?: Record<string, unknown>;
+};
 export type ChatDebugResponse = Schemas["ChatDebugResponse"];
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];
