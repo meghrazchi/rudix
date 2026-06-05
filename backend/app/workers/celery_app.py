@@ -14,6 +14,7 @@ celery_app = Celery(
     include=[
         "app.workers.document_tasks",
         "app.workers.evaluation_tasks",
+        "app.workers.connector_sync_tasks",
     ],
 )
 
@@ -58,7 +59,17 @@ celery_app.conf.update(
             settings.celery_queue_evaluations,
             routing_key=settings.celery_queue_evaluations,
         ),
+        Queue(
+            settings.celery_queue_connector_sync,
+            routing_key=settings.celery_queue_connector_sync,
+        ),
     ),
+    beat_schedule={
+        "connector-sync-schedule-poll": {
+            "task": "connectors.sync.schedule_poll",
+            "schedule": settings.connector_sync_schedule_poll_interval_seconds,
+        },
+    },
     task_routes={
         "documents.process": {
             "queue": settings.celery_queue_documents_processing,
@@ -75,6 +86,14 @@ celery_app.conf.update(
         "evaluations.run": {
             "queue": settings.celery_queue_evaluations,
             "routing_key": settings.celery_queue_evaluations,
+        },
+        "connectors.sync.run": {
+            "queue": settings.celery_queue_connector_sync,
+            "routing_key": settings.celery_queue_connector_sync,
+        },
+        "connectors.sync.schedule_poll": {
+            "queue": settings.celery_queue_connector_sync,
+            "routing_key": settings.celery_queue_connector_sync,
         },
     },
 )

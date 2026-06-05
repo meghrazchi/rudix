@@ -35,6 +35,8 @@ def _job_type_from_task_name(task_name: str) -> str:
         "documents.delete": "deletion_cleanup",
         "documents.reindex": "reindex",
         "evaluations.run": "evaluation",
+        "connectors.sync.run": "connector_sync",
+        "connectors.sync.schedule_poll": "connector_sync_schedule",
     }
     return mapping.get(task_name, task_name)
 

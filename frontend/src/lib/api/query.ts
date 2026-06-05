@@ -245,6 +245,12 @@ export const queryKeys = {
     invoices: ["billing", "invoices"] as const,
     contact: ["billing", "contact"] as const,
   },
+  connectorSyncJobs: (connectionId: string) =>
+    ["connectors", connectionId, "sync-jobs"] as const,
+  connectorSyncRuns: (connectionId: string) =>
+    ["connectors", connectionId, "sync-runs"] as const,
+  connectorSyncRun: (runId: string) =>
+    ["connectors", "sync-runs", runId] as const,
 };
 
 export type FrontendMutationKind =

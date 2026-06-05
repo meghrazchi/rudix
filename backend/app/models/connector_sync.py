@@ -126,6 +126,10 @@ class ConnectorSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     cursor_after_json: Mapped[dict] = mapped_column(
         "cursor_after", JSON, nullable=False, default=dict
     )
+    trigger_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="scheduled"
+    )
+    celery_task_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_details_json: Mapped[dict] = mapped_column(
         "error_details", JSON, nullable=False, default=dict

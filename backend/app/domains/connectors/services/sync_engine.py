@@ -1,0 +1,794 @@
+"""Generic connector sync engine: job lifecycle, checkpointing, scheduling."""
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID, uuid4
+
+from sqlalchemy import and_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.logging import get_logger
+from app.domains.connectors.repositories.connectors import ConnectorRepository
+from app.domains.connectors.services.credential_vault import CredentialVault
+from app.domains.connectors.services.provider_adapter import (
+    ConnectorAdapterNotFoundError,
+    ConnectorAuthError,
+    ConnectorContentError,
+    ConnectorRateLimitError,
+    DeltaItem,
+    SyncAdapterRegistry,
+    default_sync_adapter_registry,
+)
+from app.models.connector import ConnectorConnection, ExternalItem
+from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
+from app.models.enums import (
+    ConnectorConnectionStatus,
+    ConnectorCredentialStatus,
+    ConnectorSyncJobStatus,
+    ConnectorSyncRunStatus,
+)
+
+_logger = get_logger("connectors.sync_engine")
+
+_DEFAULT_PAGE_SIZE = 100
+_MAX_SCHEDULE_LOOKBACK_DAYS = 7
+
+
+@dataclass
+class SyncRunResult:
+    sync_run_id: UUID
+    status: str
+    items_seen: int
+    items_upserted: int
+    items_deleted: int
+    cursor_after: dict
+    error_message: str | None = None
+
+
+class SyncEngineError(Exception):
+    """Raised for engine-level validation failures (not task-level retries)."""
+
+
+def _next_run_due(job: ConnectorSyncJob, now: datetime) -> bool:
+    schedule = job.schedule_json or {}
+    schedule_type = schedule.get("type", "interval")
+    if schedule_type == "manual_only":
+        return False
+    interval_minutes = int(schedule.get("interval_minutes", 60))
+    interval_minutes = max(5, min(interval_minutes, 60 * 24 * 7))
+    if job.last_run_at is None:
+        return True
+    last_run = job.last_run_at
+    if last_run.tzinfo is None:
+        last_run = last_run.replace(tzinfo=UTC)
+    return now >= last_run + timedelta(minutes=interval_minutes)
+
+
+def _compute_content_hash(data: Any) -> str:
+    serialized = json.dumps(data, sort_keys=True, default=str)
+    return hashlib.sha256(serialized.encode()).hexdigest()
+
+
+class ConnectorSyncEngine:
+    def __init__(
+        self,
+        *,
+        repository: ConnectorRepository | None = None,
+        adapter_registry: SyncAdapterRegistry | None = None,
+        credential_vault: CredentialVault | None = None,
+    ) -> None:
+        self.repository = repository or ConnectorRepository()
+        self.adapter_registry = adapter_registry or default_sync_adapter_registry
+        self.credential_vault = credential_vault or CredentialVault()
+
+    # -----------------------------------------------------------------------
+    # Job management
+    # -----------------------------------------------------------------------
+
+    async def create_sync_job(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        name: str,
+        external_source_id: UUID | None = None,
+        collection_id: UUID | None = None,
+        schedule: dict | None = None,
+    ) -> ConnectorSyncJob:
+        connection = await self.repository.get_connection(
+            session, organization_id=organization_id, connection_id=connection_id
+        )
+        if connection is None:
+            raise SyncEngineError("connector connection not found")
+        return await self.repository.create_sync_job(
+            session,
+            organization_id=organization_id,
+            connection_id=connection_id,
+            name=name,
+            external_source_id=external_source_id,
+            collection_id=collection_id,
+            schedule=schedule or {"type": "interval", "interval_minutes": 60},
+        )
+
+    async def update_sync_job_status(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        job_id: UUID,
+        status: ConnectorSyncJobStatus,
+    ) -> ConnectorSyncJob:
+        job = await self._require_sync_job(session, organization_id, job_id)
+        job.status = status.value
+        await session.flush()
+        await session.refresh(job)
+        return job
+
+    async def get_sync_job(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        job_id: UUID,
+    ) -> ConnectorSyncJob | None:
+        result = await session.execute(
+            select(ConnectorSyncJob)
+            .options(selectinload(ConnectorSyncJob.sync_runs))
+            .where(
+                ConnectorSyncJob.id == job_id,
+                ConnectorSyncJob.organization_id == organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_sync_jobs(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+    ) -> list[ConnectorSyncJob]:
+        result = await session.execute(
+            select(ConnectorSyncJob)
+            .where(
+                ConnectorSyncJob.organization_id == organization_id,
+                ConnectorSyncJob.connection_id == connection_id,
+            )
+            .order_by(ConnectorSyncJob.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    # -----------------------------------------------------------------------
+    # Run management
+    # -----------------------------------------------------------------------
+
+    async def trigger_manual_sync(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        job_id: UUID | None = None,
+    ) -> ConnectorSyncRun:
+        if job_id is not None:
+            job = await self._require_sync_job(session, organization_id, job_id)
+        else:
+            result = await session.execute(
+                select(ConnectorSyncJob)
+                .where(
+                    ConnectorSyncJob.organization_id == organization_id,
+                    ConnectorSyncJob.connection_id == connection_id,
+                    ConnectorSyncJob.status != ConnectorSyncJobStatus.disabled.value,
+                )
+                .order_by(ConnectorSyncJob.created_at.asc())
+                .limit(1)
+            )
+            job = result.scalar_one_or_none()
+            if job is None:
+                raise SyncEngineError(
+                    "no active sync job found for connection; create one first"
+                )
+
+        await self._assert_no_active_run(session, job_id=job.id)
+        return await self._create_queued_run(session, job=job, trigger_type="manual")
+
+    async def cancel_run(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        run_id: UUID,
+    ) -> ConnectorSyncRun:
+        run = await self._require_sync_run(session, organization_id, run_id)
+        if run.status not in {
+            ConnectorSyncRunStatus.queued.value,
+            ConnectorSyncRunStatus.running.value,
+        }:
+            raise SyncEngineError(
+                f"sync run {run_id} is already in terminal state '{run.status}'"
+            )
+        run.status = ConnectorSyncRunStatus.cancelled.value
+        run.completed_at = datetime.now(UTC)
+        run.error_message = "Cancelled by user"
+        await session.flush()
+        await session.refresh(run)
+        return run
+
+    async def get_sync_run(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        run_id: UUID,
+    ) -> ConnectorSyncRun | None:
+        result = await session.execute(
+            select(ConnectorSyncRun).where(
+                ConnectorSyncRun.id == run_id,
+                ConnectorSyncRun.organization_id == organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_sync_runs(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        limit: int = 20,
+    ) -> list[ConnectorSyncRun]:
+        result = await session.execute(
+            select(ConnectorSyncRun)
+            .where(
+                ConnectorSyncRun.organization_id == organization_id,
+                ConnectorSyncRun.connection_id == connection_id,
+            )
+            .order_by(ConnectorSyncRun.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    # -----------------------------------------------------------------------
+    # Schedule polling (called by beat task)
+    # -----------------------------------------------------------------------
+
+    async def dispatch_due_syncs(
+        self, session: AsyncSession
+    ) -> list[tuple[UUID, UUID]]:
+        """Find all active sync jobs due for a run; create queued runs and return their IDs.
+
+        Returns list of (sync_run_id, organization_id) pairs for dispatch.
+        Does NOT enqueue Celery tasks — callers do that to keep this method testable.
+        """
+        now = datetime.now(UTC)
+        result = await session.execute(
+            select(ConnectorSyncJob).where(
+                ConnectorSyncJob.status == ConnectorSyncJobStatus.active.value,
+            )
+        )
+        jobs = list(result.scalars().all())
+        dispatched: list[tuple[UUID, UUID]] = []
+        for job in jobs:
+            if not _next_run_due(job, now):
+                continue
+            has_active = await self._has_active_run(session, job_id=job.id)
+            if has_active:
+                continue
+            run = await self._create_queued_run(session, job=job, trigger_type="scheduled")
+            dispatched.append((run.id, job.organization_id))
+        if dispatched:
+            await session.flush()
+        return dispatched
+
+    # -----------------------------------------------------------------------
+    # Core sync execution (called by Celery task)
+    # -----------------------------------------------------------------------
+
+    async def run_sync(
+        self,
+        session: AsyncSession,
+        *,
+        sync_run_id: UUID,
+        organization_id: UUID,
+    ) -> SyncRunResult:
+        """Execute a single sync run through its complete lifecycle."""
+        run = await self._require_sync_run(session, organization_id, sync_run_id)
+
+        if run.status == ConnectorSyncRunStatus.cancelled.value:
+            return SyncRunResult(
+                sync_run_id=run.id,
+                status="cancelled",
+                items_seen=0,
+                items_upserted=0,
+                items_deleted=0,
+                cursor_after={},
+                error_message="Run was cancelled before it started",
+            )
+
+        # Mark running
+        run.status = ConnectorSyncRunStatus.running.value
+        run.started_at = datetime.now(UTC)
+        await session.flush()
+
+        job_result = await session.execute(
+            select(ConnectorSyncJob)
+            .options(selectinload(ConnectorSyncJob.connection))
+            .where(ConnectorSyncJob.id == run.sync_job_id)
+        )
+        job = job_result.scalar_one_or_none()
+        if job is None:
+            return await self._fail_run(session, run, "sync job not found")
+
+        connection = job.connection
+        if connection.status != ConnectorConnectionStatus.active.value:
+            return await self._fail_run(
+                session,
+                run,
+                f"connection is not active (status={connection.status})",
+                error_code="connection_not_active",
+            )
+
+        # Resolve credential
+        credential = await self.repository.get_current_credential(
+            session,
+            organization_id=organization_id,
+            connection_id=connection.id,
+        )
+        if credential is None:
+            return await self._fail_run(session, run, "no credential found for connection")
+        if credential.status == ConnectorCredentialStatus.revoked.value:
+            return await self._fail_run(session, run, "credential has been revoked")
+
+        try:
+            decrypted = self.credential_vault.decrypt(credential)
+        except Exception as exc:
+            return await self._fail_run(session, run, f"credential decryption failed: {exc}")
+
+        try:
+            adapter = self.adapter_registry.require(connection.provider.key)
+        except ConnectorAdapterNotFoundError as exc:
+            return await self._fail_run(session, run, str(exc), error_code="adapter_not_found")
+
+        # Choose incremental vs full based on cursor
+        cursor_before = dict(run.cursor_before_json or {})
+        use_incremental = bool(cursor_before) and hasattr(adapter, "delta_sync")
+
+        try:
+            if use_incremental:
+                result = await self._run_incremental_sync(
+                    session,
+                    run=run,
+                    job=job,
+                    connection=connection,
+                    adapter=adapter,
+                    decrypted_credential=decrypted,
+                    cursor=cursor_before,
+                )
+            else:
+                result = await self._run_full_sync(
+                    session,
+                    run=run,
+                    job=job,
+                    connection=connection,
+                    adapter=adapter,
+                    decrypted_credential=decrypted,
+                )
+        except ConnectorAuthError as exc:
+            await self._mark_connection_error(session, connection, str(exc))
+            return await self._fail_run(
+                session, run, str(exc), error_code="auth_error"
+            )
+        except ConnectorRateLimitError as exc:
+            return await self._fail_run(
+                session,
+                run,
+                str(exc),
+                error_code="rate_limit",
+                error_details={"retry_after_seconds": exc.retry_after_seconds},
+            )
+        except Exception as exc:
+            return await self._fail_run(session, run, str(exc))
+
+        # Update job after successful run
+        job.last_run_at = datetime.now(UTC)
+        job.cursor_json = result.cursor_after
+        job.error_message = None
+        await session.flush()
+
+        _logger.info(
+            "connector.sync.completed",
+            sync_run_id=str(sync_run_id),
+            organization_id=str(organization_id),
+            items_seen=result.items_seen,
+            items_upserted=result.items_upserted,
+            items_deleted=result.items_deleted,
+        )
+        return result
+
+    # -----------------------------------------------------------------------
+    # Internal helpers
+    # -----------------------------------------------------------------------
+
+    async def _run_full_sync(
+        self,
+        session: AsyncSession,
+        *,
+        run: ConnectorSyncRun,
+        job: ConnectorSyncJob,
+        connection: ConnectorConnection,
+        adapter: Any,
+        decrypted_credential: dict,
+    ) -> SyncRunResult:
+        items_seen = 0
+        items_upserted = 0
+        cursor: dict = {}
+        seen_provider_ids: set[str] = set()
+
+        while True:
+            if await self._is_cancelled(session, run_id=run.id):
+                return await self._cancel_run_in_flight(session, run, items_seen, items_upserted)
+
+            page = await adapter.list_items(
+                organization_id=str(run.organization_id),
+                connection_id=str(run.connection_id),
+                external_source_id=str(run.external_source_id) if run.external_source_id else None,
+                provider_source_id=(
+                    job.external_source.provider_source_id
+                    if job.external_source_id and hasattr(job, "external_source") and job.external_source
+                    else None
+                ),
+                decrypted_credential=decrypted_credential,
+                cursor=cursor,
+                page_size=_DEFAULT_PAGE_SIZE,
+            )
+
+            for norm_item in page.items:
+                items_seen += 1
+                seen_provider_ids.add(norm_item.provider_item_id)
+                changed = await self._upsert_item_if_changed(session, run, norm_item)
+                if changed:
+                    items_upserted += 1
+
+            if not page.has_more or page.next_cursor is None:
+                break
+            cursor = page.next_cursor
+
+        items_deleted = await self._tombstone_unseen_items(
+            session, run=run, seen_provider_ids=seen_provider_ids
+        )
+
+        return await self._complete_run(
+            session,
+            run,
+            items_seen=items_seen,
+            items_upserted=items_upserted,
+            items_deleted=items_deleted,
+            cursor_after=cursor,
+        )
+
+    async def _run_incremental_sync(
+        self,
+        session: AsyncSession,
+        *,
+        run: ConnectorSyncRun,
+        job: ConnectorSyncJob,
+        connection: ConnectorConnection,
+        adapter: Any,
+        decrypted_credential: dict,
+        cursor: dict,
+    ) -> SyncRunResult:
+        items_seen = 0
+        items_upserted = 0
+        items_deleted = 0
+
+        while True:
+            if await self._is_cancelled(session, run_id=run.id):
+                return await self._cancel_run_in_flight(session, run, items_seen, items_upserted)
+
+            page = await adapter.delta_sync(
+                organization_id=str(run.organization_id),
+                connection_id=str(run.connection_id),
+                external_source_id=str(run.external_source_id) if run.external_source_id else None,
+                provider_source_id=(
+                    job.external_source.provider_source_id
+                    if job.external_source_id and hasattr(job, "external_source") and job.external_source
+                    else None
+                ),
+                decrypted_credential=decrypted_credential,
+                cursor=cursor,
+                page_size=_DEFAULT_PAGE_SIZE,
+            )
+
+            for delta_item in page.items:
+                items_seen += 1
+                if delta_item.is_deleted:
+                    deleted = await self._tombstone_item(session, run, delta_item)
+                    if deleted:
+                        items_deleted += 1
+                elif delta_item.item is not None:
+                    try:
+                        changed = await self._upsert_item_if_changed(
+                            session, run, delta_item.item
+                        )
+                        if changed:
+                            items_upserted += 1
+                    except ConnectorContentError:
+                        pass
+
+            if not page.has_more or page.next_cursor is None:
+                cursor = page.next_cursor or cursor
+                break
+            cursor = page.next_cursor
+
+        return await self._complete_run(
+            session,
+            run,
+            items_seen=items_seen,
+            items_upserted=items_upserted,
+            items_deleted=items_deleted,
+            cursor_after=cursor,
+        )
+
+    async def _upsert_item_if_changed(
+        self, session: AsyncSession, run: ConnectorSyncRun, norm_item: Any
+    ) -> bool:
+        norm_item_with_version = norm_item.model_copy(
+            update={"sync_version": run.sync_version}
+        )
+        existing_result = await session.execute(
+            select(ExternalItem).where(
+                ExternalItem.organization_id == run.organization_id,
+                ExternalItem.connection_id == run.connection_id,
+                ExternalItem.provider_item_id == norm_item.provider_item_id,
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+        if existing is not None and existing.content_hash == norm_item.content_hash:
+            existing.sync_version = run.sync_version
+            await session.flush()
+            return False
+
+        await self.repository.upsert_external_item(session, item=norm_item_with_version)
+        return True
+
+    async def _tombstone_unseen_items(
+        self,
+        session: AsyncSession,
+        *,
+        run: ConnectorSyncRun,
+        seen_provider_ids: set[str],
+    ) -> int:
+        result = await session.execute(
+            select(ExternalItem).where(
+                ExternalItem.organization_id == run.organization_id,
+                ExternalItem.connection_id == run.connection_id,
+                ExternalItem.deleted_at.is_(None),
+                ExternalItem.sync_version < run.sync_version,
+            )
+        )
+        stale_items = list(result.scalars().all())
+        count = 0
+        now = datetime.now(UTC)
+        for item in stale_items:
+            if item.provider_item_id not in seen_provider_ids:
+                item.deleted_at = now
+                await self.repository.record_tombstone(
+                    session,
+                    organization_id=run.organization_id,
+                    connection_id=run.connection_id,
+                    provider_item_id=item.provider_item_id,
+                    tombstoned_at=now,
+                    external_source_id=run.external_source_id,
+                    sync_run_id=run.id,
+                    item_type=item.item_type,
+                    source_url=item.source_url,
+                    last_seen_sync_version=item.sync_version,
+                    reason="not_seen_in_full_sync",
+                )
+                count += 1
+        return count
+
+    async def _tombstone_item(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        delta_item: DeltaItem,
+    ) -> bool:
+        result = await session.execute(
+            select(ExternalItem).where(
+                ExternalItem.organization_id == run.organization_id,
+                ExternalItem.connection_id == run.connection_id,
+                ExternalItem.provider_item_id == delta_item.provider_item_id,
+                ExternalItem.deleted_at.is_(None),
+            )
+        )
+        item = result.scalar_one_or_none()
+        if item is None:
+            return False
+        now = datetime.now(UTC)
+        item.deleted_at = now
+        await self.repository.record_tombstone(
+            session,
+            organization_id=run.organization_id,
+            connection_id=run.connection_id,
+            provider_item_id=delta_item.provider_item_id,
+            tombstoned_at=now,
+            external_source_id=run.external_source_id,
+            sync_run_id=run.id,
+            item_type=item.item_type,
+            source_url=item.source_url,
+            last_seen_sync_version=item.sync_version,
+            reason="provider_deleted",
+        )
+        return True
+
+    async def _complete_run(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        *,
+        items_seen: int,
+        items_upserted: int,
+        items_deleted: int,
+        cursor_after: dict,
+    ) -> SyncRunResult:
+        now = datetime.now(UTC)
+        run.status = ConnectorSyncRunStatus.completed.value
+        run.completed_at = now
+        run.items_seen = items_seen
+        run.items_upserted = items_upserted
+        run.items_deleted = items_deleted
+        run.cursor_after_json = cursor_after
+        run.error_message = None
+        await session.flush()
+        return SyncRunResult(
+            sync_run_id=run.id,
+            status="completed",
+            items_seen=items_seen,
+            items_upserted=items_upserted,
+            items_deleted=items_deleted,
+            cursor_after=cursor_after,
+        )
+
+    async def _fail_run(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        message: str,
+        *,
+        error_code: str = "sync_error",
+        error_details: dict | None = None,
+    ) -> SyncRunResult:
+        now = datetime.now(UTC)
+        run.status = ConnectorSyncRunStatus.failed.value
+        run.completed_at = now
+        run.error_message = message[:500]
+        run.error_details_json = {"code": error_code, **(error_details or {})}
+        await session.flush()
+        _logger.warning(
+            "connector.sync.failed",
+            sync_run_id=str(run.id),
+            error_code=error_code,
+            error=message[:200],
+        )
+        return SyncRunResult(
+            sync_run_id=run.id,
+            status="failed",
+            items_seen=run.items_seen,
+            items_upserted=run.items_upserted,
+            items_deleted=run.items_deleted,
+            cursor_after=dict(run.cursor_before_json or {}),
+            error_message=message,
+        )
+
+    async def _cancel_run_in_flight(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        items_seen: int,
+        items_upserted: int,
+    ) -> SyncRunResult:
+        run.completed_at = datetime.now(UTC)
+        run.items_seen = items_seen
+        run.items_upserted = items_upserted
+        await session.flush()
+        return SyncRunResult(
+            sync_run_id=run.id,
+            status="cancelled",
+            items_seen=items_seen,
+            items_upserted=items_upserted,
+            items_deleted=0,
+            cursor_after=dict(run.cursor_before_json or {}),
+            error_message="Cancelled mid-sync",
+        )
+
+    async def _is_cancelled(
+        self, session: AsyncSession, *, run_id: UUID
+    ) -> bool:
+        result = await session.execute(
+            select(ConnectorSyncRun.status).where(ConnectorSyncRun.id == run_id)
+        )
+        current = result.scalar_one_or_none()
+        return current == ConnectorSyncRunStatus.cancelled.value
+
+    async def _create_queued_run(
+        self,
+        session: AsyncSession,
+        *,
+        job: ConnectorSyncJob,
+        trigger_type: str,
+    ) -> ConnectorSyncRun:
+        cursor_before = dict(job.cursor_json or {})
+        sync_version = int(datetime.now(UTC).timestamp())
+        run = await self.repository.create_sync_run(
+            session,
+            organization_id=job.organization_id,
+            sync_job_id=job.id,
+            connection_id=job.connection_id,
+            sync_version=sync_version,
+            external_source_id=job.external_source_id,
+            status=ConnectorSyncRunStatus.queued.value,
+            cursor_before=cursor_before,
+        )
+        run.trigger_type = trigger_type
+        await session.flush()
+        await session.refresh(run)
+        return run
+
+    async def _has_active_run(
+        self, session: AsyncSession, *, job_id: UUID
+    ) -> bool:
+        result = await session.execute(
+            select(ConnectorSyncRun.id).where(
+                ConnectorSyncRun.sync_job_id == job_id,
+                ConnectorSyncRun.status.in_(
+                    [
+                        ConnectorSyncRunStatus.queued.value,
+                        ConnectorSyncRunStatus.running.value,
+                    ]
+                ),
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def _assert_no_active_run(
+        self, session: AsyncSession, *, job_id: UUID
+    ) -> None:
+        if await self._has_active_run(session, job_id=job_id):
+            raise SyncEngineError(
+                "sync is already queued or running for this job; cancel or wait for it to finish"
+            )
+
+    async def _mark_connection_error(
+        self,
+        session: AsyncSession,
+        connection: ConnectorConnection,
+        message: str,
+    ) -> None:
+        connection.status = ConnectorConnectionStatus.error.value
+        connection.error_message = message[:500]
+        await session.flush()
+
+    async def _require_sync_job(
+        self, session: AsyncSession, organization_id: UUID, job_id: UUID
+    ) -> ConnectorSyncJob:
+        job = await self.get_sync_job(session, organization_id=organization_id, job_id=job_id)
+        if job is None:
+            raise SyncEngineError(f"sync job {job_id} not found")
+        return job
+
+    async def _require_sync_run(
+        self, session: AsyncSession, organization_id: UUID, run_id: UUID
+    ) -> ConnectorSyncRun:
+        run = await self.get_sync_run(
+            session, organization_id=organization_id, run_id=run_id
+        )
+        if run is None:
+            raise SyncEngineError(f"sync run {run_id} not found")
+        return run

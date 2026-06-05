@@ -278,6 +278,10 @@ class Settings(BaseSettings):
         default="documents.reindex", min_length=1, max_length=64
     )
     celery_queue_evaluations: str = Field(default="evaluations", min_length=1, max_length=64)
+    celery_queue_connector_sync: str = Field(
+        default="connectors.sync", min_length=1, max_length=64
+    )
+    connector_sync_schedule_poll_interval_seconds: int = Field(default=60, ge=10, le=3600)
     celery_task_max_retries: int = Field(default=5, ge=0, le=20)
     celery_retry_backoff_seconds: int = Field(default=2, ge=1, le=300)
     celery_retry_backoff_max_seconds: int = Field(default=60, ge=1, le=3600)
@@ -662,6 +666,7 @@ class Settings(BaseSettings):
         "celery_queue_documents_deletion",
         "celery_queue_documents_reindex",
         "celery_queue_evaluations",
+        "celery_queue_connector_sync",
     )
     @classmethod
     def validate_celery_queue_name(cls, value: str) -> str:
@@ -919,6 +924,8 @@ class Settings(BaseSettings):
             "celery_queue_documents_deletion": self.celery_queue_documents_deletion,
             "celery_queue_documents_reindex": self.celery_queue_documents_reindex,
             "celery_queue_evaluations": self.celery_queue_evaluations,
+            "celery_queue_connector_sync": self.celery_queue_connector_sync,
+            "connector_sync_schedule_poll_interval_seconds": self.connector_sync_schedule_poll_interval_seconds,
             "celery_task_max_retries": self.celery_task_max_retries,
             "celery_retry_backoff_seconds": self.celery_retry_backoff_seconds,
             "celery_retry_backoff_max_seconds": self.celery_retry_backoff_max_seconds,
