@@ -149,6 +149,8 @@ export const queryKeys = {
       ["admin", "usage-dashboard", params ?? {}] as const,
     auditLogs: (params?: Record<string, unknown>) =>
       ["admin", "audit-logs", params ?? {}] as const,
+    observability: (params?: Record<string, unknown>) =>
+      ["admin", "observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,
     chunkingStrategies: ["admin", "chunking-profiles", "strategies"] as const,
     chunkingProfiles: ["admin", "chunking-profiles", "profiles"] as const,

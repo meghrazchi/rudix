@@ -13,6 +13,7 @@ type AdminSurfaceCard = {
     | "security-center"
     | "system-health"
     | "monitoring"
+    | "observability"
     | "governance"
     | "feedback-review"
     | "deletion-status";
@@ -82,6 +83,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       availabilityNote: monitoringUrl
         ? "Available"
         : "Unavailable in this deployment",
+    },
+    {
+      id: "observability",
+      title: "Observability dashboard",
+      description:
+        "API error rates, LLM health, indexing reliability, and storage metrics in one view.",
+      href: "/admin/observability",
+      available: true,
+      availabilityNote: "Available",
     },
     {
       id: "governance",

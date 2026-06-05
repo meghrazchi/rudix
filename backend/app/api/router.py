@@ -17,6 +17,7 @@ from app.interfaces.http import (
     feedback_review,
     model_provider_settings,
     notifications,
+    observability,
     org_settings,
     pipeline,
     profile,
@@ -54,6 +55,7 @@ protected_router.include_router(quotas.user_router)
 protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
+protected_router.include_router(observability.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(admin_chunking_profiles.router)
