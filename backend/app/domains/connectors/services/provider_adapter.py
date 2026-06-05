@@ -105,6 +105,22 @@ class ConnectorProviderAdapter(ABC):
         """Optional: return attachment items for the given parent item."""
         return []
 
+    async def download_file_content(
+        self,
+        *,
+        provider_item_id: str,
+        mime_type: str | None,
+        decrypted_credential: dict,
+    ) -> tuple[bytes, str, str] | None:
+        """Download raw file bytes for a file/attachment item.
+
+        Returns (content_bytes, filename, resolved_mime_type) or None if the item
+        is not downloadable (e.g. it is a folder, comment, or unsupported format).
+        Implementations should map provider-native formats (e.g. Google Docs) to a
+        supported MIME type (application/pdf or text/plain) before returning.
+        """
+        return None
+
 
 class SyncAdapterRegistry:
     """Maps provider keys to their concrete ConnectorProviderAdapter implementations."""

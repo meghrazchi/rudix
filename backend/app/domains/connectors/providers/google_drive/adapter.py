@@ -28,7 +28,10 @@ from uuid import UUID
 import httpx
 
 from app.domains.connectors.providers.google_drive.normalizer import (
+    NATIVE_EXPORT_MIME,
+    UNSUPPORTED_MIME_TYPES,
     is_google_folder,
+    is_google_native,
     normalize_file,
     normalize_folder,
 )
@@ -45,6 +48,17 @@ from app.domains.connectors.services.provider_adapter import (
 )
 
 _DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
+_MIME_TO_EXTENSION: dict[str, str] = {
+    "application/pdf": ".pdf",
+    "text/plain": ".txt",
+    "text/csv": ".csv",
+    "application/json": ".json",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+
+
+def _mime_to_extension(mime_type: str) -> str:
+    return _MIME_TO_EXTENSION.get(mime_type, ".bin")
 _FILE_FIELDS = (
     "nextPageToken,"
     "files("
@@ -363,6 +377,46 @@ class GoogleDriveConnectorAdapter(ConnectorProviderAdapter):
             next_cursor=next_cursor,
             has_more=next_cursor is not None,
         )
+
+    async def download_file_content(
+        self,
+        *,
+        provider_item_id: str,
+        mime_type: str | None,
+        decrypted_credential: dict,
+    ) -> tuple[bytes, str, str] | None:
+        """Download raw bytes for a Drive file.
+
+        Google-native formats are exported to a supported target MIME type.
+        Folders and unsupported shortcut types return None.
+        Returns (content_bytes, filename, resolved_mime_type).
+        """
+        if not mime_type or mime_type in UNSUPPORTED_MIME_TYPES or is_google_folder(mime_type):
+            return None
+
+        access_token = decrypted_credential.get("access_token", "")
+        headers = _bearer_headers(access_token)
+
+        if is_google_native(mime_type):
+            export_mime = NATIVE_EXPORT_MIME.get(mime_type, "text/plain")
+            url = f"{_DRIVE_FILES_URL}/{provider_item_id}/export"
+            params: dict[str, Any] = {"mimeType": export_mime}
+        else:
+            export_mime = mime_type
+            url = f"{_DRIVE_FILES_URL}/{provider_item_id}"
+            params = {"alt": "media"}
+
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.get(url, params=params, headers=headers)
+        _raise_for_status(response)
+
+        content = response.content
+        if not content:
+            return None
+
+        ext = _mime_to_extension(export_mime)
+        filename = f"{provider_item_id}{ext}"
+        return content, filename, export_mime
 
     async def _list_files(
         self,

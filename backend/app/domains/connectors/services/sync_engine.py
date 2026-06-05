@@ -5,8 +5,11 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,12 +34,18 @@ from app.models.enums import (
     ConnectorCredentialStatus,
     ConnectorSyncJobStatus,
     ConnectorSyncRunStatus,
+    ExternalItemType,
 )
 
 _logger = get_logger("connectors.sync_engine")
 
 _DEFAULT_PAGE_SIZE = 100
 _MAX_SCHEDULE_LOOKBACK_DAYS = 7
+
+# Item types whose content should be downloaded and ingested as Documents.
+_FILE_ITEM_TYPES: frozenset[str] = frozenset(
+    {ExternalItemType.cloud_file, ExternalItemType.attachment}
+)
 
 
 @dataclass
@@ -81,10 +90,12 @@ class ConnectorSyncEngine:
         repository: ConnectorRepository | None = None,
         adapter_registry: SyncAdapterRegistry | None = None,
         credential_vault: CredentialVault | None = None,
+        ingestion_bridge: "ConnectorIngestionBridge | None" = None,
     ) -> None:
         self.repository = repository or ConnectorRepository()
         self.adapter_registry = adapter_registry or default_sync_adapter_registry
         self.credential_vault = credential_vault or CredentialVault()
+        self.ingestion_bridge = ingestion_bridge
 
     # -----------------------------------------------------------------------
     # Job management
@@ -454,6 +465,14 @@ class ConnectorSyncEngine:
                 changed = await self._upsert_item_if_changed(session, run, norm_item)
                 if changed:
                     items_upserted += 1
+                    await self._maybe_ingest_file_item(
+                        session,
+                        run=run,
+                        connection=connection,
+                        adapter=adapter,
+                        norm_item=norm_item,
+                        decrypted_credential=decrypted_credential,
+                    )
 
             if not page.has_more or page.next_cursor is None:
                 break
@@ -518,6 +537,14 @@ class ConnectorSyncEngine:
                         )
                         if changed:
                             items_upserted += 1
+                            await self._maybe_ingest_file_item(
+                                session,
+                                run=run,
+                                connection=connection,
+                                adapter=adapter,
+                                norm_item=delta_item.item,
+                                decrypted_credential=decrypted_credential,
+                            )
                     except ConnectorContentError:
                         pass
 
@@ -627,6 +654,97 @@ class ConnectorSyncEngine:
             reason="provider_deleted",
         )
         return True
+
+    async def _maybe_ingest_file_item(
+        self,
+        session: AsyncSession,
+        *,
+        run: ConnectorSyncRun,
+        connection: ConnectorConnection,
+        adapter: Any,
+        norm_item: Any,
+        decrypted_credential: dict,
+    ) -> None:
+        """Download and ingest a file-type ExternalItem through the document lifecycle.
+
+        Silently skips if: ingestion bridge is not configured, the item type is not a
+        downloadable file, the adapter returns no content, or the bridge returns a
+        non-fatal result (duplicate / unsupported).
+        """
+        if self.ingestion_bridge is None:
+            return
+        if norm_item.item_type not in _FILE_ITEM_TYPES:
+            return
+
+        try:
+            download = await adapter.download_file_content(
+                provider_item_id=norm_item.provider_item_id,
+                mime_type=norm_item.mime_type,
+                decrypted_credential=decrypted_credential,
+            )
+        except Exception as exc:
+            _logger.warning(
+                "connector.ingestion.download_failed",
+                provider_item_id=norm_item.provider_item_id,
+                error=str(exc)[:200],
+            )
+            return
+
+        if download is None:
+            return
+
+        content, filename, resolved_mime = download
+
+        uploader_user_id = connection.created_by_user_id
+        if uploader_user_id is None:
+            _logger.warning(
+                "connector.ingestion.no_uploader_user",
+                connection_id=str(connection.id),
+                provider_item_id=norm_item.provider_item_id,
+            )
+            return
+
+        from app.models.connector import ExternalItem as _ExternalItem
+        ext_item_result = await session.execute(
+            select(_ExternalItem).where(
+                _ExternalItem.organization_id == run.organization_id,
+                _ExternalItem.connection_id == run.connection_id,
+                _ExternalItem.provider_item_id == norm_item.provider_item_id,
+            )
+        )
+        ext_item = ext_item_result.scalar_one_or_none()
+        if ext_item is None:
+            return
+
+        try:
+            from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge  # noqa: F401
+            result = await self.ingestion_bridge.ingest_item(
+                session,
+                external_item_id=ext_item.id,
+                organization_id=run.organization_id,
+                collection_id=ext_item.collection_id,
+                sync_run_id=run.id,
+                uploader_user_id=uploader_user_id,
+                content=content,
+                filename=filename,
+                mime_type=resolved_mime,
+                source_url=norm_item.source_url,
+                title=norm_item.title,
+                metadata=norm_item.metadata,
+                sync_version=run.sync_version,
+            )
+            _logger.info(
+                "connector.ingestion.result",
+                provider_item_id=norm_item.provider_item_id,
+                document_id=str(result.document_id) if result.document_id else None,
+                status=result.status,
+            )
+        except Exception as exc:
+            _logger.error(
+                "connector.ingestion.bridge_error",
+                provider_item_id=norm_item.provider_item_id,
+                error=str(exc)[:300],
+            )
 
     async def _complete_run(
         self,

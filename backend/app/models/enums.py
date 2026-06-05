@@ -25,6 +25,18 @@ class DocumentStatus(StrEnum):
     deleting = "deleting"
     deleted = "deleted"
     retained_by_policy = "retained_by_policy"
+    # Connector file ingestion statuses (F245)
+    pending_scan = "pending_scan"
+    infected = "infected"
+    extraction_failed = "extraction_failed"
+    ocr_applied = "ocr_applied"
+    skipped = "skipped"
+    unsupported = "unsupported"
+
+
+class DocumentIngestionSource(StrEnum):
+    upload = "upload"
+    connector = "connector"
 
 
 class ConnectorAuthType(StrEnum):

@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentIngestionSource, DocumentStatus
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -30,8 +30,12 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="documents_file_type_allowed",
         ),
         CheckConstraint(
-            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'delete_requested', 'deleting', 'deleted', 'retained_by_policy')",
+            "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'delete_requested', 'deleting', 'deleted', 'retained_by_policy', 'pending_scan', 'infected', 'extraction_failed', 'ocr_applied', 'skipped', 'unsupported')",
             name="documents_status_allowed",
+        ),
+        CheckConstraint(
+            "ingestion_source IS NULL OR ingestion_source IN ('upload', 'connector')",
+            name="documents_ingestion_source_allowed",
         ),
         CheckConstraint(
             "language_source IS NULL OR language_source IN ('upload_provided', 'auto_detected', 'admin_override')",
@@ -45,6 +49,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("idx_documents_org_status", "organization_id", "status"),
         Index("idx_documents_uploaded_by", "uploaded_by_user_id"),
+        Index("idx_documents_connector_external_item", "connector_external_item_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -101,6 +106,14 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ocr_quality_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # extraction_snapshot: structured extraction diagnostics from the F237 PDF extraction pipeline.
     extraction_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Connector ingestion provenance (F245): links back to the ExternalItem this document came from.
+    # NULL for manually uploaded documents.
+    ingestion_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    connector_external_item_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("external_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")
