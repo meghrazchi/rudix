@@ -51,3 +51,9 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     failed_jobs = relationship(
         "FailedJob", back_populates="organization", cascade="all, delete-orphan"
     )
+    sso_config = relationship(
+        "OrgSSOConfig",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
+  discoverSSOForEmail,
   getForgotPasswordHref,
   getLoginProviderLabel,
   getSsoStartHref,
@@ -15,6 +16,7 @@ import {
   startLoginSession,
   type LoginFormValues,
   type LoginFlowError,
+  type SSODiscoveryState,
 } from "@/lib/auth-login";
 import { getAuthBoundaryMessage } from "@/lib/auth-session";
 import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
@@ -72,6 +74,9 @@ function LoginPageContent() {
   const [forgotPlaceholderMessage, setForgotPlaceholderMessage] = useState<
     string | null
   >(null);
+  const [ssoDiscovery, setSsoDiscovery] = useState<SSODiscoveryState>({
+    status: "idle",
+  });
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -102,6 +107,14 @@ function LoginPageContent() {
       clearBoundaryEvent();
     }
   }, [authReason, boundaryMessage, clearBoundaryEvent]);
+
+  async function handleEmailBlur() {
+    const email = form.getValues("email");
+    if (!email.trim() || !email.includes("@")) return;
+    setSsoDiscovery({ status: "loading" });
+    const result = await discoverSSOForEmail(email);
+    setSsoDiscovery(result);
+  }
 
   async function onSubmit(values: LoginFormValues) {
     setSubmissionError(null);
@@ -185,6 +198,7 @@ function LoginPageContent() {
               type="email"
               autoComplete="email"
               {...form.register("email")}
+              onBlur={handleEmailBlur}
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             />
           </label>
@@ -192,6 +206,27 @@ function LoginPageContent() {
             <p role="alert" className="text-xs text-rose-700">
               {form.formState.errors.email.message}
             </p>
+          ) : null}
+
+          {ssoDiscovery.status === "found" ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm text-indigo-800">
+              <p className="font-semibold">
+                SSO is available for {ssoDiscovery.domain}
+              </p>
+              <p className="mt-0.5 text-xs text-indigo-600">
+                Your organization uses single sign-on. Continue below or sign
+                in with SSO.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  window.location.assign(ssoDiscovery.redirectUrl)
+                }
+                className="mt-2 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 transition"
+              >
+                Continue with SSO
+              </button>
+            </div>
           ) : null}
 
           <label className="block" htmlFor="password">

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.errors import AuthenticationError
@@ -25,6 +27,8 @@ from app.domains.auth.schemas.auth import (
     AuthRefreshResponse,
     AuthSessionResponse,
 )
+from app.domains.sso.schemas.sso import SSODiscoverRequest, SSODiscoverResponse
+from app.domains.sso.services.sso_service import SSOService
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -36,6 +40,7 @@ _REFRESH_COOKIE_NAME = "rudix_refresh_token"
 _REFRESH_COOKIE_PATH = f"{settings.api_prefix}/auth"
 _repository = AuthRepository()
 _audit_log_service = AuditLogService()
+_sso_service = SSOService()
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -505,3 +510,292 @@ async def logout(
     )
     await db_session.commit()
     return AuthLogoutResponse(success=True)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SSO / SAML endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _domain_from_email(email: str) -> str | None:
+    parts = email.strip().lower().split("@", maxsplit=1)
+    if len(parts) == 2 and parts[1]:
+        return parts[1]
+    return None
+
+
+@router.post("/sso/discover", response_model=SSODiscoverResponse)
+async def sso_discover(
+    payload: SSODiscoverRequest,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SSODiscoverResponse:
+    """Return SSO redirect URL for a given email address, or indicate no SSO is configured."""
+    domain = _domain_from_email(payload.email)
+    if domain is None:
+        return SSODiscoverResponse(
+            sso_enabled=False, sso_type=None, redirect_url=None, domain=None
+        )
+
+    config = await _sso_service.get_config_by_domain(db_session, domain=domain)
+    if config is None or not config.enabled:
+        return SSODiscoverResponse(
+            sso_enabled=False, sso_type=None, redirect_url=None, domain=domain
+        )
+
+    org_id_str = str(config.organization_id)
+    initiate_url = (
+        f"{str(settings.api_base_url).rstrip('/')}"
+        f"{settings.api_prefix}/auth/sso/{org_id_str}/initiate"
+    )
+    return SSODiscoverResponse(
+        sso_enabled=True,
+        sso_type=config.sso_type,
+        redirect_url=initiate_url,
+        domain=domain,
+    )
+
+
+@router.get("/sso/{organization_id}/initiate")
+async def sso_initiate(
+    organization_id: str,
+    request: Request,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    next: str = "/dashboard",
+) -> RedirectResponse:
+    """Redirect user to the IdP for authentication."""
+    config = await _sso_service.get_config_by_org_id_str(
+        db_session, organization_id=organization_id
+    )
+    if config is None or not config.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="SSO is not configured or enabled for this organization.",
+        )
+
+    relay_state = base64.urlsafe_b64encode(
+        f"org={organization_id}&next={next}".encode("utf-8")
+    ).decode("utf-8")
+
+    redirect_url = _sso_service.build_authn_redirect_url(config, relay_state=relay_state)
+    if redirect_url is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SSO configuration is incomplete — IdP SSO URL is missing.",
+        )
+
+    return RedirectResponse(url=redirect_url, status_code=status.HTTP_302_FOUND)
+
+
+@router.post("/sso/{organization_id}/callback", response_model=None)
+async def sso_callback(
+    organization_id: str,
+    request: Request,
+    response: Response,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    SAMLResponse: Annotated[str | None, Form()] = None,
+    RelayState: Annotated[str | None, Form()] = None,
+) -> AuthSessionResponse | RedirectResponse:
+    """
+    Accept a SAML Response POST from the IdP, validate, provision user, and issue tokens.
+    RelayState carries the post-login redirect path encoded as base64.
+    """
+    config = await _sso_service.get_config_by_org_id_str(
+        db_session, organization_id=organization_id
+    )
+    if config is None or not config.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="SSO is not configured or enabled for this organization.",
+        )
+
+    if not SAMLResponse:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="SAMLResponse form field is required.",
+        )
+
+    try:
+        parsed = _sso_service.parse_saml_callback(
+            saml_response_b64=SAMLResponse,
+            config=config,
+        )
+    except ValueError as exc:
+        await _record_auth_audit(
+            db_session,
+            organization_id=config.organization_id,
+            user_id=None,
+            action="auth.sso.callback.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "result": "failure",
+                "severity": "warning",
+                "reason": "saml_parse_error",
+                "detail": str(exc),
+            },
+        )
+        await db_session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid SAML response: {exc}",
+        ) from exc
+
+    email = parsed["email"]
+    display_name: str | None = parsed.get("display_name")
+    sso_org_id: UUID = config.organization_id
+
+    user = await _repository.get_user_by_email(db_session, email=email)
+    if user is None:
+        if not settings.app_auth_auto_provision_users:
+            await _record_auth_audit(
+                db_session,
+                organization_id=sso_org_id,
+                user_id=None,
+                action="auth.sso.callback.failed",
+                request=request,
+                metadata={
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                    "result": "failure",
+                    "severity": "warning",
+                    "reason": "user_not_found",
+                    "email": email,
+                },
+            )
+            await db_session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not found and auto-provisioning is disabled.",
+            )
+        provisioned_display = display_name or _display_name_from_email(email)
+        user = User(
+            organization_id=sso_org_id,
+            external_auth_id=str(uuid4()),
+            email=email,
+            display_name=provisioned_display,
+        )
+        db_session.add(user)
+        await db_session.flush()
+        db_session.add(
+            OrganizationMember(
+                organization_id=sso_org_id,
+                user_id=user.id,
+                role=OrganizationRole.member.value,
+            )
+        )
+        await db_session.flush()
+        user = await _repository.get_user_by_id(db_session, user_id=user.id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="User provisioning failed.",
+            )
+
+    membership = _select_active_membership(user, organization_id=str(sso_org_id))
+    access_token, refresh_token = _build_session_payload(user, membership)
+    _set_refresh_cookie(response, refresh_token)
+
+    refresh_claims = decode_app_refresh_token(refresh_token)
+    session_id = _session_id_from_claims(refresh_claims)
+    await _record_auth_audit(
+        db_session,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        action="auth.sso.login.succeeded",
+        request=request,
+        metadata={
+            "status_code": status.HTTP_200_OK,
+            "result": "success",
+            "severity": "info",
+            "email": user.email,
+            "role": membership.role,
+            "session_id": session_id,
+            "sso_type": config.sso_type,
+            "idp_entity_id": config.idp_entity_id,
+        },
+    )
+    await db_session.commit()
+
+    org = membership.organization
+    session_response = AuthSessionResponse(
+        access_token=access_token,
+        refresh_token=None,
+        expires_in=settings.app_auth_access_token_ttl_seconds,
+        user_id=str(user.id),
+        email=user.email,
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        organization_name=org.name if org else None,
+    )
+
+    # Decode RelayState to extract the post-login navigation target.
+    next_path = "/dashboard"
+    if RelayState:
+        try:
+            relay_decoded = base64.urlsafe_b64decode(RelayState.encode("utf-8")).decode("utf-8")
+            for part in relay_decoded.split("&"):
+                if part.startswith("next="):
+                    next_path = part[5:] or "/dashboard"
+        except Exception:
+            pass
+
+    # When the browser sent a form POST (SAML flow), redirect to the frontend
+    # callback page with the session as URL params.  API clients get JSON.
+    accept = request.headers.get("accept", "")
+    content_type = request.headers.get("content-type", "")
+    is_browser_post = "application/x-www-form-urlencoded" in content_type and "json" not in accept
+
+    if is_browser_post:
+        import urllib.parse
+
+        frontend_base = str(settings.frontend_base_url).rstrip("/")
+        params: dict[str, str] = {
+            "access_token": access_token,
+            "user_id": session_response.user_id,
+            "email": session_response.email,
+            "role": session_response.role,
+            "organization_id": session_response.organization_id or "",
+            "next": next_path,
+        }
+        if session_response.organization_name:
+            params["organization_name"] = session_response.organization_name
+        qs = urllib.parse.urlencode(params)
+        redirect_target = f"{frontend_base}/sso/callback?{qs}"
+        return RedirectResponse(url=redirect_target, status_code=status.HTTP_302_FOUND)
+
+    return session_response
+
+
+@router.get("/sso/{organization_id}/metadata")
+async def sso_sp_metadata(
+    organization_id: str,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> Response:
+    """Return SP SAML metadata XML for the given organization."""
+    config = await _sso_service.get_config_by_org_id_str(
+        db_session, organization_id=organization_id
+    )
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No SSO configuration found for this organization.",
+        )
+
+    sp_entity_id = config.sp_entity_id
+    sp_acs_url = config.sp_acs_url
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<md:EntityDescriptor'
+        ' xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"'
+        f' entityID="{sp_entity_id}">'
+        '<md:SPSSODescriptor'
+        ' AuthnRequestsSigned="false"'
+        ' WantAssertionsSigned="true"'
+        ' protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">'
+        '<md:AssertionConsumerService'
+        ' Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"'
+        f' Location="{sp_acs_url}"'
+        ' index="1"/>'
+        '</md:SPSSODescriptor>'
+        '</md:EntityDescriptor>'
+    )
+    return Response(content=xml, media_type="application/xml")

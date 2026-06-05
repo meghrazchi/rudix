@@ -344,6 +344,38 @@ export function getForgotPasswordHref(): string | null {
   return getAuthClientConfig().forgotPasswordUrl;
 }
 
+export type SSODiscoveryState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "found"; redirectUrl: string; domain: string; ssoType: string }
+  | { status: "not_found" }
+  | { status: "error" };
+
+export async function discoverSSOForEmail(
+  email: string,
+): Promise<SSODiscoveryState> {
+  const trimmed = email.trim().toLowerCase();
+  if (!trimmed || !trimmed.includes("@")) {
+    return { status: "not_found" };
+  }
+
+  try {
+    const { discoverSSO } = await import("@/lib/api/sso");
+    const result = await discoverSSO(trimmed);
+    if (result.sso_enabled && result.redirect_url) {
+      return {
+        status: "found",
+        redirectUrl: result.redirect_url,
+        domain: result.domain ?? "",
+        ssoType: result.sso_type ?? "saml",
+      };
+    }
+    return { status: "not_found" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 export function getLoginProviderLabel(): string {
   const provider = getAuthClientConfig().providerName;
   if (!provider) {
