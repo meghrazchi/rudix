@@ -20,6 +20,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ChunkingProfilesSection } from "@/components/settings/ChunkingProfilesSection";
+import { PromptTemplatesSection } from "@/components/settings/PromptTemplatesSection";
 import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
@@ -1397,7 +1398,10 @@ export function OrganizationSettingsTab() {
       {/* ── 5. Chunking Profiles ── */}
       <ChunkingProfilesSection />
 
-      {/* ── 6. Admin Controls ── */}
+      {/* ── 6. Prompt Templates ── */}
+      <PromptTemplatesSection />
+
+      {/* ── 7. Admin Controls ── */}
       <section
         className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Admin controls section"

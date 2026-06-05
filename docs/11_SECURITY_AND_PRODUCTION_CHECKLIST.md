@@ -150,12 +150,13 @@ Use Redis-backed rate limits.
 
 Recommended limits:
 
-| Action | Limit |
-|---|---|
-| Upload documents | 20/hour/user |
-| Ask questions | 60/hour/user |
-| Run evaluation | Admin only |
-| Delete documents | 30/hour/user |
+| Action                  | Limit        |
+| ----------------------- | ------------ |
+| Upload documents        | 20/hour/user |
+| Ask questions           | 60/hour/user |
+| Run evaluation          | Admin only   |
+| Manage prompt templates | Admin only   |
+| Delete documents        | 30/hour/user |
 
 ## Secrets
 
@@ -192,6 +193,7 @@ Do not log by default:
 
 - Full uploaded document text.
 - Full prompts with sensitive document data.
+- Raw prompt template content in audit events.
 - Full LLM responses for private documents.
 - Auth tokens.
 - Secrets.
@@ -209,6 +211,7 @@ Track:
 - Ask question.
 - Download source.
 - Run evaluation.
+- Prompt template create/update/review/publish/rollback.
 - Admin action.
 - Policy changes.
 - Share-link create/revoke/view actions.

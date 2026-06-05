@@ -12,8 +12,12 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import RunEvaluationRequest, RunEvaluationResponse
+from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
+from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.models.enums import PromptTemplateKey
 
 _chunking_profile_service = ChunkingProfileService()
+_prompt_template_service = PromptTemplateService()
 
 
 async def _safe_commit_audit_only(db_session: AsyncSession, *, wrote_audit: bool) -> None:
@@ -98,6 +102,18 @@ async def trigger_evaluation_workflow(
                 detail="An evaluation run is already active for this evaluation set",
             )
 
+    try:
+        prompt_version = await _prompt_template_service.resolve_active_version(
+            db_session,
+            organization_id=organization_id,
+            template_key=PromptTemplateKey.answer_generation.value,
+        )
+    except PromptTemplateValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Answer prompt template is unavailable",
+        ) from exc
+
     config_payload: dict[str, object] = {
         "run_name": payload.config.run_name,
         "top_k": payload.config.top_k
@@ -113,6 +129,11 @@ async def trigger_evaluation_workflow(
             if payload.config.regression_thresholds is not None
             else None
         ),
+        "prompt_template": {
+            "key": PromptTemplateKey.answer_generation.value,
+            "version_number": prompt_version.version_number,
+            "version_id": str(prompt_version.id),
+        },
     }
     if len(normalized_comparison_targets) == 1:
         single_target = normalized_comparison_targets[0]
@@ -125,6 +146,7 @@ async def trigger_evaluation_workflow(
         db_session,
         evaluation_set_id=evaluation_set_id,
         config=config_payload,
+        prompt_template_version_id=prompt_version.id,
     )
     await audit_log_service.record(
         db_session,
@@ -141,6 +163,8 @@ async def trigger_evaluation_workflow(
             "selected_document_count": len(selected_document_ids_as_strings),
             "comparison_target_count": len(normalized_comparison_targets),
             "chunking_strategy": config_payload.get("chunking_strategy"),
+            "prompt_template_key": PromptTemplateKey.answer_generation.value,
+            "prompt_template_version": prompt_version.version_number,
             "status_code": status.HTTP_202_ACCEPTED,
         },
     )

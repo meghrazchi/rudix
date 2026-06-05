@@ -10,6 +10,7 @@ export * from "@/lib/api/health";
 export * from "@/lib/api/notifications";
 export * from "@/lib/api/organization";
 export * from "@/lib/api/pipeline";
+export * from "@/lib/api/prompt-templates";
 export * from "@/lib/api/profile";
 export * from "@/lib/api/query";
 export * from "@/lib/api/request";

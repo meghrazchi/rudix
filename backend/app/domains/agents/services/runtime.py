@@ -36,7 +36,9 @@ from app.domains.agents.services.external_mcp import ExternalMCPToolManager
 from app.domains.agents.services.safety_guardrails import PromptInjectionGuard
 from app.domains.agents.services.tool_executor import AgentToolExecutor
 from app.domains.agents.services.tool_registry import ToolRegistry, build_default_tool_specs
-from app.models.enums import AgentRunStatus, AgentStepStatus
+from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
+from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.models.enums import AgentRunStatus, AgentStepStatus, PromptTemplateKey
 
 _SELECTED_DOCUMENT_IDS = "__selected_document_ids__"
 _SELECTED_DOCUMENT_ID = "__selected_document_id__"
@@ -79,6 +81,7 @@ class AgentRuntime:
         self._safety_guard = safety_guard or PromptInjectionGuard()
         self._usage_repository = usage_repository or UsageRepository()
         self._external_mcp_tool_manager = external_mcp_tool_manager or ExternalMCPToolManager()
+        self._prompt_template_service = PromptTemplateService()
         self._executor = executor or AgentToolExecutor(
             registry=self._registry,
             repository=self._repository,
@@ -108,6 +111,23 @@ class AgentRuntime:
         external_mcp_summary = await self._external_mcp_tool_manager.ensure_registered(
             registry=self._registry
         )
+        prompt_template_metadata: dict[str, object] | None = None
+        prompt_template_version_id: UUID | None = None
+        try:
+            prompt_version = await self._prompt_template_service.resolve_active_version(
+                session,
+                organization_id=organization_id,
+                template_key=PromptTemplateKey.agent_planning.value,
+            )
+        except PromptTemplateValidationError:
+            prompt_version = None
+        if prompt_version is not None:
+            prompt_template_version_id = prompt_version.id
+            prompt_template_metadata = {
+                "key": PromptTemplateKey.agent_planning.value,
+                "version_number": prompt_version.version_number,
+                "version_id": str(prompt_version.id),
+            }
 
         run = await self._repository.create_agent_run(
             session,
@@ -116,6 +136,7 @@ class AgentRuntime:
             status=AgentRunStatus.planning.value,
             surface="api",
             objective=request.objective,
+            prompt_template_version_id=prompt_template_version_id,
             max_steps=budget.max_steps,
             max_parallel_tool_calls=settings.agent_max_parallel_tool_calls,
             budget={
@@ -130,6 +151,7 @@ class AgentRuntime:
             observations={
                 "request_metadata": request.metadata,
                 "mode": context.mode.value,
+                "prompt_template": prompt_template_metadata,
                 "external_mcp": {
                     "enabled": external_mcp_summary.enabled,
                     "configured_servers": external_mcp_summary.configured_servers,

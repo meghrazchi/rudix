@@ -3,7 +3,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-AnswerLanguageMode = Literal["auto", "same_as_question", "workspace_default", "en", "de", "es", "fr"]
+AnswerLanguageMode = Literal[
+    "auto", "same_as_question", "workspace_default", "en", "de", "es", "fr"
+]
 
 
 class ChatMessageRequest(BaseModel):
@@ -129,6 +131,9 @@ class ChatDebugResponse(BaseModel):
     llm_model: str | None = None
     detected_language: str | None = None
     answer_language_used: str | None = None
+    prompt_template_key: str | None = None
+    prompt_template_version: int | None = None
+    prompt_template_version_id: str | None = None
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

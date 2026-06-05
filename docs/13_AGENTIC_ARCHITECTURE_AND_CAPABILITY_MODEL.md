@@ -67,11 +67,11 @@ flowchart LR
 
 Initial capability map for existing Rudix internals:
 
-| Capability | Candidate tool | Effect | Surfaces |
-|---|---|---|---|
-| Document read | `documents.list`, `documents.get`, `documents.chunks.list` | read_only | api, mcp |
+| Capability                        | Candidate tool                                                    | Effect    | Surfaces |
+| --------------------------------- | ----------------------------------------------------------------- | --------- | -------- |
+| Document read                     | `documents.list`, `documents.get`, `documents.chunks.list`        | read_only | api, mcp |
 | Document intelligence (read-only) | `search_documents`, `get_document_detail`, `list_document_chunks` | read_only | api, mcp |
-| Grounded read-only reasoning | `answer_from_context`, `summarize_document`, `compare_documents` | read_only | api, mcp |
+| Grounded read-only reasoning      | `answer_from_context`, `summarize_document`, `compare_documents`  | read_only | api, mcp |
 
 MCP public naming may expose aliases for client ergonomics while keeping the
 same internal ToolSpec boundaries. Current MCP aliases:
@@ -80,10 +80,10 @@ same internal ToolSpec boundaries. Current MCP aliases:
 - `get_document_chunks` -> `list_document_chunks`
 - `summarize` -> `summarize_document`
 - `compare` -> `compare_documents`
-| Chat retrieval/answer | `chat.answer` | side_effect | api |
-| Evaluation execution | `evaluations.run` | side_effect | api |
-| Pipeline observability | `pipeline.runs.get` | read_only | api, mcp |
-| Document lifecycle mutation | `documents.reindex`, `documents.delete` | side_effect | api |
+  | Chat retrieval/answer | `chat.answer` | side_effect | api |
+  | Evaluation execution | `evaluations.run` | side_effect | api |
+  | Pipeline observability | `pipeline.runs.get` | read_only | api, mcp |
+  | Document lifecycle mutation | `documents.reindex`, `documents.delete` | side_effect | api |
 
 ## Read-only vs Side-effect Policy
 
@@ -143,13 +143,13 @@ Design constraints:
 
 ### Threats and Mitigations
 
-| Threat | Mitigation |
-|---|---|
-| Cross-organization data access | organization-scoped authorization gate before tool execution |
-| Privilege escalation via tool misuse | role-gated `ToolSpec` checks |
-| Secret leakage in errors/logs | metadata sanitization + explicit key redaction |
-| Unsafe replay of mutations | required idempotency keys for side-effect tools |
-| Resource abuse | per-tool budgets (calls, payload sizes, timeout, retries) |
+| Threat                               | Mitigation                                                   |
+| ------------------------------------ | ------------------------------------------------------------ |
+| Cross-organization data access       | organization-scoped authorization gate before tool execution |
+| Privilege escalation via tool misuse | role-gated `ToolSpec` checks                                 |
+| Secret leakage in errors/logs        | metadata sanitization + explicit key redaction               |
+| Unsafe replay of mutations           | required idempotency keys for side-effect tools              |
+| Resource abuse                       | per-tool budgets (calls, payload sizes, timeout, retries)    |
 
 ## Budgets and Safe Errors
 
@@ -286,16 +286,17 @@ Rudix exposes an organization-scoped admin control plane for agent/MCP policy:
 
 `AgentRuntime` implements a persisted plan-act-observe loop:
 
-1. Create `agent_runs` row in `planning` state with runtime budgets.
-2. Build a typed tool plan (`PlannedToolSelection`) from objective and mode.
-3. Persist planning step and transition run to `running`.
-4. For each planned step:
+1. Resolve the active organization `agent_planning` prompt template version.
+2. Create `agent_runs` row in `planning` state with runtime budgets and `prompt_template_version_id`.
+3. Build a typed tool plan (`PlannedToolSelection`) from objective and mode.
+4. Persist planning step and transition run to `running`.
+5. For each planned step:
    - enforce runtime and budget constraints (steps/runtime/tool calls/tokens/cost)
    - check cancellation signal and persisted cancellation status
    - execute tool via `AgentToolExecutor`
    - persist step outcome (`completed` or `failed`) with sanitized outputs/metrics
    - accumulate usage/cost from structured tool debug usage fields
-5. Complete run with final outcome (answer + citations + confidence) or fail/cancel with safe error payload.
+6. Complete run with final outcome (answer + citations + confidence) or fail/cancel with safe error payload.
 
 This loop reuses the same org authorization, redaction, and audit boundaries as the tool executor.
 

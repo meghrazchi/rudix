@@ -45,3 +45,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     rag_profiles = relationship(
         "RagProfile", back_populates="organization", cascade="all, delete-orphan"
     )
+    prompt_templates = relationship(
+        "PromptTemplate", back_populates="organization", cascade="all, delete-orphan"
+    )

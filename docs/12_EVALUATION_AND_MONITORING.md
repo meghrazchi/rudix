@@ -154,7 +154,14 @@ Average Cost
 Failed Questions
 Low-Confidence Questions
 Regression Compared to Last Run
+Prompt Version Impact
 ```
+
+Prompt-version impact:
+
+- Evaluation runs store the prompt template version resolved at queue time.
+- Prompt template detail views list recent evaluation runs for each version.
+- Regression review should compare current published prompt versions against previous published versions on a fixed evaluation set before rollout.
 
 ## Monitoring architecture
 
@@ -287,15 +294,15 @@ Create alerts for:
 
 Suggested targets:
 
-| Metric | Target |
-|---|---|
-| API availability | 99.5%+ |
-| Chat p95 latency | < 5 seconds |
-| Document indexing success | > 98% |
-| Retrieval hit rate | > 85% on eval set |
-| Citation accuracy | > 80% |
-| Failed task rate | < 2% |
-| Not-found correctness | > 90% |
+| Metric                    | Target            |
+| ------------------------- | ----------------- |
+| API availability          | 99.5%+            |
+| Chat p95 latency          | < 5 seconds       |
+| Document indexing success | > 98%             |
+| Retrieval hit rate        | > 85% on eval set |
+| Citation accuracy         | > 80%             |
+| Failed task rate          | < 2%              |
+| Not-found correctness     | > 90%             |
 
 ## Continuous evaluation
 
@@ -318,6 +325,7 @@ Do not deploy if:
 - Citation accuracy drops more than 5%.
 - Faithfulness drops below threshold.
 - A chunking comparison target fails a configured regression threshold for retrieval, citation accuracy, faithfulness, or not-found rate.
+- A newly published prompt version underperforms the prior published version on the fixed eval set.
 - Average latency doubles.
 - Cost per answer increases unexpectedly.
 

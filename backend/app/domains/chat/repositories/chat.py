@@ -182,6 +182,7 @@ class ChatRepository:
         token_input_count: int | None = None,
         token_output_count: int | None = None,
         cost_usd: Decimal | None = None,
+        prompt_template_version_id: UUID | None = None,
     ) -> ChatMessage:
         message = ChatMessage(
             chat_session_id=chat_session_id,
@@ -193,6 +194,7 @@ class ChatRepository:
             token_input_count=token_input_count,
             token_output_count=token_output_count,
             cost_usd=cost_usd,
+            prompt_template_version_id=prompt_template_version_id,
         )
         session.add(message)
         await session.flush()

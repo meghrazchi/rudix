@@ -128,6 +128,7 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="evaluation_runs_status_allowed",
         ),
         Index("idx_eval_runs_set", "evaluation_set_id", "created_at"),
+        Index("idx_evaluation_runs_prompt_template_version", "prompt_template_version_id"),
     )
 
     evaluation_set_id: Mapped[UUID] = mapped_column(
@@ -139,10 +140,18 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         String(32), nullable=False, default=EvaluationRunStatus.queued.value
     )
     config: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    prompt_template_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("prompt_template_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     evaluation_set = relationship("EvaluationSet", back_populates="runs")
+    prompt_template_version = relationship(
+        "PromptTemplateVersion", back_populates="evaluation_runs"
+    )
     results = relationship(
         "EvaluationResult", back_populates="evaluation_run", cascade="all, delete-orphan"
     )

@@ -60,12 +60,40 @@ Response:
   "status": "degraded",
   "timestamp": "2026-05-07T10:00:00Z",
   "dependencies": {
-    "postgres": { "ok": false, "detail": "postgres_unreachable", "metadata": { "dsn": "postgresql+asyncpg://db:5432/rag_app" } },
-    "redis": { "ok": true, "detail": null, "metadata": { "url": "redis://redis:6379/0" } },
-    "rabbitmq": { "ok": true, "detail": null, "metadata": { "url": "amqp://rabbitmq:5672//" } },
-    "minio": { "ok": true, "detail": null, "metadata": { "endpoint": "http://minio:9000", "bucket": "documents" } },
-    "qdrant": { "ok": true, "detail": null, "metadata": { "url": "http://qdrant:6333", "collection": "documents" } },
-    "openai_config": { "ok": true, "detail": null, "metadata": { "api_key_set": true, "embedding_model": "text-embedding-3-small", "llm_model": "gpt-5.4-mini" } }
+    "postgres": {
+      "ok": false,
+      "detail": "postgres_unreachable",
+      "metadata": { "dsn": "postgresql+asyncpg://db:5432/rag_app" }
+    },
+    "redis": {
+      "ok": true,
+      "detail": null,
+      "metadata": { "url": "redis://redis:6379/0" }
+    },
+    "rabbitmq": {
+      "ok": true,
+      "detail": null,
+      "metadata": { "url": "amqp://rabbitmq:5672//" }
+    },
+    "minio": {
+      "ok": true,
+      "detail": null,
+      "metadata": { "endpoint": "http://minio:9000", "bucket": "documents" }
+    },
+    "qdrant": {
+      "ok": true,
+      "detail": null,
+      "metadata": { "url": "http://qdrant:6333", "collection": "documents" }
+    },
+    "openai_config": {
+      "ok": true,
+      "detail": null,
+      "metadata": {
+        "api_key_set": true,
+        "embedding_model": "text-embedding-3-small",
+        "llm_model": "gpt-5.4-mini"
+      }
+    }
   },
   "failed_dependencies": ["postgres"]
 }
@@ -493,6 +521,7 @@ Notes:
 - MMR behavior is configured through `RERANK_MMR_LAMBDA`, `RERANK_MMR_CANDIDATE_COUNT`, and `RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD`.
 - `rerank=false` returns raw retrieval ordering (similarity-only) up to `top_k`.
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
+- The active `answer_generation` prompt template version is resolved per organization and persisted on assistant chat messages for rollback/evaluation traceability.
 - Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `rerank_score`, `rerank_rank`) and an explicit allowed chunk ID list for citation validation.
 - LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
 - Backend requests JSON mode when supported by the selected model/provider and transparently retries without JSON mode for providers that do not support `response_format`.
@@ -566,7 +595,10 @@ Response:
     "selected_count": 5,
     "rerank_applied": true,
     "embedding_model": "text-embedding-3-small",
-    "llm_model": "gpt-5.4-mini"
+    "llm_model": "gpt-5.4-mini",
+    "prompt_template_key": "answer_generation",
+    "prompt_template_version": 3,
+    "prompt_template_version_id": "uuid"
   },
   "created_at": "2026-05-09T10:01:10Z"
 }
@@ -614,6 +646,182 @@ Response:
 Current scaffold behavior:
 
 - Endpoint validates authz and document access, then returns `501` until retrieval/generation pipeline implementation is completed.
+
+## Prompt templates
+
+Prompt templates are organization-scoped product configuration for answer generation, summarization, comparison, citation validation, and agent planning.
+
+Auth and safety:
+
+- All prompt-template endpoints require `owner|admin`.
+- Every query and mutation is scoped to the active organization.
+- Published versions are immutable; edits require a new draft.
+- Rollback creates a new published version copied from the selected published source version.
+- Audit events record safe metadata only: template key, version numbers, state transitions, and request IDs. Raw prompt content is not written to audit logs.
+
+### GET `/prompt-templates`
+
+List prompt templates for the active organization. Default system templates are lazily created on first access.
+
+Query params:
+
+```text
+limit=50
+offset=0
+```
+
+Response:
+
+```json
+{
+  "items": [
+    {
+      "prompt_template_id": "uuid",
+      "organization_id": "uuid",
+      "template_key": "answer_generation",
+      "name": "Answer Generation",
+      "description": "Builds grounded answers from retrieved document chunks.",
+      "category": "rag",
+      "latest_version_number": 3,
+      "active_version_number": 3,
+      "active_version_id": "uuid",
+      "active_state": "published",
+      "active_published_at": "2026-06-05T10:00:00Z",
+      "eval_run_count": 4,
+      "created_at": "2026-06-01T10:00:00Z",
+      "updated_at": "2026-06-05T10:00:00Z"
+    }
+  ],
+  "total": 5,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### GET `/prompt-templates/{template_key}`
+
+Return template metadata, active version, version history, and recent eval results for the active version.
+
+`template_key` values:
+
+```text
+answer_generation
+summarization
+comparison
+citation_validation
+agent_planning
+```
+
+### POST `/prompt-templates/{template_key}/drafts`
+
+Create a draft copied from the active version or a supplied source version.
+
+Request:
+
+```json
+{
+  "source_version_number": 2,
+  "change_note": "Adjust citation instructions"
+}
+```
+
+### PATCH `/prompt-templates/{template_key}/versions/{version_number}`
+
+Update a draft or review version. Published versions return `409`.
+
+Request:
+
+```json
+{
+  "content": "Answer using only {{ context }} for {{ question }}.",
+  "variables": [
+    { "name": "context", "required": true },
+    { "name": "question", "required": true }
+  ],
+  "variable_schema": {
+    "type": "object",
+    "required": ["context", "question"],
+    "properties": {
+      "context": { "type": "string" },
+      "question": { "type": "string" }
+    }
+  },
+  "preview_context": {
+    "context": "Policy excerpt...",
+    "question": "What changed?"
+  },
+  "change_note": "Tighten grounding"
+}
+```
+
+Validation checks:
+
+- Template placeholders must use declared variables.
+- Required variables must be present in `preview_context`.
+- `variable_schema` must be JSON-schema-like object metadata.
+- Safe error messages identify validation categories without returning private document text.
+
+### POST `/prompt-templates/{template_key}/versions/{version_number}/submit-review`
+
+Move a mutable version from `draft` to `review`.
+
+### POST `/prompt-templates/{template_key}/versions/{version_number}/publish`
+
+Publish a mutable version and make it active for the organization.
+
+Request:
+
+```json
+{
+  "change_note": "Approved after regression eval"
+}
+```
+
+### POST `/prompt-templates/{template_key}/rollback`
+
+Restore a previous published version by creating a new active published version.
+
+Request:
+
+```json
+{
+  "version_number": 1,
+  "change_note": "Rollback after eval regression"
+}
+```
+
+### POST `/prompt-templates/{template_key}/preview`
+
+Render a prompt using a version or supplied draft content plus fake context.
+
+Request:
+
+```json
+{
+  "version_number": 3,
+  "context": {
+    "question": "What is the leave policy?",
+    "context": "Policy excerpt..."
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "template_key": "answer_generation",
+  "version_number": 3,
+  "rendered_prompt": "You are a document-grounded assistant...",
+  "context": {
+    "question": "What is the leave policy?"
+  }
+}
+```
+
+### GET `/prompt-templates/{template_key}/versions/{version_number}/eval-results`
+
+List evaluation runs that recorded the selected prompt template version.
 
 ## Search/debug endpoints
 
@@ -831,6 +1039,7 @@ Notes:
 - `config.selected_document_ids` are org-scoped and validated before enqueue.
 - Leave `comparison_targets` empty to evaluate the current live index; send one target via `chunking_profile_id` to pin a profile or two-plus `comparison_targets` to compare strategies on the same dataset.
 - `comparison_targets` accept either `chunking_profile_id` or `chunking_profile_config`; the backend resolves and stores `chunking_strategy`, `profile_version`, and normalized config in `evaluation_runs.config`.
+- The active `answer_generation` prompt template version is resolved when the run is queued and stored as `evaluation_runs.prompt_template_version_id` plus compact `config.prompt_template` metadata.
 - `regression_thresholds` are optional release/eval gates; failing targets are flagged in the run summary but do not change the API contract of the run itself.
 - If duplicate active-run prevention is enabled, concurrent queued/running runs for the same set return `409`.
 - Worker computes per-question metrics (`retrieval_hit_rate`, `retrieval_mrr`, `context_precision`, `context_recall`, `faithfulness_score`, `answer_relevance_score`, `citation_accuracy_score`, `refusal_accuracy`, latency, cost, chunk counts, and not-found rate) and stores them in `evaluation_results.details.metrics`.
@@ -889,7 +1098,7 @@ Response:
     "retrieval_hit_rate": 0.86,
     "retrieval_mrr": 0.79,
     "context_precision": 0.71,
-    "context_recall": 0.80,
+    "context_recall": 0.8,
     "faithfulness_score": 0.81,
     "answer_relevance_score": 0.84,
     "citation_accuracy_score": 0.78,
@@ -999,7 +1208,17 @@ Response:
 
 ```json
 {
-  "steps": ["extract", "clean", "chunk", "embed", "index", "retrieve", "rerank", "generate", "evaluate"]
+  "steps": [
+    "extract",
+    "clean",
+    "chunk",
+    "embed",
+    "index",
+    "retrieve",
+    "rerank",
+    "generate",
+    "evaluate"
+  ]
 }
 ```
 
@@ -1324,26 +1543,26 @@ The endpoint returns the updated effective policy, changed field names, and whet
 
 Recommended:
 
-| Endpoint | Limit |
-|---|---|
-| `/documents/upload` | 20 uploads/hour/user |
-| `/chat` | 60 questions/hour/user |
-| `/evaluations/run` | Admin only |
-| `/retrieval/search` | Admin/debug only |
+| Endpoint            | Limit                  |
+| ------------------- | ---------------------- |
+| `/documents/upload` | 20 uploads/hour/user   |
+| `/chat`             | 60 questions/hour/user |
+| `/evaluations/run`  | Admin only             |
+| `/retrieval/search` | Admin/debug only       |
 
 ## Status codes
 
-| Code | Meaning |
-|---|---|
-| 200 | Success |
-| 201 | Created |
-| 202 | Accepted for async processing |
-| 400 | Invalid request |
-| 401 | Not authenticated |
-| 403 | Not authorized |
-| 404 | Not found or inaccessible |
-| 409 | Conflict |
-| 413 | File too large |
-| 415 | Unsupported file type |
-| 429 | Rate limit exceeded |
-| 500 | Internal error |
+| Code | Meaning                       |
+| ---- | ----------------------------- |
+| 200  | Success                       |
+| 201  | Created                       |
+| 202  | Accepted for async processing |
+| 400  | Invalid request               |
+| 401  | Not authenticated             |
+| 403  | Not authorized                |
+| 404  | Not found or inaccessible     |
+| 409  | Conflict                      |
+| 413  | File too large                |
+| 415  | Unsupported file type         |
+| 429  | Rate limit exceeded           |
+| 500  | Internal error                |

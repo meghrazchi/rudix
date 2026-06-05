@@ -121,8 +121,11 @@ export const queryKeys = {
       ["evaluations", "run", evaluationRunId, params ?? {}] as const,
     runs: (params?: Record<string, unknown>) =>
       ["evaluations", "runs", params ?? {}] as const,
-    compare: (runAId: string, runBId: string, params?: Record<string, unknown>) =>
-      ["evaluations", "compare", runAId, runBId, params ?? {}] as const,
+    compare: (
+      runAId: string,
+      runBId: string,
+      params?: Record<string, unknown>,
+    ) => ["evaluations", "compare", runAId, runBId, params ?? {}] as const,
     setVersions: (evaluationSetId: string) =>
       ["evaluations", "set-versions", evaluationSetId] as const,
     setValidation: (evaluationSetId: string) =>
@@ -159,6 +162,15 @@ export const queryKeys = {
     overrides: ["rag-profiles", "overrides"] as const,
     resolve: (collectionId?: string) =>
       ["rag-profiles", "resolve", collectionId ?? ""] as const,
+  },
+  promptTemplates: {
+    all: ["prompt-templates"] as const,
+    list: (params?: Record<string, unknown>) =>
+      ["prompt-templates", "list", params ?? {}] as const,
+    detail: (templateKey: string) =>
+      ["prompt-templates", "detail", templateKey] as const,
+    evalResults: (templateKey: string, versionNumber: number) =>
+      ["prompt-templates", "eval-results", templateKey, versionNumber] as const,
   },
   topBar: {
     notifications: (endpoint: string) =>
@@ -397,7 +409,9 @@ export async function invalidateAfterMutation(
   }
 
   if (kind === "billing.contact.update") {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.billing.contact });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.billing.contact,
+    });
     return;
   }
 
@@ -409,7 +423,9 @@ export async function invalidateAfterMutation(
     kind === "rag-profile.set-default" ||
     kind === "rag-profile.rollback"
   ) {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.ragProfiles.all,
+    });
     return;
   }
 

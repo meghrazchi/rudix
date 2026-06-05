@@ -100,6 +100,18 @@ const mockChunkingApi = vi.hoisted(() => ({
   previewChunkingProfile: vi.fn(),
 }));
 
+const mockPromptTemplatesApi = vi.hoisted(() => ({
+  createPromptTemplateDraft: vi.fn(),
+  getPromptTemplate: vi.fn(),
+  listPromptTemplateEvalResults: vi.fn(),
+  listPromptTemplates: vi.fn(),
+  previewPromptTemplate: vi.fn(),
+  publishPromptTemplateVersion: vi.fn(),
+  rollbackPromptTemplate: vi.fn(),
+  submitPromptTemplateVersionForReview: vi.fn(),
+  updatePromptTemplateVersion: vi.fn(),
+}));
+
 vi.mock("@/lib/api/team", () => ({
   getTeamCapabilities: () => mockTeamApi.capabilities,
   listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
@@ -124,6 +136,27 @@ vi.mock("@/lib/api/chunking-profiles", () => ({
     mockChunkingApi.setDefaultChunkingProfile(...args),
   previewChunkingProfile: (...args: unknown[]) =>
     mockChunkingApi.previewChunkingProfile(...args),
+}));
+
+vi.mock("@/lib/api/prompt-templates", () => ({
+  createPromptTemplateDraft: (...args: unknown[]) =>
+    mockPromptTemplatesApi.createPromptTemplateDraft(...args),
+  getPromptTemplate: (...args: unknown[]) =>
+    mockPromptTemplatesApi.getPromptTemplate(...args),
+  listPromptTemplateEvalResults: (...args: unknown[]) =>
+    mockPromptTemplatesApi.listPromptTemplateEvalResults(...args),
+  listPromptTemplates: (...args: unknown[]) =>
+    mockPromptTemplatesApi.listPromptTemplates(...args),
+  previewPromptTemplate: (...args: unknown[]) =>
+    mockPromptTemplatesApi.previewPromptTemplate(...args),
+  publishPromptTemplateVersion: (...args: unknown[]) =>
+    mockPromptTemplatesApi.publishPromptTemplateVersion(...args),
+  rollbackPromptTemplate: (...args: unknown[]) =>
+    mockPromptTemplatesApi.rollbackPromptTemplate(...args),
+  submitPromptTemplateVersionForReview: (...args: unknown[]) =>
+    mockPromptTemplatesApi.submitPromptTemplateVersionForReview(...args),
+  updatePromptTemplateVersion: (...args: unknown[]) =>
+    mockPromptTemplatesApi.updatePromptTemplateVersion(...args),
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -208,6 +241,73 @@ const INGESTION_FIXTURE: IngestionDefaults = {
   default_metadata_tags: ["internal"],
 };
 
+const PROMPT_TEMPLATE_FIXTURE = {
+  prompt_template_id: "00000000-0000-0000-0000-000000000101",
+  organization_id: "00000000-0000-0000-0000-000000000001",
+  template_key: "answer_generation",
+  name: "Answer Generation",
+  description: "Generates grounded answers.",
+  category: "rag",
+  latest_version_number: 1,
+  active_version_number: 1,
+  active_version_id: "00000000-0000-0000-0000-000000000201",
+  active_state: "published",
+  active_published_at: "2026-06-01T08:00:00Z",
+  eval_run_count: 1,
+  created_by_id: null,
+  updated_by_id: null,
+  created_at: "2026-06-01T08:00:00Z",
+  updated_at: "2026-06-01T08:00:00Z",
+} as const;
+
+const PROMPT_VERSION_FIXTURE = {
+  version_id: "00000000-0000-0000-0000-000000000201",
+  prompt_template_id: "00000000-0000-0000-0000-000000000101",
+  template_key: "answer_generation",
+  version_number: 1,
+  state: "published",
+  is_active: true,
+  content: "Answer with {{ question }}.",
+  variables: [{ name: "question", required: true }],
+  variable_schema: {
+    type: "object",
+    required: ["question"],
+    properties: { question: { type: "string" } },
+  },
+  preview_context: { question: "What is Rudix?" },
+  change_note: "System default",
+  source_version_number: null,
+  created_by_id: null,
+  reviewed_by_id: null,
+  published_by_id: null,
+  reviewed_at: null,
+  published_at: "2026-06-01T08:00:00Z",
+  created_at: "2026-06-01T08:00:00Z",
+  updated_at: "2026-06-01T08:00:00Z",
+} as const;
+
+const PROMPT_EVAL_RESULTS_FIXTURE = {
+  prompt_template_id: PROMPT_TEMPLATE_FIXTURE.prompt_template_id,
+  template_key: "answer_generation",
+  version_number: 1,
+  items: [
+    {
+      evaluation_run_id: "00000000-0000-0000-0000-000000000301",
+      evaluation_set_id: "00000000-0000-0000-0000-000000000401",
+      run_name: "Regression run",
+      status: "completed",
+      summary: { overall_score: 0.92 },
+      created_at: "2026-06-01T09:00:00Z",
+      updated_at: "2026-06-01T09:05:00Z",
+      started_at: "2026-06-01T09:00:00Z",
+      completed_at: "2026-06-01T09:05:00Z",
+    },
+  ],
+  total: 1,
+  limit: 20,
+  offset: 0,
+} as const;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function renderTab() {
@@ -263,6 +363,15 @@ describe("OrganizationSettingsTab", () => {
     mockChunkingApi.updateChunkingProfile.mockReset();
     mockChunkingApi.setDefaultChunkingProfile.mockReset();
     mockChunkingApi.previewChunkingProfile.mockReset();
+    mockPromptTemplatesApi.createPromptTemplateDraft.mockReset();
+    mockPromptTemplatesApi.getPromptTemplate.mockReset();
+    mockPromptTemplatesApi.listPromptTemplateEvalResults.mockReset();
+    mockPromptTemplatesApi.listPromptTemplates.mockReset();
+    mockPromptTemplatesApi.previewPromptTemplate.mockReset();
+    mockPromptTemplatesApi.publishPromptTemplateVersion.mockReset();
+    mockPromptTemplatesApi.rollbackPromptTemplate.mockReset();
+    mockPromptTemplatesApi.submitPromptTemplateVersionForReview.mockReset();
+    mockPromptTemplatesApi.updatePromptTemplateVersion.mockReset();
     mockChunkingApi.getChunkingStrategyCatalog.mockResolvedValue({
       strategies: [
         {
@@ -329,6 +438,26 @@ describe("OrganizationSettingsTab", () => {
       ],
       warnings: [],
     });
+    mockPromptTemplatesApi.listPromptTemplates.mockResolvedValue({
+      items: [PROMPT_TEMPLATE_FIXTURE],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    mockPromptTemplatesApi.getPromptTemplate.mockResolvedValue({
+      template: PROMPT_TEMPLATE_FIXTURE,
+      active_version: PROMPT_VERSION_FIXTURE,
+      versions: {
+        prompt_template_id: PROMPT_TEMPLATE_FIXTURE.prompt_template_id,
+        template_key: "answer_generation",
+        items: [PROMPT_VERSION_FIXTURE],
+        total: 1,
+      },
+      eval_results: PROMPT_EVAL_RESULTS_FIXTURE,
+    });
+    mockPromptTemplatesApi.listPromptTemplateEvalResults.mockResolvedValue(
+      PROMPT_EVAL_RESULTS_FIXTURE,
+    );
   });
 
   // ── Organization identity ─────────────────────────────────────────────────

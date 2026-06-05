@@ -52,6 +52,7 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "cost_usd IS NULL OR cost_usd >= 0", name="chat_messages_cost_non_negative"
         ),
         Index("idx_chat_messages_session", "chat_session_id", "created_at"),
+        Index("idx_chat_messages_prompt_template_version", "prompt_template_version_id"),
     )
 
     chat_session_id: Mapped[UUID] = mapped_column(
@@ -67,8 +68,14 @@ class ChatMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     token_input_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     token_output_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    prompt_template_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("prompt_template_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     session = relationship("ChatSession", back_populates="messages")
+    prompt_template_version = relationship("PromptTemplateVersion", back_populates="chat_messages")
     citations = relationship(
         "Citation", back_populates="chat_message", cascade="all, delete-orphan"
     )

@@ -38,6 +38,7 @@ from app.domains.evaluations.services.evaluation_metrics_service import (
     EvaluationQuestionMetrics,
     RetrievedMetricChunk,
 )
+from app.domains.prompt_templates.repositories.prompt_templates import PromptTemplateRepository
 from app.models.document import Document
 from app.models.enums import EvaluationRunStatus
 from app.models.evaluation import EvaluationQuestion
@@ -51,6 +52,7 @@ _evaluation_repository = EvaluationRepository()
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
+_prompt_template_repository = PromptTemplateRepository()
 _citation_service = CitationService()
 _confidence_service = ConfidenceService()
 _evaluation_metrics_service = EvaluationMetricsService()
@@ -439,10 +441,16 @@ def _rerank_chunks(
     return selected_chunks
 
 
-def _build_prompt(*, question: str, chunks: list[RetrievedChunk]) -> str:
+def _build_prompt(
+    *,
+    question: str,
+    chunks: list[RetrievedChunk],
+    template: str | None = None,
+) -> str:
     return _prompt_service.build_prompt(
         question=question,
         not_found_answer=_NOT_FOUND_ANSWER,
+        template=template,
         chunks=[
             PromptContextChunk(
                 document_id=str(chunk.document_id),
@@ -875,6 +883,8 @@ async def _evaluate_question_pipeline_async(
     config: EvaluationRunConfig,
     llm_service: LLMService,
     index_version: str | None = None,
+    prompt_template_content: str | None = None,
+    prompt_template_metadata: dict[str, Any] | None = None,
 ) -> EvaluationQuestionComputation:
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
@@ -946,7 +956,15 @@ async def _evaluate_question_pipeline_async(
         confidence_explanation = confidence_result.explanation
 
     prompt_started = perf_counter()
-    prompt = _build_prompt(question=question_text, chunks=selected_chunks) if not not_found else ""
+    prompt = (
+        _build_prompt(
+            question=question_text,
+            chunks=selected_chunks,
+            template=prompt_template_content,
+        )
+        if not not_found
+        else ""
+    )
     latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
 
     answer = _NOT_FOUND_ANSWER
@@ -1095,6 +1113,8 @@ async def _evaluate_question_pipeline_async(
         "metric_options": config.metric_options.as_dict(),
         "metrics": question_metrics.as_dict(),
     }
+    if prompt_template_metadata is not None:
+        details["prompt_template"] = dict(prompt_template_metadata)
     return EvaluationQuestionComputation(
         generated_answer=answer,
         retrieval_score=retrieval_score,
@@ -1143,6 +1163,27 @@ async def _run_evaluation_async(
         run_config = _parse_run_config(
             evaluation_run.config if isinstance(evaluation_run.config, dict) else {}
         )
+        prompt_template_content: str | None = None
+        prompt_template_metadata: dict[str, Any] | None = None
+        if evaluation_run.prompt_template_version_id is not None:
+            prompt_version = await _prompt_template_repository.get_version_by_id(
+                session,
+                version_id=evaluation_run.prompt_template_version_id,
+            )
+            if prompt_version is not None:
+                prompt_template_content = prompt_version.content
+                raw_config = (
+                    evaluation_run.config if isinstance(evaluation_run.config, dict) else {}
+                )
+                config_prompt_template = raw_config.get("prompt_template")
+                prompt_template_metadata = (
+                    dict(config_prompt_template)
+                    if isinstance(config_prompt_template, dict)
+                    else {
+                        "version_id": str(prompt_version.id),
+                        "version_number": prompt_version.version_number,
+                    }
+                )
         llm_service = LLMService(model_name=run_config.model_name)
         corpus_document_ids = _resolve_corpus_document_ids(
             selected_document_ids=run_config.selected_document_ids,
@@ -1237,6 +1278,8 @@ async def _run_evaluation_async(
                         config=run_config,
                         llm_service=llm_service,
                         index_version=target_index_version,
+                        prompt_template_content=prompt_template_content,
+                        prompt_template_metadata=prompt_template_metadata,
                     )
                 except Exception as exc:
                     question_failure_count += 1
@@ -1419,6 +1462,8 @@ async def _run_evaluation_async(
         metrics_summary["best_by_use_case"] = best_by_use_case
         metrics_summary["regressions_count"] = regression_count
         metrics_summary["regression_failed"] = regression_failed
+        if prompt_template_metadata is not None:
+            metrics_summary["prompt_template"] = dict(prompt_template_metadata)
         if comparison_payload is not None:
             metrics_summary["comparison"] = comparison_payload
 

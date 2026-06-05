@@ -27,7 +27,7 @@ flowchart TD
         M[Embed Query]
         N[Retrieve Top-K from Qdrant]
         O[Rerank Chunks]
-        P[Build Prompt]
+        P[Resolve Prompt Version + Build Prompt]
         Q[LLM Call]
         R[Validate Citations]
         S[Compute Confidence]
@@ -91,11 +91,11 @@ flowchart LR
 
 ## Supported files
 
-| File type | Extractor |
-|---|---|
-| PDF | PyMuPDF |
-| TXT | Native text reader |
-| DOCX | python-docx |
+| File type | Extractor          |
+| --------- | ------------------ |
+| PDF       | PyMuPDF            |
+| TXT       | Native text reader |
+| DOCX      | python-docx        |
 
 ## Text extraction strategy
 
@@ -118,19 +118,19 @@ flowchart LR
 
 ## Chunking strategies
 
-The chunking layer uses a registry-based strategy pattern.  Each strategy is
+The chunking layer uses a registry-based strategy pattern. Each strategy is
 chosen based on document type and structure; all share the same token-size and
 overlap settings.
 
-| Strategy | When used | Key behaviour |
-|---|---|---|
-| `token_recursive` | Default fallback | Sliding-window token chunking with page-separator tokens |
-| `token_fixed` | Benchmarking | Fixed-size windows, no inter-page separators |
-| `paragraph_recursive` | Short articles, FAQs | Paragraph-aligned boundaries |
-| `sentence_window` | Conversational text | Sentence-level grouping with overlap |
-| `page_aware` | PDFs, OCR documents | Never merges across page boundaries; preserves page provenance for citations |
-| `heading_aware` | DOCX, Markdown, structured text | Flushes at heading boundaries; treats tables/code/lists as atomic blocks; records `section_path` |
-| `adaptive_hybrid` | Recommended production default | Selects the best strategy automatically (see below) |
+| Strategy              | When used                       | Key behaviour                                                                                    |
+| --------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `token_recursive`     | Default fallback                | Sliding-window token chunking with page-separator tokens                                         |
+| `token_fixed`         | Benchmarking                    | Fixed-size windows, no inter-page separators                                                     |
+| `paragraph_recursive` | Short articles, FAQs            | Paragraph-aligned boundaries                                                                     |
+| `sentence_window`     | Conversational text             | Sentence-level grouping with overlap                                                             |
+| `page_aware`          | PDFs, OCR documents             | Never merges across page boundaries; preserves page provenance for citations                     |
+| `heading_aware`       | DOCX, Markdown, structured text | Flushes at heading boundaries; treats tables/code/lists as atomic blocks; records `section_path` |
+| `adaptive_hybrid`     | Recommended production default  | Selects the best strategy automatically (see below)                                              |
 
 ### Adaptive hybrid selection
 
@@ -203,11 +203,11 @@ The query pipeline runs when a user asks a question.
 5. Backend searches Qdrant with metadata filters.
 6. Backend retrieves top-k candidate chunks.
 7. Backend re-ranks chunks.
-8. Backend builds a context block.
+8. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
 9. Backend calls the LLM.
 10. Backend validates citations.
 11. Backend computes confidence score.
-12. Backend stores the answer and citations.
+12. Backend stores the answer, citations, and prompt template version ID.
 13. Backend returns the answer to frontend.
 
 ### Query Mermaid diagram
@@ -221,11 +221,11 @@ flowchart TD
     E --> F[Qdrant Search with Filters]
     F --> G[Top-K Chunks]
     G --> H[Rerank]
-    H --> I[Prompt Builder]
+    H --> I[Resolve Prompt Version + Prompt Builder]
     I --> J[LLM Call]
     J --> K[Citation Validation]
     K --> L[Confidence Score]
-    L --> M[Persist Chat + Citations]
+    L --> M[Persist Chat + Citations + Prompt Version]
     M --> N[Return Response to Next.js]
 ```
 
@@ -334,7 +334,7 @@ Confidence combines:
 Default weighted formula:
 
 ```text
-confidence = 
+confidence =
   0.35 * top_similarity +
   0.20 * avg_top_similarity +
   0.20 * rerank_score +
@@ -350,17 +350,28 @@ Runtime behavior:
   - `CONFIDENCE_MEDIUM_THRESHOLD`
   - `CONFIDENCE_HIGH_THRESHOLD`
 
+## Prompt template versioning
+
+Prompt templates are organization-scoped configuration, not ad-hoc runtime strings.
+
+- Supported template keys are `answer_generation`, `summarization`, `comparison`, `citation_validation`, and `agent_planning`.
+- Prompt versions move through `draft`, `review`, and `published` states.
+- Published versions are immutable; rollback creates a new published version copied from the selected previous published version.
+- Query, evaluation, and agent runs store the prompt template version ID they used.
+- The management UI renders previews only with fake context supplied by admins; raw private document text is not required for prompt editing.
+- Prompt mutations emit audit events with safe metadata only.
+
 ## Evaluation pipeline
 
 ```mermaid
 flowchart LR
     A[Evaluation Dataset] --> B[Run Query Pipeline]
     B --> C[Collect Retrieved Chunks]
-    B --> D[Collect Generated Answer]
+    B --> D[Collect Generated Answer + Prompt Version]
     C --> E[Retrieval Metrics]
     D --> F[Answer Metrics]
     D --> G[Citation Metrics]
-    E --> H[Evaluation Report]
+    E --> H[Evaluation Report by Prompt Version]
     F --> H
     G --> H
     H --> I[Store in PostgreSQL]
@@ -369,14 +380,14 @@ flowchart LR
 
 ## Evaluation metrics
 
-| Metric | Description |
-|---|---|
-| Retrieval hit rate | Whether expected source appears in top-k |
-| Context precision | Whether retrieved chunks are relevant |
-| Context recall | Whether enough relevant context was retrieved |
-| Faithfulness | Whether answer is supported by context |
-| Answer relevance | Whether answer addresses the question |
-| Citation accuracy | Whether citations support claims |
-| Refusal accuracy | Whether system refuses when answer is not in docs |
-| Latency | Time to answer |
-| Cost | Embedding + LLM cost |
+| Metric             | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| Retrieval hit rate | Whether expected source appears in top-k          |
+| Context precision  | Whether retrieved chunks are relevant             |
+| Context recall     | Whether enough relevant context was retrieved     |
+| Faithfulness       | Whether answer is supported by context            |
+| Answer relevance   | Whether answer addresses the question             |
+| Citation accuracy  | Whether citations support claims                  |
+| Refusal accuracy   | Whether system refuses when answer is not in docs |
+| Latency            | Time to answer                                    |
+| Cost               | Embedding + LLM cost                              |

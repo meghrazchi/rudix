@@ -14,6 +14,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
 from app.core.logging import log_query_event
+from app.core.safety_guardrails import PromptInjectionGuard
 from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
@@ -46,7 +47,6 @@ from app.domains.chat.schemas.share import (
     CreateChatShareRequest,
     SharedSessionResponse,
 )
-from app.core.safety_guardrails import PromptInjectionGuard
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
@@ -61,7 +61,10 @@ from app.domains.chat.services.query_retrieval_service import (
     RetrievedCandidate,
 )
 from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
-from app.models.enums import ChatRole, OrganizationRole
+from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
+from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
+from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -76,6 +79,7 @@ _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
+_prompt_template_service = PromptTemplateService()
 _citation_service = CitationService()
 _confidence_service = ConfidenceService()
 _llm_service = LLMService()
@@ -208,12 +212,17 @@ def _rerank_chunks(
 
 
 def _build_prompt(
-    *, question: str, chunks: list[RetrievedChunk], answer_language: str | None = None
+    *,
+    question: str,
+    chunks: list[RetrievedChunk],
+    answer_language: str | None = None,
+    template: str | None = None,
 ) -> str:
     return _prompt_service.build_prompt(
         question=question,
         not_found_answer=_NOT_FOUND_ANSWER,
         answer_language=answer_language,
+        template=template,
         chunks=[
             PromptContextChunk(
                 document_id=str(chunk.document_id),
@@ -228,6 +237,25 @@ def _build_prompt(
             for chunk in chunks
         ],
     )
+
+
+async def _resolve_answer_prompt_version(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+) -> PromptTemplateVersion:
+    try:
+        return await _prompt_template_service.resolve_active_version(
+            db_session,
+            organization_id=organization_id,
+            template_key=PromptTemplateKey.answer_generation.value,
+        )
+    except PromptTemplateValidationError as exc:
+        raise _safe_http_error(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="prompt_template_unavailable",
+            message="Answer prompt template is unavailable",
+        ) from exc
 
 
 def _to_confidence_signals(
@@ -605,6 +633,15 @@ async def query_chat(
             title=default_title,
         )
 
+    answer_prompt_version: PromptTemplateVersion | None = None
+    answer_prompt_template: str | None = None
+    if payload.scope_mode != "none":
+        answer_prompt_version = await _resolve_answer_prompt_version(
+            db_session,
+            organization_id=organization_id,
+        )
+        answer_prompt_template = answer_prompt_version.content
+
     injection_check = _injection_guard.evaluate_request(
         objective="",
         question=payload.question,
@@ -812,6 +849,7 @@ async def query_chat(
                 question=payload.question,
                 chunks=selected_chunks,
                 answer_language=answer_language_used,
+                template=answer_prompt_template,
             )
             if not not_found
             else ""
@@ -937,6 +975,9 @@ async def query_chat(
             token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
             token_output_count=llm_completion_tokens,
             cost_usd=llm_cost_usd,
+            prompt_template_version_id=answer_prompt_version.id
+            if answer_prompt_version is not None
+            else None,
         )
 
         for citation in citations:
@@ -977,6 +1018,13 @@ async def query_chat(
                 "rerank_applied": payload.rerank,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
+                "prompt_template": {
+                    "key": PromptTemplateKey.answer_generation.value,
+                    "version_number": answer_prompt_version.version_number,
+                    "version_id": str(answer_prompt_version.id),
+                }
+                if answer_prompt_version is not None
+                else None,
             },
         )
         await audit_log_service.record(
@@ -995,6 +1043,12 @@ async def query_chat(
                 "retrieval_count": len(retrieved_chunks),
                 "selected_count": len(selected_chunks),
                 "rerank_applied": payload.rerank,
+                "prompt_template_key": PromptTemplateKey.answer_generation.value
+                if answer_prompt_version is not None
+                else None,
+                "prompt_template_version": answer_prompt_version.version_number
+                if answer_prompt_version is not None
+                else None,
                 "status_code": status.HTTP_200_OK,
             },
         )
@@ -1068,6 +1122,15 @@ async def query_chat(
             llm_model=llm_model,
             detected_language=detected_language,
             answer_language_used=answer_language_used,
+            prompt_template_key=PromptTemplateKey.answer_generation.value
+            if answer_prompt_version is not None
+            else None,
+            prompt_template_version=answer_prompt_version.version_number
+            if answer_prompt_version is not None
+            else None,
+            prompt_template_version_id=str(answer_prompt_version.id)
+            if answer_prompt_version is not None
+            else None,
         ),
         created_at=assistant_message.created_at,
     )

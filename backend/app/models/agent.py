@@ -45,6 +45,7 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_agent_runs_org_status", "organization_id", "status"),
         Index("idx_agent_runs_org_user_created", "organization_id", "user_id", "created_at"),
         Index("idx_agent_runs_trace_request_id", "trace_request_id"),
+        Index("idx_agent_runs_prompt_template_version", "prompt_template_version_id"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -60,6 +61,11 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     surface: Mapped[str] = mapped_column(String(16), nullable=False, default="api")
     objective: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    prompt_template_version_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("prompt_template_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     max_steps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_parallel_tool_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
     budget_json: Mapped[dict] = mapped_column("budget", JSON, nullable=False, default=dict)
@@ -80,6 +86,7 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     organization = relationship("Organization", back_populates="agent_runs")
     user = relationship("User", back_populates="agent_runs")
+    prompt_template_version = relationship("PromptTemplateVersion", back_populates="agent_runs")
     steps = relationship("AgentStep", back_populates="agent_run", cascade="all, delete-orphan")
     tool_calls = relationship(
         "AgentToolCall", back_populates="agent_run", cascade="all, delete-orphan"

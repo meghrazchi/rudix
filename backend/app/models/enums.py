@@ -178,3 +178,17 @@ class RagSafetyMode(StrEnum):
     strict = "strict"
     standard = "standard"
     permissive = "permissive"
+
+
+class PromptTemplateKey(StrEnum):
+    answer_generation = "answer_generation"
+    summarization = "summarization"
+    comparison = "comparison"
+    citation_validation = "citation_validation"
+    agent_planning = "agent_planning"
+
+
+class PromptTemplateVersionState(StrEnum):
+    draft = "draft"
+    review = "review"
+    published = "published"

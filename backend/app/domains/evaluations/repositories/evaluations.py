@@ -480,9 +480,7 @@ class EvaluationRepository:
             raw_tags = row.get("tags")
             tags: list[str] = []
             if raw_tags:
-                tags = [
-                    t.strip() for t in str(raw_tags).split(",") if t.strip()
-                ]
+                tags = [t.strip() for t in str(raw_tags).split(",") if t.strip()]
 
             eq = EvaluationQuestion(
                 evaluation_set_id=evaluation_set_id,
@@ -586,6 +584,7 @@ class EvaluationRepository:
         evaluation_set_id: UUID,
         status: str = EvaluationRunStatus.queued.value,
         config: dict | None = None,
+        prompt_template_version_id: UUID | None = None,
         started_at: datetime | None = None,
         completed_at: datetime | None = None,
     ) -> EvaluationRun:
@@ -593,6 +592,7 @@ class EvaluationRepository:
             evaluation_set_id=evaluation_set_id,
             status=status,
             config=config or {},
+            prompt_template_version_id=prompt_template_version_id,
             started_at=started_at,
             completed_at=completed_at,
         )
