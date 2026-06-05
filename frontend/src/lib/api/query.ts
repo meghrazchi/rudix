@@ -251,6 +251,8 @@ export const queryKeys = {
     ["connectors", connectionId, "sync-runs"] as const,
   connectorSyncRun: (runId: string) =>
     ["connectors", "sync-runs", runId] as const,
+  connectorProviders: ["connectors", "providers"] as const,
+  connectorProvider: (key: string) => ["connectors", "providers", key] as const,
 };
 
 export type FrontendMutationKind =

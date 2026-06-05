@@ -158,6 +158,29 @@ def _parse_payload(cleartext: str, auth_type: str) -> ConnectorCredentialPayload
     raise ConnectorCredentialError("connector credential auth type is unsupported")
 
 
+class CredentialVault:
+    """Thin synchronous wrapper used by the sync engine to decrypt stored credentials.
+
+    The engine holds a resolved ConnectorCredential ORM object (already fetched from
+    the DB) and needs the decrypted dict to pass to the adapter.  This class provides
+    that without requiring another async DB round-trip.
+    """
+
+    def __init__(self, *, cipher: CredentialCipher | None = None) -> None:
+        self.cipher = cipher or CredentialCipher()
+
+    def decrypt(self, credential: ConnectorCredential) -> dict:
+        """Decrypt a ConnectorCredential and return its payload as a plain dict."""
+        if not credential.encrypted_payload:
+            raise ConnectorCredentialError("credential has no stored payload")
+        try:
+            cleartext = self.cipher.decrypt(credential.encrypted_payload)
+        except Exception as exc:
+            raise ConnectorCredentialError(f"credential decryption failed: {exc}") from exc
+        payload = _parse_payload(cleartext, credential.auth_type)
+        return payload.model_dump()
+
+
 def _payload_scopes(payload: ConnectorCredentialPayload) -> list[str]:
     if isinstance(payload, OAuthCredentialPayload):
         return payload.scopes

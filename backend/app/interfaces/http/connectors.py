@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
+from app.domains.connectors.schemas.connectors import ProviderRegistration
 from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
 from app.domains.connectors.services.oauth_lifecycle import (
     ConnectorOAuthLifecycleService,
@@ -18,6 +19,7 @@ from app.domains.connectors.services.oauth_lifecycle import (
     OAuthRefreshError,
     OAuthStateValidationError,
 )
+from app.domains.connectors.services.provider_registry import default_provider_registry
 from app.models.connector import ConnectorConnection
 from app.models.enums import OrganizationRole
 
@@ -59,6 +61,40 @@ class ConnectorConnectionResponse(BaseModel):
     auth_config: dict[str, Any]
 
 
+class ProviderRateLimitResponse(BaseModel):
+    name: str
+    max_requests: int
+    window_seconds: int
+    burst: int | None = None
+
+
+class ProviderExportFormatResponse(BaseModel):
+    format: str
+    mime_type: str
+
+
+class ProviderCapabilitiesResponse(BaseModel):
+    auth_type: str
+    capabilities: list[str]
+    rate_limits: list[ProviderRateLimitResponse]
+    export_formats: list[ProviderExportFormatResponse]
+    max_page_size: int | None = None
+    notes: str | None = None
+
+
+class ProviderSummaryResponse(BaseModel):
+    key: str
+    display_name: str
+    enabled_by_default: bool
+    has_oauth: bool
+    capabilities: ProviderCapabilitiesResponse
+
+
+class ProvidersListResponse(BaseModel):
+    items: list[ProviderSummaryResponse]
+    total: int
+
+
 class ConnectorDiagnosticsResponse(BaseModel):
     connection_id: str
     provider_key: str
@@ -88,6 +124,35 @@ class ConnectorDisconnectResponse(BaseModel):
 
 def _service() -> ConnectorOAuthLifecycleService:
     return ConnectorOAuthLifecycleService(token_client=HttpOAuthTokenClient())
+
+
+def _provider_summary(reg: ProviderRegistration) -> ProviderSummaryResponse:
+    caps = reg.capabilities
+    return ProviderSummaryResponse(
+        key=reg.key,
+        display_name=reg.display_name,
+        enabled_by_default=reg.enabled_by_default,
+        has_oauth=reg.oauth is not None,
+        capabilities=ProviderCapabilitiesResponse(
+            auth_type=caps.auth_type.value,
+            capabilities=sorted(c.value for c in caps.capabilities),
+            rate_limits=[
+                ProviderRateLimitResponse(
+                    name=rl.name,
+                    max_requests=rl.max_requests,
+                    window_seconds=rl.window_seconds,
+                    burst=rl.burst,
+                )
+                for rl in caps.rate_limits
+            ],
+            export_formats=[
+                ProviderExportFormatResponse(format=ef.format, mime_type=ef.mime_type)
+                for ef in caps.export_formats
+            ],
+            max_page_size=caps.max_page_size,
+            notes=caps.notes,
+        ),
+    )
 
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -125,6 +190,37 @@ def _connection_response(connection: ConnectorConnection) -> ConnectorConnection
         status=connection.status,
         auth_config=auth_config,
     )
+
+
+@router.get("/providers", response_model=ProvidersListResponse)
+async def list_providers(
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+) -> ProvidersListResponse:
+    """Return all registered providers with their capabilities.
+
+    The frontend uses this to render capability badges and conditionally show
+    setup fields (e.g. export-format selector, webhook toggle).
+    """
+    del principal
+    registrations = default_provider_registry.list()
+    items = [_provider_summary(reg) for reg in registrations]
+    return ProvidersListResponse(items=items, total=len(items))
+
+
+@router.get("/providers/{provider_key}", response_model=ProviderSummaryResponse)
+async def get_provider(
+    provider_key: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+) -> ProviderSummaryResponse:
+    """Return a single provider registration with full capability detail."""
+    del principal
+    reg = default_provider_registry.get(provider_key.strip().lower())
+    if reg is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Provider not found: {provider_key!r}",
+        )
+    return _provider_summary(reg)
 
 
 @router.post("/oauth/connect", response_model=OAuthConnectResponse)
