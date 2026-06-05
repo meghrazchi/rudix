@@ -7,6 +7,8 @@ UsageGranularity = Literal["day", "week", "month"]
 AuditResultFilter = Literal["all", "success", "failure", "unknown"]
 AuditEventResult = Literal["success", "failure", "unknown"]
 AuditExportFormat = Literal["csv", "json"]
+UsageExportFormat = Literal["csv", "json"]
+FeatureArea = Literal["chat", "agent", "evaluation", "pipeline", "api", "all"]
 
 
 class UsageSummaryRange(BaseModel):
@@ -117,3 +119,67 @@ class AgentDiagnosticsResponse(BaseModel):
     series: list[AgentDiagnosticsPointResponse]
     errors_by_code: dict[str, int] = Field(default_factory=dict)
     audit_actions: dict[str, int] = Field(default_factory=dict)
+
+
+# ── Usage Dashboard (F153) ────────────────────────────────────────────────────
+
+
+class TopUserUsageResponse(BaseModel):
+    user_id: str
+    questions: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+
+
+class TopModelUsageResponse(BaseModel):
+    model_name: str
+    event_count: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+
+
+class UsageDashboardTotalsResponse(BaseModel):
+    questions_asked: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+    active_users: int
+    documents: int
+    indexed_documents: int
+    total_chunks: int
+    indexing_jobs: int
+    failed_indexing_jobs: int
+    evaluation_runs: int
+    agent_runs: int
+    api_calls: int
+    avg_confidence: float | None = None
+    avg_latency_ms: float | None = None
+    latency_score: float | None = None
+
+
+class UsageDashboardPointResponse(BaseModel):
+    period_start: date
+    period_end: date
+    questions_asked: int
+    input_tokens: int
+    output_tokens: int
+    estimated_cost_usd: float
+    active_users: int
+    agent_runs: int
+    evaluation_runs: int
+    avg_confidence: float | None = None
+    avg_latency_ms: float | None = None
+
+
+class UsageDashboardResponse(BaseModel):
+    organization_id: str
+    range: UsageSummaryRange
+    granularity: UsageGranularity
+    is_cost_estimate: bool
+    totals: UsageDashboardTotalsResponse
+    series: list[UsageDashboardPointResponse]
+    top_users: list[TopUserUsageResponse]
+    top_models: list[TopModelUsageResponse]
+    feature_area_breakdown: dict[str, int] = Field(default_factory=dict)

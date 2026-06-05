@@ -11,6 +11,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_roles
@@ -25,13 +26,23 @@ from app.domains.admin.schemas.admin import (
     AuditLogListItemResponse,
     AuditLogListResponse,
     AuditResultFilter,
+    FeatureArea,
+    TopModelUsageResponse,
+    TopUserUsageResponse,
+    UsageDashboardPointResponse,
+    UsageDashboardResponse,
+    UsageDashboardTotalsResponse,
+    UsageExportFormat,
     UsageGranularity,
     UsageSummaryPointResponse,
     UsageSummaryRange,
     UsageSummaryResponse,
     UsageSummaryTotalsResponse,
 )
+from dataclasses import field as dataclass_field
+
 from app.domains.admin.services.audit_service import sanitize_metadata
+from app.models.document import Document
 from app.models.enums import OrganizationRole
 from app.models.usage import AuditLog, UsageEvent
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -393,6 +404,381 @@ def _aggregate_agent_diagnostics(
         avg_confidence=total.average_confidence(),
     )
     return totals, series, errors_by_code
+
+
+_FEATURE_AREA_PREFIXES: dict[str, str] = {
+    "agent": "agent",
+    "evaluation": "evaluation",
+    "pipeline": "pipeline",
+    "api": "api",
+}
+
+_FEATURE_AREA_TO_PREFIX: dict[str, str] = {
+    "chat": "chat",
+    "agent": "agent",
+    "evaluation": "evaluation",
+    "pipeline": "pipeline",
+    "api": "api",
+}
+
+
+def _event_feature_area(event_type: str) -> str:
+    if not event_type:
+        return "other"
+    prefix = event_type.split(".")[0]
+    return prefix if prefix in _FEATURE_AREA_TO_PREFIX else "other"
+
+
+@dataclass
+class _DashboardBucketAccumulator:
+    period_start: date
+    period_end: date
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost_usd: Decimal = Decimal("0")
+    questions_asked: int = 0
+    agent_runs: int = 0
+    evaluation_runs: int = 0
+    indexing_jobs: int = 0
+    failed_indexing_jobs: int = 0
+    api_calls: int = 0
+    user_ids: set = dataclass_field(default_factory=set)
+    confidence_values: list[float] | None = None
+    latency_values: list[float] | None = None
+
+    def add_event(self, event: UsageEvent) -> None:
+        self.input_tokens += max(0, int(event.input_tokens or 0))
+        self.output_tokens += max(0, int(event.output_tokens or 0))
+        self.estimated_cost_usd += event.cost_usd or Decimal("0")
+        if event.user_id is not None:
+            self.user_ids.add(str(event.user_id))
+
+        event_type = event.event_type or ""
+        area = _event_feature_area(event_type)
+        metadata = event.metadata_json if isinstance(event.metadata_json, dict) else {}
+
+        if area == "agent" and event_type == AGENT_RUNTIME_EVENT_TYPE:
+            self.agent_runs += 1
+        elif area == "evaluation":
+            self.evaluation_runs += 1
+        elif area == "pipeline":
+            if _extract_text(metadata, "status") == "failed":
+                self.failed_indexing_jobs += 1
+            else:
+                self.indexing_jobs += 1
+        elif area == "api":
+            self.api_calls += 1
+        else:
+            self.questions_asked += 1
+
+        confidence = _extract_numeric(metadata, CONFIDENCE_KEYS)
+        if confidence is not None:
+            if self.confidence_values is None:
+                self.confidence_values = []
+            self.confidence_values.append(confidence)
+
+        latency = _extract_numeric(metadata, LATENCY_KEYS)
+        if latency is not None:
+            if self.latency_values is None:
+                self.latency_values = []
+            self.latency_values.append(max(0.0, latency))
+
+    def active_users(self) -> int:
+        return len(self.user_ids)
+
+    def average_confidence(self) -> float | None:
+        if not self.confidence_values:
+            return None
+        return sum(self.confidence_values) / len(self.confidence_values)
+
+    def average_latency_ms(self) -> float | None:
+        if not self.latency_values:
+            return None
+        return sum(self.latency_values) / len(self.latency_values)
+
+
+def _aggregate_dashboard(
+    events: list[UsageEvent],
+    *,
+    granularity: UsageGranularity,
+) -> tuple[_DashboardBucketAccumulator, list[UsageDashboardPointResponse]]:
+    buckets: dict[date, _DashboardBucketAccumulator] = {}
+    total = _DashboardBucketAccumulator(period_start=date.min, period_end=date.min)
+
+    for event in events:
+        bucket_start = _bucket_period_start(event.created_at, granularity)
+        bucket = buckets.get(bucket_start)
+        if bucket is None:
+            bucket = _DashboardBucketAccumulator(
+                period_start=bucket_start,
+                period_end=_bucket_period_end(bucket_start, granularity),
+            )
+            buckets[bucket_start] = bucket
+        bucket.add_event(event)
+        total.add_event(event)
+
+    series: list[UsageDashboardPointResponse] = [
+        UsageDashboardPointResponse(
+            period_start=b.period_start,
+            period_end=b.period_end,
+            questions_asked=b.questions_asked,
+            input_tokens=b.input_tokens,
+            output_tokens=b.output_tokens,
+            estimated_cost_usd=float(b.estimated_cost_usd),
+            active_users=b.active_users(),
+            agent_runs=b.agent_runs,
+            evaluation_runs=b.evaluation_runs,
+            avg_confidence=b.average_confidence(),
+            avg_latency_ms=b.average_latency_ms(),
+        )
+        for _, b in sorted(buckets.items(), key=lambda item: item[0])
+    ]
+
+    return total, series
+
+
+async def _count_org_documents(
+    db_session: AsyncSession,
+    organization_id: UUID,
+) -> tuple[int, int, int]:
+    """Returns (total_docs, indexed_docs, total_chunks)."""
+    non_deleted = ("deleted",)
+    total_stmt = select(func.count(Document.id)).where(
+        Document.organization_id == organization_id,
+        Document.status.not_in(non_deleted),
+    )
+    indexed_stmt = select(func.count(Document.id)).where(
+        Document.organization_id == organization_id,
+        Document.status == "indexed",
+    )
+    chunks_stmt = select(func.coalesce(func.sum(Document.chunk_count), 0)).where(
+        Document.organization_id == organization_id,
+        Document.status == "indexed",
+    )
+    total_docs = int((await db_session.execute(total_stmt)).scalar_one() or 0)
+    indexed_docs = int((await db_session.execute(indexed_stmt)).scalar_one() or 0)
+    total_chunks = int((await db_session.execute(chunks_stmt)).scalar_one() or 0)
+    return total_docs, indexed_docs, total_chunks
+
+
+def _serialize_usage_events_csv(events: list[UsageEvent]) -> str:
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "id",
+            "created_at",
+            "organization_id",
+            "user_id",
+            "event_type",
+            "model_name",
+            "input_tokens",
+            "output_tokens",
+            "estimated_cost_usd",
+        ],
+    )
+    writer.writeheader()
+    for e in events:
+        writer.writerow(
+            {
+                "id": str(e.id),
+                "created_at": e.created_at.isoformat(),
+                "organization_id": str(e.organization_id),
+                "user_id": str(e.user_id) if e.user_id else "",
+                "event_type": e.event_type,
+                "model_name": e.model_name or "",
+                "input_tokens": e.input_tokens if e.input_tokens is not None else "",
+                "output_tokens": e.output_tokens if e.output_tokens is not None else "",
+                "estimated_cost_usd": str(e.cost_usd) if e.cost_usd is not None else "",
+            }
+        )
+    return output.getvalue()
+
+
+@router.get("/usage/dashboard", response_model=UsageDashboardResponse)
+async def get_admin_usage_dashboard(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    from_date: Annotated[date | None, Query(alias="from")] = None,
+    to_date: Annotated[date | None, Query(alias="to")] = None,
+    granularity: UsageGranularity = "day",
+    user_id: UUID | None = None,
+    model: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
+    feature_area: FeatureArea = "all",
+) -> UsageDashboardResponse:
+    organization_id = _organization_id_from_principal(principal)
+    resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
+    from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
+
+    event_type_prefix: str | None = None
+    if feature_area != "all":
+        event_type_prefix = _FEATURE_AREA_TO_PREFIX.get(feature_area)
+
+    events = await usage_repository.list_usage_events_filtered(
+        db_session,
+        organization_id=organization_id,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+        user_id=user_id,
+        model_name=model,
+        event_type_prefix=event_type_prefix,
+    )
+
+    total_bucket, series = _aggregate_dashboard(events, granularity=granularity)
+    total_docs, indexed_docs, total_chunks = await _count_org_documents(
+        db_session, organization_id
+    )
+
+    top_user_rows = await usage_repository.aggregate_by_user(
+        db_session,
+        organization_id=organization_id,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+    )
+    top_users = [
+        TopUserUsageResponse(
+            user_id=row.user_id,
+            questions=row.event_count,
+            input_tokens=row.input_tokens,
+            output_tokens=row.output_tokens,
+            estimated_cost_usd=float(row.cost_usd),
+        )
+        for row in top_user_rows
+    ]
+
+    top_model_rows = await usage_repository.aggregate_by_model(
+        db_session,
+        organization_id=organization_id,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+    )
+    top_models = [
+        TopModelUsageResponse(
+            model_name=row.model_name,
+            event_count=row.event_count,
+            input_tokens=row.input_tokens,
+            output_tokens=row.output_tokens,
+            estimated_cost_usd=float(row.cost_usd),
+        )
+        for row in top_model_rows
+    ]
+
+    feature_area_breakdown = await usage_repository.count_events_by_feature_area(
+        db_session,
+        organization_id=organization_id,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+    )
+
+    avg_latency = total_bucket.average_latency_ms()
+    totals = UsageDashboardTotalsResponse(
+        questions_asked=total_bucket.questions_asked,
+        input_tokens=total_bucket.input_tokens,
+        output_tokens=total_bucket.output_tokens,
+        estimated_cost_usd=float(total_bucket.estimated_cost_usd),
+        active_users=total_bucket.active_users(),
+        documents=total_docs,
+        indexed_documents=indexed_docs,
+        total_chunks=total_chunks,
+        indexing_jobs=total_bucket.indexing_jobs,
+        failed_indexing_jobs=total_bucket.failed_indexing_jobs,
+        evaluation_runs=total_bucket.evaluation_runs,
+        agent_runs=total_bucket.agent_runs,
+        api_calls=total_bucket.api_calls,
+        avg_confidence=total_bucket.average_confidence(),
+        avg_latency_ms=avg_latency,
+        latency_score=_latency_score_from_average(avg_latency),
+    )
+
+    return UsageDashboardResponse(
+        organization_id=str(organization_id),
+        range=UsageSummaryRange(from_date=resolved_from, to_date=resolved_to),
+        granularity=granularity,
+        is_cost_estimate=True,
+        totals=totals,
+        series=series,
+        top_users=top_users,
+        top_models=top_models,
+        feature_area_breakdown=feature_area_breakdown,
+    )
+
+
+@router.get("/usage/export")
+async def export_admin_usage(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    export_format: Annotated[UsageExportFormat, Query(alias="format")] = "csv",
+    from_date: Annotated[date | None, Query(alias="from")] = None,
+    to_date: Annotated[date | None, Query(alias="to")] = None,
+    user_id: UUID | None = None,
+    model: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
+    feature_area: FeatureArea = "all",
+    limit: Annotated[int, Query(ge=1, le=50000)] = 10000,
+) -> Response:
+    organization_id = _organization_id_from_principal(principal)
+    resolved_from, resolved_to = _normalize_date_range(from_date=from_date, to_date=to_date)
+    from_created_at, to_created_at = _to_datetime_bounds(resolved_from, resolved_to)
+
+    event_type_prefix: str | None = None
+    if feature_area != "all":
+        event_type_prefix = _FEATURE_AREA_TO_PREFIX.get(feature_area)
+
+    events = await usage_repository.list_usage_events_filtered(
+        db_session,
+        organization_id=organization_id,
+        from_created_at=from_created_at,
+        to_created_at=to_created_at,
+        user_id=user_id,
+        model_name=model,
+        event_type_prefix=event_type_prefix,
+    )
+    events = events[:limit]
+
+    filename = f"usage-{resolved_from.isoformat()}-{resolved_to.isoformat()}.{export_format}"
+
+    if export_format == "json":
+        payload = {
+            "organization_id": str(organization_id),
+            "exported_at": datetime.now(tz=UTC).isoformat(),
+            "is_cost_estimate": True,
+            "range": {"from": resolved_from.isoformat(), "to": resolved_to.isoformat()},
+            "returned": len(events),
+            "max_rows": limit,
+            "items": [
+                {
+                    "id": str(e.id),
+                    "created_at": e.created_at.isoformat(),
+                    "organization_id": str(e.organization_id),
+                    "user_id": str(e.user_id) if e.user_id else None,
+                    "event_type": e.event_type,
+                    "model_name": e.model_name,
+                    "input_tokens": e.input_tokens,
+                    "output_tokens": e.output_tokens,
+                    "estimated_cost_usd": str(e.cost_usd) if e.cost_usd is not None else None,
+                }
+                for e in events
+            ],
+        }
+        return Response(
+            content=json.dumps(payload, sort_keys=True),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    csv_payload = _serialize_usage_events_csv(events)
+    return Response(
+        content=csv_payload,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/usage", response_model=UsageSummaryResponse)

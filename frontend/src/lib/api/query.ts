@@ -145,6 +145,8 @@ export const queryKeys = {
   admin: {
     usage: (params?: Record<string, unknown>) =>
       ["admin", "usage", params ?? {}] as const,
+    dashboard: (params?: Record<string, unknown>) =>
+      ["admin", "usage-dashboard", params ?? {}] as const,
     auditLogs: (params?: Record<string, unknown>) =>
       ["admin", "audit-logs", params ?? {}] as const,
     governance: ["admin", "governance"] as const,

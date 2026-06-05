@@ -121,3 +121,94 @@ export async function exportAuditLogs(
     responseType: "blob",
   });
 }
+
+// ── Usage Dashboard (F153) ────────────────────────────────────────────────────
+
+export type FeatureArea = "chat" | "agent" | "evaluation" | "pipeline" | "api" | "all";
+export type UsageExportFormat = "csv" | "json";
+
+export type TopUserUsage = {
+  user_id: string;
+  questions: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+};
+
+export type TopModelUsage = {
+  model_name: string;
+  event_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+};
+
+export type UsageDashboardTotals = {
+  questions_asked: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  active_users: number;
+  documents: number;
+  indexed_documents: number;
+  total_chunks: number;
+  indexing_jobs: number;
+  failed_indexing_jobs: number;
+  evaluation_runs: number;
+  agent_runs: number;
+  api_calls: number;
+  avg_confidence: number | null;
+  avg_latency_ms: number | null;
+  latency_score: number | null;
+};
+
+export type UsageDashboardPoint = {
+  period_start: string;
+  period_end: string;
+  questions_asked: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number;
+  active_users: number;
+  agent_runs: number;
+  evaluation_runs: number;
+  avg_confidence: number | null;
+  avg_latency_ms: number | null;
+};
+
+export type UsageDashboardResponse = {
+  organization_id: string;
+  range: { from: string; to: string };
+  granularity: UsageGranularity;
+  is_cost_estimate: boolean;
+  totals: UsageDashboardTotals;
+  series: UsageDashboardPoint[];
+  top_users: TopUserUsage[];
+  top_models: TopModelUsage[];
+  feature_area_breakdown: Record<string, number>;
+};
+
+export type UsageDashboardQuery = {
+  from?: string;
+  to?: string;
+  granularity?: UsageGranularity;
+  user_id?: string;
+  model?: string;
+  feature_area?: FeatureArea;
+};
+
+export async function getUsageDashboard(
+  query: UsageDashboardQuery = {},
+): Promise<UsageDashboardResponse> {
+  return apiRequest<UsageDashboardResponse>("/admin/usage/dashboard", { query });
+}
+
+export async function exportUsageDashboard(
+  format: UsageExportFormat,
+  query: UsageDashboardQuery = {},
+): Promise<Blob> {
+  return apiRequest<Blob>("/admin/usage/export", {
+    query: { ...query, format },
+    responseType: "blob",
+  });
+}

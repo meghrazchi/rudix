@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
@@ -364,3 +365,171 @@ class UsageRepository:
 
         rows = (await session.execute(statement)).all()
         return {str(action): int(count) for action, count in rows}
+
+    async def list_usage_events_filtered(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        user_id: UUID | None = None,
+        model_name: str | None = None,
+        event_type_prefix: str | None = None,
+    ) -> list[UsageEvent]:
+        statement = select(UsageEvent).where(UsageEvent.organization_id == organization_id)
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        if user_id is not None:
+            statement = statement.where(UsageEvent.user_id == user_id)
+        if model_name is not None:
+            statement = statement.where(UsageEvent.model_name == model_name)
+        if event_type_prefix is not None:
+            statement = statement.where(UsageEvent.event_type.like(f"{event_type_prefix}%"))
+        result = await session.execute(
+            statement.order_by(UsageEvent.created_at.asc(), UsageEvent.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def count_active_users(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+    ) -> int:
+        statement = (
+            select(func.count(func.distinct(UsageEvent.user_id)))
+            .where(UsageEvent.organization_id == organization_id)
+            .where(UsageEvent.user_id.is_not(None))
+        )
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        result = await session.execute(statement)
+        return int(result.scalar_one() or 0)
+
+    @dataclass
+    class _UserAggRow:
+        user_id: str
+        event_count: int
+        input_tokens: int
+        output_tokens: int
+        cost_usd: Decimal
+
+    async def aggregate_by_user(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        limit: int = 10,
+    ) -> list["UsageRepository._UserAggRow"]:
+        statement = (
+            select(
+                cast(UsageEvent.user_id, String).label("user_id"),
+                func.count(UsageEvent.id).label("event_count"),
+                func.coalesce(func.sum(UsageEvent.input_tokens), 0).label("input_tokens"),
+                func.coalesce(func.sum(UsageEvent.output_tokens), 0).label("output_tokens"),
+                func.coalesce(func.sum(UsageEvent.cost_usd), Decimal("0")).label("cost_usd"),
+            )
+            .where(UsageEvent.organization_id == organization_id)
+            .where(UsageEvent.user_id.is_not(None))
+            .group_by(UsageEvent.user_id)
+            .order_by(func.coalesce(func.sum(UsageEvent.cost_usd), Decimal("0")).desc())
+            .limit(limit)
+        )
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        rows = (await session.execute(statement)).all()
+        return [
+            UsageRepository._UserAggRow(
+                user_id=str(row.user_id),
+                event_count=int(row.event_count),
+                input_tokens=int(row.input_tokens or 0),
+                output_tokens=int(row.output_tokens or 0),
+                cost_usd=Decimal(str(row.cost_usd or "0")),
+            )
+            for row in rows
+        ]
+
+    @dataclass
+    class _ModelAggRow:
+        model_name: str
+        event_count: int
+        input_tokens: int
+        output_tokens: int
+        cost_usd: Decimal
+
+    async def aggregate_by_model(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+        limit: int = 10,
+    ) -> list["UsageRepository._ModelAggRow"]:
+        statement = (
+            select(
+                UsageEvent.model_name,
+                func.count(UsageEvent.id).label("event_count"),
+                func.coalesce(func.sum(UsageEvent.input_tokens), 0).label("input_tokens"),
+                func.coalesce(func.sum(UsageEvent.output_tokens), 0).label("output_tokens"),
+                func.coalesce(func.sum(UsageEvent.cost_usd), Decimal("0")).label("cost_usd"),
+            )
+            .where(UsageEvent.organization_id == organization_id)
+            .where(UsageEvent.model_name.is_not(None))
+            .group_by(UsageEvent.model_name)
+            .order_by(func.coalesce(func.sum(UsageEvent.cost_usd), Decimal("0")).desc())
+            .limit(limit)
+        )
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        rows = (await session.execute(statement)).all()
+        return [
+            UsageRepository._ModelAggRow(
+                model_name=str(row.model_name),
+                event_count=int(row.event_count),
+                input_tokens=int(row.input_tokens or 0),
+                output_tokens=int(row.output_tokens or 0),
+                cost_usd=Decimal(str(row.cost_usd or "0")),
+            )
+            for row in rows
+        ]
+
+    async def count_events_by_feature_area(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+    ) -> dict[str, int]:
+        statement = (
+            select(UsageEvent.event_type, func.count(UsageEvent.id))
+            .where(UsageEvent.organization_id == organization_id)
+            .group_by(UsageEvent.event_type)
+        )
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        rows = (await session.execute(statement)).all()
+        area_counts: dict[str, int] = {}
+        for event_type, count in rows:
+            if event_type:
+                prefix = event_type.split(".")[0]
+            else:
+                prefix = "unknown"
+            area_counts[prefix] = area_counts.get(prefix, 0) + int(count)
+        return area_counts
