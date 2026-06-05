@@ -152,6 +152,10 @@ export const queryKeys = {
     observability: (params?: Record<string, unknown>) =>
       ["admin", "observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,
+    failedJobs: (params?: Record<string, unknown>) =>
+      ["admin", "failed-jobs", params ?? {}] as const,
+    failedJobDetail: (jobId: string) =>
+      ["admin", "failed-jobs", jobId] as const,
     chunkingStrategies: ["admin", "chunking-profiles", "strategies"] as const,
     chunkingProfiles: ["admin", "chunking-profiles", "profiles"] as const,
   },

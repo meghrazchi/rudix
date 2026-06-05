@@ -1,12 +1,99 @@
 from __future__ import annotations
 
+import re
+from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID, uuid4
 
 from celery import Task  # type: ignore[import-untyped]
 
 from app.core.config import settings
 from app.core.logging import get_logger, log_task_failure
 from app.core.sentry import bind_sentry_context, capture_sentry_exception
+
+_NON_RETRYABLE_TASK_NAMES: frozenset[str] = frozenset({"documents.delete"})
+_UUID_RE = re.compile(
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE
+)
+
+
+def _safe_error_code(exc: Exception) -> str:
+    return type(exc).__name__
+
+
+def _safe_error_message(exc: Exception) -> str:
+    raw = str(exc)
+    redacted = _UUID_RE.sub("<id>", raw)
+    if len(redacted) > 500:
+        redacted = redacted[:500] + "…"
+    return redacted
+
+
+def _job_type_from_task_name(task_name: str) -> str:
+    mapping = {
+        "documents.process": "extraction",
+        "documents.delete": "deletion_cleanup",
+        "documents.reindex": "reindex",
+        "evaluations.run": "evaluation",
+    }
+    return mapping.get(task_name, task_name)
+
+
+async def _persist_failed_job(
+    *,
+    task_id: str,
+    task_name: str,
+    organization_id: str | None,
+    document_id: str | None,
+    job_id: str | None,
+    queue_name: str | None,
+    exc: Exception,
+    attempt_count: int,
+) -> None:
+    from app.db.session import SessionLocal
+    from app.models.failed_job import FailedJob
+
+    if not organization_id:
+        return
+
+    try:
+        org_uuid = UUID(organization_id)
+    except ValueError:
+        return
+
+    entity_type: str | None = None
+    entity_id: UUID | None = None
+    if document_id:
+        try:
+            entity_id = UUID(document_id)
+            entity_type = "document"
+        except ValueError:
+            pass
+
+    is_retryable = task_name not in _NON_RETRYABLE_TASK_NAMES
+
+    async with SessionLocal() as db:
+        job = FailedJob(
+            id=uuid4(),
+            organization_id=org_uuid,
+            task_id=task_id,
+            task_name=task_name,
+            job_type=_job_type_from_task_name(task_name),
+            status="failed",
+            queue_name=queue_name,
+            error_code=_safe_error_code(exc),
+            error_message=_safe_error_message(exc),
+            attempt_count=attempt_count,
+            is_retryable=is_retryable,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            metadata_json={},
+            last_attempted_at=datetime.now(tz=UTC),
+            created_at=datetime.now(tz=UTC),
+            updated_at=datetime.now(tz=UTC),
+        )
+        db.add(job)
+        await db.commit()
 
 
 class TransientTaskError(Exception):
@@ -133,6 +220,8 @@ class RudixTask(Task):
         kwargs: dict[str, Any],
         einfo: Any,
     ) -> None:
+        from app.workers.async_runtime import run_async
+
         ctx = self._context(args, kwargs)
         bind_sentry_context(
             runtime="worker",
@@ -161,6 +250,21 @@ class RudixTask(Task):
             organization_id=ctx["organization_id"],
             user_id=ctx["user_id"],
         )
+        try:
+            run_async(
+                _persist_failed_job(
+                    task_id=task_id,
+                    task_name=self.name or "<unknown>",
+                    organization_id=ctx["organization_id"],
+                    document_id=str(ctx["document_id"]) if ctx["document_id"] else None,
+                    job_id=ctx["job_id"],
+                    queue_name=getattr(self.request, "delivery_info", {}).get("routing_key"),
+                    exc=exc,
+                    attempt_count=getattr(self.request, "retries", 0) + 1,
+                )
+            )
+        except Exception:
+            self._logger.warning("failed_job.persist_error", exc_info=True)
         self.on_terminal_failure(exc=exc, args=args, kwargs=kwargs)
         super().on_failure(exc, task_id, args, kwargs, einfo)
 

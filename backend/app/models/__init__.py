@@ -12,6 +12,7 @@ from app.models.evaluation import (
     EvaluationRun,
     EvaluationSet,
 )
+from app.models.failed_job import FailedJob, FailedJobAuditLog
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.governance import OrganizationGovernancePolicy
 from app.models.message_feedback import MessageFeedback
@@ -50,6 +51,8 @@ __all__ = [
     "EvaluationResult",
     "EvaluationRun",
     "EvaluationSet",
+    "FailedJob",
+    "FailedJobAuditLog",
     "FeedbackReviewItem",
     "MessageFeedback",
     "OrgModelProviderChangeLog",

@@ -471,9 +471,9 @@ export function AdminObservabilityPage() {
                   note: "Dependency health checks",
                 },
                 {
-                  href: "/admin/monitoring",
-                  label: "Monitoring",
-                  note: "Failed jobs and risk signals",
+                  href: "/admin/failed-jobs",
+                  label: "Failed jobs",
+                  note: "Retry and resolve failed tasks",
                 },
                 {
                   href: "/admin/audit-logs",

@@ -48,3 +48,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     prompt_templates = relationship(
         "PromptTemplate", back_populates="organization", cascade="all, delete-orphan"
     )
+    failed_jobs = relationship(
+        "FailedJob", back_populates="organization", cascade="all, delete-orphan"
+    )
