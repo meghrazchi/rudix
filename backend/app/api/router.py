@@ -13,6 +13,7 @@ from app.interfaces.http import (
     billing,
     chat,
     collections,
+    connectors,
     documents,
     evaluation_sets,
     evaluations,
@@ -45,6 +46,7 @@ protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
 protected_router.include_router(documents.router)
 protected_router.include_router(collections.router)
 protected_router.include_router(collections.documents_router)
+protected_router.include_router(connectors.router)
 protected_router.include_router(chat.router)
 protected_router.include_router(agent_runs.router)
 protected_router.include_router(evaluation_sets.router)

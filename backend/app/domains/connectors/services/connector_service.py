@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.connectors import (
     NormalizedExternalItem,
@@ -65,7 +66,7 @@ class ConnectorPlatformService:
         if collection_id is not None:
             await self.require_collection(session, organization_id, collection_id)
         provider = await self.repository.upsert_provider(session, registration=registration)
-        return await self.repository.create_connection(
+        connection = await self.repository.create_connection(
             session,
             organization_id=organization_id,
             provider_id=provider.id,
@@ -73,8 +74,10 @@ class ConnectorPlatformService:
             created_by_user_id=created_by_user_id,
             external_account_id=external_account_id,
             display_name=display_name,
-            auth_config=auth_config,
+            auth_config=sanitize_metadata(auth_config),
         )
+        connection.provider = provider
+        return connection
 
     async def create_external_source(
         self,

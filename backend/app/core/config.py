@@ -210,6 +210,22 @@ class MCPExternalServerSettings(BaseModel):
         return self
 
 
+class ConnectorOAuthClientSettings(BaseModel):
+    provider_key: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9_-]*$",
+    )
+    client_id: str = Field(min_length=1, max_length=255)
+    client_secret: SecretStr
+    redirect_uri: AnyHttpUrl | None = None
+
+    @field_validator("provider_key")
+    @classmethod
+    def validate_provider_key(cls, value: str) -> str:
+        return value.strip().lower()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILES,
@@ -387,6 +403,17 @@ class Settings(BaseSettings):
     agent_tool_max_retry_attempts: int = Field(default=1, ge=0, le=10)
     agent_prompt_injection_guard_enabled: bool = True
     agent_document_instruction_guard_enabled: bool = True
+    connector_credential_encryption_key: SecretStr | None = None
+    connector_credential_encryption_key_id: str = Field(
+        default="default",
+        min_length=1,
+        max_length=128,
+        pattern=r"^[a-zA-Z0-9._:-]+$",
+    )
+    connector_oauth_state_ttl_seconds: int = Field(default=600, ge=60, le=3600)
+    connector_oauth_clients: Annotated[list[ConnectorOAuthClientSettings], NoDecode] = Field(
+        default_factory=list
+    )
 
     feature_enable_embeddings: bool = True
     feature_enable_llm: bool = True
@@ -591,6 +618,42 @@ class Settings(BaseSettings):
                 raise ValueError(f"duplicate external MCP server_id: {server_config.server_id}")
             seen_ids.add(server_config.server_id)
             normalized_items.append(server_config)
+        return normalized_items
+
+    @field_validator("connector_oauth_clients", mode="before")
+    @classmethod
+    def validate_connector_oauth_clients(
+        cls, value: object
+    ) -> list[ConnectorOAuthClientSettings] | list[dict[str, Any]]:
+        if value is None:
+            return []
+        raw_items: list[object]
+        if isinstance(value, str):
+            normalized_text = value.strip()
+            if not normalized_text:
+                return []
+            try:
+                parsed = json.loads(normalized_text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("connector_oauth_clients must be valid JSON") from exc
+            if not isinstance(parsed, list):
+                raise ValueError("connector_oauth_clients JSON value must be an array")
+            raw_items = list(parsed)
+        elif isinstance(value, list):
+            raw_items = list(value)
+        else:
+            raise ValueError("connector_oauth_clients must be a JSON array or list")
+
+        normalized_items: list[ConnectorOAuthClientSettings] = []
+        seen_providers: set[str] = set()
+        for item in raw_items:
+            client_config = ConnectorOAuthClientSettings.model_validate(item)
+            if client_config.provider_key in seen_providers:
+                raise ValueError(
+                    f"duplicate connector OAuth provider_key: {client_config.provider_key}"
+                )
+            seen_providers.add(client_config.provider_key)
+            normalized_items.append(client_config)
         return normalized_items
 
     @field_validator(
@@ -956,6 +1019,22 @@ class Settings(BaseSettings):
             "embedding_retry_max_seconds": self.embedding_retry_max_seconds,
             "openai_embedding_cost_per_million_tokens_usd": self.openai_embedding_cost_per_million_tokens_usd,
             "request_timeout_seconds": self.request_timeout_seconds,
+            "connector_credentials": {
+                "encryption_key_set": self.connector_credential_encryption_key is not None,
+                "encryption_key_id": self.connector_credential_encryption_key_id,
+                "oauth_state_ttl_seconds": self.connector_oauth_state_ttl_seconds,
+                "oauth_clients": [
+                    {
+                        "provider_key": client.provider_key,
+                        "client_id_set": bool(client.client_id),
+                        "client_secret_set": bool(client.client_secret.get_secret_value()),
+                        "redirect_uri": str(client.redirect_uri)
+                        if client.redirect_uri is not None
+                        else None,
+                    }
+                    for client in self.connector_oauth_clients
+                ],
+            },
             "features": {
                 "embeddings": self.feature_enable_embeddings,
                 "llm": self.feature_enable_llm,

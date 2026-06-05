@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.domains.connectors.schemas.connectors import (
     ProviderCapabilities,
     ProviderExportFormat,
+    ProviderOAuthConfig,
     ProviderRateLimit,
     ProviderRegistration,
 )
@@ -30,6 +31,35 @@ class ProviderRegistry:
         if provider is None:
             raise ProviderRegistryError(f"connector provider is not registered: {provider_key}")
         return provider
+
+    def validate_scopes(
+        self,
+        provider_key: str,
+        requested_scopes: list[str] | tuple[str, ...] | None,
+    ) -> list[str]:
+        provider = self.require(provider_key)
+        if provider.oauth is None:
+            if requested_scopes:
+                raise ProviderRegistryError(
+                    f"connector provider does not accept OAuth scopes: {provider.key}"
+                )
+            return []
+
+        scopes = _dedupe_scopes(requested_scopes or provider.oauth.default_scopes)
+        missing_required = set(provider.oauth.required_scopes).difference(scopes)
+        if missing_required:
+            missing_text = ", ".join(sorted(missing_required))
+            raise ProviderRegistryError(
+                f"requested OAuth scopes are missing required scopes: {missing_text}"
+            )
+
+        unsupported = set(scopes).difference(provider.oauth.allowed_scopes)
+        if unsupported:
+            unsupported_text = ", ".join(sorted(unsupported))
+            raise ProviderRegistryError(
+                f"requested OAuth scopes are not allowed for {provider.key}: {unsupported_text}"
+            )
+        return scopes
 
     def list(self) -> list[ProviderRegistration]:
         return [self._providers[key] for key in sorted(self._providers)]
@@ -77,6 +107,15 @@ def _jira_provider() -> ProviderRegistration:
             "required": ["site_url"],
             "additionalProperties": False,
         },
+        oauth=ProviderOAuthConfig(
+            authorization_endpoint="https://auth.atlassian.com/authorize",
+            token_endpoint="https://auth.atlassian.com/oauth/token",
+            revoke_endpoint="https://auth.atlassian.com/oauth/token/revoke",
+            default_scopes=("read:jira-work", "read:jira-user", "offline_access"),
+            required_scopes=("read:jira-work",),
+            optional_scopes=("read:jira-user", "offline_access"),
+            additional_authorization_params={"audience": "api.atlassian.com"},
+        ),
     )
 
 
@@ -114,6 +153,19 @@ def _confluence_provider() -> ProviderRegistration:
             "required": ["site_url"],
             "additionalProperties": False,
         },
+        oauth=ProviderOAuthConfig(
+            authorization_endpoint="https://auth.atlassian.com/authorize",
+            token_endpoint="https://auth.atlassian.com/oauth/token",
+            revoke_endpoint="https://auth.atlassian.com/oauth/token/revoke",
+            default_scopes=(
+                "read:confluence-content.all",
+                "read:confluence-space.summary",
+                "offline_access",
+            ),
+            required_scopes=("read:confluence-content.all",),
+            optional_scopes=("read:confluence-space.summary", "offline_access"),
+            additional_authorization_params={"audience": "api.atlassian.com"},
+        ),
     )
 
 
@@ -151,7 +203,28 @@ def _google_drive_provider() -> ProviderRegistration:
             },
             "additionalProperties": False,
         },
+        oauth=ProviderOAuthConfig(
+            authorization_endpoint="https://accounts.google.com/o/oauth2/v2/auth",
+            token_endpoint="https://oauth2.googleapis.com/token",
+            revoke_endpoint="https://oauth2.googleapis.com/revoke",
+            default_scopes=("https://www.googleapis.com/auth/drive.readonly",),
+            required_scopes=("https://www.googleapis.com/auth/drive.readonly",),
+            optional_scopes=("https://www.googleapis.com/auth/drive.metadata.readonly",),
+            additional_authorization_params={
+                "access_type": "offline",
+                "prompt": "consent",
+            },
+        ),
     )
+
+
+def _dedupe_scopes(scopes: list[str] | tuple[str, ...]) -> list[str]:
+    normalized_scopes: list[str] = []
+    for raw_scope in scopes:
+        scope = raw_scope.strip()
+        if scope and scope not in normalized_scopes:
+            normalized_scopes.append(scope)
+    return normalized_scopes
 
 
 default_provider_registry = build_default_provider_registry()

@@ -186,6 +186,23 @@ Key behavior:
 - Tool execution reuses the shared `ToolRegistry` + `AgentToolExecutor` contract.
 - Authorization, organization isolation, budget checks, and redaction rules are enforced identically for API and MCP surfaces.
 
+## Connector credentials (F239)
+
+Connector OAuth/API credentials are stored behind a credential vault boundary:
+
+- Raw access tokens, refresh tokens, API tokens, client secrets, and service-account secrets are encrypted in `connector_credentials`.
+- `connector_connections.auth_config` contains safe metadata only: credential ID/version, status, fingerprint, scopes, key ID, and expiry.
+- OAuth state is stored hashed in `connector_oauth_states`; callback state is single-use and TTL-bound.
+- Token refresh, disconnect/revoke, and diagnostics are shared across OAuth providers through connector domain services.
+- Disconnect marks the connection revoked, revokes remote tokens when possible, disables sync jobs, and records audit events.
+
+Relevant settings:
+
+- `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY`
+- `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID`
+- `CONNECTOR_OAUTH_STATE_TTL_SECONDS`
+- `CONNECTOR_OAUTH_CLIENTS`
+
 Supported transports:
 
 - `streamable_http` (recommended for deployment)

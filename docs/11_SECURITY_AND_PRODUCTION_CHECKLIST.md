@@ -51,6 +51,11 @@ Connector operations must also enforce:
   items, sync jobs, sync runs, source documents, source references, and tombstones
 - same-organization validation for optional `collection_id`
 - same-organization validation before linking an external item to a `documents` row
+- encrypted credential storage with raw secrets limited to connector adapter execution
+- hashed, TTL-bound, single-use OAuth state validation
+- provider-specific least-privilege OAuth scope allowlists
+- token refresh before sync and local sync blocking after revoke/disconnect
+- diagnostics that expose only credential metadata, never secret payloads
 - no provider-specific bypasses in RAG, chat, citation, agent, or MCP adapters
 
 ## Agent tool security

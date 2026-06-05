@@ -48,11 +48,74 @@ class ProviderCapabilities(BaseModel):
         return capability in self.capabilities
 
 
+class ProviderOAuthConfig(BaseModel):
+    authorization_endpoint: str = Field(min_length=1, max_length=2048)
+    token_endpoint: str = Field(min_length=1, max_length=2048)
+    revoke_endpoint: str | None = Field(default=None, min_length=1, max_length=2048)
+    default_scopes: tuple[str, ...] = Field(default_factory=tuple)
+    required_scopes: tuple[str, ...] = Field(default_factory=tuple)
+    optional_scopes: tuple[str, ...] = Field(default_factory=tuple)
+    additional_authorization_params: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator(
+        "default_scopes",
+        "required_scopes",
+        "optional_scopes",
+        mode="before",
+    )
+    @classmethod
+    def validate_scope_tuple(cls, value: object) -> tuple[str, ...]:
+        if value is None:
+            return ()
+        if isinstance(value, str):
+            raw_values = [value]
+        elif isinstance(value, (list, tuple, set)):
+            raw_values = list(value)
+        else:
+            raise ValueError("OAuth scopes must be a string or list")
+        normalized: list[str] = []
+        for raw_value in raw_values:
+            scope = str(raw_value).strip()
+            if not scope:
+                continue
+            if scope not in normalized:
+                normalized.append(scope)
+        return tuple(normalized)
+
+    @field_validator("additional_authorization_params")
+    @classmethod
+    def validate_authorization_params(cls, value: dict[str, str]) -> dict[str, str]:
+        normalized: dict[str, str] = {}
+        for raw_key, raw_value in value.items():
+            key = raw_key.strip()
+            param_value = raw_value.strip()
+            if not key or not param_value:
+                raise ValueError("authorization params must not contain blank keys or values")
+            normalized[key] = param_value
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_scope_policy(self) -> ProviderOAuthConfig:
+        allowed_scopes = set(self.required_scopes).union(self.optional_scopes)
+        missing_default = set(self.default_scopes).difference(allowed_scopes)
+        if missing_default:
+            raise ValueError("default_scopes must be included in required or optional scopes")
+        missing_required = set(self.required_scopes).difference(self.default_scopes)
+        if missing_required:
+            raise ValueError("default_scopes must include every required scope")
+        return self
+
+    @property
+    def allowed_scopes(self) -> frozenset[str]:
+        return frozenset({*self.required_scopes, *self.optional_scopes})
+
+
 class ProviderRegistration(BaseModel):
     key: str = Field(min_length=1, max_length=64)
     display_name: str = Field(min_length=1, max_length=120)
     capabilities: ProviderCapabilities
     config_schema: dict[str, Any] = Field(default_factory=dict)
+    oauth: ProviderOAuthConfig | None = None
     enabled_by_default: bool = Field(default=True)
 
     @field_validator("key")

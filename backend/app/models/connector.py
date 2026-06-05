@@ -127,6 +127,11 @@ class ConnectorConnection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     items = relationship("ExternalItem", back_populates="connection")
     sync_jobs = relationship("ConnectorSyncJob", back_populates="connection")
+    credentials = relationship(
+        "ConnectorCredential",
+        back_populates="connection",
+        cascade="all, delete-orphan",
+    )
 
 
 class ExternalSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -10,6 +10,7 @@ from app.models.connector import (
     ExternalItem,
     ExternalSource,
 )
+from app.models.connector_credential import ConnectorCredential, ConnectorOAuthState
 from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -55,6 +56,8 @@ __all__ = [
     "Collection",
     "CollectionDocument",
     "ConnectorConnection",
+    "ConnectorCredential",
+    "ConnectorOAuthState",
     "ConnectorProvider",
     "ConnectorSyncJob",
     "ConnectorSyncRun",

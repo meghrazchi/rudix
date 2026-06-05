@@ -44,6 +44,44 @@ The default registry includes Jira, Confluence, and Google Drive. New providers
 can be registered by constructing a `ProviderRegistration` and calling
 `ProviderRegistry.register()` or `ConnectorPlatformService.register_provider()`.
 
+## Credential Vault and OAuth Lifecycle
+
+Connector credentials are separated from normal connection metadata:
+
+- `connector_credentials` stores encrypted credential payloads plus rotation-ready
+  metadata: auth type, status, version, key ID, algorithm, fingerprint, scopes,
+  issue/expiry times, refresh timestamps, usage timestamps, and revocation time.
+- `connector_connections.auth_config` is metadata-only and must never contain raw
+  access tokens, refresh tokens, API tokens, client secrets, or service-account
+  material.
+- `connector_oauth_states` stores hashed OAuth state values with organization,
+  provider, optional collection/connection, requested scopes, redirect URI,
+  expiry, and one-time consumption metadata.
+- `ConnectorOAuthLifecycleService` owns OAuth state validation, callback handling,
+  shared token refresh, revoke/disconnect, and safe diagnostics for all OAuth
+  providers.
+- `ConnectorCredentialVault` owns encryption/decryption and returns plaintext
+  only to connector adapter code that is about to call the provider.
+
+Production deployments should configure `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY`
+from a secret manager. Non-production can fall back to `APP_AUTH_SECRET`, but
+that fallback is not intended for staging or production. `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID`
+identifies the active key for future rotation. `CONNECTOR_OAUTH_CLIENTS` stores
+provider OAuth client metadata as a JSON array; config snapshots expose only
+presence booleans, never client secrets.
+
+Default least-privilege OAuth scope policy:
+
+| Provider | Required scopes | Optional/default refresh scopes |
+| --- | --- | --- |
+| Jira | `read:jira-work` | `read:jira-user`, `offline_access` |
+| Confluence | `read:confluence-content.all` | `read:confluence-space.summary`, `offline_access` |
+| Google Drive | `https://www.googleapis.com/auth/drive.readonly` | `https://www.googleapis.com/auth/drive.metadata.readonly` |
+
+Requested scopes must include required scopes and must be a subset of the
+provider allowlist. Unsupported broad scopes are rejected before an OAuth state
+is issued.
+
 ## Normalized Item Contract
 
 Adapters must emit `NormalizedExternalItem` records with:
@@ -94,6 +132,9 @@ Connector operations must:
 - validate that any `collection_id` belongs to the same organization
 - validate that source documents link only to documents from the same organization
 - store tokens and secrets outside public response payloads and logs
+- expose only safe credential metadata and diagnostics to frontend APIs
+- refresh expired OAuth tokens through shared lifecycle code before sync
+- mark revoked credentials unusable and disable future sync jobs on disconnect
 - retain ACL metadata as hashes or compact permission snapshots, not full raw
   provider permission exports unless explicitly needed
 - treat external content as untrusted document text during ingestion and RAG

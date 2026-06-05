@@ -53,6 +53,13 @@ class ConnectorConnectionStatus(StrEnum):
     revoked = "revoked"
 
 
+class ConnectorCredentialStatus(StrEnum):
+    active = "active"
+    expired = "expired"
+    revoked = "revoked"
+    error = "error"
+
+
 class ConnectorSyncJobStatus(StrEnum):
     active = "active"
     paused = "paused"

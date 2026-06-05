@@ -3,8 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.domains.connectors.schemas.connectors import (
     NormalizedExternalItem,
@@ -16,6 +17,7 @@ from app.models.connector import (
     ExternalItem,
     ExternalSource,
 )
+from app.models.connector_credential import ConnectorCredential, ConnectorOAuthState
 from app.models.connector_source import (
     ExternalItemTombstone,
     SourceDocument,
@@ -117,12 +119,204 @@ class ConnectorRepository:
         connection_id: UUID,
     ) -> ConnectorConnection | None:
         result = await session.execute(
-            select(ConnectorConnection).where(
+            select(ConnectorConnection)
+            .options(selectinload(ConnectorConnection.provider))
+            .where(
                 ConnectorConnection.id == connection_id,
                 ConnectorConnection.organization_id == organization_id,
             )
         )
         return result.scalar_one_or_none()
+
+    async def update_connection_auth_metadata(
+        self,
+        session: AsyncSession,
+        *,
+        connection: ConnectorConnection,
+        auth_config: dict,
+        status: ConnectorConnectionStatus | None = None,
+        error_message: str | None = None,
+    ) -> ConnectorConnection:
+        connection.auth_config_json = auth_config
+        if status is not None:
+            connection.status = status.value
+        connection.error_message = error_message
+        await session.flush()
+        await session.refresh(connection)
+        return connection
+
+    async def create_oauth_state(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        provider_key: str,
+        state_hash: str,
+        redirect_uri: str,
+        requested_scopes: list[str],
+        expires_at: datetime,
+        created_by_user_id: UUID | None = None,
+        connection_id: UUID | None = None,
+        collection_id: UUID | None = None,
+        display_name: str | None = None,
+        external_account_id: str | None = None,
+        config: dict | None = None,
+    ) -> ConnectorOAuthState:
+        state = ConnectorOAuthState(
+            organization_id=organization_id,
+            provider_key=provider_key,
+            state_hash=state_hash,
+            created_by_user_id=created_by_user_id,
+            connection_id=connection_id,
+            collection_id=collection_id,
+            redirect_uri=redirect_uri,
+            display_name=display_name,
+            external_account_id=external_account_id,
+            requested_scopes_json=requested_scopes,
+            config_json=config or {},
+            expires_at=expires_at,
+        )
+        session.add(state)
+        await session.flush()
+        await session.refresh(state)
+        return state
+
+    async def get_oauth_state_by_hash(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        state_hash: str,
+    ) -> ConnectorOAuthState | None:
+        result = await session.execute(
+            select(ConnectorOAuthState).where(
+                ConnectorOAuthState.organization_id == organization_id,
+                ConnectorOAuthState.state_hash == state_hash,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def consume_oauth_state(
+        self,
+        session: AsyncSession,
+        *,
+        state: ConnectorOAuthState,
+        consumed_at: datetime,
+        failure_reason: str | None = None,
+    ) -> ConnectorOAuthState:
+        state.consumed_at = consumed_at
+        state.failure_reason = failure_reason
+        await session.flush()
+        await session.refresh(state)
+        return state
+
+    async def create_credential_version(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        auth_type: str,
+        encrypted_payload: str,
+        encryption_key_id: str,
+        encryption_algorithm: str,
+        secret_fingerprint: str,
+        scopes: list[str],
+        metadata: dict,
+        issued_at: datetime | None = None,
+        expires_at: datetime | None = None,
+        last_refreshed_at: datetime | None = None,
+    ) -> ConnectorCredential:
+        await session.execute(
+            update(ConnectorCredential)
+            .where(
+                ConnectorCredential.organization_id == organization_id,
+                ConnectorCredential.connection_id == connection_id,
+                ConnectorCredential.is_current.is_(True),
+            )
+            .values(is_current=False)
+        )
+        version_result = await session.execute(
+            select(func.max(ConnectorCredential.version)).where(
+                ConnectorCredential.organization_id == organization_id,
+                ConnectorCredential.connection_id == connection_id,
+            )
+        )
+        next_version = (version_result.scalar_one_or_none() or 0) + 1
+        credential = ConnectorCredential(
+            organization_id=organization_id,
+            connection_id=connection_id,
+            auth_type=auth_type,
+            encrypted_payload=encrypted_payload,
+            encryption_key_id=encryption_key_id,
+            encryption_algorithm=encryption_algorithm,
+            secret_fingerprint=secret_fingerprint,
+            scopes_json=scopes,
+            metadata_json=metadata,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            last_refreshed_at=last_refreshed_at,
+            version=next_version,
+            is_current=True,
+        )
+        session.add(credential)
+        await session.flush()
+        await session.refresh(credential)
+        return credential
+
+    async def get_current_credential(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+    ) -> ConnectorCredential | None:
+        result = await session.execute(
+            select(ConnectorCredential).where(
+                ConnectorCredential.organization_id == organization_id,
+                ConnectorCredential.connection_id == connection_id,
+                ConnectorCredential.is_current.is_(True),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_credential_status(
+        self,
+        session: AsyncSession,
+        *,
+        credential: ConnectorCredential,
+        status: str,
+        error_message: str | None = None,
+        revoked_at: datetime | None = None,
+        last_used_at: datetime | None = None,
+    ) -> ConnectorCredential:
+        credential.status = status
+        credential.error_message = error_message
+        if revoked_at is not None:
+            credential.revoked_at = revoked_at
+        if last_used_at is not None:
+            credential.last_used_at = last_used_at
+        await session.flush()
+        await session.refresh(credential)
+        return credential
+
+    async def disable_sync_jobs_for_connection(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+    ) -> int:
+        result = await session.execute(
+            update(ConnectorSyncJob)
+            .where(
+                ConnectorSyncJob.organization_id == organization_id,
+                ConnectorSyncJob.connection_id == connection_id,
+                ConnectorSyncJob.status == ConnectorSyncJobStatus.active.value,
+            )
+            .values(status=ConnectorSyncJobStatus.disabled.value)
+        )
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def create_external_source(
         self,

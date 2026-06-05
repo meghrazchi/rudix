@@ -21,33 +21,56 @@ ResolvedLogFormat = Literal["json", "console"]
 _HANDLER_MARKER = "_rudix_structured_handler"
 
 _SENSITIVE_EXACT_KEYS = {
+    "access_token",
+    "api_token",
     "password",
+    "private_key",
+    "refresh_token",
+    "id_token",
+    "client_secret",
     "secret",
     "token",
     "api_key",
+    "x_api_key",
     "authorization",
+    "authorization_header",
     "cookie",
     "set_cookie",
     "access_key",
     "secret_key",
+    "service_account_key",
 }
 _SENSITIVE_SUFFIXES = (
+    "_access_token",
+    "_api_token",
+    "_client_secret",
+    "_id_token",
     "_password",
+    "_private_key",
+    "_refresh_token",
     "_secret",
     "_token",
     "_api_key",
+    "_x_api_key",
     "_authorization",
+    "_authorization_header",
     "_cookie",
     "_access_key",
     "_secret_key",
+    "_service_account_key",
 )
 _SENSITIVE_PATTERN = re.compile(
-    r"(?i)\b(api[_-]?key|access[_-]?key|secret|token|password)\b\s*[:=]\s*([^\s,;]+)"
+    r"(?i)\b(api[_-]?key|x[_-]?api[_-]?key|access[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|private[_-]?key|secret|token|password)\b\s*[:=]\s*([^\s,;]+)"
+)
+_BEARER_TOKEN_PATTERN = re.compile(r"(?i)\bbearer\s+[a-z0-9._~+/=-]+")
+_AUTHORIZATION_HEADER_PATTERN = re.compile(
+    r"(?i)\b(authorization|x-api-key)\b\s*[:=]\s*([^\s,;]+(?:\s+[^\s,;]+)?)"
 )
 
 
 def _is_sensitive_key(key: str) -> bool:
-    normalized = key.lower().replace("-", "_")
+    snake_case = re.sub(r"(?<!^)(?=[A-Z])", "_", key)
+    normalized = snake_case.lower().replace("-", "_")
     return normalized in _SENSITIVE_EXACT_KEYS or normalized.endswith(_SENSITIVE_SUFFIXES)
 
 
@@ -59,7 +82,9 @@ def _redact_sensitive_fields(_: Any, __: str, event_dict: EventDict) -> EventDic
             event_dict[key] = "***"
             continue
         if isinstance(value, str):
-            event_dict[key] = _SENSITIVE_PATTERN.sub(r"\1=***", value)
+            redacted = _SENSITIVE_PATTERN.sub(r"\1=***", value)
+            redacted = _BEARER_TOKEN_PATTERN.sub("Bearer ***", redacted)
+            event_dict[key] = _AUTHORIZATION_HEADER_PATTERN.sub(r"\1=***", redacted)
     return event_dict
 
 

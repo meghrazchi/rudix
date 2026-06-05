@@ -102,6 +102,10 @@ ENV_KEYS = [
     "MCP_RATE_LIMIT_REQUESTS",
     "FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS",
     "MCP_EXTERNAL_SERVERS",
+    "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY",
+    "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID",
+    "CONNECTOR_OAUTH_STATE_TTL_SECONDS",
+    "CONNECTOR_OAUTH_CLIENTS",
 ]
 
 
@@ -374,6 +378,27 @@ def test_snapshot_redacts_secrets_and_credentials() -> None:
     assert "secret" not in snapshot["rabbitmq_url"]
     assert snapshot["features"]["mcp"] is True
     assert snapshot["mcp"]["dev_principal_user_id_set"] is True
+
+
+def test_connector_oauth_client_snapshot_redacts_client_secret() -> None:
+    payload = valid_settings_kwargs()
+    payload["connector_credential_encryption_key"] = "connector-encryption-secret"
+    payload["connector_oauth_clients"] = [
+        {
+            "provider_key": "jira",
+            "client_id": "jira-client-id",
+            "client_secret": "jira-client-secret",
+            "redirect_uri": "https://app.example.com/api/v1/connectors/oauth/callback",
+        }
+    ]
+
+    settings = Settings(_env_file=None, **payload)
+    snapshot = settings.sanitized_snapshot()
+
+    assert snapshot["connector_credentials"]["encryption_key_set"] is True
+    assert snapshot["connector_credentials"]["oauth_clients"][0]["provider_key"] == "jira"
+    assert snapshot["connector_credentials"]["oauth_clients"][0]["client_secret_set"] is True
+    assert "jira-client-secret" not in str(snapshot)
 
 
 def test_rate_limit_disabled_by_default_in_development() -> None:

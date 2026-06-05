@@ -1527,6 +1527,31 @@ Notes:
 - Endpoint is role-protected (`owner|admin`).
 - Payload excludes raw secrets and tokens by design.
 
+### Connector credential lifecycle
+
+Connector credential endpoints are role-protected (`owner|admin`) and
+organization-scoped:
+
+- `POST /connectors/oauth/connect`: validates provider scope policy, stores a
+  hashed one-time OAuth state, and returns the provider authorization URL.
+- `POST /connectors/oauth/callback`: validates state, exchanges the code through
+  the provider token endpoint, stores encrypted credentials, and returns safe
+  connection metadata only.
+- `POST /connectors/{connection_id}/refresh`: refreshes expired OAuth tokens
+  through the shared lifecycle service and records safe audit metadata.
+- `POST /connectors/{connection_id}/disconnect`: revokes remote tokens when the
+  provider supports revocation, marks the local credential revoked, disables
+  connector sync jobs, and writes an audit event.
+- `GET /connectors/{connection_id}/diagnostics`: returns status, scopes,
+  credential version, expiry, fingerprint, and sanitized metadata only.
+
+Safe-output guarantees:
+
+- access tokens, refresh tokens, API keys, client secrets, service-account keys,
+  and authorization headers are never returned in API responses
+- failed callbacks and refresh failures return safe messages only
+- audit events, diagnostics, and structured logs are sanitized before persistence
+
 ### PATCH `/admin/governance`
 
 Updates organization-scoped governance policy fields.
