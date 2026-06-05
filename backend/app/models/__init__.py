@@ -15,6 +15,10 @@ from app.models.evaluation import (
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.governance import OrganizationGovernancePolicy
 from app.models.message_feedback import MessageFeedback
+from app.models.model_provider_settings import (
+    OrgModelProviderChangeLog,
+    OrgModelProviderSettings,
+)
 from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
@@ -48,6 +52,8 @@ __all__ = [
     "EvaluationSet",
     "FeedbackReviewItem",
     "MessageFeedback",
+    "OrgModelProviderChangeLog",
+    "OrgModelProviderSettings",
     "Notification",
     "Organization",
     "OrganizationChunkingProfile",

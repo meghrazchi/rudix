@@ -15,6 +15,7 @@ from app.interfaces.http import (
     evaluation_sets,
     evaluations,
     feedback_review,
+    model_provider_settings,
     notifications,
     org_settings,
     pipeline,
@@ -46,6 +47,7 @@ protected_router.include_router(prompt_templates.router)
 protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
 protected_router.include_router(quality_gates.router)
+protected_router.include_router(model_provider_settings.router)
 protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)

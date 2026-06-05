@@ -163,6 +163,13 @@ export const queryKeys = {
     resolve: (collectionId?: string) =>
       ["rag-profiles", "resolve", collectionId ?? ""] as const,
   },
+  modelProviderSettings: {
+    all: ["model-provider-settings"] as const,
+    settings: ["model-provider-settings", "settings"] as const,
+    effectivePolicy: ["model-provider-settings", "effective-policy"] as const,
+    changeLog: (params?: Record<string, unknown>) =>
+      ["model-provider-settings", "change-log", params ?? {}] as const,
+  },
   promptTemplates: {
     all: ["prompt-templates"] as const,
     list: (params?: Record<string, unknown>) =>
@@ -266,7 +273,9 @@ export type FrontendMutationKind =
   | "rag-profile.set-default"
   | "rag-profile.rollback"
   | "rag-profile.override.set"
-  | "rag-profile.override.delete";
+  | "rag-profile.override.delete"
+  | "model-provider-settings.update"
+  | "model-provider-settings.reset";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -425,6 +434,16 @@ export async function invalidateAfterMutation(
   ) {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.ragProfiles.all,
+    });
+    return;
+  }
+
+  if (
+    kind === "model-provider-settings.update" ||
+    kind === "model-provider-settings.reset"
+  ) {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.modelProviderSettings.all,
     });
     return;
   }
