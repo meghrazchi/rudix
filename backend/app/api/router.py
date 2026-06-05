@@ -22,6 +22,7 @@ from app.interfaces.http import (
     profile,
     prompt_templates,
     quality_gates,
+    quotas,
     rag_profiles,
     safety_evals,
     security_settings,
@@ -48,6 +49,8 @@ protected_router.include_router(notifications.router)
 protected_router.include_router(feedback_review.router)
 protected_router.include_router(quality_gates.router)
 protected_router.include_router(model_provider_settings.router)
+protected_router.include_router(quotas.admin_router)
+protected_router.include_router(quotas.user_router)
 protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)

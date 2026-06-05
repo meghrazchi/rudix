@@ -172,6 +172,16 @@ export const queryKeys = {
     changeLog: (params?: Record<string, unknown>) =>
       ["model-provider-settings", "change-log", params ?? {}] as const,
   },
+  quotas: {
+    all: ["quotas"] as const,
+    policy: ["quotas", "policy"] as const,
+    usage: ["quotas", "usage"] as const,
+    myUsage: ["quotas", "my-usage"] as const,
+    overrides: (params?: Record<string, unknown>) =>
+      ["quotas", "overrides", params ?? {}] as const,
+    changeLog: (params?: Record<string, unknown>) =>
+      ["quotas", "change-log", params ?? {}] as const,
+  },
   promptTemplates: {
     all: ["prompt-templates"] as const,
     list: (params?: Record<string, unknown>) =>
@@ -277,7 +287,11 @@ export type FrontendMutationKind =
   | "rag-profile.override.set"
   | "rag-profile.override.delete"
   | "model-provider-settings.update"
-  | "model-provider-settings.reset";
+  | "model-provider-settings.reset"
+  | "quota-policy.update"
+  | "quota-policy.reset"
+  | "quota-override.create"
+  | "quota-override.delete";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -447,6 +461,16 @@ export async function invalidateAfterMutation(
     await queryClient.invalidateQueries({
       queryKey: queryKeys.modelProviderSettings.all,
     });
+    return;
+  }
+
+  if (kind === "quota-policy.update" || kind === "quota-policy.reset") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.quotas.all });
+    return;
+  }
+
+  if (kind === "quota-override.create" || kind === "quota-override.delete") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.quotas.all });
     return;
   }
 
