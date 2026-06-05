@@ -15,6 +15,7 @@ import {
   Folder,
   LayoutGrid,
   MessageSquare,
+  Plug,
   Settings,
   Shield,
   Workflow,
@@ -116,6 +117,7 @@ const NAV_ICONS: Partial<
   chat: MessageSquare,
   evaluations: BarChart2,
   pipeline: Workflow,
+  connectors: Plug,
   settings: Settings,
 };
 

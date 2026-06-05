@@ -12,6 +12,7 @@ export type AppRouteKey =
   | "chat"
   | "evaluations"
   | "pipeline"
+  | "connectors"
   | "settings"
   | "admin";
 
@@ -95,6 +96,15 @@ export const APP_ROUTES: AppRouteMeta[] = [
     label: "Pipeline Explorer",
     description: "Inspect processing and query pipeline internals",
     matchPrefixes: ["/rag-pipeline", "/pipeline-explorer"],
+    requiresOrganization: true,
+    allowedRoles: ["owner", "admin", "member", "viewer"],
+  },
+  {
+    key: "connectors",
+    href: "/connectors",
+    label: "Connectors",
+    description: "Connect external sources like Jira, Confluence, and Google Drive",
+    matchPrefixes: ["/connectors"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
   },
