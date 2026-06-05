@@ -45,6 +45,14 @@ Every Qdrant search must include payload filters:
 }
 ```
 
+Connector operations must also enforce:
+
+- `organization_id` on providers' connections, external sources, external
+  items, sync jobs, sync runs, source documents, source references, and tombstones
+- same-organization validation for optional `collection_id`
+- same-organization validation before linking an external item to a `documents` row
+- no provider-specific bypasses in RAG, chat, citation, agent, or MCP adapters
+
 ## Agent tool security
 
 When agent/tool execution is enabled, enforce the same security boundary as API endpoints:

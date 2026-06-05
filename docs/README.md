@@ -19,6 +19,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 13. [13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md](./13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md)
 14. [14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md](./14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md)
 15. [15_MCP_SERVER_DEPLOYMENT_MODE.md](./15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), deployment, tools/resources/prompts
+16. [16_CONNECTOR_PLATFORM.md](./16_CONNECTOR_PLATFORM.md)
 
 ## Setup and Operations
 

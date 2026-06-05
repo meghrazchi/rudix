@@ -52,6 +52,10 @@ flowchart TD
 ## Ingestion pipeline
 
 The ingestion pipeline runs when a user uploads a document.
+Connector providers use the same downstream lifecycle after provider adapters
+normalize external items and create or update source-linked document rows. See
+[16_CONNECTOR_PLATFORM.md](./16_CONNECTOR_PLATFORM.md) for the connector source
+model and extension pattern.
 
 ### Steps
 
@@ -68,6 +72,16 @@ The ingestion pipeline runs when a user uploads a document.
 11. Worker calls embedding model for each chunk.
 12. Worker stores vectors and payload metadata in Qdrant.
 13. Worker updates document status to `indexed`.
+
+Connector ingestion adds a provider-neutral pre-step before item 5:
+
+1. Adapter syncs a provider account, source, or folder.
+2. Adapter emits `NormalizedExternalItem` with stable provider IDs, source URL,
+   content hash, provider updated timestamp, sync version, organization scope,
+   and optional collection scope.
+3. Connector service validates organization and collection boundaries.
+4. Shared ingestion creates or updates the `documents` row and links provenance
+   through `source_documents` and `source_references`.
 
 ### Ingestion Mermaid diagram
 

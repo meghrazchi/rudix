@@ -4,6 +4,14 @@ from app.models.chat_share import ChatShare
 from app.models.chunking_profile import OrganizationChunkingProfile
 from app.models.citation import Citation
 from app.models.collection import Collection, CollectionDocument
+from app.models.connector import (
+    ConnectorConnection,
+    ConnectorProvider,
+    ExternalItem,
+    ExternalSource,
+)
+from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
+from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.evaluation import (
     EvaluationDatasetVersion,
@@ -21,6 +29,9 @@ from app.models.model_provider_settings import (
     OrgModelProviderSettings,
 )
 from app.models.notification import Notification
+from app.models.org_domain_verification import OrgDomainVerification
+from app.models.org_scim_config import OrgSCIMConfig
+from app.models.org_sso_config import OrgSSOConfig
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
@@ -43,6 +54,10 @@ __all__ = [
     "Citation",
     "Collection",
     "CollectionDocument",
+    "ConnectorConnection",
+    "ConnectorProvider",
+    "ConnectorSyncJob",
+    "ConnectorSyncRun",
     "Document",
     "DocumentChunk",
     "DocumentPage",
@@ -51,13 +66,19 @@ __all__ = [
     "EvaluationResult",
     "EvaluationRun",
     "EvaluationSet",
+    "ExternalItem",
+    "ExternalItemTombstone",
+    "ExternalSource",
     "FailedJob",
     "FailedJobAuditLog",
     "FeedbackReviewItem",
     "MessageFeedback",
+    "Notification",
+    "OrgDomainVerification",
     "OrgModelProviderChangeLog",
     "OrgModelProviderSettings",
-    "Notification",
+    "OrgSCIMConfig",
+    "OrgSSOConfig",
     "Organization",
     "OrganizationChunkingProfile",
     "OrganizationGovernancePolicy",
@@ -74,6 +95,8 @@ __all__ = [
     "SafetyEvalCase",
     "SafetyEvalResult",
     "SafetyEvalRun",
+    "SourceDocument",
+    "SourceReference",
     "UsageEvent",
     "User",
 ]

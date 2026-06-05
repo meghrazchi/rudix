@@ -23,6 +23,8 @@ Build a production-ready AI Document Q&A Assistant where users can upload docume
 - Compute confidence scores.
 - Evaluate answers using RAGAS and custom metrics.
 - Monitor errors, latency, cost, and failed jobs.
+- Normalize external connector sources such as Jira, Confluence, and Google
+  Drive before they enter the shared ingestion and query lifecycle.
 
 ## High-level architecture
 
@@ -92,6 +94,16 @@ Design constraints:
 | Redis | Cache, rate limit helper, optional Celery result backend |
 | OpenAI | Embeddings and LLM answer generation |
 | Sentry | Error monitoring and production debugging |
+
+## Connector platform boundary
+
+External providers use the connector platform documented in
+[16_CONNECTOR_PLATFORM.md](./16_CONNECTOR_PLATFORM.md). Provider adapters write
+organization-scoped connections, sources, normalized external items, sync runs,
+tombstones, and source-document references. RAG, document lifecycle, chat, and
+citation services consume existing `documents`, chunks, and provider-neutral
+source references; they must not branch on provider-specific Jira, Confluence,
+or Google Drive behavior.
 
 ## Why split ingestion and query pipelines?
 

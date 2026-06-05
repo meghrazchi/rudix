@@ -1,0 +1,1 @@
+"""Connector platform domain package."""

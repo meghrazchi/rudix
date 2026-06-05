@@ -27,6 +27,61 @@ class DocumentStatus(StrEnum):
     retained_by_policy = "retained_by_policy"
 
 
+class ConnectorAuthType(StrEnum):
+    none = "none"
+    oauth2 = "oauth2"
+    api_token = "api_token"
+    service_account = "service_account"
+    basic = "basic"
+
+
+class ConnectorCapability(StrEnum):
+    webhooks = "webhooks"
+    attachments = "attachments"
+    comments = "comments"
+    folders = "folders"
+    acls = "acls"
+    delta_sync = "delta_sync"
+    rate_limits = "rate_limits"
+    export_formats = "export_formats"
+
+
+class ConnectorConnectionStatus(StrEnum):
+    active = "active"
+    disabled = "disabled"
+    error = "error"
+    revoked = "revoked"
+
+
+class ConnectorSyncJobStatus(StrEnum):
+    active = "active"
+    paused = "paused"
+    disabled = "disabled"
+
+
+class ConnectorSyncRunStatus(StrEnum):
+    queued = "queued"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    cancelled = "cancelled"
+
+
+class ExternalItemType(StrEnum):
+    issue = "issue"
+    wiki_page = "wiki_page"
+    cloud_file = "cloud_file"
+    folder = "folder"
+    comment = "comment"
+    attachment = "attachment"
+
+
+class ExternalItemVisibility(StrEnum):
+    org_wide = "org_wide"
+    collection = "collection"
+    restricted = "restricted"
+
+
 class DocumentProfile(StrEnum):
     text_based = "text_based"
     scanned = "scanned"
