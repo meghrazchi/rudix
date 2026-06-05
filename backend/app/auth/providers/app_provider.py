@@ -76,6 +76,9 @@ class AppAuthProvider(BaseAuthProvider):
         if user is None:
             raise AuthenticationError("Unknown principal")
 
+        if not user.is_active:
+            raise AuthenticationError("Account has been deprovisioned")
+
         if not user.memberships:
             raise AuthorizationError("No organization membership found for principal")
 

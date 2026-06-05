@@ -1,6 +1,9 @@
 # OS files
 .DS_Store
 
+# Claude Code project settings
+.claude/
+
 # Environment and secrets
 .env
 .env.*

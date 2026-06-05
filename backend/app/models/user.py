@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, String, Uuid
+from sqlalchemy import Boolean, ForeignKey, Index, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -19,6 +19,16 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     external_auth_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # SCIM / lifecycle fields
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # 'manual' | 'sso' | 'scim'
+    provisioned_by: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="manual"
+    )
+    scim_external_id: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True
+    )
 
     organization = relationship("Organization", back_populates="users")
     memberships = relationship(

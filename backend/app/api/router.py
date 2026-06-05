@@ -6,6 +6,7 @@ from app.interfaces.http import (
     admin_chunking_profiles,
     admin_documents,
     admin_governance,
+    admin_scim,
     admin_sso,
     agent_runs,
     auth,
@@ -28,6 +29,7 @@ from app.interfaces.http import (
     quotas,
     rag_profiles,
     safety_evals,
+    scim,
     security_settings,
     team,
 )
@@ -37,6 +39,7 @@ from . import health
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
+api_router.include_router(scim.router)
 
 protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
 protected_router.include_router(documents.router)
@@ -60,6 +63,7 @@ protected_router.include_router(admin.router)
 protected_router.include_router(observability.router)
 protected_router.include_router(failed_jobs.router)
 protected_router.include_router(admin_sso.router)
+protected_router.include_router(admin_scim.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(admin_chunking_profiles.router)

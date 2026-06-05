@@ -57,3 +57,14 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    scim_config = relationship(
+        "OrgSCIMConfig",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    domain_verifications = relationship(
+        "OrgDomainVerification",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
