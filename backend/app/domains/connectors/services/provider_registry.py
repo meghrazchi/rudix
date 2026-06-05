@@ -198,6 +198,7 @@ def _google_drive_provider() -> ProviderRegistration:
         config_schema={
             "type": "object",
             "properties": {
+                "folder_ids": {"type": "array", "items": {"type": "string"}},
                 "drive_ids": {"type": "array", "items": {"type": "string"}},
                 "include_shared_drives": {"type": "boolean"},
             },
