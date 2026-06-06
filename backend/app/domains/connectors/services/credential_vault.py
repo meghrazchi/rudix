@@ -178,7 +178,10 @@ class CredentialVault:
         except Exception as exc:
             raise ConnectorCredentialError(f"credential decryption failed: {exc}") from exc
         payload = _parse_payload(cleartext, credential.auth_type)
-        return payload.model_dump()
+        decrypted = payload.model_dump()
+        if isinstance(credential.metadata_json, dict):
+            decrypted.update(credential.metadata_json)
+        return decrypted
 
 
 def _payload_scopes(payload: ConnectorCredentialPayload) -> list[str]:

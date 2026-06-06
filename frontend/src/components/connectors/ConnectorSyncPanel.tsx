@@ -78,9 +78,10 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
     queryKey: queryKeys.connectorSyncRuns(connectionId),
     queryFn: () => listSyncRuns(connectionId, 10),
     refetchInterval: (data) => {
-      const hasActive = data?.state.data?.items.some(
-        (r) => r.status === "queued" || r.status === "running",
-      );
+      const items = data?.state?.data?.items;
+      const hasActive =
+        Array.isArray(items) &&
+        items.some((r) => r.status === "queued" || r.status === "running");
       return hasActive ? 4000 : false;
     },
   });

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -196,6 +197,17 @@ class ConnectorRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_oauth_state_by_hash_any(
+        self,
+        session: AsyncSession,
+        *,
+        state_hash: str,
+    ) -> ConnectorOAuthState | None:
+        result = await session.execute(
+            select(ConnectorOAuthState).where(ConnectorOAuthState.state_hash == state_hash)
+        )
+        return result.scalar_one_or_none()
+
     async def consume_oauth_state(
         self,
         session: AsyncSession,
@@ -263,6 +275,17 @@ class ConnectorRepository:
         await session.flush()
         await session.refresh(credential)
         return credential
+
+    async def delete_connection(
+        self,
+        session: AsyncSession,
+        *,
+        connection_id: UUID,
+    ) -> None:
+        await session.execute(
+            sql_delete(ConnectorConnection).where(ConnectorConnection.id == connection_id)
+        )
+        await session.flush()
 
     async def get_current_credential(
         self,

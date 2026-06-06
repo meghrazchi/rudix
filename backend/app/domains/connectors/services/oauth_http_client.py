@@ -90,7 +90,10 @@ class HttpOAuthTokenClient:
         }
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             response = await client.post(provider.oauth.revoke_endpoint, data=payload)
-            response.raise_for_status()
+            # Revocation is best-effort: 4xx means the token is already invalid/expired,
+            # which is fine. Only surface 5xx server errors.
+            if response.is_server_error:
+                response.raise_for_status()
 
     def _require_client(self, provider_key: str) -> ConnectorOAuthClientSettings:
         normalized_provider_key = provider_key.strip().lower()

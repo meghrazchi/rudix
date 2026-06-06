@@ -245,6 +245,9 @@ export const queryKeys = {
     invoices: ["billing", "invoices"] as const,
     contact: ["billing", "contact"] as const,
   },
+  connectorConnections: ["connectors", "connections"] as const,
+  connectorConnection: (connectionId: string) =>
+    ["connectors", "connections", connectionId] as const,
   connectorSyncJobs: (connectionId: string) =>
     ["connectors", connectionId, "sync-jobs"] as const,
   connectorSyncRuns: (connectionId: string) =>

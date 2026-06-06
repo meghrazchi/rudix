@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import ConnectorOAuthClientSettings, settings
 from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.credentials import OAuthCredentialPayload, OAuthTokenResponse
@@ -32,6 +33,9 @@ from app.models.enums import (
     ConnectorConnectionStatus,
     ConnectorCredentialStatus,
 )
+
+
+_ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"jira", "confluence"})
 
 
 class OAuthLifecycleError(ValueError):
@@ -95,6 +99,7 @@ class ConnectorOAuthLifecycleService:
         vault: ConnectorCredentialVault | None = None,
         token_client: OAuthTokenClient | None = None,
         audit_service: AuditLogService | None = None,
+        oauth_client_settings: list[ConnectorOAuthClientSettings] | None = None,
         state_ttl_seconds: int = 600,
         refresh_skew_seconds: int = 60,
     ) -> None:
@@ -107,6 +112,11 @@ class ConnectorOAuthLifecycleService:
         self.vault = vault or ConnectorCredentialVault(repository=self.repository)
         self.token_client = token_client
         self.audit_service = audit_service or AuditLogService()
+        self.oauth_client_settings = (
+            oauth_client_settings
+            if oauth_client_settings is not None
+            else list(settings.connector_oauth_clients)
+        )
         self.state_ttl_seconds = state_ttl_seconds
         self.refresh_skew_seconds = refresh_skew_seconds
 
@@ -124,12 +134,17 @@ class ConnectorOAuthLifecycleService:
         display_name: str | None = None,
         external_account_id: str | None = None,
         client_id: str | None = None,
+        config: dict | None = None,
         now: datetime | None = None,
     ) -> OAuthConnectResult:
         provider = self.provider_registry.require(provider_key)
         if provider.oauth is None:
             raise OAuthLifecycleError("connector provider does not support OAuth")
         scopes = self.provider_registry.validate_scopes(provider_key, requested_scopes)
+        client_config = self._require_oauth_client(provider_key)
+        effective_redirect_uri = (
+            str(client_config.redirect_uri) if client_config.redirect_uri else redirect_uri
+        )
         if collection_id is not None:
             await self.platform_service.require_collection(session, organization_id, collection_id)
         if connection_id is not None:
@@ -143,7 +158,7 @@ class ConnectorOAuthLifecycleService:
             organization_id=organization_id,
             provider_key=provider.key,
             state_hash=_hash_state(state),
-            redirect_uri=redirect_uri,
+            redirect_uri=effective_redirect_uri,
             requested_scopes=scopes,
             expires_at=expires_at,
             created_by_user_id=user_id,
@@ -151,16 +166,20 @@ class ConnectorOAuthLifecycleService:
             collection_id=collection_id,
             display_name=display_name,
             external_account_id=external_account_id,
-            config={"client_id_set": bool(client_id)},
+            config={
+                "client_id_set": bool(client_config.client_id),
+                "redirect_uri": effective_redirect_uri,
+                **(config or {}),
+            },
         )
         return OAuthConnectResult(
             state=state,
             authorization_url=_authorization_url(
                 authorization_endpoint=provider.oauth.authorization_endpoint,
                 state=state,
-                redirect_uri=redirect_uri,
+                redirect_uri=effective_redirect_uri,
                 scopes=scopes,
-                client_id=client_id,
+                client_id=client_config.client_id,
                 additional_params=provider.oauth.additional_authorization_params,
             ),
             expires_at=expires_at,
@@ -185,90 +204,42 @@ class ConnectorOAuthLifecycleService:
             state=state,
             now=current_time,
         )
-        if error is not None:
-            await self.repository.consume_oauth_state(
-                session,
-                state=oauth_state,
-                consumed_at=current_time,
-                failure_reason="provider_error",
-            )
-            await self._audit(
-                session,
-                organization_id=organization_id,
-                user_id=user_id,
-                action="connector.oauth.callback_failed",
-                resource_id=oauth_state.connection_id,
-                metadata={
-                    "provider_key": oauth_state.provider_key,
-                    "reason": "provider_error",
-                    "error": error,
-                },
-            )
-            raise OAuthStateValidationError("OAuth provider returned an error")
-
-        if code is None or not code.strip():
-            raise OAuthStateValidationError("OAuth callback code is required")
-        if self.token_client is None:
-            raise OAuthLifecycleError("OAuth token client is not configured")
-
-        token_response = await self.token_client.exchange_code(
-            provider_key=oauth_state.provider_key,
-            code=code.strip(),
-            redirect_uri=oauth_state.redirect_uri,
-            scopes=list(oauth_state.requested_scopes_json or []),
-        )
-        scopes = self.provider_registry.validate_scopes(
-            oauth_state.provider_key,
-            token_response.resolved_scopes(list(oauth_state.requested_scopes_json or [])),
-        )
-        expires_at = _resolve_expires_at(token_response, current_time)
-        payload = OAuthCredentialPayload(
-            access_token=token_response.access_token,
-            refresh_token=token_response.refresh_token,
-            token_type=token_response.token_type,
-            expires_at=expires_at,
-            scopes=scopes,
-            provider_account_id=token_response.provider_account_id,
-        )
-        connection = await self._connection_for_state(
+        return await self._complete_callback_for_state(
             session,
-            organization_id=organization_id,
             oauth_state=oauth_state,
-            external_account_id=token_response.provider_account_id,
-        )
-        await self.vault.store(
-            session,
-            connection=connection,
-            payload=payload,
-            scopes=scopes,
-            metadata={
-                "provider_key": oauth_state.provider_key,
-                "oauth_flow": "callback",
-                "has_refresh_token": token_response.refresh_token is not None,
-            },
-            issued_at=current_time,
-            expires_at=expires_at,
-        )
-        await self.repository.consume_oauth_state(
-            session,
-            state=oauth_state,
-            consumed_at=current_time,
-        )
-        await self._audit(
-            session,
             organization_id=organization_id,
+            state=state,
+            code=code,
+            error=error,
             user_id=user_id,
-            action="connector.oauth.connected"
-            if oauth_state.connection_id is None
-            else "connector.oauth.reconnected",
-            resource_id=connection.id,
-            metadata={
-                "provider_key": oauth_state.provider_key,
-                "scopes": scopes,
-                "expires_at": expires_at.isoformat() if expires_at else None,
-            },
+            now=current_time,
         )
-        return connection
+
+    async def complete_callback_public(
+        self,
+        session: AsyncSession,
+        *,
+        state: str,
+        code: str | None = None,
+        error: str | None = None,
+        now: datetime | None = None,
+    ) -> ConnectorConnection:
+        current_time = now or datetime.now(tz=UTC)
+        oauth_state = await self._require_valid_state_by_hash(
+            session,
+            state=state,
+            now=current_time,
+        )
+        return await self._complete_callback_for_state(
+            session,
+            oauth_state=oauth_state,
+            organization_id=oauth_state.organization_id,
+            state=state,
+            code=code,
+            error=error,
+            user_id=oauth_state.created_by_user_id,
+            now=current_time,
+        )
 
     async def get_valid_oauth_payload(
         self,
@@ -487,6 +458,25 @@ class ConnectorOAuthLifecycleService:
             "remote_revoked_token_count": revoked_tokens,
         }
 
+    async def delete_connection(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        user_id: UUID | None = None,
+        now: datetime | None = None,
+    ) -> None:
+        """Disconnect (revoke tokens) then hard-delete the connection record."""
+        await self.disconnect(
+            session,
+            organization_id=organization_id,
+            connection_id=connection_id,
+            user_id=user_id,
+            now=now,
+        )
+        await self.repository.delete_connection(session, connection_id=connection_id)
+
     async def diagnostics(
         self,
         session: AsyncSession,
@@ -549,6 +539,131 @@ class ConnectorOAuthLifecycleService:
             raise OAuthStateValidationError("OAuth state has expired")
         return oauth_state
 
+    async def _require_valid_state_by_hash(
+        self,
+        session: AsyncSession,
+        *,
+        state: str,
+        now: datetime,
+    ) -> ConnectorOAuthState:
+        state_hash = _hash_state(state)
+        oauth_state = await self.repository.get_oauth_state_by_hash_any(
+            session,
+            state_hash=state_hash,
+        )
+        if oauth_state is None:
+            raise OAuthStateValidationError("OAuth state is invalid")
+        if oauth_state.consumed_at is not None:
+            raise OAuthStateValidationError("OAuth state has already been used")
+        if _as_aware(oauth_state.expires_at) <= now:
+            await self.repository.consume_oauth_state(
+                session,
+                state=oauth_state,
+                consumed_at=now,
+                failure_reason="expired",
+            )
+            raise OAuthStateValidationError("OAuth state has expired")
+        return oauth_state
+
+    async def _complete_callback_for_state(
+        self,
+        session: AsyncSession,
+        *,
+        oauth_state: ConnectorOAuthState,
+        organization_id: UUID,
+        state: str,
+        code: str | None,
+        error: str | None,
+        user_id: UUID | None,
+        now: datetime,
+    ) -> ConnectorConnection:
+        del state
+        if error is not None:
+            await self.repository.consume_oauth_state(
+                session,
+                state=oauth_state,
+                consumed_at=now,
+                failure_reason="provider_error",
+            )
+            await self._audit(
+                session,
+                organization_id=organization_id,
+                user_id=user_id,
+                action="connector.oauth.callback_failed",
+                resource_id=oauth_state.connection_id,
+                metadata={
+                    "provider_key": oauth_state.provider_key,
+                    "reason": "provider_error",
+                    "error": error,
+                },
+            )
+            raise OAuthStateValidationError("OAuth provider returned an error")
+
+        if code is None or not code.strip():
+            raise OAuthStateValidationError("OAuth callback code is required")
+        if self.token_client is None:
+            raise OAuthLifecycleError("OAuth token client is not configured")
+
+        token_response = await self.token_client.exchange_code(
+            provider_key=oauth_state.provider_key,
+            code=code.strip(),
+            redirect_uri=oauth_state.redirect_uri,
+            scopes=list(oauth_state.requested_scopes_json or []),
+        )
+        scopes = self.provider_registry.validate_scopes(
+            oauth_state.provider_key,
+            token_response.resolved_scopes(list(oauth_state.requested_scopes_json or [])),
+        )
+        expires_at = _resolve_expires_at(token_response, now)
+        payload = OAuthCredentialPayload(
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type=token_response.token_type,
+            expires_at=expires_at,
+            scopes=scopes,
+            provider_account_id=token_response.provider_account_id,
+        )
+        connection = await self._connection_for_state(
+            session,
+            organization_id=organization_id,
+            oauth_state=oauth_state,
+            external_account_id=token_response.provider_account_id,
+        )
+        await self.vault.store(
+            session,
+            connection=connection,
+            payload=payload,
+            scopes=scopes,
+            metadata={
+                "provider_key": oauth_state.provider_key,
+                "oauth_flow": "callback",
+                "has_refresh_token": token_response.refresh_token is not None,
+                **(oauth_state.config_json or {}),
+            },
+            issued_at=now,
+            expires_at=expires_at,
+        )
+        await self.repository.consume_oauth_state(
+            session,
+            state=oauth_state,
+            consumed_at=now,
+        )
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action="connector.oauth.connected"
+            if oauth_state.connection_id is None
+            else "connector.oauth.reconnected",
+            resource_id=connection.id,
+            metadata={
+                "provider_key": oauth_state.provider_key,
+                "scopes": scopes,
+                "expires_at": expires_at.isoformat() if expires_at else None,
+            },
+        )
+        return connection
+
     async def _connection_for_state(
         self,
         session: AsyncSession,
@@ -570,7 +685,10 @@ class ConnectorOAuthLifecycleService:
                 collection_id=oauth_state.collection_id,
                 created_by_user_id=oauth_state.created_by_user_id,
                 external_account_id=external_account_id or oauth_state.external_account_id,
-                auth_config={},
+                auth_config={
+                    "provider_key": oauth_state.provider_key,
+                    **(oauth_state.config_json or {}),
+                },
             )
         except ConnectorBoundaryError:
             raise
@@ -659,6 +777,22 @@ class ConnectorOAuthLifecycleService:
             resource_type="connector_connection",
             resource_id=resource_id,
             metadata=metadata,
+        )
+
+    def _require_oauth_client(self, provider_key: str) -> ConnectorOAuthClientSettings:
+        normalized_provider_key = provider_key.strip().lower()
+        for client_config in self.oauth_client_settings:
+            if client_config.provider_key == normalized_provider_key:
+                return client_config
+        # Atlassian providers (jira, confluence) can share a single "atlassian" credential entry.
+        if normalized_provider_key in _ATLASSIAN_PROVIDER_KEYS:
+            for client_config in self.oauth_client_settings:
+                if client_config.provider_key == "atlassian":
+                    return client_config
+        raise OAuthLifecycleError(
+            f"connector OAuth client is not configured for provider {normalized_provider_key!r}. "
+            f"Add an entry with provider_key={normalized_provider_key!r} "
+            f"(or 'atlassian' to cover all Atlassian products) to CONNECTOR_OAUTH_CLIENTS."
         )
 
 

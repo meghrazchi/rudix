@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,12 +9,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.models  # noqa: F401
+from app.core.config import ConnectorOAuthClientSettings
 from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.credentials import OAuthTokenResponse
 from app.domains.connectors.services.connector_service import ConnectorPlatformService
 from app.domains.connectors.services.credential_crypto import CredentialCipher
-from app.domains.connectors.services.credential_vault import ConnectorCredentialVault
+from app.domains.connectors.services.credential_vault import (
+    ConnectorCredentialVault,
+    CredentialVault,
+)
 from app.domains.connectors.services.oauth_lifecycle import (
     ConnectorOAuthLifecycleService,
     ConnectorSyncBlockedError,
@@ -138,6 +143,83 @@ async def test_oauth_callback_stores_encrypted_secret_and_safe_metadata(
     assert "access-token-secret" not in str(diagnostics)
     assert "refresh-token-secret" not in str(diagnostics)
     assert diagnostics["credential_fingerprint"] == credential.secret_fingerprint
+
+
+@pytest.mark.asyncio
+async def test_oauth_begin_uses_configured_client_credentials(
+    db_session: AsyncSession,
+) -> None:
+    context = await _seed_connector_context(db_session)
+    token_client = _FakeOAuthTokenClient()
+    service = _service(token_client)
+
+    connect = await service.begin_connect(
+        db_session,
+        organization_id=context.organization_id,
+        provider_key="jira",
+        redirect_uri="https://app.example.test/oauth/callback",
+        user_id=context.user_id,
+        display_name="Jira Production",
+    )
+
+    parsed = urlsplit(connect.authorization_url)
+    params = parse_qs(parsed.query)
+    assert params["client_id"] == ["jira-client-id"]
+    assert params["redirect_uri"] == ["https://app.example.test/api/v1/connectors/oauth/callback"]
+    assert params["scope"] == ["read:jira-work read:jira-user offline_access"]
+
+
+@pytest.mark.asyncio
+async def test_oauth_begin_and_callback_preserve_confluence_config(
+    db_session: AsyncSession,
+) -> None:
+    context = await _seed_connector_context(db_session)
+    token_client = _FakeOAuthTokenClient()
+    token_client.exchange_response = OAuthTokenResponse(
+        access_token="access-token-secret",
+        refresh_token="refresh-token-secret",
+        token_type="Bearer",
+        expires_in=60,
+        scopes=[
+            "read:confluence-content.all",
+            "read:confluence-space.summary",
+            "offline_access",
+        ],
+        provider_account_id="confluence-site-1",
+    )
+    service = _service(token_client)
+
+    connect = await service.begin_connect(
+        db_session,
+        organization_id=context.organization_id,
+        provider_key="confluence",
+        redirect_uri="https://app.example.test/oauth/callback",
+        user_id=context.user_id,
+        display_name="Confluence Production",
+        config={
+            "site_url": "https://acme.atlassian.net",
+            "space_keys": ["DOCS", "ENG"],
+            "cql_filter": 'label = "docs"',
+            "include_comments": True,
+        },
+    )
+    connection = await service.complete_callback(
+        db_session,
+        organization_id=context.organization_id,
+        state=connect.state,
+        code="oauth-code",
+        user_id=context.user_id,
+    )
+
+    credential = await _current_credential(db_session, connection.id)
+    assert credential is not None
+
+    decrypted = CredentialVault(cipher=service.vault.cipher).decrypt(credential)
+    assert decrypted["provider_key"] == "confluence"
+    assert decrypted["site_url"] == "https://acme.atlassian.net"
+    assert decrypted["space_keys"] == ["DOCS", "ENG"]
+    assert decrypted["cql_filter"] == 'label = "docs"'
+    assert decrypted["include_comments"] is True
 
 
 @pytest.mark.asyncio
@@ -364,6 +446,20 @@ def _service(token_client: _FakeOAuthTokenClient) -> ConnectorOAuthLifecycleServ
             cipher=CredentialCipher(secret="connector-test-secret", key_id="test-key"),
         ),
         token_client=token_client,
+        oauth_client_settings=[
+            ConnectorOAuthClientSettings(
+                provider_key="jira",
+                client_id="jira-client-id",
+                client_secret="jira-client-secret",
+                redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
+            ),
+            ConnectorOAuthClientSettings(
+                provider_key="confluence",
+                client_id="confluence-client-id",
+                client_secret="confluence-client-secret",
+                redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
+            ),
+        ],
         state_ttl_seconds=600,
         refresh_skew_seconds=60,
     )

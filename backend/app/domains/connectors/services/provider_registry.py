@@ -147,8 +147,28 @@ def _confluence_provider() -> ProviderRegistration:
         config_schema={
             "type": "object",
             "properties": {
-                "site_url": {"type": "string", "format": "uri"},
-                "space_keys": {"type": "array", "items": {"type": "string"}},
+                "site_url": {
+                    "type": "string",
+                    "format": "uri",
+                    "title": "Confluence site URL",
+                    "description": "Your Atlassian site, for example https://myteam.atlassian.net.",
+                },
+                "space_keys": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Space keys",
+                    "description": "Comma-separated Confluence space keys to sync. Leave blank to sync all accessible spaces.",
+                },
+                "cql_filter": {
+                    "type": "string",
+                    "title": "CQL filter",
+                    "description": "Additional Confluence query predicate applied to every sync.",
+                },
+                "include_comments": {
+                    "type": "boolean",
+                    "title": "Include page comments",
+                    "description": "Import page comments as searchable items.",
+                },
             },
             "required": ["site_url"],
             "additionalProperties": False,

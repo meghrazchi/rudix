@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+
+import { listProviders } from "@/lib/api/connector-providers";
+import {
+  deleteConnectorConnection,
+  listConnectorConnections,
+} from "@/lib/api/connectors";
+import type { ConnectorConnectionsListResponse } from "@/lib/api/connectors";
+import { queryKeys } from "@/lib/api/query";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,21 +35,6 @@ type CatalogEntry = {
   available: boolean;
 };
 
-// ── Mock data (replace with API calls once list endpoint exists) ───────────────
-
-const CONNECTIONS: ConnectionRow[] = [
-  {
-    id: "conn-jira-1",
-    providerKey: "jira",
-    name: "Engineering Jira",
-    projectLabel: "Project: RUD-2024",
-    status: "active",
-    lastSyncLabel: "14 mins ago",
-    lastSyncStatus: "Success",
-    itemsIndexed: 12483,
-  },
-];
-
 const CATALOG: CatalogEntry[] = [
   {
     key: "jira",
@@ -58,7 +52,7 @@ const CATALOG: CatalogEntry[] = [
     brandColor: "#0052CC",
     initial: "C",
     connected: false,
-    available: false,
+    available: true,
   },
   {
     key: "google_drive",
@@ -115,6 +109,43 @@ const CATALOG: CatalogEntry[] = [
     available: false,
   },
 ];
+
+function connectionToRow(connection: {
+  id: string;
+  provider_key: string;
+  display_name: string;
+  external_account_id: string | null;
+  status: string;
+  last_sync_at: string | null;
+  source_count: number;
+}): ConnectionRow {
+  return {
+    id: connection.id,
+    providerKey: connection.provider_key,
+    name: connection.display_name,
+    projectLabel: connection.external_account_id
+      ? `Account: ${connection.external_account_id}`
+      : `Provider: ${connection.provider_key}`,
+    status:
+      connection.status === "active"
+        ? "active"
+        : connection.status === "paused"
+          ? "paused"
+          : "error",
+    lastSyncLabel: connection.last_sync_at
+      ? new Date(connection.last_sync_at).toLocaleString()
+      : "Never",
+    lastSyncStatus:
+      connection.status === "active"
+        ? "Success"
+        : connection.status === "paused"
+          ? "Paused"
+          : connection.status === "error"
+            ? "Needs attention"
+            : "Unknown",
+    itemsIndexed: connection.source_count,
+  };
+}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -269,14 +300,88 @@ function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (ke
 
 export function ConnectorsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const providersQuery = useQuery({
+    queryKey: queryKeys.connectorProviders,
+    queryFn: listProviders,
+  });
+  const connectionsQuery = useQuery({
+    queryKey: queryKeys.connectorConnections,
+    queryFn: listConnectorConnections,
+  });
 
-  const connectedCount = CONNECTIONS.length;
-  const runningCount = CONNECTIONS.filter((c) => c.status === "active").length;
+  const activeConnections =
+    connectionsQuery.data?.items.filter((connection) => connection.status === "active") ??
+    [];
+  const connectedCount = activeConnections.length;
+  const runningCount = activeConnections.length;
   const failedCount = 0;
   const reauthCount = 0;
+  const connectionRows = activeConnections.map(connectionToRow);
+  const connectedProviderKeys = new Set(
+    activeConnections.map((connection) => connection.provider_key),
+  );
+  const providerKeysFromAPI = new Set(
+    (providersQuery.data?.items ?? []).map((provider) => provider.key),
+  );
+  const deleteConnectionMutation = useMutation({
+    mutationFn: (connectionId: string) => deleteConnectorConnection(connectionId),
+    onMutate: async (connectionId) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.connectorConnections,
+      });
+
+      const previousConnections = queryClient.getQueryData<ConnectorConnectionsListResponse>(
+        queryKeys.connectorConnections,
+      );
+
+      queryClient.setQueryData(
+        queryKeys.connectorConnections,
+        (
+          current: ConnectorConnectionsListResponse | undefined,
+        ): ConnectorConnectionsListResponse | undefined => {
+          if (!current) {
+            return current;
+          }
+          const nextItems = current.items.filter(
+            (item) => item.id !== connectionId,
+          );
+          return {
+            items: nextItems,
+            total: nextItems.length,
+          };
+        },
+      );
+
+      return { previousConnections };
+    },
+    onError: (_error, _connectionId, context) => {
+      if (context?.previousConnections) {
+        queryClient.setQueryData(
+          queryKeys.connectorConnections,
+          context.previousConnections,
+        );
+      }
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.connectorConnections,
+      });
+    },
+  });
 
   function handleConnect(providerKey: string) {
     router.push(`/connectors/new/${encodeURIComponent(providerKey)}`);
+  }
+
+  function handleDeleteConnection(connectionId: string, connectionName: string) {
+    const confirmed = window.confirm(
+      `Delete connected source \"${connectionName}\"? This will disconnect it from Rudix.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+    deleteConnectionMutation.mutate(connectionId);
   }
 
   return (
@@ -369,14 +474,14 @@ export function ConnectorsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e4e1ee]">
-              {CONNECTIONS.length === 0 ? (
+              {connectionRows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#464555]">
-                    No connections yet. Add a source from the catalog below.
+                    No active connections yet. Add a source from the catalog below.
                   </td>
                 </tr>
               ) : (
-                CONNECTIONS.map((conn) => {
+                connectionRows.map((conn) => {
                   const catalog = CATALOG.find((c) => c.key === conn.providerKey);
                   return (
                     <tr
@@ -420,7 +525,9 @@ export function ConnectorsPage() {
                         <div className="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                           <button
                             title="View"
+                            aria-label={`View connected source ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
+                            onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               visibility
@@ -428,7 +535,9 @@ export function ConnectorsPage() {
                           </button>
                           <button
                             title="Sync now"
+                            aria-label={`Sync connected source ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
+                            onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               sync
@@ -436,10 +545,25 @@ export function ConnectorsPage() {
                           </button>
                           <button
                             title="Settings"
+                            aria-label={`Open settings for connected source ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
+                            onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               settings
+                            </span>
+                          </button>
+                          <button
+                            title="Delete"
+                            aria-label={`Delete connected source ${conn.name}`}
+                            disabled={deleteConnectionMutation.isPending}
+                            onClick={() =>
+                              handleDeleteConnection(conn.id, conn.name)
+                            }
+                            className="p-2 hover:bg-[#fce8e6] rounded-lg transition-colors text-[#b42318] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">
+                              delete
                             </span>
                           </button>
                         </div>
@@ -465,8 +589,17 @@ export function ConnectorsPage() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {CATALOG.map((entry) => (
-            <CatalogCard key={entry.key} entry={entry} onConnect={handleConnect} />
+          {CATALOG.filter(
+            (entry) => providerKeysFromAPI.has(entry.key) || entry.available,
+          ).map((entry) => (
+            <CatalogCard
+              key={entry.key}
+              entry={{
+                ...entry,
+                connected: connectedProviderKeys.has(entry.key),
+              }}
+              onConnect={handleConnect}
+            />
           ))}
         </div>
       </section>

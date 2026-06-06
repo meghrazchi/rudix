@@ -418,11 +418,17 @@ def test_get_provider_not_found(provider_client) -> None:
 def test_get_provider_confluence_has_export_formats(provider_client) -> None:
     response = provider_client.get("/connectors/providers/confluence")
     assert response.status_code == 200
-    formats = response.json()["capabilities"]["export_formats"]
+    data = response.json()
+    formats = data["capabilities"]["export_formats"]
     assert len(formats) >= 1
     for ef in formats:
         assert "format" in ef
         assert "mime_type" in ef
+    schema = data["config_schema"]
+    assert schema["properties"]["site_url"]["format"] == "uri"
+    assert schema["properties"]["space_keys"]["type"] == "array"
+    assert schema["properties"]["cql_filter"]["type"] == "string"
+    assert schema["properties"]["include_comments"]["type"] == "boolean"
 
 
 def test_get_provider_google_drive_max_page_size(provider_client) -> None:
