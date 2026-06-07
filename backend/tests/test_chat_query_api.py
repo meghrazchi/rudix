@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -40,6 +41,14 @@ from app.interfaces.http import chat as chat_api
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
 from app.models.citation import Citation
+from app.models.collection import Collection, CollectionAccessGrant
+from app.models.connector import (
+    ConnectorConnection,
+    ConnectorProvider,
+    ExternalItem,
+    ExternalSource,
+)
+from app.models.connector_source import SourceDocument
 from app.models.document import DocumentChunk
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -213,6 +222,132 @@ async def _seed_document_with_chunk(
     await db_session.refresh(document)
     await db_session.refresh(chunk)
     return document, chunk
+
+
+async def _seed_connector_document_with_chunk(
+    db_session: AsyncSession,
+    *,
+    organization: Organization,
+    uploader: User,
+    filename: str,
+    text: str,
+    provider_key: str = "jira",
+    provider_source_id: str = "ENG",
+    source_type: str = "project",
+    collection: Collection | None = None,
+    deleted_at: datetime | None = None,
+) -> tuple[object, DocumentChunk, ExternalItem, ExternalSource]:
+    provider_result = await db_session.execute(
+        select(ConnectorProvider).where(ConnectorProvider.key == provider_key)
+    )
+    provider = provider_result.scalar_one_or_none()
+    if provider is None:
+        provider = ConnectorProvider(
+            key=provider_key,
+            display_name=provider_key.title(),
+            auth_type="oauth2",
+            capabilities_json=[],
+            config_schema_json={},
+            rate_limits_json=[],
+            export_formats_json=[],
+            is_enabled=True,
+        )
+        db_session.add(provider)
+        await db_session.flush()
+
+    connection = ConnectorConnection(
+        organization_id=organization.id,
+        provider_id=provider.id,
+        display_name=f"{provider_key.title()} Connection",
+        status="active",
+        auth_config_json={},
+        created_by_user_id=uploader.id,
+        collection_id=collection.id if collection is not None else None,
+    )
+    db_session.add(connection)
+    await db_session.flush()
+
+    external_source = ExternalSource(
+        organization_id=organization.id,
+        connection_id=connection.id,
+        collection_id=collection.id if collection is not None else None,
+        provider_source_id=provider_source_id,
+        source_type=source_type,
+        name=f"{provider_source_id} Source",
+        source_url=f"https://{provider_key}.example.test/sources/{provider_source_id}",
+        sync_cursor_json={},
+        config_json={},
+        permissions_json={},
+        is_enabled=True,
+    )
+    db_session.add(external_source)
+    await db_session.flush()
+
+    external_item = ExternalItem(
+        organization_id=organization.id,
+        connection_id=connection.id,
+        external_source_id=external_source.id,
+        collection_id=collection.id if collection is not None else None,
+        provider_item_id=f"{provider_key}-{provider_source_id}-1",
+        item_type="issue" if provider_key == "jira" else "wiki_page",
+        title=filename,
+        source_url=f"https://{provider_key}.example.test/items/{provider_source_id}/1",
+        content_hash="d" * 64,
+        source_updated_at=datetime.now(UTC),
+        sync_version=1,
+        visibility="org_wide",
+        metadata_json={},
+        permissions_json={"entries": [{"type": "user", "role": "reader"}]},
+        deleted_at=deleted_at,
+    )
+    db_session.add(external_item)
+    await db_session.flush()
+
+    document = await DocumentRepository().create_document(
+        db_session,
+        organization_id=organization.id,
+        uploaded_by_user_id=uploader.id,
+        filename=filename,
+        file_type="pdf",
+        storage_bucket="documents",
+        storage_object_key=f"seed/{filename}-{uuid4()}.pdf",
+        status="indexed",
+        source="connector",
+    )
+    document.connector_external_item_id = external_item.id
+    document.ingestion_source = "connector"
+    db_session.add(document)
+    await db_session.flush()
+
+    source_document = SourceDocument(
+        organization_id=organization.id,
+        external_item_id=external_item.id,
+        document_id=document.id,
+        collection_id=collection.id if collection is not None else None,
+        content_hash="e" * 64,
+        sync_version=1,
+        status="active" if deleted_at is None else "deleted",
+    )
+    db_session.add(source_document)
+    await db_session.flush()
+
+    chunk = DocumentChunk(
+        document_id=document.id,
+        page_number=1,
+        chunk_index=0,
+        text=text,
+        token_count=50,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document.id}:{settings.document_index_version}:0",
+    )
+    db_session.add(chunk)
+    await db_session.flush()
+
+    await db_session.commit()
+    await db_session.refresh(document)
+    await db_session.refresh(chunk)
+    return document, chunk, external_item, external_source
 
 
 def _auth_headers(*, token: str, organization_id: str) -> dict[str, str]:
@@ -1137,3 +1272,226 @@ async def test_post_chat_scope_mode_all_behaves_like_no_scope_mode(
     assert payload["answer"] == "Remote work is permitted two days per week."
     assert payload["debug"]["retrieval_count"] == 1
     assert payload["debug"]["embedding_model"] == settings.openai_embedding_model
+
+
+@pytest.mark.asyncio
+async def test_post_chat_source_scope_includes_uploads_and_connector_sources(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    uploaded_doc, uploaded_chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="uploaded.pdf",
+        text="Uploaded document content.",
+    )
+    (
+        connector_doc,
+        connector_chunk,
+        _external_item,
+        external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="connector.pdf",
+        text="Connector-backed content.",
+        provider_source_id="ENG",
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.95,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(uploaded_doc.id),
+                    "chunk_id": str(uploaded_chunk.id),
+                    "filename": "uploaded.pdf",
+                    "page_number": 1,
+                    "text": "Uploaded document content.",
+                },
+            ),
+            FakeQdrantResult(
+                score=0.94,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(connector_doc.id),
+                    "chunk_id": str(connector_chunk.id),
+                    "filename": "connector.pdf",
+                    "page_number": 1,
+                    "text": "Connector-backed content.",
+                },
+            ),
+        ]
+    )
+    fake_openai = FakeOpenAIClient(
+        answer='{"answer":"Mixed scope answer.","not_found":false,"citations":[]}'
+    )
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Which sources are available?",
+            "document_ids": [str(uploaded_doc.id)],
+            "scope_mode": "connectors",
+            "source_scope": {
+                "mode": "connector_sources",
+                "provider_source_ids": [external_source.provider_source_id],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is False
+    assert qdrant_module.qdrant_client is not None
+    assert len(qdrant_module.qdrant_client.calls) == 1
+    query_filter = qdrant_module.qdrant_client.calls[0]["query_filter"]
+    document_filter = next(
+        condition
+        for condition in query_filter.must
+        if getattr(condition, "key", None) == "document_id"
+    )
+    matched_document_ids = (
+        [str(document_filter.match.value)]
+        if getattr(document_filter.match, "value", None) is not None
+        else [str(value) for value in getattr(document_filter.match, "any", [])]
+    )
+    assert str(uploaded_doc.id) in matched_document_ids
+    assert str(connector_doc.id) in matched_document_ids
+    assert payload["debug"]["source_scope"] == "Connector Sources · ENG"
+
+
+@pytest.mark.asyncio
+async def test_post_chat_source_scope_excludes_deleted_sources(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    (
+        _connector_doc,
+        _chunk,
+        _external_item,
+        external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="deleted.pdf",
+        text="Deleted connector-backed content.",
+        provider_source_id="DOCS",
+        deleted_at=datetime.now(UTC),
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+    fake_openai = FakeOpenAIClient(answer='{"answer":"fallback","not_found":false,"citations":[]}')
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Should not use deleted sources",
+            "source_scope": {
+                "mode": "connector_sources",
+                "provider_source_ids": [external_source.provider_source_id],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is True
+    assert payload["debug"]["retrieval_count"] == 0
+    assert qdrant_module.qdrant_client.calls == []
+    assert payload["debug"]["source_scope"] == "Connector Sources · DOCS"
+
+
+@pytest.mark.asyncio
+async def test_post_chat_source_scope_respects_collection_permissions(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    restricted_collection = Collection(
+        organization_id=organization.id,
+        owner_id=user.id,
+        name="Restricted",
+        description=None,
+        access_policy="selected_members",
+    )
+    db_session.add(restricted_collection)
+    await db_session.flush()
+    db_session.add(
+        CollectionAccessGrant(
+            collection_id=restricted_collection.id,
+            grantee_type="member",
+            grantee_value=str(uuid4()),
+            granted_by_id=user.id,
+        )
+    )
+    await db_session.commit()
+
+    (
+        _connector_doc,
+        _chunk,
+        _external_item,
+        _external_source,
+    ) = await _seed_connector_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="restricted.pdf",
+        text="Restricted connector-backed content.",
+        provider_source_id="PRIVATE",
+        collection=restricted_collection,
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient([])
+    fake_openai = FakeOpenAIClient(answer='{"answer":"fallback","not_found":false,"citations":[]}')
+    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "Can I query restricted sources?",
+            "source_scope": {
+                "mode": "collections",
+                "collection_ids": [str(restricted_collection.id)],
+            },
+            "rerank": False,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["not_found"] is True
+    assert payload["debug"]["retrieval_count"] == 0
+    assert qdrant_module.qdrant_client.calls == []
+    assert payload["debug"]["source_scope"] == "Collections · 1 collection(s)"

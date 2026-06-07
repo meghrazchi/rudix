@@ -3,6 +3,25 @@ import type { components } from "@/lib/api/generated/schema";
 
 type Schemas = components["schemas"];
 
+export type ChatSourceScopeRequest = {
+  mode?:
+    | "all"
+    | "uploaded"
+    | "collections"
+    | "connector_sources"
+    | "connector_items";
+  provider_keys?: string[];
+  connection_ids?: string[];
+  provider_source_ids?: string[];
+  external_source_ids?: string[];
+  external_item_ids?: string[];
+  collection_ids?: string[];
+  document_types?: string[];
+  sync_statuses?: Array<
+    "uploaded" | "active" | "stale" | "revoked" | "deleted" | "unknown"
+  >;
+};
+
 export type CreateChatSessionRequest = Schemas["CreateChatSessionRequest"];
 export type ChatSessionResponse = Schemas["ChatSessionResponse"];
 export type ChatSessionListResponse = Schemas["ChatSessionListResponse"];
@@ -24,7 +43,9 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
     | null;
   source_acl_snapshot?: Record<string, unknown>;
 };
-export type ChatDebugResponse = Schemas["ChatDebugResponse"];
+export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
+  source_scope?: string | null;
+};
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];
 export type ChatQueryResponse = Schemas["ChatQueryResponse"];
@@ -32,7 +53,10 @@ export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];
 export type ChatSessionMessageListResponse =
   Schemas["ChatSessionMessageListResponse"];
-export type ChatQueryRequest = Schemas["ChatQueryRequest"];
+export type ChatQueryRequest = Omit<Schemas["ChatQueryRequest"], "scope_mode"> & {
+  scope_mode?: Exclude<Schemas["ChatQueryRequest"]["scope_mode"], null> | "connectors" | null;
+  source_scope?: ChatSourceScopeRequest | null;
+};
 export type ChatMessageRequest = Schemas["ChatMessageRequest"];
 
 export type UpdateChatSessionRequest = {

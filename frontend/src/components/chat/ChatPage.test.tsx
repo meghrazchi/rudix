@@ -25,6 +25,7 @@ import {
   updateChatSession,
 } from "@/lib/api/chat";
 import { listCollections } from "@/lib/api/collections";
+import { listConnectorConnections } from "@/lib/api/connectors";
 import { listDocuments } from "@/lib/api/documents";
 import { ApiClientError } from "@/lib/api/errors";
 
@@ -43,6 +44,10 @@ vi.mock("@/lib/api/documents", () => ({
 vi.mock("@/lib/api/collections", () => ({
   listCollections: vi.fn(),
   listCollectionDocuments: vi.fn(),
+}));
+
+vi.mock("@/lib/api/connectors", () => ({
+  listConnectorConnections: vi.fn(),
 }));
 
 vi.mock("@/lib/api/chat", () => ({
@@ -101,6 +106,10 @@ describe("ChatPage", () => {
     window.localStorage.clear();
     mockNavigation.searchParams = new URLSearchParams();
     vi.mocked(listCollections).mockResolvedValue({ items: [], total: 0 });
+    vi.mocked(listConnectorConnections).mockResolvedValue({
+      items: [],
+      total: 0,
+    });
     vi.mocked(listChatSessionMessages).mockResolvedValue({
       items: [],
       total: 0,
@@ -736,6 +745,260 @@ describe("ChatPage", () => {
           document_ids: ["doc-indexed-a"],
           top_k: 9,
           rerank: false,
+        }),
+      );
+    });
+  });
+
+  it("submits connector source scope selections with the chat request", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-a",
+          filename: "policy-a.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 5,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listConnectorConnections).mockResolvedValue({
+      items: [
+        {
+          id: "conn-jira-1",
+          provider_key: "jira",
+          provider: {
+            key: "jira",
+            display_name: "Jira",
+            auth_type: "oauth2",
+            capabilities: [],
+            config_schema: {},
+            rate_limits: [],
+            export_formats: [],
+            is_enabled: true,
+          },
+          display_name: "Engineering Jira",
+          external_account_id: null,
+          collection_id: null,
+          status: "active",
+          auth_config: { project_keys: ["ENG", "DOCS"] },
+          last_sync_at: null,
+          error_message: null,
+          source_count: 2,
+          sync_job_count: 1,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-new",
+      message_id: "msg-1",
+      answer: "connector scope answer",
+      confidence_score: 0.8,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.8,
+        average_similarity: 0.7,
+        top_rerank_score: 0.75,
+        citation_support_score: 0.7,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.85,
+        retrieval_agreement_score: 0.8,
+        raw_score: 0.81,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 100 },
+        retrieval_count: 3,
+        selected_count: 2,
+        rerank_applied: false,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    renderPage();
+
+    const contextButton = await screen.findByRole("button", {
+      name: /Context \([1-9]/i,
+    });
+    await userEvent.click(contextButton);
+
+    const contextDialog = await screen.findByRole("dialog", {
+      name: /Select context/i,
+    });
+    await userEvent.click(
+      within(contextDialog).getByRole("button", {
+        name: /Engineering Jira/i,
+      }),
+    );
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Done" }),
+    );
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "connector scope check",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalled();
+    });
+    const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
+    expect(call).toMatchObject({
+      question: "connector scope check",
+      scope_mode: "connectors",
+      source_scope: {
+        mode: "connector_sources",
+        connection_ids: ["conn-jira-1"],
+        provider_source_ids: [],
+      },
+    });
+  });
+
+  it("allows connector-only chat scope without uploaded documents", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+    vi.mocked(listConnectorConnections).mockResolvedValue({
+      items: [
+        {
+          id: "conn-confluence-1",
+          provider_key: "confluence",
+          provider: {
+            key: "confluence",
+            display_name: "Confluence",
+            auth_type: "oauth2",
+            capabilities: [],
+            config_schema: {},
+            rate_limits: [],
+            export_formats: [],
+            is_enabled: true,
+          },
+          display_name: "Docs Confluence",
+          external_account_id: null,
+          collection_id: null,
+          status: "active",
+          auth_config: { space_keys: ["ENG"] },
+          last_sync_at: null,
+          error_message: null,
+          source_count: 1,
+          sync_job_count: 1,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(queryChat).mockResolvedValue({
+      chat_session_id: "session-new",
+      message_id: "msg-connector-only",
+      answer: "connector-only answer",
+      confidence_score: 0.8,
+      confidence_category: "high",
+      confidence_explanation: {
+        top_similarity: 0.8,
+        average_similarity: 0.7,
+        top_rerank_score: 0.75,
+        citation_support_score: 0.7,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.85,
+        retrieval_agreement_score: 0.8,
+        raw_score: 0.81,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: {
+        latencies_ms: { total: 90 },
+        retrieval_count: 1,
+        selected_count: 1,
+        rerank_applied: false,
+        embedding_model: "embed-model",
+        llm_model: "llm-model",
+      },
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    renderPage();
+
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: /Scope type/i }),
+      "connectors",
+    );
+
+    const connectorSourcesButton = await screen.findByRole("button", {
+      name: /Select Sources/i,
+    });
+    await userEvent.click(connectorSourcesButton);
+
+    const contextDialog = await screen.findByRole("dialog", {
+      name: /Select context/i,
+    });
+    await userEvent.click(
+      within(contextDialog).getByRole("button", {
+        name: /Docs Confluence/i,
+      }),
+    );
+    await userEvent.click(
+      within(contextDialog).getByRole("button", { name: "Done" }),
+    );
+
+    const textarea = screen.getByPlaceholderText(
+      "Type a message or use '/' for commands...",
+    );
+    expect(textarea).not.toBeDisabled();
+
+    await userEvent.type(textarea, "Connector only scope");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          question: "Connector only scope",
+          scope_mode: "connectors",
+          source_scope: {
+            mode: "connector_sources",
+            connection_ids: ["conn-confluence-1"],
+            provider_source_ids: [],
+          },
         }),
       );
     });
@@ -2703,6 +2966,29 @@ describe("ChatPage", () => {
   });
 
   it("omits answer_language from payload when auto is selected", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-auto",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 1,
+          chunk_count: 1,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
     renderPage();
     await screen.findByRole("heading", { name: /Chat Session/i });
 

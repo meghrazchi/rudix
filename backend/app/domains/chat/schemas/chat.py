@@ -6,6 +6,52 @@ from pydantic import BaseModel, Field, field_validator
 AnswerLanguageMode = Literal[
     "auto", "same_as_question", "workspace_default", "en", "de", "es", "fr"
 ]
+SourceScopeMode = Literal[
+    "all",
+    "uploaded",
+    "collections",
+    "connector_sources",
+    "connector_items",
+]
+SourceSyncStatus = Literal["uploaded", "active", "stale", "revoked", "deleted", "unknown"]
+
+
+class SourceScopeRequest(BaseModel):
+    mode: SourceScopeMode = "all"
+    provider_keys: list[str] = Field(default_factory=list, max_length=50)
+    connection_ids: list[str] = Field(default_factory=list, max_length=50)
+    provider_source_ids: list[str] = Field(default_factory=list, max_length=50)
+    external_source_ids: list[str] = Field(default_factory=list, max_length=50)
+    external_item_ids: list[str] = Field(default_factory=list, max_length=50)
+    collection_ids: list[str] = Field(default_factory=list, max_length=50)
+    document_types: list[str] = Field(default_factory=list, max_length=10)
+    sync_statuses: list[SourceSyncStatus] = Field(default_factory=list, max_length=10)
+
+    @field_validator(
+        "provider_keys",
+        "connection_ids",
+        "provider_source_ids",
+        "external_source_ids",
+        "external_item_ids",
+        "collection_ids",
+        "document_types",
+        mode="before",
+    )
+    @classmethod
+    def validate_string_lists(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("source scope values must be arrays")
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw_value in value:
+            normalized_value = str(raw_value).strip()
+            if not normalized_value or normalized_value in seen:
+                continue
+            seen.add(normalized_value)
+            normalized.append(normalized_value)
+        return normalized
 
 
 class ChatMessageRequest(BaseModel):
@@ -20,7 +66,14 @@ class ChatQueryRequest(BaseModel):
     document_ids: list[str] = Field(default_factory=list, max_length=50)
     top_k: int | None = Field(default=None, ge=1, le=200)
     rerank: bool = True
-    scope_mode: Literal["all", "collection", "documents", "none"] | None = None
+    scope_mode: Literal[
+        "all",
+        "collection",
+        "documents",
+        "connectors",
+        "none",
+    ] | None = None
+    source_scope: SourceScopeRequest | None = None
     answer_language: AnswerLanguageMode | None = None
 
     @field_validator("question")
@@ -127,14 +180,17 @@ class ChatCitationResponse(BaseModel):
     source_section: str | None = None
     source_deep_link: str | None = None
     source_last_synced_at: datetime | None = None
-    source_trust_status: Literal[
-        "trusted",
-        "stale",
-        "revoked",
-        "deleted",
-        "unknown",
-        "uploaded",
-    ] | None = None
+    source_trust_status: (
+        Literal[
+            "trusted",
+            "stale",
+            "revoked",
+            "deleted",
+            "unknown",
+            "uploaded",
+        ]
+        | None
+    ) = None
     source_acl_snapshot: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -143,6 +199,7 @@ class ChatDebugResponse(BaseModel):
     retrieval_count: int
     selected_count: int
     rerank_applied: bool
+    source_scope: str | None = None
     embedding_model: str | None = None
     llm_model: str | None = None
     detected_language: str | None = None

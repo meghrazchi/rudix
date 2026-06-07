@@ -61,6 +61,7 @@ from app.domains.chat.services.query_retrieval_service import (
     RetrievedCandidate,
 )
 from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
+from app.domains.chat.services.source_scope_service import SourceScopeService
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
@@ -78,6 +79,7 @@ audit_log_service = AuditLogService()
 _MAX_ACTIVE_SHARES_PER_SESSION = 10
 _openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
+_source_scope_service = SourceScopeService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
 _prompt_template_service = PromptTemplateService()
@@ -613,8 +615,9 @@ async def query_chat(
 ) -> ChatQueryResponse:
     request_id = _request_id_from_request(request)
     user_id, organization_id = _principal_user_and_org(principal)
+    user_roles = list(principal.roles or [])
     try:
-        document_ids = await ensure_document_ids_access(
+        explicit_document_ids = await ensure_document_ids_access(
             document_ids=payload.document_ids,
             principal=principal,
             db_session=db_session,
@@ -632,7 +635,16 @@ async def query_chat(
                 code="document_not_found",
                 message="Document not found",
             ) from exc
-        raise
+
+    source_scope_result = await _source_scope_service.resolve_document_ids(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=user_roles,
+        source_scope=payload.source_scope,
+        explicit_document_ids=explicit_document_ids,
+    )
+    document_ids = source_scope_result.document_ids
 
     if payload.chat_session_id is not None:
         try:
@@ -1014,6 +1026,9 @@ async def query_chat(
 
     persist_started = perf_counter()
     try:
+        persisted_document_ids = (
+            [str(document_id) for document_id in document_ids] if document_ids is not None else []
+        )
         _ = await chat_repository.create_chat_message(
             db_session,
             chat_session_id=chat_session.id,
@@ -1062,7 +1077,7 @@ async def query_chat(
             metadata={
                 "chat_session_id": str(chat_session.id),
                 "assistant_message_id": str(assistant_message.id),
-                "document_ids": [str(document_id) for document_id in document_ids],
+                "document_ids": persisted_document_ids,
                 "confidence_score": confidence_score,
                 "confidence_category": confidence_category,
                 "not_found": not_found,
@@ -1140,6 +1155,7 @@ async def query_chat(
         confidence_category=confidence_category,
         retrieval_count=len(retrieved_chunks),
         selected_count=len(selected_chunks),
+        source_scope=source_scope_result.label,
         detected_language=detected_language,
         answer_language_mode=payload.answer_language,
         answer_language_used=answer_language_used,
@@ -1174,6 +1190,7 @@ async def query_chat(
             retrieval_count=len(retrieved_chunks),
             selected_count=len(selected_chunks),
             rerank_applied=payload.rerank,
+            source_scope=source_scope_result.label,
             embedding_model=embedding_model,
             llm_model=llm_model,
             detected_language=detected_language,

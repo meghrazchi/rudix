@@ -117,20 +117,28 @@ class QueryRetrievalService:
         *,
         query_vector: list[float],
         organization_id: UUID,
-        document_ids: list[UUID],
+        document_ids: list[UUID] | None,
         initial_top_k: int,
         index_version: str | None = None,
         qdrant_client: QdrantClientLike | None = None,
     ) -> list[RetrievedCandidate]:
         if initial_top_k < 1:
             raise ValueError("initial_top_k must be at least 1")
+        if document_ids is not None and len(document_ids) == 0:
+            return []
 
         normalized_organization_id = str(organization_id)
-        normalized_document_ids = {str(document_id) for document_id in document_ids}
+        normalized_document_ids = (
+            {str(document_id) for document_id in document_ids}
+            if document_ids is not None
+            else set()
+        )
 
         query_filter = build_organization_filter(
             organization_id=normalized_organization_id,
-            document_ids=[str(document_id) for document_id in document_ids],
+            document_ids=[str(document_id) for document_id in document_ids]
+            if document_ids is not None
+            else None,
             index_version=index_version,
         )
         client = qdrant_client or self._resolve_qdrant_client()
@@ -241,7 +249,7 @@ class QueryRetrievalService:
         *,
         question: str,
         organization_id: UUID,
-        document_ids: list[UUID],
+        document_ids: list[UUID] | None,
         initial_top_k: int,
         index_version: str | None = None,
         openai_client: OpenAIClientLike | None = None,

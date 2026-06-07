@@ -58,6 +58,10 @@ import {
   listCollections,
 } from "@/lib/api/collections";
 import {
+  listConnectorConnections,
+  type ConnectorConnectionSummary,
+} from "@/lib/api/connectors";
+import {
   deleteMessageFeedback,
   listSessionFeedback,
   submitMessageFeedback,
@@ -86,7 +90,7 @@ import { useAuthSession } from "@/lib/use-auth-session";
 
 const DRAFT_SESSION_KEY = "__draft__";
 
-type ChatScopeMode = "all" | "collection" | "documents" | "none";
+type ChatScopeMode = "all" | "collection" | "documents" | "connectors" | "none";
 type AnswerLanguageMode =
   | "auto"
   | "same_as_question"
@@ -169,6 +173,8 @@ type PersistedChatSettings = {
   agenticMode?: boolean;
   scopeMode?: ChatScopeMode;
   selectedCollectionId?: string | null;
+  selectedConnectorConnectionIds?: string[];
+  selectedProviderSourceIds?: string[];
   answerLanguage?: AnswerLanguageMode;
 };
 
@@ -520,6 +526,7 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       parsed.scopeMode === "all" ||
       parsed.scopeMode === "collection" ||
       parsed.scopeMode === "documents" ||
+      parsed.scopeMode === "connectors" ||
       parsed.scopeMode === "none"
         ? parsed.scopeMode
         : "all";
@@ -528,6 +535,25 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       typeof parsed.selectedCollectionId === "string"
         ? parsed.selectedCollectionId
         : null;
+    const selectedConnectorConnectionIds = Array.isArray(
+      parsed.selectedConnectorConnectionIds,
+    )
+      ? parsed.selectedConnectorConnectionIds.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [];
+    const selectedProviderSourceIds = Array.isArray(
+      parsed.selectedProviderSourceIds,
+    )
+      ? parsed.selectedProviderSourceIds.filter(
+          (value): value is string => typeof value === "string",
+        )
+      : [];
+    const normalizedScopeMode: ChatScopeMode =
+      selectedConnectorConnectionIds.length > 0 ||
+      selectedProviderSourceIds.length > 0
+        ? "connectors"
+        : scopeMode;
 
     const validLanguageModes: AnswerLanguageMode[] = [
       "auto",
@@ -548,8 +574,10 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
       rerank: parsed.rerank !== false,
       selectedDocumentIds,
       agenticMode: parsed.agenticMode === true,
-      scopeMode,
+      scopeMode: normalizedScopeMode,
       selectedCollectionId,
+      selectedConnectorConnectionIds,
+      selectedProviderSourceIds,
       answerLanguage,
     };
   } catch {
@@ -586,6 +614,56 @@ function citationProviderLabel(citation: ChatCitationResponse): string | null {
 
 function citationTrustLabel(citation: ChatCitationResponse): string | null {
   return citation.source_trust_status ?? null;
+}
+
+function formatConnectorSourceRoots(
+  providerKey: string,
+  authConfig: Record<string, unknown>,
+): string[] {
+  const rawValues =
+    providerKey === "jira"
+      ? authConfig.project_keys
+      : providerKey === "confluence"
+        ? authConfig.space_keys
+        : providerKey === "google_drive"
+          ? [
+              ...(Array.isArray(authConfig.folder_ids)
+                ? authConfig.folder_ids
+                : []),
+              ...(Array.isArray(authConfig.drive_ids)
+                ? authConfig.drive_ids
+                : []),
+            ]
+          : [];
+
+  if (!Array.isArray(rawValues)) {
+    return [];
+  }
+  return rawValues
+    .map((value) => String(value).trim())
+    .filter((value) => value.length > 0);
+}
+
+function getConnectorProviderLabel(providerKey: string): string {
+  if (providerKey === "jira") return "Jira";
+  if (providerKey === "confluence") return "Confluence";
+  if (providerKey === "google_drive") return "Google Drive";
+  return providerKey
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function buildConnectorRootChips(
+  connection: ConnectorConnectionSummary,
+): { id: string; label: string }[] {
+  const roots = formatConnectorSourceRoots(
+    connection.provider_key,
+    connection.auth_config ?? {},
+  );
+  return roots.map((root) => ({
+    id: `${connection.id}:${root}`,
+    label: root,
+  }));
 }
 
 function isPreviewableFile(filename: string | null | undefined): boolean {
@@ -647,6 +725,13 @@ export function ChatPage() {
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
   >(() => persistedSettings?.selectedCollectionId ?? null);
+  const [selectedConnectorConnectionIds, setSelectedConnectorConnectionIds] =
+    useState<string[]>(
+      () => persistedSettings?.selectedConnectorConnectionIds ?? [],
+    );
+  const [selectedProviderSourceIds, setSelectedProviderSourceIds] = useState<
+    string[]
+  >(() => persistedSettings?.selectedProviderSourceIds ?? []);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
@@ -674,6 +759,8 @@ export function ChatPage() {
       setScopeMode("all");
       setSelectedCollectionId(null);
       setSelectedDocumentIds([]);
+      setSelectedConnectorConnectionIds([]);
+      setSelectedProviderSourceIds([]);
     }
   }, [activeOrgId]);
 
@@ -817,6 +904,12 @@ export function ChatPage() {
     queryFn: () => listCollections({ limit: 200 }),
   });
 
+  const connectorConnectionsQuery = useQuery({
+    queryKey: [...queryKeys.connectorConnections, "chat-picker"],
+    queryFn: () => listConnectorConnections(),
+  });
+  const connectorConnections = connectorConnectionsQuery.data?.items ?? [];
+
   const collectionDocsQuery = useQuery({
     queryKey: queryKeys.collections.documents(selectedCollectionId ?? "", {
       limit: 200,
@@ -849,6 +942,12 @@ export function ChatPage() {
     return validSelectedDocumentIds;
   }, [documentIdFromQuery, indexedDocumentIdSet, selectedDocumentIds]);
 
+  const hasConnectorScopeSelection =
+    selectedConnectorConnectionIds.length > 0 ||
+    selectedProviderSourceIds.length > 0;
+  const requiresUploadedDocuments =
+    scopeMode !== "none" && scopeMode !== "connectors";
+
   const effectiveDocumentIds = useMemo(() => {
     if (scopeMode === "none") {
       return [];
@@ -862,7 +961,10 @@ export function ChatPage() {
     if (scopeMode === "documents") {
       return filteredSelectedDocumentIds;
     }
-    // "all": pass empty list so backend searches all org docs
+    if (scopeMode === "connectors") {
+      return [];
+    }
+    // "all": pass empty list so backend searches all org docs.
     return filteredSelectedDocumentIds;
   }, [scopeMode, collectionDocumentIdSet, filteredSelectedDocumentIds]);
 
@@ -881,6 +983,9 @@ export function ChatPage() {
     if (scopeMode === "documents" && filteredSelectedDocumentIds.length === 0) {
       return "Select at least one document to use document scope.";
     }
+    if (scopeMode === "connectors" && !hasConnectorScopeSelection) {
+      return "Select at least one connector source to use connector scope.";
+    }
     return null;
   }, [
     scopeMode,
@@ -888,6 +993,7 @@ export function ChatPage() {
     collectionDocsQuery.isLoading,
     collectionDocumentIdSet,
     filteredSelectedDocumentIds,
+    hasConnectorScopeSelection,
   ]);
   const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
   const contextModalQuery = useQuery({
@@ -926,10 +1032,16 @@ export function ChatPage() {
   const hasIndexedDocuments = indexedDocuments.length > 0;
   const totalIndexedDocuments =
     indexedDocumentsQuery.data?.total ?? indexedDocuments.length;
-  const contextScopeDocumentCount =
-    effectiveDocumentIds.length > 0
-      ? effectiveDocumentIds.length
-      : totalIndexedDocuments;
+  const contextScopeItemCount =
+    scopeMode === "connectors"
+      ? selectedConnectorConnectionIds.length + selectedProviderSourceIds.length
+      : effectiveDocumentIds.length > 0
+        ? effectiveDocumentIds.length
+        : totalIndexedDocuments;
+  const contextScopeLabel =
+    scopeMode === "connectors"
+      ? `${contextScopeItemCount} connector source${contextScopeItemCount !== 1 ? "s" : ""}`
+      : `${contextScopeItemCount} document${contextScopeItemCount !== 1 ? "s" : ""} in scope`;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -942,6 +1054,8 @@ export function ChatPage() {
       agenticMode,
       scopeMode,
       selectedCollectionId,
+      selectedConnectorConnectionIds,
+      selectedProviderSourceIds,
       answerLanguage,
     };
     window.localStorage.setItem(
@@ -956,6 +1070,8 @@ export function ChatPage() {
     topK,
     scopeMode,
     selectedCollectionId,
+    selectedConnectorConnectionIds,
+    selectedProviderSourceIds,
   ]);
 
   useEffect(() => {
@@ -1187,22 +1303,64 @@ export function ChatPage() {
     question.trim().length === 0 ||
     indexedDocumentsQuery.isLoading ||
     indexedDocumentsQuery.isError ||
-    (!hasIndexedDocuments && scopeMode !== "none") ||
+    (!hasIndexedDocuments && requiresUploadedDocuments) ||
     isScopeInvalid;
 
   function buildScopeLabel(): string {
     if (scopeMode === "none") return "No retrieval";
+    const parts: string[] = [];
     if (scopeMode === "collection") {
       const col = (collectionsListQuery.data?.items ?? []).find(
         (c) => c.collection_id === selectedCollectionId,
       );
-      return col ? `Collection: ${col.name}` : "Collection scope";
+      parts.push(col ? `Collection: ${col.name}` : "Collection scope");
     }
     if (scopeMode === "documents") {
       const n = filteredSelectedDocumentIds.length;
-      return `${n} document${n !== 1 ? "s" : ""} selected`;
+      parts.push(`${n} document${n !== 1 ? "s" : ""} selected`);
+    }
+    if (scopeMode === "connectors") {
+      const connectionCount = selectedConnectorConnectionIds.length;
+      const sourceCount = selectedProviderSourceIds.length;
+      if (connectionCount > 0) {
+        parts.push(
+          `${connectionCount} connection${connectionCount !== 1 ? "s" : ""}`,
+        );
+      }
+      if (sourceCount > 0) {
+        parts.push(`${sourceCount} source root${sourceCount !== 1 ? "s" : ""}`);
+      }
+      if (parts.length === 0) {
+        parts.push("Connector scope");
+      }
+    }
+    if (parts.length > 0) {
+      return parts.join(" · ");
     }
     return `All files (${totalIndexedDocuments})`;
+  }
+
+  function buildSourceScopePayload(): ChatQueryRequest["source_scope"] | null {
+    if (scopeMode === "none") {
+      return null;
+    }
+    if (scopeMode === "connectors") {
+      if (!hasConnectorScopeSelection) {
+        return null;
+      }
+      return {
+        mode: "connector_sources",
+        connection_ids: selectedConnectorConnectionIds,
+        provider_source_ids: selectedProviderSourceIds,
+      };
+    }
+    if (scopeMode === "collection" && selectedCollectionId) {
+      return {
+        mode: "collections",
+        collection_ids: [selectedCollectionId],
+      };
+    }
+    return null;
   }
 
   const listForbidden =
@@ -1239,6 +1397,24 @@ export function ChatPage() {
       }
       return [...validPrevious, documentId];
     });
+  }
+
+  function toggleConnectorConnection(connectionId: string) {
+    setScopeMode("connectors");
+    setSelectedConnectorConnectionIds((previous) =>
+      previous.includes(connectionId)
+        ? previous.filter((value) => value !== connectionId)
+        : [...previous, connectionId],
+    );
+  }
+
+  function toggleProviderSource(providerSourceId: string) {
+    setScopeMode("connectors");
+    setSelectedProviderSourceIds((previous) =>
+      previous.includes(providerSourceId)
+        ? previous.filter((value) => value !== providerSourceId)
+        : [...previous, providerSourceId],
+    );
   }
 
   function resetForNewChat() {
@@ -1329,7 +1505,8 @@ export function ChatPage() {
       queryMutation.isPending ||
       agentRunMutation.isPending ||
       createSessionMutation.isPending ||
-      (!hasIndexedDocuments && scopeMode !== "none")
+      isScopeInvalid ||
+      (!hasIndexedDocuments && requiresUploadedDocuments)
     ) {
       return;
     }
@@ -1342,7 +1519,7 @@ export function ChatPage() {
 
     const currentScopeLabel = buildScopeLabel();
 
-    if (AGENTIC_CHAT_ENABLED && agenticMode) {
+    if (AGENTIC_CHAT_ENABLED && agenticMode && !hasConnectorScopeSelection) {
       const previousThreadKey = activeThreadKey(activeSessionId);
       let fallbackToStandardQuery = false;
       const payload: AgentRunCreateRequest = {
@@ -1401,6 +1578,9 @@ export function ChatPage() {
         return;
       }
     }
+    if (AGENTIC_CHAT_ENABLED && agenticMode && hasConnectorScopeSelection) {
+      setAgenticMode(false);
+    }
 
     let targetSessionId = activeSessionId;
     if (!targetSessionId) {
@@ -1426,12 +1606,13 @@ export function ChatPage() {
         question: trimmedQuestion,
         chat_session_id: targetSessionId,
         document_ids:
-          scopeMode !== "none" && effectiveDocumentIds.length > 0
+          requiresUploadedDocuments && effectiveDocumentIds.length > 0
             ? effectiveDocumentIds
             : undefined,
         top_k: topK,
         rerank,
         scope_mode: scopeMode,
+        source_scope: buildSourceScopePayload() ?? undefined,
         answer_language: answerLanguage !== "auto" ? answerLanguage : undefined,
         _scopeLabel: currentScopeLabel,
       },
@@ -2358,6 +2539,7 @@ export function ChatPage() {
                           <option value="all">All files</option>
                           <option value="collection">Collection</option>
                           <option value="documents">Files</option>
+                          <option value="connectors">Connectors</option>
                           <option value="none">No RAG</option>
                         </select>
                       </div>
@@ -2420,6 +2602,46 @@ export function ChatPage() {
                             <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
                               {filteredSelectedDocumentIds.length} file
                               {filteredSelectedDocumentIds.length !== 1
+                                ? "s"
+                                : ""}{" "}
+                              selected
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {/* Connector value picker */}
+                      {scopeMode === "connectors" && (
+                        <>
+                          <span
+                            className="h-3 w-px bg-[#c7c4d8]"
+                            aria-hidden="true"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsContextModalOpen(true);
+                              setContextSearchQuery("");
+                              setContextPage(1);
+                            }}
+                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] transition-colors hover:bg-[#e8e4f8]"
+                          >
+                            <span
+                              className="material-symbols-outlined text-[13px]"
+                              aria-hidden="true"
+                            >
+                              hub
+                            </span>
+                            Select Sources
+                          </button>
+                          {hasConnectorScopeSelection && (
+                            <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
+                              {selectedConnectorConnectionIds.length +
+                                selectedProviderSourceIds.length}{" "}
+                              source
+                              {selectedConnectorConnectionIds.length +
+                                selectedProviderSourceIds.length !==
+                              1
                                 ? "s"
                                 : ""}{" "}
                               selected
@@ -2569,7 +2791,7 @@ export function ChatPage() {
                           setContextPage(1);
                         }}
                         className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[#3525cd] transition-colors hover:bg-[#ece8ff]/60"
-                        aria-label={`Context (${contextScopeDocumentCount} documents in scope) — click to view or change`}
+                        aria-label={`Context (${contextScopeLabel}) — click to view or change`}
                       >
                         <span
                           className="material-symbols-outlined text-[13px]"
@@ -2577,7 +2799,7 @@ export function ChatPage() {
                         >
                           history
                         </span>
-                        Context ({contextScopeDocumentCount})
+                        Context ({contextScopeItemCount})
                       </button>
                     </div>
 
@@ -2610,7 +2832,9 @@ export function ChatPage() {
                         }}
                         rows={2}
                         placeholder="Type a message or use '/' for commands..."
-                        disabled={scopeMode !== "none" && !hasIndexedDocuments}
+                        disabled={
+                          requiresUploadedDocuments && !hasIndexedDocuments
+                        }
                         className="w-full resize-none border-none bg-transparent py-3 pr-14 pl-3 text-sm text-[#2f2a46] outline-none focus:ring-0"
                       />
                       <div className="absolute right-3 bottom-2.5">
@@ -2644,7 +2868,13 @@ export function ChatPage() {
                       Agentic Mode is disabled for this deployment.
                     </p>
                   )}
-                  {!hasIndexedDocuments && scopeMode !== "none" && (
+                  {AGENTIC_CHAT_ENABLED && hasConnectorScopeSelection && (
+                    <p className="mt-2 text-xs text-[#8a4762]">
+                      Agentic Mode switches to standard retrieval when connector
+                      sources are selected.
+                    </p>
+                  )}
+                  {!hasIndexedDocuments && requiresUploadedDocuments && (
                     <p className="mt-2 text-center text-xs text-[#777587]">
                       <span>
                         Chat is disabled until at least one document is indexed.
@@ -3206,7 +3436,7 @@ export function ChatPage() {
                   Select context
                 </h2>
                 <p className="mt-1 text-xs text-[#6a6780]">
-                  Choose indexed documents to scope retrieval.
+                  Choose indexed documents and connector sources to scope retrieval.
                 </p>
               </div>
               <button
@@ -3242,6 +3472,135 @@ export function ChatPage() {
               </div>
             </div>
             <div className="hide-scrollbar max-h-[52vh] overflow-y-auto px-4 py-3">
+              <div className="mb-4 rounded-xl border border-[#e8e5f3] bg-[#faf9ff] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                      Connector sources
+                    </p>
+                    <p className="text-xs text-[#6a6780]">
+                      Select Jira, Confluence, or Google Drive connections and
+                      their synced source roots.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-[10px] font-semibold text-[#3525cd]">
+                    {selectedConnectorConnectionIds.length +
+                      selectedProviderSourceIds.length}{" "}
+                    selected
+                  </span>
+                </div>
+                {connectorConnectionsQuery.isLoading ? (
+                  <LoadingState compact title="Loading connectors..." />
+                ) : connectorConnectionsQuery.isError ? (
+                  <ErrorState
+                    compact
+                    error={connectorConnectionsQuery.error}
+                    description={getApiErrorMessage(
+                      connectorConnectionsQuery.error,
+                    )}
+                    onRetry={() => {
+                      void connectorConnectionsQuery.refetch();
+                    }}
+                  />
+                ) : connectorConnections.length === 0 ? (
+                  <p className="text-xs text-[#777587]">
+                    No connector connections are available yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {connectorConnections.map((connection) => {
+                      const rootChips = buildConnectorRootChips(connection);
+                      const connectionSelected =
+                        selectedConnectorConnectionIds.includes(connection.id);
+                      return (
+                        <div
+                          key={connection.id}
+                          className="rounded-lg border border-[#e2dff1] bg-white p-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                toggleConnectorConnection(connection.id)
+                              }
+                              className={`flex min-w-0 flex-1 items-start gap-2 text-left transition-colors ${
+                                connectionSelected
+                                  ? "text-[#3525cd]"
+                                  : "text-[#2f2a46]"
+                              }`}
+                            >
+                              <span
+                                className={`material-symbols-outlined mt-0.5 text-[18px] ${connectionSelected ? "text-[#3525cd]" : "text-[#6a6780]"}`}
+                                aria-hidden="true"
+                              >
+                                hub
+                              </span>
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold">
+                                  {connection.display_name}
+                                </span>
+                                <span className="block text-[11px] text-[#6a6780]">
+                                  {getConnectorProviderLabel(
+                                    connection.provider_key,
+                                  )}
+                                  {connection.external_account_id
+                                    ? ` · ${connection.external_account_id}`
+                                    : ""}
+                                </span>
+                              </span>
+                            </button>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                                connectionSelected
+                                  ? "bg-[#ece8ff] text-[#3525cd]"
+                                  : "bg-[#f1f0f5] text-[#6a6780]"
+                              }`}
+                            >
+                              {connectionSelected ? "Selected" : "Select"}
+                            </span>
+                          </div>
+                          {rootChips.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {rootChips.map((root) => {
+                                const selected =
+                                  selectedProviderSourceIds.includes(
+                                    root.label,
+                                  );
+                                return (
+                                  <button
+                                    key={root.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!connectionSelected) {
+                                        toggleConnectorConnection(
+                                          connection.id,
+                                        );
+                                      }
+                                      toggleProviderSource(root.label);
+                                    }}
+                                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                                      selected
+                                        ? "border-[#3525cd] bg-[#ece8ff] text-[#3525cd]"
+                                        : "border-[#d2cee6] bg-[#faf9ff] text-[#5f5a74] hover:border-[#b9b2dd] hover:bg-white"
+                                    }`}
+                                  >
+                                    {root.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-xs text-[#777587]">
+                              Use the connection to search all synced items.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {contextModalQuery.isLoading ? (
                 <LoadingState compact title="Loading documents..." />
               ) : contextModalQuery.isError ? (
@@ -3329,7 +3688,24 @@ export function ChatPage() {
               </div>
             ) : null}
             <div className="flex items-center justify-between border-t border-[#e2dff1] bg-[#faf9ff] px-4 py-3">
-              {filteredSelectedDocumentIds.length > 0 ? (
+              {scopeMode === "connectors" ? (
+                hasConnectorScopeSelection ? (
+                  <p className="text-xs text-[#5f5a74]">
+                    {contextScopeItemCount} connector source
+                    {contextScopeItemCount !== 1 ? "s" : ""} selected
+                  </p>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
+                    <span
+                      className="material-symbols-outlined text-[14px]"
+                      aria-hidden="true"
+                    >
+                      hub
+                    </span>
+                    Select connector sources
+                  </span>
+                )
+              ) : filteredSelectedDocumentIds.length > 0 ? (
                 <p className="text-xs text-[#5f5a74]">
                   {filteredSelectedDocumentIds.length} file
                   {filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
@@ -3342,7 +3718,7 @@ export function ChatPage() {
                   >
                     check_circle
                   </span>
-                  All {contextScopeDocumentCount} indexed files included
+                  All {contextScopeItemCount} indexed files included
                 </span>
               )}
               <button
