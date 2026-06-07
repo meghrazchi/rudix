@@ -22,6 +22,7 @@ from app.domains.connectors.schemas.sync import (
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import ConnectorSyncJobStatus, OrganizationRole
+from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.celery_app import celery_app
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
@@ -45,6 +46,16 @@ def _org_id(principal: AuthenticatedPrincipal) -> UUID:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid organization context",
+        ) from exc
+
+
+def _user_id(principal: AuthenticatedPrincipal) -> UUID:
+    try:
+        return UUID(principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid user context",
         ) from exc
 
 
@@ -104,6 +115,7 @@ async def create_sync_job(
     payload: CreateSyncJobRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
 ) -> SyncJobResponse:
     org_id = _org_id(principal)
     try:
@@ -112,6 +124,7 @@ async def create_sync_job(
             organization_id=org_id,
             connection_id=connection_id,
             name=payload.name,
+            user_id=_user_id(principal),
             external_source_id=(
                 UUID(payload.external_source_id) if payload.external_source_id else None
             ),
@@ -165,6 +178,7 @@ async def update_sync_job_status(
     payload: UpdateSyncJobStatusRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
 ) -> SyncJobResponse:
     org_id = _org_id(principal)
     try:
@@ -174,6 +188,7 @@ async def update_sync_job_status(
             organization_id=org_id,
             job_id=job_id,
             status=new_status,
+            user_id=_user_id(principal),
         )
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
@@ -193,7 +208,8 @@ async def trigger_sync_now(
     connection_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
-    job_id: UUID | None = Query(default=None),
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    job_id: Annotated[UUID | None, Query()] = None,
 ) -> TriggerSyncNowResponse:
     org_id = _org_id(principal)
     try:
@@ -202,6 +218,7 @@ async def trigger_sync_now(
             organization_id=org_id,
             connection_id=connection_id,
             job_id=job_id,
+            user_id=_user_id(principal),
         )
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
@@ -266,6 +283,7 @@ async def cancel_sync_run(
     run_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
 ) -> SyncRunResponse:
     org_id = _org_id(principal)
     try:

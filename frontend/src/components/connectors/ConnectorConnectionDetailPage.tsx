@@ -74,6 +74,47 @@ function ScopeField({ label, value }: { label: string; value: string[] }) {
   );
 }
 
+function PermissionSnapshotField({
+  snapshot,
+}: {
+  snapshot: {
+    id: string;
+    provider_source_id: string;
+    name: string;
+    source_type: string;
+    is_enabled: boolean;
+    permissions: Record<string, unknown>;
+  };
+}) {
+  return (
+    <div className="rounded-xl border border-[#e8e5f3] bg-[#faf9fe] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-[#2a2640]">{snapshot.name}</div>
+          <div className="mt-1 text-xs text-[#6a6780]">
+            {snapshot.source_type} · {snapshot.provider_source_id}
+          </div>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+            snapshot.is_enabled
+              ? "bg-emerald-100 text-emerald-800"
+              : "bg-slate-100 text-slate-700"
+          }`}
+        >
+          {snapshot.is_enabled ? "Active" : "Disabled"}
+        </span>
+      </div>
+      <div className="mt-3 text-xs text-[#6a6780]">
+        Permission snapshot
+      </div>
+      <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-2 text-[11px] leading-5 text-[#4b4860]">
+        {JSON.stringify(snapshot.permissions, null, 2)}
+      </pre>
+    </div>
+  );
+}
+
 function scopeFields(providerKey: string, authConfig: Record<string, unknown>) {
   if (providerKey === "jira") {
     return [
@@ -171,6 +212,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   });
 
   const connection = connectionQuery.data;
+  const permissionSnapshots = connection?.source_permission_snapshots ?? [];
   const scope = useMemo(
     () =>
       connection
@@ -408,6 +450,28 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-[#2a2640]">
+            Access review hooks
+          </h2>
+          <p className="text-sm text-[#68647b]">
+            Permission snapshots that can drive review workflows and source-level governance.
+          </p>
+        </div>
+        {permissionSnapshots.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
+            No source permission snapshots have been recorded yet.
+          </div>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {permissionSnapshots.map((snapshot) => (
+              <PermissionSnapshotField key={snapshot.id} snapshot={snapshot} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <ConnectorSyncPanel connectionId={connection.id} />
     </section>

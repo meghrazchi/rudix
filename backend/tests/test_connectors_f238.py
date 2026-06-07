@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.connectors.repositories.connectors import ConnectorRepository
@@ -31,6 +32,7 @@ from app.models.enums import (
 )
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.usage import AuditLog
 from app.models.user import User
 
 HASH_A = "a" * 64
@@ -204,6 +206,89 @@ async def test_connector_service_enforces_tenant_and_collection_boundaries(
                 external_source_id=source.id,
             ),
         )
+
+
+@pytest.mark.asyncio
+async def test_connector_service_audits_connection_and_permission_changes(
+    db_session: AsyncSession,
+) -> None:
+    context = await _create_two_org_context(db_session)
+    service = ConnectorPlatformService(repository=ConnectorRepository())
+
+    connection = await service.create_connection(
+        db_session,
+        organization_id=context.org_one_id,
+        provider_key="jira",
+        display_name="Jira Production",
+        collection_id=context.collection_one_id,
+        created_by_user_id=context.user_one_id,
+        external_account_id="jira-site-1",
+        auth_config={
+            "provider_key": "jira",
+            "api_token": "secret-token",
+            "site_url": "https://jira.example.test",
+        },
+    )
+    source = await service.create_external_source(
+        db_session,
+        organization_id=context.org_one_id,
+        connection_id=connection.id,
+        provider_source_id="PROJECT",
+        source_type="jira_project",
+        name="Project",
+        source_url="https://jira.example.test/projects/PROJECT",
+        permissions={"entries": [{"type": "group", "role": "reader"}]},
+    )
+    await service.upsert_external_item(
+        db_session,
+        organization_id=context.org_one_id,
+        item=_normalized_item(
+            organization_id=context.org_one_id,
+            connection_id=connection.id,
+            external_source_id=source.id,
+            collection_id=context.collection_one_id,
+            item_type=ExternalItemType.issue,
+            visibility=ExternalItemVisibility.collection,
+            provider_parent_id="ISSUE-1",
+            provider_item_id="item-1",
+        ),
+    )
+    await service.upsert_external_item(
+        db_session,
+        organization_id=context.org_one_id,
+        item=_normalized_item(
+            organization_id=context.org_one_id,
+            connection_id=connection.id,
+            external_source_id=source.id,
+            collection_id=context.collection_one_id,
+            item_type=ExternalItemType.issue,
+            visibility=ExternalItemVisibility.collection,
+            provider_parent_id="ISSUE-1",
+            provider_item_id="item-1",
+            content_hash="b" * 64,
+            sync_version=2,
+        ).model_copy(
+            update={
+                "permissions": {"entries": [{"type": "group", "role": "editor"}]},
+            }
+        ),
+    )
+
+    logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    actions = [log.action for log in logs]
+    assert "connector.connection.created" in actions
+    assert "connector.source.selected" in actions
+    assert "connector.source.permission_changed" in actions
+    connection_created = next(
+        log for log in logs if log.action == "connector.connection.created"
+    )
+    assert connection_created.metadata_json["provider_key"] == "jira"
+    assert connection.auth_config_json["api_token"] == "***"
+    permission_changed = next(
+        log for log in logs if log.action == "connector.source.permission_changed"
+    )
+    assert permission_changed.metadata_json["changed_fields"] == ["permissions"]
+    assert permission_changed.metadata_json["permissions"]["entries"][0]["role"] == "editor"
 
 
 class ConnectorTestContext:

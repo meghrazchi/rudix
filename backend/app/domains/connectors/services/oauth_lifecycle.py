@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import ConnectorOAuthClientSettings, settings
 from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
+from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.credentials import OAuthCredentialPayload, OAuthTokenResponse
 from app.domains.connectors.services.connector_service import (
@@ -33,7 +34,6 @@ from app.models.enums import (
     ConnectorConnectionStatus,
     ConnectorCredentialStatus,
 )
-
 
 _ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"jira", "confluence"})
 
@@ -170,6 +170,19 @@ class ConnectorOAuthLifecycleService:
                 "client_id_set": bool(client_config.client_id),
                 "redirect_uri": effective_redirect_uri,
                 **(config or {}),
+            },
+        )
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.oauth_connect_started.value,
+            resource_id=connection_id,
+            metadata={
+                "provider_key": provider.key,
+                "scopes": scopes,
+                "collection_id": str(collection_id) if collection_id else None,
+                "display_name": display_name,
             },
         )
         return OAuthConnectResult(
@@ -451,6 +464,17 @@ class ConnectorOAuthLifecycleService:
                 "remote_revoked_token_count": revoked_tokens,
             },
         )
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.connection_disconnected.value,
+            resource_id=connection.id,
+            metadata={
+                "provider_key": await self._provider_key(session, connection),
+                "status": ConnectorConnectionStatus.revoked.value,
+            },
+        )
         return {
             "connection_id": str(connection.id),
             "status": ConnectorConnectionStatus.revoked.value,
@@ -475,7 +499,21 @@ class ConnectorOAuthLifecycleService:
             user_id=user_id,
             now=now,
         )
+        connection = await self.platform_service.require_connection(
+            session, organization_id, connection_id
+        )
         await self.repository.delete_connection(session, connection_id=connection_id)
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.connection_deleted.value,
+            resource_id=connection_id,
+            metadata={
+                "provider_key": await self._provider_key(session, connection),
+                "status": ConnectorConnectionStatus.revoked.value,
+            },
+        )
 
     async def diagnostics(
         self,

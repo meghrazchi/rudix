@@ -106,6 +106,16 @@ function makeDetail(): ConnectorConnectionDetail {
       expires_at: null,
       metadata: { provider_key: "jira" },
     },
+    source_permission_snapshots: [
+      {
+        id: "source-1",
+        provider_source_id: "jira-123",
+        name: "Engineering Docs",
+        source_type: "space",
+        is_enabled: true,
+        permissions: { entries: [{ type: "user", role: "reader" }] },
+      },
+    ],
   };
 }
 
@@ -144,6 +154,8 @@ describe("ConnectorConnectionDetailPage", () => {
       expect(screen.getByText("Project keys")).toBeInTheDocument();
       expect(screen.getByText("JQL filter")).toBeInTheDocument();
       expect(screen.getByText("read:jira-work")).toBeInTheDocument();
+      expect(screen.getByText("Access review hooks")).toBeInTheDocument();
+      expect(screen.getByText("Engineering Docs")).toBeInTheDocument();
     });
   });
 });

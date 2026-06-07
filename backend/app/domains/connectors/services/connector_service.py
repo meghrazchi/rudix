@@ -5,7 +5,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.admin.services.audit_service import sanitize_metadata
+from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
+from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.connectors import (
     NormalizedExternalItem,
@@ -36,9 +37,11 @@ class ConnectorPlatformService:
         *,
         repository: ConnectorRepository | None = None,
         provider_registry: ProviderRegistry | None = None,
+        audit_service: AuditLogService | None = None,
     ) -> None:
         self.repository = repository or ConnectorRepository()
         self.provider_registry = provider_registry or default_provider_registry
+        self.audit_service = audit_service or AuditLogService()
 
     async def register_provider(
         self,
@@ -77,6 +80,20 @@ class ConnectorPlatformService:
             auth_config=sanitize_metadata(auth_config),
         )
         connection.provider = provider
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=created_by_user_id,
+            action=ConnectorAuditAction.connection_created.value,
+            resource_type="connector_connection",
+            resource_id=connection.id,
+            metadata={
+                "provider_key": provider.key,
+                "display_name": display_name,
+                "collection_id": str(collection_id) if collection_id else None,
+                "external_account_id": external_account_id,
+            },
+        )
         return connection
 
     async def create_external_source(
@@ -97,7 +114,7 @@ class ConnectorPlatformService:
         effective_collection_id = collection_id or connection.collection_id
         if effective_collection_id is not None:
             await self.require_collection(session, organization_id, effective_collection_id)
-        return await self.repository.create_external_source(
+        source = await self.repository.create_external_source(
             session,
             organization_id=organization_id,
             connection_id=connection_id,
@@ -109,6 +126,22 @@ class ConnectorPlatformService:
             config=config,
             permissions=permissions,
         )
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=None,
+            action=ConnectorAuditAction.source_selected.value,
+            resource_type="external_source",
+            resource_id=source.id,
+            metadata={
+                "connection_id": str(connection_id),
+                "provider_source_id": provider_source_id,
+                "source_type": source_type,
+                "name": name,
+                "collection_id": str(effective_collection_id) if effective_collection_id else None,
+            },
+        )
+        return source
 
     async def upsert_external_item(
         self,
@@ -134,8 +167,67 @@ class ConnectorPlatformService:
         effective_collection_id = item.collection_id or connection.collection_id
         if effective_collection_id is not None:
             await self.require_collection(session, organization_id, effective_collection_id)
+        existing_result = await session.execute(
+            select(ExternalItem).where(
+                ExternalItem.organization_id == organization_id,
+                ExternalItem.connection_id == item.connection_id,
+                ExternalItem.provider_item_id == item.provider_item_id,
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+        previous_state = None
+        if existing is not None:
+            previous_state = {
+                "external_source_id": existing.external_source_id,
+                "collection_id": existing.collection_id,
+                "visibility": existing.visibility,
+                "acl_hash": existing.acl_hash,
+                "permissions_json": dict(existing.permissions_json or {}),
+                "deleted_at": existing.deleted_at,
+            }
         normalized_item = item.model_copy(update={"collection_id": effective_collection_id})
-        return await self.repository.upsert_external_item(session, item=normalized_item)
+        external_item = await self.repository.upsert_external_item(session, item=normalized_item)
+        if previous_state is not None:
+            changed_fields: list[str] = []
+            if previous_state["external_source_id"] != external_item.external_source_id:
+                changed_fields.append("external_source_id")
+            if previous_state["collection_id"] != external_item.collection_id:
+                changed_fields.append("collection_id")
+            if previous_state["visibility"] != external_item.visibility:
+                changed_fields.append("visibility")
+            if previous_state["acl_hash"] != external_item.acl_hash:
+                changed_fields.append("acl_hash")
+            if previous_state["permissions_json"] != dict(external_item.permissions_json or {}):
+                changed_fields.append("permissions")
+            if previous_state["deleted_at"] != external_item.deleted_at:
+                changed_fields.append("deleted_at")
+            if changed_fields:
+                await self._audit(
+                    session,
+                    organization_id=organization_id,
+                    user_id=None,
+                    action=ConnectorAuditAction.source_permission_changed.value,
+                    resource_type="external_item",
+                    resource_id=external_item.id,
+                    metadata={
+                        "provider_key": item.provider_key,
+                        "provider_item_id": item.provider_item_id,
+                        "external_source_id": (
+                            str(external_item.external_source_id)
+                            if external_item.external_source_id
+                            else None
+                        ),
+                        "collection_id": (
+                            str(external_item.collection_id)
+                            if external_item.collection_id
+                            else None
+                        ),
+                        "changed_fields": changed_fields,
+                        "permissions": sanitize_metadata(external_item.permissions_json),
+                        "visibility": external_item.visibility,
+                    },
+                )
+        return external_item
 
     async def link_source_document(
         self,
@@ -233,3 +325,24 @@ class ConnectorPlatformService:
         if document is None:
             raise ConnectorBoundaryError("document not found for organization")
         return document
+
+    async def _audit(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID | None,
+        action: str,
+        resource_type: str,
+        resource_id: UUID | None,
+        metadata: dict[str, object],
+    ) -> None:
+        await self.audit_service.record(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            metadata=sanitize_metadata(metadata),
+        )

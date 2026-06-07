@@ -67,6 +67,7 @@ make seed-dev
 - Celery tasks use a shared retry policy (`CELERY_TASK_MAX_RETRIES`, backoff, jitter) and structured failure logging.
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
+- Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
 - `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
 - Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
@@ -195,6 +196,7 @@ Connector OAuth/API credentials are stored behind a credential vault boundary:
 - OAuth state is stored hashed in `connector_oauth_states`; callback state is single-use and TTL-bound.
 - Token refresh, disconnect/revoke, and diagnostics are shared across OAuth providers through connector domain services.
 - Disconnect marks the connection revoked, revokes remote tokens when possible, disables sync jobs, and records audit events.
+- Connector detail responses include source permission snapshots for access-review UI hooks; source ACL data is sanitized before exposure.
 
 Relevant settings:
 

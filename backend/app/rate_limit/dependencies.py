@@ -23,6 +23,7 @@ class RateLimitScope(StrEnum):
     evaluation = "evaluation"
     delete = "delete"
     admin = "admin"
+    connector = "connector"
 
 
 def _scope_limit(scope: RateLimitScope) -> int:
@@ -32,6 +33,7 @@ def _scope_limit(scope: RateLimitScope) -> int:
         RateLimitScope.evaluation: settings.rate_limit_evaluation_requests,
         RateLimitScope.delete: settings.rate_limit_delete_requests,
         RateLimitScope.admin: settings.rate_limit_admin_requests,
+        RateLimitScope.connector: settings.rate_limit_connector_requests,
     }
     return mapping[scope]
 

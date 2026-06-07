@@ -6,22 +6,25 @@ import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 if TYPE_CHECKING:
     from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.logging import get_logger
+from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
+from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.services.credential_vault import CredentialVault
 from app.domains.connectors.services.provider_adapter import (
     ConnectorAdapterNotFoundError,
     ConnectorAuthError,
     ConnectorContentError,
+    ConnectorPermissionError,
     ConnectorRateLimitError,
     DeltaItem,
     SyncAdapterRegistry,
@@ -92,12 +95,14 @@ class ConnectorSyncEngine:
         repository: ConnectorRepository | None = None,
         adapter_registry: SyncAdapterRegistry | None = None,
         credential_vault: CredentialVault | None = None,
-        ingestion_bridge: "ConnectorIngestionBridge | None" = None,
+        ingestion_bridge: ConnectorIngestionBridge | None = None,
+        audit_service: AuditLogService | None = None,
     ) -> None:
         self.repository = repository or ConnectorRepository()
         self.adapter_registry = adapter_registry or default_sync_adapter_registry
         self.credential_vault = credential_vault or CredentialVault()
         self.ingestion_bridge = ingestion_bridge
+        self.audit_service = audit_service or AuditLogService()
 
     # -----------------------------------------------------------------------
     # Job management
@@ -110,6 +115,7 @@ class ConnectorSyncEngine:
         organization_id: UUID,
         connection_id: UUID,
         name: str,
+        user_id: UUID | None = None,
         external_source_id: UUID | None = None,
         collection_id: UUID | None = None,
         schedule: dict | None = None,
@@ -119,7 +125,7 @@ class ConnectorSyncEngine:
         )
         if connection is None:
             raise SyncEngineError("connector connection not found")
-        return await self.repository.create_sync_job(
+        job = await self.repository.create_sync_job(
             session,
             organization_id=organization_id,
             connection_id=connection_id,
@@ -128,6 +134,36 @@ class ConnectorSyncEngine:
             collection_id=collection_id,
             schedule=schedule or {"type": "interval", "interval_minutes": 60},
         )
+        if external_source_id is not None:
+            await self._audit(
+                session,
+                organization_id=organization_id,
+                user_id=user_id,
+                action=ConnectorAuditAction.source_selected.value,
+                resource_type="connector_sync_job",
+                resource_id=job.id,
+                metadata={
+                    "connection_id": str(connection_id),
+                    "external_source_id": str(external_source_id),
+                    "collection_id": str(collection_id) if collection_id else None,
+                    "job_name": name,
+                },
+            )
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.sync_job_created.value,
+            resource_type="connector_sync_job",
+            resource_id=job.id,
+            metadata={
+                "connection_id": str(connection_id),
+                "external_source_id": str(external_source_id) if external_source_id else None,
+                "collection_id": str(collection_id) if collection_id else None,
+                "job_name": name,
+            },
+        )
+        return job
 
     async def update_sync_job_status(
         self,
@@ -136,11 +172,24 @@ class ConnectorSyncEngine:
         organization_id: UUID,
         job_id: UUID,
         status: ConnectorSyncJobStatus,
+        user_id: UUID | None = None,
     ) -> ConnectorSyncJob:
         job = await self._require_sync_job(session, organization_id, job_id)
         job.status = status.value
         await session.flush()
         await session.refresh(job)
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.sync_job_status_changed.value,
+            resource_type="connector_sync_job",
+            resource_id=job.id,
+            metadata={
+                "connection_id": str(job.connection_id),
+                "status": status.value,
+            },
+        )
         return job
 
     async def get_sync_job(
@@ -188,6 +237,7 @@ class ConnectorSyncEngine:
         organization_id: UUID,
         connection_id: UUID,
         job_id: UUID | None = None,
+        user_id: UUID | None = None,
     ) -> ConnectorSyncRun:
         if job_id is not None:
             job = await self._require_sync_job(session, organization_id, job_id)
@@ -209,7 +259,23 @@ class ConnectorSyncEngine:
                 )
 
         await self._assert_no_active_run(session, job_id=job.id)
-        return await self._create_queued_run(session, job=job, trigger_type="manual")
+        run = await self._create_queued_run(session, job=job, trigger_type="manual")
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.sync_manual_queued.value,
+            resource_type="connector_sync_run",
+            resource_id=run.id,
+            metadata={
+                "connection_id": str(connection_id),
+                "job_id": str(job.id),
+                "external_source_id": str(job.external_source_id)
+                if job.external_source_id
+                else None,
+            },
+        )
+        return run
 
     async def cancel_run(
         self,
@@ -328,6 +394,22 @@ class ConnectorSyncEngine:
         run.status = ConnectorSyncRunStatus.running.value
         run.started_at = datetime.now(UTC)
         await session.flush()
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=None,
+            action=ConnectorAuditAction.sync_started.value,
+            resource_type="connector_sync_run",
+            resource_id=run.id,
+            metadata={
+                "sync_job_id": str(run.sync_job_id),
+                "connection_id": str(run.connection_id),
+                "external_source_id": (
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                "trigger_type": run.trigger_type,
+            },
+        )
 
         job_result = await session.execute(
             select(ConnectorSyncJob)
@@ -409,6 +491,14 @@ class ConnectorSyncEngine:
                 error_code="rate_limit",
                 error_details={"retry_after_seconds": exc.retry_after_seconds},
             )
+        except ConnectorPermissionError as exc:
+            return await self._fail_run(
+                session,
+                run,
+                "permission denied",
+                error_code="permission_denied",
+                error_details={"reason": exc.__class__.__name__},
+            )
         except Exception as exc:
             return await self._fail_run(session, run, str(exc))
 
@@ -419,6 +509,22 @@ class ConnectorSyncEngine:
         job.error_message = None
         connection.last_sync_at = now
         await session.flush()
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=None,
+            action=ConnectorAuditAction.sync_succeeded.value,
+            resource_type="connector_sync_run",
+            resource_id=run.id,
+            metadata={
+                "sync_job_id": str(run.sync_job_id),
+                "connection_id": str(connection.id),
+                "items_seen": result.items_seen,
+                "items_upserted": result.items_upserted,
+                "items_deleted": result.items_deleted,
+                "trigger_type": run.trigger_type,
+            },
+        )
 
         _logger.info(
             "connector.sync.completed",
@@ -640,6 +746,22 @@ class ConnectorSyncEngine:
                     last_seen_sync_version=item.sync_version,
                     reason="not_seen_in_full_sync",
                 )
+                await self._audit(
+                    session,
+                    organization_id=run.organization_id,
+                    user_id=None,
+                    action=ConnectorAuditAction.source_deleted.value,
+                    resource_type="external_item",
+                    resource_id=item.id,
+                    metadata={
+                        "connection_id": str(run.connection_id),
+                        "external_source_id": (
+                            str(run.external_source_id) if run.external_source_id else None
+                        ),
+                        "provider_item_id": item.provider_item_id,
+                        "reason": "not_seen_in_full_sync",
+                    },
+                )
                 count += 1
         return count
 
@@ -674,6 +796,20 @@ class ConnectorSyncEngine:
             source_url=item.source_url,
             last_seen_sync_version=item.sync_version,
             reason="provider_deleted",
+        )
+        await self._audit(
+            session,
+            organization_id=run.organization_id,
+            user_id=None,
+            action=ConnectorAuditAction.source_deleted.value,
+            resource_type="external_item",
+            resource_id=item.id,
+            metadata={
+                "connection_id": str(run.connection_id),
+                "external_source_id": str(run.external_source_id) if run.external_source_id else None,
+                "provider_item_id": delta_item.provider_item_id,
+                "reason": "provider_deleted",
+            },
         )
         return True
 
@@ -745,7 +881,6 @@ class ConnectorSyncEngine:
             return None
 
         try:
-            from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge  # noqa: F401
             provenance_metadata = {
                 **norm_item.metadata,
                 "provider_key": norm_item.provider_key,
@@ -844,6 +979,22 @@ class ConnectorSyncEngine:
         run.error_message = message[:500]
         run.error_details_json = {"code": error_code, **(error_details or {})}
         await session.flush()
+        await self._audit(
+            session,
+            organization_id=run.organization_id,
+            user_id=None,
+            action=ConnectorAuditAction.sync_failed.value,
+            resource_type="connector_sync_run",
+            resource_id=run.id,
+            metadata={
+                "sync_job_id": str(run.sync_job_id),
+                "connection_id": str(run.connection_id),
+                "external_source_id": str(run.external_source_id) if run.external_source_id else None,
+                "error_code": error_code,
+                "error_details": sanitize_metadata(error_details or {}),
+                "message": message[:200],
+            },
+        )
         _logger.warning(
             "connector.sync.failed",
             sync_run_id=str(run.id),
@@ -858,6 +1009,27 @@ class ConnectorSyncEngine:
             items_deleted=run.items_deleted,
             cursor_after=dict(run.cursor_before_json or {}),
             error_message=message,
+        )
+
+    async def _audit(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID | None,
+        action: str,
+        resource_type: str,
+        resource_id: UUID | None,
+        metadata: dict[str, object],
+    ) -> None:
+        await self.audit_service.record(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            metadata=sanitize_metadata(metadata),
         )
 
     async def _cancel_run_in_flight(

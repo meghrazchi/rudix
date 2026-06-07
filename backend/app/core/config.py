@@ -300,6 +300,7 @@ class Settings(BaseSettings):
     rate_limit_evaluation_requests: int = Field(default=10, ge=1, le=10000)
     rate_limit_delete_requests: int = Field(default=20, ge=1, le=10000)
     rate_limit_admin_requests: int = Field(default=15, ge=1, le=10000)
+    rate_limit_connector_requests: int = Field(default=15, ge=1, le=10000)
     evaluation_prevent_duplicate_active_runs: bool = True
 
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
@@ -944,6 +945,7 @@ class Settings(BaseSettings):
             "rate_limit_evaluation_requests": self.rate_limit_evaluation_requests,
             "rate_limit_delete_requests": self.rate_limit_delete_requests,
             "rate_limit_admin_requests": self.rate_limit_admin_requests,
+            "rate_limit_connector_requests": self.rate_limit_connector_requests,
             "evaluation_prevent_duplicate_active_runs": self.evaluation_prevent_duplicate_active_runs,
             "dependency_connect_timeout_seconds": self.dependency_connect_timeout_seconds,
             "dependency_read_timeout_seconds": self.dependency_read_timeout_seconds,

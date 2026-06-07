@@ -33,8 +33,18 @@ export type ConnectorDiagnostics = {
   metadata: Record<string, unknown>;
 };
 
+export type SourcePermissionSnapshot = {
+  id: string;
+  provider_source_id: string;
+  name: string;
+  source_type: string;
+  is_enabled: boolean;
+  permissions: Record<string, unknown>;
+};
+
 export type ConnectorConnectionDetail = ConnectorConnectionSummary & {
   diagnostics: ConnectorDiagnostics;
+  source_permission_snapshots: SourcePermissionSnapshot[];
 };
 
 export type ConnectorConnectionsListResponse = {

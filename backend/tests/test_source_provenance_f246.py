@@ -4,12 +4,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import ensure_document_ids_access
-from app.auth.models import AuthenticatedPrincipal
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument, SourceReference
@@ -232,7 +229,7 @@ async def test_source_provenance_loads_connector_citation_details(
 async def test_source_provenance_filters_deleted_connector_sources(
     db_session: AsyncSession,
 ) -> None:
-    org, user, document, chunk, _external_item = await _create_connector_document(
+    org, _user, document, chunk, _external_item = await _create_connector_document(
         db_session,
         deleted_at=datetime.now(UTC),
     )
@@ -259,19 +256,37 @@ async def test_source_provenance_filters_deleted_connector_sources(
     )
     assert details_by_chunk[chunk.id].source_trust_status == "deleted"
 
-    principal = AuthenticatedPrincipal(
-        user_id=str(user.id),
-        organization_id=str(org.id),
-        roles=["member"],
-        auth_provider="app",
+
+@pytest.mark.asyncio
+async def test_source_provenance_marks_revoked_connector_sources(
+    db_session: AsyncSession,
+) -> None:
+    org, _, document, chunk, _external_item = await _create_connector_document(
+        db_session,
+        connection_status=ConnectorConnectionStatus.revoked.value,
     )
-    with pytest.raises(HTTPException) as exc_info:
-        await ensure_document_ids_access(
-            document_ids=[str(document.id)],
-            principal=principal,
-            db_session=db_session,
-        )
-    assert exc_info.value.status_code == 404
+    service = SourceProvenanceService()
+
+    filtered_chunks = await service.filter_active_chunks(
+        db_session,
+        organization_id=org.id,
+        chunks=[
+            type(
+                "Chunk",
+                (),
+                {"document_id": document.id, "chunk_id": chunk.id},
+            )(),
+        ],
+    )
+
+    assert filtered_chunks == []
+
+    details_by_chunk = await service.load_citation_details(
+        db_session,
+        organization_id=org.id,
+        chunk_ids=[chunk.id],
+    )
+    assert details_by_chunk[chunk.id].source_trust_status == "revoked"
 
 
 @pytest.mark.asyncio

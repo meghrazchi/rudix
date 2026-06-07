@@ -1544,6 +1544,9 @@ organization-scoped:
   connector sync jobs, and writes an audit event.
 - `GET /connectors/{connection_id}/diagnostics`: returns status, scopes,
   credential version, expiry, fingerprint, and sanitized metadata only.
+- `POST /connectors/{connection_id}/sync-jobs`, `PATCH /connectors/{connection_id}/sync-jobs/{job_id}`, `POST /connectors/{connection_id}/sync/now`, and `POST /connectors/sync-runs/{run_id}/cancel` are owner/admin-only and rate-limited with connector-specific throttles.
+- `GET /connectors/{connection_id}` includes source permission snapshots so the UI can surface access-review hooks without exposing raw credentials.
+- Connector sync completion and failure paths emit audit-safe lifecycle events for start, success, failure, source selection, and permission changes.
 
 Safe-output guarantees:
 

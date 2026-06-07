@@ -14,6 +14,7 @@ from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.db.session import get_db_session
+from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.connectors.schemas.connectors import ProviderRegistration
 from app.domains.connectors.services.connector_service import ConnectorPlatformService
 from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
@@ -147,6 +148,21 @@ class ConnectorConnectionSummaryResponse(BaseModel):
 
 class ConnectorConnectionDetailResponse(ConnectorConnectionSummaryResponse):
     diagnostics: ConnectorDiagnosticsResponse
+    source_permission_snapshots: list[SourcePermissionSnapshotResponse] = Field(
+        default_factory=list
+    )
+
+
+class SourcePermissionSnapshotResponse(BaseModel):
+    id: str
+    provider_source_id: str
+    name: str
+    source_type: str
+    is_enabled: bool
+    permissions: dict[str, Any]
+
+
+ConnectorConnectionDetailResponse.model_rebuild()
 
 
 class ConnectorConnectionsListResponse(BaseModel):
@@ -267,6 +283,24 @@ def _connection_summary_response(
     )
 
 
+def _source_permission_snapshots(
+    connection: ConnectorConnection,
+) -> list[SourcePermissionSnapshotResponse]:
+    snapshots: list[SourcePermissionSnapshotResponse] = []
+    for source in connection.sources or []:
+        snapshots.append(
+            SourcePermissionSnapshotResponse(
+                id=str(source.id),
+                provider_source_id=source.provider_source_id,
+                name=source.name,
+                source_type=source.source_type,
+                is_enabled=source.is_enabled,
+                permissions=sanitize_metadata(source.permissions_json),
+            )
+        )
+    return snapshots
+
+
 async def _load_connections(
     db_session: AsyncSession,
     *,
@@ -374,6 +408,7 @@ async def get_connection(
     return ConnectorConnectionDetailResponse(
         **_connection_summary_response(connection).model_dump(),
         diagnostics=ConnectorDiagnosticsResponse(**diagnostics),
+        source_permission_snapshots=_source_permission_snapshots(connection),
     )
 
 

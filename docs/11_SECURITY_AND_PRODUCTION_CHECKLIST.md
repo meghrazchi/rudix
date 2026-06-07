@@ -58,6 +58,9 @@ Connector operations must also enforce:
 - token refresh before sync and local sync blocking after revoke/disconnect
 - diagnostics that expose only credential metadata, never secret payloads
 - no provider-specific bypasses in RAG, chat, citation, agent, or MCP adapters
+- sync-trigger, sync-start, sync-success, sync-failure, source-selection, source-deletion, disconnect, and permission-change events must be audit logged with safe metadata only
+- connector sync endpoints should be rate-limited separately from general admin actions
+- revoked or disconnected connector sources must be excluded from retrieval and citation expansion
 
 ## Agent tool security
 
@@ -211,6 +214,7 @@ Do not log by default:
 - Full LLM responses for private documents.
 - Auth tokens.
 - Secrets.
+- Raw connector credentials, source ACL payloads, and provider access tokens.
 
 ## Audit logs
 
@@ -229,6 +233,8 @@ Track:
 - Admin action.
 - Policy changes.
 - Share-link create/revoke/view actions.
+- Connector connection create/reconnect/disconnect/delete actions.
+- Connector source selection, permission changes, sync start/success/failure, and citation access.
 
 Audit explorer/export requirements:
 
