@@ -16,6 +16,7 @@ The bridge does NOT run chunking / embedding inline; instead it creates the Docu
 ``pending_scan`` → ``processing`` status and expects the existing document processing
 pipeline to pick it up via the normal Celery task.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -51,7 +52,7 @@ _logger = get_logger("connectors.ingestion_bridge")
 _CONNECTOR_ALLOWED_MIME: dict[str, str] = {
     "application/pdf": "pdf",
     "text/plain": "txt",
-    "text/csv": "txt",   # treated as plain text for extraction
+    "text/csv": "txt",  # treated as plain text for extraction
     "application/json": "txt",  # e.g. Google Apps Script exports
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 }
@@ -70,6 +71,7 @@ _MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024  # 100 MB hard cap for connector files
 @dataclass
 class IngestionResult:
     """Outcome of a single connector file ingestion attempt."""
+
     document_id: UUID | None
     source_document_id: UUID | None
     status: str
@@ -195,7 +197,10 @@ class ConnectorIngestionBridge:
         # Magic bytes guard (same as upload_validation for PDF / DOCX).
         if extension in _MAGIC_BYTES:
             offset, expected = _MAGIC_BYTES[extension]
-            if len(content) < offset + len(expected) or content[offset:offset + len(expected)] != expected:
+            if (
+                len(content) < offset + len(expected)
+                or content[offset : offset + len(expected)] != expected
+            ):
                 return IngestionResult(
                     document_id=None,
                     source_document_id=None,
@@ -577,6 +582,7 @@ class ConnectorIngestionBridge:
 # Module-level helpers
 # ---------------------------------------------------------------------------
 
+
 def _safe_filename(filename: str, extension: str) -> str:
     """Sanitize provider filename: strip path separators and null bytes."""
     cleaned = filename.strip().replace("/", "_").replace("\\", "_").replace("\x00", "")
@@ -609,6 +615,7 @@ def _extract_text_for_dlp(content: bytes, extension: str) -> str:
 
 def _run_dlp(text: str) -> "DlpScanResult":
     from app.domains.documents.services.dlp_service import scan_text_for_dlp
+
     return scan_text_for_dlp(text, enabled=bool(text), action="quarantine")
 
 
@@ -619,10 +626,12 @@ async def _upload_to_storage(bucket: str, key: str, content: bytes, mime_type: s
     Raises on any storage error so the caller can handle the failure.
     """
     from app.clients import minio_client as minio_module
+
     client = minio_module.get_minio_client()
     if client is None:
         raise RuntimeError("MinIO client is not configured")
     import asyncio
+
     await asyncio.to_thread(
         lambda: client.put_object(
             Bucket=bucket,

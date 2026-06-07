@@ -1,4 +1,5 @@
 """Unit tests for OCR language configuration utility (F232)."""
+
 from __future__ import annotations
 
 import pytest

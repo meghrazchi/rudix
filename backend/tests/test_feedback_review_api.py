@@ -266,15 +266,11 @@ async def test_list_review_items_with_filter(
     assert r_all.status_code == 200
     assert r_all.json()["total"] == 1
 
-    r_filtered = await review_client.get(
-        "/api/v1/feedback-review?status=triaged", headers=headers
-    )
+    r_filtered = await review_client.get("/api/v1/feedback-review?status=triaged", headers=headers)
     assert r_filtered.status_code == 200
     assert r_filtered.json()["total"] == 1
 
-    r_none = await review_client.get(
-        "/api/v1/feedback-review?status=fixed", headers=headers
-    )
+    r_none = await review_client.get("/api/v1/feedback-review?status=fixed", headers=headers)
     assert r_none.status_code == 200
     assert r_none.json()["total"] == 0
 
@@ -369,9 +365,7 @@ async def test_get_review_item_detail(
     )
     review_id = triage.json()["review_id"]
 
-    detail_resp = await review_client.get(
-        f"/api/v1/feedback-review/{review_id}", headers=headers
-    )
+    detail_resp = await review_client.get(f"/api/v1/feedback-review/{review_id}", headers=headers)
     assert detail_resp.status_code == 200
     payload = detail_resp.json()
     assert payload["review_id"] == review_id

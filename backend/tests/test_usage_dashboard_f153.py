@@ -269,9 +269,7 @@ async def test_dashboard_date_range_filter(dash_client, admin_ctx, db_session):
 async def test_dashboard_model_filter(dash_client, admin_ctx, db_session):
     """E: model filter returns only events for that model."""
     ctx = admin_ctx
-    await _seed_event(
-        db_session, org_id=ctx["org"].id, model_name="gpt-4o", input_tokens=100
-    )
+    await _seed_event(db_session, org_id=ctx["org"].id, model_name="gpt-4o", input_tokens=100)
     await _seed_event(
         db_session, org_id=ctx["org"].id, model_name="claude-3-sonnet", input_tokens=200
     )
@@ -354,9 +352,7 @@ async def test_dashboard_top_models_populated_and_sorted(dash_client, admin_ctx,
     ctx = admin_ctx
     org_id = ctx["org"].id
 
-    await _seed_event(
-        db_session, org_id=org_id, model_name="gpt-4o", cost_usd=Decimal("2.00")
-    )
+    await _seed_event(db_session, org_id=org_id, model_name="gpt-4o", cost_usd=Decimal("2.00"))
     await _seed_event(
         db_session, org_id=org_id, model_name="claude-3-sonnet", cost_usd=Decimal("10.00")
     )

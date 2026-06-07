@@ -9,6 +9,7 @@ Every adapter implementation must pass the same contract checks. This file:
 New adapters should add a test that calls run_adapter_contract_suite() against
 a mock-HTTP version of the real adapter.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -261,9 +262,11 @@ async def test_contract_catches_bad_content_hash() -> None:
 
     adapter = FakeProviderAdapter()
 
-    with patch.object(adapter, "list_items", new=AsyncMock(
-        return_value=ItemPage(items=[bad_item], has_more=False)
-    )):
+    with patch.object(
+        adapter,
+        "list_items",
+        new=AsyncMock(return_value=ItemPage(items=[bad_item], has_more=False)),
+    ):
         with pytest.raises(AdapterContractError, match="content_hash"):
             await run_adapter_contract_suite(
                 adapter,
@@ -279,9 +282,11 @@ async def test_contract_catches_has_more_without_cursor() -> None:
 
     adapter = FakeProviderAdapter()
 
-    with patch.object(adapter, "list_items", new=AsyncMock(
-        return_value=ItemPage(items=[], has_more=True, next_cursor=None)
-    )):
+    with patch.object(
+        adapter,
+        "list_items",
+        new=AsyncMock(return_value=ItemPage(items=[], has_more=True, next_cursor=None)),
+    ):
         with pytest.raises(AdapterContractError, match="has_more"):
             await run_adapter_contract_suite(
                 adapter,
@@ -297,9 +302,11 @@ async def test_contract_catches_cursor_with_has_more_false() -> None:
 
     adapter = FakeProviderAdapter()
 
-    with patch.object(adapter, "list_items", new=AsyncMock(
-        return_value=ItemPage(items=[], has_more=False, next_cursor={"offset": 1})
-    )):
+    with patch.object(
+        adapter,
+        "list_items",
+        new=AsyncMock(return_value=ItemPage(items=[], has_more=False, next_cursor={"offset": 1})),
+    ):
         with pytest.raises(AdapterContractError, match="has_more"):
             await run_adapter_contract_suite(
                 adapter,
@@ -338,9 +345,11 @@ async def test_contract_catches_delta_item_without_item_when_not_deleted() -> No
     adapter = FakeProviderAdapter(full_items=[item])
 
     bad_delta = DeltaItem(provider_item_id="missing", is_deleted=False, item=None)
-    with patch.object(adapter, "delta_sync", new=AsyncMock(
-        return_value=DeltaPage(items=[bad_delta], has_more=False)
-    )):
+    with patch.object(
+        adapter,
+        "delta_sync",
+        new=AsyncMock(return_value=DeltaPage(items=[bad_delta], has_more=False)),
+    ):
         with pytest.raises(AdapterContractError, match="is_deleted=False"):
             await run_adapter_contract_suite(
                 adapter,

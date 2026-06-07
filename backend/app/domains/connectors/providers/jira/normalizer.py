@@ -1,4 +1,5 @@
 """Jira API response → NormalizedExternalItem conversion helpers."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime

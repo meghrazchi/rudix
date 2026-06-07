@@ -629,9 +629,7 @@ async def get_admin_usage_dashboard(
     )
 
     total_bucket, series = _aggregate_dashboard(events, granularity=granularity)
-    total_docs, indexed_docs, total_chunks = await _count_org_documents(
-        db_session, organization_id
-    )
+    total_docs, indexed_docs, total_chunks = await _count_org_documents(db_session, organization_id)
 
     top_user_rows = await usage_repository.aggregate_by_user(
         db_session,

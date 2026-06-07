@@ -60,8 +60,7 @@ def test_scan_below_min_findings_returns_allow() -> None:
 
 def test_scan_above_min_findings_applies_action_warn() -> None:
     text = (
-        "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, "
-        "another 987-65-4321 here."
+        "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, another 987-65-4321 here."
     )
     result = scan_text_for_dlp(text, enabled=True, action="warn", min_findings=3)
     assert result.action == "warn"
@@ -69,19 +68,13 @@ def test_scan_above_min_findings_applies_action_warn() -> None:
 
 
 def test_scan_above_min_findings_applies_action_quarantine() -> None:
-    text = (
-        "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, "
-        "another SSN 987-65-4321."
-    )
+    text = "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, another SSN 987-65-4321."
     result = scan_text_for_dlp(text, enabled=True, action="quarantine", min_findings=3)
     assert result.action == "quarantine"
 
 
 def test_scan_above_min_findings_applies_action_reject() -> None:
-    text = (
-        "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, "
-        "another SSN 987-65-4321."
-    )
+    text = "SSN 123-45-6789, CC 4111-1111-1111-1111, phone (555) 123-4567, another SSN 987-65-4321."
     result = scan_text_for_dlp(text, enabled=True, action="reject", min_findings=3)
     assert result.action == "reject"
 

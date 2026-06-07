@@ -1,4 +1,5 @@
 """Tests for F241: connector provider SDK utilities."""
+
 from __future__ import annotations
 
 import json
@@ -7,7 +8,13 @@ import pytest
 from app.domains.connectors.sdk.content_hash import hash_acl, hash_dict, hash_text
 from app.domains.connectors.sdk.metadata import build_metadata, normalize_metadata
 from app.domains.connectors.sdk.models import ExternalACL, ExternalSource, SyncCursor
-from app.domains.connectors.sdk.pagination import CursorPage, next_page, offset_cursor, page_cursor, paginate_list
+from app.domains.connectors.sdk.pagination import (
+    CursorPage,
+    next_page,
+    offset_cursor,
+    page_cursor,
+    paginate_list,
+)
 from app.domains.connectors.sdk.rate_limits import parse_retry_after, raise_for_rate_limit
 from app.domains.connectors.sdk.url_builder import build_url, normalize_url
 
@@ -310,8 +317,10 @@ class TestNormalizeUrl:
 
 class TestBuildUrl:
     def test_basic_path(self) -> None:
-        assert build_url("https://api.example.com", "v2", "issues") == \
-            "https://api.example.com/v2/issues"
+        assert (
+            build_url("https://api.example.com", "v2", "issues")
+            == "https://api.example.com/v2/issues"
+        )
 
     def test_query_params(self) -> None:
         url = build_url("https://api.example.com", "items", page=1, status="open")

@@ -1,4 +1,5 @@
 """Typed data models for connector SDK: external sources, ACLs, and sync cursors."""
+
 from __future__ import annotations
 
 import json
@@ -41,14 +42,10 @@ class ExternalACL:
     def __post_init__(self) -> None:
         allowed_principal_types = {"user", "group", "role", "anyone"}
         if self.principal_type not in allowed_principal_types:
-            raise ValueError(
-                f"principal_type must be one of {allowed_principal_types!r}"
-            )
+            raise ValueError(f"principal_type must be one of {allowed_principal_types!r}")
         allowed_access_levels = {"read", "write", "admin", "none"}
         if self.access_level not in allowed_access_levels:
-            raise ValueError(
-                f"access_level must be one of {allowed_access_levels!r}"
-            )
+            raise ValueError(f"access_level must be one of {allowed_access_levels!r}")
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -465,9 +465,7 @@ async def test_delete_requested_document_status_is_not_indexed(
     vectors are removed during the worker cleanup phase (delete_index stage).
     This test verifies the status transition is correct and documents cannot
     be fetched as 'indexed' after deletion is requested."""
-    user, org = await _seed_org_user(
-        db_session, role=OrganizationRole.member, prefix="ragexcl"
-    )
+    user, org = await _seed_org_user(db_session, role=OrganizationRole.member, prefix="ragexcl")
     document = await _seed_document(
         db_session, organization=org, uploader=user, status=DocumentStatus.indexed
     )

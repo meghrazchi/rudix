@@ -1,4 +1,5 @@
 """Request/response Pydantic schemas for the connector sync API."""
+
 from __future__ import annotations
 
 from typing import Any

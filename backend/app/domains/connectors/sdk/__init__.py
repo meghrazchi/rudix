@@ -1,4 +1,5 @@
 """Connector provider SDK — shared utilities for building adapter implementations."""
+
 from app.domains.connectors.sdk.content_hash import hash_acl, hash_dict, hash_text
 from app.domains.connectors.sdk.metadata import build_metadata, normalize_metadata
 from app.domains.connectors.sdk.models import ExternalACL, ExternalSource, SyncCursor

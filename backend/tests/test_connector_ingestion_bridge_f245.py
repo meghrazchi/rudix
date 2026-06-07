@@ -1,4 +1,5 @@
 """Tests for F245: connector attachment and file ingestion bridge through document lifecycle."""
+
 from __future__ import annotations
 
 import hashlib
@@ -266,7 +267,9 @@ async def test_ingest_empty_content_returns_unsupported(db_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_ingest_pdf_with_bad_magic_bytes_returns_unsupported(db_session: AsyncSession) -> None:
+async def test_ingest_pdf_with_bad_magic_bytes_returns_unsupported(
+    db_session: AsyncSession,
+) -> None:
     ctx = await _make_bridge_context(db_session)
     result = await _ingest(
         db_session,
@@ -301,7 +304,9 @@ async def test_ingest_encrypted_pdf_returns_unsupported(db_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_ingest_clean_pdf_creates_document_and_source_document(db_session: AsyncSession) -> None:
+async def test_ingest_clean_pdf_creates_document_and_source_document(
+    db_session: AsyncSession,
+) -> None:
     ctx = await _make_bridge_context(db_session)
     result = await _ingest(db_session, ctx, _bridge(), content=_PDF_BYTES)
 
@@ -311,7 +316,7 @@ async def test_ingest_clean_pdf_creates_document_and_source_document(db_session:
     assert result.checksum == hashlib.sha256(_PDF_BYTES).hexdigest()
     assert not result.is_duplicate
 
-    doc = (await db_session.get(Document, result.document_id))
+    doc = await db_session.get(Document, result.document_id)
     assert doc is not None
     assert doc.status == DocumentStatus.pending_scan
     assert doc.ingestion_source == DocumentIngestionSource.connector
@@ -382,7 +387,9 @@ async def test_ingest_clean_docx_creates_document(db_session: AsyncSession) -> N
 
 
 @pytest.mark.asyncio
-async def test_ingest_infected_file_creates_document_with_infected_status(db_session: AsyncSession) -> None:
+async def test_ingest_infected_file_creates_document_with_infected_status(
+    db_session: AsyncSession,
+) -> None:
     ctx = await _make_bridge_context(db_session)
     bridge = _bridge(scan_result=_infected_scan())
     result = await _ingest(db_session, ctx, bridge, content=_INFECTED_PDF)
@@ -490,7 +497,9 @@ async def test_ingest_duplicate_warn_links_existing_document(db_session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_ingest_duplicate_reject_skips_without_source_document(db_session: AsyncSession) -> None:
+async def test_ingest_duplicate_reject_skips_without_source_document(
+    db_session: AsyncSession,
+) -> None:
     ctx = await _make_bridge_context(db_session)
 
     # Create the first document normally.

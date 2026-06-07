@@ -25,9 +25,12 @@ def _char_density_confidence(text: str) -> float:
     if char_count >= _HIGH_QUALITY_CHAR_THRESHOLD:
         return min(1.0, 0.7 + char_count / (_HIGH_QUALITY_CHAR_THRESHOLD * 10))
     if char_count >= _MEDIUM_QUALITY_CHAR_THRESHOLD:
-        return 0.4 + (char_count - _MEDIUM_QUALITY_CHAR_THRESHOLD) / (
-            _HIGH_QUALITY_CHAR_THRESHOLD - _MEDIUM_QUALITY_CHAR_THRESHOLD
-        ) * 0.3
+        return (
+            0.4
+            + (char_count - _MEDIUM_QUALITY_CHAR_THRESHOLD)
+            / (_HIGH_QUALITY_CHAR_THRESHOLD - _MEDIUM_QUALITY_CHAR_THRESHOLD)
+            * 0.3
+        )
     if char_count > 0:
         return char_count / _MEDIUM_QUALITY_CHAR_THRESHOLD * 0.4
     return 0.0
@@ -149,9 +152,7 @@ def run_ocr(
         overall = "skipped"
 
     completed_confidences = [
-        p.confidence
-        for p in ocr_pages
-        if p.status == "completed" and p.confidence is not None
+        p.confidence for p in ocr_pages if p.status == "completed" and p.confidence is not None
     ]
     avg_confidence = (
         round(sum(completed_confidences) / len(completed_confidences), 3)

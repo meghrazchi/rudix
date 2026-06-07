@@ -107,7 +107,9 @@ class FeedbackReviewItemResponse(BaseModel):
             severity=item.severity,  # type: ignore[arg-type]
             reviewer_id=str(item.reviewer_id) if item.reviewer_id else None,
             reviewer_notes=item.reviewer_notes,
-            linked_eval_question_id=str(item.linked_eval_question_id) if item.linked_eval_question_id else None,
+            linked_eval_question_id=str(item.linked_eval_question_id)
+            if item.linked_eval_question_id
+            else None,
             linked_document_id=str(item.linked_document_id) if item.linked_document_id else None,
             resolved_at=item.resolved_at,
             created_at=item.created_at,

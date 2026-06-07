@@ -27,14 +27,46 @@ NEAR_LIMIT_THRESHOLD = 0.80
 
 # System defaults — no limits out of the box; orgs configure their own
 SYSTEM_DEFAULT_LIMITS: dict[str, dict] = {
-    QuotaType.uploads: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_day},
-    QuotaType.questions: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_day},
-    QuotaType.tokens: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_month},
-    QuotaType.storage_bytes: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.none},
-    QuotaType.evaluations: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_day},
-    QuotaType.api_calls: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_minute},
-    QuotaType.connectors: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.none},
-    QuotaType.agent_runs: {"soft_limit": None, "hard_limit": None, "reset_window": ResetWindow.per_day},
+    QuotaType.uploads: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_day,
+    },
+    QuotaType.questions: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_day,
+    },
+    QuotaType.tokens: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_month,
+    },
+    QuotaType.storage_bytes: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.none,
+    },
+    QuotaType.evaluations: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_day,
+    },
+    QuotaType.api_calls: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_minute,
+    },
+    QuotaType.connectors: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.none,
+    },
+    QuotaType.agent_runs: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.per_day,
+    },
 }
 
 
@@ -50,7 +82,9 @@ def _compute_next_reset(window: str, now: datetime) -> datetime | None:
         return now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
     if window == ResetWindow.per_month:
         if now.month == 12:
-            return now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            return now.replace(
+                year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+            )
         return now.replace(month=now.month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
     return None
 

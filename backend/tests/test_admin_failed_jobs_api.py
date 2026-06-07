@@ -80,9 +80,7 @@ async def _seed_principal(
     db_session.add(user)
     await db_session.flush()
 
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -376,9 +374,7 @@ async def test_retry_creates_audit_log_entry(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "app.interfaces.http.failed_jobs._dispatch_retry", lambda job: None
-    )
+    monkeypatch.setattr("app.interfaces.http.failed_jobs._dispatch_retry", lambda job: None)
 
     user, org = await _seed_principal(db_session, role=OrganizationRole.admin)
     job = await _seed_failed_job(db_session, organization_id=org.id)
@@ -443,9 +439,7 @@ async def test_bulk_retry_skips_jobs_from_other_org(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        "app.interfaces.http.failed_jobs._dispatch_retry", lambda job: None
-    )
+    monkeypatch.setattr("app.interfaces.http.failed_jobs._dispatch_retry", lambda job: None)
 
     user, org = await _seed_principal(db_session, role=OrganizationRole.admin)
     _, other_org = await _seed_principal(db_session, role=OrganizationRole.admin)

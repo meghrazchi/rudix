@@ -79,13 +79,9 @@ def extract_pdf(
                 page_number = page_idx + 1
                 warning = f"Page {page_number} extraction failed: {exc}"
                 warnings.append(warning)
-                pages.append(
-                    _empty_page_result(page_number, warning=warning)
-                )
+                pages.append(_empty_page_result(page_number, warning=warning))
 
-        document_profile = classify_document_profile(
-            pages, min_chars_per_page=min_chars_per_page
-        )
+        document_profile = classify_document_profile(pages, min_chars_per_page=min_chars_per_page)
         total_text_blocks = sum(len(p.text_blocks) for p in pages)
         total_table_blocks = sum(len(p.table_blocks) for p in pages)
         total_image_blocks = sum(len(p.image_blocks) for p in pages)
@@ -121,9 +117,7 @@ def _extract_page(
     warnings: list[str] = []
     page_rect = page.rect
     page_area = (
-        page_rect.width * page_rect.height
-        if page_rect.width > 0 and page_rect.height > 0
-        else 1.0
+        page_rect.width * page_rect.height if page_rect.width > 0 and page_rect.height > 0 else 1.0
     )
 
     table_blocks: list[TableBlock] = []
@@ -141,9 +135,7 @@ def _extract_page(
         page, page_number, excluded_rects=table_bboxes
     )
 
-    table_char_count = sum(
-        len(cell.text) for tb in table_blocks for cell in tb.cells
-    )
+    table_char_count = sum(len(cell.text) for tb in table_blocks for cell in tb.cells)
     char_count = total_chars + table_char_count
 
     text_coverage_ratio = min(1.0, text_area / page_area)
@@ -257,9 +249,7 @@ def _extract_tables(
                     )
                 )
             except Exception as exc:
-                warnings.append(
-                    f"Table {table_idx + 1} on page {page_number} failed: {exc}"
-                )
+                warnings.append(f"Table {table_idx + 1} on page {page_number} failed: {exc}")
     except AttributeError:
         warnings.append(
             f"Table extraction unavailable on page {page_number} "
@@ -314,9 +304,7 @@ def _rows_to_markdown(rows: list[list[str | None]]) -> str:
     if not rows:
         return ""
 
-    normalized: list[list[str]] = [
-        [str(cell or "").strip() for cell in row] for row in rows
-    ]
+    normalized: list[list[str]] = [[str(cell or "").strip() for cell in row] for row in rows]
     col_count = max((len(row) for row in normalized), default=0)
     if col_count == 0:
         return ""

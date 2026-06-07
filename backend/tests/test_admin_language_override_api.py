@@ -1,4 +1,5 @@
 """Tests for admin document language override endpoint (F230)."""
+
 from __future__ import annotations
 
 import os
@@ -123,9 +124,7 @@ async def _create_doc(
 
 
 @pytest.mark.asyncio
-async def test_admin_can_override_language(
-    admin_client, db_session: AsyncSession
-) -> None:
+async def test_admin_can_override_language(admin_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = admin_client
 
     app.dependency_overrides[get_db_session] = lambda: db_session
@@ -147,16 +146,12 @@ async def test_admin_can_override_language(
 
 
 @pytest.mark.asyncio
-async def test_admin_can_clear_language_override(
-    admin_client, db_session: AsyncSession
-) -> None:
+async def test_admin_can_clear_language_override(admin_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = admin_client
 
     app.dependency_overrides[get_db_session] = lambda: db_session
 
-    doc = await _create_doc(
-        db_session, org_id=org_id, user_id=user_id, language="es"
-    )
+    doc = await _create_doc(db_session, org_id=org_id, user_id=user_id, language="es")
 
     response = await client.patch(
         f"/api/v1/admin/documents/{doc.id}/language",
@@ -188,9 +183,7 @@ async def test_admin_override_rejects_unsupported_language(
 
 
 @pytest.mark.asyncio
-async def test_member_cannot_override_language(
-    member_client, db_session: AsyncSession
-) -> None:
+async def test_member_cannot_override_language(member_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = member_client
 
     app.dependency_overrides[get_db_session] = lambda: db_session
@@ -219,9 +212,7 @@ async def test_admin_override_for_other_org_document_returns_404(
     db_session.add_all([other_org, other_user])
     await db_session.flush()
 
-    other_doc = await _create_doc(
-        db_session, org_id=other_org.id, user_id=other_user.id
-    )
+    other_doc = await _create_doc(db_session, org_id=other_org.id, user_id=other_user.id)
 
     response = await client.patch(
         f"/api/v1/admin/documents/{other_doc.id}/language",
@@ -259,19 +250,13 @@ async def test_document_detail_exposes_language_fields(
 
 
 @pytest.mark.asyncio
-async def test_document_list_language_filter(
-    admin_client, db_session: AsyncSession
-) -> None:
+async def test_document_list_language_filter(admin_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = admin_client
 
     app.dependency_overrides[get_db_session] = lambda: db_session
 
-    await _create_doc(
-        db_session, org_id=org_id, user_id=user_id, language="de"
-    )
-    await _create_doc(
-        db_session, org_id=org_id, user_id=user_id, language="en"
-    )
+    await _create_doc(db_session, org_id=org_id, user_id=user_id, language="de")
+    await _create_doc(db_session, org_id=org_id, user_id=user_id, language="en")
     await db_session.flush()
 
     response = await client.get("/api/v1/documents", params={"language": "de"})

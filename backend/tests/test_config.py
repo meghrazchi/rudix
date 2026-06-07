@@ -101,6 +101,8 @@ ENV_KEYS = [
     "MCP_RATE_LIMIT_WINDOW_SECONDS",
     "MCP_RATE_LIMIT_REQUESTS",
     "FEATURE_ENABLE_EXTERNAL_MCP_CONNECTORS",
+    "FEATURE_ENABLE_CONNECTORS",
+    "CONNECTOR_ROLLOUT_STAGE",
     "MCP_EXTERNAL_SERVERS",
     "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY",
     "CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID",
@@ -135,6 +137,8 @@ def valid_settings_kwargs() -> dict:
         "app_auth_issuer": "rudix-test",
         "app_auth_audience": "rudix-test-audience",
         "cors_origins": "http://localhost:3000,http://127.0.0.1:3000",
+        "feature_enable_connectors": True,
+        "connector_rollout_stage": "all",
     }
 
 
@@ -377,6 +381,8 @@ def test_snapshot_redacts_secrets_and_credentials() -> None:
     assert "secret" not in snapshot["database_url"]
     assert "secret" not in snapshot["rabbitmq_url"]
     assert snapshot["features"]["mcp"] is True
+    assert snapshot["features"]["connectors"] is True
+    assert snapshot["connector_credentials"]["rollout_stage"] == "all"
     assert snapshot["mcp"]["dev_principal_user_id_set"] is True
 
 
@@ -549,3 +555,13 @@ def test_external_mcp_requires_auth_in_production() -> None:
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)
+
+
+def test_connector_rollout_stage_off_disables_connector_feature() -> None:
+    payload = valid_settings_kwargs()
+    payload["connector_rollout_stage"] = "off"
+
+    parsed = Settings(_env_file=None, **payload)
+
+    assert parsed.feature_enable_connectors is False
+    assert parsed.connector_rollout_stage.value == "off"

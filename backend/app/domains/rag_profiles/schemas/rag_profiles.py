@@ -18,15 +18,11 @@ class RagProfileConfig(BaseModel):
     rerank_enabled: bool = Field(default=False)
     rerank_model: str | None = Field(default=None, max_length=255)
     confidence_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
-    citation_strictness: Literal["strict", "moderate", "lenient"] = Field(
-        default="moderate"
-    )
+    citation_strictness: Literal["strict", "moderate", "lenient"] = Field(default="moderate")
     model_provider: str | None = Field(default=None, max_length=64)
     model_name: str | None = Field(default=None, max_length=255)
     prompt_template: str | None = Field(default=None, max_length=32_000)
-    safety_mode: Literal["strict", "standard", "permissive"] = Field(
-        default="standard"
-    )
+    safety_mode: Literal["strict", "standard", "permissive"] = Field(default="standard")
     # Optional chunk post-filter applied after vector retrieval
     chunk_filter: dict | None = Field(default=None)
     max_context_tokens: int | None = Field(default=None, ge=256, le=128_000)

@@ -16,7 +16,11 @@ from app.core.config import settings
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import sanitize_metadata
 from app.domains.connectors.schemas.connectors import ProviderRegistration
-from app.domains.connectors.services.connector_service import ConnectorPlatformService
+from app.domains.connectors.services.connector_service import (
+    ConnectorPlatformDisabledError,
+    ConnectorPlatformService,
+    ensure_connector_platform_enabled,
+)
 from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
 from app.domains.connectors.services.oauth_lifecycle import (
     ConnectorOAuthLifecycleService,
@@ -189,6 +193,16 @@ def _service() -> ConnectorOAuthLifecycleService:
 
 def _platform_service() -> ConnectorPlatformService:
     return ConnectorPlatformService()
+
+
+def _require_connector_platform_enabled() -> None:
+    try:
+        ensure_connector_platform_enabled()
+    except ConnectorPlatformDisabledError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 def _provider_summary(reg: ProviderRegistration) -> ProviderSummaryResponse:
@@ -421,6 +435,7 @@ async def create_connection(
     payload: CreateConnectorConnectionRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> ConnectorConnectionSummaryResponse:
     organization_id = _org_id(principal)
     try:
@@ -472,6 +487,7 @@ async def begin_oauth_connect(
     payload: OAuthConnectRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> OAuthConnectResponse:
     organization_id = _org_id(principal)
     try:
@@ -506,6 +522,7 @@ async def begin_oauth_connect(
 async def complete_oauth_callback_get(
     state: str,
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
     code: str | None = None,
     error: str | None = None,
 ) -> RedirectResponse:
@@ -537,6 +554,7 @@ async def complete_oauth_callback(
     request: Request,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> ConnectorConnectionResponse:
     del request
     try:
@@ -564,6 +582,7 @@ async def refresh_connector_credential(
     connection_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> ConnectorRefreshResponse:
     try:
         payload = await _service().refresh_oauth_credential(
@@ -587,6 +606,7 @@ async def delete_connection(
     connection_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> None:
     await _service().delete_connection(
         db_session,
@@ -602,6 +622,7 @@ async def disconnect_connector(
     connection_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> ConnectorDisconnectResponse:
     result = await _service().disconnect(
         db_session,

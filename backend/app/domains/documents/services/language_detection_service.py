@@ -41,7 +41,9 @@ def detect_language_from_text(
     is found.  Detection is heuristic-only (character frequency) — deterministic,
     cheap, and dependency-free.
     """
-    effective_supported = supported_languages if supported_languages is not None else _SUPPORTED_LANGUAGES
+    effective_supported = (
+        supported_languages if supported_languages is not None else _SUPPORTED_LANGUAGES
+    )
 
     if not text or not text.strip():
         return LanguageDetectionResult(language_code=None, confidence=0.0)
@@ -81,7 +83,9 @@ def detect_language_from_text(
     ascii_ratio = ascii_count / length
     if "en" in effective_supported and ascii_ratio >= 0.92:
         confidence = round(0.4 + ascii_ratio * 0.5, 3)
-        return LanguageDetectionResult(language_code="en", confidence=min(_CONFIDENCE_CAP, confidence))
+        return LanguageDetectionResult(
+            language_code="en", confidence=min(_CONFIDENCE_CAP, confidence)
+        )
 
     return LanguageDetectionResult(language_code=None, confidence=0.0)
 

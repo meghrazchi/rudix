@@ -111,6 +111,17 @@ Image digests are exported as artifacts and used by deploy jobs.
 - upload/chat preflight checks
 - worker process health check
 
+Connector-specific CI coverage is split out so provider changes fail fast:
+
+- `backend:connector-contract` runs the shared connector contract suite and
+  provider adapter tests
+- `integration:connector-smoke` exercises the authenticated connector endpoints
+  and the admin connector health route in the integration stack
+
+Connector rollout jobs should pin `FEATURE_ENABLE_CONNECTORS` and
+`CONNECTOR_ROLLOUT_STAGE` explicitly so deploys are reproducible across staging
+and production.
+
 Implementation notes:
 
 - Integration runtime uses `ENVIRONMENT=test` (settings validation does not allow `ci`).

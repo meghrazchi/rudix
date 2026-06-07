@@ -63,7 +63,10 @@ def _check_magic_bytes(*, extension: str, content: bytes) -> None:
     if extension not in _MAGIC_BYTES:
         return
     offset, expected = _MAGIC_BYTES[extension]
-    if len(content) < offset + len(expected) or content[offset : offset + len(expected)] != expected:
+    if (
+        len(content) < offset + len(expected)
+        or content[offset : offset + len(expected)] != expected
+    ):
         raise ValueError(f"file content does not match expected format for .{extension}")
 
 

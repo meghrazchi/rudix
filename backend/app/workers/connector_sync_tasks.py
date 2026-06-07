@@ -1,4 +1,5 @@
 """Celery tasks for the connector sync engine."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -45,6 +46,7 @@ async def _run_sync_async(
     # Dispatch document processing tasks after the transaction commits so the
     # Document rows are visible to the processing worker.
     from app.workers.document_tasks import process_document as _process_document
+
     for document_id, user_id in result.pending_document_ids:
         _process_document.delay(
             document_id,
@@ -78,9 +80,7 @@ async def _mark_run_failed_async(
     try:
         async with SessionLocal() as session:
             async with session.begin():
-                run = await engine.get_sync_run(
-                    session, organization_id=org_uuid, run_id=run_uuid
-                )
+                run = await engine.get_sync_run(session, organization_id=org_uuid, run_id=run_uuid)
                 if run is not None and run.status == "running":
                     await engine._fail_run(
                         session,

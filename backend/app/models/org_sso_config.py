@@ -12,9 +12,7 @@ from app.db.base import Base
 
 class OrgSSOConfig(Base):
     __tablename__ = "org_sso_configs"
-    __table_args__ = (
-        UniqueConstraint("organization_id", name="uq_org_sso_configs_org_id"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", name="uq_org_sso_configs_org_id"),)
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(
@@ -48,9 +46,7 @@ class OrgSSOConfig(Base):
     )
 
     # Test connection state
-    last_test_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_test_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_test_result: Mapped[str | None] = mapped_column(String(16), nullable=True)
     last_test_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 

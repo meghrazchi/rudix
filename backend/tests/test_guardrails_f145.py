@@ -224,7 +224,9 @@ async def _seed_principal(db_session: AsyncSession) -> tuple[User, Organization]
     await db_session.flush()
 
     db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value)
+        OrganizationMember(
+            organization_id=org.id, user_id=user.id, role=OrganizationRole.member.value
+        )
     )
     await db_session.commit()
     return user, org
@@ -398,7 +400,8 @@ def test_injection_fixture_in_document_stays_in_context_block(
     )
 
     question_section = prompt[
-        prompt.index("<<QUESTION_START>>") : prompt.index("<<QUESTION_END>>") + len("<<QUESTION_END>>")
+        prompt.index("<<QUESTION_START>>") : prompt.index("<<QUESTION_END>>")
+        + len("<<QUESTION_END>>")
     ]
     assert injection_text not in question_section, (
         f"Fixture {fixture_name}: injection text leaked into question section"
@@ -641,7 +644,13 @@ async def test_injection_question_returns_not_found_safely(
         async def create(self, **kwargs: object) -> object:
             llm_calls.append(kwargs)
             return SimpleNamespace(
-                choices=[SimpleNamespace(message=SimpleNamespace(content='{"answer":"hacked","not_found":false,"citations":[]}'))],
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(
+                            content='{"answer":"hacked","not_found":false,"citations":[]}'
+                        )
+                    )
+                ],
                 usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0),
                 model=settings.openai_llm_model,
             )
@@ -650,19 +659,21 @@ async def test_injection_question_returns_not_found_safely(
     fake_openai.chat = SimpleNamespace(completions=TrackingCompletions())
     monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
 
-    qdrant_module.qdrant_client = FakeQdrantClient([
-        FakeQdrantResult(
-            score=0.92,
-            payload={
-                "organization_id": str(org.id),
-                "document_id": str(document.id),
-                "chunk_id": str(chunk.id),
-                "filename": "policy.pdf",
-                "page_number": 1,
-                "text": "Annual leave is 20 days per year.",
-            },
-        )
-    ])
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(org.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Annual leave is 20 days per year.",
+                },
+            )
+        ]
+    )
 
     response = await chat_client.post(
         "/api/v1/chat",
@@ -714,19 +725,21 @@ async def test_injection_in_document_text_does_not_override_answer(
     fake_llm_answer = '{"answer":"I could not find this information in the uploaded documents.","not_found":true,"citations":[]}'
     monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=fake_llm_answer))
 
-    qdrant_module.qdrant_client = FakeQdrantClient([
-        FakeQdrantResult(
-            score=0.75,
-            payload={
-                "organization_id": str(org.id),
-                "document_id": str(document.id),
-                "chunk_id": str(chunk.id),
-                "filename": "injection-doc.pdf",
-                "page_number": 1,
-                "text": injection_text,
-            },
-        )
-    ])
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.75,
+                payload={
+                    "organization_id": str(org.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "injection-doc.pdf",
+                    "page_number": 1,
+                    "text": injection_text,
+                },
+            )
+        ]
+    )
 
     response = await chat_client.post(
         "/api/v1/chat",
@@ -826,19 +839,21 @@ async def test_fake_citation_sets_citation_validation_failed(
     )
     monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=llm_answer))
 
-    qdrant_module.qdrant_client = FakeQdrantClient([
-        FakeQdrantResult(
-            score=0.88,
-            payload={
-                "organization_id": str(org.id),
-                "document_id": str(document.id),
-                "chunk_id": str(chunk.id),
-                "filename": "real.pdf",
-                "page_number": 1,
-                "text": "Real document content about annual leave.",
-            },
-        )
-    ])
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.88,
+                payload={
+                    "organization_id": str(org.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "real.pdf",
+                    "page_number": 1,
+                    "text": "Real document content about annual leave.",
+                },
+            )
+        ]
+    )
 
     response = await chat_client.post(
         "/api/v1/chat",
@@ -890,19 +905,21 @@ async def test_valid_citations_do_not_set_citation_validation_failed(
     )
     monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=llm_answer))
 
-    qdrant_module.qdrant_client = FakeQdrantClient([
-        FakeQdrantResult(
-            score=0.92,
-            payload={
-                "organization_id": str(org.id),
-                "document_id": str(document.id),
-                "chunk_id": str(chunk.id),
-                "filename": "legit.pdf",
-                "page_number": 1,
-                "text": "Annual leave is 20 days per year.",
-            },
-        )
-    ])
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(org.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "legit.pdf",
+                    "page_number": 1,
+                    "text": "Annual leave is 20 days per year.",
+                },
+            )
+        ]
+    )
 
     response = await chat_client.post(
         "/api/v1/chat",

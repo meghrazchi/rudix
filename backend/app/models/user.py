@@ -23,12 +23,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # SCIM / lifecycle fields
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # 'manual' | 'sso' | 'scim'
-    provisioned_by: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="manual"
-    )
-    scim_external_id: Mapped[str | None] = mapped_column(
-        String(1024), nullable=True
-    )
+    provisioned_by: Mapped[str] = mapped_column(String(16), nullable=False, default="manual")
+    scim_external_id: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     organization = relationship("Organization", back_populates="users")
     memberships = relationship(

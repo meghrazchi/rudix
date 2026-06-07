@@ -85,9 +85,7 @@ async def _seed_org_and_user(
     )
     db_session.add(user)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -194,9 +192,7 @@ async def test_delete_evaluation_set_removes_record(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="To Delete"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="To Delete")
     await db_session.commit()
 
     token = _token(user, org)
@@ -242,9 +238,7 @@ async def test_publish_dataset_creates_version_and_sets_status(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Draft Set"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Draft Set")
     await repo.create_evaluation_question(
         db_session, evaluation_set_id=evset.id, question="What is the refund policy?"
     )
@@ -302,9 +296,7 @@ async def test_duplicate_dataset_copies_questions(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Source Set"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Source Set")
     await repo.create_evaluation_question(
         db_session, evaluation_set_id=evset.id, question="Q1", difficulty="easy"
     )
@@ -338,9 +330,7 @@ async def test_import_json_cases_persists_questions(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Import JSON"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Import JSON")
     await db_session.commit()
 
     cases = json.dumps(
@@ -407,9 +397,7 @@ async def test_import_csv_cases_persists_questions(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Import CSV"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Import CSV")
     await db_session.commit()
 
     csv_data = "question,expected_answer,difficulty\nWhat is AI?,A machine that thinks,easy\nExplain neural nets.,,medium"
@@ -433,9 +421,7 @@ async def test_import_invalid_json_returns_errors(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Bad JSON"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Bad JSON")
     await db_session.commit()
 
     token = _token(user, org)
@@ -524,9 +510,7 @@ async def test_list_versions_empty_before_publish(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="No Versions"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="No Versions")
     await db_session.commit()
 
     token = _token(user, org)
@@ -550,9 +534,7 @@ async def test_update_question_changes_fields(
 ) -> None:
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Update Q"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Update Q")
     question = await repo.create_evaluation_question(
         db_session,
         evaluation_set_id=evset.id,
@@ -662,12 +644,8 @@ async def test_member_cannot_publish_dataset(
 ) -> None:
     member, org = await _seed_org_and_user(db_session, role=OrganizationRole.member)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Member Pub"
-    )
-    await repo.create_evaluation_question(
-        db_session, evaluation_set_id=evset.id, question="Q"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Member Pub")
+    await repo.create_evaluation_question(db_session, evaluation_set_id=evset.id, question="Q")
     await db_session.commit()
 
     token = _token(member, org)
@@ -685,9 +663,7 @@ async def test_member_cannot_delete_dataset(
 ) -> None:
     member, org = await _seed_org_and_user(db_session, role=OrganizationRole.member)
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Member Del"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Member Del")
     await db_session.commit()
 
     token = _token(member, org)

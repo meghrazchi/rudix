@@ -41,8 +41,7 @@ def _check_dns_txt(domain: str, token: str) -> tuple[bool, str]:
     if answers:
         return (
             False,
-            f"TXT record found at {challenge_host} but value did not match. "
-            f"Found: {answers[:3]}",
+            f"TXT record found at {challenge_host} but value did not match. Found: {answers[:3]}",
         )
     return False, f"No TXT records found at {challenge_host}."
 
@@ -64,8 +63,7 @@ def _resolve_txt(hostname: str) -> list[str]:
     except socket.gaierror:
         pass
     raise RuntimeError(
-        "dnspython is required for DNS TXT verification. "
-        "Install it with: pip install dnspython"
+        "dnspython is required for DNS TXT verification. Install it with: pip install dnspython"
     )
 
 

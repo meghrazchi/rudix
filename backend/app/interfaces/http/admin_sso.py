@@ -53,9 +53,7 @@ async def get_sso_config(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_admin)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SSOConfigResponse | None:
-    config = await _sso_service.get_config(
-        db_session, organization_id=principal.organization_id
-    )
+    config = await _sso_service.get_config(db_session, organization_id=principal.organization_id)
     if config is None:
         return None
     return _config_to_response(config)

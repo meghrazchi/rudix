@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 # ── Domain verification ───────────────────────────────────────────────────────
 
+
 class InitiateDomainVerificationRequest(BaseModel):
     domain: str = Field(min_length=3, max_length=253)
 
@@ -47,6 +48,7 @@ class DomainCheckResponse(BaseModel):
 
 # ── SCIM config ───────────────────────────────────────────────────────────────
 
+
 class SCIMConfigResponse(BaseModel):
     id: str
     organization_id: str
@@ -63,11 +65,13 @@ class SCIMConfigResponse(BaseModel):
 
 class SCIMEnableResponse(BaseModel):
     """Returned once when SCIM is enabled or token is rotated. Token not shown again."""
+
     config: SCIMConfigResponse
     bearer_token: str
 
 
 # ── SCIM 2.0 protocol types ───────────────────────────────────────────────────
+
 
 class SCIM2Email(BaseModel):
     value: str
@@ -82,9 +86,7 @@ class SCIM2Name(BaseModel):
 
 
 class SCIM2UserRequest(BaseModel):
-    schemas: list[str] = Field(
-        default=["urn:ietf:params:scim:schemas:core:2.0:User"]
-    )
+    schemas: list[str] = Field(default=["urn:ietf:params:scim:schemas:core:2.0:User"])
     externalId: str | None = None
     userName: str
     displayName: str | None = None
@@ -94,9 +96,7 @@ class SCIM2UserRequest(BaseModel):
 
 
 class SCIM2PatchOp(BaseModel):
-    schemas: list[str] = Field(
-        default=["urn:ietf:params:scim:api:messages:2.0:PatchOp"]
-    )
+    schemas: list[str] = Field(default=["urn:ietf:params:scim:api:messages:2.0:PatchOp"])
     Operations: list[dict]
 
 

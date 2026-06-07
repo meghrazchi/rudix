@@ -316,9 +316,7 @@ async def test_get_quality_gate(gate_client: AsyncClient, db_session: AsyncSessi
     )
     await db_session.commit()
 
-    resp = await gate_client.get(
-        f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org)
-    )
+    resp = await gate_client.get(f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org))
     assert resp.status_code == 200
     body = resp.json()
     assert body["name"] == "My Gate"
@@ -328,9 +326,7 @@ async def test_get_quality_gate(gate_client: AsyncClient, db_session: AsyncSessi
 @pytest.mark.asyncio
 async def test_get_quality_gate_not_found(gate_client: AsyncClient, db_session: AsyncSession):
     user, org = await _make_org_user(db_session)
-    resp = await gate_client.get(
-        f"/api/v1/quality-gates/{uuid4()}", headers=_headers(user, org)
-    )
+    resp = await gate_client.get(f"/api/v1/quality-gates/{uuid4()}", headers=_headers(user, org))
     assert resp.status_code == 404
 
 
@@ -377,14 +373,10 @@ async def test_delete_quality_gate(gate_client: AsyncClient, db_session: AsyncSe
     )
     await db_session.commit()
 
-    resp = await gate_client.delete(
-        f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org)
-    )
+    resp = await gate_client.delete(f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org))
     assert resp.status_code == 204
 
-    resp2 = await gate_client.get(
-        f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org)
-    )
+    resp2 = await gate_client.get(f"/api/v1/quality-gates/{gate.id}", headers=_headers(user, org))
     assert resp2.status_code == 404
 
 
@@ -575,9 +567,7 @@ async def test_override_failed_gate_run(gate_client: AsyncClient, db_session: As
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.50}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.50})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -589,7 +579,9 @@ async def test_override_failed_gate_run(gate_client: AsyncClient, db_session: As
 
     override_resp = await gate_client.post(
         f"/api/v1/quality-gates/runs/{gate_run_id}/override",
-        json={"reason": "Approved by engineering lead — known retrieval regression in fixture data."},
+        json={
+            "reason": "Approved by engineering lead — known retrieval regression in fixture data."
+        },
         headers=_headers(user, org),
     )
     assert override_resp.status_code == 200
@@ -617,9 +609,7 @@ async def test_override_passed_gate_run_rejected(
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.9}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.9})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -636,9 +626,7 @@ async def test_override_passed_gate_run_rejected(
 
 
 @pytest.mark.asyncio
-async def test_override_short_reason_rejected(
-    gate_client: AsyncClient, db_session: AsyncSession
-):
+async def test_override_short_reason_rejected(gate_client: AsyncClient, db_session: AsyncSession):
     user, org = await _make_org_user(db_session)
     repo = QualityGateRepository()
     gate = await repo.create_gate(
@@ -653,9 +641,7 @@ async def test_override_short_reason_rejected(
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.1}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.1})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -694,9 +680,7 @@ async def test_gate_report_passed_has_exit_code_0(
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.9}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.9})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -736,9 +720,7 @@ async def test_gate_report_failed_has_exit_code_1(
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.50}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.50})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -775,9 +757,7 @@ async def test_gate_report_overridden_has_exit_code_0(
     )
     await db_session.commit()
 
-    eval_run_id = await _seed_eval_run(
-        db_session, org, summary={"retrieval_hit_rate": 0.50}
-    )
+    eval_run_id = await _seed_eval_run(db_session, org, summary={"retrieval_hit_rate": 0.50})
     run_resp = await gate_client.post(
         f"/api/v1/quality-gates/{gate.id}/runs",
         json={"evaluation_run_id": eval_run_id},
@@ -857,9 +837,7 @@ async def test_viewer_can_list_gates(gate_client: AsyncClient, db_session: Async
 
 
 @pytest.mark.asyncio
-async def test_member_cannot_trigger_gate_run(
-    gate_client: AsyncClient, db_session: AsyncSession
-):
+async def test_member_cannot_trigger_gate_run(gate_client: AsyncClient, db_session: AsyncSession):
     admin, org = await _make_org_user(db_session)
     member = User(
         organization_id=org.id,

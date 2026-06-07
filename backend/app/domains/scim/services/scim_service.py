@@ -30,13 +30,9 @@ def _token_hint(raw_token: str) -> str:
 class SCIMService:
     # ── Config management ─────────────────────────────────────────────────────
 
-    async def get_config(
-        self, db: AsyncSession, *, organization_id: UUID
-    ) -> OrgSCIMConfig | None:
+    async def get_config(self, db: AsyncSession, *, organization_id: UUID) -> OrgSCIMConfig | None:
         result = await db.execute(
-            select(OrgSCIMConfig).where(
-                OrgSCIMConfig.organization_id == organization_id
-            )
+            select(OrgSCIMConfig).where(OrgSCIMConfig.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
@@ -102,9 +98,7 @@ class SCIMService:
         await db.refresh(config)
         return config, raw_token
 
-    async def disable(
-        self, db: AsyncSession, *, organization_id: UUID
-    ) -> bool:
+    async def disable(self, db: AsyncSession, *, organization_id: UUID) -> bool:
         config = await self.get_config(db, organization_id=organization_id)
         if config is None:
             return False
@@ -126,9 +120,7 @@ class SCIMService:
         """Return (page_of_users, total_count) scoped to org."""
         base_query = select(User).where(User.organization_id == organization_id)
         if filter_email:
-            base_query = base_query.where(
-                User.email == filter_email.strip().lower()
-            )
+            base_query = base_query.where(User.email == filter_email.strip().lower())
 
         total_result = await db.execute(
             select(User.id).where(User.organization_id == organization_id)
@@ -136,8 +128,7 @@ class SCIMService:
         total = len(total_result.scalars().all())
 
         paginated = (
-            base_query
-            .order_by(User.created_at)
+            base_query.order_by(User.created_at)
             .offset(max(0, start_index - 1))
             .limit(min(count, 200))
         )

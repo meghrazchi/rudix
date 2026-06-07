@@ -1,4 +1,5 @@
 """Content and ACL hashing utilities for the connector SDK."""
+
 from __future__ import annotations
 
 import hashlib

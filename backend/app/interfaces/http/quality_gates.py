@@ -72,7 +72,9 @@ def _parse_uuid(value: str, label: str) -> UUID:
     try:
         return UUID(value)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"{label} not found"
+        ) from exc
 
 
 def _request_id(request: Request) -> str | None:
@@ -89,9 +91,7 @@ def _gate_to_response(gate: QualityGate) -> QualityGateResponse:
         description=gate.description,
         thresholds=dict(gate.thresholds or {}),
         baseline_evaluation_run_id=(
-            str(gate.baseline_evaluation_run_id)
-            if gate.baseline_evaluation_run_id
-            else None
+            str(gate.baseline_evaluation_run_id) if gate.baseline_evaluation_run_id else None
         ),
         baseline_safety_run_id=(
             str(gate.baseline_safety_run_id) if gate.baseline_safety_run_id else None
@@ -109,9 +109,7 @@ def _gate_run_to_response(gate_run: QualityGateRun) -> QualityGateRunResponse:
     return QualityGateRunResponse(
         gate_run_id=str(gate_run.id),
         quality_gate_id=str(gate_run.quality_gate_id),
-        evaluation_run_id=(
-            str(gate_run.evaluation_run_id) if gate_run.evaluation_run_id else None
-        ),
+        evaluation_run_id=(str(gate_run.evaluation_run_id) if gate_run.evaluation_run_id else None),
         safety_eval_run_id=(
             str(gate_run.safety_eval_run_id) if gate_run.safety_eval_run_id else None
         ),
@@ -119,9 +117,7 @@ def _gate_run_to_response(gate_run: QualityGateRun) -> QualityGateRunResponse:
         passed_checks=passed_checks,
         failed_checks=failed_checks,
         override_reason=gate_run.override_reason,
-        overridden_by_id=(
-            str(gate_run.overridden_by_id) if gate_run.overridden_by_id else None
-        ),
+        overridden_by_id=(str(gate_run.overridden_by_id) if gate_run.overridden_by_id else None),
         overridden_at=gate_run.overridden_at,
         created_at=gate_run.created_at,
         updated_at=gate_run.updated_at,
@@ -262,9 +258,7 @@ async def get_quality_gate(
 ) -> QualityGateResponse:
     organization_id = _org_id(principal)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
-    gate = await _gate_repo.get_gate(
-        db_session, gate_id=gate_uuid, organization_id=organization_id
-    )
+    gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
     if gate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quality gate not found")
     return _gate_to_response(gate)
@@ -285,9 +279,7 @@ async def update_quality_gate(
     user_id = _user_id(principal)
     request_id = _request_id(request)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
-    gate = await _gate_repo.get_gate(
-        db_session, gate_id=gate_uuid, organization_id=organization_id
-    )
+    gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
     if gate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quality gate not found")
 
@@ -333,9 +325,7 @@ async def delete_quality_gate(
     user_id = _user_id(principal)
     request_id = _request_id(request)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
-    gate = await _gate_repo.get_gate(
-        db_session, gate_id=gate_uuid, organization_id=organization_id
-    )
+    gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
     if gate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quality gate not found")
 
@@ -381,9 +371,7 @@ async def trigger_quality_gate_run(
     user_id = _user_id(principal)
     request_id = _request_id(request)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
-    gate = await _gate_repo.get_gate(
-        db_session, gate_id=gate_uuid, organization_id=organization_id
-    )
+    gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
     if gate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quality gate not found")
 
@@ -427,11 +415,13 @@ async def trigger_quality_gate_run(
             pass_rate_value = pass_count / total_count
         safety_summary = {**raw_summary, "pass_rate": pass_rate_value}
 
-    thresholds = QualityGateThresholds(**{
-        k: v
-        for k, v in (gate.thresholds or {}).items()
-        if k in QualityGateThresholds.model_fields
-    })
+    thresholds = QualityGateThresholds(
+        **{
+            k: v
+            for k, v in (gate.thresholds or {}).items()
+            if k in QualityGateThresholds.model_fields
+        }
+    )
     verdict, passed_checks, failed_checks = evaluate_gate(thresholds, eval_summary, safety_summary)
 
     report = build_gate_report(
@@ -511,9 +501,7 @@ async def list_quality_gate_runs(
 ) -> QualityGateRunListResponse:
     organization_id = _org_id(principal)
     gate_uuid = _parse_uuid(quality_gate_id, "Quality gate")
-    gate = await _gate_repo.get_gate(
-        db_session, gate_id=gate_uuid, organization_id=organization_id
-    )
+    gate = await _gate_repo.get_gate(db_session, gate_id=gate_uuid, organization_id=organization_id)
     if gate is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quality gate not found")
     runs = await _gate_repo.list_gate_runs(
@@ -596,10 +584,15 @@ async def get_quality_gate_report(
     passed_checks = [GateCheckResult(**c) for c in report.get("passed_checks", [])]
     failed_checks = [GateCheckResult(**c) for c in report.get("failed_checks", [])]
 
-    ci_exit_code = 0 if gate_run.verdict in (
-        QualityGateVerdict.passed.value,
-        QualityGateVerdict.overridden.value,
-    ) else 1
+    ci_exit_code = (
+        0
+        if gate_run.verdict
+        in (
+            QualityGateVerdict.passed.value,
+            QualityGateVerdict.overridden.value,
+        )
+        else 1
+    )
 
     overridden_at_str: str | None = None
     if gate_run.overridden_at is not None:
@@ -611,9 +604,7 @@ async def get_quality_gate_report(
         quality_gate_name=gate.name,
         verdict=gate_run.verdict,
         generated_at=report.get("generated_at", datetime.now(timezone.utc).isoformat()),
-        evaluation_run_id=(
-            str(gate_run.evaluation_run_id) if gate_run.evaluation_run_id else None
-        ),
+        evaluation_run_id=(str(gate_run.evaluation_run_id) if gate_run.evaluation_run_id else None),
         safety_eval_run_id=(
             str(gate_run.safety_eval_run_id) if gate_run.safety_eval_run_id else None
         ),
@@ -624,9 +615,7 @@ async def get_quality_gate_report(
         pass_count=len(passed_checks),
         fail_count=len(failed_checks),
         override_reason=gate_run.override_reason,
-        overridden_by_id=(
-            str(gate_run.overridden_by_id) if gate_run.overridden_by_id else None
-        ),
+        overridden_by_id=(str(gate_run.overridden_by_id) if gate_run.overridden_by_id else None),
         overridden_at=overridden_at_str,
         evaluation_summary=report.get("evaluation_summary"),
         safety_summary=report.get("safety_summary"),

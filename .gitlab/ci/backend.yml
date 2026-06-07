@@ -34,6 +34,18 @@ backend:pytest:
       - artifacts/backend-junit.xml
       - artifacts/backend-coverage.xml
 
+backend:connector-contract:
+  stage: test
+  image: python:3.12-slim
+  extends:
+    - .rules:backend-changes
+    - .cache:pip
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e "./backend[dev]"
+    - cd backend
+    - pytest tests/test_connector_sdk_f241.py tests/test_connector_provider_contract_f241.py tests/test_jira_adapter_f242.py tests/test_confluence_adapter_f243.py tests/test_google_drive_adapter_f244.py tests/test_connector_platform_f250.py
+
 backend:alembic-validate:
   stage: test
   image: python:3.12-slim

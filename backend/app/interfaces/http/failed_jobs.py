@@ -181,9 +181,7 @@ async def list_failed_jobs(
     total = int((await db.execute(count_stmt)).scalar_one() or 0)
 
     items_stmt = (
-        base.order_by(FailedJob.created_at.desc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        base.order_by(FailedJob.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
     )
     items = list((await db.execute(items_stmt)).scalars().all())
 
@@ -368,9 +366,7 @@ async def cancel_failed_job(
     return _job_to_summary(job)
 
 
-@router.post(
-    "/{job_id}/resolve", response_model=FailedJobSummary, status_code=status.HTTP_200_OK
-)
+@router.post("/{job_id}/resolve", response_model=FailedJobSummary, status_code=status.HTTP_200_OK)
 async def resolve_failed_job(
     job_id: UUID,
     principal: Annotated[

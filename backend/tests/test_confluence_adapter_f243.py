@@ -16,6 +16,7 @@ Covers:
 - Provider contract suite
 - Adapter registration
 """
+
 from __future__ import annotations
 
 import json
@@ -322,7 +323,10 @@ def test_normalize_page_url_uses_webui_link() -> None:
         site_url="https://mysite.atlassian.net",
         sync_version=1,
     )
-    assert item.source_url == "https://mysite.atlassian.net/wiki/spaces/DOCS/pages/123456/Getting+Started+Guide"
+    assert (
+        item.source_url
+        == "https://mysite.atlassian.net/wiki/spaces/DOCS/pages/123456/Getting+Started+Guide"
+    )
 
 
 def test_normalize_page_url_fallback_without_webui() -> None:
@@ -424,7 +428,10 @@ def test_normalize_attachment_download_url() -> None:
         site_url="https://mysite.atlassian.net",
         sync_version=1,
     )
-    assert item.source_url == "https://mysite.atlassian.net/wiki/download/attachments/123456/architecture-diagram.png"
+    assert (
+        item.source_url
+        == "https://mysite.atlassian.net/wiki/download/attachments/123456/architecture-diagram.png"
+    )
 
 
 def test_normalize_attachment_download_url_fallback() -> None:
@@ -818,7 +825,9 @@ async def test_delta_sync_returns_upsert_items() -> None:
             page_size=50,
         )
 
-    page_deltas = [d for d in delta.items if d.item and d.item.item_type == ExternalItemType.wiki_page]
+    page_deltas = [
+        d for d in delta.items if d.item and d.item.item_type == ExternalItemType.wiki_page
+    ]
     assert len(page_deltas) == 1
     assert not page_deltas[0].is_deleted
 

@@ -1,4 +1,5 @@
 """Provider adapter interface and error taxonomy for the connector sync engine."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

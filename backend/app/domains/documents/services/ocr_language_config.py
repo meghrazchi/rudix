@@ -32,8 +32,7 @@ def iso_to_tesseract(iso_code: str) -> str:
     if code in _ISO_TO_TESSERACT:
         return _ISO_TO_TESSERACT[code]
     raise UnsupportedOcrLanguageError(
-        f"Unsupported OCR language: {iso_code!r}. "
-        f"Supported: {sorted(SUPPORTED_ISO_LANGUAGES)}"
+        f"Unsupported OCR language: {iso_code!r}. Supported: {sorted(SUPPORTED_ISO_LANGUAGES)}"
     )
 
 
@@ -55,8 +54,7 @@ def validate_iso_languages(iso_codes: list[str]) -> list[str]:
             continue
         if lower not in SUPPORTED_ISO_LANGUAGES:
             raise UnsupportedOcrLanguageError(
-                f"Unsupported OCR language: {code!r}. "
-                f"Supported: {sorted(SUPPORTED_ISO_LANGUAGES)}"
+                f"Unsupported OCR language: {code!r}. Supported: {sorted(SUPPORTED_ISO_LANGUAGES)}"
             )
         if lower not in seen:
             seen.add(lower)

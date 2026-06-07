@@ -197,6 +197,12 @@ Connector OAuth/API credentials are stored behind a credential vault boundary:
 - Token refresh, disconnect/revoke, and diagnostics are shared across OAuth providers through connector domain services.
 - Disconnect marks the connection revoked, revokes remote tokens when possible, disables sync jobs, and records audit events.
 - Connector detail responses include source permission snapshots for access-review UI hooks; source ACL data is sanitized before exposure.
+- Connector observability is available at `GET /api/v1/admin/connectors/health`
+  for owner/admin operators and reports provider-specific sync, retry, skip,
+  ingestion, and citation signals.
+- Connector rollout is controlled through `FEATURE_ENABLE_CONNECTORS` and
+  `CONNECTOR_ROLLOUT_STAGE` (`off`, `development`, `staging`, `production`,
+  `all`).
 
 Relevant settings:
 
@@ -204,6 +210,8 @@ Relevant settings:
 - `CONNECTOR_CREDENTIAL_ENCRYPTION_KEY_ID`
 - `CONNECTOR_OAUTH_STATE_TTL_SECONDS`
 - `CONNECTOR_OAUTH_CLIENTS`
+- `FEATURE_ENABLE_CONNECTORS`
+- `CONNECTOR_ROLLOUT_STAGE`
 
 Supported transports:
 

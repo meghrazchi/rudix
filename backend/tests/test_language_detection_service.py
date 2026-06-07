@@ -1,4 +1,5 @@
 """Unit tests for the document language detection service (F230)."""
+
 from __future__ import annotations
 
 import pytest

@@ -57,6 +57,7 @@ class AdminOcrConfigRequest(BaseModel):
             UnsupportedOcrLanguageError,
             validate_iso_languages,
         )
+
         try:
             return validate_iso_languages(value)
         except UnsupportedOcrLanguageError as exc:
@@ -143,7 +144,9 @@ async def list_document_deletion_status(
         ),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
-    include_failed: bool = Query(default=False, description="Include documents that failed deletion"),
+    include_failed: bool = Query(
+        default=False, description="Include documents that failed deletion"
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> AdminDocumentDeletionListResponse:
@@ -332,7 +335,10 @@ async def configure_document_ocr(
 
     if payload.ocr_languages is not None:
         from app.domains.documents.services.ocr_language_config import iso_list_to_tesseract_string
-        tesseract_str = iso_list_to_tesseract_string(payload.ocr_languages) if payload.ocr_languages else None
+
+        tesseract_str = (
+            iso_list_to_tesseract_string(payload.ocr_languages) if payload.ocr_languages else None
+        )
     else:
         tesseract_str = None
 

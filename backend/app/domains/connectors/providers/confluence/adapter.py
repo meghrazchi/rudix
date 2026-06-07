@@ -16,6 +16,7 @@ Credential dict shape (OAuth2, stored in decrypted_credential):
 Cursor shape for full sync:    {"start": 0}
 Cursor shape for delta sync:   {"since": "2024-01-01T00:00:00+00:00", "start": 0}
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -43,9 +44,7 @@ from app.domains.connectors.services.provider_adapter import (
 )
 from app.domains.connectors.schemas.connectors import NormalizedExternalItem
 
-_CONFLUENCE_EXPAND = (
-    "body.storage,version,space,ancestors,metadata.labels,history"
-)
+_CONFLUENCE_EXPAND = "body.storage,version,space,ancestors,metadata.labels,history"
 _COMMENT_EXPAND = "body.storage,version"
 _ATTACHMENT_EXPAND = "version"
 _DEFAULT_TIMEOUT = 30.0
@@ -240,11 +239,13 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 site_url=site_url,
                 sync_version=1,
             )
-            delta_items.append(DeltaItem(
-                provider_item_id=page_item.provider_item_id,
-                is_deleted=False,
-                item=page_item,
-            ))
+            delta_items.append(
+                DeltaItem(
+                    provider_item_id=page_item.provider_item_id,
+                    is_deleted=False,
+                    item=page_item,
+                )
+            )
 
             if include_comments:
                 for comment_item in await self._extract_comments(
@@ -255,11 +256,13 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                     connection_id=conn_uuid,
                     external_source_id=ext_src_uuid,
                 ):
-                    delta_items.append(DeltaItem(
-                        provider_item_id=comment_item.provider_item_id,
-                        is_deleted=False,
-                        item=comment_item,
-                    ))
+                    delta_items.append(
+                        DeltaItem(
+                            provider_item_id=comment_item.provider_item_id,
+                            is_deleted=False,
+                            item=comment_item,
+                        )
+                    )
 
             last_modified_field = (page.get("version") or {}).get("when", "")
             if last_modified_field and (
@@ -274,7 +277,9 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         }
         return DeltaPage(
             items=delta_items,
-            next_cursor=new_cursor if has_next else {
+            next_cursor=new_cursor
+            if has_next
+            else {
                 "since": new_cursor["since"],
                 "start": 0,
             },

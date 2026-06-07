@@ -20,6 +20,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 14. [14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md](./14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md)
 15. [15_MCP_SERVER_DEPLOYMENT_MODE.md](./15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), deployment, tools/resources/prompts
 16. [16_CONNECTOR_PLATFORM.md](./16_CONNECTOR_PLATFORM.md)
+17. [17_CONNECTOR_OPERATIONS_RUNBOOK.md](./17_CONNECTOR_OPERATIONS_RUNBOOK.md)
 
 ## Setup and Operations
 

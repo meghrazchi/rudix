@@ -90,7 +90,7 @@ def _build_authn_request(sp_entity_id: str, idp_sso_url: str, relay_state: str) 
     request_id = "_" + uuid4().hex
     issue_instant = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     authn_xml = (
-        f'<samlp:AuthnRequest'
+        f"<samlp:AuthnRequest"
         f' xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"'
         f' xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"'
         f' ID="{request_id}"'
@@ -98,15 +98,18 @@ def _build_authn_request(sp_entity_id: str, idp_sso_url: str, relay_state: str) 
         f' IssueInstant="{issue_instant}"'
         f' Destination="{idp_sso_url}"'
         f' AssertionConsumerServiceBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">'
-        f'<saml:Issuer>{sp_entity_id}</saml:Issuer>'
-        f'</samlp:AuthnRequest>'
+        f"<saml:Issuer>{sp_entity_id}</saml:Issuer>"
+        f"</samlp:AuthnRequest>"
     )
     encoded = base64.b64encode(authn_xml.encode("utf-8")).decode("utf-8")
     import urllib.parse
-    params = urllib.parse.urlencode({
-        "SAMLRequest": encoded,
-        "RelayState": relay_state,
-    })
+
+    params = urllib.parse.urlencode(
+        {
+            "SAMLRequest": encoded,
+            "RelayState": relay_state,
+        }
+    )
     return f"{idp_sso_url}?{params}"
 
 
@@ -149,17 +152,13 @@ def _extract_attributes_from_saml_response(xml_bytes: bytes) -> dict[str, str]:
 
 
 class SSOService:
-    async def get_config(
-        self, db: AsyncSession, *, organization_id: UUID
-    ) -> OrgSSOConfig | None:
+    async def get_config(self, db: AsyncSession, *, organization_id: UUID) -> OrgSSOConfig | None:
         result = await db.execute(
             select(OrgSSOConfig).where(OrgSSOConfig.organization_id == organization_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_config_by_domain(
-        self, db: AsyncSession, *, domain: str
-    ) -> OrgSSOConfig | None:
+    async def get_config_by_domain(self, db: AsyncSession, *, domain: str) -> OrgSSOConfig | None:
         result = await db.execute(
             select(OrgSSOConfig).where(
                 OrgSSOConfig.domain == domain.strip().lower(),
@@ -231,9 +230,7 @@ class SSOService:
         await db.refresh(config)
         return config
 
-    async def delete_config(
-        self, db: AsyncSession, *, organization_id: UUID
-    ) -> bool:
+    async def delete_config(self, db: AsyncSession, *, organization_id: UUID) -> bool:
         config = await self.get_config(db, organization_id=organization_id)
         if config is None:
             return False
@@ -307,9 +304,7 @@ class SSOService:
             "checked_at": now,
         }
 
-    def build_authn_redirect_url(
-        self, config: OrgSSOConfig, *, relay_state: str
-    ) -> str | None:
+    def build_authn_redirect_url(self, config: OrgSSOConfig, *, relay_state: str) -> str | None:
         """Return IdP redirect URL with SAMLRequest, or None if not configured."""
         if not config.idp_sso_url:
             return None
@@ -341,8 +336,13 @@ class SSOService:
         email: str | None = None
         mapping = config.attribute_mapping or {}
         email_attr = mapping.get("email", "email")
-        for candidate in (email_attr, "email", "mail", "emailAddress",
-                          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"):
+        for candidate in (
+            email_attr,
+            "email",
+            "mail",
+            "emailAddress",
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+        ):
             if candidate in attributes:
                 email = attributes[candidate]
                 break
@@ -356,8 +356,13 @@ class SSOService:
 
         display_name: str | None = None
         name_attr = mapping.get("display_name", "displayName")
-        for candidate in (name_attr, "displayName", "cn", "name",
-                          "http://schemas.microsoft.com/identity/claims/displayname"):
+        for candidate in (
+            name_attr,
+            "displayName",
+            "cn",
+            "name",
+            "http://schemas.microsoft.com/identity/claims/displayname",
+        ):
             if candidate in attributes:
                 display_name = attributes[candidate]
                 break

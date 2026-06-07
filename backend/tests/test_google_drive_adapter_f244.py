@@ -27,6 +27,7 @@ Covers:
 - Provider contract suite
 - Adapter registration
 """
+
 from __future__ import annotations
 
 import json

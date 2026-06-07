@@ -65,9 +65,7 @@ async def list_feedback_review_items(
     reviewer_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
-    principal: Annotated[
-        AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))
-    ] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewListResponse:
     _user_id, org_id = _require_admin(principal)
@@ -131,9 +129,7 @@ async def export_feedback_review_csv(
     severity: str | None = Query(default=None),
     rating: str | None = Query(default=None),
     reason: str | None = Query(default=None),
-    principal: Annotated[
-        AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))
-    ] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> Response:
     _user_id, org_id = _require_admin(principal)
@@ -155,9 +151,7 @@ async def export_feedback_review_csv(
 @router.get("/{review_id}", response_model=FeedbackReviewItemResponse)
 async def get_feedback_review_item(
     review_id: str,
-    principal: Annotated[
-        AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))
-    ] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     _user_id, org_id = _require_admin(principal)
@@ -180,9 +174,7 @@ async def get_feedback_review_item(
 
     msg: ChatMessage | None = None
     if fb is not None:
-        msg_result = await db.execute(
-            select(ChatMessage).where(ChatMessage.id == fb.message_id)
-        )
+        msg_result = await db.execute(select(ChatMessage).where(ChatMessage.id == fb.message_id))
         msg = msg_result.scalar_one_or_none()
 
     return FeedbackReviewItemResponse.from_model(item, feedback=fb, message=msg)
@@ -197,9 +189,7 @@ async def triage_feedback(
     feedback_id: str,
     payload: TriageFeedbackRequest,
     request: Request,
-    principal: Annotated[
-        AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))
-    ] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
@@ -235,16 +225,18 @@ async def triage_feedback(
         resource_type="feedback_review_item",
         resource_id=item.id,
         request_id=_request_id(request),
-        metadata={"feedback_id": str(feedback_uuid), "severity": payload.severity, "created": created},
+        metadata={
+            "feedback_id": str(feedback_uuid),
+            "severity": payload.severity,
+            "created": created,
+        },
     )
     await db.commit()
     await db.refresh(item)
 
     from app.models.chat import ChatMessage
 
-    msg_result = await db.execute(
-        select(ChatMessage).where(ChatMessage.id == fb.message_id)
-    )
+    msg_result = await db.execute(select(ChatMessage).where(ChatMessage.id == fb.message_id))
     msg = msg_result.scalar_one_or_none()
     return FeedbackReviewItemResponse.from_model(item, feedback=fb, message=msg)
 
@@ -254,9 +246,7 @@ async def update_feedback_review_item(
     review_id: str,
     payload: UpdateReviewItemRequest,
     request: Request,
-    principal: Annotated[
-        AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))
-    ] = ...,  # noqa: B008
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))] = ...,  # noqa: B008
     db: AsyncSession = Depends(get_db_session),  # noqa: B008
 ) -> FeedbackReviewItemResponse:
     user_id, org_id = _require_admin(principal)
@@ -309,9 +299,7 @@ async def update_feedback_review_item(
     fb = fb_result.scalar_one_or_none()
     msg: ChatMessage | None = None
     if fb is not None:
-        msg_result = await db.execute(
-            select(ChatMessage).where(ChatMessage.id == fb.message_id)
-        )
+        msg_result = await db.execute(select(ChatMessage).where(ChatMessage.id == fb.message_id))
         msg = msg_result.scalar_one_or_none()
 
     return FeedbackReviewItemResponse.from_model(item, feedback=fb, message=msg)

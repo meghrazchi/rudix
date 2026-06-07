@@ -86,9 +86,7 @@ async def _seed_org_and_user(
     )
     db_session.add(user)
     await db_session.flush()
-    db_session.add(
-        OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value)
-    )
+    db_session.add(OrganizationMember(organization_id=org.id, user_id=user.id, role=role.value))
     await db_session.commit()
     return user, org
 
@@ -333,7 +331,10 @@ async def test_compare_lower_is_better_metrics(
         db_session, org=org, repo=repo, summary={"not_found_rate": 0.10}
     )
     run_b, _ = await _seed_run_with_results(
-        db_session, org=org, repo=repo, summary={"not_found_rate": 0.25}  # got worse
+        db_session,
+        org=org,
+        repo=repo,
+        summary={"not_found_rate": 0.25},  # got worse
     )
 
     token = _token(user, org)
@@ -361,9 +362,7 @@ async def test_compare_counts_case_regressions(
     user, org = await _seed_org_and_user(db_session)
     repo = EvaluationRepository()
 
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="Shared Set"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="Shared Set")
     q1 = await repo.create_evaluation_question(
         db_session, evaluation_set_id=evset.id, question="Q1 regressed?"
     )
@@ -814,9 +813,7 @@ async def test_list_all_results_for_run_returns_all_rows(
     await db_session.flush()
 
     repo = EvaluationRepository()
-    evset = await repo.create_evaluation_set(
-        db_session, organization_id=org.id, name="All Results"
-    )
+    evset = await repo.create_evaluation_set(db_session, organization_id=org.id, name="All Results")
     run = await repo.create_evaluation_run(
         db_session,
         evaluation_set_id=evset.id,
@@ -834,9 +831,7 @@ async def test_list_all_results_for_run_returns_all_rows(
         )
     await db_session.flush()
 
-    rows = await repo.list_all_evaluation_results_for_run(
-        db_session, evaluation_run_id=run.id
-    )
+    rows = await repo.list_all_evaluation_results_for_run(db_session, evaluation_run_id=run.id)
     assert len(rows) == 5
     for result, question in rows:
         assert result.evaluation_run_id == run.id
@@ -866,9 +861,7 @@ async def test_count_evaluation_runs_for_organization(
         )
     await db_session.flush()
 
-    count = await repo.count_evaluation_runs_for_organization(
-        db_session, organization_id=org.id
-    )
+    count = await repo.count_evaluation_runs_for_organization(db_session, organization_id=org.id)
     assert count == 1
 
     other_count = await repo.count_evaluation_runs_for_organization(

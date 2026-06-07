@@ -137,7 +137,10 @@ async def ensure_document_ids_access(
                     detail="Document not found",
                 )
             deleted_at, connection_status = row
-            if deleted_at is not None or connection_status != ConnectorConnectionStatus.active.value:
+            if (
+                deleted_at is not None
+                or connection_status != ConnectorConnectionStatus.active.value
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Document not found",

@@ -81,14 +81,13 @@ def _request_id(request: Request) -> str | None:
 
 # ── SCIM config endpoints ─────────────────────────────────────────────────────
 
+
 @router.get("", response_model=SCIMConfigResponse | None)
 async def get_scim_config(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_admin)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SCIMConfigResponse | None:
-    config = await _scim_service.get_config(
-        db_session, organization_id=principal.organization_id
-    )
+    config = await _scim_service.get_config(db_session, organization_id=principal.organization_id)
     if config is None:
         return None
     return _config_to_response(config, str(principal.organization_id))
@@ -135,9 +134,7 @@ async def rotate_scim_token(
             actor_id=principal.user_id,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     await _audit_service.record(
         db_session,
         organization_id=principal.organization_id,
@@ -161,9 +158,7 @@ async def disable_scim(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_owner)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
-    removed = await _scim_service.disable(
-        db_session, organization_id=principal.organization_id
-    )
+    removed = await _scim_service.disable(db_session, organization_id=principal.organization_id)
     if not removed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -183,6 +178,7 @@ async def disable_scim(
 
 
 # ── Domain verification endpoints ─────────────────────────────────────────────
+
 
 @router.get("/domains", response_model=list[DomainVerificationResponse])
 async def list_domain_verifications(
@@ -248,9 +244,7 @@ async def check_domain_verification(
             organization_id=principal.organization_id,
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
     await _audit_service.record(
         db_session,

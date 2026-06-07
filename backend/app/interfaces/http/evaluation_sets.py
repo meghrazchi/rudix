@@ -735,9 +735,7 @@ async def convert_feedback_to_cases(
             skipped += 1
             continue
 
-        result = await db_session.execute(
-            _select(MessageFeedback).where(MessageFeedback.id == fid)
-        )
+        result = await db_session.execute(_select(MessageFeedback).where(MessageFeedback.id == fid))
         feedback = result.scalar_one_or_none()
         if feedback is None:
             skipped += 1

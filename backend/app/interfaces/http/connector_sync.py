@@ -1,4 +1,5 @@
 """HTTP API for connector sync job and run management."""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -19,6 +20,10 @@ from app.domains.connectors.schemas.sync import (
     TriggerSyncNowResponse,
     UpdateSyncJobStatusRequest,
 )
+from app.domains.connectors.services.connector_service import (
+    ConnectorPlatformDisabledError,
+    ensure_connector_platform_enabled,
+)
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import ConnectorSyncJobStatus, OrganizationRole
@@ -32,6 +37,16 @@ _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
 
 def _engine() -> ConnectorSyncEngine:
     return ConnectorSyncEngine()
+
+
+def _require_connector_platform_enabled() -> None:
+    try:
+        ensure_connector_platform_enabled()
+    except ConnectorPlatformDisabledError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -116,6 +131,7 @@ async def create_sync_job(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> SyncJobResponse:
     org_id = _org_id(principal)
     try:
@@ -128,9 +144,7 @@ async def create_sync_job(
             external_source_id=(
                 UUID(payload.external_source_id) if payload.external_source_id else None
             ),
-            collection_id=(
-                UUID(payload.collection_id) if payload.collection_id else None
-            ),
+            collection_id=(UUID(payload.collection_id) if payload.collection_id else None),
             schedule=payload.schedule,
         )
     except SyncEngineError as exc:
@@ -163,9 +177,7 @@ async def get_sync_job(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SyncJobResponse:
     org_id = _org_id(principal)
-    job = await _engine().get_sync_job(
-        db_session, organization_id=org_id, job_id=job_id
-    )
+    job = await _engine().get_sync_job(db_session, organization_id=org_id, job_id=job_id)
     if job is None or job.connection_id != connection_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sync job not found")
     return _job_response(job)
@@ -179,6 +191,7 @@ async def update_sync_job_status(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> SyncJobResponse:
     org_id = _org_id(principal)
     try:
@@ -209,6 +222,7 @@ async def trigger_sync_now(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
     job_id: Annotated[UUID | None, Query()] = None,
 ) -> TriggerSyncNowResponse:
     org_id = _org_id(principal)
@@ -270,9 +284,7 @@ async def get_sync_run(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SyncRunResponse:
     org_id = _org_id(principal)
-    run = await _engine().get_sync_run(
-        db_session, organization_id=org_id, run_id=run_id
-    )
+    run = await _engine().get_sync_run(db_session, organization_id=org_id, run_id=run_id)
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sync run not found")
     return _run_response(run)
@@ -284,12 +296,11 @@ async def cancel_sync_run(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> SyncRunResponse:
     org_id = _org_id(principal)
     try:
-        run = await _engine().cancel_run(
-            db_session, organization_id=org_id, run_id=run_id
-        )
+        run = await _engine().cancel_run(db_session, organization_id=org_id, run_id=run_id)
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db_session.commit()

@@ -1,4 +1,5 @@
 """URL building and normalization utilities for the connector SDK."""
+
 from __future__ import annotations
 
 from urllib.parse import urlparse, urlunparse, urlencode

@@ -147,6 +147,7 @@ class ReindexWithProfileRequest(BaseModel):
                 UnsupportedOcrLanguageError,
                 validate_iso_languages,
             )
+
             try:
                 self.ocr_languages = validate_iso_languages(self.ocr_languages)
             except UnsupportedOcrLanguageError as exc:

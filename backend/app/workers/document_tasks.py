@@ -501,7 +501,9 @@ async def _upsert_connector_chunk_references(
         "source_item_content_hash": content_hash,
         "sync_version": source_document.sync_version,
         "source_item_sync_version": sync_version,
-        "last_synced_at": source_document.updated_at.isoformat() if source_document.updated_at else None,
+        "last_synced_at": source_document.updated_at.isoformat()
+        if source_document.updated_at
+        else None,
         "trust_status": source_ref_status,
         "acl_snapshot": permissions_json or {},
     }
@@ -847,8 +849,11 @@ async def _extract_and_store_document_pages_async(
                             "max_pages": settings.ocr_max_pages,
                             "page_timeout_seconds": settings.ocr_page_timeout_seconds,
                             "language_source": (
-                                "override" if document.ocr_languages_override
-                                else ("document_language" if document.language else "system_default")
+                                "override"
+                                if document.ocr_languages_override
+                                else (
+                                    "document_language" if document.language else "system_default"
+                                )
                             ),
                         },
                     )
@@ -961,11 +966,15 @@ async def _extract_and_store_document_pages_async(
                     section.text for section in cleaned_sections if section.text
                 )
                 lang_result = _detect_language_from_text(full_text_sample)
-                if lang_result.language_code is not None or document.language_source != "upload_provided":
+                if (
+                    lang_result.language_code is not None
+                    or document.language_source != "upload_provided"
+                ):
                     resolved_language = lang_result.language_code or document.language
                     resolved_source = (
                         "upload_provided"
-                        if document.language_source == "upload_provided" and document.language is not None
+                        if document.language_source == "upload_provided"
+                        and document.language is not None
                         else "auto_detected"
                     )
                     async with SessionLocal() as lang_session:
@@ -973,13 +982,17 @@ async def _extract_and_store_document_pages_async(
                             lang_session,
                             document_id=parsed_document_id,
                             language=resolved_language,
-                            language_confidence=lang_result.confidence if lang_result.language_code is not None else None,
+                            language_confidence=lang_result.confidence
+                            if lang_result.language_code is not None
+                            else None,
                             language_source=resolved_source,
                         )
                         await lang_session.commit()
                     document.language = resolved_language
                     document.language_source = resolved_source
-                    document.language_confidence = lang_result.confidence if lang_result.language_code is not None else None
+                    document.language_confidence = (
+                        lang_result.confidence if lang_result.language_code is not None else None
+                    )
                     log_document_event(
                         event="document.pipeline.stage",
                         document_id=str(document.id),
@@ -998,7 +1011,9 @@ async def _extract_and_store_document_pages_async(
                         outputs={
                             "language_code": resolved_language,
                             "language_source": resolved_source,
-                            "confidence_bucket": _language_confidence_bucket(lang_result.confidence),
+                            "confidence_bucket": _language_confidence_bucket(
+                                lang_result.confidence
+                            ),
                         },
                     )
 
@@ -1013,9 +1028,7 @@ async def _extract_and_store_document_pages_async(
                         "min_findings": settings.dlp_min_findings,
                     },
                 )
-                full_text = "\n".join(
-                    section.text for section in cleaned_sections if section.text
-                )
+                full_text = "\n".join(section.text for section in cleaned_sections if section.text)
                 dlp_result = scan_text_for_dlp(
                     full_text,
                     enabled=True,

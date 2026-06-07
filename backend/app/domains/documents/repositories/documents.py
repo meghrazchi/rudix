@@ -464,7 +464,9 @@ class DocumentRepository:
         items_result = await session.execute(
             select(Document)
             .where(base_filter, status_filter)
-            .order_by(Document.deletion_requested_at.desc().nulls_last(), Document.updated_at.desc())
+            .order_by(
+                Document.deletion_requested_at.desc().nulls_last(), Document.updated_at.desc()
+            )
             .limit(limit)
             .offset(offset)
         )

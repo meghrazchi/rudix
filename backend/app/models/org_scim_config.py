@@ -11,9 +11,7 @@ from app.db.base import Base
 
 class OrgSCIMConfig(Base):
     __tablename__ = "org_scim_configs"
-    __table_args__ = (
-        UniqueConstraint("organization_id", name="uq_org_scim_configs_org_id"),
-    )
+    __table_args__ = (UniqueConstraint("organization_id", name="uq_org_scim_configs_org_id"),)
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(
@@ -29,9 +27,7 @@ class OrgSCIMConfig(Base):
     # Last 4 characters of the raw token, shown in the UI so admins can identify it
     token_hint: Mapped[str] = mapped_column(String(8), nullable=False)
 
-    last_sync_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_sync_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     provisioned_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

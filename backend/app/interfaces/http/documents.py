@@ -1100,7 +1100,10 @@ async def reindex_document_endpoint(
             )
         )
         if body.ocr_languages:
-            from app.domains.documents.services.ocr_language_config import iso_list_to_tesseract_string
+            from app.domains.documents.services.ocr_language_config import (
+                iso_list_to_tesseract_string,
+            )
+
             tesseract_str = iso_list_to_tesseract_string(body.ocr_languages)
             await document_repository.update_document_ocr_config(
                 db_session,

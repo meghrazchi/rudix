@@ -279,9 +279,7 @@ async def test_connector_service_audits_connection_and_permission_changes(
     assert "connector.connection.created" in actions
     assert "connector.source.selected" in actions
     assert "connector.source.permission_changed" in actions
-    connection_created = next(
-        log for log in logs if log.action == "connector.connection.created"
-    )
+    connection_created = next(log for log in logs if log.action == "connector.connection.created")
     assert connection_created.metadata_json["provider_key"] == "jira"
     assert connection.auth_config_json["api_token"] == "***"
     permission_changed = next(

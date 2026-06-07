@@ -1,4 +1,5 @@
 """Unit and integration tests for the F237 PDF extraction pipeline."""
+
 from __future__ import annotations
 
 import io
@@ -436,6 +437,7 @@ class TestExtractDocumentPdf:
 
     def test_snapshot_serializable(self) -> None:
         import json
+
         pdf = _make_minimal_pdf(["Snapshot serialization test page."])
         result = extract_document(pdf, file_type="pdf", min_chars_per_page=5)
         snap = result.to_snapshot()

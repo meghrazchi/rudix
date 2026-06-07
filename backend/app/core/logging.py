@@ -263,6 +263,31 @@ def log_document_event(
     )
 
 
+def log_connector_event(
+    *,
+    event: str,
+    provider_key: str | None = None,
+    connection_id: str | None = None,
+    external_source_id: str | None = None,
+    external_item_id: str | None = None,
+    sync_run_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+    **fields: Any,
+) -> None:
+    get_logger("events.connector").info(
+        event,
+        user_id=user_id,
+        organization_id=organization_id,
+        provider_key=provider_key,
+        connection_id=connection_id,
+        external_source_id=external_source_id,
+        external_item_id=external_item_id,
+        sync_run_id=sync_run_id,
+        **fields,
+    )
+
+
 def log_query_event(
     *,
     event: str,

@@ -19,6 +19,7 @@ Cursor shapes:
   Folder traversal:  {"folder_queue": [...], "current_folder": str|null, "page_token": null_or_str}
   Delta sync:        {"since": "ISO-8601", "page_token": null_or_str}
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -59,6 +60,8 @@ _MIME_TO_EXTENSION: dict[str, str] = {
 
 def _mime_to_extension(mime_type: str) -> str:
     return _MIME_TO_EXTENSION.get(mime_type, ".bin")
+
+
 _FILE_FIELDS = (
     "nextPageToken,"
     "files("
@@ -247,9 +250,7 @@ class GoogleDriveConnectorAdapter(ConnectorProviderAdapter):
             is_deleted = bool(file.get("trashed", False))
 
             if is_deleted:
-                delta_items.append(
-                    DeltaItem(provider_item_id=file_id, is_deleted=True, item=None)
-                )
+                delta_items.append(DeltaItem(provider_item_id=file_id, is_deleted=True, item=None))
             else:
                 item = (
                     normalize_folder(
@@ -268,9 +269,7 @@ class GoogleDriveConnectorAdapter(ConnectorProviderAdapter):
                         sync_version=1,
                     )
                 )
-                delta_items.append(
-                    DeltaItem(provider_item_id=file_id, is_deleted=False, item=item)
-                )
+                delta_items.append(DeltaItem(provider_item_id=file_id, is_deleted=False, item=item))
 
             modified_time = file.get("modifiedTime", "")
             if modified_time and (latest_modified is None or modified_time > latest_modified):

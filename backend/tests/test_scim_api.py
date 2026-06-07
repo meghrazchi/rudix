@@ -1,4 +1,5 @@
 """SCIM provisioning and domain verification tests (F161)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -69,9 +70,7 @@ async def scim_client(
 
 
 async def _seed_owner(db_session: AsyncSession) -> tuple[User, Organization]:
-    org = Organization(
-        name=f"SCIM Org {uuid4().hex[:6]}", slug=f"scim-org-{uuid4().hex[:8]}"
-    )
+    org = Organization(name=f"SCIM Org {uuid4().hex[:6]}", slug=f"scim-org-{uuid4().hex[:8]}")
     db_session.add(org)
     await db_session.flush()
 
@@ -411,9 +410,7 @@ async def test_scim_users_requires_bearer_header(
     assert resp.status_code == 401
 
 
-async def test_scim_provision_user(
-    scim_client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_scim_provision_user(scim_client: AsyncClient, db_session: AsyncSession) -> None:
     _, org = await _seed_owner(db_session)
     _, raw_token = await _seed_scim_config(db_session, org)
 
@@ -457,9 +454,7 @@ async def test_scim_provision_user_inactive(
     assert resp.json()["active"] is False
 
 
-async def test_scim_list_users(
-    scim_client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_scim_list_users(scim_client: AsyncClient, db_session: AsyncSession) -> None:
     _, org = await _seed_owner(db_session)
     _, raw_token = await _seed_scim_config(db_session, org)
 
@@ -486,9 +481,7 @@ async def test_scim_list_users(
     assert "Resources" in data
 
 
-async def test_scim_get_user_by_id(
-    scim_client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_scim_get_user_by_id(scim_client: AsyncClient, db_session: AsyncSession) -> None:
     _, org = await _seed_owner(db_session)
     _, raw_token = await _seed_scim_config(db_session, org)
 
@@ -512,9 +505,7 @@ async def test_scim_get_user_by_id(
     assert resp.json()["externalId"] == scim_id
 
 
-async def test_scim_get_user_not_found(
-    scim_client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_scim_get_user_not_found(scim_client: AsyncClient, db_session: AsyncSession) -> None:
     _, org = await _seed_owner(db_session)
     _, raw_token = await _seed_scim_config(db_session, org)
 
@@ -548,9 +539,7 @@ async def test_scim_patch_deactivate_user(
         headers={"Authorization": f"Bearer {raw_token}"},
         json={
             "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
-            "Operations": [
-                {"op": "replace", "path": "active", "value": False}
-            ],
+            "Operations": [{"op": "replace", "path": "active", "value": False}],
         },
     )
     assert resp.status_code == 200
@@ -618,6 +607,7 @@ async def test_deprovisioned_user_cannot_authenticate(
     # Fetch the DB user to get their external_auth_id for token minting
     from sqlalchemy import select
     from app.models.user import User as UserModel
+
     result = await db_session.execute(
         select(UserModel).where(
             UserModel.email == "deprov@corp.com",

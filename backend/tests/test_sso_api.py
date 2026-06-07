@@ -1,4 +1,5 @@
 """SSO admin API and auth SSO flow tests (F160)."""
+
 from __future__ import annotations
 
 import base64
@@ -170,7 +171,11 @@ async def test_upsert_sso_config_updates_existing(
     resp = await sso_client.put(
         "/api/v1/admin/sso",
         headers=auth,
-        json={"domain": "updated.com", "enabled": True, "idp_sso_url": "https://idp.updated.com/sso"},
+        json={
+            "domain": "updated.com",
+            "enabled": True,
+            "idp_sso_url": "https://idp.updated.com/sso",
+        },
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -216,9 +221,7 @@ async def test_get_sso_config_returns_config_after_upsert(
     assert resp.json()["domain"] == "visible.com"
 
 
-async def test_delete_sso_config(
-    sso_client: AsyncClient, db_session: AsyncSession
-) -> None:
+async def test_delete_sso_config(sso_client: AsyncClient, db_session: AsyncSession) -> None:
     user, org = await _seed_owner(db_session)
     auth = {"Authorization": f"Bearer {_bearer(user, org)}"}
 
@@ -266,8 +269,8 @@ async def test_test_connection_valid_metadata_xml(
         'protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">'
         '<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" '
         'Location="https://idp.example.com/sso"/>'
-        '</md:IDPSSODescriptor>'
-        '</md:EntityDescriptor>'
+        "</md:IDPSSODescriptor>"
+        "</md:EntityDescriptor>"
     )
     resp = await sso_client.post(
         "/api/v1/admin/sso/test-connection",
@@ -299,9 +302,7 @@ async def test_test_connection_persists_result_on_existing_config(
     user, org = await _seed_owner(db_session)
     auth = {"Authorization": f"Bearer {_bearer(user, org)}"}
     await sso_client.put("/api/v1/admin/sso", headers=auth, json={"domain": "persist.com"})
-    await sso_client.post(
-        "/api/v1/admin/sso/test-connection", headers=auth, json={}
-    )
+    await sso_client.post("/api/v1/admin/sso/test-connection", headers=auth, json={})
     config_resp = await sso_client.get("/api/v1/admin/sso", headers=auth)
     data = config_resp.json()
     assert data["last_test_result"] == "failure"
@@ -388,9 +389,7 @@ async def test_sso_initiate_redirects_to_idp(
     _, org = await _seed_owner(db_session)
     await _seed_enabled_sso_config(db_session, org, "initiate-corp.com")
 
-    resp = await sso_client.get(
-        f"/api/v1/auth/sso/{org.id}/initiate", follow_redirects=False
-    )
+    resp = await sso_client.get(f"/api/v1/auth/sso/{org.id}/initiate", follow_redirects=False)
     assert resp.status_code == 302
     location = resp.headers["location"]
     assert "SAMLRequest" in location
@@ -400,9 +399,7 @@ async def test_sso_initiate_redirects_to_idp(
 async def test_sso_initiate_404_for_unknown_org(
     sso_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    resp = await sso_client.get(
-        f"/api/v1/auth/sso/{uuid4()}/initiate", follow_redirects=False
-    )
+    resp = await sso_client.get(f"/api/v1/auth/sso/{uuid4()}/initiate", follow_redirects=False)
     assert resp.status_code == 404
 
 
@@ -436,14 +433,14 @@ async def test_sso_callback_provisions_user_and_issues_tokens(
     saml_xml = (
         f'<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol">'
         f'<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">'
-        f'<saml:Subject><saml:NameID>{email}</saml:NameID></saml:Subject>'
-        f'<saml:AttributeStatement>'
+        f"<saml:Subject><saml:NameID>{email}</saml:NameID></saml:Subject>"
+        f"<saml:AttributeStatement>"
         f'<saml:Attribute Name="email">'
-        f'<saml:AttributeValue>{email}</saml:AttributeValue>'
-        f'</saml:Attribute>'
-        f'</saml:AttributeStatement>'
-        f'</saml:Assertion>'
-        f'</samlp:Response>'
+        f"<saml:AttributeValue>{email}</saml:AttributeValue>"
+        f"</saml:Attribute>"
+        f"</saml:AttributeStatement>"
+        f"</saml:Assertion>"
+        f"</samlp:Response>"
     )
     saml_b64 = base64.b64encode(saml_xml.encode()).decode()
 
@@ -467,9 +464,9 @@ async def test_sso_callback_logs_in_existing_user(
     saml_xml = (
         f'<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol">'
         f'<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">'
-        f'<saml:Subject><saml:NameID>{user.email}</saml:NameID></saml:Subject>'
-        f'</saml:Assertion>'
-        f'</samlp:Response>'
+        f"<saml:Subject><saml:NameID>{user.email}</saml:NameID></saml:Subject>"
+        f"</saml:Assertion>"
+        f"</samlp:Response>"
     )
     saml_b64 = base64.b64encode(saml_xml.encode()).decode()
 
@@ -539,9 +536,9 @@ async def test_sso_session_refresh_token_works(
     saml_xml = (
         f'<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol">'
         f'<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">'
-        f'<saml:Subject><saml:NameID>{user.email}</saml:NameID></saml:Subject>'
-        f'</saml:Assertion>'
-        f'</samlp:Response>'
+        f"<saml:Subject><saml:NameID>{user.email}</saml:NameID></saml:Subject>"
+        f"</saml:Assertion>"
+        f"</samlp:Response>"
     )
     saml_b64 = base64.b64encode(saml_xml.encode()).decode()
 

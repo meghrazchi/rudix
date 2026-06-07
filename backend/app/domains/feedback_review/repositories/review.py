@@ -89,9 +89,8 @@ class FeedbackReviewRepository:
     ) -> tuple[list[FeedbackReviewItem], int]:
         from app.models.message_feedback import MessageFeedback
 
-        base_query = (
-            select(FeedbackReviewItem)
-            .where(FeedbackReviewItem.organization_id == organization_id)
+        base_query = select(FeedbackReviewItem).where(
+            FeedbackReviewItem.organization_id == organization_id
         )
 
         if status:
@@ -116,10 +115,7 @@ class FeedbackReviewRepository:
         total = count_result.scalar_one()
 
         items_result = await session.execute(
-            base_query
-            .order_by(FeedbackReviewItem.created_at.desc())
-            .limit(limit)
-            .offset(offset)
+            base_query.order_by(FeedbackReviewItem.created_at.desc()).limit(limit).offset(offset)
         )
         return list(items_result.scalars().all()), total
 
@@ -146,7 +142,11 @@ class FeedbackReviewRepository:
 
         if status is not None:
             item.status = status
-            _terminal = {FeedbackReviewStatus.fixed, FeedbackReviewStatus.rejected, FeedbackReviewStatus.duplicate}
+            _terminal = {
+                FeedbackReviewStatus.fixed,
+                FeedbackReviewStatus.rejected,
+                FeedbackReviewStatus.duplicate,
+            }
             if FeedbackReviewStatus(status) in _terminal and item.resolved_at is None:
                 item.resolved_at = datetime.now(tz=timezone.utc)
             elif FeedbackReviewStatus(status) not in _terminal:
@@ -237,8 +237,12 @@ class FeedbackReviewRepository:
                     "reason": fb.reason if fb else "",
                     "comment": fb.comment if fb else "",
                     "reviewer_notes": item.reviewer_notes or "",
-                    "linked_eval_question_id": str(item.linked_eval_question_id) if item.linked_eval_question_id else "",
-                    "linked_document_id": str(item.linked_document_id) if item.linked_document_id else "",
+                    "linked_eval_question_id": str(item.linked_eval_question_id)
+                    if item.linked_eval_question_id
+                    else "",
+                    "linked_document_id": str(item.linked_document_id)
+                    if item.linked_document_id
+                    else "",
                     "created_at": item.created_at.isoformat(),
                     "resolved_at": item.resolved_at.isoformat() if item.resolved_at else "",
                 }

@@ -837,9 +837,7 @@ async def test_upload_warns_on_duplicate_and_flags_second_upload(
 
     # Both documents created; duplicate_of_document_id set on second.
     assert await _document_count(db_session) == 2
-    second_doc = await _get_document(
-        db_session, document_id=UUID(second_payload["document_id"])
-    )
+    second_doc = await _get_document(db_session, document_id=UUID(second_payload["document_id"]))
     assert second_doc is not None
     assert str(second_doc.duplicate_of_document_id) == first_payload["document_id"]
 

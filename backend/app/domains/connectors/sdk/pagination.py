@@ -1,4 +1,5 @@
 """Cursor-based pagination helpers for the connector SDK."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -70,10 +70,14 @@ class RagProfileRepository:
         )
         if not include_archived:
             stmt = stmt.where(RagProfile.is_archived.is_(False))
-        stmt = stmt.order_by(
-            RagProfile.is_default.desc(),
-            RagProfile.created_at.desc(),
-        ).limit(limit).offset(offset)
+        stmt = (
+            stmt.order_by(
+                RagProfile.is_default.desc(),
+                RagProfile.created_at.desc(),
+            )
+            .limit(limit)
+            .offset(offset)
+        )
         result = await db_session.execute(stmt)
         return list(result.scalars().all())
 

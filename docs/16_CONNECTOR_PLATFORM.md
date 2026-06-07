@@ -122,6 +122,39 @@ To add a provider:
    timestamp, and trust status at ingest time so citations stay stable after
    source updates or tombstones.
 
+## Observability and Rollout Controls
+
+Connector operators should use the admin health endpoint to inspect provider
+health, sync failures, retry patterns, skipped items, ingestion failures, and
+citation usage:
+
+- `GET /api/v1/admin/connectors/health`
+
+The health response is organization-scoped and reports:
+
+- rollout state
+- overall platform status
+- connection, sync, and retry totals
+- provider-specific error codes and latency
+- document and citation usage derived from connector provenance
+
+Runtime rollout is controlled by:
+
+- `FEATURE_ENABLE_CONNECTORS`
+- `CONNECTOR_ROLLOUT_STAGE`
+
+Recommended rollout stages:
+
+- `off` for shutdown or rollback
+- `development` for local and dev deployments
+- `staging` for pre-production validation
+- `production` for live production enablement
+- `all` for deployments where the platform should be active everywhere except test
+
+New providers should pass the shared contract suite before merging. The
+contract harness exercises provider fixtures and adapter behavior for Jira,
+Confluence, Google Drive, and the fake provider used in CI.
+
 Provider-specific code must stay in connector adapters. Shared ingestion and
 chat services should depend only on `documents`, chunks, citations, and
 provider-neutral source references.

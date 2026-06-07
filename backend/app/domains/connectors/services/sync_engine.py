@@ -1,4 +1,5 @@
 """Generic connector sync engine: job lifecycle, checkpointing, scheduling."""
+
 from __future__ import annotations
 
 import hashlib
@@ -15,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.logging import get_logger
+from app.core.logging import get_logger, log_connector_event
 from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
@@ -254,9 +255,7 @@ class ConnectorSyncEngine:
             )
             job = result.scalar_one_or_none()
             if job is None:
-                raise SyncEngineError(
-                    "no active sync job found for connection; create one first"
-                )
+                raise SyncEngineError("no active sync job found for connection; create one first")
 
         await self._assert_no_active_run(session, job_id=job.id)
         run = await self._create_queued_run(session, job=job, trigger_type="manual")
@@ -289,9 +288,7 @@ class ConnectorSyncEngine:
             ConnectorSyncRunStatus.queued.value,
             ConnectorSyncRunStatus.running.value,
         }:
-            raise SyncEngineError(
-                f"sync run {run_id} is already in terminal state '{run.status}'"
-            )
+            raise SyncEngineError(f"sync run {run_id} is already in terminal state '{run.status}'")
         run.status = ConnectorSyncRunStatus.cancelled.value
         run.completed_at = datetime.now(UTC)
         run.error_message = "Cancelled by user"
@@ -307,7 +304,11 @@ class ConnectorSyncEngine:
         run_id: UUID,
     ) -> ConnectorSyncRun | None:
         result = await session.execute(
-            select(ConnectorSyncRun).where(
+            select(ConnectorSyncRun)
+            .options(
+                selectinload(ConnectorSyncRun.connection).selectinload(ConnectorConnection.provider)
+            )
+            .where(
                 ConnectorSyncRun.id == run_id,
                 ConnectorSyncRun.organization_id == organization_id,
             )
@@ -337,9 +338,7 @@ class ConnectorSyncEngine:
     # Schedule polling (called by beat task)
     # -----------------------------------------------------------------------
 
-    async def dispatch_due_syncs(
-        self, session: AsyncSession
-    ) -> list[tuple[UUID, UUID]]:
+    async def dispatch_due_syncs(self, session: AsyncSession) -> list[tuple[UUID, UUID]]:
         """Find all active sync jobs due for a run; create queued runs and return their IDs.
 
         Returns list of (sync_run_id, organization_id) pairs for dispatch.
@@ -414,9 +413,7 @@ class ConnectorSyncEngine:
         job_result = await session.execute(
             select(ConnectorSyncJob)
             .options(
-                selectinload(ConnectorSyncJob.connection).selectinload(
-                    ConnectorConnection.provider
-                )
+                selectinload(ConnectorSyncJob.connection).selectinload(ConnectorConnection.provider)
             )
             .where(ConnectorSyncJob.id == run.sync_job_id)
         )
@@ -480,9 +477,7 @@ class ConnectorSyncEngine:
                 )
         except ConnectorAuthError as exc:
             await self._mark_connection_error(session, connection, str(exc))
-            return await self._fail_run(
-                session, run, str(exc), error_code="auth_error"
-            )
+            return await self._fail_run(session, run, str(exc), error_code="auth_error")
         except ConnectorRateLimitError as exc:
             return await self._fail_run(
                 session,
@@ -525,10 +520,25 @@ class ConnectorSyncEngine:
                 "trigger_type": run.trigger_type,
             },
         )
-
+        log_connector_event(
+            event="connector.sync.completed",
+            provider_key=getattr(getattr(connection, "provider", None), "key", None),
+            connection_id=str(connection.id),
+            external_source_id=str(run.external_source_id) if run.external_source_id else None,
+            sync_run_id=str(run.id),
+            organization_id=str(organization_id),
+            items_seen=result.items_seen,
+            items_upserted=result.items_upserted,
+            items_deleted=result.items_deleted,
+        )
         _logger.info(
             "connector.sync.completed",
             sync_run_id=str(sync_run_id),
+            provider_key=getattr(connection.provider, "key", None),
+            connection_id=str(connection.id),
+            external_source_id=str(connection.external_source_id)
+            if connection.external_source_id
+            else None,
             organization_id=str(organization_id),
             items_seen=result.items_seen,
             items_upserted=result.items_upserted,
@@ -566,7 +576,9 @@ class ConnectorSyncEngine:
                 external_source_id=str(run.external_source_id) if run.external_source_id else None,
                 provider_source_id=(
                     job.external_source.provider_source_id
-                    if job.external_source_id and hasattr(job, "external_source") and job.external_source
+                    if job.external_source_id
+                    and hasattr(job, "external_source")
+                    and job.external_source
                     else None
                 ),
                 decrypted_credential=decrypted_credential,
@@ -635,7 +647,9 @@ class ConnectorSyncEngine:
                 external_source_id=str(run.external_source_id) if run.external_source_id else None,
                 provider_source_id=(
                     job.external_source.provider_source_id
-                    if job.external_source_id and hasattr(job, "external_source") and job.external_source
+                    if job.external_source_id
+                    and hasattr(job, "external_source")
+                    and job.external_source
                     else None
                 ),
                 decrypted_credential=decrypted_credential,
@@ -651,9 +665,7 @@ class ConnectorSyncEngine:
                         items_deleted += 1
                 elif delta_item.item is not None:
                     try:
-                        changed = await self._upsert_item_if_changed(
-                            session, run, delta_item.item
-                        )
+                        changed = await self._upsert_item_if_changed(session, run, delta_item.item)
                         if changed:
                             items_upserted += 1
                             pending = await self._maybe_ingest_file_item(
@@ -667,7 +679,36 @@ class ConnectorSyncEngine:
                             if pending is not None:
                                 pending_document_ids.append(pending)
                     except ConnectorContentError:
-                        pass
+                        await self._audit(
+                            session,
+                            organization_id=run.organization_id,
+                            user_id=None,
+                            action=ConnectorAuditAction.sync_item_skipped.value,
+                            resource_type="external_item",
+                            resource_id=None,
+                            metadata={
+                                "sync_run_id": str(run.id),
+                                "connection_id": str(run.connection_id),
+                                "external_source_id": (
+                                    str(run.external_source_id) if run.external_source_id else None
+                                ),
+                                "provider_key": delta_item.item.provider_key,
+                                "provider_item_id": delta_item.item.provider_item_id,
+                                "reason": "content_error",
+                            },
+                        )
+                        log_connector_event(
+                            event="connector.sync.item.skipped",
+                            provider_key=delta_item.item.provider_key,
+                            connection_id=str(run.connection_id),
+                            external_source_id=(
+                                str(run.external_source_id) if run.external_source_id else None
+                            ),
+                            external_item_id=None,
+                            sync_run_id=str(run.id),
+                            organization_id=str(run.organization_id),
+                            reason="content_error",
+                        )
 
             if not page.has_more or page.next_cursor is None:
                 cursor = page.next_cursor or cursor
@@ -687,9 +728,7 @@ class ConnectorSyncEngine:
     async def _upsert_item_if_changed(
         self, session: AsyncSession, run: ConnectorSyncRun, norm_item: Any
     ) -> bool:
-        norm_item_with_version = norm_item.model_copy(
-            update={"sync_version": run.sync_version}
-        )
+        norm_item_with_version = norm_item.model_copy(update={"sync_version": run.sync_version})
         existing_result = await session.execute(
             select(ExternalItem).where(
                 ExternalItem.organization_id == run.organization_id,
@@ -703,7 +742,9 @@ class ConnectorSyncEngine:
             await session.flush()
             # Treat as changed if no SourceDocument exists yet (e.g. prior sync had no bridge).
             orphaned_result = await session.execute(
-                select(SourceDocument).where(SourceDocument.external_item_id == existing.id).limit(1)
+                select(SourceDocument)
+                .where(SourceDocument.external_item_id == existing.id)
+                .limit(1)
             )
             if orphaned_result.scalar_one_or_none() is None:
                 return True
@@ -806,7 +847,9 @@ class ConnectorSyncEngine:
             resource_id=item.id,
             metadata={
                 "connection_id": str(run.connection_id),
-                "external_source_id": str(run.external_source_id) if run.external_source_id else None,
+                "external_source_id": str(run.external_source_id)
+                if run.external_source_id
+                else None,
                 "provider_item_id": delta_item.provider_item_id,
                 "reason": "provider_deleted",
             },
@@ -833,6 +876,15 @@ class ConnectorSyncEngine:
         if norm_item.item_type not in _FILE_ITEM_TYPES:
             return None
 
+        ext_item_result = await session.execute(
+            select(ExternalItem).where(
+                ExternalItem.organization_id == run.organization_id,
+                ExternalItem.connection_id == run.connection_id,
+                ExternalItem.provider_item_id == norm_item.provider_item_id,
+            )
+        )
+        ext_item = ext_item_result.scalar_one_or_none()
+
         try:
             download = await adapter.download_file_content(
                 provider_item_id=norm_item.provider_item_id,
@@ -840,6 +892,37 @@ class ConnectorSyncEngine:
                 decrypted_credential=decrypted_credential,
             )
         except Exception as exc:
+            await self._audit(
+                session,
+                organization_id=run.organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.ingestion_failed.value,
+                resource_type="external_item",
+                resource_id=ext_item.id if ext_item is not None else None,
+                metadata={
+                    "sync_run_id": str(run.id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": (
+                        str(run.external_source_id) if run.external_source_id else None
+                    ),
+                    "provider_key": norm_item.provider_key,
+                    "provider_item_id": norm_item.provider_item_id,
+                    "reason": "download_failed",
+                    "error": exc.__class__.__name__,
+                },
+            )
+            log_connector_event(
+                event="connector.ingestion.download_failed",
+                provider_key=norm_item.provider_key,
+                connection_id=str(run.connection_id),
+                external_source_id=(
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                external_item_id=str(ext_item.id) if ext_item is not None else None,
+                sync_run_id=str(run.id),
+                organization_id=str(run.organization_id),
+                error=exc.__class__.__name__,
+            )
             _logger.warning(
                 "connector.ingestion.download_failed",
                 provider_item_id=norm_item.provider_item_id,
@@ -848,6 +931,36 @@ class ConnectorSyncEngine:
             return None
 
         if download is None:
+            await self._audit(
+                session,
+                organization_id=run.organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.ingestion_skipped.value,
+                resource_type="external_item",
+                resource_id=ext_item.id if ext_item is not None else None,
+                metadata={
+                    "sync_run_id": str(run.id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": (
+                        str(run.external_source_id) if run.external_source_id else None
+                    ),
+                    "provider_key": norm_item.provider_key,
+                    "provider_item_id": norm_item.provider_item_id,
+                    "reason": "download_not_available",
+                },
+            )
+            log_connector_event(
+                event="connector.ingestion.skipped",
+                provider_key=norm_item.provider_key,
+                connection_id=str(run.connection_id),
+                external_source_id=(
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                external_item_id=str(ext_item.id) if ext_item is not None else None,
+                sync_run_id=str(run.id),
+                organization_id=str(run.organization_id),
+                reason="download_not_available",
+            )
             return None
 
         content, _provider_filename, resolved_mime = download
@@ -855,28 +968,49 @@ class ConnectorSyncEngine:
         # Use the human-readable source title as the filename, keeping the
         # extension that came back from the download (handles Google-native export).
         import os as _os
+
         _ext = _os.path.splitext(_provider_filename)[1]
         _title = (norm_item.title or "").strip()
         filename = _title if _title.lower().endswith(_ext.lower()) else f"{_title}{_ext}"
 
         uploader_user_id = connection.created_by_user_id
         if uploader_user_id is None:
+            await self._audit(
+                session,
+                organization_id=run.organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.ingestion_skipped.value,
+                resource_type="external_item",
+                resource_id=ext_item.id if ext_item is not None else None,
+                metadata={
+                    "sync_run_id": str(run.id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": (
+                        str(run.external_source_id) if run.external_source_id else None
+                    ),
+                    "provider_key": norm_item.provider_key,
+                    "provider_item_id": norm_item.provider_item_id,
+                    "reason": "missing_uploader_user",
+                },
+            )
+            log_connector_event(
+                event="connector.ingestion.skipped",
+                provider_key=norm_item.provider_key,
+                connection_id=str(connection.id),
+                external_source_id=(
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                external_item_id=str(ext_item.id) if ext_item is not None else None,
+                sync_run_id=str(run.id),
+                organization_id=str(run.organization_id),
+                reason="missing_uploader_user",
+            )
             _logger.warning(
                 "connector.ingestion.no_uploader_user",
                 connection_id=str(connection.id),
                 provider_item_id=norm_item.provider_item_id,
             )
             return None
-
-        from app.models.connector import ExternalItem as _ExternalItem
-        ext_item_result = await session.execute(
-            select(_ExternalItem).where(
-                _ExternalItem.organization_id == run.organization_id,
-                _ExternalItem.connection_id == run.connection_id,
-                _ExternalItem.provider_item_id == norm_item.provider_item_id,
-            )
-        )
-        ext_item = ext_item_result.scalar_one_or_none()
         if ext_item is None:
             return None
 
@@ -895,8 +1029,7 @@ class ConnectorSyncEngine:
                 "acl_snapshot": norm_item.permissions,
                 "trust_status": (
                     "trusted"
-                    if norm_item.visibility.value == "org_wide"
-                    and not norm_item.permissions
+                    if norm_item.visibility.value == "org_wide" and not norm_item.permissions
                     else "restricted"
                 ),
             }
@@ -923,10 +1056,42 @@ class ConnectorSyncEngine:
             )
 
             from app.models.enums import DocumentStatus as _DocumentStatus
+
             if result.status == _DocumentStatus.pending_scan and result.document_id is not None:
                 return (str(result.document_id), str(uploader_user_id))
             return None
         except Exception as exc:
+            await self._audit(
+                session,
+                organization_id=run.organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.ingestion_failed.value,
+                resource_type="external_item",
+                resource_id=ext_item.id,
+                metadata={
+                    "sync_run_id": str(run.id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": (
+                        str(run.external_source_id) if run.external_source_id else None
+                    ),
+                    "provider_key": norm_item.provider_key,
+                    "provider_item_id": norm_item.provider_item_id,
+                    "reason": "bridge_error",
+                    "error": exc.__class__.__name__,
+                },
+            )
+            log_connector_event(
+                event="connector.ingestion.bridge_error",
+                provider_key=norm_item.provider_key,
+                connection_id=str(run.connection_id),
+                external_source_id=(
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                external_item_id=str(ext_item.id),
+                sync_run_id=str(run.id),
+                organization_id=str(run.organization_id),
+                error=exc.__class__.__name__,
+            )
             _logger.error(
                 "connector.ingestion.bridge_error",
                 provider_item_id=norm_item.provider_item_id,
@@ -989,15 +1154,59 @@ class ConnectorSyncEngine:
             metadata={
                 "sync_job_id": str(run.sync_job_id),
                 "connection_id": str(run.connection_id),
-                "external_source_id": str(run.external_source_id) if run.external_source_id else None,
+                "external_source_id": str(run.external_source_id)
+                if run.external_source_id
+                else None,
                 "error_code": error_code,
                 "error_details": sanitize_metadata(error_details or {}),
                 "message": message[:200],
             },
         )
+        log_connector_event(
+            event="connector.sync.failed",
+            provider_key=getattr(getattr(run.connection, "provider", None), "key", None),
+            connection_id=str(run.connection_id),
+            external_source_id=(str(run.external_source_id) if run.external_source_id else None),
+            sync_run_id=str(run.id),
+            organization_id=str(run.organization_id),
+            error_code=error_code,
+            message=message[:200],
+        )
+        if error_code == "rate_limit":
+            await self._audit(
+                session,
+                organization_id=run.organization_id,
+                user_id=None,
+                action=ConnectorAuditAction.sync_retry_scheduled.value,
+                resource_type="connector_sync_run",
+                resource_id=run.id,
+                metadata={
+                    "sync_job_id": str(run.sync_job_id),
+                    "connection_id": str(run.connection_id),
+                    "external_source_id": (
+                        str(run.external_source_id) if run.external_source_id else None
+                    ),
+                    "error_code": error_code,
+                    "retry_after_seconds": (error_details or {}).get("retry_after_seconds"),
+                },
+            )
+            log_connector_event(
+                event="connector.sync.retry_scheduled",
+                provider_key=getattr(getattr(run.connection, "provider", None), "key", None),
+                connection_id=str(run.connection_id),
+                external_source_id=(
+                    str(run.external_source_id) if run.external_source_id else None
+                ),
+                sync_run_id=str(run.id),
+                organization_id=str(run.organization_id),
+                retry_after_seconds=(error_details or {}).get("retry_after_seconds"),
+            )
         _logger.warning(
             "connector.sync.failed",
             sync_run_id=str(run.id),
+            provider_key=getattr(getattr(run.connection, "provider", None), "key", None),
+            connection_id=str(run.connection_id),
+            external_source_id=str(run.external_source_id) if run.external_source_id else None,
             error_code=error_code,
             error=message[:200],
         )
@@ -1053,9 +1262,7 @@ class ConnectorSyncEngine:
             error_message="Cancelled mid-sync",
         )
 
-    async def _is_cancelled(
-        self, session: AsyncSession, *, run_id: UUID
-    ) -> bool:
+    async def _is_cancelled(self, session: AsyncSession, *, run_id: UUID) -> bool:
         result = await session.execute(
             select(ConnectorSyncRun.status).where(ConnectorSyncRun.id == run_id)
         )
@@ -1086,9 +1293,7 @@ class ConnectorSyncEngine:
         await session.refresh(run)
         return run
 
-    async def _has_active_run(
-        self, session: AsyncSession, *, job_id: UUID
-    ) -> bool:
+    async def _has_active_run(self, session: AsyncSession, *, job_id: UUID) -> bool:
         result = await session.execute(
             select(ConnectorSyncRun.id).where(
                 ConnectorSyncRun.sync_job_id == job_id,
@@ -1102,9 +1307,7 @@ class ConnectorSyncEngine:
         )
         return result.scalar_one_or_none() is not None
 
-    async def _assert_no_active_run(
-        self, session: AsyncSession, *, job_id: UUID
-    ) -> None:
+    async def _assert_no_active_run(self, session: AsyncSession, *, job_id: UUID) -> None:
         if await self._has_active_run(session, job_id=job_id):
             raise SyncEngineError(
                 "sync is already queued or running for this job; cancel or wait for it to finish"
@@ -1131,9 +1334,7 @@ class ConnectorSyncEngine:
     async def _require_sync_run(
         self, session: AsyncSession, organization_id: UUID, run_id: UUID
     ) -> ConnectorSyncRun:
-        run = await self.get_sync_run(
-            session, organization_id=organization_id, run_id=run_id
-        )
+        run = await self.get_sync_run(session, organization_id=organization_id, run_id=run_id)
         if run is None:
             raise SyncEngineError(f"sync run {run_id} not found")
         return run

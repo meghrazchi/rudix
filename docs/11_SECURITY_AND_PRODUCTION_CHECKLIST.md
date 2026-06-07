@@ -57,6 +57,10 @@ Connector operations must also enforce:
 - provider-specific least-privilege OAuth scope allowlists
 - token refresh before sync and local sync blocking after revoke/disconnect
 - diagnostics that expose only credential metadata, never secret payloads
+- connector platform rollout gates (`FEATURE_ENABLE_CONNECTORS`,
+  `CONNECTOR_ROLLOUT_STAGE`) must be explicit in staging/production
+- connector health should remain visible through the admin health endpoint even
+  when the rollout is disabled
 - no provider-specific bypasses in RAG, chat, citation, agent, or MCP adapters
 - sync-trigger, sync-start, sync-success, sync-failure, source-selection, source-deletion, disconnect, and permission-change events must be audit logged with safe metadata only
 - connector sync endpoints should be rate-limited separately from general admin actions
@@ -311,6 +315,8 @@ When deleting a document:
 - [ ] Token/cost metrics.
 - [ ] Evaluation metrics.
 - [ ] Alerts for failed jobs.
+- [ ] Connector health endpoint for provider-specific sync and retry patterns.
+- [ ] Connector rollout stage documented and included in deployment runbooks.
 
 ### Agent tools
 

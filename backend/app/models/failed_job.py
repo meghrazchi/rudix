@@ -50,9 +50,7 @@ class FailedJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     last_attempted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     organization = relationship("Organization", back_populates="failed_jobs")
     audit_logs: Mapped[list[FailedJobAuditLog]] = relationship(

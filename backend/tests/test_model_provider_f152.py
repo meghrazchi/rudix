@@ -389,9 +389,7 @@ async def test_change_log_includes_reset_entry(mp_client: AsyncClient, admin_con
 
 
 @pytest.mark.asyncio
-async def test_viewer_cannot_update_settings(
-    mp_client: AsyncClient, viewer_context: dict
-) -> None:
+async def test_viewer_cannot_update_settings(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.patch(
         "/api/model-provider-settings",
         json={"llm_model": "gpt-4o"},
@@ -401,9 +399,7 @@ async def test_viewer_cannot_update_settings(
 
 
 @pytest.mark.asyncio
-async def test_viewer_cannot_delete_settings(
-    mp_client: AsyncClient, viewer_context: dict
-) -> None:
+async def test_viewer_cannot_delete_settings(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.delete(
         "/api/model-provider-settings",
         headers=_auth(viewer_context["token"]),
@@ -412,9 +408,7 @@ async def test_viewer_cannot_delete_settings(
 
 
 @pytest.mark.asyncio
-async def test_viewer_cannot_view_change_log(
-    mp_client: AsyncClient, viewer_context: dict
-) -> None:
+async def test_viewer_cannot_view_change_log(mp_client: AsyncClient, viewer_context: dict) -> None:
     resp = await mp_client.get(
         "/api/model-provider-settings/change-log",
         headers=_auth(viewer_context["token"]),
@@ -448,9 +442,7 @@ async def test_secret_never_in_response(mp_client: AsyncClient, admin_context: d
     body = resp.text
     assert "sk-" not in body
     assert "openai_api_key" not in body
-    assert "secret" not in body.lower().replace("secret_ref", "").replace(
-        "llm_key_configured", ""
-    )
+    assert "secret" not in body.lower().replace("secret_ref", "").replace("llm_key_configured", "")
 
 
 # ---------------------------------------------------------------------------

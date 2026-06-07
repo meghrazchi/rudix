@@ -13,6 +13,7 @@ from app.interfaces.http import (
     billing,
     chat,
     collections,
+    connector_platform,
     connector_sync,
     connectors,
     documents,
@@ -48,6 +49,7 @@ protected_router.include_router(documents.router)
 protected_router.include_router(collections.router)
 protected_router.include_router(collections.documents_router)
 api_router.include_router(connectors.public_router)
+protected_router.include_router(connector_platform.router)
 protected_router.include_router(connectors.router)
 protected_router.include_router(connector_sync.router)
 protected_router.include_router(chat.router)

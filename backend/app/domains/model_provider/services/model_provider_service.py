@@ -146,7 +146,9 @@ def build_effective_policy(
         "embedding_model": settings.embedding_model or sys_embedding_model,
         "max_tokens": settings.max_tokens,
         "timeout_seconds": settings.timeout_seconds or SYSTEM_DEFAULT_TIMEOUT_SECONDS,
-        "max_retries": settings.max_retries if settings.max_retries is not None else SYSTEM_DEFAULT_MAX_RETRIES,
+        "max_retries": settings.max_retries
+        if settings.max_retries is not None
+        else SYSTEM_DEFAULT_MAX_RETRIES,
         "fallback_model": settings.fallback_model,
         "disabled_models": list(settings.disabled_models or []),
         "llm_key_configured": llm_key_ok,

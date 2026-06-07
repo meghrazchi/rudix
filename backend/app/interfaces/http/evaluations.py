@@ -246,6 +246,7 @@ async def get_evaluation_run_detail(
 # Run listing
 # ---------------------------------------------------------------------------
 
+
 @router.get("/runs", response_model=EvaluationRunListResponse)
 async def list_evaluation_runs(
     principal: Annotated[
@@ -558,11 +559,15 @@ async def _resolve_comparison(
     try:
         parsed_a = UUID(run_a_id_str)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Baseline run not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Baseline run not found"
+        ) from exc
     try:
         parsed_b = UUID(run_b_id_str)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comparison run not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comparison run not found"
+        ) from exc
 
     run_a_obj = await evaluation_repository.get_evaluation_run_for_organization(
         db_session, evaluation_run_id=parsed_a, organization_id=organization_id
@@ -574,7 +579,9 @@ async def _resolve_comparison(
         db_session, evaluation_run_id=parsed_b, organization_id=organization_id
     )
     if run_b_obj is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comparison run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Comparison run not found"
+        )
 
     results_a = await evaluation_repository.list_all_evaluation_results_for_run(
         db_session, evaluation_run_id=run_a_obj.id
@@ -624,6 +631,7 @@ async def _resolve_comparison(
 # ---------------------------------------------------------------------------
 # Comparison endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get("/compare", response_model=RunComparisonResponse)
 async def compare_evaluation_runs(
@@ -732,7 +740,9 @@ async def export_comparison_report(
     writer.writerow([])
 
     writer.writerow(["## Metric Summary"])
-    writer.writerow(["Metric", f"Run A ({run_a_label})", f"Run B ({run_b_label})", "Delta", "Status"])
+    writer.writerow(
+        ["Metric", f"Run A ({run_a_label})", f"Run B ({run_b_label})", "Delta", "Status"]
+    )
     for delta in comparison.metric_deltas:
         if delta.is_regression:
             delta_status = "regression"
@@ -746,20 +756,27 @@ async def export_comparison_report(
         writer.writerow([delta.label, val_a, val_b, delta_str, delta_status])
 
     writer.writerow([])
-    writer.writerow([f"Regressions: {comparison.regression_count}", f"Improvements: {comparison.improvement_count}"])
+    writer.writerow(
+        [
+            f"Regressions: {comparison.regression_count}",
+            f"Improvements: {comparison.improvement_count}",
+        ]
+    )
     writer.writerow([])
 
     writer.writerow(["## Case Comparison"])
-    writer.writerow([
-        "Question",
-        "Difficulty",
-        "Tags",
-        f"Run A Status ({run_a_label})",
-        "Run A Score",
-        f"Run B Status ({run_b_label})",
-        "Run B Score",
-        "Status",
-    ])
+    writer.writerow(
+        [
+            "Question",
+            "Difficulty",
+            "Tags",
+            f"Run A Status ({run_a_label})",
+            "Run A Score",
+            f"Run B Status ({run_b_label})",
+            "Run B Score",
+            "Status",
+        ]
+    )
     for case in comparison.cases:
         if case.regression:
             case_status_str = "regression"
@@ -780,16 +797,18 @@ async def export_comparison_report(
             if case.run_b and case.run_b.retrieval_score is not None
             else ""
         )
-        writer.writerow([
-            case.question[:120],
-            case.difficulty or "",
-            ",".join(case.tags),
-            a_status,
-            a_score,
-            b_status,
-            b_score,
-            case_status_str,
-        ])
+        writer.writerow(
+            [
+                case.question[:120],
+                case.difficulty or "",
+                ",".join(case.tags),
+                a_status,
+                a_score,
+                b_status,
+                b_score,
+                case_status_str,
+            ]
+        )
 
     log_evaluation_event(
         event="evaluation.comparison.exported",

@@ -1,4 +1,5 @@
 """Tests for F231: Language-aware RAG answers, retrieval controls, and response language settings."""
+
 from __future__ import annotations
 
 import os
@@ -213,25 +214,52 @@ class TestLanguageServiceDetect:
 
 class TestResolveAnswerLanguage:
     def test_auto_mode_returns_none(self) -> None:
-        assert resolve_answer_language(mode="auto", detected_language="de", workspace_default="en") is None
+        assert (
+            resolve_answer_language(mode="auto", detected_language="de", workspace_default="en")
+            is None
+        )
 
     def test_none_mode_returns_none(self) -> None:
-        assert resolve_answer_language(mode=None, detected_language="de", workspace_default="en") is None
+        assert (
+            resolve_answer_language(mode=None, detected_language="de", workspace_default="en")
+            is None
+        )
 
     def test_explicit_de_returns_de(self) -> None:
-        assert resolve_answer_language(mode="de", detected_language=None, workspace_default="en") == "de"
+        assert (
+            resolve_answer_language(mode="de", detected_language=None, workspace_default="en")
+            == "de"
+        )
 
     def test_same_as_question_uses_detected(self) -> None:
-        assert resolve_answer_language(mode="same_as_question", detected_language="es", workspace_default="en") == "es"
+        assert (
+            resolve_answer_language(
+                mode="same_as_question", detected_language="es", workspace_default="en"
+            )
+            == "es"
+        )
 
     def test_same_as_question_falls_back_to_workspace_default(self) -> None:
-        assert resolve_answer_language(mode="same_as_question", detected_language=None, workspace_default="fr") == "fr"
+        assert (
+            resolve_answer_language(
+                mode="same_as_question", detected_language=None, workspace_default="fr"
+            )
+            == "fr"
+        )
 
     def test_workspace_default_returns_configured_lang(self) -> None:
-        assert resolve_answer_language(mode="workspace_default", detected_language="de", workspace_default="en") == "en"
+        assert (
+            resolve_answer_language(
+                mode="workspace_default", detected_language="de", workspace_default="en"
+            )
+            == "en"
+        )
 
     def test_unsupported_mode_returns_none(self) -> None:
-        assert resolve_answer_language(mode="klingon", detected_language=None, workspace_default="en") is None
+        assert (
+            resolve_answer_language(mode="klingon", detected_language=None, workspace_default="en")
+            is None
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -393,9 +421,7 @@ async def test_answer_language_auto_omits_language_instruction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     user, org = await _seed(db_session)
-    doc, chunk = await _seed_doc_chunk(
-        db_session, org=org, user=user, text="Leave is 30 days."
-    )
+    doc, chunk = await _seed_doc_chunk(db_session, org=org, user=user, text="Leave is 30 days.")
     token = _make_token(str(user.id), str(org.id))
 
     qdrant_module.qdrant_client = FakeQdrantClient([_qdrant_result(org, doc, chunk)])
@@ -478,9 +504,7 @@ async def test_citation_validation_enforced_for_translated_answers(
 ) -> None:
     """Citation validation must fire even when answer language is different from chunk language."""
     user, org = await _seed(db_session)
-    doc, chunk = await _seed_doc_chunk(
-        db_session, org=org, user=user, text="Leave is 30 days."
-    )
+    doc, chunk = await _seed_doc_chunk(db_session, org=org, user=user, text="Leave is 30 days.")
     token = _make_token(str(user.id), str(org.id))
 
     qdrant_module.qdrant_client = FakeQdrantClient([_qdrant_result(org, doc, chunk)])

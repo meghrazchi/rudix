@@ -147,3 +147,141 @@ integration:stack-smoke:
     expire_in: 7 days
     paths:
       - artifacts/integration-compose.log
+
+integration:connector-smoke:
+  stage: integration
+  extends:
+    - .docker:dind
+  rules:
+    - if: '$CI_COMMIT_TAG'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - backend/**/*
+        - frontend/**/*
+        - deploy/**/*
+        - docker-compose.yml
+        - .gitlab-ci.yml
+        - .gitlab/ci/integration.yml
+    - when: never
+  needs:
+    - job: build:backend-images
+    - job: build:frontend-image
+  script:
+    - apk add --no-cache bash curl jq
+    - mkdir -p artifacts
+    - |
+      set -euo pipefail
+
+      API_IMAGE_REF="$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA"
+      WORKER_IMAGE_REF="$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_SHA"
+      if [ -f artifacts/image-digests/api.txt ]; then
+        API_IMAGE_REF="$(cat artifacts/image-digests/api.txt)"
+      fi
+      if [ -f artifacts/image-digests/worker.txt ]; then
+        WORKER_IMAGE_REF="$(cat artifacts/image-digests/worker.txt)"
+      fi
+      export RUDIX_API_IMAGE="$API_IMAGE_REF"
+      export RUDIX_WORKER_IMAGE="$WORKER_IMAGE_REF"
+
+      cat > .env.ci.integration <<EOF
+      ENVIRONMENT=test
+      API_BASE_URL=http://api:8000
+      FRONTEND_BASE_URL=http://frontend:3000
+      CORS_ORIGINS=http://frontend:3000
+      RUDIX_API_IMAGE=${API_IMAGE_REF}
+      RUDIX_WORKER_IMAGE=${WORKER_IMAGE_REF}
+      DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/rag_app
+      POSTGRES_DB=rag_app
+      POSTGRES_USER=postgres
+      POSTGRES_PASSWORD=postgres
+      QDRANT_URL=http://qdrant:6333
+      QDRANT_COLLECTION=documents
+      QDRANT_VECTOR_SIZE=1536
+      QDRANT_BOOTSTRAP_COLLECTION=true
+      MINIO_ENDPOINT=http://minio:9000
+      MINIO_ROOT_USER=minioadmin
+      MINIO_ROOT_PASSWORD=minioadmin
+      MINIO_ACCESS_KEY=minioadmin
+      MINIO_SECRET_KEY=minioadmin
+      MINIO_BUCKET=documents
+      MINIO_BOOTSTRAP_BUCKET=true
+      RABBITMQ_DEFAULT_USER=admin
+      RABBITMQ_DEFAULT_PASS=admin123
+      RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672//
+      REDIS_URL=redis://redis:6379/0
+      OPENAI_API_KEY=${OPENAI_API_KEY:-ci-placeholder-key}
+      OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+      OPENAI_LLM_MODEL=gpt-5.4-mini
+      AUTH_PROVIDER=app
+      APP_AUTH_SECRET=ci-local-secret
+      APP_AUTH_ISSUER=rudix-app
+      APP_AUTH_AUDIENCE=rudix-api
+      APP_AUTH_LOGIN_PASSWORD=password123
+      FEATURE_ENABLE_AGENTS=true
+      FEATURE_ENABLE_CONNECTORS=true
+      CONNECTOR_ROLLOUT_STAGE=all
+      EOF
+
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration up -d --remove-orphans
+      docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration run --rm migrate
+
+      HEALTH_BASE_URL=http://docker:8000
+      wait_for_ok() {
+        url="$1"
+        label="$2"
+        for _ in $(seq 1 60); do
+          if curl -fsS "$url" >/dev/null; then
+            return 0
+          fi
+          sleep 2
+        done
+        echo "Timed out waiting for ${label}: ${url}"
+        docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration ps || true
+        docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color api worker || true
+        return 1
+      }
+
+      wait_for_ok "${HEALTH_BASE_URL}/api/v1/health" "health"
+      wait_for_ok "${HEALTH_BASE_URL}/api/v1/ready" "ready"
+
+      login_response="$(
+        curl -fsS \
+          -X POST \
+          -H "Content-Type: application/json" \
+          -d '{"email":"connector-smoke@example.com","password":"password123"}' \
+          "${HEALTH_BASE_URL}/api/v1/auth/login"
+      )"
+      access_token="$(printf '%s' "${login_response}" | jq -r '.access_token')"
+      test "${access_token}" != "null"
+      test -n "${access_token}"
+
+      connectors_response="$(
+        curl -fsS \
+          -H "Authorization: Bearer ${access_token}" \
+          "${HEALTH_BASE_URL}/api/v1/connectors/providers"
+      )"
+      test "$(printf '%s' "${connectors_response}" | jq -r '.total')" -ge 1
+
+      health_response="$(
+        curl -fsS \
+          -H "Authorization: Bearer ${access_token}" \
+          "${HEALTH_BASE_URL}/api/v1/admin/connectors/health"
+      )"
+      test "$(printf '%s' "${health_response}" | jq -r '.feature_enabled')" = "true"
+      test "$(printf '%s' "${health_response}" | jq -r '.overall_status')" = "unknown"
+  after_script:
+    - |
+      if [ ! -f .env.ci.integration ]; then
+        printf '%s\n' \
+          "ENVIRONMENT=test" \
+          "RUDIX_API_IMAGE=${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}" \
+          "RUDIX_WORKER_IMAGE=${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}" \
+          > .env.ci.integration
+      fi
+    - RUDIX_API_IMAGE="${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}" RUDIX_WORKER_IMAGE="${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}" docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration logs --no-color > artifacts/integration-connectors-compose.log || true
+    - RUDIX_API_IMAGE="${CI_REGISTRY_IMAGE}/api:${CI_COMMIT_SHA}" RUDIX_WORKER_IMAGE="${CI_REGISTRY_IMAGE}/worker:${CI_COMMIT_SHA}" docker compose -f deploy/compose/docker-compose.integration.yml --env-file .env.ci.integration down -v || true
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - artifacts/integration-connectors-compose.log

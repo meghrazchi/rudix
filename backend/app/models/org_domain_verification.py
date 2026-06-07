@@ -28,16 +28,10 @@ class OrgDomainVerification(Base):
     # 'pending' | 'verified' | 'failed'
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     # Random hex token admins paste as a DNS TXT record
-    verification_token: Mapped[str] = mapped_column(
-        String(128), nullable=False, unique=True
-    )
+    verification_token: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
 
-    verified_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    last_checked_at: Mapped[DateTime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    verified_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_checked_at: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_by_id: Mapped[UUID | None] = mapped_column(

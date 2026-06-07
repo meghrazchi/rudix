@@ -243,9 +243,7 @@ async def test_update_profile(rag_client: AsyncClient, admin_context: dict) -> N
 
 
 @pytest.mark.asyncio
-async def test_archive_and_unarchive_profile(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_archive_and_unarchive_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "ArchiveTest", "config": {}},
@@ -282,9 +280,7 @@ async def test_archive_and_unarchive_profile(
 
 
 @pytest.mark.asyncio
-async def test_set_default_clears_previous(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_set_default_clears_previous(rag_client: AsyncClient, admin_context: dict) -> None:
     r1 = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "P1", "config": {}, "set_as_default": True},
@@ -317,9 +313,7 @@ async def test_set_default_clears_previous(
 
 
 @pytest.mark.asyncio
-async def test_cannot_archive_default_profile(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_cannot_archive_default_profile(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "DefaultProfile", "config": {}, "set_as_default": True},
@@ -340,9 +334,7 @@ async def test_cannot_archive_default_profile(
 
 
 @pytest.mark.asyncio
-async def test_version_snapshot_on_update(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_version_snapshot_on_update(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "VersionTest", "config": {"top_k": 5}},
@@ -373,9 +365,7 @@ async def test_version_snapshot_on_update(
 
 
 @pytest.mark.asyncio
-async def test_rollback_restores_config(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_rollback_restores_config(rag_client: AsyncClient, admin_context: dict) -> None:
     create_resp = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "RollbackTest", "config": {"top_k": 3, "safety_mode": "strict"}},
@@ -430,6 +420,7 @@ async def test_collection_override_set_and_list(
 ) -> None:
     # Create a real collection in DB for FK
     from app.models.collection import Collection
+
     collection = Collection(
         organization_id=admin_context["org_id"],
         name="Test Collection",
@@ -489,9 +480,7 @@ async def test_resolve_returns_system_default_when_no_profiles(
 
 
 @pytest.mark.asyncio
-async def test_resolve_returns_org_default(
-    rag_client: AsyncClient, admin_context: dict
-) -> None:
+async def test_resolve_returns_org_default(rag_client: AsyncClient, admin_context: dict) -> None:
     await rag_client.post(
         "/api/rag-profiles",
         json={"name": "OrgDefault", "config": {"top_k": 8}, "set_as_default": True},
@@ -513,9 +502,7 @@ async def test_resolve_returns_org_default(
 
 
 @pytest.mark.asyncio
-async def test_viewer_cannot_create_profile(
-    rag_client: AsyncClient, viewer_context: dict
-) -> None:
+async def test_viewer_cannot_create_profile(rag_client: AsyncClient, viewer_context: dict) -> None:
     resp = await rag_client.post(
         "/api/rag-profiles",
         json={"name": "ViewerAttempt", "config": {}},
@@ -525,9 +512,7 @@ async def test_viewer_cannot_create_profile(
 
 
 @pytest.mark.asyncio
-async def test_viewer_can_list_profiles(
-    rag_client: AsyncClient, viewer_context: dict
-) -> None:
+async def test_viewer_can_list_profiles(rag_client: AsyncClient, viewer_context: dict) -> None:
     resp = await rag_client.get(
         "/api/rag-profiles",
         headers=_auth(viewer_context["token"]),
@@ -562,6 +547,7 @@ async def test_cannot_assign_archived_profile_as_collection_override(
     rag_client: AsyncClient, admin_context: dict, db_session: AsyncSession
 ) -> None:
     from app.models.collection import Collection
+
     collection = Collection(
         organization_id=admin_context["org_id"],
         name="Guard Col",
@@ -615,15 +601,11 @@ async def test_org_isolation(db_session: AsyncSession) -> None:
     await db_session.flush()
 
     # Org B should not see Org A's profile
-    result = await repo.get_profile(
-        db_session, profile_id=profile_a.id, organization_id=org_b.id
-    )
+    result = await repo.get_profile(db_session, profile_id=profile_a.id, organization_id=org_b.id)
     assert result is None
 
     # Org A should see its own profile
-    result = await repo.get_profile(
-        db_session, profile_id=profile_a.id, organization_id=org_a.id
-    )
+    result = await repo.get_profile(db_session, profile_id=profile_a.id, organization_id=org_a.id)
     assert result is not None
     assert result.name == "A Profile"
 

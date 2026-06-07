@@ -168,9 +168,7 @@ async def resolve_profile_for_context(
             if profile is not None and not profile.is_archived:
                 return profile, "collection_override"
 
-    default_profile = await repo.get_default_profile(
-        db_session, organization_id=organization_id
-    )
+    default_profile = await repo.get_default_profile(db_session, organization_id=organization_id)
     if default_profile is not None:
         return default_profile, "org_default"
 

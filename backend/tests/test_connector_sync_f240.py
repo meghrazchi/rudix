@@ -1,4 +1,5 @@
 """Tests for F240: connector sync engine, job lifecycle, retries, and scheduling."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -462,9 +463,7 @@ async def test_cancel_run_marks_run_cancelled(db_session: AsyncSession) -> None:
         connection_id=ctx.connection.id,
     )
 
-    cancelled = await engine.cancel_run(
-        db_session, organization_id=ctx.org_id, run_id=run.id
-    )
+    cancelled = await engine.cancel_run(db_session, organization_id=ctx.org_id, run_id=run.id)
     assert cancelled.status == ConnectorSyncRunStatus.cancelled.value
     assert cancelled.completed_at is not None
 
@@ -486,21 +485,15 @@ async def test_cancel_run_rejects_completed_run(db_session: AsyncSession) -> Non
         job_id=job.id,
     )
     # Run it to completion (no credential = fail, but still terminal)
-    await engine.run_sync(
-        db_session, sync_run_id=run.id, organization_id=ctx.org_id
-    )
+    await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
     await db_session.flush()
 
-    completed_run = await engine.get_sync_run(
-        db_session, organization_id=ctx.org_id, run_id=run.id
-    )
+    completed_run = await engine.get_sync_run(db_session, organization_id=ctx.org_id, run_id=run.id)
     assert completed_run is not None
     assert completed_run.status in {"completed", "failed"}
 
     with pytest.raises(SyncEngineError, match="terminal state"):
-        await engine.cancel_run(
-            db_session, organization_id=ctx.org_id, run_id=run.id
-        )
+        await engine.cancel_run(db_session, organization_id=ctx.org_id, run_id=run.id)
 
 
 # ---------------------------------------------------------------------------
@@ -598,9 +591,7 @@ async def test_run_sync_fails_gracefully_when_no_credential(
         job_id=job.id,
     )
 
-    result = await engine.run_sync(
-        db_session, sync_run_id=run.id, organization_id=ctx.org_id
-    )
+    result = await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
 
     assert result.status == "failed"
     assert "credential" in (result.error_message or "").lower()
@@ -627,6 +618,7 @@ async def test_run_sync_fails_when_adapter_not_registered(
 
     # Add a fake credential so we reach adapter lookup
     from app.models.connector_credential import ConnectorCredential
+
     cred = ConnectorCredential(
         organization_id=ctx.org_id,
         connection_id=ctx.connection.id,
@@ -644,9 +636,7 @@ async def test_run_sync_fails_when_adapter_not_registered(
     db_session.add(cred)
     await db_session.flush()
 
-    result = await engine.run_sync(
-        db_session, sync_run_id=run.id, organization_id=ctx.org_id
-    )
+    result = await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
     assert result.status == "failed"
     assert result.error_details.get("code") == "adapter_not_found"
 
@@ -671,9 +661,7 @@ async def test_run_sync_returns_cancelled_for_pre_cancelled_run(
     )
     await engine.cancel_run(db_session, organization_id=ctx.org_id, run_id=run.id)
 
-    result = await engine.run_sync(
-        db_session, sync_run_id=run.id, organization_id=ctx.org_id
-    )
+    result = await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
     assert result.status == "cancelled"
 
 

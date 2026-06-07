@@ -120,10 +120,15 @@ def build_gate_report(
     overridden_by_id: str | None = None,
     overridden_at: datetime | None = None,
 ) -> dict:
-    ci_exit_code = 0 if verdict in (
-        QualityGateVerdict.passed.value,
-        QualityGateVerdict.overridden.value,
-    ) else 1
+    ci_exit_code = (
+        0
+        if verdict
+        in (
+            QualityGateVerdict.passed.value,
+            QualityGateVerdict.overridden.value,
+        )
+        else 1
+    )
 
     return {
         "gate_run_id": gate_run_id,

@@ -532,9 +532,7 @@ async def sso_discover(
     """Return SSO redirect URL for a given email address, or indicate no SSO is configured."""
     domain = _domain_from_email(payload.email)
     if domain is None:
-        return SSODiscoverResponse(
-            sso_enabled=False, sso_type=None, redirect_url=None, domain=None
-        )
+        return SSODiscoverResponse(sso_enabled=False, sso_type=None, redirect_url=None, domain=None)
 
     config = await _sso_service.get_config_by_domain(db_session, domain=domain)
     if config is None or not config.enabled:
@@ -784,18 +782,18 @@ async def sso_sp_metadata(
     sp_acs_url = config.sp_acs_url
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        '<md:EntityDescriptor'
+        "<md:EntityDescriptor"
         ' xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"'
         f' entityID="{sp_entity_id}">'
-        '<md:SPSSODescriptor'
+        "<md:SPSSODescriptor"
         ' AuthnRequestsSigned="false"'
         ' WantAssertionsSigned="true"'
         ' protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">'
-        '<md:AssertionConsumerService'
+        "<md:AssertionConsumerService"
         ' Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"'
         f' Location="{sp_acs_url}"'
         ' index="1"/>'
-        '</md:SPSSODescriptor>'
-        '</md:EntityDescriptor>'
+        "</md:SPSSODescriptor>"
+        "</md:EntityDescriptor>"
     )
     return Response(content=xml, media_type="application/xml")

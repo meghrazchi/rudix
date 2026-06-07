@@ -319,7 +319,9 @@ async def list_quota_overrides(
     )
 
 
-@admin_router.post("/overrides", response_model=QuotaOverrideResponse, status_code=status.HTTP_201_CREATED)
+@admin_router.post(
+    "/overrides", response_model=QuotaOverrideResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_quota_override(
     request: Request,
     payload: CreateQuotaOverrideRequest,

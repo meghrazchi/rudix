@@ -128,7 +128,9 @@ class BulkDeleteDocumentsRequest(BaseModel):
 
 class BulkDeleteDocumentResult(BaseModel):
     document_id: str
-    status: Literal["delete_requested", "deleting", "deleted", "retained_by_policy", "not_found", "error"]
+    status: Literal[
+        "delete_requested", "deleting", "deleted", "retained_by_policy", "not_found", "error"
+    ]
     hold_reason: str | None = None
     error: str | None = None
 

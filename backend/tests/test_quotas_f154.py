@@ -301,7 +301,9 @@ async def test_usage_dashboard_reflects_increments(
         headers=_auth(admin_ctx["token"]),
     )
     # Increment usage directly via service
-    await increment_quota_usage(db_session, organization_id=org_id, quota_type=QuotaType.uploads, amount=4)
+    await increment_quota_usage(
+        db_session, organization_id=org_id, quota_type=QuotaType.uploads, amount=4
+    )
     await db_session.commit()
 
     resp = await quota_client.get(
@@ -328,12 +330,18 @@ async def test_usage_dashboard_reflects_increments(
 async def test_change_log_recorded(quota_client: AsyncClient, admin_ctx: dict) -> None:
     await quota_client.patch(
         "/api/admin/quotas/policy",
-        json={"uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"}, "change_note": "First"},
+        json={
+            "uploads": {"soft_limit": 10, "hard_limit": 20, "reset_window": "per_day"},
+            "change_note": "First",
+        },
         headers=_auth(admin_ctx["token"]),
     )
     await quota_client.patch(
         "/api/admin/quotas/policy",
-        json={"questions": {"soft_limit": 100, "hard_limit": 200, "reset_window": "per_day"}, "change_note": "Second"},
+        json={
+            "questions": {"soft_limit": 100, "hard_limit": 200, "reset_window": "per_day"},
+            "change_note": "Second",
+        },
         headers=_auth(admin_ctx["token"]),
     )
     resp = await quota_client.get(
@@ -394,7 +402,11 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
     user_a = User(email=f"ua-{uuid4().hex[:6]}@test.com", display_name="UA")
     db_session.add(user_a)
     await db_session.flush()
-    db_session.add(OrganizationMember(organization_id=org_a.id, user_id=user_a.id, role=OrganizationRole.admin.value))
+    db_session.add(
+        OrganizationMember(
+            organization_id=org_a.id, user_id=user_a.id, role=OrganizationRole.admin.value
+        )
+    )
     await db_session.flush()
     token_a = _make_token(str(user_a.id), str(org_a.id), OrganizationRole.admin.value)
 
@@ -405,7 +417,11 @@ async def test_org_isolation(quota_client: AsyncClient, db_session: AsyncSession
     user_b = User(email=f"ub-{uuid4().hex[:6]}@test.com", display_name="UB")
     db_session.add(user_b)
     await db_session.flush()
-    db_session.add(OrganizationMember(organization_id=org_b.id, user_id=user_b.id, role=OrganizationRole.admin.value))
+    db_session.add(
+        OrganizationMember(
+            organization_id=org_b.id, user_id=user_b.id, role=OrganizationRole.admin.value
+        )
+    )
     await db_session.flush()
     token_b = _make_token(str(user_b.id), str(org_b.id), OrganizationRole.admin.value)
 
@@ -483,7 +499,11 @@ async def test_list_overrides(quota_client: AsyncClient, owner_ctx: dict) -> Non
     for i in range(3):
         await quota_client.post(
             "/api/admin/quotas/overrides",
-            json={"quota_type": "uploads", "hard_limit_override": 100 * (i + 1), "reason": f"Override {i}"},
+            json={
+                "quota_type": "uploads",
+                "hard_limit_override": 100 * (i + 1),
+                "reason": f"Override {i}",
+            },
             headers=_auth(owner_ctx["token"]),
         )
 
@@ -574,7 +594,9 @@ async def test_near_limit_flag(
         headers=_auth(admin_ctx["token"]),
     )
     # 8 out of 10 = 80% — exactly at threshold
-    await increment_quota_usage(db_session, organization_id=org_id, quota_type=QuotaType.evaluations, amount=8)
+    await increment_quota_usage(
+        db_session, organization_id=org_id, quota_type=QuotaType.evaluations, amount=8
+    )
     await db_session.commit()
 
     resp = await quota_client.get("/api/admin/quotas/usage", headers=_auth(admin_ctx["token"]))
@@ -602,7 +624,9 @@ async def test_over_hard_limit_flag(
         json={"agent_runs": {"soft_limit": 5, "hard_limit": 10, "reset_window": "per_day"}},
         headers=_auth(admin_ctx["token"]),
     )
-    await increment_quota_usage(db_session, organization_id=org_id, quota_type=QuotaType.agent_runs, amount=11)
+    await increment_quota_usage(
+        db_session, organization_id=org_id, quota_type=QuotaType.agent_runs, amount=11
+    )
     await db_session.commit()
 
     resp = await quota_client.get("/api/admin/quotas/usage", headers=_auth(admin_ctx["token"]))

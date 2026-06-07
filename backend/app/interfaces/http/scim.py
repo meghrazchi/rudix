@@ -1,4 +1,5 @@
 """SCIM 2.0 endpoints — authenticated via SCIM bearer token (not JWT session)."""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -33,9 +34,7 @@ _SCIM_CONTENT_TYPE = "application/scim+json"
 def _scim_error(http_status: int, detail: str) -> JSONResponse:
     return JSONResponse(
         status_code=http_status,
-        content=SCIM2ErrorResponse(
-            status=str(http_status), detail=detail
-        ).model_dump(),
+        content=SCIM2ErrorResponse(status=str(http_status), detail=detail).model_dump(),
         media_type=_SCIM_CONTENT_TYPE,
     )
 
@@ -71,9 +70,7 @@ async def _authenticate(
             detail="Missing or malformed SCIM bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    config = await _scim_service.get_config_by_token_hash(
-        db_session, token_hash=token_hash
-    )
+    config = await _scim_service.get_config_by_token_hash(db_session, token_hash=token_hash)
     if config is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -84,6 +81,7 @@ async def _authenticate(
 
 
 # ── ServiceProviderConfig ─────────────────────────────────────────────────────
+
 
 @router.get("/ServiceProviderConfig")
 async def service_provider_config() -> JSONResponse:
@@ -110,6 +108,7 @@ async def service_provider_config() -> JSONResponse:
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("/Users")
 async def list_users(
     request: Request,
@@ -125,6 +124,7 @@ async def list_users(
     if filter:
         # Support minimal SCIM filter: userName eq "user@example.com"
         import re
+
         m = re.match(r'userName\s+eq\s+"([^"]+)"', filter, re.IGNORECASE)
         if m:
             filter_email = m.group(1)
@@ -166,9 +166,7 @@ async def create_user(
     display_name = payload.displayName
     if display_name is None and payload.name:
         display_name = payload.name.formatted or (
-            " ".join(
-                filter(None, [payload.name.givenName, payload.name.familyName])
-            ) or None
+            " ".join(filter(None, [payload.name.givenName, payload.name.familyName])) or None
         )
 
     try:

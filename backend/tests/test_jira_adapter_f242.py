@@ -12,6 +12,7 @@ Covers:
 - Provider contract suite
 - Missing site_url handling
 """
+
 from __future__ import annotations
 
 import json
@@ -89,9 +90,16 @@ _SAMPLE_ISSUE = {
                 {
                     "id": "20001",
                     "author": {"accountId": "acc-3", "displayName": "Carol"},
-                    "body": {"type": "doc", "version": 1, "content": [
-                        {"type": "paragraph", "content": [{"type": "text", "text": "Reproduced."}]},
-                    ]},
+                    "body": {
+                        "type": "doc",
+                        "version": 1,
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Reproduced."}],
+                            },
+                        ],
+                    },
                     "created": "2024-03-01T09:00:00.000+0000",
                     "updated": "2024-03-01T09:00:00.000+0000",
                 }
@@ -289,6 +297,7 @@ def test_normalize_comment_structure() -> None:
 def test_normalize_comment_requires_parent_id() -> None:
     """NormalizedExternalItem must reject comments without provider_parent_id."""
     from pydantic import ValidationError
+
     raw = _SAMPLE_ISSUE["fields"]["comment"]["comments"][0]
     item = normalize_comment(
         raw,
@@ -582,9 +591,7 @@ async def test_list_items_403_raises_auth_error() -> None:
 @pytest.mark.asyncio
 async def test_list_items_429_raises_rate_limit_error() -> None:
     adapter = JiraConnectorAdapter()
-    mock_response = _make_httpx_error_response(
-        status=429, headers={"Retry-After": "45"}
-    )
+    mock_response = _make_httpx_error_response(status=429, headers={"Retry-After": "45"})
 
     with patch("httpx.AsyncClient") as mock_client_cls:
         mock_client = AsyncMock()

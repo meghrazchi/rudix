@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import ConnectorRolloutStage, settings
 from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
@@ -29,6 +30,26 @@ from app.models.document import Document
 
 class ConnectorBoundaryError(ValueError):
     """Raised when a connector operation crosses an org or collection boundary."""
+
+
+class ConnectorPlatformDisabledError(ConnectorBoundaryError):
+    """Raised when connector platform rollout is disabled for the deployment."""
+
+
+def is_connector_platform_enabled() -> bool:
+    if not settings.feature_enable_connectors:
+        return False
+    stage = settings.connector_rollout_stage
+    if stage == ConnectorRolloutStage.off:
+        return False
+    if stage == ConnectorRolloutStage.all:
+        return True
+    return settings.environment.value == stage.value
+
+
+def ensure_connector_platform_enabled() -> None:
+    if not is_connector_platform_enabled():
+        raise ConnectorPlatformDisabledError("connector platform is disabled for this deployment")
 
 
 class ConnectorPlatformService:

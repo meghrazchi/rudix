@@ -1,4 +1,5 @@
 """Tests for admin OCR config endpoint and OCR quality metadata (F232)."""
+
 from __future__ import annotations
 
 import os
@@ -156,8 +157,20 @@ class TestOcrConfidenceScoring:
         result = OcrDocumentResult(
             status="completed",
             pages=[
-                OcrPageResult(page_number=1, text="x" * 200, languages=["eng"], status="completed", confidence=0.9),
-                OcrPageResult(page_number=2, text="x" * 50, languages=["eng"], status="completed", confidence=0.5),
+                OcrPageResult(
+                    page_number=1,
+                    text="x" * 200,
+                    languages=["eng"],
+                    status="completed",
+                    confidence=0.9,
+                ),
+                OcrPageResult(
+                    page_number=2,
+                    text="x" * 50,
+                    languages=["eng"],
+                    status="completed",
+                    confidence=0.5,
+                ),
             ],
             duration_ms=100,
             languages=["eng"],
@@ -183,9 +196,7 @@ class TestOcrConfidenceScoring:
 
 
 @pytest.mark.asyncio
-async def test_admin_can_set_ocr_language_to_german(
-    admin_client, db_session: AsyncSession
-) -> None:
+async def test_admin_can_set_ocr_language_to_german(admin_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = admin_client
     doc = await _create_doc(db_session, org_id=org_id, user_id=user_id)
 
@@ -200,9 +211,7 @@ async def test_admin_can_set_ocr_language_to_german(
 
 
 @pytest.mark.asyncio
-async def test_admin_can_set_multiple_ocr_languages(
-    admin_client, db_session: AsyncSession
-) -> None:
+async def test_admin_can_set_multiple_ocr_languages(admin_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = admin_client
     doc = await _create_doc(db_session, org_id=org_id, user_id=user_id)
 
@@ -251,9 +260,7 @@ async def test_admin_ocr_config_rejects_unsupported_language(
 
 
 @pytest.mark.asyncio
-async def test_member_cannot_set_ocr_language(
-    member_client, db_session: AsyncSession
-) -> None:
+async def test_member_cannot_set_ocr_language(member_client, db_session: AsyncSession) -> None:
     client, org_id, user_id = member_client
     doc = await _create_doc(db_session, org_id=org_id, user_id=user_id)
 

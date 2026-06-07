@@ -87,6 +87,14 @@ class MCPExternalAuthType(StrEnum):
     header = "header"
 
 
+class ConnectorRolloutStage(StrEnum):
+    off = "off"
+    development = "development"
+    staging = "staging"
+    production = "production"
+    all = "all"
+
+
 class MCPExternalServerSettings(BaseModel):
     server_id: str = Field(
         min_length=2,
@@ -278,9 +286,7 @@ class Settings(BaseSettings):
         default="documents.reindex", min_length=1, max_length=64
     )
     celery_queue_evaluations: str = Field(default="evaluations", min_length=1, max_length=64)
-    celery_queue_connector_sync: str = Field(
-        default="connectors.sync", min_length=1, max_length=64
-    )
+    celery_queue_connector_sync: str = Field(default="connectors.sync", min_length=1, max_length=64)
     connector_sync_schedule_poll_interval_seconds: int = Field(default=60, ge=10, le=3600)
     celery_task_max_retries: int = Field(default=5, ge=0, le=20)
     celery_retry_backoff_seconds: int = Field(default=2, ge=1, le=300)
@@ -419,6 +425,8 @@ class Settings(BaseSettings):
     connector_oauth_clients: Annotated[list[ConnectorOAuthClientSettings], NoDecode] = Field(
         default_factory=list
     )
+    feature_enable_connectors: bool = True
+    connector_rollout_stage: ConnectorRolloutStage = ConnectorRolloutStage.all
 
     feature_enable_embeddings: bool = True
     feature_enable_llm: bool = True
@@ -745,6 +753,9 @@ class Settings(BaseSettings):
                             "external MCP servers require auth_type=bearer or auth_type=header in staging/production"
                         )
 
+        if self.connector_rollout_stage == ConnectorRolloutStage.off:
+            self.feature_enable_connectors = False
+
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError(
                 "retrieval_final_top_k must be less than or equal to retrieval_initial_top_k"
@@ -1032,6 +1043,7 @@ class Settings(BaseSettings):
                 "encryption_key_set": self.connector_credential_encryption_key is not None,
                 "encryption_key_id": self.connector_credential_encryption_key_id,
                 "oauth_state_ttl_seconds": self.connector_oauth_state_ttl_seconds,
+                "rollout_stage": self.connector_rollout_stage.value,
                 "oauth_clients": [
                     {
                         "provider_key": client.provider_key,
@@ -1054,6 +1066,7 @@ class Settings(BaseSettings):
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "mcp": self.feature_enable_mcp,
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
+                "connectors": self.feature_enable_connectors,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
                 "language_aware_rag": self.feature_enable_language_aware_rag,
                 "advanced_pdf_extraction": self.feature_enable_advanced_pdf_extraction,
@@ -1080,6 +1093,7 @@ class Settings(BaseSettings):
                 "rate_limit_window_seconds": self.mcp_rate_limit_window_seconds,
                 "rate_limit_requests": self.mcp_rate_limit_requests,
                 "external_connectors_enabled": self.feature_enable_external_mcp_connectors,
+                "connector_rollout_stage": self.connector_rollout_stage.value,
                 "external_servers": [
                     {
                         "server_id": server.server_id,

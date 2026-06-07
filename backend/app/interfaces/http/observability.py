@@ -132,7 +132,9 @@ async def _build_api_metrics(
 
     for row in rows:
         metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
-        result = (row.metadata_json or {}).get("result") if isinstance(row.metadata_json, dict) else None
+        result = (
+            (row.metadata_json or {}).get("result") if isinstance(row.metadata_json, dict) else None
+        )
         if isinstance(result, str) and result.lower() in _AUDIT_FAILURE_RESULTS:
             failed += 1
         lat = _extract_float(metadata, "latency_ms", "duration_ms", "answer_latency_ms")
@@ -185,7 +187,9 @@ async def _build_llm_metrics(
         if lat is not None and lat >= 0:
             latency_values.append(lat)
 
-    top_models = sorted(model_counts.items(), key=lambda kv: kv[1], reverse=True)[:_TOP_MODELS_LIMIT]
+    top_models = sorted(model_counts.items(), key=lambda kv: kv[1], reverse=True)[
+        :_TOP_MODELS_LIMIT
+    ]
     top_model_summaries = [
         LlmModelSummary(
             model_name=name,

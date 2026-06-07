@@ -177,7 +177,9 @@ def _document(org_id, uploaded_by, status: str = "indexed", chunk_count: int = 5
 
 
 @pytest.mark.asyncio
-async def test_empty_org_returns_zero_metrics(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_empty_org_returns_zero_metrics(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     ctx = await _make_org_user(db_session)
     resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200
@@ -215,7 +217,9 @@ async def test_viewer_role_forbidden(obs_client: AsyncClient, db_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_api_metrics_total_requests(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_api_metrics_total_requests(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     ctx = await _make_org_user(db_session)
     from uuid import UUID
 
@@ -259,7 +263,9 @@ async def test_api_error_rate(obs_client: AsyncClient, db_session: AsyncSession)
 
 
 @pytest.mark.asyncio
-async def test_api_telemetry_missing_when_no_logs(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_api_telemetry_missing_when_no_logs(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     ctx = await _make_org_user(db_session)
     resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
     assert resp.json()["api_metrics"]["telemetry_missing"] is True
@@ -338,13 +344,23 @@ async def test_llm_top_models_sorted(obs_client: AsyncClient, db_session: AsyncS
 
 
 @pytest.mark.asyncio
-async def test_indexing_metrics_total_jobs(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_indexing_metrics_total_jobs(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     from uuid import UUID
 
     ctx = await _make_org_user(db_session)
     org_id = UUID(ctx["org_id"])
-    db_session.add(_usage_event(org_id, event_type="pipeline.index", model_name=None, metadata={"status": "completed"}))
-    db_session.add(_usage_event(org_id, event_type="pipeline.index", model_name=None, metadata={"status": "failed"}))
+    db_session.add(
+        _usage_event(
+            org_id, event_type="pipeline.index", model_name=None, metadata={"status": "completed"}
+        )
+    )
+    db_session.add(
+        _usage_event(
+            org_id, event_type="pipeline.index", model_name=None, metadata={"status": "failed"}
+        )
+    )
     db_session.add(_usage_event(org_id, event_type="chat.answer", model_name="gpt-4o", metadata={}))
     await db_session.flush()
 
@@ -367,8 +383,16 @@ async def test_indexing_success_rate(obs_client: AsyncClient, db_session: AsyncS
     ctx = await _make_org_user(db_session)
     org_id = UUID(ctx["org_id"])
     for _ in range(4):
-        db_session.add(_usage_event(org_id, event_type="pipeline.run", model_name=None, metadata={"status": "completed"}))
-    db_session.add(_usage_event(org_id, event_type="pipeline.run", model_name=None, metadata={"status": "failed"}))
+        db_session.add(
+            _usage_event(
+                org_id, event_type="pipeline.run", model_name=None, metadata={"status": "completed"}
+            )
+        )
+    db_session.add(
+        _usage_event(
+            org_id, event_type="pipeline.run", model_name=None, metadata={"status": "failed"}
+        )
+    )
     await db_session.flush()
 
     resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
@@ -410,7 +434,9 @@ async def test_storage_metrics(obs_client: AsyncClient, db_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_date_range_filters_audit_logs(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_date_range_filters_audit_logs(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     from uuid import UUID
 
     ctx = await _make_org_user(db_session)
@@ -439,7 +465,9 @@ async def test_date_range_filters_audit_logs(obs_client: AsyncClient, db_session
 
 
 @pytest.mark.asyncio
-async def test_invalid_date_range_returns_400(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_invalid_date_range_returns_400(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     ctx = await _make_org_user(db_session)
     resp = await obs_client.get(
         "/api/admin/observability?from=2026-06-10&to=2026-06-01",
@@ -474,7 +502,9 @@ async def test_org_isolation(obs_client: AsyncClient, db_session: AsyncSession) 
 
 
 @pytest.mark.asyncio
-async def test_response_includes_metadata(obs_client: AsyncClient, db_session: AsyncSession) -> None:
+async def test_response_includes_metadata(
+    obs_client: AsyncClient, db_session: AsyncSession
+) -> None:
     ctx = await _make_org_user(db_session)
     resp = await obs_client.get("/api/admin/observability", headers=_auth(ctx["token"]))
     assert resp.status_code == 200

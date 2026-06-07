@@ -164,20 +164,36 @@ async def update_model_provider_settings(
     request_id = _request_id(request)
 
     existing = await _repo.get_settings(db_session, organization_id=organization_id)
-    merged_disabled = payload.disabled_models if payload.disabled_models is not None else (
-        list(existing.disabled_models or []) if existing else []
+    merged_disabled = (
+        payload.disabled_models
+        if payload.disabled_models is not None
+        else (list(existing.disabled_models or []) if existing else [])
     )
 
     settings = await upsert_settings_with_log(
         db_session,
         organization_id=organization_id,
-        provider=payload.provider if payload.provider is not None else (existing.provider if existing else None),
-        llm_model=payload.llm_model if payload.llm_model is not None else (existing.llm_model if existing else None),
-        embedding_model=payload.embedding_model if payload.embedding_model is not None else (existing.embedding_model if existing else None),
-        max_tokens=payload.max_tokens if payload.max_tokens is not None else (existing.max_tokens if existing else None),
-        timeout_seconds=payload.timeout_seconds if payload.timeout_seconds is not None else (existing.timeout_seconds if existing else None),
-        max_retries=payload.max_retries if payload.max_retries is not None else (existing.max_retries if existing else None),
-        fallback_model=payload.fallback_model if payload.fallback_model is not None else (existing.fallback_model if existing else None),
+        provider=payload.provider
+        if payload.provider is not None
+        else (existing.provider if existing else None),
+        llm_model=payload.llm_model
+        if payload.llm_model is not None
+        else (existing.llm_model if existing else None),
+        embedding_model=payload.embedding_model
+        if payload.embedding_model is not None
+        else (existing.embedding_model if existing else None),
+        max_tokens=payload.max_tokens
+        if payload.max_tokens is not None
+        else (existing.max_tokens if existing else None),
+        timeout_seconds=payload.timeout_seconds
+        if payload.timeout_seconds is not None
+        else (existing.timeout_seconds if existing else None),
+        max_retries=payload.max_retries
+        if payload.max_retries is not None
+        else (existing.max_retries if existing else None),
+        fallback_model=payload.fallback_model
+        if payload.fallback_model is not None
+        else (existing.fallback_model if existing else None),
         disabled_models=merged_disabled,
         updated_by_id=user_id,
         change_note=payload.change_note,

@@ -20,6 +20,9 @@ class ConnectorAuditAction(StrEnum):
     sync_job_status_changed = "connector.sync.job.status_changed"
     sync_manual_queued = "connector.sync.manual_queued"
     sync_started = "connector.sync.started"
+    sync_retry_scheduled = "connector.sync.retry_scheduled"
     sync_succeeded = "connector.sync.succeeded"
     sync_failed = "connector.sync.failed"
-
+    sync_item_skipped = "connector.sync.item.skipped"
+    ingestion_failed = "connector.ingestion.failed"
+    ingestion_skipped = "connector.ingestion.skipped"

@@ -3,6 +3,7 @@
 Importing this package registers all built-in provider adapters with
 default_sync_adapter_registry so the sync engine can dispatch to them.
 """
+
 from app.domains.connectors.providers.confluence.adapter import ConfluenceConnectorAdapter
 from app.domains.connectors.providers.google_drive.adapter import GoogleDriveConnectorAdapter
 from app.domains.connectors.providers.jira.adapter import JiraConnectorAdapter

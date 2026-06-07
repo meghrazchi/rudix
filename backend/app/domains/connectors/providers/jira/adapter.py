@@ -15,6 +15,7 @@ Credential dict shape (OAuth2, stored in decrypted_credential):
 Cursor shape for full sync:    {"start_at": 0}
 Cursor shape for delta sync:   {"since": "2024-01-01T00:00:00+00:00", "start_at": 0}
 """
+
 from __future__ import annotations
 
 import re
@@ -223,11 +224,13 @@ class JiraConnectorAdapter(ConnectorProviderAdapter):
                 site_url=site_url,
                 sync_version=1,
             )
-            delta_items.append(DeltaItem(
-                provider_item_id=issue_item.provider_item_id,
-                is_deleted=False,
-                item=issue_item,
-            ))
+            delta_items.append(
+                DeltaItem(
+                    provider_item_id=issue_item.provider_item_id,
+                    is_deleted=False,
+                    item=issue_item,
+                )
+            )
 
             for comment_item in _extract_comments(
                 issue,
@@ -237,11 +240,13 @@ class JiraConnectorAdapter(ConnectorProviderAdapter):
                 site_url=site_url,
                 sync_version=1,
             ):
-                delta_items.append(DeltaItem(
-                    provider_item_id=comment_item.provider_item_id,
-                    is_deleted=False,
-                    item=comment_item,
-                ))
+                delta_items.append(
+                    DeltaItem(
+                        provider_item_id=comment_item.provider_item_id,
+                        is_deleted=False,
+                        item=comment_item,
+                    )
+                )
 
             updated_field = (issue.get("fields") or {}).get("updated", "")
             if updated_field and (latest_updated is None or updated_field > latest_updated):
@@ -256,7 +261,9 @@ class JiraConnectorAdapter(ConnectorProviderAdapter):
         }
         return DeltaPage(
             items=delta_items,
-            next_cursor=new_cursor if has_more else {
+            next_cursor=new_cursor
+            if has_more
+            else {
                 "since": new_cursor["since"],
                 "start_at": 0,
             },

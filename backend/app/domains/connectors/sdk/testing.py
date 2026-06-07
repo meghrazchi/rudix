@@ -7,6 +7,7 @@ Import from here in adapter test files to run the shared contract suite:
         run_adapter_contract_suite,
     )
 """
+
 from __future__ import annotations
 
 import json
@@ -40,7 +41,9 @@ def _make_item(
     from uuid import UUID
 
     return NormalizedExternalItem(
-        organization_id=UUID(organization_id) if isinstance(organization_id, str) else organization_id,
+        organization_id=UUID(organization_id)
+        if isinstance(organization_id, str)
+        else organization_id,
         provider_key=provider_key,
         provider_item_id=provider_item_id or f"item-{uuid4().hex[:8]}",
         item_type=item_type,
@@ -81,11 +84,13 @@ class FakeProviderAdapter(ConnectorProviderAdapter):
         cursor: dict,
         page_size: int,
     ) -> ItemPage:
-        self.list_calls.append({
-            "organization_id": organization_id,
-            "cursor": dict(cursor),
-            "page_size": page_size,
-        })
+        self.list_calls.append(
+            {
+                "organization_id": organization_id,
+                "cursor": dict(cursor),
+                "page_size": page_size,
+            }
+        )
 
         if self.raise_on_list is not None:
             raise self.raise_on_list
@@ -113,11 +118,13 @@ class FakeProviderAdapter(ConnectorProviderAdapter):
         cursor: dict,
         page_size: int,
     ) -> DeltaPage:
-        self.delta_calls.append({
-            "organization_id": organization_id,
-            "cursor": dict(cursor),
-            "page_size": page_size,
-        })
+        self.delta_calls.append(
+            {
+                "organization_id": organization_id,
+                "cursor": dict(cursor),
+                "page_size": page_size,
+            }
+        )
 
         if self.raise_on_delta is not None:
             raise self.raise_on_delta
@@ -133,6 +140,7 @@ class FakeProviderAdapter(ConnectorProviderAdapter):
 # Contract test harness — import and call run_adapter_contract_suite(adapter)
 # from any adapter's test module to verify it satisfies the connector contract.
 # ---------------------------------------------------------------------------
+
 
 class AdapterContractError(AssertionError):
     """Raised when an adapter violates the connector provider contract."""
@@ -164,9 +172,7 @@ async def run_adapter_contract_suite(
         page_size=10,
     )
     if not isinstance(page, ItemPage):
-        raise AdapterContractError(
-            f"list_items() must return ItemPage, got {type(page).__name__}"
-        )
+        raise AdapterContractError(f"list_items() must return ItemPage, got {type(page).__name__}")
 
     # --- Contract 2: every item has a valid sha-256 content_hash ---
     for item in page.items:
@@ -213,9 +219,7 @@ async def run_adapter_contract_suite(
                 f"DeltaPage.items must contain DeltaItem, got {type(delta_item).__name__}"
             )
         if not delta_item.is_deleted and delta_item.item is None:
-            raise AdapterContractError(
-                "DeltaItem with is_deleted=False must have item set"
-            )
+            raise AdapterContractError("DeltaItem with is_deleted=False must have item set")
         if not delta_item.is_deleted and delta_item.item is not None:
             _assert_valid_content_hash(delta_item.item.content_hash)
 
@@ -244,6 +248,4 @@ def _assert_json_serializable(data: Any, label: str) -> None:
     try:
         json.dumps(data)
     except (TypeError, ValueError) as exc:
-        raise AdapterContractError(
-            f"{label} must be JSON-serializable: {exc}"
-        ) from exc
+        raise AdapterContractError(f"{label} must be JSON-serializable: {exc}") from exc

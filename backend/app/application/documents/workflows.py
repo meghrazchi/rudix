@@ -367,7 +367,9 @@ async def upload_document_workflow(
                 "status": DocumentStatus.uploaded.value,
                 "collection_assigned": collection_assigned,
                 "duplicate_detected": duplicate_result.is_duplicate,
-                "duplicate_action": duplicate_result.action if duplicate_result.is_duplicate else None,
+                "duplicate_action": duplicate_result.action
+                if duplicate_result.is_duplicate
+                else None,
                 "existing_document_id": str(duplicate_result.existing_document_id)
                 if duplicate_result.existing_document_id
                 else None,
@@ -608,9 +610,7 @@ async def delete_document_workflow(
             request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
-        return DeleteDocumentResponse(
-            document_id=str(document.id), status=document.status
-        )
+        return DeleteDocumentResponse(document_id=str(document.id), status=document.status)
 
     # Transition to delete_requested before attempting to enqueue.
     updated = await document_repository.update_document_status(
@@ -743,9 +743,7 @@ async def bulk_delete_documents_workflow(
 
         doc = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
         if doc is None or doc.organization_id != actor_organization_id:
-            results.append(
-                BulkDeleteDocumentResult(document_id=doc_id, status="not_found")
-            )
+            results.append(BulkDeleteDocumentResult(document_id=doc_id, status="not_found"))
             errors += 1
             continue
 
