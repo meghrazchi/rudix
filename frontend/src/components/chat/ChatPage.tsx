@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 
 import Link from "next/link";
@@ -21,7 +20,9 @@ import {
 
 import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
+import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
+import { ChatComposer } from "@/components/chat/ChatComposer";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -98,18 +99,6 @@ type AnswerLanguageMode =
   | "de"
   | "es"
   | "fr";
-
-const ANSWER_LANGUAGE_OPTIONS: ReadonlyArray<{
-  value: AnswerLanguageMode;
-  label: string;
-}> = [
-  { value: "auto", label: "Auto" },
-  { value: "same_as_question", label: "Match question" },
-  { value: "en", label: "English" },
-  { value: "de", label: "German" },
-  { value: "es", label: "Spanish" },
-  { value: "fr", label: "French" },
-];
 
 function parsePositiveIntegerEnv(
   value: string | undefined,
@@ -1371,6 +1360,13 @@ export function ChatPage() {
     agentRunMutation.error ??
     createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
+  const composerSubmitButtonLabel = createSessionMutation.isPending
+    ? "Starting session…"
+    : agentRunMutation.isPending
+      ? "Running agent…"
+      : queryMutation.isPending
+        ? "Generating answer…"
+        : "Send message";
   const canDecideApprovals = isAdminLikeRole(state.session?.role ?? null);
   const showDebugDetails =
     isAdminLikeRole(state.session?.role ?? null) ||
@@ -1483,11 +1479,6 @@ export function ChatPage() {
         status: params.status,
       },
     });
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    void submitQuestion();
   }
 
   async function submitQuestion() {
@@ -1645,7 +1636,7 @@ export function ChatPage() {
 
   return (
     <>
-      <section className="flex h-full min-h-0 flex-col gap-4 px-4 py-4 lg:px-8 lg:py-6">
+      <section className="flex h-full min-h-0 flex-col gap-4 overflow-hidden px-4 py-4 lg:px-8 lg:py-6">
         <header className="rounded-2xl border border-[#d7d4e8] bg-white px-4 py-4 shadow-sm lg:px-5">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
@@ -1696,9 +1687,9 @@ export function ChatPage() {
         </header>
 
         <div
-          className={`grid min-h-0 flex-1 gap-4 ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
+          className={`grid min-h-0 flex-1 gap-4 overflow-hidden ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
-          <aside className="hide-scrollbar min-h-0 space-y-4 xl:overflow-y-auto xl:pr-1">
+          <aside className="hide-scrollbar min-h-0 space-y-4 overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
                 Sessions
@@ -1935,7 +1926,7 @@ export function ChatPage() {
             </section>
           </aside>
 
-          <section className="min-h-0 rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
+          <section className="min-h-0 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
             <div className="flex h-full min-h-0 flex-col">
               <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
                 <div className="min-w-0">
@@ -2468,24 +2459,13 @@ export function ChatPage() {
                             </p>
                           </article>
                         </div>
-                        <div className="flex items-start gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#3525cd] text-white">
-                            <span
-                              className="material-symbols-outlined text-[18px]"
-                              aria-hidden="true"
-                              style={{ fontVariationSettings: "'FILL' 1" }}
-                            >
-                              bolt
-                            </span>
-                          </div>
-                          <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
-                            <p className="text-sm text-[#464555]">
-                              {STREAMING_PLACEHOLDER_ENABLED
-                                ? "Streaming response..."
-                                : "Generating answer..."}
-                            </p>
-                          </article>
-                        </div>
+                        <ChatResponseLoadingState
+                          label={
+                            STREAMING_PLACEHOLDER_ENABLED
+                              ? "Streaming response..."
+                              : "Generating answer..."
+                          }
+                        />
                       </li>
                     ) : null}
                   </ul>
@@ -2514,378 +2494,41 @@ export function ChatPage() {
                 </div>
               ) : null}
 
-              <div className="border-t border-[#e2dff1] p-4">
-                <form onSubmit={handleSubmit}>
-                  <div className="relative overflow-hidden rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm">
-                    {/* Integrated toolbar */}
-                    <div className="flex items-center gap-3 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
-                      {/* ── Scope ── */}
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[14px] text-[#6a6780]"
-                          aria-hidden="true"
-                        >
-                          travel_explore
-                        </span>
-                        <span className="tracking-wider uppercase">Scope</span>
-                        <select
-                          value={scopeMode}
-                          onChange={(e) =>
-                            setScopeMode(e.target.value as ChatScopeMode)
-                          }
-                          aria-label="Scope type"
-                          className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
-                        >
-                          <option value="all">All files</option>
-                          <option value="collection">Collection</option>
-                          <option value="documents">Files</option>
-                          <option value="connectors">Connectors</option>
-                          <option value="none">No RAG</option>
-                        </select>
-                      </div>
-
-                      {/* Collection value picker */}
-                      {scopeMode === "collection" && (
-                        <>
-                          <span
-                            className="h-3 w-px bg-[#c7c4d8]"
-                            aria-hidden="true"
-                          />
-                          <select
-                            value={selectedCollectionId ?? ""}
-                            onChange={(e) =>
-                              setSelectedCollectionId(e.target.value || null)
-                            }
-                            aria-label="Select collection"
-                            className="max-w-[160px] cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
-                          >
-                            <option value="">— choose collection —</option>
-                            {(collectionsListQuery.data?.items ?? []).map(
-                              (col) => (
-                                <option
-                                  key={col.collection_id}
-                                  value={col.collection_id}
-                                >
-                                  {col.name}
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </>
-                      )}
-
-                      {/* Files value picker */}
-                      {scopeMode === "documents" && (
-                        <>
-                          <span
-                            className="h-3 w-px bg-[#c7c4d8]"
-                            aria-hidden="true"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsContextModalOpen(true);
-                              setContextSearchQuery("");
-                              setContextPage(1);
-                            }}
-                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] transition-colors hover:bg-[#e8e4f8]"
-                          >
-                            <span
-                              className="material-symbols-outlined text-[13px]"
-                              aria-hidden="true"
-                            >
-                              upload_file
-                            </span>
-                            Select Files
-                          </button>
-                          {filteredSelectedDocumentIds.length > 0 && (
-                            <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                              {filteredSelectedDocumentIds.length} file
-                              {filteredSelectedDocumentIds.length !== 1
-                                ? "s"
-                                : ""}{" "}
-                              selected
-                            </span>
-                          )}
-                        </>
-                      )}
-
-                      {/* Connector value picker */}
-                      {scopeMode === "connectors" && (
-                        <>
-                          <span
-                            className="h-3 w-px bg-[#c7c4d8]"
-                            aria-hidden="true"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsContextModalOpen(true);
-                              setContextSearchQuery("");
-                              setContextPage(1);
-                            }}
-                            className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#464555] transition-colors hover:bg-[#e8e4f8]"
-                          >
-                            <span
-                              className="material-symbols-outlined text-[13px]"
-                              aria-hidden="true"
-                            >
-                              hub
-                            </span>
-                            Select Sources
-                          </button>
-                          {hasConnectorScopeSelection && (
-                            <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                              {selectedConnectorConnectionIds.length +
-                                selectedProviderSourceIds.length}{" "}
-                              source
-                              {selectedConnectorConnectionIds.length +
-                                selectedProviderSourceIds.length !==
-                              1
-                                ? "s"
-                                : ""}{" "}
-                              selected
-                            </span>
-                          )}
-                        </>
-                      )}
-
-                      <span
-                        className="h-3 w-px bg-[#c7c4d8]"
-                        aria-hidden="true"
-                      />
-
-                      {/* ── Top-k ── */}
-                      <div className="flex items-center gap-2">
-                        <label
-                          htmlFor="top-k-slider"
-                          className="tracking-wider uppercase"
-                        >
-                          Top-k
-                        </label>
-                        <input
-                          id="top-k-slider"
-                          type="range"
-                          min={MIN_TOP_K}
-                          max={MAX_TOP_K}
-                          value={topK}
-                          onChange={(event) => {
-                            const parsed = Number.parseInt(
-                              event.target.value,
-                              10,
-                            );
-                            if (Number.isFinite(parsed))
-                              setTopK(
-                                Math.min(
-                                  MAX_TOP_K,
-                                  Math.max(MIN_TOP_K, parsed),
-                                ),
-                              );
-                          }}
-                          className="h-1 w-20 cursor-pointer appearance-none rounded-full bg-[#c7c4d8] accent-[#3525cd]"
-                        />
-                        <span className="font-mono text-[#3525cd]">{topK}</span>
-                        <input
-                          id="top-k-input"
-                          type="number"
-                          min={MIN_TOP_K}
-                          max={MAX_TOP_K}
-                          value={topK}
-                          onChange={(event) => {
-                            const parsed = Number.parseInt(
-                              event.target.value,
-                              10,
-                            );
-                            if (Number.isFinite(parsed))
-                              setTopK(
-                                Math.min(
-                                  MAX_TOP_K,
-                                  Math.max(MIN_TOP_K, parsed),
-                                ),
-                              );
-                          }}
-                          className="sr-only"
-                          aria-label="Top K"
-                        />
-                      </div>
-
-                      <span
-                        className="h-3 w-px bg-[#c7c4d8]"
-                        aria-hidden="true"
-                      />
-
-                      {/* ── Answer language ── */}
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[14px] text-[#6a6780]"
-                          aria-hidden="true"
-                        >
-                          translate
-                        </span>
-                        <span className="tracking-wider uppercase">Answer</span>
-                        <select
-                          value={answerLanguage}
-                          onChange={(e) =>
-                            setAnswerLanguage(
-                              e.target.value as AnswerLanguageMode,
-                            )
-                          }
-                          aria-label="Answer language"
-                          className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
-                        >
-                          {ANSWER_LANGUAGE_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <span
-                        className="h-3 w-px bg-[#c7c4d8]"
-                        aria-hidden="true"
-                      />
-
-                      {/* ── Rerank ── */}
-                      <label className="flex cursor-pointer items-center gap-1.5">
-                        <span>Rerank</span>
-                        <span className="relative inline-flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={rerank}
-                            onChange={(e) => setRerank(e.target.checked)}
-                            className="peer sr-only"
-                          />
-                          <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd]" />
-                          <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5" />
-                        </span>
-                      </label>
-
-                      <span
-                        className="h-3 w-px bg-[#c7c4d8]"
-                        aria-hidden="true"
-                      />
-
-                      {/* ── Agentic ── */}
-                      <label className="flex cursor-pointer items-center gap-1.5">
-                        <span>Agentic</span>
-                        <span className="relative inline-flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={agenticMode}
-                            disabled={!AGENTIC_CHAT_ENABLED}
-                            onChange={(e) => setAgenticMode(e.target.checked)}
-                            className="peer sr-only"
-                          />
-                          <span className="h-3.5 w-7 rounded-full bg-[#c7c4d8] transition peer-checked:bg-[#3525cd] peer-disabled:opacity-50" />
-                          <span className="absolute left-0.5 h-2.5 w-2.5 rounded-full bg-white transition peer-checked:translate-x-3.5 peer-disabled:opacity-80" />
-                        </span>
-                      </label>
-
-                      {/* ── Context button (far right) ── */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsContextModalOpen(true);
-                          setContextSearchQuery("");
-                          setContextPage(1);
-                        }}
-                        className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[#3525cd] transition-colors hover:bg-[#ece8ff]/60"
-                        aria-label={`Context (${contextScopeLabel}) — click to view or change`}
-                      >
-                        <span
-                          className="material-symbols-outlined text-[13px]"
-                          aria-hidden="true"
-                        >
-                          history
-                        </span>
-                        Context ({contextScopeItemCount})
-                      </button>
-                    </div>
-
-                    {/* Scope warning banner */}
-                    {scopeWarning && (
-                      <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        <span
-                          className="material-symbols-outlined text-[14px]"
-                          aria-hidden="true"
-                        >
-                          warning
-                        </span>
-                        {scopeWarning}
-                      </div>
-                    )}
-
-                    {/* Textarea + send */}
-                    <div className="relative flex items-end bg-white">
-                      <textarea
-                        value={question}
-                        onChange={(event) => setQuestion(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (
-                            (event.metaKey || event.ctrlKey) &&
-                            event.key === "Enter"
-                          ) {
-                            event.preventDefault();
-                            void submitQuestion();
-                          }
-                        }}
-                        rows={2}
-                        placeholder="Type a message or use '/' for commands..."
-                        disabled={
-                          requiresUploadedDocuments && !hasIndexedDocuments
-                        }
-                        className="w-full resize-none border-none bg-transparent py-3 pr-14 pl-3 text-sm text-[#2f2a46] outline-none focus:ring-0"
-                      />
-                      <div className="absolute right-3 bottom-2.5">
-                        <button
-                          type="submit"
-                          disabled={isComposerDisabled}
-                          aria-label={
-                            createSessionMutation.isPending
-                              ? "Starting session…"
-                              : agentRunMutation.isPending
-                                ? "Running agent…"
-                                : queryMutation.isPending
-                                  ? "Generating answer…"
-                                  : "Send message"
-                          }
-                          className="flex items-center justify-center rounded-xl bg-[#3525cd] p-2 text-white transition-all hover:shadow-lg active:scale-90 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <span
-                            className="material-symbols-outlined text-[20px]"
-                            aria-hidden="true"
-                          >
-                            arrow_upward
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {!AGENTIC_CHAT_ENABLED && (
-                    <p className="mt-2 text-xs text-[#8a4762]">
-                      Agentic Mode is disabled for this deployment.
-                    </p>
-                  )}
-                  {AGENTIC_CHAT_ENABLED && hasConnectorScopeSelection && (
-                    <p className="mt-2 text-xs text-[#8a4762]">
-                      Agentic Mode switches to standard retrieval when connector
-                      sources are selected.
-                    </p>
-                  )}
-                  {!hasIndexedDocuments && requiresUploadedDocuments && (
-                    <p className="mt-2 text-center text-xs text-[#777587]">
-                      <span>
-                        Chat is disabled until at least one document is indexed.
-                      </span>{" "}
-                      <span>
-                        Switch to No RAG mode to chat without documents.
-                      </span>
-                    </p>
-                  )}
-                </form>
-              </div>
+              <ChatComposer
+                agenticChatEnabled={AGENTIC_CHAT_ENABLED}
+                agenticMode={agenticMode}
+                answerLanguage={answerLanguage}
+                collections={collectionsListQuery.data?.items ?? []}
+                contextScopeItemCount={contextScopeItemCount}
+                contextScopeLabel={contextScopeLabel}
+                disabled={isComposerDisabled}
+                filteredSelectedDocumentIds={filteredSelectedDocumentIds}
+                hasConnectorScopeSelection={hasConnectorScopeSelection}
+                hasIndexedDocuments={hasIndexedDocuments}
+                maxTopK={MAX_TOP_K}
+                minTopK={MIN_TOP_K}
+                onSubmit={submitQuestion}
+                question={question}
+                requiresUploadedDocuments={requiresUploadedDocuments}
+                rerank={rerank}
+                scopeMode={scopeMode}
+                scopeWarning={scopeWarning}
+                selectedCollectionId={selectedCollectionId}
+                selectedConnectorConnectionIds={selectedConnectorConnectionIds}
+                selectedProviderSourceIds={selectedProviderSourceIds}
+                setAgenticMode={setAgenticMode}
+                setAnswerLanguage={setAnswerLanguage}
+                setContextPage={setContextPage}
+                setContextSearchQuery={setContextSearchQuery}
+                setIsContextModalOpen={setIsContextModalOpen}
+                setQuestion={setQuestion}
+                setRerank={setRerank}
+                setScopeMode={setScopeMode}
+                setSelectedCollectionId={setSelectedCollectionId}
+                setTopK={setTopK}
+                submitButtonLabel={composerSubmitButtonLabel}
+                topK={topK}
+              />
             </div>
           </section>
 
@@ -3436,7 +3079,8 @@ export function ChatPage() {
                   Select context
                 </h2>
                 <p className="mt-1 text-xs text-[#6a6780]">
-                  Choose indexed documents and connector sources to scope retrieval.
+                  Choose indexed documents and connector sources to scope
+                  retrieval.
                 </p>
               </div>
               <button

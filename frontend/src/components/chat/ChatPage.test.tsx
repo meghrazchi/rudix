@@ -80,6 +80,14 @@ function renderPage() {
   );
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
 async function openSessionMenu(sessionTitle: string) {
   const item = await screen.findByText(sessionTitle);
   const row = item.closest("li") as HTMLElement;
@@ -369,6 +377,83 @@ describe("ChatPage", () => {
     expect(
       screen.getAllByText("Policy became active in May 2026.").length,
     ).toBeGreaterThan(0);
+  });
+
+  it("shows the response loading state while a query is in flight", async () => {
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 3,
+          chunk_count: 42,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    const deferredQuery = createDeferred<Awaited<ReturnType<typeof queryChat>>>();
+    vi.mocked(queryChat).mockReturnValue(deferredQuery.promise);
+
+    renderPage();
+
+    await screen.findByRole("button", { name: /Context \([1-9]/i });
+
+    await userEvent.type(
+      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
+      "What is the policy status?",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Send message/i }),
+    );
+
+    expect(
+      screen.queryByText(
+        "Chat is disabled until at least one document is indexed.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Generating answer...")).toBeInTheDocument();
+
+    deferredQuery.resolve({
+      chat_session_id: "session-1",
+      message_id: "msg-1",
+      answer: "The policy is active.",
+      confidence_score: 0.72,
+      confidence_category: "medium",
+      confidence_explanation: {
+        top_similarity: 0.5,
+        average_similarity: 0.45,
+        top_rerank_score: 0.48,
+        citation_support_score: 0.6,
+        citation_validation_score: 0.9,
+        citation_coverage_score: 0.7,
+        retrieval_agreement_score: 0.65,
+        raw_score: 0.72,
+        citation_validation_multiplier: 1,
+        not_found_penalty_multiplier: 1,
+        no_context: false,
+        not_found_signal: false,
+        weights: {},
+        thresholds: {},
+      },
+      not_found: false,
+      citations: [],
+      debug: null,
+      created_at: "2026-05-14T10:10:00Z",
+    });
+
+    expect(await screen.findByText("The policy is active.")).toBeInTheDocument();
   });
 
   it("hides debug panel for normal users by default", async () => {
@@ -2992,10 +3077,14 @@ describe("ChatPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: /Chat Session/i });
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Type a message or use '/' for commands..."),
-      "Test question",
+    const textarea = screen.getByPlaceholderText(
+      "Type a message or use '/' for commands...",
     );
+    await waitFor(() => {
+      expect(textarea).not.toBeDisabled();
+    });
+
+    await userEvent.type(textarea, "Test question");
 
     vi.mocked(queryChat).mockResolvedValue({
       chat_session_id: "session-auto",
@@ -3044,4 +3133,75 @@ describe("ChatPage", () => {
     const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
     expect(call?.answer_language).toBeUndefined();
   });
+
+  it("grows the composer textarea from one line up to ten lines", async () => {
+    const composerPlaceholder =
+      "Type a message or use '/' for commands...";
+
+    vi.mocked(listDocuments).mockResolvedValue({
+      items: [
+        {
+          document_id: "doc-indexed-1",
+          filename: "policy.pdf",
+          file_type: "pdf",
+          status: "indexed",
+          page_count: 3,
+          chunk_count: 42,
+          error_message: null,
+          error_details: null,
+          created_at: "2026-05-14T10:00:00Z",
+          updated_at: "2026-05-14T10:05:00Z",
+        },
+      ],
+      total: 1,
+      limit: 200,
+      offset: 0,
+      status: "indexed",
+      sort_by: "updated_at",
+      sort_order: "desc",
+    });
+
+    renderPage();
+
+    const textarea = await screen.findByPlaceholderText(composerPlaceholder);
+    const sendButton = screen.getByRole("button", { name: /Send message/i });
+
+    expect(textarea).toHaveStyle({ height: "48px" });
+    expect(sendButton).toHaveClass("opacity-0");
+    expect(sendButton.parentElement).toHaveClass("top-1/2");
+
+    fireEvent.change(textarea, {
+      target: { value: "Line one\nLine two" },
+    });
+
+    await waitFor(() => {
+      const currentTextarea = screen.getByPlaceholderText(composerPlaceholder);
+      const currentSendButton = screen.getByRole("button", {
+        name: /Send message/i,
+      });
+
+      expect(currentTextarea).toHaveValue("Line one\nLine two");
+      expect(currentTextarea).toHaveStyle({ height: "72px" });
+      expect(currentTextarea).toHaveStyle({ overflowY: "hidden" });
+      expect(currentSendButton).toHaveClass("opacity-100");
+      expect(currentSendButton.parentElement).toHaveClass("bottom-2.5");
+    });
+
+    fireEvent.change(textarea, {
+      target: {
+        value: Array.from(
+          { length: 10 },
+          (_, index) => `Line ${index + 1}`,
+        ).join("\n"),
+      },
+    });
+
+    await waitFor(() => {
+      const currentTextarea = screen.getByPlaceholderText(composerPlaceholder);
+
+      expect(currentTextarea).toHaveStyle({ height: "264px" });
+      expect(currentTextarea).toHaveStyle({ overflowY: "auto" });
+    });
+  });
+
 });
