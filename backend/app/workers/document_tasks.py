@@ -501,7 +501,7 @@ async def _upsert_connector_chunk_references(
         "source_item_content_hash": content_hash,
         "sync_version": source_document.sync_version,
         "source_item_sync_version": sync_version,
-        "last_synced_at": source_document.updated_at,
+        "last_synced_at": source_document.updated_at.isoformat() if source_document.updated_at else None,
         "trust_status": source_ref_status,
         "acl_snapshot": permissions_json or {},
     }

@@ -675,3 +675,174 @@ async def test_run_sync_returns_cancelled_for_pre_cancelled_run(
         db_session, sync_run_id=run.id, organization_id=ctx.org_id
     )
     assert result.status == "cancelled"
+
+
+# ---------------------------------------------------------------------------
+# Ingestion bridge → process_document task dispatch
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_maybe_ingest_file_item_dispatches_process_document_task() -> None:
+    """After a successful ingestion the sync engine must dispatch process_document.delay."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
+    from app.domains.connectors.services.ingestion_bridge import IngestionResult
+    from app.models.enums import DocumentStatus, ExternalItemType
+
+    org_id = uuid4()
+    user_id = uuid4()
+    doc_id = uuid4()
+    ext_item_id = uuid4()
+
+    mock_run = MagicMock()
+    mock_run.id = uuid4()
+    mock_run.organization_id = org_id
+    mock_run.connection_id = uuid4()
+    mock_run.sync_version = 1000
+
+    mock_connection = MagicMock()
+    mock_connection.id = mock_run.connection_id
+    mock_connection.created_by_user_id = user_id
+
+    mock_norm_item = MagicMock()
+    mock_norm_item.item_type = ExternalItemType.cloud_file
+    mock_norm_item.provider_item_id = "gdrive-file-1"
+    mock_norm_item.mime_type = "application/pdf"
+    mock_norm_item.source_url = "https://drive.google.com/file/d/abc123"
+    mock_norm_item.title = "Test Doc"
+    mock_norm_item.metadata = {}
+    mock_norm_item.permissions = []
+    mock_norm_item.visibility = MagicMock(value="org_wide")
+    mock_norm_item.content_hash = "a" * 64
+    mock_norm_item.sync_version = 1000
+
+    mock_adapter = MagicMock()
+    mock_adapter.download_file_content = AsyncMock(
+        return_value=(b"%PDF-1.4 fake pdf", "test.pdf", "application/pdf")
+    )
+
+    mock_bridge = MagicMock()
+    mock_bridge.ingest_item = AsyncMock(
+        return_value=IngestionResult(
+            document_id=doc_id,
+            source_document_id=uuid4(),
+            status=DocumentStatus.pending_scan,
+            checksum="a" * 64,
+            is_duplicate=False,
+            duplicate_of_document_id=None,
+            error=None,
+        )
+    )
+
+    mock_ext_item = MagicMock()
+    mock_ext_item.id = ext_item_id
+    mock_ext_item.collection_id = None
+
+    mock_session = AsyncMock()
+    mock_execute_result = MagicMock()
+    mock_execute_result.scalar_one_or_none.return_value = mock_ext_item
+    mock_session.execute = AsyncMock(return_value=mock_execute_result)
+
+    engine = ConnectorSyncEngine()
+    engine.ingestion_bridge = mock_bridge
+
+    with patch("app.workers.document_tasks.process_document") as mock_task:
+        mock_delay = MagicMock()
+        mock_task.delay = mock_delay
+
+        await engine._maybe_ingest_file_item(
+            mock_session,
+            run=mock_run,
+            connection=mock_connection,
+            adapter=mock_adapter,
+            norm_item=mock_norm_item,
+            decrypted_credential={},
+        )
+
+    mock_bridge.ingest_item.assert_awaited_once()
+    mock_delay.assert_called_once_with(
+        str(doc_id),
+        organization_id=str(org_id),
+        user_id=str(user_id),
+    )
+
+
+@pytest.mark.asyncio
+async def test_maybe_ingest_file_item_does_not_dispatch_on_skipped_result() -> None:
+    """Duplicate/skipped ingestion results must NOT dispatch process_document."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
+    from app.domains.connectors.services.ingestion_bridge import IngestionResult
+    from app.models.enums import DocumentStatus, ExternalItemType
+
+    org_id = uuid4()
+    user_id = uuid4()
+    existing_doc_id = uuid4()
+
+    mock_run = MagicMock()
+    mock_run.id = uuid4()
+    mock_run.organization_id = org_id
+    mock_run.connection_id = uuid4()
+    mock_run.sync_version = 1000
+
+    mock_connection = MagicMock()
+    mock_connection.id = mock_run.connection_id
+    mock_connection.created_by_user_id = user_id
+
+    mock_norm_item = MagicMock()
+    mock_norm_item.item_type = ExternalItemType.cloud_file
+    mock_norm_item.provider_item_id = "gdrive-dup-1"
+    mock_norm_item.mime_type = "application/pdf"
+    mock_norm_item.source_url = "https://drive.google.com/file/d/dup"
+    mock_norm_item.title = "Dup Doc"
+    mock_norm_item.metadata = {}
+    mock_norm_item.permissions = []
+    mock_norm_item.visibility = MagicMock(value="org_wide")
+    mock_norm_item.content_hash = "b" * 64
+    mock_norm_item.sync_version = 1000
+
+    mock_adapter = MagicMock()
+    mock_adapter.download_file_content = AsyncMock(
+        return_value=(b"%PDF-1.4 dup", "dup.pdf", "application/pdf")
+    )
+
+    mock_bridge = MagicMock()
+    mock_bridge.ingest_item = AsyncMock(
+        return_value=IngestionResult(
+            document_id=existing_doc_id,
+            source_document_id=uuid4(),
+            status=DocumentStatus.skipped,
+            checksum="b" * 64,
+            is_duplicate=True,
+            duplicate_of_document_id=existing_doc_id,
+            error=None,
+        )
+    )
+
+    mock_ext_item = MagicMock()
+    mock_ext_item.id = uuid4()
+    mock_ext_item.collection_id = None
+
+    mock_session = AsyncMock()
+    mock_execute_result = MagicMock()
+    mock_execute_result.scalar_one_or_none.return_value = mock_ext_item
+    mock_session.execute = AsyncMock(return_value=mock_execute_result)
+
+    engine = ConnectorSyncEngine()
+    engine.ingestion_bridge = mock_bridge
+
+    with patch("app.workers.document_tasks.process_document") as mock_task:
+        mock_delay = MagicMock()
+        mock_task.delay = mock_delay
+
+        await engine._maybe_ingest_file_item(
+            mock_session,
+            run=mock_run,
+            connection=mock_connection,
+            adapter=mock_adapter,
+            norm_item=mock_norm_item,
+            decrypted_credential={},
+        )
+
+    mock_delay.assert_not_called()

@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { listProviders } from "@/lib/api/connector-providers";
 import {
-  deleteConnectorConnection,
+  disconnectConnector,
   listConnectorConnections,
 } from "@/lib/api/connectors";
 import type { ConnectorConnectionsListResponse } from "@/lib/api/connectors";
@@ -23,6 +23,7 @@ type ConnectionRow = {
   lastSyncLabel: string;
   lastSyncStatus: string;
   itemsIndexed: number;
+  errorMessage: string | null;
 };
 
 type CatalogEntry = {
@@ -42,7 +43,7 @@ const CATALOG: CatalogEntry[] = [
     description: "Sync issues, epics, and documentation from Jira Cloud.",
     brandColor: "#0052CC",
     initial: "J",
-    connected: true,
+    connected: false,
     available: true,
   },
   {
@@ -61,7 +62,7 @@ const CATALOG: CatalogEntry[] = [
     brandColor: "#4285F4",
     initial: "G",
     connected: false,
-    available: false,
+    available: true,
   },
   {
     key: "sharepoint",
@@ -118,6 +119,7 @@ function connectionToRow(connection: {
   status: string;
   last_sync_at: string | null;
   source_count: number;
+  error_message: string | null;
 }): ConnectionRow {
   return {
     id: connection.id,
@@ -144,6 +146,7 @@ function connectionToRow(connection: {
             ? "Needs attention"
             : "Unknown",
     itemsIndexed: connection.source_count,
+    errorMessage: connection.error_message,
   };
 }
 
@@ -190,7 +193,7 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: ConnectionRow["status"] }) {
+function StatusBadge({ status, errorMessage }: { status: ConnectionRow["status"]; errorMessage: string | null }) {
   if (status === "active") {
     return (
       <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-1 rounded">
@@ -201,7 +204,10 @@ function StatusBadge({ status }: { status: ConnectionRow["status"] }) {
   }
   if (status === "error") {
     return (
-      <span className="inline-flex items-center gap-1.5 bg-red-100 text-red-800 text-[11px] font-bold px-2 py-1 rounded">
+      <span
+        className="inline-flex items-center gap-1.5 bg-red-100 text-red-800 text-[11px] font-bold px-2 py-1 rounded cursor-help"
+        title={errorMessage ?? undefined}
+      >
         <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
         ERROR
       </span>
@@ -244,12 +250,12 @@ function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (ke
         <ProviderIcon brandColor={entry.brandColor} initial={entry.initial} />
         <h4 className="text-lg font-semibold text-[#1b1b24] mt-4 mb-1">{entry.name}</h4>
         <p className="text-xs text-[#464555] mb-4 leading-relaxed">{entry.description}</p>
-        <Link
-          href={`/connectors/new/${encodeURIComponent(entry.key)}`}
+        <button
+          onClick={() => onConnect(entry.key)}
           className="block w-full text-center border border-[#3525cd] text-[#3525cd] text-xs font-bold py-2 rounded-lg hover:bg-[#3525cd]/10 transition-colors uppercase tracking-wide"
         >
-          Manage
-        </Link>
+          Add another
+        </button>
       </div>
     );
   }
@@ -301,6 +307,8 @@ function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (ke
 export function ConnectorsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const catalogRef = useRef<HTMLElement>(null);
+
   const providersQuery = useQuery({
     queryKey: queryKeys.connectorProviders,
     queryFn: listProviders,
@@ -310,22 +318,23 @@ export function ConnectorsPage() {
     queryFn: listConnectorConnections,
   });
 
-  const activeConnections =
-    connectionsQuery.data?.items.filter((connection) => connection.status === "active") ??
-    [];
-  const connectedCount = activeConnections.length;
-  const runningCount = activeConnections.length;
-  const failedCount = 0;
-  const reauthCount = 0;
-  const connectionRows = activeConnections.map(connectionToRow);
+  const allConnections = connectionsQuery.data?.items ?? [];
+  const connectedCount = allConnections.length;
+  const runningCount = allConnections.filter((c) => c.status === "active").length;
+  const failedCount = allConnections.filter((c) => c.status === "error").length;
+  const reauthCount = allConnections.filter(
+    (c) => c.status === "error" && c.error_message != null,
+  ).length;
+  const connectionRows = allConnections.map(connectionToRow);
   const connectedProviderKeys = new Set(
-    activeConnections.map((connection) => connection.provider_key),
+    allConnections.map((c) => c.provider_key),
   );
   const providerKeysFromAPI = new Set(
     (providersQuery.data?.items ?? []).map((provider) => provider.key),
   );
+
   const deleteConnectionMutation = useMutation({
-    mutationFn: (connectionId: string) => deleteConnectorConnection(connectionId),
+    mutationFn: (connectionId: string) => disconnectConnector(connectionId),
     onMutate: async (connectionId) => {
       await queryClient.cancelQueries({
         queryKey: queryKeys.connectorConnections,
@@ -384,6 +393,10 @@ export function ConnectorsPage() {
     deleteConnectionMutation.mutate(connectionId);
   }
 
+  function scrollToCatalog() {
+    catalogRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <div className="p-8 max-w-[1200px]">
       {/* Page title */}
@@ -405,7 +418,7 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#3525cd]"
           label="Connected sources"
           value={connectedCount.toString().padStart(2, "0")}
-          badge="+1 this week"
+          badge={connectedCount > 0 ? `${connectedCount} total` : "None yet"}
           badgeColor="text-[#3525cd]"
         />
         <StatCard
@@ -413,9 +426,9 @@ export function ConnectorsPage() {
           iconColor="text-[#7e3000]"
           iconBg="bg-[#ffdbcc]/60"
           topBorderColor="border-t-[#7e3000]"
-          label="Syncs running"
+          label="Syncs active"
           value={runningCount.toString().padStart(2, "0")}
-          badge="Running"
+          badge={runningCount > 0 ? "Active" : "None active"}
           badgeColor="text-[#7e3000]"
         />
         <StatCard
@@ -425,8 +438,8 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#ba1a1a]"
           label="Failed syncs"
           value={failedCount.toString().padStart(2, "0")}
-          badge="Critical"
-          badgeColor="text-[#ba1a1a]"
+          badge={failedCount > 0 ? "Needs attention" : "All clear"}
+          badgeColor={failedCount > 0 ? "text-[#ba1a1a]" : "text-emerald-700"}
         />
         <StatCard
           icon="key"
@@ -435,8 +448,8 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#505f76]"
           label="Reauth required"
           value={reauthCount.toString().padStart(2, "0")}
-          badge="Action required"
-          badgeColor="text-[#505f76]"
+          badge={reauthCount > 0 ? "Action required" : "All healthy"}
+          badgeColor={reauthCount > 0 ? "text-[#505f76]" : "text-emerald-700"}
         />
       </section>
 
@@ -446,13 +459,14 @@ export function ConnectorsPage() {
           <h2 className="text-2xl font-semibold text-[#1b1b24]">
             Connected sources
           </h2>
-          <Link
-            href="/connectors/new/jira"
+          <button
+            type="button"
+            onClick={scrollToCatalog}
             className="inline-flex items-center gap-1.5 bg-[#3525cd] text-white text-xs font-bold py-2 px-5 rounded-lg hover:opacity-90 transition-opacity uppercase tracking-wide"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Add new source
-          </Link>
+          </button>
         </div>
 
         <div className="bg-white border border-[#c7c4d8] rounded-xl overflow-hidden shadow-sm">
@@ -476,8 +490,22 @@ export function ConnectorsPage() {
             <tbody className="divide-y divide-[#e4e1ee]">
               {connectionRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-[#464555]">
-                    No active connections yet. Add a source from the catalog below.
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <span className="material-symbols-outlined text-[40px] text-[#c7c4d8]">
+                        cloud_off
+                      </span>
+                      <div className="text-sm text-[#464555]">
+                        No sources connected yet.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={scrollToCatalog}
+                        className="text-xs font-semibold text-[#3525cd] hover:underline"
+                      >
+                        Browse the catalog below
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -508,7 +536,7 @@ export function ConnectorsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <StatusBadge status={conn.status} />
+                        <StatusBadge status={conn.status} errorMessage={conn.errorMessage} />
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-mono text-[13px] text-[#1b1b24]">
@@ -524,8 +552,8 @@ export function ConnectorsPage() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
                           <button
-                            title="View"
-                            aria-label={`View connected source ${conn.name}`}
+                            title="View details"
+                            aria-label={`View details for ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
                             onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
@@ -535,7 +563,7 @@ export function ConnectorsPage() {
                           </button>
                           <button
                             title="Sync now"
-                            aria-label={`Sync connected source ${conn.name}`}
+                            aria-label={`Sync now for ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
                             onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
@@ -545,7 +573,7 @@ export function ConnectorsPage() {
                           </button>
                           <button
                             title="Settings"
-                            aria-label={`Open settings for connected source ${conn.name}`}
+                            aria-label={`Settings for ${conn.name}`}
                             className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
                             onClick={() => router.push(`/connectors/${conn.id}`)}
                           >
@@ -578,7 +606,7 @@ export function ConnectorsPage() {
       </section>
 
       {/* Connector catalog */}
-      <section>
+      <section ref={catalogRef}>
         <div className="mb-5">
           <h2 className="text-2xl font-semibold text-[#1b1b24] mb-1">
             Connector catalog

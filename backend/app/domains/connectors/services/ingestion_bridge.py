@@ -624,12 +624,13 @@ async def _upload_to_storage(bucket: str, key: str, content: bytes, mime_type: s
         raise RuntimeError("MinIO client is not configured")
     import asyncio
     await asyncio.to_thread(
-        client.put_object,
-        bucket,
-        key,
-        io.BytesIO(content),
-        len(content),
-        content_type=mime_type,
+        lambda: client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=io.BytesIO(content),
+            ContentLength=len(content),
+            ContentType=mime_type,
+        )
     )
 
 

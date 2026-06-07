@@ -10,6 +10,7 @@ from app.db.session import SessionLocal
 from app.domains.connectors.services.provider_adapter import (
     ConnectorRateLimitError,
 )
+from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -29,7 +30,7 @@ async def _run_sync_async(
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid UUID: {exc}") from exc
 
-    engine = ConnectorSyncEngine()
+    engine = ConnectorSyncEngine(ingestion_bridge=ConnectorIngestionBridge())
     async with SessionLocal() as session:
         async with session.begin():
             try:
@@ -40,6 +41,17 @@ async def _run_sync_async(
                 )
             except SyncEngineError as exc:
                 raise PermanentTaskError(str(exc)) from exc
+
+    # Dispatch document processing tasks after the transaction commits so the
+    # Document rows are visible to the processing worker.
+    from app.workers.document_tasks import process_document as _process_document
+    for document_id, user_id in result.pending_document_ids:
+        _process_document.delay(
+            document_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+        _logger.info("connector.ingestion.task_dispatched", document_id=document_id)
 
     return {
         "sync_run_id": sync_run_id,

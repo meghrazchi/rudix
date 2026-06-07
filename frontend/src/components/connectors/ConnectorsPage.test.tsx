@@ -170,6 +170,41 @@ describe("ConnectorsPage", () => {
     });
   });
 
+  it("shows Google Drive as connectable in the catalog", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Google Drive")).toBeInTheDocument();
+      const description = screen.getByText(
+        "Index Docs, Sheets, and shared corporate drive folders.",
+      );
+      const card = description.closest("div");
+      expect(card).not.toBeNull();
+      expect(
+        within(card as HTMLElement).getByRole("button", { name: "Connect" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("links the Google Drive catalog button to the setup wizard", async () => {
+    renderPage();
+
+    const user = userEvent.setup();
+    const description = await screen.findByText(
+      "Index Docs, Sheets, and shared corporate drive folders.",
+    );
+    const card = description.closest("div");
+    expect(card).not.toBeNull();
+
+    await user.click(
+      within(card as HTMLElement).getByRole("button", { name: "Connect" }),
+    );
+
+    await waitFor(() => {
+      expect(routerPush).toHaveBeenCalledWith("/connectors/new/google_drive");
+    });
+  });
+
   it("deletes an active connected source", async () => {
     mockApi.listConnectorConnections
       .mockResolvedValueOnce(makeConnectionsResponse([makeConnection()]))
@@ -186,6 +221,97 @@ describe("ConnectorsPage", () => {
     await waitFor(() => {
       expect(mockApi.disconnectConnector).toHaveBeenCalledWith("conn-1");
       expect(screen.queryByText("Engineering Jira")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows paused connections in the table", async () => {
+    mockApi.listConnectorConnections.mockResolvedValue(
+      makeConnectionsResponse([
+        makeConnection({ id: "conn-2", status: "paused", display_name: "Paused Jira" }),
+      ]),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Paused Jira")).toBeInTheDocument();
+      expect(screen.getByText("PAUSED")).toBeInTheDocument();
+    });
+  });
+
+  it("shows error connections in the table with error badge", async () => {
+    mockApi.listConnectorConnections.mockResolvedValue(
+      makeConnectionsResponse([
+        makeConnection({
+          id: "conn-3",
+          status: "error",
+          display_name: "Broken Jira",
+          error_message: "Token expired",
+        }),
+      ]),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Broken Jira")).toBeInTheDocument();
+      expect(screen.getByText("ERROR")).toBeInTheDocument();
+    });
+  });
+
+  it("counts all connections including paused and error in the table", async () => {
+    mockApi.listConnectorConnections.mockResolvedValue(
+      makeConnectionsResponse([
+        makeConnection({ id: "conn-a", status: "active", display_name: "Active Source" }),
+        makeConnection({ id: "conn-b", status: "paused", display_name: "Paused Source" }),
+        makeConnection({ id: "conn-c", status: "error", display_name: "Error Source" }),
+      ]),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("Active Source")).toBeInTheDocument();
+      expect(screen.getByText("Paused Source")).toBeInTheDocument();
+      expect(screen.getByText("Error Source")).toBeInTheDocument();
+    });
+  });
+
+  it("reflects failed count in the Failed syncs stat card", async () => {
+    mockApi.listConnectorConnections.mockResolvedValue(
+      makeConnectionsResponse([
+        makeConnection({ id: "conn-ok", status: "active" }),
+        makeConnection({
+          id: "conn-fail",
+          status: "error",
+          display_name: "Broken Jira",
+          error_message: "Token expired",
+        }),
+      ]),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      // 1 failed connection — stat card shows "01"
+      const failedLabel = screen.getByText("Failed syncs");
+      const statCard = failedLabel.closest("div")?.parentElement;
+      expect(statCard).toBeTruthy();
+      expect(within(statCard as HTMLElement).getByText("01")).toBeInTheDocument();
+    });
+  });
+
+  it("shows the empty catalog browse link when no connections exist", async () => {
+    mockApi.listConnectorConnections.mockResolvedValue(
+      makeConnectionsResponse([]),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /browse the catalog/i }),
+      ).toBeInTheDocument();
     });
   });
 });

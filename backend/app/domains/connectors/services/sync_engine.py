@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
@@ -28,6 +28,7 @@ from app.domains.connectors.services.provider_adapter import (
     default_sync_adapter_registry,
 )
 from app.models.connector import ConnectorConnection, ExternalItem
+from app.models.connector_source import SourceDocument
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import (
     ConnectorConnectionStatus,
@@ -57,6 +58,7 @@ class SyncRunResult:
     items_deleted: int
     cursor_after: dict
     error_message: str | None = None
+    pending_document_ids: list[tuple[str, str]] = field(default_factory=list)
 
 
 class SyncEngineError(Exception):
@@ -329,7 +331,11 @@ class ConnectorSyncEngine:
 
         job_result = await session.execute(
             select(ConnectorSyncJob)
-            .options(selectinload(ConnectorSyncJob.connection))
+            .options(
+                selectinload(ConnectorSyncJob.connection).selectinload(
+                    ConnectorConnection.provider
+                )
+            )
             .where(ConnectorSyncJob.id == run.sync_job_id)
         )
         job = job_result.scalar_one_or_none()
@@ -406,10 +412,12 @@ class ConnectorSyncEngine:
         except Exception as exc:
             return await self._fail_run(session, run, str(exc))
 
-        # Update job after successful run
-        job.last_run_at = datetime.now(UTC)
+        # Update job and connection after successful run
+        now = datetime.now(UTC)
+        job.last_run_at = now
         job.cursor_json = result.cursor_after
         job.error_message = None
+        connection.last_sync_at = now
         await session.flush()
 
         _logger.info(
@@ -440,6 +448,7 @@ class ConnectorSyncEngine:
         items_upserted = 0
         cursor: dict = {}
         seen_provider_ids: set[str] = set()
+        pending_document_ids: list[tuple[str, str]] = []
 
         while True:
             if await self._is_cancelled(session, run_id=run.id):
@@ -465,7 +474,7 @@ class ConnectorSyncEngine:
                 changed = await self._upsert_item_if_changed(session, run, norm_item)
                 if changed:
                     items_upserted += 1
-                    await self._maybe_ingest_file_item(
+                    pending = await self._maybe_ingest_file_item(
                         session,
                         run=run,
                         connection=connection,
@@ -473,6 +482,8 @@ class ConnectorSyncEngine:
                         norm_item=norm_item,
                         decrypted_credential=decrypted_credential,
                     )
+                    if pending is not None:
+                        pending_document_ids.append(pending)
 
             if not page.has_more or page.next_cursor is None:
                 break
@@ -489,6 +500,7 @@ class ConnectorSyncEngine:
             items_upserted=items_upserted,
             items_deleted=items_deleted,
             cursor_after=cursor,
+            pending_document_ids=pending_document_ids,
         )
 
     async def _run_incremental_sync(
@@ -505,6 +517,7 @@ class ConnectorSyncEngine:
         items_seen = 0
         items_upserted = 0
         items_deleted = 0
+        pending_document_ids: list[tuple[str, str]] = []
 
         while True:
             if await self._is_cancelled(session, run_id=run.id):
@@ -537,7 +550,7 @@ class ConnectorSyncEngine:
                         )
                         if changed:
                             items_upserted += 1
-                            await self._maybe_ingest_file_item(
+                            pending = await self._maybe_ingest_file_item(
                                 session,
                                 run=run,
                                 connection=connection,
@@ -545,6 +558,8 @@ class ConnectorSyncEngine:
                                 norm_item=delta_item.item,
                                 decrypted_credential=decrypted_credential,
                             )
+                            if pending is not None:
+                                pending_document_ids.append(pending)
                     except ConnectorContentError:
                         pass
 
@@ -560,6 +575,7 @@ class ConnectorSyncEngine:
             items_upserted=items_upserted,
             items_deleted=items_deleted,
             cursor_after=cursor,
+            pending_document_ids=pending_document_ids,
         )
 
     async def _upsert_item_if_changed(
@@ -579,6 +595,12 @@ class ConnectorSyncEngine:
         if existing is not None and existing.content_hash == norm_item.content_hash:
             existing.sync_version = run.sync_version
             await session.flush()
+            # Treat as changed if no SourceDocument exists yet (e.g. prior sync had no bridge).
+            orphaned_result = await session.execute(
+                select(SourceDocument).where(SourceDocument.external_item_id == existing.id).limit(1)
+            )
+            if orphaned_result.scalar_one_or_none() is None:
+                return True
             return False
 
         await self.repository.upsert_external_item(session, item=norm_item_with_version)
@@ -664,17 +686,16 @@ class ConnectorSyncEngine:
         adapter: Any,
         norm_item: Any,
         decrypted_credential: dict,
-    ) -> None:
+    ) -> tuple[str, str] | None:
         """Download and ingest a file-type ExternalItem through the document lifecycle.
 
-        Silently skips if: ingestion bridge is not configured, the item type is not a
-        downloadable file, the adapter returns no content, or the bridge returns a
-        non-fatal result (duplicate / unsupported).
+        Returns (document_id, user_id) when a document is ready for processing so the
+        caller can dispatch the task AFTER the transaction commits. Returns None on skip.
         """
         if self.ingestion_bridge is None:
-            return
+            return None
         if norm_item.item_type not in _FILE_ITEM_TYPES:
-            return
+            return None
 
         try:
             download = await adapter.download_file_content(
@@ -688,12 +709,19 @@ class ConnectorSyncEngine:
                 provider_item_id=norm_item.provider_item_id,
                 error=str(exc)[:200],
             )
-            return
+            return None
 
         if download is None:
-            return
+            return None
 
-        content, filename, resolved_mime = download
+        content, _provider_filename, resolved_mime = download
+
+        # Use the human-readable source title as the filename, keeping the
+        # extension that came back from the download (handles Google-native export).
+        import os as _os
+        _ext = _os.path.splitext(_provider_filename)[1]
+        _title = (norm_item.title or "").strip()
+        filename = _title if _title.lower().endswith(_ext.lower()) else f"{_title}{_ext}"
 
         uploader_user_id = connection.created_by_user_id
         if uploader_user_id is None:
@@ -702,7 +730,7 @@ class ConnectorSyncEngine:
                 connection_id=str(connection.id),
                 provider_item_id=norm_item.provider_item_id,
             )
-            return
+            return None
 
         from app.models.connector import ExternalItem as _ExternalItem
         ext_item_result = await session.execute(
@@ -714,7 +742,7 @@ class ConnectorSyncEngine:
         )
         ext_item = ext_item_result.scalar_one_or_none()
         if ext_item is None:
-            return
+            return None
 
         try:
             from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge  # noqa: F401
@@ -758,12 +786,18 @@ class ConnectorSyncEngine:
                 document_id=str(result.document_id) if result.document_id else None,
                 status=result.status,
             )
+
+            from app.models.enums import DocumentStatus as _DocumentStatus
+            if result.status == _DocumentStatus.pending_scan and result.document_id is not None:
+                return (str(result.document_id), str(uploader_user_id))
+            return None
         except Exception as exc:
             _logger.error(
                 "connector.ingestion.bridge_error",
                 provider_item_id=norm_item.provider_item_id,
                 error=str(exc)[:300],
             )
+        return None
 
     async def _complete_run(
         self,
@@ -774,6 +808,7 @@ class ConnectorSyncEngine:
         items_upserted: int,
         items_deleted: int,
         cursor_after: dict,
+        pending_document_ids: list[tuple[str, str]] | None = None,
     ) -> SyncRunResult:
         now = datetime.now(UTC)
         run.status = ConnectorSyncRunStatus.completed.value
@@ -791,6 +826,7 @@ class ConnectorSyncEngine:
             items_upserted=items_upserted,
             items_deleted=items_deleted,
             cursor_after=cursor_after,
+            pending_document_ids=pending_document_ids or [],
         )
 
     async def _fail_run(

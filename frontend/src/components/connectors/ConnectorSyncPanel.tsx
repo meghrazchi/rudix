@@ -17,18 +17,18 @@ import {
 } from "@/lib/api/connector-sync";
 import { queryKeys } from "@/lib/api/query";
 
-const STATUS_BADGE: Record<string, string> = {
-  queued: "bg-yellow-100 text-yellow-800",
-  running: "bg-blue-100 text-blue-800",
-  completed: "bg-green-100 text-green-800",
+const RUN_STATUS_BADGE: Record<string, string> = {
+  queued: "bg-amber-100 text-amber-800",
+  running: "bg-[#ece8ff] text-[#3525cd]",
+  completed: "bg-emerald-100 text-emerald-800",
   failed: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-700",
+  cancelled: "bg-[#e4e1ee] text-[#464555]",
 };
 
 const JOB_STATUS_BADGE: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  paused: "bg-yellow-100 text-yellow-800",
-  disabled: "bg-gray-100 text-gray-700",
+  active: "bg-emerald-100 text-emerald-800",
+  paused: "bg-amber-100 text-amber-800",
+  disabled: "bg-[#e4e1ee] text-[#464555]",
 };
 
 function StatusBadge({
@@ -38,10 +38,10 @@ function StatusBadge({
   status: string;
   badgeMap: Record<string, string>;
 }) {
-  const cls = badgeMap[status] ?? "bg-gray-100 text-gray-700";
+  const cls = badgeMap[status] ?? "bg-[#e4e1ee] text-[#464555]";
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}
     >
       {status}
     </span>
@@ -140,22 +140,27 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
   return (
     <div className="space-y-6">
       {errorMsg && (
-        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {errorMsg}
         </div>
       )}
 
-      {/* Sync jobs section */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Sync schedule</h3>
+      {/* Sync schedule */}
+      <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold text-[#2a2640]">Sync schedule</h3>
+            <p className="text-sm text-[#68647b]">
+              Configure automated sync cadence and trigger manual runs.
+            </p>
+          </div>
           <div className="flex gap-2">
             {activeJob && (
               <button
                 type="button"
                 disabled={triggerMutation.isPending}
                 onClick={() => triggerMutation.mutate({ jobId: activeJob.id })}
-                className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-opacity"
               >
                 {triggerMutation.isPending ? "Queuing…" : "Sync now"}
               </button>
@@ -163,7 +168,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
             <button
               type="button"
               onClick={() => setCreateJobOpen((v) => !v)}
-              className="rounded border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              className="rounded-xl border border-[#d7d4e8] px-4 py-2 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff] transition-colors"
             >
               {createJobOpen ? "Cancel" : "Add schedule"}
             </button>
@@ -171,19 +176,19 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         </div>
 
         {createJobOpen && (
-          <div className="mb-3 flex gap-2">
+          <div className="mb-4 flex gap-2">
             <input
               type="text"
               value={createJobName}
               onChange={(e) => setCreateJobName(e.target.value)}
               placeholder="Schedule name"
-              className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
+              className="flex-1 rounded-xl border border-[#d7d4e8] bg-white px-3 py-2 text-sm text-[#2a2640] focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none"
             />
             <button
               type="button"
               disabled={createJobMutation.isPending}
               onClick={() => createJobMutation.mutate()}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               Create
             </button>
@@ -191,24 +196,25 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         )}
 
         {jobsQuery.isLoading && (
-          <p className="text-sm text-gray-500">Loading schedules…</p>
+          <p className="text-sm text-[#68647b]">Loading schedules…</p>
         )}
         {jobs.length === 0 && !jobsQuery.isLoading && (
-          <p className="text-sm text-gray-500">
+          <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
             No sync schedules configured. Add one to start syncing automatically.
-          </p>
+          </div>
         )}
+
         <div className="space-y-2">
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3"
+              className="flex items-center justify-between rounded-xl border border-[#e8e5f3] bg-[#faf9fe] px-4 py-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-gray-900">
+                <p className="truncate text-sm font-semibold text-[#2a2640]">
                   {job.name}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-[#68647b]">
                   {job.schedule.type === "interval"
                     ? `Every ${job.schedule.interval_minutes ?? 60} min`
                     : job.schedule.type}
@@ -226,7 +232,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
                     onClick={() =>
                       pauseMutation.mutate({ jobId: job.id, status: "paused" })
                     }
-                    className="text-xs text-gray-500 hover:text-gray-900"
+                    className="text-xs font-semibold text-[#464555] hover:text-[#2a2640] disabled:opacity-50"
                   >
                     Pause
                   </button>
@@ -238,7 +244,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
                     onClick={() =>
                       pauseMutation.mutate({ jobId: job.id, status: "active" })
                     }
-                    className="text-xs text-indigo-600 hover:text-indigo-800"
+                    className="text-xs font-semibold text-[#3525cd] hover:opacity-80 disabled:opacity-50"
                   >
                     Resume
                   </button>
@@ -250,95 +256,104 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
       </div>
 
       {/* Recent runs */}
-      <div>
-        <h3 className="mb-3 text-sm font-semibold text-gray-900">
-          Recent runs
-        </h3>
+      <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h3 className="text-lg font-bold text-[#2a2640]">Recent sync runs</h3>
+          <p className="text-sm text-[#68647b]">
+            History of sync executions with item counts and error details.
+          </p>
+        </div>
+
         {runsQuery.isLoading && (
-          <p className="text-sm text-gray-500">Loading runs…</p>
+          <p className="text-sm text-[#68647b]">Loading runs…</p>
         )}
         {runs.length === 0 && !runsQuery.isLoading && (
-          <p className="text-sm text-gray-500">No sync runs yet.</p>
+          <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
+            No sync runs yet.
+          </div>
         )}
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">
-                  Status
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">
-                  Trigger
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">
-                  Seen
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">
-                  Upserted
-                </th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500">
-                  Deleted
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">
-                  Duration
-                </th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500">
-                  Started
-                </th>
-                <th className="w-16 px-4 py-2.5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {runs.map((run) => (
-                <tr key={run.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5">
-                    <StatusBadge status={run.status} badgeMap={STATUS_BADGE} />
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-600">
-                    {run.trigger_type}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-xs text-gray-700">
-                    {run.items_seen}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-xs text-gray-700">
-                    {run.items_upserted}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-xs text-gray-700">
-                    {run.items_deleted}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-600">
-                    {formatDuration(run.started_at, run.completed_at)}
-                  </td>
-                  <td className="px-4 py-2.5 text-xs text-gray-500">
-                    {run.started_at
-                      ? new Date(run.started_at).toLocaleString()
-                      : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    {(run.status === "queued" || run.status === "running") && (
-                      <button
-                        type="button"
-                        disabled={cancelMutation.isPending}
-                        onClick={() => cancelMutation.mutate(run.id)}
-                        className="text-xs text-red-500 hover:text-red-700"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                    {run.error_message && (
-                      <span
-                        title={run.error_message}
-                        className="cursor-help text-xs text-gray-400"
-                      >
-                        ⚠
-                      </span>
-                    )}
-                  </td>
+
+        {runs.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-[#e8e5f3]">
+            <table className="min-w-full divide-y divide-[#e8e5f3] text-sm">
+              <thead className="bg-[#f5f2ff]">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Status
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Trigger
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Seen
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Upserted
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Deleted
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Duration
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold tracking-[0.14em] text-[#6a6780] uppercase">
+                    Started
+                  </th>
+                  <th className="w-16 px-4 py-2.5" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[#e8e5f3] bg-white">
+                {runs.map((run) => (
+                  <tr key={run.id} className="hover:bg-[#faf9fe] transition-colors">
+                    <td className="px-4 py-2.5">
+                      <StatusBadge status={run.status} badgeMap={RUN_STATUS_BADGE} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-[#4b4860]">
+                      {run.trigger_type}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                      {run.items_seen}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                      {run.items_upserted}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                      {run.items_deleted}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-[#4b4860]">
+                      {formatDuration(run.started_at, run.completed_at)}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-[#68647b]">
+                      {run.started_at
+                        ? new Date(run.started_at).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {(run.status === "queued" || run.status === "running") && (
+                        <button
+                          type="button"
+                          disabled={cancelMutation.isPending}
+                          onClick={() => cancelMutation.mutate(run.id)}
+                          className="text-xs font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {run.error_message && (
+                        <span
+                          title={run.error_message}
+                          className="cursor-help text-xs text-[#68647b]"
+                        >
+                          ⚠
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
