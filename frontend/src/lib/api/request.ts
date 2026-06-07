@@ -68,13 +68,21 @@ export type SessionRequestContext = {
   userId: string | null;
 };
 
-type RefreshTrigger = "preflight" | "proactive" | "401";
+type RefreshTrigger = "preflight" | "proactive" | "401" | "startup";
 
 type RefreshResponse = {
   access_token?: string | null;
   token?: string | null;
-  refresh_token?: string | null;
-  refreshToken?: string | null;
+  user_id?: string | null;
+  userId?: string | null;
+  email?: string | null;
+  role?: string | null;
+  organization_id?: string | null;
+  organizationId?: string | null;
+  organization_name?: string | null;
+  organizationName?: string | null;
+  session_id?: string | null;
+  sessionId?: string | null;
 };
 
 let refreshInFlight: Promise<AuthenticatedSession | null> | null = null;
@@ -176,6 +184,10 @@ function getRefreshLeadTimeMs(): number {
   return Math.max(0, seconds * 1_000);
 }
 
+function isBackendRefreshConfigured(): boolean {
+  return trimToNull(process.env.NEXT_PUBLIC_AUTH_REFRESH_URL) !== null;
+}
+
 function resolveRefreshUrl(apiBaseUrl?: string): string {
   const configured = trimToNull(process.env.NEXT_PUBLIC_AUTH_REFRESH_URL);
   if (configured) {
@@ -196,10 +208,6 @@ function resolveLogoutUrl(apiBaseUrl?: string): string | null {
     return toAbsoluteUrl(DEFAULT_LOGOUT_PATH, apiBaseUrl);
   }
   return null;
-}
-
-function hasConfiguredRefreshUrl(): boolean {
-  return trimToNull(process.env.NEXT_PUBLIC_AUTH_REFRESH_URL) !== null;
 }
 
 function getCurrentPathForRedirect(): string | null {
@@ -298,20 +306,7 @@ function shouldRefreshBeforeRequest(token: string | null): boolean {
 }
 
 function canAttemptRefresh(session: AuthenticatedSession | null): boolean {
-  if (!session) {
-    return false;
-  }
-
-  if (trimToNull(session.refreshToken) || hasConfiguredRefreshUrl()) {
-    return true;
-  }
-
-  const provider = getFrontendRuntimeConfig().authProvider;
-  if (provider === "app") {
-    return true;
-  }
-
-  return false;
+  return session !== null && isBackendRefreshConfigured();
 }
 
 function clearProactiveRefreshTimer(): void {
@@ -690,17 +685,13 @@ function createRequestController(params: {
 
 function parseRefreshedSession(
   payload: unknown,
-  currentSession: AuthenticatedSession,
+  currentSession: AuthenticatedSession | null,
 ): AuthenticatedSession {
   const response = (
     typeof payload === "object" && payload !== null ? payload : {}
   ) as RefreshResponse;
   const accessToken =
     trimToNull(response.access_token) ?? trimToNull(response.token);
-  const refreshToken =
-    trimToNull(response.refresh_token) ??
-    trimToNull(response.refreshToken) ??
-    trimToNull(currentSession.refreshToken);
 
   if (!accessToken) {
     throw normalizeApiError({
@@ -714,25 +705,44 @@ function parseRefreshedSession(
     });
   }
 
+  const organizationId =
+    trimToNull(response.organization_id) ??
+    trimToNull(response.organizationId) ??
+    currentSession?.organizationId ??
+    null;
+
   return {
-    ...currentSession,
+    userId:
+      trimToNull(response.user_id) ??
+      trimToNull(response.userId) ??
+      currentSession?.userId ??
+      "unknown-user",
+    email: trimToNull(response.email) ?? currentSession?.email ?? null,
+    role:
+      (trimToNull(response.role)?.toLowerCase() as
+        | AuthenticatedSession["role"]
+        | undefined) ??
+      currentSession?.role ??
+      "member",
+    organizationId,
+    organizationName:
+      trimToNull(response.organization_name) ??
+      trimToNull(response.organizationName) ??
+      currentSession?.organizationName ??
+      null,
     accessToken,
-    refreshToken,
   };
 }
 
 async function executeRefreshRequest(params: {
-  currentSession: AuthenticatedSession;
+  currentSession: AuthenticatedSession | null;
   apiBaseUrl?: string;
 }): Promise<AuthenticatedSession> {
-  const refreshToken = trimToNull(params.currentSession.refreshToken);
   const response = await fetch(resolveRefreshUrl(params.apiBaseUrl), {
     method: "POST",
     headers: new Headers({
       Accept: "application/json",
-      "Content-Type": "application/json",
     }),
-    body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
     credentials: "include",
     cache: "no-store",
   });
@@ -760,13 +770,22 @@ export async function refreshAccessToken(params?: {
 }): Promise<AuthenticatedSession | null> {
   const trigger = params?.trigger ?? "preflight";
   const currentSession = readSessionFromStorage();
-  if (!currentSession || !canAttemptRefresh(currentSession)) {
+  if (!isBackendRefreshConfigured()) {
+    return currentSession;
+  }
+  if (
+    trigger === "startup" &&
+    !getJwtExpirationTimeMs(currentSession?.accessToken ?? null)
+  ) {
+    return currentSession;
+  }
+  if (!currentSession && trigger !== "startup") {
     return null;
   }
 
   const shouldSkipBecauseNotNearExpiry =
     trigger === "preflight" &&
-    !shouldRefreshBeforeRequest(trimToNull(currentSession.accessToken));
+    !shouldRefreshBeforeRequest(trimToNull(currentSession?.accessToken));
   if (shouldSkipBecauseNotNearExpiry) {
     return currentSession;
   }
@@ -833,26 +852,12 @@ export async function performLogout(params?: {
   apiBaseUrl?: string;
   redirectToLogin?: boolean;
 }): Promise<void> {
-  const currentSession = readSessionFromStorage();
   const logoutUrl = resolveLogoutUrl(params?.apiBaseUrl);
   if (logoutUrl) {
     try {
-      const headers = new Headers({ Accept: "application/json" });
-      const token = trimToNull(currentSession?.accessToken);
-      const refreshToken = trimToNull(currentSession?.refreshToken);
-      if (token) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-      if (refreshToken) {
-        headers.set("Content-Type", "application/json");
-      }
-
       await fetch(logoutUrl, {
         method: "POST",
-        headers,
-        body: refreshToken
-          ? JSON.stringify({ refresh_token: refreshToken })
-          : undefined,
+        headers: new Headers({ Accept: "application/json" }),
         credentials: "include",
         cache: "no-store",
       });

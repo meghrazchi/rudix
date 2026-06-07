@@ -52,14 +52,11 @@ export type AuthClientConfig = {
   defaultRole: AppRole;
   defaultUserId: string | null;
   defaultAccessToken: string | null;
-  defaultRefreshToken: string | null;
 };
 
 type AuthLoginResponse = {
   access_token?: string | null;
   token?: string | null;
-  refresh_token?: string | null;
-  refreshToken?: string | null;
   user_id?: string | null;
   userId?: string | null;
   sub?: string | null;
@@ -146,9 +143,6 @@ export function getAuthClientConfig(): AuthClientConfig {
     defaultAccessToken: trimToNull(
       process.env.NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN,
     ),
-    defaultRefreshToken: trimToNull(
-      process.env.NEXT_PUBLIC_AUTH_DEFAULT_REFRESH_TOKEN,
-    ),
   };
 }
 
@@ -180,10 +174,6 @@ function responseToSession(
       trimToNull(response.access_token) ??
       trimToNull(response.token) ??
       config.defaultAccessToken,
-    refreshToken:
-      trimToNull(response.refresh_token) ??
-      trimToNull(response.refreshToken) ??
-      config.defaultRefreshToken,
   };
 }
 
@@ -201,7 +191,6 @@ function buildLocalSession(
     organizationId,
     organizationName: organizationId ? config.defaultOrganizationName : null,
     accessToken: config.defaultAccessToken,
-    refreshToken: config.defaultRefreshToken,
   };
 }
 
@@ -273,6 +262,7 @@ export async function startLoginSession(
           email: parsed.email,
           password: parsed.password,
         },
+        credentials: "include",
         attachAuth: false,
         attachOrganizationId: false,
         retry: false,

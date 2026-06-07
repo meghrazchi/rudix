@@ -460,6 +460,10 @@ print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
 PY
 )
 
+# Seeded local dev login
+# email: seed-user@example.com
+# password: 123123123
+
 # Get seeded org id (after `make seed-dev`)
 ORG_ID=$(docker compose exec -T postgres psql -U postgres -d rag_app -At -c "select id from organizations where slug='demo-org' limit 1;")  
 

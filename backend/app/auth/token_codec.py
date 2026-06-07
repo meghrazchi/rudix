@@ -32,49 +32,65 @@ def _sign(message: str, secret: str) -> str:
 def create_app_access_token(
     *,
     subject: str,
+    session_id: str | None = None,
+    role: str = "member",
     organization_id: str | None = None,
     email: str | None = None,
     expires_in_seconds: int | None = None,
+    token_id: str | None = None,
 ) -> str:
     return _create_signed_token(
         subject=subject,
+        session_id=session_id,
+        role=role,
         organization_id=organization_id,
         email=email,
         expires_in_seconds=expires_in_seconds,
         default_ttl_seconds=settings.app_auth_access_token_ttl_seconds,
         token_use=TOKEN_USE_ACCESS,
+        token_id=token_id,
     )
 
 
 def create_app_refresh_token(
     *,
     subject: str,
+    session_id: str | None = None,
+    role: str = "member",
     organization_id: str | None = None,
     email: str | None = None,
     expires_in_seconds: int | None = None,
+    token_id: str | None = None,
 ) -> str:
     return _create_signed_token(
         subject=subject,
+        session_id=session_id,
+        role=role,
         organization_id=organization_id,
         email=email,
         expires_in_seconds=expires_in_seconds,
         default_ttl_seconds=settings.app_auth_refresh_token_ttl_seconds,
         token_use=TOKEN_USE_REFRESH,
+        token_id=token_id,
     )
 
 
 def _create_signed_token(
     *,
     subject: str,
+    session_id: str | None,
+    role: str,
     organization_id: str | None,
     email: str | None,
     expires_in_seconds: int | None,
     default_ttl_seconds: int,
     token_use: str,
+    token_id: str | None,
 ) -> str:
     issued_at = datetime.now(UTC)
     ttl_seconds = expires_in_seconds or default_ttl_seconds
     expires_at = issued_at + timedelta(seconds=ttl_seconds)
+    resolved_session_id = session_id or uuid4().hex
 
     header = {"alg": "HS256", "typ": "JWT"}
     payload: dict[str, Any] = {
@@ -84,7 +100,9 @@ def _create_signed_token(
         "iat": int(issued_at.timestamp()),
         "exp": int(expires_at.timestamp()),
         "token_use": token_use,
-        "jti": uuid4().hex,
+        "jti": token_id or uuid4().hex,
+        "session_id": resolved_session_id,
+        "role": role,
     }
     if organization_id is not None:
         payload["org_id"] = organization_id
@@ -161,7 +179,8 @@ def _decode_signed_token(
     exp = payload.get("exp")
     if not isinstance(exp, int):
         raise AuthenticationError("Token expiration is invalid")
-    if datetime.now(UTC).timestamp() >= exp:
+    now_ts = datetime.now(UTC).timestamp()
+    if now_ts >= exp + settings.app_auth_clock_skew_seconds:
         raise AuthenticationError("Token has expired")
 
     token_use = payload.get("token_use")
@@ -169,5 +188,13 @@ def _decode_signed_token(
         return dict(payload)
     if token_use != expected_token_use:
         raise AuthenticationError("Invalid token type")
+
+    session_id = payload.get("session_id")
+    if not isinstance(session_id, str) or not session_id.strip():
+        raise AuthenticationError("Token session is missing")
+
+    jti = payload.get("jti")
+    if not isinstance(jti, str) or not jti.strip():
+        raise AuthenticationError("Token identifier is missing")
 
     return dict(payload)

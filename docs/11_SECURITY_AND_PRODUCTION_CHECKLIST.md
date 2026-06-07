@@ -22,6 +22,14 @@ Backend requirements:
 - Load organization membership.
 - Enforce role-based access.
 
+For app-managed auth, also require:
+
+- Argon2id password hashing for stored credentials.
+- HttpOnly, backend-managed refresh cookies with server-side revocation.
+- Refresh-token rotation on every refresh request.
+- Explicit logout-all support for revoking all active sessions.
+- Safe session listing endpoints that never expose the raw refresh token.
+
 ## Authorization
 
 Every document query must include:

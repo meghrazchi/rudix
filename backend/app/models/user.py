@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, String, Uuid
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -9,7 +10,13 @@ from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (Index("idx_users_organization_id", "organization_id"),)
+    __table_args__ = (
+        Index("idx_users_organization_id", "organization_id"),
+        CheckConstraint(
+            "password_state IN ('unset', 'active', 'must_change', 'locked')",
+            name="users_password_state_allowed",
+        ),
+    )
 
     organization_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -19,6 +26,25 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     external_auth_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    password_state: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="unset",
+    )
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    failed_login_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    account_locked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    account_locked_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     # SCIM / lifecycle fields
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

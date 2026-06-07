@@ -28,6 +28,7 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.auth.factory import get_auth_provider
+from app.auth.passwords import PasswordHashConfig, build_password_hasher, hash_password
 from app.auth.repository import AuthRepository
 from app.auth.token_codec import create_app_access_token, decode_app_access_token
 from app.core.config import AuthProvider, settings
@@ -42,6 +43,15 @@ from app.models.usage import AuditLog
 from app.models.user import User
 
 _repository = AuthRepository()
+_password_hasher = build_password_hasher(
+    PasswordHashConfig(
+        memory_cost=65536,
+        time_cost=3,
+        parallelism=1,
+        hash_length=32,
+        salt_length=16,
+    )
+)
 
 
 @pytest_asyncio.fixture
@@ -82,6 +92,8 @@ async def _seed_principal(
         external_auth_id=f"user-{uuid4().hex[:8]}",
         email=f"user-{uuid4().hex[:8]}@example.com",
         display_name="Auth API User",
+        hashed_password=hash_password("password123", _password_hasher),
+        password_state="active",
     )
     db_session.add(user)
     await db_session.flush()
@@ -108,6 +120,8 @@ async def _seed_user_for_org(
         external_auth_id=f"user-{uuid4().hex[:8]}",
         email=f"user-{uuid4().hex[:8]}@example.com",
         display_name="Org User",
+        hashed_password=hash_password("password123", _password_hasher),
+        password_state="active",
     )
     db_session.add(user)
     await db_session.flush()
@@ -188,7 +202,7 @@ async def test_protected_route_rejects_expired_token(
     token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(org.id),
-        expires_in_seconds=-5,
+        expires_in_seconds=-400,
     )
 
     response = await auth_client.get(
@@ -478,13 +492,14 @@ async def test_auth_login_returns_access_token_and_refresh_cookie(
     assert response.status_code == 200
     payload = response.json()
     assert isinstance(payload["access_token"], str)
-    assert payload["refresh_token"] is None
     assert payload["organization_id"] == str(org.id)
     assert payload["role"] == OrganizationRole.member.value
+    assert payload["session_id"]
 
     claims = decode_app_access_token(payload["access_token"])
-    assert claims["sub"] == user.external_auth_id
+    assert claims["sub"] == str(user.id)
     assert claims["org_id"] == str(org.id)
+    assert claims["session_id"] == payload["session_id"]
     _ = _extract_refresh_cookie(response)
 
     audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
@@ -514,6 +529,7 @@ async def test_auth_login_auto_provisions_user_when_email_is_unknown(
     assert payload["email"] == email
     assert payload["organization_id"] is not None
     assert payload["role"] == OrganizationRole.owner.value
+    assert payload["session_id"]
 
     expected_user = await _repository.get_user_by_email(db_session, email=email)
     assert expected_user is not None
@@ -546,13 +562,13 @@ async def test_refresh_token_rotation_revokes_old_refresh_cookie(
         cookies={"rudix_refresh_token": old_refresh_token},
     )
     assert replay_response.status_code == 403
-    assert replay_response.json()["detail"] == "Refresh token has been revoked"
+    assert replay_response.json()["detail"] == "Refresh token reuse detected"
 
     audit_actions = [
         row.action for row in (await db_session.execute(select(AuditLog))).scalars().all()
     ]
     assert "auth.token.refresh.succeeded" in audit_actions
-    assert "auth.token.refresh.failed" in audit_actions
+    assert "auth.token.reuse_detected" in audit_actions
 
 
 @pytest.mark.asyncio
@@ -579,8 +595,8 @@ async def test_logout_revokes_refresh_cookie(
         "/api/v1/auth/token/refresh",
         cookies={"rudix_refresh_token": refresh_token},
     )
-    assert refresh_response.status_code == 403
-    assert refresh_response.json()["detail"] == "Refresh token has been revoked"
+    assert refresh_response.status_code == 401
+    assert refresh_response.json()["detail"] == "Refresh session is not valid"
 
     audit_actions = [
         row.action for row in (await db_session.execute(select(AuditLog))).scalars().all()

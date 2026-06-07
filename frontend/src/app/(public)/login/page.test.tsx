@@ -68,7 +68,6 @@ describe("LoginPage", () => {
       defaultRole: "member",
       defaultUserId: "demo-user-001",
       defaultAccessToken: null,
-      defaultRefreshToken: null,
     });
     vi.spyOn(authLogin, "getSsoStartHref").mockReturnValue(null);
     vi.spyOn(authLogin, "getForgotPasswordHref").mockReturnValue(null);

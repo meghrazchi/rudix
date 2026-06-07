@@ -64,7 +64,12 @@ const server = setupServer(
     return HttpResponse.json(
       {
         access_token: "refreshed-access-token",
-        refresh_token: "refreshed-refresh-token",
+        user_id: "user-1",
+        email: "user@example.com",
+        role: "member",
+        organization_id: "org-1",
+        organization_name: "Org One",
+        session_id: "session-1",
       },
       { status: 200 },
     );
@@ -169,7 +174,6 @@ describe("apiRequest refresh integration", () => {
       organizationId: "org-1",
       organizationName: "Org One",
       accessToken: "expired-access-token",
-      refreshToken: "refresh-token-1",
     });
 
     const result = await apiRequest<{ ok: boolean }>("/case/protected", {
@@ -184,7 +188,6 @@ describe("apiRequest refresh integration", () => {
 
     const session = readSessionFromStorage();
     expect(session?.accessToken).toBe("refreshed-access-token");
-    expect(session?.refreshToken).toBe("refreshed-refresh-token");
   });
 
   it("clears session when refresh fails", async () => {
@@ -196,7 +199,6 @@ describe("apiRequest refresh integration", () => {
       organizationId: "org-1",
       organizationName: "Org One",
       accessToken: "expired-access-token",
-      refreshToken: "refresh-token-1",
     });
 
     await expect(
@@ -222,7 +224,6 @@ describe("apiRequest refresh integration", () => {
       organizationId: "org-1",
       organizationName: "Org One",
       accessToken: "expired-access-token",
-      refreshToken: "refresh-token-1",
     });
 
     await expect(

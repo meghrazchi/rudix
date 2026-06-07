@@ -9,6 +9,7 @@ from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.providers.base import BaseAuthProvider
 from app.auth.repository import AuthRepository
+from app.auth.session_repository import AuthSessionRepository
 from app.auth.token_codec import decode_app_access_token
 
 
@@ -17,6 +18,7 @@ class AppAuthProvider(BaseAuthProvider):
 
     def __init__(self) -> None:
         self._repository = AuthRepository()
+        self._session_repository = AuthSessionRepository()
 
     @staticmethod
     def _extract_bearer_token(request: Request) -> str:
@@ -64,6 +66,27 @@ class AppAuthProvider(BaseAuthProvider):
         token = self._extract_bearer_token(request)
         claims = decode_app_access_token(token)
 
+        session_id_value = claims.get("session_id")
+        if not isinstance(session_id_value, str) or not session_id_value.strip():
+            raise AuthenticationError("Token session is missing")
+
+        try:
+            session_uuid = UUID(session_id_value)
+        except ValueError as exc:
+            raise AuthenticationError("Token session is invalid") from exc
+
+        session_record = await self._session_repository.get_active_session_by_id(
+            session,
+            session_id=session_uuid,
+        )
+        if session_record is None:
+            session_history = await self._session_repository.get_session_by_id(
+                session,
+                session_id=session_uuid,
+            )
+            if session_history is not None:
+                raise AuthenticationError("Session has been revoked")
+
         subject = str(claims["sub"]).strip()
         try:
             user = await self._repository.get_user_by_id(session, user_id=UUID(subject))
@@ -78,6 +101,9 @@ class AppAuthProvider(BaseAuthProvider):
 
         if not user.is_active:
             raise AuthenticationError("Account has been deprovisioned")
+
+        if session_record is not None and session_record.user_id != user.id:
+            raise AuthenticationError("Session does not belong to the authenticated principal")
 
         if not user.memberships:
             raise AuthorizationError("No organization membership found for principal")

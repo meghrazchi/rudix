@@ -89,6 +89,11 @@ print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
 PY
 ```
 
+Seeded local dev login:
+
+- email: `seed-user@example.com`
+- password: `123123123`
+
 Optional: fetch seeded organization UUID (`make seed-dev`):
 
 ```bash

@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
@@ -26,6 +26,31 @@ _audit_service = AuditLogService()
 
 _require_admin = require_roles(OrganizationRole.owner, OrganizationRole.admin)
 _require_owner = require_roles(OrganizationRole.owner)
+
+
+def _principal_organization_id(principal: AuthenticatedPrincipal) -> UUID:
+    if principal.organization_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No organization membership found for principal",
+        )
+    try:
+        return UUID(principal.organization_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Organization identifier is invalid",
+        ) from exc
+
+
+def _principal_user_id(principal: AuthenticatedPrincipal) -> UUID:
+    try:
+        return UUID(principal.user_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User identifier is invalid",
+        ) from exc
 
 
 def _config_to_response(config) -> SSOConfigResponse:
@@ -53,7 +78,8 @@ async def get_sso_config(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_admin)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SSOConfigResponse | None:
-    config = await _sso_service.get_config(db_session, organization_id=principal.organization_id)
+    organization_id = _principal_organization_id(principal)
+    config = await _sso_service.get_config(db_session, organization_id=organization_id)
     if config is None:
         return None
     return _config_to_response(config)
@@ -66,16 +92,18 @@ async def upsert_sso_config(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_owner)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SSOConfigResponse:
+    organization_id = _principal_organization_id(principal)
+    user_id = _principal_user_id(principal)
     config = await _sso_service.upsert_config(
         db_session,
-        organization_id=principal.organization_id,
+        organization_id=organization_id,
         payload=payload.model_dump(exclude={"change_note"}),
-        actor_id=principal.user_id,
+        actor_id=user_id,
     )
     await _audit_service.record(
         db_session,
-        organization_id=principal.organization_id,
-        user_id=principal.user_id,
+        organization_id=organization_id,
+        user_id=user_id,
         action="admin.sso.config.updated",
         resource_type="org_sso_config",
         resource_id=config.id,
@@ -98,8 +126,10 @@ async def delete_sso_config(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_owner)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
+    organization_id = _principal_organization_id(principal)
+    user_id = _principal_user_id(principal)
     removed = await _sso_service.delete_config(
-        db_session, organization_id=principal.organization_id
+        db_session, organization_id=organization_id
     )
     if not removed:
         raise HTTPException(
@@ -108,8 +138,8 @@ async def delete_sso_config(
         )
     await _audit_service.record(
         db_session,
-        organization_id=principal.organization_id,
-        user_id=principal.user_id,
+        organization_id=organization_id,
+        user_id=user_id,
         action="admin.sso.config.deleted",
         resource_type="org_sso_config",
         resource_id=None,
@@ -126,17 +156,19 @@ async def test_sso_connection(
     principal: Annotated[AuthenticatedPrincipal, Depends(_require_owner)],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TestConnectionResponse:
+    organization_id = _principal_organization_id(principal)
+    user_id = _principal_user_id(principal)
     result = await _sso_service.test_connection(
         db_session,
-        organization_id=principal.organization_id,
+        organization_id=organization_id,
         idp_metadata_url=payload.idp_metadata_url,
         idp_metadata_xml=payload.idp_metadata_xml,
         idp_sso_url=payload.idp_sso_url,
     )
     await _audit_service.record(
         db_session,
-        organization_id=principal.organization_id,
-        user_id=principal.user_id,
+        organization_id=organization_id,
+        user_id=user_id,
         action="admin.sso.connection.tested",
         resource_type="org_sso_config",
         resource_id=None,

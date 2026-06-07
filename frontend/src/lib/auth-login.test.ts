@@ -46,14 +46,16 @@ describe("startLoginSession", () => {
     process.env.NEXT_PUBLIC_AUTH_LOGIN_URL = "http://api.test/login";
     process.env.NEXT_PUBLIC_AUTH_LOCAL_FALLBACK = "false";
 
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ user_id: "dev-user" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValueOnce(
-        new Response(JSON.stringify({ user_id: "dev-user" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
+      fetchMock,
     );
 
     await expect(
@@ -66,6 +68,10 @@ describe("startLoginSession", () => {
       safeMessage:
         "Sign-in is configured but no API access token is available. Set NEXT_PUBLIC_AUTH_DEFAULT_ACCESS_TOKEN or configure NEXT_PUBLIC_AUTH_LOGIN_URL to return access_token.",
     } satisfies Partial<LoginFlowError>);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(init?.credentials).toBe("include");
   });
 
   it("returns safe invalid-credentials error for local fallback password mismatch", async () => {

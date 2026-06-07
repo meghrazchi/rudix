@@ -100,15 +100,12 @@ type SignupClientConfig = {
   defaultOrganizationName: string | null;
   defaultRole: AppRole;
   defaultAccessToken: string | null;
-  defaultRefreshToken: string | null;
   defaultUserId: string | null;
 };
 
 type AuthSignupResponse = {
   access_token?: string | null;
   token?: string | null;
-  refresh_token?: string | null;
-  refreshToken?: string | null;
   user_id?: string | null;
   userId?: string | null;
   sub?: string | null;
@@ -170,7 +167,6 @@ function toSignupConfig(): SignupClientConfig {
     defaultOrganizationName: baseConfig.defaultOrganizationName,
     defaultRole: baseConfig.defaultRole,
     defaultAccessToken: baseConfig.defaultAccessToken,
-    defaultRefreshToken: baseConfig.defaultRefreshToken,
     defaultUserId: baseConfig.defaultUserId,
   };
 }
@@ -232,10 +228,6 @@ function responseToSignupResult(
       trimToNull(response.access_token) ??
       trimToNull(response.token) ??
       config.defaultAccessToken,
-    refreshToken:
-      trimToNull(response.refresh_token) ??
-      trimToNull(response.refreshToken) ??
-      config.defaultRefreshToken,
   };
 
   return {
@@ -264,7 +256,6 @@ function buildLocalSignupResult(
       organizationId,
       organizationName: organizationId ? config.defaultOrganizationName : null,
       accessToken: config.defaultAccessToken,
-      refreshToken: config.defaultRefreshToken,
     },
     nextStep: decideNextStep({
       onboardingRequired: null,
@@ -350,6 +341,7 @@ export async function startSignupSession(
             parsed.workspaceMode === "join" ? parsed.inviteCode : null,
           accept_terms: parsed.acceptTerms,
         },
+        credentials: "include",
         attachAuth: false,
         attachOrganizationId: false,
         retry: false,

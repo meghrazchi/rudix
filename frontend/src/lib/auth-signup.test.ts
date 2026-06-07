@@ -55,14 +55,16 @@ describe("startSignupSession", () => {
   it("maps remote 409 errors to duplicate-email safe message", async () => {
     process.env.NEXT_PUBLIC_AUTH_SIGNUP_URL = "http://api.test/signup";
 
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify({ detail: "Email exists" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValueOnce(
-        new Response(JSON.stringify({ detail: "Email exists" }), {
-          status: 409,
-          headers: { "Content-Type": "application/json" },
-        }),
-      ),
+      fetchMock,
     );
 
     await expect(
@@ -79,5 +81,9 @@ describe("startSignupSession", () => {
       kind: "duplicate_email",
       safeMessage: "An account with this email already exists.",
     } satisfies Partial<SignupFlowError>);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(init?.credentials).toBe("include");
   });
 });

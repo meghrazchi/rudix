@@ -307,6 +307,10 @@ class Settings(BaseSettings):
     rate_limit_delete_requests: int = Field(default=20, ge=1, le=10000)
     rate_limit_admin_requests: int = Field(default=15, ge=1, le=10000)
     rate_limit_connector_requests: int = Field(default=15, ge=1, le=10000)
+    rate_limit_auth_login_requests: int = Field(default=10, ge=1, le=10000)
+    rate_limit_auth_refresh_requests: int = Field(default=60, ge=1, le=10000)
+    rate_limit_auth_logout_requests: int = Field(default=30, ge=1, le=10000)
+    rate_limit_auth_password_requests: int = Field(default=10, ge=1, le=10000)
     evaluation_prevent_duplicate_active_runs: bool = True
 
     dependency_connect_timeout_seconds: float = Field(default=1.0, ge=0.1, le=30.0)
@@ -330,8 +334,18 @@ class Settings(BaseSettings):
     app_auth_refresh_token_ttl_seconds: int = Field(default=1209600, ge=300, le=7776000)
     app_auth_issuer: str = Field(default="rudix-app", min_length=3, max_length=120)
     app_auth_audience: str = Field(default="rudix-api", min_length=3, max_length=120)
+    app_auth_clock_skew_seconds: int = Field(default=30, ge=0, le=300)
+    app_auth_cookie_domain: str | None = Field(default=None, max_length=255)
+    app_auth_cookie_secure: bool | None = None
+    app_auth_cookie_same_site: str = Field(default="lax", min_length=3, max_length=16)
+    app_auth_cookie_path: str = Field(default="/api/v1/auth", min_length=1, max_length=255)
     app_auth_login_password: SecretStr | None = None
     app_auth_auto_provision_users: bool = True
+    app_auth_password_hash_memory_cost_kib: int = Field(default=65536, ge=8192, le=1048576)
+    app_auth_password_hash_time_cost: int = Field(default=3, ge=1, le=10)
+    app_auth_password_hash_parallelism: int = Field(default=1, ge=1, le=8)
+    app_auth_password_hash_length: int = Field(default=32, ge=16, le=128)
+    app_auth_password_salt_length: int = Field(default=16, ge=8, le=64)
     auth_jwks_cache_ttl_seconds: int = Field(default=300, ge=30, le=86400)
     clerk_jwks_url: AnyHttpUrl | None = None
     clerk_jwt_issuer: AnyHttpUrl | None = None
@@ -794,6 +808,22 @@ class Settings(BaseSettings):
         if self.embedding_batch_max_tokens < self.chunk_size_tokens:
             raise ValueError("embedding_batch_max_tokens must be >= chunk_size_tokens")
 
+        normalized_same_site = self.app_auth_cookie_same_site.strip().lower()
+        if normalized_same_site not in {"lax", "strict", "none"}:
+            raise ValueError("app_auth_cookie_same_site must be one of: lax, strict, none")
+        self.app_auth_cookie_same_site = normalized_same_site
+        self.app_auth_cookie_path = self.app_auth_cookie_path.strip() or "/api/v1/auth"
+        if self.app_auth_cookie_domain is not None:
+            self.app_auth_cookie_domain = self.app_auth_cookie_domain.strip() or None
+        if self.app_auth_cookie_secure is None:
+            self.app_auth_cookie_secure = self.environment == Environment.production
+        if self.app_auth_cookie_same_site == "none" and not self.app_auth_cookie_secure:
+            raise ValueError(
+                "app_auth_cookie_secure must be true when app_auth_cookie_same_site=none"
+            )
+        if self.environment == Environment.production and not self.app_auth_cookie_secure:
+            raise ValueError("app_auth_cookie_secure must be true in production")
+
         if (
             self.malware_scan_max_bytes is not None
             and self.malware_scan_max_bytes > self.max_upload_size_mb * 1024 * 1024
@@ -957,6 +987,10 @@ class Settings(BaseSettings):
             "rate_limit_delete_requests": self.rate_limit_delete_requests,
             "rate_limit_admin_requests": self.rate_limit_admin_requests,
             "rate_limit_connector_requests": self.rate_limit_connector_requests,
+            "rate_limit_auth_login_requests": self.rate_limit_auth_login_requests,
+            "rate_limit_auth_refresh_requests": self.rate_limit_auth_refresh_requests,
+            "rate_limit_auth_logout_requests": self.rate_limit_auth_logout_requests,
+            "rate_limit_auth_password_requests": self.rate_limit_auth_password_requests,
             "evaluation_prevent_duplicate_active_runs": self.evaluation_prevent_duplicate_active_runs,
             "dependency_connect_timeout_seconds": self.dependency_connect_timeout_seconds,
             "dependency_read_timeout_seconds": self.dependency_read_timeout_seconds,
@@ -975,10 +1009,20 @@ class Settings(BaseSettings):
             "app_auth_refresh_token_ttl_seconds": self.app_auth_refresh_token_ttl_seconds,
             "app_auth_issuer": self.app_auth_issuer,
             "app_auth_audience": self.app_auth_audience,
+            "app_auth_clock_skew_seconds": self.app_auth_clock_skew_seconds,
+            "app_auth_cookie_domain": self.app_auth_cookie_domain,
+            "app_auth_cookie_secure": self.app_auth_cookie_secure,
+            "app_auth_cookie_same_site": self.app_auth_cookie_same_site,
+            "app_auth_cookie_path": self.app_auth_cookie_path,
             "app_auth_login_password_set": bool(
                 self.app_auth_login_password and self.app_auth_login_password.get_secret_value()
             ),
             "app_auth_auto_provision_users": self.app_auth_auto_provision_users,
+            "app_auth_password_hash_memory_cost_kib": self.app_auth_password_hash_memory_cost_kib,
+            "app_auth_password_hash_time_cost": self.app_auth_password_hash_time_cost,
+            "app_auth_password_hash_parallelism": self.app_auth_password_hash_parallelism,
+            "app_auth_password_hash_length": self.app_auth_password_hash_length,
+            "app_auth_password_salt_length": self.app_auth_password_salt_length,
             "auth_jwks_cache_ttl_seconds": self.auth_jwks_cache_ttl_seconds,
             "clerk_jwks_url": str(self.clerk_jwks_url) if self.clerk_jwks_url else None,
             "clerk_jwt_issuer": str(self.clerk_jwt_issuer) if self.clerk_jwt_issuer else None,

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 
+from app.auth.passwords import PasswordHashConfig, build_password_hasher, hash_password
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import (
     AuditLog,
@@ -32,6 +35,17 @@ from app.models.enums import (
     OrganizationRole,
 )
 
+_PASSWORD_HASHER = build_password_hasher(
+    PasswordHashConfig(
+        memory_cost=settings.app_auth_password_hash_memory_cost_kib,
+        time_cost=settings.app_auth_password_hash_time_cost,
+        parallelism=settings.app_auth_password_hash_parallelism,
+        hash_length=settings.app_auth_password_hash_length,
+        salt_length=settings.app_auth_password_salt_length,
+    )
+)
+_SEEDED_PASSWORD = "123123123"
+
 
 async def _get_or_create_organization() -> Organization:
     async with SessionLocal() as session:
@@ -56,6 +70,15 @@ async def _get_or_create_user(organization: Organization) -> User:
         )
         user = result.scalar_one_or_none()
         if user is not None:
+            if user.email != "seed-user@example.com":
+                user.email = "seed-user@example.com"
+            user.display_name = "Seed User"
+            user.hashed_password = hash_password(_SEEDED_PASSWORD, _PASSWORD_HASHER)
+            user.password_state = "active"
+            user.password_changed_at = datetime.now(UTC)
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
             return user
 
         user = User(
@@ -63,6 +86,8 @@ async def _get_or_create_user(organization: Organization) -> User:
             external_auth_id="seed-user-001",
             email="seed-user@example.com",
             display_name="Seed User",
+            hashed_password=hash_password(_SEEDED_PASSWORD, _PASSWORD_HASHER),
+            password_state="active",
         )
         session.add(user)
         await session.flush()

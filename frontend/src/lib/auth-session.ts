@@ -91,7 +91,11 @@ export function readSessionFromStorage(): AuthenticatedSession | null {
     if (!isValidSession(parsed)) {
       return null;
     }
-    return parsed;
+    const session = parsed as AuthenticatedSession;
+    if ("refreshToken" in (parsed as Record<string, unknown>)) {
+      writeSessionToStorage(session);
+    }
+    return session;
   } catch {
     return null;
   }
@@ -101,7 +105,11 @@ export function writeSessionToStorage(session: AuthenticatedSession): void {
   if (typeof window === "undefined") {
     return;
   }
-  window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  const { refreshToken: _refreshToken, ...sanitizedSession } = session;
+  window.localStorage.setItem(
+    SESSION_STORAGE_KEY,
+    JSON.stringify(sanitizedSession),
+  );
   window.dispatchEvent(
     new CustomEvent(SESSION_STORAGE_EVENT_NAME, {
       detail: { type: "updated", occurredAt: Date.now() },

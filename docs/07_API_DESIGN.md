@@ -19,6 +19,52 @@ Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
+## Authentication
+
+Rudix supports two auth modes:
+
+- external identity providers handled through JWT verification
+- app-managed auth with database-backed passwords, JWT access tokens, and HttpOnly refresh cookies
+
+### App auth session flow
+
+#### POST `/auth/login`
+
+Authenticates a user with email and password.
+
+- Returns an access token plus session metadata, including `session_id`
+- Sets the refresh token in an HttpOnly cookie
+- Locks accounts after repeated failed logins
+
+#### POST `/auth/token/refresh`
+
+Rotates the refresh session using the HttpOnly cookie.
+
+- Reads the refresh token from the cookie first
+- Falls back to the request body only for compatibility
+- Replaces the old refresh session with a new one
+- Returns a new access token plus session metadata
+
+#### POST `/auth/logout`
+
+Revokes the current refresh session and clears the cookie.
+
+#### POST `/auth/logout-all`
+
+Revokes every active refresh session for the authenticated user.
+
+#### GET `/auth/session`
+
+Returns the current authenticated session state derived from the bearer token.
+
+#### GET `/auth/sessions`
+
+Returns the active refresh sessions for the authenticated user.
+
+#### SSO callback redirects
+
+When the SAML callback is received as a browser form post, the backend issues the refresh cookie and redirects to the frontend callback route with access-token/session metadata in the query string. API clients can still receive JSON when they do not send a browser-form payload.
+
 ## Error format
 
 ```json

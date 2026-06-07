@@ -197,7 +197,6 @@ describe("apiRequest refresh handling", () => {
       organizationId: "org-1",
       organizationName: "Org One",
       accessToken: "old-token",
-      refreshToken: "refresh-token",
     });
 
     let refreshCalls = 0;
@@ -209,7 +208,6 @@ describe("apiRequest refresh handling", () => {
         return new Response(
           JSON.stringify({
             access_token: "new-token",
-            refresh_token: "refresh-token-2",
           }),
           {
             status: 200,
@@ -253,7 +251,6 @@ describe("apiRequest refresh handling", () => {
 
     const session = readSessionFromStorage();
     expect(session?.accessToken).toBe("new-token");
-    expect(session?.refreshToken).toBe("refresh-token-2");
   });
 
   it("refreshes but does not replay unsafe mutations by default", async () => {
@@ -266,7 +263,6 @@ describe("apiRequest refresh handling", () => {
       organizationId: "org-1",
       organizationName: "Org One",
       accessToken: "old-token",
-      refreshToken: "refresh-token",
     });
 
     let mutationCalls = 0;
@@ -279,7 +275,6 @@ describe("apiRequest refresh handling", () => {
         return new Response(
           JSON.stringify({
             access_token: "new-token",
-            refresh_token: "refresh-token-2",
           }),
           {
             status: 200,

@@ -415,9 +415,9 @@ export function SecuritySettingsTab() {
         isBoolean: true,
       },
       {
-        label: "Refresh token available",
-        value: session?.refreshToken ? "Yes" : "No",
-        isBoolean: true,
+        label: "Refresh cookie",
+        value: "Managed by backend",
+        isBoolean: false,
       },
       {
         label: "Session expiry",
@@ -435,7 +435,6 @@ export function SecuritySettingsTab() {
       session?.email,
       session?.role,
       session?.accessToken,
-      session?.refreshToken,
       session?.organizationId,
       sessionExpiryMs,
     ],

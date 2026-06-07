@@ -103,7 +103,8 @@ export const APP_ROUTES: AppRouteMeta[] = [
     key: "connectors",
     href: "/connectors",
     label: "Connectors",
-    description: "Connect external sources like Jira, Confluence, and Google Drive",
+    description:
+      "Connect external sources like Jira, Confluence, and Google Drive",
     matchPrefixes: ["/connectors"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
@@ -142,10 +143,7 @@ function hasOrganizationContext(session: AuthenticatedSession): boolean {
   }
 
   const provider = getFrontendRuntimeConfig().authProvider;
-  if (
-    provider === "app" &&
-    (session.accessToken?.trim() || session.refreshToken?.trim())
-  ) {
+  if (provider === "app" && session.accessToken?.trim()) {
     // App auth can resolve the active organization server-side from token principal memberships.
     return true;
   }

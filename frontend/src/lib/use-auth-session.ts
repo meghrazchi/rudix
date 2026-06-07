@@ -13,7 +13,11 @@ import {
   type AuthenticatedSession,
   type SessionState,
 } from "@/lib/auth-session";
-import { performLogout, syncSessionRefreshState } from "@/lib/api/request";
+import {
+  performLogout,
+  refreshAccessToken,
+  syncSessionRefreshState,
+} from "@/lib/api/request";
 import { writeSessionToStorage } from "@/lib/auth-session";
 
 type UseAuthSessionResult = {
@@ -39,13 +43,71 @@ export function useAuthSession(): UseAuthSessionResult {
     useState<AuthBoundaryEventDetail | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const timeoutId = window.setTimeout(() => {
-      const nextState = readCurrentSessionState();
-      syncSessionRefreshState(nextState.session);
-      setState(nextState);
+      void (async () => {
+        const storedSession = readSessionFromStorage();
+        if (storedSession) {
+          const nextState = {
+            status: "authenticated",
+            session: storedSession,
+          } as SessionState;
+          syncSessionRefreshState(nextState.session);
+          if (!cancelled) {
+            setState(nextState);
+          }
+          void refreshAccessToken({
+            trigger: "startup",
+          })
+            .then((refreshedSession) => {
+              if (cancelled || !refreshedSession) {
+                return;
+              }
+              const refreshedState = {
+                status: "authenticated",
+                session: refreshedSession,
+              } as SessionState;
+              syncSessionRefreshState(refreshedState.session);
+              setState(refreshedState);
+            })
+            .catch(() => {
+              // Keep the cached session if refresh fails on startup.
+            });
+          return;
+        }
+
+        try {
+          const refreshedSession = await refreshAccessToken({
+            trigger: "startup",
+          });
+          if (cancelled) {
+            return;
+          }
+          if (refreshedSession) {
+            const nextState = {
+              status: "authenticated",
+              session: refreshedSession,
+            } as SessionState;
+            syncSessionRefreshState(nextState.session);
+            setState(nextState);
+            return;
+          }
+        } catch {
+          // Fall through to unauthenticated state.
+        }
+
+        const nextState = {
+          status: "unauthenticated",
+          session: null,
+        } as SessionState;
+        syncSessionRefreshState(nextState.session);
+        if (!cancelled) {
+          setState(nextState);
+        }
+      })();
     }, 0);
 
-    function applyCurrentSessionFromStorage() {
+    function applyCurrentSessionFromStorage(): void {
       const nextState = readCurrentSessionState();
       syncSessionRefreshState(nextState.session);
       setState(nextState);
@@ -74,6 +136,7 @@ export function useAuthSession(): UseAuthSessionResult {
     );
 
     return () => {
+      cancelled = true;
       window.clearTimeout(timeoutId);
       unsubscribeBoundaryEvents();
       window.removeEventListener("storage", onStorage);

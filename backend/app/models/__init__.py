@@ -1,4 +1,5 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
+from app.models.auth_session import AuthRefreshSession
 from app.models.chat import ChatMessage, ChatSession
 from app.models.chat_share import ChatShare
 from app.models.chunking_profile import OrganizationChunkingProfile
@@ -49,6 +50,7 @@ __all__ = [
     "AgentStep",
     "AgentToolCall",
     "AuditLog",
+    "AuthRefreshSession",
     "ChatMessage",
     "ChatSession",
     "ChatShare",

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+from datetime import UTC, datetime, timedelta
+from math import floor
+from time import time
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -8,18 +12,31 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, 
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import get_current_principal
 from app.auth.errors import AuthenticationError
-from app.auth.refresh_token_store import refresh_token_store
+from app.auth.models import AuthenticatedPrincipal
+from app.auth.passwords import (
+    PasswordHashConfig,
+    build_password_hasher,
+    hash_password,
+    verify_password,
+)
 from app.auth.repository import AuthRepository
+from app.auth.session_repository import AuthSessionRepository
 from app.auth.token_codec import (
     create_app_access_token,
     create_app_refresh_token,
+    decode_app_access_token,
     decode_app_refresh_token,
 )
-from app.core.config import AuthProvider, settings
+from app.clients import redis_client as redis_module
+from app.core.config import AuthProvider, RateLimitRedisFailureMode, settings
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.auth.schemas.auth import (
+    AuthActiveSessionListResponse,
+    AuthActiveSessionResponse,
+    AuthCurrentSessionResponse,
     AuthLoginRequest,
     AuthLogoutRequest,
     AuthLogoutResponse,
@@ -37,10 +54,20 @@ from app.models.user import User
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _REFRESH_COOKIE_NAME = "rudix_refresh_token"
-_REFRESH_COOKIE_PATH = f"{settings.api_prefix}/auth"
 _repository = AuthRepository()
+_session_repository = AuthSessionRepository()
 _audit_log_service = AuditLogService()
 _sso_service = SSOService()
+
+_password_hasher = build_password_hasher(
+    PasswordHashConfig(
+        memory_cost=settings.app_auth_password_hash_memory_cost_kib,
+        time_cost=settings.app_auth_password_hash_time_cost,
+        parallelism=settings.app_auth_password_hash_parallelism,
+        hash_length=settings.app_auth_password_hash_length,
+        salt_length=settings.app_auth_password_salt_length,
+    )
+)
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -96,6 +123,47 @@ def _session_id_from_claims(claims: dict[str, object]) -> str | None:
     return jti if isinstance(jti, str) and jti.strip() else None
 
 
+async def _enforce_auth_rate_limit(
+    *,
+    action: str,
+    key_parts: list[str],
+    limit: int,
+    window_seconds: int = 60,
+) -> None:
+    if not settings.is_rate_limit_active:
+        return
+
+    redis = redis_module.redis_client
+    if redis is None:
+        if settings.rate_limit_redis_failure_mode == RateLimitRedisFailureMode.closed:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"code": "rate_limiter_unavailable", "message": "Rate limiter unavailable"},
+            )
+        return
+
+    bucket = floor(time() / max(1, window_seconds))
+    key = f"rate_limit:v1:auth:{action}:{':'.join(key_parts)}:{bucket}"
+    count = await redis.incr(key)
+    if count == 1:
+        await redis.expire(key, window_seconds)
+    ttl = await redis.ttl(key)
+    if ttl <= 0:
+        await redis.expire(key, window_seconds)
+        ttl = window_seconds
+
+    if count > limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "code": "rate_limit_exceeded",
+                "message": f"Rate limit exceeded for auth.{action}",
+                "retry_after_seconds": max(1, int(ttl)),
+            },
+            headers={"Retry-After": str(max(1, int(ttl)))},
+        )
+
+
 async def _record_auth_audit(
     db_session: AsyncSession,
     *,
@@ -141,25 +209,6 @@ def _workspace_slug_from_email(email: str) -> str:
     if not slug_base:
         slug_base = "workspace"
     return f"{slug_base}-{uuid4().hex[:8]}"
-
-
-def _ensure_password_login_allowed(password: str) -> None:
-    configured_password = _trim_to_none(
-        settings.app_auth_login_password.get_secret_value()
-        if settings.app_auth_login_password
-        else None,
-    )
-
-    if configured_password is not None:
-        if password != configured_password:
-            raise _unauthorized("Invalid email or password")
-        return
-
-    if settings.is_production:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Password login is not configured",
-        )
 
 
 async def _resolve_user_from_subject(
@@ -208,27 +257,130 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         key=_REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=bool(settings.app_auth_cookie_secure),
+        samesite=settings.app_auth_cookie_same_site,  # type: ignore[arg-type]
         max_age=settings.app_auth_refresh_token_ttl_seconds,
-        path=_REFRESH_COOKIE_PATH,
+        path=settings.app_auth_cookie_path,
+        domain=settings.app_auth_cookie_domain,
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(
         key=_REFRESH_COOKIE_NAME,
-        path=_REFRESH_COOKIE_PATH,
-        secure=settings.is_production,
+        path=settings.app_auth_cookie_path,
+        secure=bool(settings.app_auth_cookie_secure),
         httponly=True,
-        samesite="lax",
+        samesite=settings.app_auth_cookie_same_site,  # type: ignore[arg-type]
+        domain=settings.app_auth_cookie_domain,
     )
+
+
+def _hash_refresh_token(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+
+def _now_utc() -> datetime:
+    return datetime.now(UTC)
+
+
+def _is_account_locked(user: User) -> bool:
+    if user.account_locked_until is None:
+        return False
+    return user.account_locked_until > _now_utc()
+
+
+def _increment_failed_login_attempts(user: User) -> None:
+    user.failed_login_attempts += 1
+
+
+def _reset_failed_login_state(user: User) -> None:
+    user.failed_login_attempts = 0
+    user.account_locked_at = None
+    user.account_locked_until = None
+
+
+def _lock_account(user: User) -> None:
+    user.account_locked_at = _now_utc()
+    user.account_locked_until = _now_utc() + timedelta(minutes=15)
+    user.password_state = "locked"
+
+
+def _build_session_response(
+    *,
+    user: User,
+    membership: OrganizationMember,
+    access_token: str,
+    session_id: UUID,
+) -> AuthSessionResponse:
+    organization = membership.organization
+    return AuthSessionResponse(
+        access_token=access_token,
+        expires_in=settings.app_auth_access_token_ttl_seconds,
+        user_id=str(user.id),
+        email=user.email,
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        organization_name=organization.name if organization is not None else None,
+        session_id=str(session_id),
+    )
+
+
+def _build_refresh_response(
+    *,
+    user: User,
+    membership: OrganizationMember,
+    access_token: str,
+    session_id: UUID,
+) -> AuthRefreshResponse:
+    organization = membership.organization
+    return AuthRefreshResponse(
+        access_token=access_token,
+        expires_in=settings.app_auth_access_token_ttl_seconds,
+        user_id=str(user.id),
+        email=user.email,
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        organization_name=organization.name if organization is not None else None,
+        session_id=str(session_id),
+    )
+
+
+def _session_claims_to_response(
+    *,
+    user: User,
+    membership: OrganizationMember,
+    session_id: UUID,
+    access_token_expires_in: int,
+) -> AuthCurrentSessionResponse:
+    organization = membership.organization
+    return AuthCurrentSessionResponse(
+        session_id=str(session_id),
+        user_id=str(user.id),
+        email=user.email,
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        organization_name=organization.name if organization is not None else None,
+        access_token_expires_in=access_token_expires_in,
+    )
+
+
+def _extract_bearer_token_from_request(request: Request) -> str | None:
+    authorization = _trim_to_none(request.headers.get("authorization"))
+    if authorization is None:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        return None
+    cleaned = _trim_to_none(token)
+    return cleaned
 
 
 async def _auto_provision_user(
     db_session: AsyncSession,
     *,
     email: str,
+    password: str | None = None,
 ) -> User:
     display_name = _display_name_from_email(email)
     organization = Organization(
@@ -243,6 +395,9 @@ async def _auto_provision_user(
         external_auth_id=str(uuid4()),
         email=email,
         display_name=display_name,
+        hashed_password=hash_password(password, _password_hasher) if password else None,
+        password_state="active" if password else "unset",
+        password_changed_at=_now_utc() if password else None,
     )
     db_session.add(user)
     await db_session.flush()
@@ -265,21 +420,6 @@ async def _auto_provision_user(
     return hydrated_user
 
 
-def _build_session_payload(user: User, membership: OrganizationMember) -> tuple[str, str]:
-    organization_id = str(membership.organization_id)
-    access_token = create_app_access_token(
-        subject=user.external_auth_id,
-        organization_id=organization_id,
-        email=user.email,
-    )
-    refresh_token = create_app_refresh_token(
-        subject=user.external_auth_id,
-        organization_id=organization_id,
-        email=user.email,
-    )
-    return access_token, refresh_token
-
-
 @router.post("/login", response_model=AuthSessionResponse)
 async def login(
     payload: AuthLoginRequest,
@@ -293,20 +433,144 @@ async def login(
             detail="Password login is unavailable for the selected auth provider",
         )
 
-    _ensure_password_login_allowed(payload.password)
-
     email = _normalize_email(payload.email)
+    await _enforce_auth_rate_limit(
+        action="login",
+        key_parts=[email, _ip_address_from_request(request) or "unknown"],
+        limit=settings.rate_limit_auth_login_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
     user = await _repository.get_user_by_email(db_session, email=email)
     if user is None:
         if not settings.app_auth_auto_provision_users:
+            await _record_auth_audit(
+                db_session,
+                organization_id=None,
+                user_id=None,
+                action="auth.login.failed",
+                request=request,
+                metadata={
+                    "status_code": status.HTTP_401_UNAUTHORIZED,
+                    "result": "failure",
+                    "severity": "warning",
+                    "reason": "unknown_email",
+                    "email": email,
+                },
+            )
+            await db_session.commit()
             raise _unauthorized("Invalid email or password")
-        user = await _auto_provision_user(db_session, email=email)
+        user = await _auto_provision_user(db_session, email=email, password=payload.password)
+
+    if _is_account_locked(user):
+        await _record_auth_audit(
+            db_session,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            action="auth.login.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_423_LOCKED,
+                "result": "failure",
+                "severity": "warning",
+                "reason": "account_locked",
+                "email": user.email,
+            },
+        )
+        await db_session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail="Account is temporarily locked",
+        )
+
+    if user.hashed_password is None:
+        await _record_auth_audit(
+            db_session,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            action="auth.login.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+                "result": "failure",
+                "severity": "warning",
+                "reason": "password_not_configured",
+                "email": user.email,
+            },
+        )
+        await db_session.commit()
+        raise _unauthorized("Invalid email or password")
+
+    if not verify_password(payload.password, user.hashed_password, _password_hasher):
+        _increment_failed_login_attempts(user)
+        lock_reason = None
+        if user.failed_login_attempts >= 5:
+            _lock_account(user)
+            lock_reason = "account_locked"
+            await _record_auth_audit(
+                db_session,
+                organization_id=user.organization_id,
+                user_id=user.id,
+                action="auth.account.locked",
+                request=request,
+                metadata={
+                    "status_code": status.HTTP_423_LOCKED,
+                    "result": "failure",
+                    "severity": "warning",
+                    "reason": "too_many_failed_logins",
+                    "email": user.email,
+                },
+            )
+        await _record_auth_audit(
+            db_session,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            action="auth.login.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+                "result": "failure",
+                "severity": "warning",
+                "reason": lock_reason or "invalid_password",
+                "email": user.email,
+            },
+        )
+        await db_session.commit()
+        raise _unauthorized("Invalid email or password")
+
+    _reset_failed_login_state(user)
+    user.password_state = "active"
+    user.password_changed_at = user.password_changed_at or _now_utc()
 
     membership = _select_active_membership(user, organization_id=None)
-    access_token, refresh_token = _build_session_payload(user, membership)
+    session_id = uuid4()
+    refresh_token = create_app_refresh_token(
+        subject=str(user.id),
+        session_id=str(session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
+    access_token = create_app_access_token(
+        subject=str(user.id),
+        session_id=str(session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
     _set_refresh_cookie(response, refresh_token)
-    refresh_claims = decode_app_refresh_token(refresh_token)
-    session_id = _session_id_from_claims(refresh_claims)
+    refresh_jti = str(decode_app_refresh_token(refresh_token)["jti"])
+    await _session_repository.create_session(
+        db_session,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        session_id=session_id,
+        refresh_token_hash=_hash_refresh_token(refresh_token),
+        refresh_token_jti=refresh_jti,
+        device_name=None,
+        user_agent=_trim_to_none(request.headers.get("user-agent")),
+        ip_address=_ip_address_from_request(request),
+        expires_at=_now_utc() + timedelta(seconds=settings.app_auth_refresh_token_ttl_seconds),
+    )
     await _record_auth_audit(
         db_session,
         organization_id=membership.organization_id,
@@ -319,23 +583,16 @@ async def login(
             "severity": "info",
             "email": user.email,
             "role": membership.role,
-            "session_id": session_id,
+            "session_id": str(session_id),
         },
     )
     await db_session.commit()
 
-    organization = membership.organization
-    organization_name = organization.name if organization is not None else None
-
-    return AuthSessionResponse(
+    return _build_session_response(
+        user=user,
+        membership=membership,
         access_token=access_token,
-        refresh_token=None,
-        expires_in=settings.app_auth_access_token_ttl_seconds,
-        user_id=str(user.id),
-        email=user.email,
-        role=membership.role,
-        organization_id=str(membership.organization_id),
-        organization_name=organization_name,
+        session_id=session_id,
     )
 
 
@@ -352,10 +609,9 @@ async def refresh_access_token(
             detail="Refresh is unavailable for the selected auth provider",
         )
 
-    raw_refresh_token = _trim_to_none(payload.refresh_token) if payload else None
-    raw_refresh_token = raw_refresh_token or _trim_to_none(
-        request.cookies.get(_REFRESH_COOKIE_NAME),
-    )
+    raw_refresh_token = _trim_to_none(request.cookies.get(_REFRESH_COOKIE_NAME))
+    if raw_refresh_token is None and payload is not None:
+        raw_refresh_token = _trim_to_none(payload.refresh_token)
     if raw_refresh_token is None:
         raise _unauthorized("Missing refresh token")
 
@@ -366,8 +622,17 @@ async def refresh_access_token(
 
     audit_org_id = _organization_uuid_from_claim(claims)
     session_id = _session_id_from_claims(claims)
-
-    if refresh_token_store.is_revoked(raw_refresh_token):
+    await _enforce_auth_rate_limit(
+        action="refresh",
+        key_parts=[session_id or _hash_refresh_token(raw_refresh_token)],
+        limit=settings.rate_limit_auth_refresh_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
+    token_hash = _hash_refresh_token(raw_refresh_token)
+    session_record = await _session_repository.get_session_by_token_hash(
+        db_session, refresh_token_hash=token_hash
+    )
+    if session_record is None:
         await _record_auth_audit(
             db_session,
             organization_id=audit_org_id,
@@ -375,24 +640,24 @@ async def refresh_access_token(
             action="auth.token.refresh.failed",
             request=request,
             metadata={
-                "status_code": status.HTTP_403_FORBIDDEN,
+                "status_code": status.HTTP_401_UNAUTHORIZED,
                 "result": "failure",
                 "severity": "warning",
-                "reason": "refresh_token_revoked",
+                "reason": "refresh_session_not_found",
                 "session_id": session_id,
             },
         )
         await db_session.commit()
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Refresh token has been revoked",
-        )
+        raise _unauthorized("Refresh session is not valid")
 
-    subject = str(claims["sub"]).strip()
-    org_claim = claims.get("org_id")
-    organization_id = _trim_to_none(org_claim if isinstance(org_claim, str) else None)
-    user = await _resolve_user_from_subject(db_session, subject=subject)
+    user = await _repository.get_user_by_id(db_session, user_id=session_record.user_id)
     if user is None:
+        await _session_repository.mark_session_revoked(
+            db_session,
+            session_id=session_record.session_id,
+            revoked_at=_now_utc(),
+            reason="user_missing",
+        )
         await _record_auth_audit(
             db_session,
             organization_id=audit_org_id,
@@ -410,17 +675,83 @@ async def refresh_access_token(
         await db_session.commit()
         raise _unauthorized("Unknown principal")
 
-    try:
-        membership = _select_active_membership(user, organization_id=organization_id)
-    except HTTPException as exc:
+    if _is_account_locked(user):
         await _record_auth_audit(
             db_session,
-            organization_id=audit_org_id,
+            organization_id=session_record.organization_id,
             user_id=user.id,
             action="auth.token.refresh.failed",
             request=request,
             metadata={
-                "status_code": exc.status_code,
+                "status_code": status.HTTP_423_LOCKED,
+                "result": "failure",
+                "severity": "warning",
+                "reason": "account_locked",
+                "session_id": session_id,
+            },
+        )
+        await db_session.commit()
+        raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="Account is locked")
+
+    if session_record.revoked_at is not None:
+        if session_record.revoked_reason == "rotated":
+            await _session_repository.mark_user_sessions_revoked(
+                db_session,
+                user_id=user.id,
+                revoked_at=_now_utc(),
+                reason="refresh_token_reuse_detected",
+            )
+            await _record_auth_audit(
+                db_session,
+                organization_id=session_record.organization_id,
+                user_id=user.id,
+                action="auth.token.reuse_detected",
+                request=request,
+                metadata={
+                    "status_code": status.HTTP_403_FORBIDDEN,
+                    "result": "failure",
+                    "severity": "warning",
+                    "reason": "refresh_token_reuse_detected",
+                    "session_id": str(session_record.session_id),
+                },
+            )
+            await db_session.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Refresh token reuse detected",
+            )
+
+        await _record_auth_audit(
+            db_session,
+            organization_id=session_record.organization_id,
+            user_id=user.id,
+            action="auth.token.refresh.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_401_UNAUTHORIZED,
+                "result": "failure",
+                "severity": "warning",
+                "reason": "refresh_session_revoked",
+                "session_id": session_id,
+            },
+        )
+        await db_session.commit()
+        raise _unauthorized("Refresh session is not valid")
+
+    org_claim = claims.get("org_id")
+    organization_id = _trim_to_none(org_claim if isinstance(org_claim, str) else None)
+    if organization_id is None:
+        organization_id = str(session_record.organization_id)
+
+    if organization_id != str(session_record.organization_id):
+        await _record_auth_audit(
+            db_session,
+            organization_id=session_record.organization_id,
+            user_id=user.id,
+            action="auth.token.refresh.failed",
+            request=request,
+            metadata={
+                "status_code": status.HTTP_403_FORBIDDEN,
                 "result": "failure",
                 "severity": "warning",
                 "reason": "membership_access_denied",
@@ -428,16 +759,53 @@ async def refresh_access_token(
             },
         )
         await db_session.commit()
-        raise
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cross-organization access is not allowed",
+        )
 
-    original_exp = claims.get("exp")
-    if isinstance(original_exp, int):
-        refresh_token_store.revoke(raw_refresh_token, expires_at_epoch=original_exp)
+    membership = _select_active_membership(user, organization_id=organization_id)
+    await _session_repository.update_last_used(
+        db_session,
+        refresh_token_hash=token_hash,
+        last_used_at=_now_utc(),
+    )
+    await _session_repository.mark_token_revoked(
+        db_session,
+        refresh_token_hash=token_hash,
+        revoked_at=_now_utc(),
+        reason="rotated",
+    )
 
-    access_token, refresh_token = _build_session_payload(user, membership)
-    _set_refresh_cookie(response, refresh_token)
-    refreshed_claims = decode_app_refresh_token(refresh_token)
-    refreshed_session_id = _session_id_from_claims(refreshed_claims)
+    next_session_id = session_record.session_id
+    next_refresh_token = create_app_refresh_token(
+        subject=str(user.id),
+        session_id=str(next_session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
+    next_access_token = create_app_access_token(
+        subject=str(user.id),
+        session_id=str(next_session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
+    _set_refresh_cookie(response, next_refresh_token)
+    next_refresh_jti = str(decode_app_refresh_token(next_refresh_token)["jti"])
+    await _session_repository.create_session(
+        db_session,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        session_id=next_session_id,
+        refresh_token_hash=_hash_refresh_token(next_refresh_token),
+        refresh_token_jti=next_refresh_jti,
+        device_name=session_record.device_name,
+        user_agent=session_record.user_agent,
+        ip_address=session_record.ip_address,
+        expires_at=_now_utc() + timedelta(seconds=settings.app_auth_refresh_token_ttl_seconds),
+    )
     await _record_auth_audit(
         db_session,
         organization_id=membership.organization_id,
@@ -448,16 +816,17 @@ async def refresh_access_token(
             "status_code": status.HTTP_200_OK,
             "result": "success",
             "severity": "info",
-            "session_id": refreshed_session_id,
+            "session_id": str(next_session_id),
             "previous_session_id": session_id,
         },
     )
     await db_session.commit()
 
-    return AuthRefreshResponse(
-        access_token=access_token,
-        refresh_token=None,
-        expires_in=settings.app_auth_access_token_ttl_seconds,
+    return _build_refresh_response(
+        user=user,
+        membership=membership,
+        access_token=next_access_token,
+        session_id=next_session_id,
     )
 
 
@@ -468,10 +837,9 @@ async def logout(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     payload: AuthLogoutRequest | None = None,
 ) -> AuthLogoutResponse:
-    raw_refresh_token = _trim_to_none(payload.refresh_token) if payload else None
-    raw_refresh_token = raw_refresh_token or _trim_to_none(
-        request.cookies.get(_REFRESH_COOKIE_NAME),
-    )
+    raw_refresh_token = _trim_to_none(request.cookies.get(_REFRESH_COOKIE_NAME))
+    if raw_refresh_token is None and payload is not None:
+        raw_refresh_token = _trim_to_none(payload.refresh_token)
     audit_org_id: UUID | None = None
     audit_user_id: UUID | None = None
     audit_session_id: str | None = None
@@ -481,14 +849,28 @@ async def logout(
             claims = decode_app_refresh_token(raw_refresh_token)
             audit_org_id = _organization_uuid_from_claim(claims)
             audit_session_id = _session_id_from_claims(claims)
+            await _enforce_auth_rate_limit(
+                action="logout",
+                key_parts=[audit_session_id or _hash_refresh_token(raw_refresh_token)],
+                limit=settings.rate_limit_auth_logout_requests,
+                window_seconds=settings.rate_limit_window_seconds,
+            )
             subject = claims.get("sub")
             if isinstance(subject, str) and subject.strip():
                 audit_user = await _resolve_user_from_subject(db_session, subject=subject.strip())
                 if audit_user is not None:
                     audit_user_id = audit_user.id
-            exp = claims.get("exp")
-            if isinstance(exp, int):
-                refresh_token_store.revoke(raw_refresh_token, expires_at_epoch=exp)
+            token_hash = _hash_refresh_token(raw_refresh_token)
+            session_record = await _session_repository.get_session_by_token_hash(
+                db_session, refresh_token_hash=token_hash
+            )
+            if session_record is not None:
+                await _session_repository.mark_session_revoked(
+                    db_session,
+                    session_id=session_record.session_id,
+                    revoked_at=_now_utc(),
+                    reason="logout",
+                )
         except AuthenticationError:
             # Logout remains idempotent for malformed/expired tokens.
             pass
@@ -510,6 +892,114 @@ async def logout(
     )
     await db_session.commit()
     return AuthLogoutResponse(success=True)
+
+
+@router.post("/logout-all", response_model=AuthLogoutResponse)
+async def logout_all_devices(
+    request: Request,
+    response: Response,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthLogoutResponse:
+    user_id = UUID(principal.user_id)
+    await _enforce_auth_rate_limit(
+        action="logout_all",
+        key_parts=[str(user_id)],
+        limit=settings.rate_limit_auth_logout_requests,
+        window_seconds=settings.rate_limit_window_seconds,
+    )
+    await _session_repository.mark_user_sessions_revoked(
+        db_session,
+        user_id=user_id,
+        revoked_at=_now_utc(),
+        reason="logout_all",
+    )
+    await _record_auth_audit(
+        db_session,
+        organization_id=UUID(principal.organization_id) if principal.organization_id else None,
+        user_id=user_id,
+        action="auth.logout_all.completed",
+        request=request,
+        metadata={
+            "status_code": status.HTTP_200_OK,
+            "result": "success",
+            "severity": "info",
+        },
+    )
+    _clear_refresh_cookie(response)
+    await db_session.commit()
+    return AuthLogoutResponse(success=True)
+
+
+@router.get("/session", response_model=AuthCurrentSessionResponse)
+async def current_session(
+    request: Request,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthCurrentSessionResponse:
+    access_token = _extract_bearer_token_from_request(request)
+    if access_token is None:
+        raise _unauthorized("Missing bearer token")
+
+    claims = decode_app_access_token(access_token)
+    session_id_value = _session_id_from_claims(claims)
+    if session_id_value is None:
+        raise _unauthorized("Token session is missing")
+    exp = claims.get("exp")
+    if not isinstance(exp, int):
+        raise _unauthorized("Token expiration is invalid")
+    access_token_expires_in = max(0, int(exp - time()))
+
+    user = await _repository.get_user_by_id(db_session, user_id=UUID(principal.user_id))
+    if user is None:
+        raise _unauthorized("Unknown principal")
+
+    membership = _select_active_membership(user, organization_id=principal.organization_id)
+    return _session_claims_to_response(
+        user=user,
+        membership=membership,
+        session_id=UUID(session_id_value),
+        access_token_expires_in=access_token_expires_in,
+    )
+
+
+@router.get("/sessions", response_model=AuthActiveSessionListResponse)
+async def list_active_sessions(
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = 20,
+    offset: int = 0,
+) -> AuthActiveSessionListResponse:
+    user_id = UUID(principal.user_id)
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    items = await _session_repository.list_active_sessions_for_user(
+        db_session,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+    )
+    total = await _session_repository.count_active_sessions_for_user(
+        db_session,
+        user_id=user_id,
+    )
+    return AuthActiveSessionListResponse(
+        total=total,
+        items=[
+            AuthActiveSessionResponse(
+                session_id=str(item.session_id),
+                device_name=item.device_name,
+                user_agent=item.user_agent,
+                ip_address=item.ip_address,
+                created_at=item.created_at,
+                last_used_at=item.last_used_at,
+                expires_at=item.expires_at,
+                revoked_at=item.revoked_at,
+                revoked_reason=item.revoked_reason,
+            )
+            for item in items
+        ],
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -570,9 +1060,9 @@ async def sso_initiate(
             detail="SSO is not configured or enabled for this organization.",
         )
 
-    relay_state = base64.urlsafe_b64encode(
-        f"org={organization_id}&next={next}".encode("utf-8")
-    ).decode("utf-8")
+    relay_state = base64.urlsafe_b64encode(f"org={organization_id}&next={next}".encode()).decode(
+        "utf-8"
+    )
 
     redirect_url = _sso_service.build_authn_redirect_url(config, relay_state=relay_state)
     if redirect_url is None:
@@ -689,11 +1179,35 @@ async def sso_callback(
             )
 
     membership = _select_active_membership(user, organization_id=str(sso_org_id))
-    access_token, refresh_token = _build_session_payload(user, membership)
+    session_id = uuid4()
+    refresh_token = create_app_refresh_token(
+        subject=str(user.id),
+        session_id=str(session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
+    access_token = create_app_access_token(
+        subject=str(user.id),
+        session_id=str(session_id),
+        role=membership.role,
+        organization_id=str(membership.organization_id),
+        email=user.email,
+    )
     _set_refresh_cookie(response, refresh_token)
-
-    refresh_claims = decode_app_refresh_token(refresh_token)
-    session_id = _session_id_from_claims(refresh_claims)
+    refresh_jti = str(decode_app_refresh_token(refresh_token)["jti"])
+    await _session_repository.create_session(
+        db_session,
+        organization_id=membership.organization_id,
+        user_id=user.id,
+        session_id=session_id,
+        refresh_token_hash=_hash_refresh_token(refresh_token),
+        refresh_token_jti=refresh_jti,
+        device_name=None,
+        user_agent=_trim_to_none(request.headers.get("user-agent")),
+        ip_address=_ip_address_from_request(request),
+        expires_at=_now_utc() + timedelta(seconds=settings.app_auth_refresh_token_ttl_seconds),
+    )
     await _record_auth_audit(
         db_session,
         organization_id=membership.organization_id,
@@ -706,23 +1220,18 @@ async def sso_callback(
             "severity": "info",
             "email": user.email,
             "role": membership.role,
-            "session_id": session_id,
+            "session_id": str(session_id),
             "sso_type": config.sso_type,
             "idp_entity_id": config.idp_entity_id,
         },
     )
     await db_session.commit()
 
-    org = membership.organization
-    session_response = AuthSessionResponse(
+    session_response = _build_session_response(
+        user=user,
+        membership=membership,
         access_token=access_token,
-        refresh_token=None,
-        expires_in=settings.app_auth_access_token_ttl_seconds,
-        user_id=str(user.id),
-        email=user.email,
-        role=membership.role,
-        organization_id=str(membership.organization_id),
-        organization_name=org.name if org else None,
+        session_id=session_id,
     )
 
     # Decode RelayState to extract the post-login navigation target.
@@ -752,13 +1261,19 @@ async def sso_callback(
             "email": session_response.email,
             "role": session_response.role,
             "organization_id": session_response.organization_id or "",
+            "session_id": session_response.session_id,
             "next": next_path,
         }
         if session_response.organization_name:
             params["organization_name"] = session_response.organization_name
         qs = urllib.parse.urlencode(params)
         redirect_target = f"{frontend_base}/sso/callback?{qs}"
-        return RedirectResponse(url=redirect_target, status_code=status.HTTP_302_FOUND)
+        redirect_response = RedirectResponse(
+            url=redirect_target,
+            status_code=status.HTTP_302_FOUND,
+        )
+        _set_refresh_cookie(redirect_response, refresh_token)
+        return redirect_response
 
     return session_response
 

@@ -241,9 +241,10 @@ describe("SecuritySettingsTab", () => {
       mockAuth.state = { ...OWNER_SESSION };
       renderTab();
       expect(screen.getByText("Access token attached")).toBeInTheDocument();
-      expect(screen.getByText("Refresh token available")).toBeInTheDocument();
+      expect(screen.getByText("Refresh cookie")).toBeInTheDocument();
       const yesElements = screen.getAllByText("Yes");
-      expect(yesElements.length).toBeGreaterThanOrEqual(2);
+      expect(yesElements.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Managed by backend")).toBeInTheDocument();
     });
 
     it("shows No when access token is absent", () => {

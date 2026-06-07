@@ -199,7 +199,7 @@ async def test_upsert_sso_strips_leading_at_from_domain(
 async def test_upsert_sso_requires_owner_role(
     sso_client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    user, org = await _seed_owner(db_session)
+    _user, org = await _seed_owner(db_session)
     member = await _seed_member(db_session, org)
     resp = await sso_client.put(
         "/api/v1/admin/sso",
@@ -448,11 +448,10 @@ async def test_sso_callback_provisions_user_and_issues_tokens(
         f"/api/v1/auth/sso/{org.id}/callback",
         data={"SAMLResponse": saml_b64, "RelayState": ""},
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["access_token"]
-    assert data["email"] == email
-    assert data["organization_id"] == str(org.id)
+    assert resp.status_code == 302
+    assert "access_token=" in resp.headers["location"]
+    assert "session_id=" in resp.headers["location"]
+    assert resp.cookies.get("rudix_refresh_token")
 
 
 async def test_sso_callback_logs_in_existing_user(
@@ -474,8 +473,9 @@ async def test_sso_callback_logs_in_existing_user(
         f"/api/v1/auth/sso/{org.id}/callback",
         data={"SAMLResponse": saml_b64},
     )
-    assert resp.status_code == 200
-    assert resp.json()["user_id"] == str(user.id)
+    assert resp.status_code == 302
+    assert "access_token=" in resp.headers["location"]
+    assert resp.cookies.get("rudix_refresh_token")
 
 
 async def test_sso_callback_400_for_invalid_saml(
@@ -546,12 +546,16 @@ async def test_sso_session_refresh_token_works(
         f"/api/v1/auth/sso/{org.id}/callback",
         data={"SAMLResponse": saml_b64},
     )
-    assert login_resp.status_code == 200
+    assert login_resp.status_code == 302
 
     # The refresh token is in an HTTP-only cookie
-    assert "rudix_refresh_token" in sso_client.cookies
+    refresh_token = login_resp.cookies.get("rudix_refresh_token")
+    assert refresh_token is not None
 
-    refresh_resp = await sso_client.post("/api/v1/auth/token/refresh", json={})
+    refresh_resp = await sso_client.post(
+        "/api/v1/auth/token/refresh",
+        cookies={"rudix_refresh_token": refresh_token},
+    )
     assert refresh_resp.status_code == 200
     data = refresh_resp.json()
     assert data["access_token"]
