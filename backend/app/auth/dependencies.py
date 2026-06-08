@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Iterable
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -57,10 +58,69 @@ def _parse_document_id(document_id: str) -> UUID:
         ) from exc
 
 
+_API_KEY_PREFIX = "rudix_"
+
+
+async def _authenticate_api_key(
+    request: Request,
+    raw_key: str,
+    db_session: AsyncSession,
+) -> AuthenticatedPrincipal:
+    """Authenticate a request using a scoped API key bearer token."""
+    from app.domains.api_keys.repositories.api_keys import ApiKeysRepository
+    from app.domains.api_keys.services.api_keys_service import ApiKeysService
+
+    key_hash = ApiKeysService.hash_key(raw_key)
+    repo = ApiKeysRepository()
+    api_key = await repo.get_active_key_by_hash(db_session, key_hash=key_hash)
+
+    if api_key is None:
+        raise AuthenticationError("Invalid or revoked API key")
+
+    if ApiKeysService.is_expired(api_key):
+        raise AuthenticationError("API key has expired")
+
+    client_ip: str | None = None
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+
+    await repo.record_usage(
+        db_session,
+        key_id=api_key.id,
+        used_at=datetime.now(tz=timezone.utc),
+        ip_address=client_ip,
+    )
+
+    scopes = api_key.scopes if isinstance(api_key.scopes, list) else []
+    permissions = ApiKeysService.scopes_to_permissions(scopes)
+
+    return AuthenticatedPrincipal(
+        user_id=str(api_key.created_by_id) if api_key.created_by_id else str(api_key.id),
+        organization_id=str(api_key.organization_id),
+        roles=[],
+        auth_provider="api_key",
+        api_key_id=str(api_key.id),
+        api_key_permissions=permissions,
+    )
+
+
 async def get_current_principal(
     request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuthenticatedPrincipal:
+    authorization = request.headers.get("authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and token.strip().startswith(_API_KEY_PREFIX):
+        try:
+            principal = await _authenticate_api_key(request, token.strip(), db_session)
+            request.state.auth_principal = principal
+            return principal
+        except AuthenticationError as exc:
+            raise _unauthorized(str(exc)) from exc
+
     provider = get_auth_provider()
     try:
         principal = await provider.authenticate(request, db_session)
@@ -111,6 +171,15 @@ def require_permission(
         db_session: Annotated[AsyncSession, Depends(get_db_session)],
     ) -> AuthenticatedPrincipal:
         if not normalized_perms:
+            return principal
+
+        # API key principals carry their own pre-resolved permission set.
+        if principal.api_key_permissions is not None:
+            if not normalized_perms.issubset(principal.api_key_permissions):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="API key does not have the required scopes",
+                )
             return principal
 
         custom_role_id: UUID | None = None

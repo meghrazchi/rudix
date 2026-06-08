@@ -11,3 +11,7 @@ class AuthenticatedPrincipal(BaseModel):
     email: str | None = None
     roles: list[str] = Field(default_factory=list)
     auth_provider: str
+    # Set when authenticated via an API key; grants these specific permissions
+    # instead of resolving from roles.
+    api_key_id: str | None = None
+    api_key_permissions: frozenset[str] | None = None

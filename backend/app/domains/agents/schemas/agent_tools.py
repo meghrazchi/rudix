@@ -12,12 +12,7 @@ from app.auth.models import AuthenticatedPrincipal
 from app.domains.admin.services.audit_service import sanitize_metadata
 from app.models.enums import OrganizationRole
 
-_ALLOWED_ORG_ROLES = {
-    OrganizationRole.owner.value,
-    OrganizationRole.admin.value,
-    OrganizationRole.member.value,
-    OrganizationRole.viewer.value,
-}
+_ALLOWED_ORG_ROLES = {role.value for role in OrganizationRole}
 
 
 class ToolEffectPolicy(StrEnum):
@@ -74,7 +69,7 @@ class ToolSpec(BaseModel):
     effect_policy: ToolEffectPolicy
     required_roles: list[str] = Field(
         default_factory=lambda: [OrganizationRole.viewer.value],
-        max_length=4,
+        max_length=len(list(OrganizationRole)),
     )
     organization_scoped: bool = True
     approval_required: bool = False

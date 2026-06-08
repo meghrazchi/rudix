@@ -16,7 +16,8 @@ type AdminSurfaceCard = {
     | "observability"
     | "governance"
     | "feedback-review"
-    | "deletion-status";
+    | "deletion-status"
+    | "api-keys";
   title: string;
   description: string;
   href: string;
@@ -117,6 +118,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       description:
         "Monitor and retry document deletions in progress, failed, or blocked by retention policy.",
       href: "/admin/documents/deletion",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "api-keys",
+      title: "API Keys",
+      description:
+        "Create and manage scoped API keys for programmatic and integration access.",
+      href: "/admin/api-keys",
       available: true,
       availabilityNote: "Available",
     },
