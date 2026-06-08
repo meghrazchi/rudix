@@ -5,6 +5,11 @@ import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 export type TeamMemberRole = AppRole;
 export type TeamInviteRole = Exclude<AppRole, "owner">;
 
+export type UpdateTeamMemberRolePayload = {
+  role?: TeamInviteRole;
+  custom_role_id?: string | null;
+};
+
 export type TeamMemberStatus =
   | "active"
   | "invited"
@@ -18,6 +23,7 @@ export type TeamMember = {
   name: string;
   email: string;
   role: TeamMemberRole;
+  custom_role_id: string | null;
   status: TeamMemberStatus;
   created_at: string | null;
   updated_at: string | null;
@@ -91,14 +97,20 @@ function resolveTemplateEndpoint(
   return `${template}/${encodeURIComponent(memberId)}`;
 }
 
+const VALID_TEAM_ROLES: ReadonlySet<string> = new Set([
+  "owner",
+  "admin",
+  "member",
+  "viewer",
+  "reviewer",
+  "developer",
+  "security_admin",
+  "billing_admin",
+]);
+
 function normalizeRole(value: unknown): TeamMemberRole {
-  if (
-    value === "owner" ||
-    value === "admin" ||
-    value === "member" ||
-    value === "viewer"
-  ) {
-    return value;
+  if (typeof value === "string" && VALID_TEAM_ROLES.has(value)) {
+    return value as TeamMemberRole;
   }
   return "viewer";
 }
@@ -143,6 +155,11 @@ function normalizeMember(value: unknown, index: number): TeamMember {
         : email,
     email,
     role: normalizeRole(raw.role),
+    custom_role_id:
+      typeof raw.custom_role_id === "string" &&
+      raw.custom_role_id.trim().length > 0
+        ? raw.custom_role_id.trim()
+        : null,
     status: normalizeStatus(raw.status),
     created_at:
       typeof raw.created_at === "string" && raw.created_at.trim().length > 0

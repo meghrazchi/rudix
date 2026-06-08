@@ -1,4 +1,12 @@
-export type AppRole = "owner" | "admin" | "member" | "viewer";
+export type AppRole =
+  | "owner"
+  | "admin"
+  | "member"
+  | "viewer"
+  | "reviewer"
+  | "developer"
+  | "security_admin"
+  | "billing_admin";
 
 export type AuthenticatedSession = {
   userId: string;
@@ -36,13 +44,19 @@ export const AUTH_BOUNDARY_STORAGE_KEY = "rudix.auth.boundary.v1";
 export const AUTH_BOUNDARY_EVENT_NAME = "rudix:auth-boundary";
 export const SESSION_STORAGE_EVENT_NAME = "rudix:session-storage";
 
+const VALID_ROLES: ReadonlySet<string> = new Set([
+  "owner",
+  "admin",
+  "member",
+  "viewer",
+  "reviewer",
+  "developer",
+  "security_admin",
+  "billing_admin",
+]);
+
 function isRole(value: unknown): value is AppRole {
-  return (
-    value === "owner" ||
-    value === "admin" ||
-    value === "member" ||
-    value === "viewer"
-  );
+  return typeof value === "string" && VALID_ROLES.has(value);
 }
 
 function isValidSession(value: unknown): value is AuthenticatedSession {

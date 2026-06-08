@@ -11,11 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.permission_service import PermissionService
 from app.db.session import get_db_session
 from app.models.connector import ConnectorConnection, ExternalItem
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.document import Document
 from app.models.enums import ConnectorConnectionStatus
+from app.models.organization_member import OrganizationMember
+
+_permission_service = PermissionService()
 
 _document_repository = DocumentRepository()
 
@@ -87,6 +91,59 @@ def require_roles(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient role for requested operation",
         )
+
+    return dependency
+
+
+def require_permission(
+    *required_permissions: str,
+) -> Callable[[AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:
+    """FastAPI dependency that checks the caller has ALL of the given permissions.
+
+    Resolves custom role permissions from the database when the member has a
+    custom_role_id assigned. Falls back to the built-in ROLE_PERMISSIONS map for
+    standard roles.
+    """
+    normalized_perms = frozenset(p.strip() for p in required_permissions if p.strip())
+
+    async def dependency(
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+        db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    ) -> AuthenticatedPrincipal:
+        if not normalized_perms:
+            return principal
+
+        custom_role_id: UUID | None = None
+        if principal.organization_id:
+            try:
+                org_uuid = UUID(principal.organization_id)
+                user_uuid = UUID(principal.user_id)
+            except ValueError:
+                org_uuid = None
+                user_uuid = None
+
+            if org_uuid and user_uuid:
+                result = await db_session.execute(
+                    select(OrganizationMember.custom_role_id).where(
+                        OrganizationMember.organization_id == org_uuid,
+                        OrganizationMember.user_id == user_uuid,
+                    )
+                )
+                row = result.scalar_one_or_none()
+                if row is not None:
+                    custom_role_id = row
+
+        user_perms = await _permission_service.get_user_permissions(
+            db_session,
+            roles=principal.roles,
+            custom_role_id=custom_role_id,
+        )
+        if not normalized_perms.issubset(user_perms):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions for requested operation",
+            )
+        return principal
 
     return dependency
 

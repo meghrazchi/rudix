@@ -11,6 +11,10 @@ TeamInviteRole = Literal[
     OrganizationRole.admin.value,
     OrganizationRole.member.value,
     OrganizationRole.viewer.value,
+    OrganizationRole.reviewer.value,
+    OrganizationRole.developer.value,
+    OrganizationRole.security_admin.value,
+    OrganizationRole.billing_admin.value,
 ]
 TeamMemberStatus = Literal["active", "invited", "disabled", "suspended", "unknown"]
 
@@ -21,6 +25,7 @@ class TeamMemberResponse(BaseModel):
     name: str
     email: str
     role: str
+    custom_role_id: str | None = None
     status: TeamMemberStatus
     created_at: datetime | None
     updated_at: datetime | None
@@ -52,7 +57,8 @@ class InviteTeamMemberResponse(BaseModel):
 
 
 class UpdateTeamMemberRoleRequest(BaseModel):
-    role: TeamInviteRole
+    role: TeamInviteRole | None = None
+    custom_role_id: str | None = None
 
 
 class TeamMemberRemoveResponse(BaseModel):

@@ -6,6 +6,7 @@ from app.interfaces.http import (
     admin_chunking_profiles,
     admin_documents,
     admin_governance,
+    admin_roles,
     admin_scim,
     admin_sso,
     agent_runs,
@@ -76,6 +77,7 @@ protected_router.include_router(admin_scim.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
 protected_router.include_router(admin_chunking_profiles.router)
+protected_router.include_router(admin_roles.router)
 protected_router.include_router(team.router)
 protected_router.include_router(profile.router)
 protected_router.include_router(security_settings.router)

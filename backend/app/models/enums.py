@@ -6,6 +6,10 @@ class OrganizationRole(StrEnum):
     admin = "admin"
     member = "member"
     viewer = "viewer"
+    reviewer = "reviewer"
+    security_admin = "security_admin"
+    billing_admin = "billing_admin"
+    developer = "developer"
 
 
 class DocumentFileType(StrEnum):

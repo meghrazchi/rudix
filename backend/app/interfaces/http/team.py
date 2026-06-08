@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_roles
+from app.auth.dependencies import require_permission, require_roles
+from app.models.permissions import PermissionType
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import get_logger
 from app.db.session import get_db_session
@@ -81,6 +82,7 @@ def _to_member_response(member: OrganizationMember) -> TeamMemberResponse:
         name=team_service.resolve_member_name(user),
         email=email,
         role=member.role,
+        custom_role_id=str(member.custom_role_id) if member.custom_role_id else None,
         status=team_service.resolve_member_status(member),
         created_at=member.created_at,
         updated_at=member.updated_at,
@@ -91,7 +93,7 @@ def _to_member_response(member: OrganizationMember) -> TeamMemberResponse:
 async def list_team_members(
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(require_permission(PermissionType.team_view)),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -133,7 +135,7 @@ async def invite_team_member(
     payload: InviteTeamMemberRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(require_permission(PermissionType.team_manage)),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> InviteTeamMemberResponse:
@@ -218,7 +220,7 @@ async def update_team_member_role(
     payload: UpdateTeamMemberRoleRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(require_permission(PermissionType.team_manage)),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TeamMemberResponse:
@@ -240,7 +242,28 @@ async def update_team_member_role(
             detail="Owner role cannot be changed",
         )
 
-    member.role = payload.role
+    if payload.role is None and payload.custom_role_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Either role or custom_role_id must be provided",
+        )
+
+    if payload.custom_role_id is not None:
+        try:
+            from uuid import UUID as _UUID
+            custom_role_uuid = _UUID(payload.custom_role_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="custom_role_id is not a valid UUID",
+            ) from exc
+        member.custom_role_id = custom_role_uuid
+        if payload.role:
+            member.role = payload.role
+    else:
+        member.role = payload.role  # type: ignore[assignment]
+        member.custom_role_id = None
+
     await db_session.flush()
 
     await audit_log_service.record(
@@ -253,6 +276,7 @@ async def update_team_member_role(
         request_id=request_id,
         metadata={
             "role": payload.role,
+            "custom_role_id": payload.custom_role_id,
             "status_code": status.HTTP_200_OK,
         },
     )
@@ -283,7 +307,7 @@ async def remove_team_member(
     member_id: str,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(require_permission(PermissionType.team_manage)),
     ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TeamMemberRemoveResponse:
