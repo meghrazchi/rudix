@@ -20,7 +20,7 @@ from app.models.user import User
 async def _create_connector_document(
     db_session: AsyncSession,
     *,
-    provider_key: str = "jira",
+    provider_key: str = "confluence",
     connection_status: str = ConnectorConnectionStatus.active.value,
     deleted_at: datetime | None = None,
 ) -> tuple[Organization, User, Document, DocumentChunk, ExternalItem]:
@@ -208,11 +208,11 @@ async def test_source_provenance_loads_connector_citation_details(
     )
 
     details = details_by_chunk[chunk.id]
-    assert details.provider_key == "jira"
-    assert details.provider_label == "Jira"
+    assert details.provider_key == "confluence"
+    assert details.provider_label == "Confluence"
     assert details.source_title == "Source Title"
     assert details.source_section == "Page 1"
-    assert details.source_deep_link == "https://jira.example.test/items/jira-123"
+    assert details.source_deep_link == "https://confluence.example.test/items/confluence-123"
     assert details.source_trust_status == "trusted"
     assert details.source_sync_version == 3
     assert details.source_acl_snapshot["entries"][0]["role"] == "reader"

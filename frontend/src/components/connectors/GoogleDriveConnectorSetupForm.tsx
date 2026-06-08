@@ -27,8 +27,7 @@ function validate(config: GoogleDriveConnectorConfig): FieldError {
       (id) => id.includes(" ") || id.includes("/"),
     );
     if (badDriveIds.length > 0) {
-      errors.drive_ids =
-        "Shared Drive IDs must not contain spaces or slashes.";
+      errors.drive_ids = "Shared Drive IDs must not contain spaces or slashes.";
     }
   }
   return errors;
@@ -91,7 +90,8 @@ export function GoogleDriveConnectorSetupForm({
     onSubmit(config);
   }
 
-  const showError = (field: keyof FieldError) => touched[field] && errors[field];
+  const showError = (field: keyof FieldError) =>
+    touched[field] && errors[field];
 
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-5">
@@ -120,7 +120,7 @@ export function GoogleDriveConnectorSetupForm({
             showError("folder_ids") ? "gdrive-folder-ids-error" : undefined
           }
           aria-invalid={!!showError("folder_ids")}
-          className={`mt-1.5 block w-full rounded-md border px-3 py-2 font-mono text-sm shadow-sm focus:outline-none focus:ring-2 ${
+          className={`mt-1.5 block w-full rounded-md border px-3 py-2 font-mono text-sm shadow-sm focus:ring-2 focus:outline-none ${
             showError("folder_ids")
               ? "border-red-400 focus:border-red-400 focus:ring-red-200"
               : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
@@ -183,7 +183,7 @@ export function GoogleDriveConnectorSetupForm({
               showError("drive_ids") ? "gdrive-drive-ids-error" : undefined
             }
             aria-invalid={!!showError("drive_ids")}
-            className={`mt-1.5 block w-full rounded-md border px-3 py-2 font-mono text-sm shadow-sm focus:outline-none focus:ring-2 ${
+            className={`mt-1.5 block w-full rounded-md border px-3 py-2 font-mono text-sm shadow-sm focus:ring-2 focus:outline-none ${
               showError("drive_ids")
                 ? "border-red-400 focus:border-red-400 focus:ring-red-200"
                 : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"

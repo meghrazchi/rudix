@@ -160,7 +160,7 @@ function SupportProblemSection() {
     {
       icon: "search_off",
       title: "Tool Fatigue",
-      body: "Agents search too many tools — Confluence, Notion, Slack, and Jira — wasting 30% of their shift just looking for answers.",
+      body: "Agents search too many tools — Confluence, Notion, and Slack — wasting 30% of their shift just looking for answers.",
     },
     {
       icon: "speed",

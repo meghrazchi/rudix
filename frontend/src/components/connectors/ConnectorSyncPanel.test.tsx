@@ -131,7 +131,9 @@ describe("ConnectorSyncPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Hourly sync")).toBeInTheDocument();
       expect(screen.getByText("active")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /pause/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /pause/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -151,9 +153,7 @@ describe("ConnectorSyncPanel", () => {
   });
 
   it("shows Sync now button when active job exists", async () => {
-    mockApi.listSyncJobs.mockResolvedValue(
-      makeJobsResponse([makeJob()]),
-    );
+    mockApi.listSyncJobs.mockResolvedValue(makeJobsResponse([makeJob()]));
 
     renderPanel();
 
@@ -165,9 +165,7 @@ describe("ConnectorSyncPanel", () => {
   });
 
   it("calls triggerSyncNow and invalidates runs query", async () => {
-    mockApi.listSyncJobs.mockResolvedValue(
-      makeJobsResponse([makeJob()]),
-    );
+    mockApi.listSyncJobs.mockResolvedValue(makeJobsResponse([makeJob()]));
     const triggerResponse: TriggerSyncNowResponse = {
       sync_run_id: "run-new",
       status: "queued",
@@ -177,9 +175,7 @@ describe("ConnectorSyncPanel", () => {
     mockApi.listSyncRuns.mockResolvedValue(makeRunsResponse([]));
 
     renderPanel();
-    await waitFor(() =>
-      screen.getByRole("button", { name: /sync now/i }),
-    );
+    await waitFor(() => screen.getByRole("button", { name: /sync now/i }));
 
     await userEvent.click(screen.getByRole("button", { name: /sync now/i }));
 
@@ -195,7 +191,9 @@ describe("ConnectorSyncPanel", () => {
     mockApi.listSyncJobs.mockResolvedValue(
       makeJobsResponse([makeJob({ status: "active" })]),
     );
-    mockApi.updateSyncJobStatus.mockResolvedValue(makeJob({ status: "paused" }));
+    mockApi.updateSyncJobStatus.mockResolvedValue(
+      makeJob({ status: "paused" }),
+    );
 
     renderPanel();
     await waitFor(() => screen.getByRole("button", { name: /pause/i }));
@@ -253,7 +251,9 @@ describe("ConnectorSyncPanel", () => {
     mockApi.listSyncRuns.mockResolvedValue(
       makeRunsResponse([makeRun({ id: runId, status: "running" })]),
     );
-    mockApi.cancelSyncRun.mockResolvedValue(makeRun({ id: runId, status: "cancelled" }));
+    mockApi.cancelSyncRun.mockResolvedValue(
+      makeRun({ id: runId, status: "cancelled" }),
+    );
 
     renderPanel();
     await waitFor(() => screen.getByRole("button", { name: /cancel/i }));
@@ -266,12 +266,8 @@ describe("ConnectorSyncPanel", () => {
   });
 
   it("shows error message on trigger failure", async () => {
-    mockApi.listSyncJobs.mockResolvedValue(
-      makeJobsResponse([makeJob()]),
-    );
-    mockApi.triggerSyncNow.mockRejectedValue(
-      new Error("Already running"),
-    );
+    mockApi.listSyncJobs.mockResolvedValue(makeJobsResponse([makeJob()]));
+    mockApi.triggerSyncNow.mockRejectedValue(new Error("Already running"));
 
     renderPanel();
     await waitFor(() => screen.getByRole("button", { name: /sync now/i }));

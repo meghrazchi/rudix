@@ -70,7 +70,9 @@ export function AdminDeletionStatusPage() {
   const [offset, setOffset] = useState(0);
   const [includeFailed, setIncludeFailed] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(null);
+  const [feedbackRequestId, setFeedbackRequestId] = useState<string | null>(
+    null,
+  );
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const canView = canViewAdminUsage(state.session?.role);
@@ -82,7 +84,11 @@ export function AdminDeletionStatusPage() {
   };
 
   const listQuery = useQuery({
-    queryKey: [...queryKeys.documents.all, "admin-deletion", queryOpts] as const,
+    queryKey: [
+      ...queryKeys.documents.all,
+      "admin-deletion",
+      queryOpts,
+    ] as const,
     queryFn: () => listAdminDocumentDeletion(queryOpts),
     enabled: canView,
     refetchInterval: 8_000,
@@ -174,7 +180,7 @@ export function AdminDeletionStatusPage() {
             key={key}
             className="rounded-xl border border-[#e5e3f1] bg-white p-4 shadow-sm"
           >
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               {label}
             </p>
             <p className={`mt-1 text-2xl font-bold ${color}`}>
@@ -264,12 +270,12 @@ export function AdminDeletionStatusPage() {
                         {item.document_id}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-xs font-medium uppercase text-[#505f76]">
+                    <td className="px-4 py-3 text-xs font-medium text-[#505f76] uppercase">
                       {item.file_type}
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-block rounded-full px-2 py-1 text-xs font-bold uppercase tracking-wide ${statusBadgeClass(item.status)}`}
+                        className={`inline-block rounded-full px-2 py-1 text-xs font-bold tracking-wide uppercase ${statusBadgeClass(item.status)}`}
                       >
                         {item.status.replace(/_/g, " ")}
                       </span>
@@ -277,14 +283,14 @@ export function AdminDeletionStatusPage() {
                     <td className="px-4 py-3 text-xs text-[#68647b]">
                       {formatDate(item.deletion_requested_at)}
                     </td>
-                    <td className="px-4 py-3 max-w-xs">
+                    <td className="max-w-xs px-4 py-3">
                       {item.deletion_hold_reason ? (
                         <p className="text-xs text-yellow-700">
                           {item.deletion_hold_reason}
                         </p>
                       ) : null}
                       {item.error_message ? (
-                        <p className="text-xs text-rose-700 break-all">
+                        <p className="text-xs break-all text-rose-700">
                           {item.error_message}
                         </p>
                       ) : null}

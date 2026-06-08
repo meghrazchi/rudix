@@ -66,7 +66,8 @@ export async function listFailedJobs(
   if (query?.queue_name) params.set("queue_name", query.queue_name);
   if (query?.retryable_only) params.set("retryable_only", "true");
   if (query?.page != null) params.set("page", String(query.page));
-  if (query?.page_size != null) params.set("page_size", String(query.page_size));
+  if (query?.page_size != null)
+    params.set("page_size", String(query.page_size));
   const qs = params.toString();
   return apiRequest<FailedJobsListResponse>(
     `/admin/failed-jobs${qs ? `?${qs}` : ""}`,
@@ -77,9 +78,7 @@ export async function getFailedJob(jobId: string): Promise<FailedJobDetail> {
   return apiRequest<FailedJobDetail>(`/admin/failed-jobs/${jobId}`);
 }
 
-export async function retryFailedJob(
-  jobId: string,
-): Promise<FailedJobSummary> {
+export async function retryFailedJob(jobId: string): Promise<FailedJobSummary> {
   return apiRequest<FailedJobSummary>(`/admin/failed-jobs/${jobId}/retry`, {
     method: "POST",
   });

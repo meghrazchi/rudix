@@ -115,8 +115,7 @@ export function AdminModelProviderPage() {
   });
 
   const resetMutation = useMutation({
-    mutationFn: (note: string) =>
-      resetModelProviderSettings(note || undefined),
+    mutationFn: (note: string) => resetModelProviderSettings(note || undefined),
     onSuccess: () => {
       setShowResetConfirm(false);
       setResetNote("");
@@ -182,8 +181,7 @@ export function AdminModelProviderPage() {
   }
 
   const effectivePolicy = effectivePolicyQuery.data;
-  const existingSettings =
-    settingsQuery.data ?? null;
+  const existingSettings = settingsQuery.data ?? null;
   const updateError = updateMutation.error
     ? getApiErrorMessage(updateMutation.error)
     : null;
@@ -198,9 +196,18 @@ export function AdminModelProviderPage() {
         provider: existingSettings.provider ?? "",
         llm_model: existingSettings.llm_model ?? "",
         embedding_model: existingSettings.embedding_model ?? "",
-        max_tokens: existingSettings.max_tokens != null ? String(existingSettings.max_tokens) : "",
-        timeout_seconds: existingSettings.timeout_seconds != null ? String(existingSettings.timeout_seconds) : "",
-        max_retries: existingSettings.max_retries != null ? String(existingSettings.max_retries) : "",
+        max_tokens:
+          existingSettings.max_tokens != null
+            ? String(existingSettings.max_tokens)
+            : "",
+        timeout_seconds:
+          existingSettings.timeout_seconds != null
+            ? String(existingSettings.timeout_seconds)
+            : "",
+        max_retries:
+          existingSettings.max_retries != null
+            ? String(existingSettings.max_retries)
+            : "",
         fallback_model: existingSettings.fallback_model ?? "",
         disabled_models: formatCommaList(existingSettings.disabled_models),
         change_note: "",
@@ -215,16 +222,19 @@ export function AdminModelProviderPage() {
     const payload: UpdateModelProviderSettingsRequest = {};
     if (draft.provider.trim()) payload.provider = draft.provider.trim();
     if (draft.llm_model.trim()) payload.llm_model = draft.llm_model.trim();
-    if (draft.embedding_model.trim()) payload.embedding_model = draft.embedding_model.trim();
+    if (draft.embedding_model.trim())
+      payload.embedding_model = draft.embedding_model.trim();
     const maxTokens = parseOptionalInt(draft.max_tokens);
     if (maxTokens !== null) payload.max_tokens = maxTokens;
     const timeout = parseOptionalInt(draft.timeout_seconds);
     if (timeout !== null) payload.timeout_seconds = timeout;
     const retries = parseOptionalInt(draft.max_retries);
     if (retries !== null) payload.max_retries = retries;
-    if (draft.fallback_model.trim()) payload.fallback_model = draft.fallback_model.trim();
+    if (draft.fallback_model.trim())
+      payload.fallback_model = draft.fallback_model.trim();
     payload.disabled_models = parseCommaList(draft.disabled_models);
-    if (draft.change_note.trim()) payload.change_note = draft.change_note.trim();
+    if (draft.change_note.trim())
+      payload.change_note = draft.change_note.trim();
     updateMutation.mutate(payload);
   }
 
@@ -238,9 +248,9 @@ export function AdminModelProviderPage() {
           Model provider settings
         </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Configure the LLM provider, models, timeout, retry policy, and fallback
-          behavior for this organization. API keys are managed in environment
-          variables and are never stored or displayed here.
+          Configure the LLM provider, models, timeout, retry policy, and
+          fallback behavior for this organization. API keys are managed in
+          environment variables and are never stored or displayed here.
         </p>
       </header>
 
@@ -248,7 +258,9 @@ export function AdminModelProviderPage() {
       {effectivePolicy ? (
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold text-[#2a2640]">Effective policy</h2>
+            <h2 className="text-lg font-bold text-[#2a2640]">
+              Effective policy
+            </h2>
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${
                 effectivePolicy.source === "org_override"
@@ -306,8 +318,8 @@ export function AdminModelProviderPage() {
           </dl>
           {!effectivePolicy.llm_key_configured ? (
             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              No LLM API key is set in the environment. LLM calls will fail until
-              a key is configured in the deployment environment.
+              No LLM API key is set in the environment. LLM calls will fail
+              until a key is configured in the deployment environment.
             </p>
           ) : null}
         </section>
@@ -496,9 +508,7 @@ export function AdminModelProviderPage() {
                   ) : null}
                   <p className="text-xs text-[#6a6780]">
                     {new Date(entry.created_at).toLocaleString()}
-                    {entry.changed_by_id
-                      ? ` · by ${entry.changed_by_id}`
-                      : ""}
+                    {entry.changed_by_id ? ` · by ${entry.changed_by_id}` : ""}
                   </p>
                 </div>
               </div>

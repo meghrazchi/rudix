@@ -12,7 +12,15 @@
  *      so the UI can render the correct Forbidden/RateLimit state.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
@@ -159,7 +167,9 @@ describe("Profile API contracts", () => {
 
     it("returns normalized profile on 200", async () => {
       process.env.NEXT_PUBLIC_PROFILE_ME_URL = "/me";
-      server.use(http.get(`${API_BASE}/me`, () => HttpResponse.json(mockUserProfile)));
+      server.use(
+        http.get(`${API_BASE}/me`, () => HttpResponse.json(mockUserProfile)),
+      );
       const profile = await getMe();
       expect(profile.id).toBe("user-1");
       expect(profile.email).toBe("alice@example.com");
@@ -304,7 +314,8 @@ describe("Security API contracts", () => {
     });
 
     it("returns login policy on 200", async () => {
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL = "/security/login-policy";
+      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL =
+        "/security/login-policy";
       server.use(
         http.get(`${API_BASE}/security/login-policy`, () =>
           HttpResponse.json(mockLoginPolicy),
@@ -317,7 +328,8 @@ describe("Security API contracts", () => {
     });
 
     it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL = "/security/login-policy";
+      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL =
+        "/security/login-policy";
       server.use(http.get(`${API_BASE}/security/login-policy`, notImplemented));
       const err = await getLoginPolicy().catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
@@ -325,7 +337,8 @@ describe("Security API contracts", () => {
     });
 
     it("raises ApiClientError with status 403 when non-admin requests login policy", async () => {
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL = "/security/login-policy";
+      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL =
+        "/security/login-policy";
       server.use(http.get(`${API_BASE}/security/login-policy`, forbidden));
       const err = await getLoginPolicy().catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
@@ -441,7 +454,8 @@ describe("Organization API contracts", () => {
     });
 
     it("returns organization settings on 200", async () => {
-      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL = "/organization/settings";
+      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL =
+        "/organization/settings";
       server.use(
         http.get(`${API_BASE}/organization/settings`, () =>
           HttpResponse.json(mockOrganizationSettings),
@@ -454,17 +468,17 @@ describe("Organization API contracts", () => {
     });
 
     it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
-      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL = "/organization/settings";
-      server.use(
-        http.get(`${API_BASE}/organization/settings`, notImplemented),
-      );
+      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL =
+        "/organization/settings";
+      server.use(http.get(`${API_BASE}/organization/settings`, notImplemented));
       const err = await getOrganizationSettings().catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(501);
     });
 
     it("raises ApiClientError with status 403 when non-admin requests org settings", async () => {
-      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL = "/organization/settings";
+      process.env.NEXT_PUBLIC_ORGANIZATION_SETTINGS_URL =
+        "/organization/settings";
       server.use(http.get(`${API_BASE}/organization/settings`, forbidden));
       const err = await getOrganizationSettings().catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
@@ -480,7 +494,8 @@ describe("Organization API contracts", () => {
     });
 
     it("returns ingestion defaults on 200", async () => {
-      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL = "/organization/ingestion";
+      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL =
+        "/organization/ingestion";
       server.use(
         http.get(`${API_BASE}/organization/ingestion`, () =>
           HttpResponse.json(mockIngestionDefaults),
@@ -493,7 +508,8 @@ describe("Organization API contracts", () => {
     });
 
     it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
-      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL = "/organization/ingestion";
+      process.env.NEXT_PUBLIC_ORGANIZATION_INGESTION_URL =
+        "/organization/ingestion";
       server.use(
         http.get(`${API_BASE}/organization/ingestion`, notImplemented),
       );
@@ -675,7 +691,11 @@ describe("Validation-error responses (422) for mutation endpoints", () => {
   describe("PATCH /me — validation error", () => {
     it("raises ApiClientError with status 422 on validation failure", async () => {
       process.env.NEXT_PUBLIC_PROFILE_ME_URL = "/me";
-      server.use(http.patch(`${API_BASE}/me`, () => validationError("name", "Name too long.")));
+      server.use(
+        http.patch(`${API_BASE}/me`, () =>
+          validationError("name", "Name too long."),
+        ),
+      );
       const err = await updateMe({ name: "x".repeat(300) }).catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(422);
@@ -700,7 +720,8 @@ describe("Validation-error responses (422) for mutation endpoints", () => {
 
   describe("PATCH /security/login-policy — validation error", () => {
     it("raises ApiClientError with status 422 on invalid domain", async () => {
-      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL = "/security/login-policy";
+      process.env.NEXT_PUBLIC_SECURITY_LOGIN_POLICY_URL =
+        "/security/login-policy";
       server.use(
         http.patch(`${API_BASE}/security/login-policy`, () =>
           validationError("domain_allowlist", "Not a valid domain."),
@@ -722,9 +743,9 @@ describe("Validation-error responses (422) for mutation endpoints", () => {
           validationError("slug", "Slug must be lowercase."),
         ),
       );
-      const err = await updateOrganizationProfile({ slug: "INVALID SLUG" }).catch(
-        (e: unknown) => e,
-      );
+      const err = await updateOrganizationProfile({
+        slug: "INVALID SLUG",
+      }).catch((e: unknown) => e);
       expect(isApiClientError(err)).toBe(true);
       expect((err as { status: number }).status).toBe(422);
     });
@@ -810,7 +831,10 @@ describe("Team API contracts", () => {
 
   describe("POST /team/members/invite", () => {
     it("throws TeamEndpointUnavailableError when env var is unset", async () => {
-      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      const err = await inviteTeamMember({
+        email: "x@example.com",
+        role: "member",
+      }).catch((e) => e);
       expect(isTeamEndpointUnavailableError(err)).toBe(true);
       expect(err.endpointKey).toBe("inviteEnabled");
     });
@@ -822,7 +846,10 @@ describe("Team API contracts", () => {
           HttpResponse.json(mockTeamMemberInviteResponse, { status: 201 }),
         ),
       );
-      const result = await inviteTeamMember({ email: "carol@example.com", role: "member" });
+      const result = await inviteTeamMember({
+        email: "carol@example.com",
+        role: "member",
+      });
       expect(result.invited).toBe(true);
       expect(result.member.email).toBe("carol@example.com");
       expect(result.member.status).toBe("invited");
@@ -831,7 +858,10 @@ describe("Team API contracts", () => {
     it("raises ApiClientError with status 403 on forbidden", async () => {
       process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
       server.use(http.post(`${API_BASE}/team/members/invite`, forbidden));
-      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      const err = await inviteTeamMember({
+        email: "x@example.com",
+        role: "member",
+      }).catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(403);
     });
@@ -839,7 +869,10 @@ describe("Team API contracts", () => {
     it("raises ApiClientError with status 429 on rate limit", async () => {
       process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
       server.use(http.post(`${API_BASE}/team/members/invite`, rateLimited));
-      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      const err = await inviteTeamMember({
+        email: "x@example.com",
+        role: "member",
+      }).catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(429);
     });
@@ -851,7 +884,10 @@ describe("Team API contracts", () => {
           validationError("email", "Must be a valid email address."),
         ),
       );
-      const err = await inviteTeamMember({ email: "not-an-email", role: "member" }).catch((e) => e);
+      const err = await inviteTeamMember({
+        email: "not-an-email",
+        role: "member",
+      }).catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(422);
     });
@@ -859,7 +895,10 @@ describe("Team API contracts", () => {
     it("raises ApiClientError with status 501 when backend stub returns NOT_IMPLEMENTED", async () => {
       process.env.NEXT_PUBLIC_TEAM_MEMBERS_INVITE_URL = "/team/members/invite";
       server.use(http.post(`${API_BASE}/team/members/invite`, notImplemented));
-      const err = await inviteTeamMember({ email: "x@example.com", role: "member" }).catch((e) => e);
+      const err = await inviteTeamMember({
+        email: "x@example.com",
+        role: "member",
+      }).catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(501);
     });
@@ -867,7 +906,9 @@ describe("Team API contracts", () => {
 
   describe("PATCH /team/members/:memberId/role", () => {
     it("throws TeamEndpointUnavailableError when env var is unset", async () => {
-      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch(
+        (e) => e,
+      );
       expect(isTeamEndpointUnavailableError(err)).toBe(true);
       expect(err.endpointKey).toBe("updateRoleEnabled");
     });
@@ -890,7 +931,9 @@ describe("Team API contracts", () => {
       server.use(
         http.patch(`${API_BASE}/team/members/:memberId/role`, forbidden),
       );
-      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch(
+        (e) => e,
+      );
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(403);
     });
@@ -900,10 +943,15 @@ describe("Team API contracts", () => {
         "/team/members/{memberId}/role";
       server.use(
         http.patch(`${API_BASE}/team/members/:memberId/role`, () =>
-          validationError("role", "Cannot assign owner role via this endpoint."),
+          validationError(
+            "role",
+            "Cannot assign owner role via this endpoint.",
+          ),
         ),
       );
-      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch((e) => e);
+      const err = await updateTeamMemberRole("m-1", { role: "admin" }).catch(
+        (e) => e,
+      );
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(422);
     });
@@ -931,9 +979,7 @@ describe("Team API contracts", () => {
     it("raises ApiClientError with status 403 on forbidden", async () => {
       process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE =
         "/team/members/{memberId}";
-      server.use(
-        http.delete(`${API_BASE}/team/members/:memberId`, forbidden),
-      );
+      server.use(http.delete(`${API_BASE}/team/members/:memberId`, forbidden));
       const err = await removeTeamMember("m-1").catch((e) => e);
       expect(isApiClientError(err)).toBe(true);
       expect(err.status).toBe(403);

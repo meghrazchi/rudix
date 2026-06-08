@@ -1,7 +1,12 @@
 import { apiRequest } from "@/lib/api/request";
 
 export type SyncJobStatus = "active" | "paused" | "disabled";
-export type SyncRunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type SyncRunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type SyncTriggerType = "manual" | "scheduled";
 
 export type SyncJob = {
@@ -100,13 +105,10 @@ export async function updateSyncJobStatus(
   jobId: string,
   status: SyncJobStatus,
 ): Promise<SyncJob> {
-  return apiRequest<SyncJob>(
-    `/connectors/${connectionId}/sync-jobs/${jobId}`,
-    {
-      method: "PATCH",
-      json: { status },
-    },
-  );
+  return apiRequest<SyncJob>(`/connectors/${connectionId}/sync-jobs/${jobId}`, {
+    method: "PATCH",
+    json: { status },
+  });
 }
 
 export async function triggerSyncNow(

@@ -99,8 +99,13 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
   });
 
   const pauseMutation = useMutation({
-    mutationFn: ({ jobId, status }: { jobId: string; status: "active" | "paused" }) =>
-      updateSyncJobStatus(connectionId, jobId, status),
+    mutationFn: ({
+      jobId,
+      status,
+    }: {
+      jobId: string;
+      status: "active" | "paused";
+    }) => updateSyncJobStatus(connectionId, jobId, status),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorSyncJobs(connectionId),
@@ -160,7 +165,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
                 type="button"
                 disabled={triggerMutation.isPending}
                 onClick={() => triggerMutation.mutate({ jobId: activeJob.id })}
-                className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-opacity"
+                className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {triggerMutation.isPending ? "Queuing…" : "Sync now"}
               </button>
@@ -168,7 +173,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
             <button
               type="button"
               onClick={() => setCreateJobOpen((v) => !v)}
-              className="rounded-xl border border-[#d7d4e8] px-4 py-2 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff] transition-colors"
+              className="rounded-xl border border-[#d7d4e8] px-4 py-2 text-xs font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f2ff]"
             >
               {createJobOpen ? "Cancel" : "Add schedule"}
             </button>
@@ -188,7 +193,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
               type="button"
               disabled={createJobMutation.isPending}
               onClick={() => createJobMutation.mutate()}
-              className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
+              className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               Create
             </button>
@@ -200,7 +205,8 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         )}
         {jobs.length === 0 && !jobsQuery.isLoading && (
           <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
-            No sync schedules configured. Add one to start syncing automatically.
+            No sync schedules configured. Add one to start syncing
+            automatically.
           </div>
         )}
 
@@ -219,7 +225,10 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
                     ? `Every ${job.schedule.interval_minutes ?? 60} min`
                     : job.schedule.type}
                   {job.last_run_at && (
-                    <> · Last run {new Date(job.last_run_at).toLocaleString()}</>
+                    <>
+                      {" "}
+                      · Last run {new Date(job.last_run_at).toLocaleString()}
+                    </>
                   )}
                 </p>
               </div>
@@ -304,20 +313,26 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
               </thead>
               <tbody className="divide-y divide-[#e8e5f3] bg-white">
                 {runs.map((run) => (
-                  <tr key={run.id} className="hover:bg-[#faf9fe] transition-colors">
+                  <tr
+                    key={run.id}
+                    className="transition-colors hover:bg-[#faf9fe]"
+                  >
                     <td className="px-4 py-2.5">
-                      <StatusBadge status={run.status} badgeMap={RUN_STATUS_BADGE} />
+                      <StatusBadge
+                        status={run.status}
+                        badgeMap={RUN_STATUS_BADGE}
+                      />
                     </td>
                     <td className="px-4 py-2.5 text-xs text-[#4b4860]">
                       {run.trigger_type}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                    <td className="px-4 py-2.5 text-right text-xs text-[#2a2640] tabular-nums">
                       {run.items_seen}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                    <td className="px-4 py-2.5 text-right text-xs text-[#2a2640] tabular-nums">
                       {run.items_upserted}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-xs text-[#2a2640]">
+                    <td className="px-4 py-2.5 text-right text-xs text-[#2a2640] tabular-nums">
                       {run.items_deleted}
                     </td>
                     <td className="px-4 py-2.5 text-xs text-[#4b4860]">
@@ -329,7 +344,8 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
                         : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {(run.status === "queued" || run.status === "running") && (
+                      {(run.status === "queued" ||
+                        run.status === "running") && (
                         <button
                           type="button"
                           disabled={cancelMutation.isPending}

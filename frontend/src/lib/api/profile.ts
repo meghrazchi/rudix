@@ -76,7 +76,7 @@ function normalizeUserProfile(payload: unknown): UserProfile {
   const raw = {
     id: typeof r.id === "string" ? r.id : "",
     email: typeof r.email === "string" ? r.email : "",
-    name: typeof r.name === "string" ? r.name : (r.email as string) ?? "",
+    name: typeof r.name === "string" ? r.name : ((r.email as string) ?? ""),
     avatarUrl:
       typeof r.avatar_url === "string" && r.avatar_url.trim().length > 0
         ? r.avatar_url.trim()
@@ -143,7 +143,8 @@ function toUpdatePreferencesPayload(
   if (values.timezone !== undefined) payload.timezone = values.timezone;
   if (values.dateFormat !== undefined) payload.date_format = values.dateFormat;
   if (values.theme !== undefined) payload.theme = values.theme;
-  if (values.landingPage !== undefined) payload.landing_page = values.landingPage;
+  if (values.landingPage !== undefined)
+    payload.landing_page = values.landingPage;
   if (values.keyboardShortcutHints !== undefined)
     payload.keyboard_shortcut_hints = values.keyboardShortcutHints;
   if (values.emailNotifications !== undefined)

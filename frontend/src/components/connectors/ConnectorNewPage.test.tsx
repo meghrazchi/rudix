@@ -15,12 +15,6 @@ vi.mock("@/components/connectors/ConnectorSetupPage", () => ({
 }));
 
 describe("ConnectorNewPage", () => {
-  it("renders the shared setup page for Jira", () => {
-    render(<ConnectorNewPage providerKey="jira" />);
-    expect(screen.getByTestId("connector-setup-page")).toHaveTextContent("jira");
-    expect(mockSetupPage.render).toHaveBeenCalledWith("jira");
-  });
-
   it("renders the shared setup page for Confluence", () => {
     render(<ConnectorNewPage providerKey="confluence" />);
     expect(screen.getByTestId("connector-setup-page")).toHaveTextContent(

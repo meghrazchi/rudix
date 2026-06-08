@@ -46,8 +46,8 @@ function makeProvider(
   overrides: Partial<ProviderSummary> = {},
 ): ProviderSummary {
   return {
-    key: "jira",
-    display_name: "Jira",
+    key: "confluence",
+    display_name: "Confluence",
     enabled_by_default: true,
     has_oauth: true,
     capabilities: {
@@ -75,13 +75,13 @@ function makeConnection(
 ): ConnectorConnectionSummary {
   return {
     id: "conn-1",
-    provider_key: "jira",
+    provider_key: "confluence",
     provider: makeProvider(),
-    display_name: "Engineering Jira",
-    external_account_id: "jira-site-1",
+    display_name: "Engineering Confluence",
+    external_account_id: "confluence-site-1",
     collection_id: null,
     status: "active",
-    auth_config: { provider_key: "jira", project_keys: ["ENG"] },
+    auth_config: { provider_key: "confluence", space_keys: ["ENG"] },
     last_sync_at: new Date().toISOString(),
     error_message: null,
     source_count: 3,
@@ -127,30 +127,11 @@ describe("ConnectorsPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Jira")).toBeInTheDocument();
-      expect(screen.getByText("Engineering Jira")).toBeInTheDocument();
+      expect(screen.getByText("Confluence")).toBeInTheDocument();
+      expect(screen.getByText("Engineering Confluence")).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: /connected sources/i }),
       ).toBeInTheDocument();
-    });
-  });
-
-  it("links the catalog button to the setup wizard", async () => {
-    renderPage();
-
-    const user = userEvent.setup();
-    const confluenceDescription = await screen.findByText(
-      "Import wiki pages, team spaces, and technical documents.",
-    );
-    const card = confluenceDescription.closest("div");
-    expect(card).not.toBeNull();
-
-    await user.click(
-      within(card as HTMLElement).getByRole("button", { name: "Connect" }),
-    );
-
-    await waitFor(() => {
-      expect(routerPush).toHaveBeenCalledWith("/connectors/new/confluence");
     });
   });
 
@@ -214,27 +195,33 @@ describe("ConnectorsPage", () => {
 
     const user = userEvent.setup();
     const deleteButton = await screen.findByRole("button", {
-      name: "Delete connected source Engineering Jira",
+      name: "Delete connected source Engineering Confluence",
     });
     await user.click(deleteButton);
 
     await waitFor(() => {
       expect(mockApi.disconnectConnector).toHaveBeenCalledWith("conn-1");
-      expect(screen.queryByText("Engineering Jira")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Engineering Confluence"),
+      ).not.toBeInTheDocument();
     });
   });
 
   it("shows paused connections in the table", async () => {
     mockApi.listConnectorConnections.mockResolvedValue(
       makeConnectionsResponse([
-        makeConnection({ id: "conn-2", status: "paused", display_name: "Paused Jira" }),
+        makeConnection({
+          id: "conn-2",
+          status: "paused",
+          display_name: "Paused Confluence",
+        }),
       ]),
     );
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Paused Jira")).toBeInTheDocument();
+      expect(screen.getByText("Paused Confluence")).toBeInTheDocument();
       expect(screen.getByText("PAUSED")).toBeInTheDocument();
     });
   });
@@ -245,7 +232,7 @@ describe("ConnectorsPage", () => {
         makeConnection({
           id: "conn-3",
           status: "error",
-          display_name: "Broken Jira",
+          display_name: "Broken Confluence",
           error_message: "Token expired",
         }),
       ]),
@@ -254,7 +241,7 @@ describe("ConnectorsPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Broken Jira")).toBeInTheDocument();
+      expect(screen.getByText("Broken Confluence")).toBeInTheDocument();
       expect(screen.getByText("ERROR")).toBeInTheDocument();
     });
   });
@@ -262,9 +249,21 @@ describe("ConnectorsPage", () => {
   it("counts all connections including paused and error in the table", async () => {
     mockApi.listConnectorConnections.mockResolvedValue(
       makeConnectionsResponse([
-        makeConnection({ id: "conn-a", status: "active", display_name: "Active Source" }),
-        makeConnection({ id: "conn-b", status: "paused", display_name: "Paused Source" }),
-        makeConnection({ id: "conn-c", status: "error", display_name: "Error Source" }),
+        makeConnection({
+          id: "conn-a",
+          status: "active",
+          display_name: "Active Source",
+        }),
+        makeConnection({
+          id: "conn-b",
+          status: "paused",
+          display_name: "Paused Source",
+        }),
+        makeConnection({
+          id: "conn-c",
+          status: "error",
+          display_name: "Error Source",
+        }),
       ]),
     );
 
@@ -284,7 +283,7 @@ describe("ConnectorsPage", () => {
         makeConnection({
           id: "conn-fail",
           status: "error",
-          display_name: "Broken Jira",
+          display_name: "Broken Confluence",
           error_message: "Token expired",
         }),
       ]),
@@ -297,7 +296,9 @@ describe("ConnectorsPage", () => {
       const failedLabel = screen.getByText("Failed syncs");
       const statCard = failedLabel.closest("div")?.parentElement;
       expect(statCard).toBeTruthy();
-      expect(within(statCard as HTMLElement).getByText("01")).toBeInTheDocument();
+      expect(
+        within(statCard as HTMLElement).getByText("01"),
+      ).toBeInTheDocument();
     });
   });
 

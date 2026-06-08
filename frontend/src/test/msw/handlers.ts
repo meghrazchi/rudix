@@ -243,19 +243,22 @@ export function createMockApiHandlers(
     http.patch(`${apiBaseUrl}/me/preferences`, () =>
       HttpResponse.json(mockUserPreferences),
     ),
-    http.post(`${apiBaseUrl}/me/sign-out-all`, () =>
-      new HttpResponse(null, { status: 204 }),
+    http.post(
+      `${apiBaseUrl}/me/sign-out-all`,
+      () => new HttpResponse(null, { status: 204 }),
     ),
-    http.delete(`${apiBaseUrl}/me`, () =>
-      new HttpResponse(null, { status: 204 }),
+    http.delete(
+      `${apiBaseUrl}/me`,
+      () => new HttpResponse(null, { status: 204 }),
     ),
 
     // ── Settings: Security ───────────────────────────────────────────────────
     http.get(`${apiBaseUrl}/security/sessions`, () =>
       HttpResponse.json({ items: mockSecuritySessions }),
     ),
-    http.delete(`${apiBaseUrl}/security/sessions/:sessionId`, () =>
-      new HttpResponse(null, { status: 204 }),
+    http.delete(
+      `${apiBaseUrl}/security/sessions/:sessionId`,
+      () => new HttpResponse(null, { status: 204 }),
     ),
     http.post(`${apiBaseUrl}/security/sessions/revoke-all`, () =>
       HttpResponse.json({ revoked_count: 1 }),

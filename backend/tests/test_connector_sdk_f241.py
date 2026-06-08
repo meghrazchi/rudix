@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import pytest
 
 from app.domains.connectors.sdk.content_hash import hash_acl, hash_dict, hash_text
 from app.domains.connectors.sdk.metadata import build_metadata, normalize_metadata
 from app.domains.connectors.sdk.models import ExternalACL, ExternalSource, SyncCursor
 from app.domains.connectors.sdk.pagination import (
-    CursorPage,
     next_page,
     offset_cursor,
     page_cursor,
@@ -90,7 +88,7 @@ class TestExternalSource:
             provider_source_id="PROJ-1",
             name="My Project",
             source_type="project",
-            url="https://jira.example.com/PROJ-1",
+            url="https://confluence.example.com/PAGE-1",
         )
         assert src.provider_source_id == "PROJ-1"
 

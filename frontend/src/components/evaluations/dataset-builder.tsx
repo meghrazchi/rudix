@@ -38,7 +38,7 @@ function DifficultyBadge({ difficulty }: { difficulty: string | null }) {
   };
   return (
     <span
-      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium capitalize ${colors[difficulty] ?? "bg-gray-50 text-gray-600 border-gray-200"}`}
+      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-medium capitalize ${colors[difficulty] ?? "border-gray-200 bg-gray-50 text-gray-600"}`}
     >
       {difficulty}
     </span>
@@ -81,7 +81,7 @@ function ValidationPanel({ evaluationSetId }: ValidationPanelProps) {
 
   if (query.isLoading) {
     return (
-      <p className="text-xs text-gray-400 animate-pulse">Validating dataset…</p>
+      <p className="animate-pulse text-xs text-gray-400">Validating dataset…</p>
     );
   }
 
@@ -144,7 +144,7 @@ function VersionsPanel({ evaluationSetId }: VersionsPanelProps) {
 
   if (query.isLoading) {
     return (
-      <p className="text-xs text-gray-400 animate-pulse">Loading versions…</p>
+      <p className="animate-pulse text-xs text-gray-400">Loading versions…</p>
     );
   }
 
@@ -212,7 +212,10 @@ function ImportDialog({
     onSuccess: (result) => {
       setData("");
       setError(null);
-      onSuccess({ imported: result.imported, skipped: result.skipped_duplicates });
+      onSuccess({
+        imported: result.imported,
+        skipped: result.skipped_duplicates,
+      });
       onClose();
     },
     onError: (err) => setError(getApiErrorMessage(err)),
@@ -339,20 +342,24 @@ function EditQuestionDialog({
 }: EditQuestionDialogProps) {
   const [text, setText] = useState(question.question);
   const [answer, setAnswer] = useState(question.expected_answer ?? "");
-  const [difficulty, setDifficulty] = useState<
-    "easy" | "medium" | "hard" | ""
-  >((question.difficulty as "easy" | "medium" | "hard") ?? "");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard" | "">(
+    (question.difficulty as "easy" | "medium" | "hard") ?? "",
+  );
   const [tags, setTags] = useState(question.tags.join(", "));
   const [error, setError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      updateEvaluationQuestion(evaluationSetId, question.evaluation_question_id, {
-        question: text.trim() || undefined,
-        expected_answer: answer.trim() || null,
-        difficulty: difficulty || null,
-        tags: parseTagsString(tags),
-      }),
+      updateEvaluationQuestion(
+        evaluationSetId,
+        question.evaluation_question_id,
+        {
+          question: text.trim() || undefined,
+          expected_answer: answer.trim() || null,
+          difficulty: difficulty || null,
+          tags: parseTagsString(tags),
+        },
+      ),
     onSuccess: () => {
       setError(null);
       onSaved();
@@ -708,9 +715,7 @@ export function DatasetBuilderPanel({
                 className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm text-gray-600 focus:border-[#6d5bd0] focus:outline-none"
                 placeholder="Description (optional)"
               />
-              {metaError && (
-                <p className="text-xs text-red-600">{metaError}</p>
-              )}
+              {metaError && <p className="text-xs text-red-600">{metaError}</p>}
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -869,7 +874,7 @@ export function DatasetBuilderPanel({
 
       {/* Validation */}
       <div>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-400 uppercase">
           Validation
         </p>
         <ValidationPanel evaluationSetId={evaluationSet.evaluation_set_id} />
@@ -877,7 +882,7 @@ export function DatasetBuilderPanel({
 
       {/* Versions */}
       <div>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        <p className="mb-1.5 text-xs font-semibold tracking-wide text-gray-400 uppercase">
           Version history
         </p>
         <VersionsPanel evaluationSetId={evaluationSet.evaluation_set_id} />
@@ -886,7 +891,7 @@ export function DatasetBuilderPanel({
       {/* Case list */}
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          <p className="text-xs font-semibold tracking-wide text-gray-400 uppercase">
             Cases ({questions.length})
           </p>
         </div>

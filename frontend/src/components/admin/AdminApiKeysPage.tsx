@@ -79,7 +79,7 @@ function CreatedKeyBanner({
           This is the only time the full key is shown. Store it somewhere safe.
         </p>
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-3 py-2">
-          <code className="flex-1 break-all font-mono text-sm text-[#2a2640]">
+          <code className="flex-1 font-mono text-sm break-all text-[#2a2640]">
             {result.raw_key}
           </code>
           <CopyButton value={result.raw_key} />
@@ -118,7 +118,9 @@ function ApiKeyFormPanel({
   onSaved: (result?: ApiKeyCreated) => void;
 }) {
   const [name, setName] = useState(existingKey?.name ?? "");
-  const [description, setDescription] = useState(existingKey?.description ?? "");
+  const [description, setDescription] = useState(
+    existingKey?.description ?? "",
+  );
   const [selectedScopes, setSelectedScopes] = useState<Set<string>>(
     new Set(existingKey?.scopes ?? []),
   );
@@ -228,7 +230,7 @@ function ApiKeyFormPanel({
                 {VALID_SCOPES.map((scope) => (
                   <label
                     key={scope}
-                    className="flex items-center gap-2 cursor-pointer"
+                    className="flex cursor-pointer items-center gap-2"
                   >
                     <input
                       type="checkbox"
@@ -243,7 +245,8 @@ function ApiKeyFormPanel({
                 ))}
               </div>
               <p className="mt-1 text-xs text-[#68647b]">
-                Scopes cannot be changed after creation. Rotate the key to change scopes.
+                Scopes cannot be changed after creation. Rotate the key to
+                change scopes.
               </p>
             </div>
           )}
@@ -319,7 +322,9 @@ function ApiKeyCard({
             )}
           </div>
           {apiKey.description && (
-            <p className="mt-0.5 text-sm text-[#68647b]">{apiKey.description}</p>
+            <p className="mt-0.5 text-sm text-[#68647b]">
+              {apiKey.description}
+            </p>
           )}
         </div>
       </div>

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const ragCitationStrictnessSchema = z.enum(["strict", "moderate", "lenient"]);
+export const ragCitationStrictnessSchema = z.enum([
+  "strict",
+  "moderate",
+  "lenient",
+]);
 export const ragSafetyModeSchema = z.enum(["strict", "standard", "permissive"]);
 
 export const ragProfileConfigSchema = z.object({
@@ -14,7 +18,13 @@ export const ragProfileConfigSchema = z.object({
   prompt_template: z.string().max(32_000).nullable().optional(),
   safety_mode: ragSafetyModeSchema.default("standard"),
   chunk_filter: z.record(z.string(), z.unknown()).nullable().optional(),
-  max_context_tokens: z.coerce.number().int().min(256).max(128_000).nullable().optional(),
+  max_context_tokens: z.coerce
+    .number()
+    .int()
+    .min(256)
+    .max(128_000)
+    .nullable()
+    .optional(),
 });
 
 export const ragProfileCreateRequestSchema = z.object({
@@ -77,10 +87,22 @@ export const rollbackRagProfileRequestSchema = z.object({
 
 export type RagProfileConfigInput = z.input<typeof ragProfileConfigSchema>;
 export type RagProfileConfig = z.output<typeof ragProfileConfigSchema>;
-export type RagProfileCreateRequest = z.infer<typeof ragProfileCreateRequestSchema>;
-export type RagProfileUpdateRequest = z.infer<typeof ragProfileUpdateRequestSchema>;
+export type RagProfileCreateRequest = z.infer<
+  typeof ragProfileCreateRequestSchema
+>;
+export type RagProfileUpdateRequest = z.infer<
+  typeof ragProfileUpdateRequestSchema
+>;
 export type RagProfileResponse = z.infer<typeof ragProfileResponseSchema>;
-export type RagProfileListResponse = z.infer<typeof ragProfileListResponseSchema>;
-export type RagProfileVersionResponse = z.infer<typeof ragProfileVersionResponseSchema>;
-export type RagProfileVersionListResponse = z.infer<typeof ragProfileVersionListResponseSchema>;
-export type RollbackRagProfileRequest = z.infer<typeof rollbackRagProfileRequestSchema>;
+export type RagProfileListResponse = z.infer<
+  typeof ragProfileListResponseSchema
+>;
+export type RagProfileVersionResponse = z.infer<
+  typeof ragProfileVersionResponseSchema
+>;
+export type RagProfileVersionListResponse = z.infer<
+  typeof ragProfileVersionListResponseSchema
+>;
+export type RollbackRagProfileRequest = z.infer<
+  typeof rollbackRagProfileRequestSchema
+>;

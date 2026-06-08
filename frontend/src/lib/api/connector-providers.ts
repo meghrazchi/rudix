@@ -55,7 +55,9 @@ export async function listProviders(): Promise<ProvidersListResponse> {
   return apiRequest<ProvidersListResponse>("/connectors/providers");
 }
 
-export async function getProvider(providerKey: string): Promise<ProviderSummary> {
+export async function getProvider(
+  providerKey: string,
+): Promise<ProviderSummary> {
   return apiRequest<ProviderSummary>(
     `/connectors/providers/${encodeURIComponent(providerKey)}`,
   );

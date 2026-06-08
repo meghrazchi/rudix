@@ -121,9 +121,7 @@ describe("getMe", () => {
 
   it("throws ApiClientError on 403", async () => {
     process.env.NEXT_PUBLIC_PROFILE_ME_URL = "http://api.test/me";
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({ detail: "Forbidden" }, 403),
-    );
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Forbidden" }, 403));
     await expect(getMe()).rejects.toBeInstanceOf(ApiClientError);
   });
 

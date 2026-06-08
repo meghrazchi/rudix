@@ -172,10 +172,7 @@ export function ChatComposer({
 
               {scopeMode === "collection" && (
                 <>
-                  <span
-                    className="h-3 w-px bg-[#c7c4d8]"
-                    aria-hidden="true"
-                  />
+                  <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
                   <select
                     value={selectedCollectionId ?? ""}
                     onChange={(event) =>
@@ -199,10 +196,7 @@ export function ChatComposer({
 
               {scopeMode === "documents" && (
                 <>
-                  <span
-                    className="h-3 w-px bg-[#c7c4d8]"
-                    aria-hidden="true"
-                  />
+                  <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
                   <button
                     type="button"
                     onClick={() => {
@@ -232,10 +226,7 @@ export function ChatComposer({
 
               {scopeMode === "connectors" && (
                 <>
-                  <span
-                    className="h-3 w-px bg-[#c7c4d8]"
-                    aria-hidden="true"
-                  />
+                  <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
                   <button
                     type="button"
                     onClick={() => {
@@ -272,7 +263,10 @@ export function ChatComposer({
               <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
 
               <div className="flex items-center gap-2">
-                <label htmlFor="top-k-slider" className="tracking-wider uppercase">
+                <label
+                  htmlFor="top-k-slider"
+                  className="tracking-wider uppercase"
+                >
                   Top-k
                 </label>
                 <input
@@ -404,7 +398,10 @@ export function ChatComposer({
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 onKeyDown={(event) => {
-                  if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  if (
+                    (event.metaKey || event.ctrlKey) &&
+                    event.key === "Enter"
+                  ) {
                     event.preventDefault();
                     onSubmit();
                   }
@@ -445,8 +442,8 @@ export function ChatComposer({
       )}
       {agenticChatEnabled && hasConnectorScopeSelection && (
         <p className="mt-2 text-xs text-[#8a4762]">
-          Agentic Mode switches to standard retrieval when connector sources
-          are selected.
+          Agentic Mode switches to standard retrieval when connector sources are
+          selected.
         </p>
       )}
       {!hasIndexedDocuments && requiresUploadedDocuments && (

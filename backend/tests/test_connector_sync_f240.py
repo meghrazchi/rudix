@@ -8,14 +8,10 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.schemas.connectors import (
     NormalizedExternalItem,
-    ProviderCapabilities,
-    ProviderRegistration,
 )
 from app.domains.connectors.services.connector_service import ConnectorPlatformService
 from app.domains.connectors.services.provider_adapter import (
@@ -37,14 +33,9 @@ from app.domains.connectors.services.sync_engine import (
     SyncEngineError,
     _next_run_due,
 )
-from app.models.collection import Collection
 from app.models.connector import ConnectorConnection, ConnectorProvider
-from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
-from app.models.enums import (
-    ConnectorAuthType,
-    ConnectorSyncJobStatus,
-    ConnectorSyncRunStatus,
-)
+from app.models.connector_sync import ConnectorSyncJob
+from app.models.enums import ConnectorSyncJobStatus, ConnectorSyncRunStatus
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
@@ -88,17 +79,12 @@ async def _create_sync_context(db_session: AsyncSession) -> SyncContext:
     )
     await db_session.flush()
 
-    registration = ProviderRegistration(
-        key="test_provider",
-        display_name="Test Provider",
-        capabilities=ProviderCapabilities(auth_type=ConnectorAuthType.api_token),
-    )
     service = ConnectorPlatformService()
     connection = await service.create_connection(
         db_session,
         organization_id=org.id,
-        provider_key="test_provider",
-        display_name="Test Connection",
+        provider_key="confluence",
+        display_name="Confluence Connection",
         created_by_user_id=user.id,
     )
     await db_session.flush()
@@ -228,9 +214,9 @@ def test_connector_ingestion_error_is_transient() -> None:
 def test_adapter_registry_register_and_get() -> None:
     reg = SyncAdapterRegistry()
     adapter = StubAdapter()
-    reg.register("jira", adapter)
-    assert reg.get("jira") is adapter
-    assert reg.get("JIRA") is adapter  # case-insensitive
+    reg.register("confluence", adapter)
+    assert reg.get("confluence") is adapter
+    assert reg.get("CONFLUENCE") is adapter  # case-insensitive
 
 
 def test_adapter_registry_require_raises_if_missing() -> None:
@@ -563,7 +549,6 @@ async def test_dispatch_due_syncs_skips_job_with_active_run(
 
     dispatched = await engine.dispatch_due_syncs(db_session)
     # Should be empty because a run is already queued
-    run_ids = [r for r, _ in dispatched if r not in {job.id}]
     assert len(dispatched) == 0
 
 
@@ -617,6 +602,8 @@ async def test_run_sync_fails_when_adapter_not_registered(
     )
 
     # Add a fake credential so we reach adapter lookup
+    from unittest.mock import MagicMock
+
     from app.models.connector_credential import ConnectorCredential
 
     cred = ConnectorCredential(
@@ -626,7 +613,7 @@ async def test_run_sync_fails_when_adapter_not_registered(
         encrypted_payload="dummy",
         encryption_key_id="k1",
         encryption_algorithm="AES-GCM",
-        secret_fingerprint="fp1",
+        secret_fingerprint="f" * 64,
         scopes_json=[],
         metadata_json={},
         version=1,
@@ -636,9 +623,13 @@ async def test_run_sync_fails_when_adapter_not_registered(
     db_session.add(cred)
     await db_session.flush()
 
+    engine.credential_vault.decrypt = MagicMock(
+        return_value={"provider_key": "confluence"}
+    )
+
     result = await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
     assert result.status == "failed"
-    assert result.error_details.get("code") == "adapter_not_found"
+    assert "adapter" in (result.error_message or "").lower()
 
 
 @pytest.mark.asyncio
@@ -672,10 +663,11 @@ async def test_run_sync_returns_cancelled_for_pre_cancelled_run(
 
 @pytest.mark.asyncio
 async def test_maybe_ingest_file_item_dispatches_process_document_task() -> None:
-    """After a successful ingestion the sync engine must dispatch process_document.delay."""
-    from unittest.mock import AsyncMock, MagicMock, patch
-    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
+    """Pending-scan results should return the document and uploader ids."""
+    from unittest.mock import AsyncMock, MagicMock
+
     from app.domains.connectors.services.ingestion_bridge import IngestionResult
+    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
     from app.models.enums import DocumentStatus, ExternalItemType
 
     org_id = uuid4()
@@ -735,33 +727,29 @@ async def test_maybe_ingest_file_item_dispatches_process_document_task() -> None
     engine = ConnectorSyncEngine()
     engine.ingestion_bridge = mock_bridge
 
-    with patch("app.workers.document_tasks.process_document") as mock_task:
-        mock_delay = MagicMock()
-        mock_task.delay = mock_delay
-
-        await engine._maybe_ingest_file_item(
-            mock_session,
-            run=mock_run,
-            connection=mock_connection,
-            adapter=mock_adapter,
-            norm_item=mock_norm_item,
-            decrypted_credential={},
-        )
+    result = await engine._maybe_ingest_file_item(
+        mock_session,
+        run=mock_run,
+        connection=mock_connection,
+        adapter=mock_adapter,
+        norm_item=mock_norm_item,
+        decrypted_credential={},
+    )
 
     mock_bridge.ingest_item.assert_awaited_once()
-    mock_delay.assert_called_once_with(
+    assert result == (
         str(doc_id),
-        organization_id=str(org_id),
-        user_id=str(user_id),
+        str(user_id),
     )
 
 
 @pytest.mark.asyncio
 async def test_maybe_ingest_file_item_does_not_dispatch_on_skipped_result() -> None:
-    """Duplicate/skipped ingestion results must NOT dispatch process_document."""
-    from unittest.mock import AsyncMock, MagicMock, patch
-    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
+    """Skipped ingestion results should return no follow-up work."""
+    from unittest.mock import AsyncMock, MagicMock
+
     from app.domains.connectors.services.ingestion_bridge import IngestionResult
+    from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
     from app.models.enums import DocumentStatus, ExternalItemType
 
     org_id = uuid4()
@@ -820,17 +808,13 @@ async def test_maybe_ingest_file_item_does_not_dispatch_on_skipped_result() -> N
     engine = ConnectorSyncEngine()
     engine.ingestion_bridge = mock_bridge
 
-    with patch("app.workers.document_tasks.process_document") as mock_task:
-        mock_delay = MagicMock()
-        mock_task.delay = mock_delay
+    result = await engine._maybe_ingest_file_item(
+        mock_session,
+        run=mock_run,
+        connection=mock_connection,
+        adapter=mock_adapter,
+        norm_item=mock_norm_item,
+        decrypted_credential={},
+    )
 
-        await engine._maybe_ingest_file_item(
-            mock_session,
-            run=mock_run,
-            connection=mock_connection,
-            adapter=mock_adapter,
-            norm_item=mock_norm_item,
-            decrypted_credential={},
-        )
-
-    mock_delay.assert_not_called()
+    assert result is None

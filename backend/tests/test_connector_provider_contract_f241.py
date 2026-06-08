@@ -19,8 +19,6 @@ import pytest
 
 from app.domains.connectors.schemas.connectors import (
     NormalizedExternalItem,
-    ProviderCapabilities,
-    ProviderRegistration,
 )
 from app.domains.connectors.sdk.content_hash import hash_text
 from app.domains.connectors.sdk.testing import (
@@ -34,7 +32,7 @@ from app.domains.connectors.services.provider_adapter import (
     ConnectorRateLimitError,
     DeltaItem,
 )
-from app.models.enums import ConnectorAuthType, ExternalItemType, ExternalItemVisibility
+from app.models.enums import ExternalItemType, ExternalItemVisibility
 
 pytestmark = pytest.mark.connector_contract
 
@@ -408,15 +406,6 @@ def test_list_providers_capability_structure(provider_client) -> None:
         assert isinstance(caps["rate_limits"], list)
         assert isinstance(caps["export_formats"], list)
         assert caps["auth_type"] in {"oauth2", "api_token", "service_account", "basic", "none"}
-
-
-def test_get_provider_jira(provider_client) -> None:
-    response = provider_client.get("/connectors/providers/jira")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["key"] == "jira"
-    assert data["has_oauth"] is True
-    assert "delta_sync" in data["capabilities"]["capabilities"]
 
 
 def test_get_provider_not_found(provider_client) -> None:

@@ -1,6 +1,13 @@
 "use client";
 
-import React, { forwardRef, useCallback, useMemo, useRef, useState, type FormEvent } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -100,209 +107,226 @@ type DetailPanelProps = {
   isUpdating: boolean;
 };
 
-const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(function DetailPanel(
-  { item, onClose, onUpdate, isUpdating },
-  ref,
-) {
-  const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(item.status);
-  const [severityInput, setSeverityInput] = useState<FeedbackSeverity>(item.severity);
-  const [notesInput, setNotesInput] = useState(item.reviewer_notes ?? "");
-  const [evalQuestionId, setEvalQuestionId] = useState(item.linked_eval_question_id ?? "");
-  const [linkedDocId, setLinkedDocId] = useState(item.linked_document_id ?? "");
+const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
+  function DetailPanel({ item, onClose, onUpdate, isUpdating }, ref) {
+    const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(
+      item.status,
+    );
+    const [severityInput, setSeverityInput] = useState<FeedbackSeverity>(
+      item.severity,
+    );
+    const [notesInput, setNotesInput] = useState(item.reviewer_notes ?? "");
+    const [evalQuestionId, setEvalQuestionId] = useState(
+      item.linked_eval_question_id ?? "",
+    );
+    const [linkedDocId, setLinkedDocId] = useState(
+      item.linked_document_id ?? "",
+    );
 
-  function handleSave() {
-    onUpdate(item.review_id, {
-      status: statusInput,
-      severity: severityInput,
-      reviewer_notes: trimToNull(notesInput),
-      linked_eval_question_id: trimToNull(evalQuestionId),
-      linked_document_id: trimToNull(linkedDocId),
-    });
-  }
+    function handleSave() {
+      onUpdate(item.review_id, {
+        status: statusInput,
+        severity: severityInput,
+        reviewer_notes: trimToNull(notesInput),
+        linked_eval_question_id: trimToNull(evalQuestionId),
+        linked_document_id: trimToNull(linkedDocId),
+      });
+    }
 
-  return (
-    <aside
-      ref={ref as React.RefObject<HTMLElement>}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="review-detail-title"
-      className="absolute right-0 top-3 z-20 max-h-[min(85vh,760px)] w-full max-w-[440px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
-    >
-      <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
-        <div>
-          <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Review detail
-          </p>
-          <h3
-            id="review-detail-title"
-            className="mt-1 text-base font-semibold text-[#1b1b24]"
+    return (
+      <aside
+        ref={ref as React.RefObject<HTMLElement>}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-detail-title"
+        className="absolute top-3 right-0 z-20 max-h-[min(85vh,760px)] w-full max-w-[440px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Review detail
+            </p>
+            <h3
+              id="review-detail-title"
+              className="mt-1 text-base font-semibold text-[#1b1b24]"
+            >
+              Feedback item
+            </h3>
+          </div>
+          <button
+            type="button"
+            data-overlay-autofocus="true"
+            onClick={onClose}
+            className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
           >
-            Feedback item
-          </h3>
+            Close
+          </button>
         </div>
-        <button
-          type="button"
-          data-overlay-autofocus="true"
-          onClick={onClose}
-          className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#38485d] hover:bg-[#f5f2ff]"
-        >
-          Close
-        </button>
-      </div>
 
-      {item.feedback ? (
-        <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
-          <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Original feedback
-          </h4>
-          <dl className="grid gap-1 text-sm">
-            <div className="flex gap-2">
-              <dt className="w-16 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                Rating
-              </dt>
-              <dd className="text-[#302f39]">{item.feedback.rating}</dd>
-            </div>
-            {item.feedback.reason ? (
+        {item.feedback ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Original feedback
+            </h4>
+            <dl className="grid gap-1 text-sm">
               <div className="flex gap-2">
                 <dt className="w-16 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  Reason
+                  Rating
                 </dt>
-                <dd className="text-[#302f39]">{item.feedback.reason}</dd>
+                <dd className="text-[#302f39]">{item.feedback.rating}</dd>
               </div>
-            ) : null}
-            {item.feedback.comment ? (
-              <div>
-                <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-                  Comment
-                </dt>
-                <dd className="mt-1 text-sm text-[#302f39]">{item.feedback.comment}</dd>
-              </div>
-            ) : null}
-          </dl>
-        </section>
-      ) : null}
+              {item.feedback.reason ? (
+                <div className="flex gap-2">
+                  <dt className="w-16 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Reason
+                  </dt>
+                  <dd className="text-[#302f39]">{item.feedback.reason}</dd>
+                </div>
+              ) : null}
+              {item.feedback.comment ? (
+                <div>
+                  <dt className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Comment
+                  </dt>
+                  <dd className="mt-1 text-sm text-[#302f39]">
+                    {item.feedback.comment}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </section>
+        ) : null}
 
-      {item.message ? (
-        <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
-          <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Original answer
+        {item.message ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Original answer
+            </h4>
+            <p className="text-sm text-[#302f39]">
+              {item.message.content_preview}
+            </p>
+            {item.message.confidence_score != null ? (
+              <p className="mt-2 text-xs text-[#777587]">
+                Confidence: {(item.message.confidence_score * 100).toFixed(1)}%
+                {item.message.model_name ? ` · ${item.message.model_name}` : ""}
+                {item.message.latency_ms != null
+                  ? ` · ${item.message.latency_ms} ms`
+                  : ""}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="space-y-3">
+          <h4 className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+            Triage actions
           </h4>
-          <p className="text-sm text-[#302f39]">{item.message.content_preview}</p>
-          {item.message.confidence_score != null ? (
-            <p className="mt-2 text-xs text-[#777587]">
-              Confidence: {(item.message.confidence_score * 100).toFixed(1)}%
-              {item.message.model_name ? ` · ${item.message.model_name}` : ""}
-              {item.message.latency_ms != null ? ` · ${item.message.latency_ms} ms` : ""}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
 
-      <section className="space-y-3">
-        <h4 className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-          Triage actions
-        </h4>
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Status
+            </span>
+            <select
+              value={statusInput}
+              onChange={(e) =>
+                setStatusInput(e.target.value as FeedbackReviewStatus)
+              }
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            >
+              <option value="new">New</option>
+              <option value="triaged">Triaged</option>
+              <option value="needs_document">Needs document</option>
+              <option value="eval_created">Eval created</option>
+              <option value="fixed">Fixed</option>
+              <option value="rejected">Rejected</option>
+              <option value="duplicate">Duplicate</option>
+            </select>
+          </label>
 
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Status
-          </span>
-          <select
-            value={statusInput}
-            onChange={(e) => setStatusInput(e.target.value as FeedbackReviewStatus)}
-            className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Severity
+            </span>
+            <select
+              value={severityInput}
+              onChange={(e) =>
+                setSeverityInput(e.target.value as FeedbackSeverity)
+              }
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Reviewer notes
+            </span>
+            <textarea
+              value={notesInput}
+              onChange={(e) => setNotesInput(e.target.value)}
+              rows={3}
+              maxLength={4000}
+              className="w-full resize-none rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Linked eval question ID
+            </span>
+            <input
+              value={evalQuestionId}
+              onChange={(e) => setEvalQuestionId(e.target.value)}
+              placeholder="UUID (optional)"
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Linked document ID
+            </span>
+            <input
+              value={linkedDocId}
+              onChange={(e) => setLinkedDocId(e.target.value)}
+              placeholder="UUID (optional)"
+              className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isUpdating}
+            className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <option value="new">New</option>
-            <option value="triaged">Triaged</option>
-            <option value="needs_document">Needs document</option>
-            <option value="eval_created">Eval created</option>
-            <option value="fixed">Fixed</option>
-            <option value="rejected">Rejected</option>
-            <option value="duplicate">Duplicate</option>
-          </select>
-        </label>
+            {isUpdating ? "Saving..." : "Save changes"}
+          </button>
 
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Severity
-          </span>
-          <select
-            value={severityInput}
-            onChange={(e) => setSeverityInput(e.target.value as FeedbackSeverity)}
-            className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
-          >
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </label>
-
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Reviewer notes
-          </span>
-          <textarea
-            value={notesInput}
-            onChange={(e) => setNotesInput(e.target.value)}
-            rows={3}
-            maxLength={4000}
-            className="w-full rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24] resize-none"
-          />
-        </label>
-
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Linked eval question ID
-          </span>
-          <input
-            value={evalQuestionId}
-            onChange={(e) => setEvalQuestionId(e.target.value)}
-            placeholder="UUID (optional)"
-            className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
-          />
-        </label>
-
-        <label className="block space-y-1">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
-            Linked document ID
-          </span>
-          <input
-            value={linkedDocId}
-            onChange={(e) => setLinkedDocId(e.target.value)}
-            placeholder="UUID (optional)"
-            className="h-9 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
-          />
-        </label>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isUpdating}
-          className="w-full rounded-lg bg-[#3525cd] px-4 py-2 text-xs font-semibold tracking-wide text-white uppercase hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isUpdating ? "Saving..." : "Save changes"}
-        </button>
-
-        <div className="rounded-lg border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2 text-xs text-[#777587]">
-          <p>
-            <span className="font-semibold">Review ID:</span>{" "}
-            <span className="font-mono">{item.review_id}</span>
-          </p>
-          <p>
-            <span className="font-semibold">Created:</span>{" "}
-            {formatTimestamp(item.created_at)}
-          </p>
-          {item.resolved_at ? (
+          <div className="rounded-lg border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2 text-xs text-[#777587]">
             <p>
-              <span className="font-semibold">Resolved:</span>{" "}
-              {formatTimestamp(item.resolved_at)}
+              <span className="font-semibold">Review ID:</span>{" "}
+              <span className="font-mono">{item.review_id}</span>
             </p>
-          ) : null}
-        </div>
-      </section>
-    </aside>
-  );
-});
+            <p>
+              <span className="font-semibold">Created:</span>{" "}
+              {formatTimestamp(item.created_at)}
+            </p>
+            {item.resolved_at ? (
+              <p>
+                <span className="font-semibold">Resolved:</span>{" "}
+                {formatTimestamp(item.resolved_at)}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      </aside>
+    );
+  },
+);
 
 export function AdminFeedbackReviewPage() {
   const { state } = useAuthSession();
@@ -314,15 +338,22 @@ export function AdminFeedbackReviewPage() {
   const [severityInput, setSeverityInput] = useState<FeedbackSeverity | "">("");
   const [ratingInput, setRatingInput] = useState<"up" | "down" | "">("");
   const [reasonInput, setReasonInput] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(DEFAULT_FILTERS);
+  const [appliedFilters, setAppliedFilters] =
+    useState<AppliedFilters>(DEFAULT_FILTERS);
   const [offset, setOffset] = useState(0);
-  const [selectedItem, setSelectedItem] = useState<FeedbackReviewItemResponse | null>(null);
+  const [selectedItem, setSelectedItem] =
+    useState<FeedbackReviewItemResponse | null>(null);
 
   const panelRef = useRef<HTMLElement | null>(null);
   const tableHostRef = useRef<HTMLDivElement | null>(null);
 
   const closePanel = useCallback(() => setSelectedItem(null), []);
-  useOverlayFocus({ isOpen: selectedItem != null, containerRef: panelRef, onClose: closePanel, lockBodyScroll: false });
+  useOverlayFocus({
+    isOpen: selectedItem != null,
+    containerRef: panelRef,
+    onClose: closePanel,
+    lockBodyScroll: false,
+  });
 
   const queryParams = useMemo(
     (): FeedbackReviewListParams => ({
@@ -337,21 +368,33 @@ export function AdminFeedbackReviewPage() {
   );
 
   const listQuery = useQuery({
-    queryKey: queryKeys.feedbackReview.list(queryParams as Record<string, unknown>),
+    queryKey: queryKeys.feedbackReview.list(
+      queryParams as Record<string, unknown>,
+    ),
     queryFn: () => listFeedbackReviewItems(queryParams),
     enabled: isAdminUser,
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ reviewId, payload }: { reviewId: string; payload: UpdateReviewItemPayload }) =>
-      updateFeedbackReviewItem(reviewId, payload),
+    mutationFn: ({
+      reviewId,
+      payload,
+    }: {
+      reviewId: string;
+      payload: UpdateReviewItemPayload;
+    }) => updateFeedbackReviewItem(reviewId, payload),
     onSuccess: (updated) => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.feedbackReview.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.feedbackReview.all,
+      });
       setSelectedItem(updated);
     },
   });
 
-  const forbiddenError = listQuery.isError && isForbiddenError(listQuery.error) ? listQuery.error : null;
+  const forbiddenError =
+    listQuery.isError && isForbiddenError(listQuery.error)
+      ? listQuery.error
+      : null;
 
   if (!isAdminUser) {
     return (
@@ -381,13 +424,21 @@ export function AdminFeedbackReviewPage() {
   const rows = data?.items ?? [];
   const pageTotal = data?.total ?? 0;
   const pageStart = pageTotal === 0 ? 0 : offset + 1;
-  const pageEnd = pageTotal === 0 ? 0 : Math.min(offset + PAGE_LIMIT, pageTotal);
+  const pageEnd =
+    pageTotal === 0 ? 0 : Math.min(offset + PAGE_LIMIT, pageTotal);
   const hasPreviousPage = offset > 0;
   const hasNextPage = offset + PAGE_LIMIT < pageTotal;
 
-  const openCount = rows.filter((r) => r.status === "new" || r.status === "triaged").length;
+  const openCount = rows.filter(
+    (r) => r.status === "new" || r.status === "triaged",
+  ).length;
   const highSeverityCount = rows.filter((r) => r.severity === "high").length;
-  const resolvedCount = rows.filter((r) => r.status === "fixed" || r.status === "rejected" || r.status === "duplicate").length;
+  const resolvedCount = rows.filter(
+    (r) =>
+      r.status === "fixed" ||
+      r.status === "rejected" ||
+      r.status === "duplicate",
+  ).length;
 
   function applyFilters(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -428,7 +479,8 @@ export function AdminFeedbackReviewPage() {
               Feedback review queue
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Triage answer feedback, assign severity, link evaluation cases, and track resolution of knowledge gaps.
+              Triage answer feedback, assign severity, link evaluation cases,
+              and track resolution of knowledge gaps.
             </p>
           </div>
           <button
@@ -446,31 +498,42 @@ export function AdminFeedbackReviewPage() {
           <p className="text-xs font-semibold tracking-[0.08em] text-rose-700 uppercase">
             Open items (page)
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">{openCount}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">
+            {openCount}
+          </p>
         </article>
         <article className="rounded-xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-amber-700 uppercase">
             High severity (page)
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-amber-700">{highSeverityCount}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-amber-700">
+            {highSeverityCount}
+          </p>
         </article>
         <article className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
             Resolved (page)
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">{resolvedCount}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">
+            {resolvedCount}
+          </p>
         </article>
       </section>
 
       <section className="rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-sm">
-        <form className="flex flex-wrap items-end gap-3" onSubmit={applyFilters}>
+        <form
+          className="flex flex-wrap items-end gap-3"
+          onSubmit={applyFilters}
+        >
           <label className="w-[180px] space-y-1">
             <span className="block text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
               Status
             </span>
             <select
               value={statusInput}
-              onChange={(e) => setStatusInput(e.target.value as FeedbackReviewStatus | "")}
+              onChange={(e) =>
+                setStatusInput(e.target.value as FeedbackReviewStatus | "")
+              }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
               <option value="">All statuses</option>
@@ -490,7 +553,9 @@ export function AdminFeedbackReviewPage() {
             </span>
             <select
               value={severityInput}
-              onChange={(e) => setSeverityInput(e.target.value as FeedbackSeverity | "")}
+              onChange={(e) =>
+                setSeverityInput(e.target.value as FeedbackSeverity | "")
+              }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
               <option value="">All severities</option>
@@ -506,7 +571,9 @@ export function AdminFeedbackReviewPage() {
             </span>
             <select
               value={ratingInput}
-              onChange={(e) => setRatingInput(e.target.value as "up" | "down" | "")}
+              onChange={(e) =>
+                setRatingInput(e.target.value as "up" | "down" | "")
+              }
               className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
             >
               <option value="">All ratings</option>
@@ -553,7 +620,9 @@ export function AdminFeedbackReviewPage() {
       <div ref={tableHostRef} className="relative">
         <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
-            <h2 className="text-lg font-semibold text-[#1b1b24]">Review queue</h2>
+            <h2 className="text-lg font-semibold text-[#1b1b24]">
+              Review queue
+            </h2>
             {listQuery.isSuccess ? (
               <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
                 Showing {pageStart}–{pageEnd} of {pageTotal}
@@ -562,17 +631,32 @@ export function AdminFeedbackReviewPage() {
           </div>
 
           {listQuery.isLoading ? (
-            <LoadingState compact className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]" title="Loading feedback items..." />
+            <LoadingState
+              compact
+              className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
+              title="Loading feedback items..."
+            />
           ) : null}
 
           {listQuery.isError ? (
             <div className="m-4">
-              <ErrorState compact error={listQuery.error} description={getApiErrorMessage(listQuery.error)} onRetry={() => { void listQuery.refetch(); }} />
+              <ErrorState
+                compact
+                error={listQuery.error}
+                description={getApiErrorMessage(listQuery.error)}
+                onRetry={() => {
+                  void listQuery.refetch();
+                }}
+              />
             </div>
           ) : null}
 
           {listQuery.isSuccess && rows.length === 0 ? (
-            <EmptyState compact className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]" title="No feedback items match the current filters." />
+            <EmptyState
+              compact
+              className="m-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]"
+              title="No feedback items match the current filters."
+            />
           ) : null}
 
           {listQuery.isSuccess && rows.length > 0 ? (
@@ -592,7 +676,8 @@ export function AdminFeedbackReviewPage() {
                   </thead>
                   <tbody className="divide-y divide-[#ece9f5]">
                     {rows.map((item) => {
-                      const isSelected = selectedItem?.review_id === item.review_id;
+                      const isSelected =
+                        selectedItem?.review_id === item.review_id;
                       return (
                         <tr
                           key={item.review_id}
@@ -600,13 +685,17 @@ export function AdminFeedbackReviewPage() {
                           className={`cursor-pointer transition-colors ${isSelected ? "bg-[#ebe8ff]" : "hover:bg-[#f5f2ff]"}`}
                         >
                           <td className="px-4 py-3 font-mono text-xs text-[#464555]">
-                            {item.feedback ? formatTimestamp(item.feedback.submitted_at) : formatTimestamp(item.created_at)}
+                            {item.feedback
+                              ? formatTimestamp(item.feedback.submitted_at)
+                              : formatTimestamp(item.created_at)}
                           </td>
                           <td className="px-4 py-3 text-sm font-medium">
                             {item.feedback?.rating === "down" ? (
                               <span className="text-rose-700">Thumbs down</span>
                             ) : item.feedback?.rating === "up" ? (
-                              <span className="text-emerald-700">Thumbs up</span>
+                              <span className="text-emerald-700">
+                                Thumbs up
+                              </span>
                             ) : (
                               <span className="text-[#777587]">—</span>
                             )}
@@ -615,12 +704,16 @@ export function AdminFeedbackReviewPage() {
                             {item.feedback?.reason ?? "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${statusPillClass(item.status)}`}>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${statusPillClass(item.status)}`}
+                            >
                               {item.status.replace(/_/g, " ")}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${severityPillClass(item.severity)}`}>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide uppercase ${severityPillClass(item.severity)}`}
+                            >
                               {item.severity}
                             </span>
                           </td>
@@ -632,7 +725,10 @@ export function AdminFeedbackReviewPage() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedItem(item);
+                              }}
                               className="rounded-lg border border-[#c7c4d8] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
                             >
                               Review
@@ -652,7 +748,9 @@ export function AdminFeedbackReviewPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setOffset((p) => Math.max(0, p - PAGE_LIMIT))}
+                    onClick={() =>
+                      setOffset((p) => Math.max(0, p - PAGE_LIMIT))
+                    }
                     disabled={!hasPreviousPage || listQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -684,7 +782,9 @@ export function AdminFeedbackReviewPage() {
               ref={panelRef}
               item={selectedItem}
               onClose={closePanel}
-              onUpdate={(reviewId, payload) => updateMutation.mutate({ reviewId, payload })}
+              onUpdate={(reviewId, payload) =>
+                updateMutation.mutate({ reviewId, payload })
+              }
               isUpdating={updateMutation.isPending}
             />
           </>
@@ -692,7 +792,9 @@ export function AdminFeedbackReviewPage() {
       </div>
 
       {updateMutation.isError ? (
-        <p className="text-sm text-rose-700">{getApiErrorMessage(updateMutation.error)}</p>
+        <p className="text-sm text-rose-700">
+          {getApiErrorMessage(updateMutation.error)}
+        </p>
       ) : null}
     </section>
   );

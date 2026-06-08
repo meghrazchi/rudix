@@ -58,7 +58,7 @@ function statusBadgeClass(status: string): string {
 function StatusBadge({ status }: { status: string }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusBadgeClass(status)}`}
+      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${statusBadgeClass(status)}`}
     >
       {status}
     </span>
@@ -89,7 +89,9 @@ function JobDetailDrawer({
   const retryMutation = useMutation({
     mutationFn: () => retryFailedJob(jobId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.failedJobs() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.failedJobs(),
+      });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.failedJobDetail(jobId),
       });
@@ -100,7 +102,9 @@ function JobDetailDrawer({
   const cancelMutation = useMutation({
     mutationFn: () => cancelFailedJob(jobId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.failedJobs() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.failedJobs(),
+      });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.failedJobDetail(jobId),
       });
@@ -111,7 +115,9 @@ function JobDetailDrawer({
   const resolveMutation = useMutation({
     mutationFn: () => resolveFailedJob(jobId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.failedJobs() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.failedJobs(),
+      });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.failedJobDetail(jobId),
       });
@@ -185,11 +191,15 @@ function JobDetailDrawer({
                     <span className="font-mono text-xs">{job.entity_id}</span>
                   </DrawerRow>
                 ) : null}
-                <DrawerRow label="Error code">{job.error_code ?? "—"}</DrawerRow>
+                <DrawerRow label="Error code">
+                  {job.error_code ?? "—"}
+                </DrawerRow>
                 <DrawerRow label="Last attempted">
                   {formatDateTime(job.last_attempted_at)}
                 </DrawerRow>
-                <DrawerRow label="Created">{formatDateTime(job.created_at)}</DrawerRow>
+                <DrawerRow label="Created">
+                  {formatDateTime(job.created_at)}
+                </DrawerRow>
                 {job.resolved_at ? (
                   <DrawerRow label="Resolved">
                     {formatDateTime(job.resolved_at)}
@@ -200,10 +210,10 @@ function JobDetailDrawer({
 
             {job.error_message ? (
               <section>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#5d58a8]">
+                <p className="mb-1 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
                   Error message
                 </p>
-                <pre className="max-h-32 overflow-auto rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-xs text-[#4f4b68] whitespace-pre-wrap">
+                <pre className="max-h-32 overflow-auto rounded-lg border border-[#e4e1f2] bg-[#faf9ff] p-3 text-xs whitespace-pre-wrap text-[#4f4b68]">
                   {job.error_message}
                 </pre>
               </section>
@@ -249,12 +259,14 @@ function JobDetailDrawer({
               <ErrorNotice message={getApiErrorMessage(cancelMutation.error)} />
             ) : null}
             {resolveMutation.isError ? (
-              <ErrorNotice message={getApiErrorMessage(resolveMutation.error)} />
+              <ErrorNotice
+                message={getApiErrorMessage(resolveMutation.error)}
+              />
             ) : null}
 
             {job.audit_log.length > 0 ? (
               <section>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#5d58a8]">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
                   Audit log
                 </p>
                 <ul className="space-y-1">
@@ -396,7 +408,9 @@ export function AdminFailedJobsPage() {
     onSuccess: () => {
       setSelectedIds(new Set());
       setBulkError(null);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.failedJobs() });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.failedJobs(),
+      });
     },
     onError: (err) => {
       setBulkError(getApiErrorMessage(err));
@@ -454,7 +468,7 @@ export function AdminFailedJobsPage() {
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5d58a8]">
+            <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
               Rudix Admin
             </p>
             <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
@@ -574,7 +588,7 @@ export function AdminFailedJobsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-[#e4e1f2] bg-[#faf9ff] text-xs font-semibold uppercase tracking-wide text-[#5d58a8]">
+              <thead className="border-b border-[#e4e1f2] bg-[#faf9ff] text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
                 <tr>
                   <th className="px-3 py-2 text-center">
                     <input

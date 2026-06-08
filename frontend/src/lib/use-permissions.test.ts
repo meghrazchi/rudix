@@ -89,7 +89,9 @@ describe("usePermissions", () => {
       clearBoundaryEvent: vi.fn(),
     });
     const { result } = renderHook(() => usePermissions());
-    expect(result.current.hasPermission("security_center:configure")).toBe(true);
+    expect(result.current.hasPermission("security_center:configure")).toBe(
+      true,
+    );
     expect(result.current.hasPermission("billing:manage")).toBe(false);
   });
 
@@ -131,9 +133,9 @@ describe("usePermissions", () => {
       clearBoundaryEvent: vi.fn(),
     });
     const { result } = renderHook(() => usePermissions());
-    expect(
-      result.current.hasAnyPermission("billing:manage", "chat:use"),
-    ).toBe(true);
+    expect(result.current.hasAnyPermission("billing:manage", "chat:use")).toBe(
+      true,
+    );
   });
 
   it("hasAllPermissions returns false if any missing", () => {
@@ -146,9 +148,9 @@ describe("usePermissions", () => {
       clearBoundaryEvent: vi.fn(),
     });
     const { result } = renderHook(() => usePermissions());
-    expect(
-      result.current.hasAllPermissions("chat:use", "billing:manage"),
-    ).toBe(false);
+    expect(result.current.hasAllPermissions("chat:use", "billing:manage")).toBe(
+      false,
+    );
   });
 
   it("null role returns empty permissions", () => {

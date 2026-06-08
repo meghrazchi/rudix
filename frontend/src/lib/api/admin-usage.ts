@@ -124,7 +124,13 @@ export async function exportAuditLogs(
 
 // ── Usage Dashboard (F153) ────────────────────────────────────────────────────
 
-export type FeatureArea = "chat" | "agent" | "evaluation" | "pipeline" | "api" | "all";
+export type FeatureArea =
+  | "chat"
+  | "agent"
+  | "evaluation"
+  | "pipeline"
+  | "api"
+  | "all";
 export type UsageExportFormat = "csv" | "json";
 
 export type TopUserUsage = {
@@ -200,7 +206,9 @@ export type UsageDashboardQuery = {
 export async function getUsageDashboard(
   query: UsageDashboardQuery = {},
 ): Promise<UsageDashboardResponse> {
-  return apiRequest<UsageDashboardResponse>("/admin/usage/dashboard", { query });
+  return apiRequest<UsageDashboardResponse>("/admin/usage/dashboard", {
+    query,
+  });
 }
 
 export async function exportUsageDashboard(

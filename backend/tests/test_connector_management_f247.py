@@ -57,7 +57,7 @@ def provider_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
 
 def _provider_summary(
     *,
-    provider_key: str = "jira",
+    provider_key: str = "confluence",
     display_name: str | None = None,
     auth_type: str = ConnectorAuthType.oauth2.value,
     config_schema: dict | None = None,
@@ -67,7 +67,7 @@ def _provider_summary(
         "type": "object",
         "properties": {
             "site_url": {"type": "string", "format": "uri"},
-            "project_keys": {"type": "array", "items": {"type": "string"}},
+            "space_keys": {"type": "array", "items": {"type": "string"}},
         },
         "required": ["site_url"],
         "additionalProperties": False,
@@ -89,25 +89,28 @@ def _provider_summary(
 def _fake_connection(
     *,
     connection_id: UUID | None = None,
-    display_name: str = "Engineering Jira",
+    display_name: str = "Engineering Confluence",
     status: str = "active",
     auth_config: dict | None = None,
     provider: SimpleNamespace | None = None,
 ) -> SimpleNamespace:
     created_at = datetime.now(tz=UTC)
-    provider = provider or _provider_summary(provider_key="jira", display_name="Jira")
+    provider = provider or _provider_summary(
+        provider_key="confluence",
+        display_name="Confluence",
+    )
     return SimpleNamespace(
         id=connection_id or TEST_CONNECTION_ID,
         provider=provider,
         display_name=display_name,
-        external_account_id="jira-site-1",
+        external_account_id="confluence-site-1",
         collection_id=None,
         status=status,
         auth_config_json=auth_config
         or {
-            "provider_key": "jira",
-            "site_url": "https://jira.example.test",
-            "project_keys": ["ENG", "DOCS"],
+            "provider_key": "confluence",
+            "site_url": "https://confluence.example.test",
+            "space_keys": ["ENG", "DOCS"],
         },
         last_sync_at=created_at,
         error_message=None,
@@ -160,16 +163,16 @@ class FakeConnectorService:
         del organization_id, connection_id
         return {
             "connection_id": str(uuid4()),
-            "provider_key": "jira",
+            "provider_key": "confluence",
             "status": "active",
             "error_message": None,
             "auth_type": "oauth2",
             "credential_status": "active",
             "credential_version": 1,
             "credential_fingerprint": "fingerprint",
-            "scopes": ["read:jira-work"],
+            "scopes": ["read:confluence-content.all"],
             "expires_at": None,
-            "metadata": {"provider_key": "jira"},
+            "metadata": {"provider_key": "confluence"},
         }
 
     async def create_connection(
@@ -229,7 +232,7 @@ def test_connector_list_and_detail_include_provider_metadata(
     assert list_data["total"] == 1
 
     item = list_data["items"][0]
-    assert item["provider_key"] == "jira"
+    assert item["provider_key"] == "confluence"
     assert item["provider"]["config_schema"]["properties"]["site_url"]["format"] == "uri"
     assert item["source_count"] == 0
     assert item["sync_job_count"] == 1
@@ -238,9 +241,9 @@ def test_connector_list_and_detail_include_provider_metadata(
     detail_response = provider_client.get(f"/connectors/connections/{connection_id}")
     assert detail_response.status_code == 200
     detail = detail_response.json()
-    assert detail["diagnostics"]["provider_key"] == "jira"
-    assert detail["auth_config"]["site_url"] == "https://jira.example.test"
-    assert detail["provider"]["config_schema"]["properties"]["project_keys"]["type"] == "array"
+    assert detail["diagnostics"]["provider_key"] == "confluence"
+    assert detail["auth_config"]["site_url"] == "https://confluence.example.test"
+    assert detail["provider"]["config_schema"]["properties"]["space_keys"]["type"] == "array"
 
 
 def test_oauth_callback_get_redirects_to_connector_detail(

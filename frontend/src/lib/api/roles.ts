@@ -83,8 +83,7 @@ function normalizePermissionEntry(value: unknown): PermissionEntry {
       ? (value as Record<string, unknown>)
       : {};
   return {
-    permission:
-      typeof raw.permission === "string" ? raw.permission : "",
+    permission: typeof raw.permission === "string" ? raw.permission : "",
     category: typeof raw.category === "string" ? raw.category : "",
     description: typeof raw.description === "string" ? raw.description : "",
   };
@@ -118,10 +117,8 @@ function normalizeCustomRole(value: unknown): CustomRole {
     organization_id:
       typeof raw.organization_id === "string" ? raw.organization_id : "",
     name: typeof raw.name === "string" ? raw.name : "",
-    description:
-      typeof raw.description === "string" ? raw.description : null,
-    base_role:
-      typeof raw.base_role === "string" ? raw.base_role : null,
+    description: typeof raw.description === "string" ? raw.description : null,
+    base_role: typeof raw.base_role === "string" ? raw.base_role : null,
     permissions: Array.isArray(raw.permissions)
       ? (raw.permissions as unknown[]).filter(
           (p): p is string => typeof p === "string",
@@ -129,17 +126,18 @@ function normalizeCustomRole(value: unknown): CustomRole {
       : [],
     created_by_id:
       typeof raw.created_by_id === "string" ? raw.created_by_id : null,
-    created_at:
-      typeof raw.created_at === "string" ? raw.created_at : "",
-    updated_at:
-      typeof raw.updated_at === "string" ? raw.updated_at : "",
+    created_at: typeof raw.created_at === "string" ? raw.created_at : "",
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : "",
     is_builtin: false,
   };
 }
 
 export async function listPermissions(): Promise<PermissionCatalogResponse> {
   const url = resolveUrl("permissions");
-  const payload = await apiRequest<unknown>(url, { method: "GET", retry: false });
+  const payload = await apiRequest<unknown>(url, {
+    method: "GET",
+    retry: false,
+  });
   const raw =
     payload && typeof payload === "object"
       ? (payload as Record<string, unknown>)
@@ -155,7 +153,10 @@ export async function listPermissions(): Promise<PermissionCatalogResponse> {
 
 export async function listRoles(): Promise<RoleListResponse> {
   const url = resolveUrl("");
-  const payload = await apiRequest<unknown>(url, { method: "GET", retry: false });
+  const payload = await apiRequest<unknown>(url, {
+    method: "GET",
+    retry: false,
+  });
   const raw =
     payload && typeof payload === "object"
       ? (payload as Record<string, unknown>)
@@ -172,7 +173,10 @@ export async function listRoles(): Promise<RoleListResponse> {
 
 export async function getCustomRole(roleId: string): Promise<CustomRole> {
   const url = resolveUrl(encodeURIComponent(roleId));
-  const payload = await apiRequest<unknown>(url, { method: "GET", retry: false });
+  const payload = await apiRequest<unknown>(url, {
+    method: "GET",
+    retry: false,
+  });
   return normalizeCustomRole(payload);
 }
 

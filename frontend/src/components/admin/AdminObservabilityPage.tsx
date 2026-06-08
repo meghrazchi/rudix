@@ -205,7 +205,7 @@ function LlmMetricsSection({ metrics }: { metrics: LlmMetrics }) {
           </dl>
           {metrics.top_models.length > 0 ? (
             <div>
-              <p className="mb-2 text-xs font-semibold text-[#5d58a8] uppercase tracking-wide">
+              <p className="mb-2 text-xs font-semibold tracking-wide text-[#5d58a8] uppercase">
                 Top models
               </p>
               <ul className="space-y-1">
@@ -237,14 +237,13 @@ function LlmMetricsSection({ metrics }: { metrics: LlmMetrics }) {
 }
 
 function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
-  const successStatus: SignalStatus =
-    metrics.telemetry_missing
+  const successStatus: SignalStatus = metrics.telemetry_missing
+    ? "missing"
+    : metrics.success_rate == null
       ? "missing"
-      : metrics.success_rate == null
-        ? "missing"
-        : metrics.success_rate >= 0.95
-          ? "healthy"
-          : "degraded";
+      : metrics.success_rate >= 0.95
+        ? "healthy"
+        : "degraded";
 
   return (
     <SectionCard
@@ -264,10 +263,7 @@ function IndexingMetricsSection({ metrics }: { metrics: IndexingMetrics }) {
             label="Succeeded"
             value={formatCount(metrics.succeeded_jobs)}
           />
-          <MetricRow
-            label="Failed"
-            value={formatCount(metrics.failed_jobs)}
-          />
+          <MetricRow label="Failed" value={formatCount(metrics.failed_jobs)} />
           <MetricRow
             label="In progress"
             value={formatCount(metrics.in_progress_jobs)}
@@ -297,8 +293,7 @@ function StorageMetricsSection({ metrics }: { metrics: StorageMetrics }) {
     metrics.total_documents > 0
       ? metrics.failed_documents / metrics.total_documents
       : 0;
-  const failedStatus: SignalStatus =
-    failedPct > 0.1 ? "degraded" : "healthy";
+  const failedStatus: SignalStatus = failedPct > 0.1 ? "degraded" : "healthy";
 
   return (
     <SectionCard

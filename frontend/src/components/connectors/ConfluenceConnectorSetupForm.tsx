@@ -113,9 +113,11 @@ export function ConfluenceConnectorSetupForm({
           value={siteUrl}
           onChange={(e) => setSiteUrl(e.target.value)}
           onBlur={() => handleBlur("site_url")}
-          aria-describedby={showError("site_url") ? "confluence-site-url-error" : undefined}
+          aria-describedby={
+            showError("site_url") ? "confluence-site-url-error" : undefined
+          }
           aria-invalid={!!showError("site_url")}
-          className={`mt-1.5 block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 ${
+          className={`mt-1.5 block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:ring-2 focus:outline-none ${
             showError("site_url")
               ? "border-red-400 focus:border-red-400 focus:ring-red-200"
               : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
@@ -142,8 +144,8 @@ export function ConfluenceConnectorSetupForm({
         </label>
         <p className="mt-0.5 text-xs text-gray-500">
           Comma-separated space keys to sync, e.g.{" "}
-          <span className="font-mono">DOCS, ENG</span>. Leave blank to sync
-          all accessible spaces.
+          <span className="font-mono">DOCS, ENG</span>. Leave blank to sync all
+          accessible spaces.
         </p>
         <input
           id="confluence-space-keys"
@@ -152,7 +154,7 @@ export function ConfluenceConnectorSetupForm({
           value={spaceKeysRaw}
           onChange={(e) => setSpaceKeysRaw(e.target.value)}
           onBlur={() => handleBlur("space_keys")}
-          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
         />
       </div>
 
@@ -175,7 +177,7 @@ export function ConfluenceConnectorSetupForm({
           value={cqlFilter}
           onChange={(e) => setCqlFilter(e.target.value)}
           onBlur={() => handleBlur("cql_filter")}
-          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="mt-1.5 block w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none"
         />
       </div>
 

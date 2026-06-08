@@ -33,7 +33,9 @@ vi.mock("@/lib/use-auth-session", () => ({
   }),
 }));
 
-function buildSnapshot(overrides?: Partial<ObservabilitySnapshot>): ObservabilitySnapshot {
+function buildSnapshot(
+  overrides?: Partial<ObservabilitySnapshot>,
+): ObservabilitySnapshot {
   return {
     organization_id: "org-1",
     range: { from: "2026-05-06", to: "2026-06-05" },
@@ -126,11 +128,15 @@ beforeEach(() => {
 describe("AdminObservabilityPage MSW", () => {
   it("renders page header and metric sections on load", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: "Observability" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Observability" }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("API metrics")).toBeInTheDocument();
     expect(await screen.findByText("LLM metrics")).toBeInTheDocument();
     expect(await screen.findByText("Indexing pipeline")).toBeInTheDocument();
-    expect(await screen.findByText("Storage and documents")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Storage and documents"),
+    ).toBeInTheDocument();
   });
 
   it("renders api_metrics values from the snapshot", async () => {
@@ -162,7 +168,9 @@ describe("AdminObservabilityPage MSW", () => {
     });
     renderPage();
     expect(
-      await screen.findByText(/No API audit log telemetry in the selected time range/i),
+      await screen.findByText(
+        /No API audit log telemetry in the selected time range/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -172,7 +180,9 @@ describe("AdminObservabilityPage MSW", () => {
     });
     renderPage();
     expect(
-      await screen.findByText(/No LLM usage telemetry in the selected time range/i),
+      await screen.findByText(
+        /No LLM usage telemetry in the selected time range/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -184,7 +194,9 @@ describe("AdminObservabilityPage MSW", () => {
     );
     renderPage();
     await waitFor(() => {
-      expect(screen.queryByText("Loading observability snapshot...")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading observability snapshot..."),
+      ).not.toBeInTheDocument();
     });
     expect(screen.queryByText("API metrics")).not.toBeInTheDocument();
   });
@@ -223,7 +235,9 @@ describe("AdminObservabilityPage MSW", () => {
 
   it("shows snapshot timestamp from generated_at", async () => {
     renderPage();
-    expect(await screen.findByText(/Snapshot generated at/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Snapshot generated at/),
+    ).toBeInTheDocument();
   });
 
   it("renders related admin page links", async () => {

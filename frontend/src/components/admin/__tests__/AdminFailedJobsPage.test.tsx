@@ -123,9 +123,7 @@ describe("AdminFailedJobsPage", () => {
     mockApi.listFailedJobs.mockResolvedValue(EMPTY_LIST);
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.getByText(/no failed jobs match/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/no failed jobs match/i)).toBeInTheDocument();
     });
   });
 
@@ -168,9 +166,7 @@ describe("AdminFailedJobsPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Job detail")).toBeInTheDocument();
-      expect(
-        screen.getByText(/connection timed out/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/connection timed out/i)).toBeInTheDocument();
     });
   });
 
@@ -187,7 +183,9 @@ describe("AdminFailedJobsPage", () => {
     await userEvent.click(viewBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /^retry$/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^retry$/i }),
+      ).toBeInTheDocument();
     });
   });
 

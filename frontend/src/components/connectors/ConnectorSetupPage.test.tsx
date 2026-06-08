@@ -113,7 +113,7 @@ describe("ConnectorSetupPage", () => {
       state: "state-1",
       authorization_url: "https://auth.example.test/authorize",
       expires_at: new Date().toISOString(),
-      scopes: ["read:jira-work"],
+      scopes: ["read:confluence-content.all"],
     });
     mockApi.createConnectorConnection.mockResolvedValue({
       id: "conn-linear-1",
@@ -175,9 +175,7 @@ describe("ConnectorSetupPage", () => {
           },
         }),
       );
-      expect(routerPush).toHaveBeenCalledWith(
-        "/connectors/conn-linear-1",
-      );
+      expect(routerPush).toHaveBeenCalledWith("/connectors/conn-linear-1");
     });
   });
 
@@ -218,7 +216,8 @@ describe("ConnectorSetupPage", () => {
       expect(mockApi.beginConnectorOAuthConnect).toHaveBeenCalledWith(
         expect.objectContaining({
           provider_key: "confluence",
-          redirect_uri: "http://localhost:8000/api/v1/connectors/oauth/callback",
+          redirect_uri:
+            "http://localhost:8000/api/v1/connectors/oauth/callback",
           display_name: "Confluence Knowledge Base",
           config: {
             site_url: "https://acme.atlassian.net",

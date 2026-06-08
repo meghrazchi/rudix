@@ -103,8 +103,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     key: "connectors",
     href: "/connectors",
     label: "Connectors",
-    description:
-      "Connect external sources like Jira, Confluence, and Google Drive",
+    description: "Connect external sources like Confluence and Google Drive",
     matchPrefixes: ["/connectors"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],

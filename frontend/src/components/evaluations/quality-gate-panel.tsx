@@ -70,7 +70,9 @@ function CheckList({
     <ul className="mt-1 space-y-0.5 text-xs">
       {checks.map((c) => (
         <li key={c.metric} className="flex items-start gap-1">
-          <span className={variant === "passed" ? "text-green-600" : "text-red-600"}>
+          <span
+            className={variant === "passed" ? "text-green-600" : "text-red-600"}
+          >
             {variant === "passed" ? "✓" : "✗"}
           </span>
           <span className="text-gray-700">
@@ -147,7 +149,7 @@ function GateRunCard({
       )}
 
       {run.override_reason && (
-        <p className="mt-2 text-xs italic text-yellow-700">
+        <p className="mt-2 text-xs text-yellow-700 italic">
           Override: {run.override_reason}
         </p>
       )}
@@ -177,7 +179,7 @@ function GateRunCard({
           ) : (
             <div className="space-y-2">
               <textarea
-                className="w-full rounded border border-gray-300 p-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full rounded border border-gray-300 p-2 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
                 rows={3}
                 placeholder="Provide a detailed reason for this override (min 10 chars)…"
                 value={overrideReason}
@@ -187,7 +189,8 @@ function GateRunCard({
                 <button
                   type="button"
                   disabled={
-                    overrideReason.trim().length < 10 || overrideMutation.isPending
+                    overrideReason.trim().length < 10 ||
+                    overrideMutation.isPending
                   }
                   onClick={() => overrideMutation.mutate()}
                   className="rounded bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700 disabled:opacity-50"
@@ -246,13 +249,15 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
   });
 
   const thresholds = gate.thresholds as QualityGateThresholds;
-  const thresholdEntries = Object.entries(thresholds).filter(([, v]) => v != null);
+  const thresholdEntries = Object.entries(thresholds).filter(
+    ([, v]) => v != null,
+  );
 
   return (
     <div className="space-y-4">
       {thresholdEntries.length > 0 && (
         <div>
-          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <h4 className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">
             Configured thresholds
           </h4>
           <ul className="space-y-0.5">
@@ -267,7 +272,7 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
       )}
 
       <div>
-        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <h4 className="mb-1 text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Trigger gate run
         </h4>
         <div className="flex flex-col gap-2">
@@ -276,14 +281,14 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
             placeholder="Evaluation run ID (UUID)"
             value={evalRunId}
             onChange={(e) => setEvalRunId(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
           />
           <input
             type="text"
             placeholder="Safety eval run ID (UUID) — optional"
             value={safetyRunId}
             onChange={(e) => setSafetyRunId(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
           />
           <button
             type="button"
@@ -307,7 +312,7 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
       </div>
 
       <div>
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <h4 className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
           Run history
         </h4>
         {runsLoading ? (
@@ -317,7 +322,11 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
         ) : (
           <div className="space-y-3">
             {runsData.items.map((run) => (
-              <GateRunCard key={run.gate_run_id} run={run} gateId={gate.quality_gate_id} />
+              <GateRunCard
+                key={run.gate_run_id}
+                run={run}
+                gateId={gate.quality_gate_id}
+              />
             ))}
           </div>
         )}
@@ -330,10 +339,16 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
 // Create gate form
 // ---------------------------------------------------------------------------
 
-function CreateGateForm({ onCreated }: { onCreated: () => void }): React.ReactNode {
+function CreateGateForm({
+  onCreated,
+}: {
+  onCreated: () => void;
+}): React.ReactNode {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [thresholdFields, setThresholdFields] = useState<Record<string, string>>({});
+  const [thresholdFields, setThresholdFields] = useState<
+    Record<string, string>
+  >({});
   const qc = useQueryClient();
 
   const THRESHOLD_LABELS: [keyof QualityGateThresholds, string, string][] = [
@@ -356,7 +371,11 @@ function CreateGateForm({ onCreated }: { onCreated: () => void }): React.ReactNo
           (thresholds as Record<string, number>)[key] = parsed;
         }
       }
-      const payload: CreateQualityGateRequest = { name, description: description || null, thresholds };
+      const payload: CreateQualityGateRequest = {
+        name,
+        description: description || null,
+        thresholds,
+      };
       return createQualityGate(payload);
     },
     onSuccess: () => {
@@ -375,14 +394,14 @@ function CreateGateForm({ onCreated }: { onCreated: () => void }): React.ReactNo
         placeholder="Gate name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
       />
       <input
         type="text"
         placeholder="Description (optional)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-400 focus:outline-none"
       />
       <div className="grid grid-cols-2 gap-2">
         {THRESHOLD_LABELS.map(([key, label, hint]) => (
@@ -394,13 +413,18 @@ function CreateGateForm({ onCreated }: { onCreated: () => void }): React.ReactNo
               type="number"
               step="0.01"
               min="0"
-              max={key.endsWith("_min") || key.endsWith("_max") ? "1" : undefined}
+              max={
+                key.endsWith("_min") || key.endsWith("_max") ? "1" : undefined
+              }
               placeholder="leave blank to skip"
               value={thresholdFields[key] ?? ""}
               onChange={(e) =>
-                setThresholdFields((prev) => ({ ...prev, [key]: e.target.value }))
+                setThresholdFields((prev) => ({
+                  ...prev,
+                  [key]: e.target.value,
+                }))
               }
-              className="rounded border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="rounded border border-gray-300 px-2 py-1 text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
             />
           </div>
         ))}
@@ -414,7 +438,9 @@ function CreateGateForm({ onCreated }: { onCreated: () => void }): React.ReactNo
         {createMutation.isPending ? "Creating…" : "Create gate"}
       </button>
       {createMutation.isError && (
-        <p className="text-xs text-red-600">{getApiErrorMessage(createMutation.error)}</p>
+        <p className="text-xs text-red-600">
+          {getApiErrorMessage(createMutation.error)}
+        </p>
       )}
     </div>
   );
@@ -429,7 +455,11 @@ export function QualityGatePanel(): React.ReactNode {
   const [selectedGateId, setSelectedGateId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const { data: gatesData, isLoading, error } = useQuery({
+  const {
+    data: gatesData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: qgKeys.gates,
     queryFn: () => listQualityGates(),
   });
@@ -459,7 +489,8 @@ export function QualityGatePanel(): React.ReactNode {
   }
 
   const gates = gatesData?.items ?? [];
-  const selectedGate = gates.find((g) => g.quality_gate_id === selectedGateId) ?? null;
+  const selectedGate =
+    gates.find((g) => g.quality_gate_id === selectedGateId) ?? null;
 
   return (
     <div className="flex h-full gap-4">
@@ -484,7 +515,8 @@ export function QualityGatePanel(): React.ReactNode {
 
         {gates.length === 0 && !showCreateForm ? (
           <p className="text-xs text-gray-400">
-            No quality gates configured. Create one to enforce release thresholds.
+            No quality gates configured. Create one to enforce release
+            thresholds.
           </p>
         ) : (
           <ul className="space-y-1">
@@ -507,7 +539,9 @@ export function QualityGatePanel(): React.ReactNode {
                 >
                   <p className="truncate font-medium">{gate.name}</p>
                   {gate.description && (
-                    <p className="truncate text-xs text-gray-400">{gate.description}</p>
+                    <p className="truncate text-xs text-gray-400">
+                      {gate.description}
+                    </p>
                   )}
                 </button>
               </li>
@@ -526,7 +560,9 @@ export function QualityGatePanel(): React.ReactNode {
                   {selectedGate.name}
                 </h3>
                 {selectedGate.description && (
-                  <p className="mt-0.5 text-sm text-gray-500">{selectedGate.description}</p>
+                  <p className="mt-0.5 text-sm text-gray-500">
+                    {selectedGate.description}
+                  </p>
                 )}
               </div>
               <button

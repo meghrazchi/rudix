@@ -68,55 +68,11 @@ class ProviderRegistry:
 def build_default_provider_registry() -> ProviderRegistry:
     registry = ProviderRegistry()
     for provider in (
-        _jira_provider(),
         _confluence_provider(),
         _google_drive_provider(),
     ):
         registry.register(provider)
     return registry
-
-
-def _jira_provider() -> ProviderRegistration:
-    return ProviderRegistration(
-        key="jira",
-        display_name="Jira",
-        capabilities=ProviderCapabilities(
-            auth_type=ConnectorAuthType.oauth2,
-            capabilities=frozenset(
-                {
-                    ConnectorCapability.attachments,
-                    ConnectorCapability.comments,
-                    ConnectorCapability.acls,
-                    ConnectorCapability.delta_sync,
-                    ConnectorCapability.rate_limits,
-                    ConnectorCapability.webhooks,
-                }
-            ),
-            rate_limits=(ProviderRateLimit(name="rest_api", max_requests=500, window_seconds=60),),
-            export_formats=(
-                ProviderExportFormat(format="issue_json", mime_type="application/json"),
-            ),
-            max_page_size=100,
-        ),
-        config_schema={
-            "type": "object",
-            "properties": {
-                "site_url": {"type": "string", "format": "uri"},
-                "project_keys": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["site_url"],
-            "additionalProperties": False,
-        },
-        oauth=ProviderOAuthConfig(
-            authorization_endpoint="https://auth.atlassian.com/authorize",
-            token_endpoint="https://auth.atlassian.com/oauth/token",
-            revoke_endpoint="https://auth.atlassian.com/oauth/token/revoke",
-            default_scopes=("read:jira-work", "read:jira-user", "offline_access"),
-            required_scopes=("read:jira-work",),
-            optional_scopes=("read:jira-user", "offline_access"),
-            additional_authorization_params={"audience": "api.atlassian.com"},
-        ),
-    )
 
 
 def _confluence_provider() -> ProviderRegistration:

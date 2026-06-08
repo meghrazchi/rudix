@@ -34,10 +34,7 @@ function caseFilterDefaults(): CaseFilter {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatMetricValue(
-  value: number | null,
-  metric: string,
-): string {
+function formatMetricValue(value: number | null, metric: string): string {
   if (value == null) return "—";
   if (metric === "latency_ms_average") return `${Math.round(value)} ms`;
   if (metric === "cost_usd_total") return `$${value.toFixed(4)}`;
@@ -51,7 +48,9 @@ function formatDelta(delta: number | null, metric: string): string {
     return delta >= 0 ? `+${Math.round(delta)} ms` : `${Math.round(delta)} ms`;
   }
   if (metric === "cost_usd_total") {
-    return delta >= 0 ? `+$${delta.toFixed(4)}` : `-$${Math.abs(delta).toFixed(4)}`;
+    return delta >= 0
+      ? `+$${delta.toFixed(4)}`
+      : `-$${Math.abs(delta).toFixed(4)}`;
   }
   const pct = (delta * 100).toFixed(1);
   return delta >= 0 ? `+${pct}%` : `${pct}%`;
@@ -73,7 +72,8 @@ function filterCases(
       const bFailed = c.run_b != null && c.run_b.status === "failed";
       if (!aFailed && !bFailed) return false;
     }
-    if (filter.difficulty !== "all" && c.difficulty !== filter.difficulty) return false;
+    if (filter.difficulty !== "all" && c.difficulty !== filter.difficulty)
+      return false;
     if (filter.query.trim()) {
       const q = filter.query.trim().toLowerCase();
       if (!c.question.toLowerCase().includes(q)) return false;
@@ -151,7 +151,9 @@ function MetricSummaryTable({
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
       <table className="min-w-full divide-y divide-gray-100 text-sm">
-        <caption className="sr-only">Metric comparison between two evaluation runs.</caption>
+        <caption className="sr-only">
+          Metric comparison between two evaluation runs.
+        </caption>
         <thead className="bg-gray-50">
           <tr>
             <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -184,14 +186,14 @@ function MetricSummaryTable({
               }
             >
               <td className="px-3 py-2 font-medium text-gray-800">{d.label}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-700">
+              <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
                 {formatMetricValue(d.run_a_value, d.metric)}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-700">
+              <td className="px-3 py-2 text-right text-gray-700 tabular-nums">
                 {formatMetricValue(d.run_b_value, d.metric)}
               </td>
               <td
-                className={`px-3 py-2 text-right tabular-nums font-semibold ${
+                className={`px-3 py-2 text-right font-semibold tabular-nums ${
                   d.is_regression
                     ? "text-red-700"
                     : d.is_improvement
@@ -246,7 +248,7 @@ function CaseComparisonTable({
           placeholder="Search cases…"
           value={filter.query}
           onChange={(e) => onFilterChange({ ...filter, query: e.target.value })}
-          className="h-8 w-56 rounded border border-gray-300 px-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]"
+          className="h-8 w-56 rounded border border-gray-300 px-2 text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         />
         <select
           aria-label="Filter by case status"
@@ -257,7 +259,7 @@ function CaseComparisonTable({
               caseStatus: e.target.value as CaseFilter["caseStatus"],
             })
           }
-          className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]"
+          className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         >
           <option value="all">All cases</option>
           <option value="regression">Regressions only</option>
@@ -273,7 +275,7 @@ function CaseComparisonTable({
               difficulty: e.target.value as CaseFilter["difficulty"],
             })
           }
-          className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]"
+          className="h-8 rounded border border-gray-300 px-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#8b5cf6] focus:outline-none"
         >
           <option value="all">All difficulties</option>
           <option value="easy">Easy</option>
@@ -292,7 +294,9 @@ function CaseComparisonTable({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <caption className="sr-only">Per-question comparison between runs.</caption>
+            <caption className="sr-only">
+              Per-question comparison between runs.
+            </caption>
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
@@ -438,12 +442,12 @@ function CaseResultCell({
           {isFailed ? "failed" : "ok"}
         </span>
         {result.retrieval_score != null && (
-          <span className="text-xs tabular-nums text-gray-600">
+          <span className="text-xs text-gray-600 tabular-nums">
             ret {(result.retrieval_score * 100).toFixed(0)}%
           </span>
         )}
         {result.faithfulness_score != null && (
-          <span className="text-xs tabular-nums text-gray-600">
+          <span className="text-xs text-gray-600 tabular-nums">
             faith {(result.faithfulness_score * 100).toFixed(0)}%
           </span>
         )}
@@ -477,7 +481,7 @@ function CaseAnswerDetail({
         Answer from {label} ({side.toUpperCase()})
       </p>
       {result.generated_answer ? (
-        <p className="whitespace-pre-wrap rounded bg-white p-2 text-gray-800 ring-1 ring-gray-200">
+        <p className="rounded bg-white p-2 whitespace-pre-wrap text-gray-800 ring-1 ring-gray-200">
           {result.generated_answer}
         </p>
       ) : (
@@ -519,8 +523,7 @@ export function RunComparisonPanel({
     enabled: Boolean(runAId) && Boolean(runBId),
   });
 
-  const comparison: RunComparisonResponse | null =
-    comparisonQuery.data ?? null;
+  const comparison: RunComparisonResponse | null = comparisonQuery.data ?? null;
 
   const labelA = comparison
     ? runLabel(comparison.run_a.evaluation_run_id, comparison.run_a.run_name)
@@ -581,7 +584,7 @@ export function RunComparisonPanel({
       {comparison && (
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2">
-            <span className="text-2xl font-bold tabular-nums text-red-700">
+            <span className="text-2xl font-bold text-red-700 tabular-nums">
               {comparison.regression_count}
             </span>
             <span className="text-sm text-red-700">
@@ -589,15 +592,17 @@ export function RunComparisonPanel({
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-green-50 px-3 py-2">
-            <span className="text-2xl font-bold tabular-nums text-green-700">
+            <span className="text-2xl font-bold text-green-700 tabular-nums">
               {comparison.improvement_count}
             </span>
             <span className="text-sm text-green-700">
-              {comparison.improvement_count === 1 ? "improvement" : "improvements"}
+              {comparison.improvement_count === 1
+                ? "improvement"
+                : "improvements"}
             </span>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2">
-            <span className="text-2xl font-bold tabular-nums text-gray-700">
+            <span className="text-2xl font-bold text-gray-700 tabular-nums">
               {comparison.total_cases}
             </span>
             <span className="text-sm text-gray-600">total cases</span>
@@ -609,10 +614,7 @@ export function RunComparisonPanel({
       {comparisonQuery.isLoading && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-10 animate-pulse rounded bg-gray-100"
-            />
+            <div key={i} className="h-10 animate-pulse rounded bg-gray-100" />
           ))}
         </div>
       )}

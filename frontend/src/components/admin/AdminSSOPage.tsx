@@ -97,7 +97,9 @@ export function AdminSSOPage() {
       setSubmitError(null);
     },
     onError: (err) => {
-      setSubmitError(getApiErrorMessage(err, "Failed to save SSO configuration."));
+      setSubmitError(
+        getApiErrorMessage(err, "Failed to save SSO configuration."),
+      );
     },
   });
 
@@ -109,7 +111,9 @@ export function AdminSSOPage() {
       setDraft(null);
     },
     onError: (err) => {
-      setSubmitError(getApiErrorMessage(err, "Failed to remove SSO configuration."));
+      setSubmitError(
+        getApiErrorMessage(err, "Failed to remove SSO configuration."),
+      );
     },
   });
 
@@ -246,7 +250,7 @@ function SSOConfigReadView({
   onDeleteClick: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-[#d7d4e8] bg-white p-6 space-y-4">
+    <div className="space-y-4 rounded-xl border border-[#d7d4e8] bg-white p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span
@@ -261,7 +265,7 @@ function SSOConfigReadView({
           <span className="text-sm font-medium text-[#2a2640]">
             {config.domain}
           </span>
-          <span className="text-xs text-[#a09cb8] uppercase tracking-wide">
+          <span className="text-xs tracking-wide text-[#a09cb8] uppercase">
             {config.sso_type}
           </span>
         </div>
@@ -270,14 +274,14 @@ function SSOConfigReadView({
             <button
               type="button"
               onClick={onEdit}
-              className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff] transition"
+              className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
             >
               Edit
             </button>
             <button
               type="button"
               onClick={onDeleteClick}
-              className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition"
+              className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
             >
               Remove
             </button>
@@ -288,7 +292,11 @@ function SSOConfigReadView({
       <ReadField label="SP Entity ID" value={config.sp_entity_id} mono />
       <ReadField label="ACS URL" value={config.sp_acs_url} mono />
       {config.idp_metadata_url ? (
-        <ReadField label="IdP Metadata URL" value={config.idp_metadata_url} mono />
+        <ReadField
+          label="IdP Metadata URL"
+          value={config.idp_metadata_url}
+          mono
+        />
       ) : null}
       {config.idp_sso_url ? (
         <ReadField label="IdP SSO URL" value={config.idp_sso_url} mono />
@@ -341,7 +349,7 @@ function ReadField({
       </p>
       <div className="flex items-center gap-2">
         <p
-          className={`flex-1 break-all rounded border border-[#e4e1f2] bg-[#f9f8ff] px-3 py-1.5 text-sm text-[#2a2640] ${
+          className={`flex-1 rounded border border-[#e4e1f2] bg-[#f9f8ff] px-3 py-1.5 text-sm break-all text-[#2a2640] ${
             mono ? "font-mono text-xs" : ""
           }`}
         >
@@ -350,7 +358,7 @@ function ReadField({
         <button
           type="button"
           onClick={handleCopy}
-          className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] hover:bg-[#f5f3ff] transition"
+          className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -381,7 +389,7 @@ function SSOConfigForm({
   onCancel?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-[#d7d4e8] bg-white p-6 space-y-5">
+    <div className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField label="Email Domain" required hint="e.g. company.com">
           <input
@@ -428,7 +436,7 @@ function SSOConfigForm({
           IdP Metadata Input
         </p>
         <div className="mb-3 flex gap-3 text-sm">
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5">
             <input
               type="radio"
               disabled={!isOwner || isBusy}
@@ -437,7 +445,7 @@ function SSOConfigForm({
             />
             Metadata URL
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-1.5">
             <input
               type="radio"
               disabled={!isOwner || isBusy}
@@ -461,7 +469,7 @@ function SSOConfigForm({
                 onFieldChange("idp_metadata_url", e.target.value)
               }
               placeholder="https://idp.company.com/metadata"
-              className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 text-sm font-mono disabled:opacity-50"
+              className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 font-mono text-sm disabled:opacity-50"
             />
           </FormField>
         ) : (
@@ -477,7 +485,7 @@ function SSOConfigForm({
               }
               rows={6}
               placeholder={'<?xml version="1.0"?>\n<EntityDescriptor ...>'}
-              className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-xs font-mono disabled:opacity-50 resize-y"
+              className="w-full resize-y rounded-lg border border-[#d2cee6] px-3 py-2 font-mono text-xs disabled:opacity-50"
             />
           </FormField>
         )}
@@ -494,7 +502,7 @@ function SSOConfigForm({
             value={draft.idp_sso_url}
             onChange={(e) => onFieldChange("idp_sso_url", e.target.value)}
             placeholder="https://idp.company.com/sso"
-            className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 text-sm font-mono disabled:opacity-50"
+            className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 font-mono text-sm disabled:opacity-50"
           />
         </FormField>
 
@@ -508,7 +516,7 @@ function SSOConfigForm({
             value={draft.idp_entity_id}
             onChange={(e) => onFieldChange("idp_entity_id", e.target.value)}
             placeholder="https://idp.company.com"
-            className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 text-sm font-mono disabled:opacity-50"
+            className="h-9 w-full rounded-lg border border-[#d2cee6] px-3 font-mono text-sm disabled:opacity-50"
           />
         </FormField>
       </div>
@@ -533,8 +541,7 @@ function SSOConfigForm({
           }`}
         >
           <span className="font-semibold">
-            {testResult.success ? "Connection succeeded" : "Connection failed"}
-            :
+            {testResult.success ? "Connection succeeded" : "Connection failed"}:
           </span>{" "}
           {testResult.detail}
         </div>
@@ -552,7 +559,7 @@ function SSOConfigForm({
             type="button"
             onClick={onTest}
             disabled={isBusy}
-            className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#5d58a8] hover:bg-[#f5f3ff] disabled:opacity-60 transition"
+            className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
             {testMutationLabel(isBusy)}
           </button>
@@ -560,7 +567,7 @@ function SSOConfigForm({
             type="button"
             onClick={onSave}
             disabled={isBusy || !draft.domain.trim()}
-            className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60 transition"
+            className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
           >
             {upsertMutationLabel(isBusy)}
           </button>
@@ -603,14 +610,10 @@ function FormField({
     <div>
       <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
         {label}
-        {required ? (
-          <span className="ml-1 text-rose-500">*</span>
-        ) : null}
+        {required ? <span className="ml-1 text-rose-500">*</span> : null}
       </label>
       {children}
-      {hint ? (
-        <p className="mt-0.5 text-xs text-[#a09cb8]">{hint}</p>
-      ) : null}
+      {hint ? <p className="mt-0.5 text-xs text-[#a09cb8]">{hint}</p> : null}
     </div>
   );
 }
@@ -638,7 +641,7 @@ function DeleteConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={isBusy}
-            className="flex-1 rounded-lg bg-rose-600 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60 transition"
+            className="flex-1 rounded-lg bg-rose-600 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:opacity-60"
           >
             {isBusy ? "Removing..." : "Remove SSO"}
           </button>
@@ -646,7 +649,7 @@ function DeleteConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={isBusy}
-            className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] hover:bg-[#f5f3ff] disabled:opacity-60 transition"
+            className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
             Cancel
           </button>

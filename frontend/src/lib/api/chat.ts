@@ -53,8 +53,14 @@ export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];
 export type ChatSessionMessageListResponse =
   Schemas["ChatSessionMessageListResponse"];
-export type ChatQueryRequest = Omit<Schemas["ChatQueryRequest"], "scope_mode"> & {
-  scope_mode?: Exclude<Schemas["ChatQueryRequest"]["scope_mode"], null> | "connectors" | null;
+export type ChatQueryRequest = Omit<
+  Schemas["ChatQueryRequest"],
+  "scope_mode"
+> & {
+  scope_mode?:
+    | Exclude<Schemas["ChatQueryRequest"]["scope_mode"], null>
+    | "connectors"
+    | null;
   source_scope?: ChatSourceScopeRequest | null;
 };
 export type ChatMessageRequest = Schemas["ChatMessageRequest"];

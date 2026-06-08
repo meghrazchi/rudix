@@ -1,7 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Archive, ChevronDown, ChevronUp, RefreshCw, Settings2 } from "lucide-react";
+import {
+  Archive,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  Settings2,
+} from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -60,7 +66,9 @@ function ProfileForm({
   onCancel: () => void;
   isSaving: boolean;
 }) {
-  const schema = initial ? ragProfileUpdateRequestSchema : ragProfileCreateRequestSchema;
+  const schema = initial
+    ? ragProfileUpdateRequestSchema
+    : ragProfileCreateRequestSchema;
   const form = useForm<RagProfileCreateRequest>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -268,7 +276,10 @@ function ProfileForm({
             htmlFor="rag-prompt-template"
             className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
           >
-            Prompt Template <span className="normal-case font-normal text-[#6a6780]">(optional)</span>
+            Prompt Template{" "}
+            <span className="font-normal text-[#6a6780] normal-case">
+              (optional)
+            </span>
           </label>
           <textarea
             id="rag-prompt-template"
@@ -394,7 +405,11 @@ function VersionHistoryPanel({
         Version history — current v{profile.version}
       </p>
       {versions.length === 0 ? (
-        <EmptyState compact title="No version snapshots found." description="" />
+        <EmptyState
+          compact
+          title="No version snapshots found."
+          description=""
+        />
       ) : (
         <div className="space-y-2">
           {versions.map((v) => (
@@ -461,7 +476,9 @@ function ProfileCard({
     mutationFn: () => setDefaultRagProfile(profile.profile_id),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "Default profile updated." });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.ragProfiles.all,
+      });
     },
     onError: (error) =>
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
@@ -475,23 +492,35 @@ function ProfileCard({
     onSuccess: async () => {
       setFeedback({
         tone: "success",
-        message: profile.is_archived ? "Profile unarchived." : "Profile archived.",
+        message: profile.is_archived
+          ? "Profile unarchived."
+          : "Profile archived.",
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.ragProfiles.all,
+      });
     },
     onError: (error) =>
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
   });
 
   const rollbackMutation = useMutation({
-    mutationFn: ({ versionNumber, note }: { versionNumber: number; note: string }) =>
+    mutationFn: ({
+      versionNumber,
+      note,
+    }: {
+      versionNumber: number;
+      note: string;
+    }) =>
       rollbackRagProfile(profile.profile_id, {
         version_number: versionNumber,
         change_note: note,
       }),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "Profile rolled back." });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.ragProfiles.all,
+      });
     },
     onError: (error) =>
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
@@ -500,9 +529,11 @@ function ProfileCard({
   return (
     <article className="rounded-xl border border-[#e1ddea] bg-[#faf9ff] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-[#1b1b24]">{profile.name}</p>
+            <p className="text-sm font-semibold text-[#1b1b24]">
+              {profile.name}
+            </p>
             {profile.is_default ? (
               <span className="rounded-full bg-[#3525cd] px-2 py-0.5 text-[10px] font-bold text-white uppercase">
                 Default
@@ -518,7 +549,9 @@ function ProfileCard({
             </span>
           </div>
           {profile.description ? (
-            <p className="mt-0.5 text-xs text-[#5f5a74]">{profile.description}</p>
+            <p className="mt-0.5 text-xs text-[#5f5a74]">
+              {profile.description}
+            </p>
           ) : null}
           <p className="mt-1 text-xs text-[#6a6780]">
             top_k: {profile.config.top_k ?? 10} · strictness:{" "}
@@ -573,7 +606,9 @@ function ProfileCard({
       </div>
 
       {feedback ? (
-        <p className={`mt-3 ${feedbackClass(feedback.tone)}`}>{feedback.message}</p>
+        <p className={`mt-3 ${feedbackClass(feedback.tone)}`}>
+          {feedback.message}
+        </p>
       ) : null}
 
       {expanded && isAdmin ? (
@@ -602,7 +637,8 @@ export function RagProfilesSection() {
   const isAdmin = isAdminLike(role);
 
   const [showForm, setShowForm] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<RagProfileResponse | null>(null);
+  const [editingProfile, setEditingProfile] =
+    useState<RagProfileResponse | null>(null);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
 
@@ -617,19 +653,28 @@ export function RagProfilesSection() {
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile created." });
       setShowForm(false);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.ragProfiles.all,
+      });
     },
     onError: (error) =>
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: RagProfileCreateRequest }) =>
-      updateRagProfile(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: RagProfileCreateRequest;
+    }) => updateRagProfile(id, payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile updated." });
       setEditingProfile(null);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.ragProfiles.all });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.ragProfiles.all,
+      });
     },
     onError: (error) =>
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
@@ -637,7 +682,10 @@ export function RagProfilesSection() {
 
   const handleSave = (data: RagProfileCreateRequest) => {
     if (editingProfile) {
-      void updateMutation.mutateAsync({ id: editingProfile.profile_id, payload: data });
+      void updateMutation.mutateAsync({
+        id: editingProfile.profile_id,
+        payload: data,
+      });
     } else {
       void createMutation.mutateAsync(data);
     }
@@ -652,10 +700,12 @@ export function RagProfilesSection() {
         <div className="flex items-center gap-3">
           <Settings2 size={20} className="text-[#3525cd]" aria-hidden="true" />
           <div>
-            <h2 className="text-lg font-semibold text-[#1b1b24]">RAG Profiles</h2>
+            <h2 className="text-lg font-semibold text-[#1b1b24]">
+              RAG Profiles
+            </h2>
             <p className="text-sm text-[#5f5a74]">
-              Configure retrieval, reranking, model, and safety settings. Changes are
-              versioned and audited.
+              Configure retrieval, reranking, model, and safety settings.
+              Changes are versioned and audited.
             </p>
           </div>
         </div>
@@ -684,14 +734,22 @@ export function RagProfilesSection() {
       ) : showForm || editingProfile ? (
         <div className="rounded-xl border border-[#e1ddea] bg-[#faf9ff] p-5">
           <p className="mb-4 text-base font-semibold text-[#1b1b24]">
-            {editingProfile ? `Edit "${editingProfile.name}"` : "New RAG Profile"}
+            {editingProfile
+              ? `Edit "${editingProfile.name}"`
+              : "New RAG Profile"}
           </p>
           {feedback ? (
-            <p className={`mb-3 ${feedbackClass(feedback.tone)}`}>{feedback.message}</p>
+            <p className={`mb-3 ${feedbackClass(feedback.tone)}`}>
+              {feedback.message}
+            </p>
           ) : null}
           <ProfileForm
             initial={editingProfile}
-            onSave={handleSave as (d: RagProfileCreateRequest | RagProfileCreateRequest) => void}
+            onSave={
+              handleSave as (
+                d: RagProfileCreateRequest | RagProfileCreateRequest,
+              ) => void
+            }
             onCancel={() => {
               setShowForm(false);
               setEditingProfile(null);

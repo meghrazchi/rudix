@@ -25,7 +25,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/feedback-review", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/feedback-review")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/api/feedback-review")>();
   return {
     ...actual,
     listFeedbackReviewItems: (params?: unknown) =>
@@ -136,7 +137,9 @@ describe("AdminFeedbackReviewPage", () => {
     mockState.authState = adminSession();
     renderPage();
 
-    expect(await screen.findByText("Feedback review queue")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Feedback review queue"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Export CSV")).toBeInTheDocument();
     expect(screen.getByText("Apply")).toBeInTheDocument();
     expect(screen.getByText("Clear")).toBeInTheDocument();
@@ -165,13 +168,25 @@ describe("AdminFeedbackReviewPage", () => {
     expect(await screen.findByText("Thumbs down")).toBeInTheDocument();
     expect(await screen.findByText("wrong_citation")).toBeInTheDocument();
     expect(await screen.findByText(/new/i)).toBeInTheDocument();
-    expect(await screen.findByText(/The capital of France is London/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/The capital of France is London/),
+    ).toBeInTheDocument();
   });
 
   it("shows stat cards with correct counts", async () => {
     mockState.authState = adminSession();
-    const highNewItem = { ...SAMPLE_ITEM, review_id: "rev-1", status: "new" as const, severity: "high" as const };
-    const fixedItem = { ...SAMPLE_ITEM, review_id: "rev-2", status: "fixed" as const, severity: "low" as const };
+    const highNewItem = {
+      ...SAMPLE_ITEM,
+      review_id: "rev-1",
+      status: "new" as const,
+      severity: "high" as const,
+    };
+    const fixedItem = {
+      ...SAMPLE_ITEM,
+      review_id: "rev-2",
+      status: "fixed" as const,
+      severity: "low" as const,
+    };
     mockApi.listFeedbackReviewItems.mockResolvedValue({
       items: [highNewItem, fixedItem],
       total: 2,

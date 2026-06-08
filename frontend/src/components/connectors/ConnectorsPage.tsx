@@ -38,15 +38,6 @@ type CatalogEntry = {
 
 const CATALOG: CatalogEntry[] = [
   {
-    key: "jira",
-    name: "Jira",
-    description: "Sync issues, epics, and documentation from Jira Cloud.",
-    brandColor: "#0052CC",
-    initial: "J",
-    connected: false,
-    available: true,
-  },
-  {
     key: "confluence",
     name: "Confluence",
     description: "Import wiki pages, team spaces, and technical documents.",
@@ -85,7 +76,8 @@ const CATALOG: CatalogEntry[] = [
   {
     key: "slack",
     name: "Slack",
-    description: "Retrieve conversational history from public/private channels.",
+    description:
+      "Retrieve conversational history from public/private channels.",
     brandColor: "#4A154B",
     initial: "S",
     connected: false,
@@ -173,19 +165,21 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-white border border-[#c7c4d8] border-t-4 ${topBorderColor} p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow`}
+      className={`border border-t-4 border-[#c7c4d8] bg-white ${topBorderColor} rounded-xl p-6 shadow-sm transition-shadow hover:shadow-md`}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <span
-          className={`material-symbols-outlined ${iconColor} ${iconBg} p-2 rounded-lg text-[22px]`}
+          className={`material-symbols-outlined ${iconColor} ${iconBg} rounded-lg p-2 text-[22px]`}
         >
           {icon}
         </span>
-        <span className={`text-[11px] font-semibold uppercase tracking-wide ${badgeColor}`}>
+        <span
+          className={`text-[11px] font-semibold tracking-wide uppercase ${badgeColor}`}
+        >
           {badge}
         </span>
       </div>
-      <div className="text-xs font-semibold uppercase tracking-wide text-[#464555] mb-1">
+      <div className="mb-1 text-xs font-semibold tracking-wide text-[#464555] uppercase">
         {label}
       </div>
       <div className="text-4xl font-semibold text-[#1b1b24]">{value}</div>
@@ -193,11 +187,17 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status, errorMessage }: { status: ConnectionRow["status"]; errorMessage: string | null }) {
+function StatusBadge({
+  status,
+  errorMessage,
+}: {
+  status: ConnectionRow["status"];
+  errorMessage: string | null;
+}) {
   if (status === "active") {
     return (
-      <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2 py-1 rounded">
-        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+      <span className="inline-flex items-center gap-1.5 rounded bg-emerald-100 px-2 py-1 text-[11px] font-bold text-emerald-800">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
         ACTIVE
       </span>
     );
@@ -205,16 +205,16 @@ function StatusBadge({ status, errorMessage }: { status: ConnectionRow["status"]
   if (status === "error") {
     return (
       <span
-        className="inline-flex items-center gap-1.5 bg-red-100 text-red-800 text-[11px] font-bold px-2 py-1 rounded cursor-help"
+        className="inline-flex cursor-help items-center gap-1.5 rounded bg-red-100 px-2 py-1 text-[11px] font-bold text-red-800"
         title={errorMessage ?? undefined}
       >
-        <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
         ERROR
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 bg-[#e4e1ee] text-[#464555] text-[11px] font-bold px-2 py-1 rounded">
+    <span className="inline-flex items-center gap-1.5 rounded bg-[#e4e1ee] px-2 py-1 text-[11px] font-bold text-[#464555]">
       PAUSED
     </span>
   );
@@ -232,7 +232,7 @@ function ProviderIcon({
   const dim = size === "sm" ? "w-10 h-10 text-sm" : "w-12 h-12 text-base";
   return (
     <div
-      className={`${dim} rounded-lg flex items-center justify-center font-bold text-white shadow-sm shrink-0`}
+      className={`${dim} flex shrink-0 items-center justify-center rounded-lg font-bold text-white shadow-sm`}
       style={{ backgroundColor: brandColor }}
     >
       {initial}
@@ -240,19 +240,29 @@ function ProviderIcon({
   );
 }
 
-function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (key: string) => void }) {
+function CatalogCard({
+  entry,
+  onConnect,
+}: {
+  entry: CatalogEntry;
+  onConnect: (key: string) => void;
+}) {
   if (entry.connected) {
     return (
-      <div className="relative bg-white border-2 border-[#3525cd] p-6 rounded-xl shadow-sm hover:shadow-lg transition-all overflow-hidden">
-        <div className="absolute top-0 right-0 bg-[#3525cd] text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg tracking-wide">
+      <div className="relative overflow-hidden rounded-xl border-2 border-[#3525cd] bg-white p-6 shadow-sm transition-all hover:shadow-lg">
+        <div className="absolute top-0 right-0 rounded-bl-lg bg-[#3525cd] px-2 py-1 text-[10px] font-bold tracking-wide text-white">
           CONNECTED
         </div>
         <ProviderIcon brandColor={entry.brandColor} initial={entry.initial} />
-        <h4 className="text-lg font-semibold text-[#1b1b24] mt-4 mb-1">{entry.name}</h4>
-        <p className="text-xs text-[#464555] mb-4 leading-relaxed">{entry.description}</p>
+        <h4 className="mt-4 mb-1 text-lg font-semibold text-[#1b1b24]">
+          {entry.name}
+        </h4>
+        <p className="mb-4 text-xs leading-relaxed text-[#464555]">
+          {entry.description}
+        </p>
         <button
           onClick={() => onConnect(entry.key)}
-          className="block w-full text-center border border-[#3525cd] text-[#3525cd] text-xs font-bold py-2 rounded-lg hover:bg-[#3525cd]/10 transition-colors uppercase tracking-wide"
+          className="block w-full rounded-lg border border-[#3525cd] py-2 text-center text-xs font-bold tracking-wide text-[#3525cd] uppercase transition-colors hover:bg-[#3525cd]/10"
         >
           Add another
         </button>
@@ -262,13 +272,17 @@ function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (ke
 
   if (entry.available) {
     return (
-      <div className="bg-white border border-[#c7c4d8] p-6 rounded-xl shadow-sm hover:shadow-md hover:border-[#3525cd]/40 transition-all">
+      <div className="rounded-xl border border-[#c7c4d8] bg-white p-6 shadow-sm transition-all hover:border-[#3525cd]/40 hover:shadow-md">
         <ProviderIcon brandColor={entry.brandColor} initial={entry.initial} />
-        <h4 className="text-lg font-semibold text-[#1b1b24] mt-4 mb-1">{entry.name}</h4>
-        <p className="text-xs text-[#464555] mb-4 leading-relaxed">{entry.description}</p>
+        <h4 className="mt-4 mb-1 text-lg font-semibold text-[#1b1b24]">
+          {entry.name}
+        </h4>
+        <p className="mb-4 text-xs leading-relaxed text-[#464555]">
+          {entry.description}
+        </p>
         <button
           onClick={() => onConnect(entry.key)}
-          className="w-full bg-[#3525cd] text-white text-xs font-bold py-2 rounded-lg hover:opacity-90 transition-opacity uppercase tracking-wide"
+          className="w-full rounded-lg bg-[#3525cd] py-2 text-xs font-bold tracking-wide text-white uppercase transition-opacity hover:opacity-90"
         >
           Connect
         </button>
@@ -278,23 +292,25 @@ function CatalogCard({ entry, onConnect }: { entry: CatalogEntry; onConnect: (ke
 
   // Coming soon
   return (
-    <div className="bg-[#f0ecf9]/50 border border-[#c7c4d8] p-6 rounded-xl grayscale hover:grayscale-0 hover:shadow-md transition-all opacity-80">
+    <div className="rounded-xl border border-[#c7c4d8] bg-[#f0ecf9]/50 p-6 opacity-80 grayscale transition-all hover:shadow-md hover:grayscale-0">
       <div
-        className="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white/60 text-base shadow-sm shrink-0 opacity-40"
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-base font-bold text-white/60 opacity-40 shadow-sm"
         style={{ backgroundColor: entry.brandColor }}
       >
         {entry.initial}
       </div>
-      <div className="flex items-center justify-between mt-4 mb-1">
+      <div className="mt-4 mb-1 flex items-center justify-between">
         <h4 className="text-lg font-semibold text-[#464555]">{entry.name}</h4>
-        <span className="text-[10px] bg-[#e4e1ee] text-[#464555] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide">
+        <span className="rounded bg-[#e4e1ee] px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-[#464555] uppercase">
           Soon
         </span>
       </div>
-      <p className="text-xs text-[#464555] mb-4 leading-relaxed">{entry.description}</p>
+      <p className="mb-4 text-xs leading-relaxed text-[#464555]">
+        {entry.description}
+      </p>
       <button
         disabled
-        className="w-full bg-[#e4e1ee] text-[#464555] text-xs font-bold py-2 rounded-lg cursor-not-allowed uppercase tracking-wide"
+        className="w-full cursor-not-allowed rounded-lg bg-[#e4e1ee] py-2 text-xs font-bold tracking-wide text-[#464555] uppercase"
       >
         Notify me
       </button>
@@ -320,7 +336,9 @@ export function ConnectorsPage() {
 
   const allConnections = connectionsQuery.data?.items ?? [];
   const connectedCount = allConnections.length;
-  const runningCount = allConnections.filter((c) => c.status === "active").length;
+  const runningCount = allConnections.filter(
+    (c) => c.status === "active",
+  ).length;
   const failedCount = allConnections.filter((c) => c.status === "error").length;
   const reauthCount = allConnections.filter(
     (c) => c.status === "error" && c.error_message != null,
@@ -340,9 +358,10 @@ export function ConnectorsPage() {
         queryKey: queryKeys.connectorConnections,
       });
 
-      const previousConnections = queryClient.getQueryData<ConnectorConnectionsListResponse>(
-        queryKeys.connectorConnections,
-      );
+      const previousConnections =
+        queryClient.getQueryData<ConnectorConnectionsListResponse>(
+          queryKeys.connectorConnections,
+        );
 
       queryClient.setQueryData(
         queryKeys.connectorConnections,
@@ -383,7 +402,10 @@ export function ConnectorsPage() {
     router.push(`/connectors/new/${encodeURIComponent(providerKey)}`);
   }
 
-  function handleDeleteConnection(connectionId: string, connectionName: string) {
+  function handleDeleteConnection(
+    connectionId: string,
+    connectionName: string,
+  ) {
     const confirmed = window.confirm(
       `Delete connected source \"${connectionName}\"? This will disconnect it from Rudix.`,
     );
@@ -398,10 +420,10 @@ export function ConnectorsPage() {
   }
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="max-w-[1200px] p-8">
       {/* Page title */}
       <section className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-[#1b1b24] mb-1">
+        <h1 className="mb-1 text-3xl font-semibold tracking-tight text-[#1b1b24]">
           Connectors
         </h1>
         <p className="text-base text-[#464555]">
@@ -410,7 +432,7 @@ export function ConnectorsPage() {
       </section>
 
       {/* Health bento grid */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <section className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           icon="database"
           iconColor="text-[#3525cd]"
@@ -455,36 +477,40 @@ export function ConnectorsPage() {
 
       {/* Connected sources table */}
       <section className="mb-8">
-        <div className="flex items-center justify-between mb-5">
+        <div className="mb-5 flex items-center justify-between">
           <h2 className="text-2xl font-semibold text-[#1b1b24]">
             Connected sources
           </h2>
           <button
             type="button"
             onClick={scrollToCatalog}
-            className="inline-flex items-center gap-1.5 bg-[#3525cd] text-white text-xs font-bold py-2 px-5 rounded-lg hover:opacity-90 transition-opacity uppercase tracking-wide"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3525cd] px-5 py-2 text-xs font-bold tracking-wide text-white uppercase transition-opacity hover:opacity-90"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
             Add new source
           </button>
         </div>
 
-        <div className="bg-white border border-[#c7c4d8] rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-[#eae6f4] border-b border-[#c7c4d8]">
+        <div className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
+          <table className="w-full border-collapse text-left">
+            <thead className="border-b border-[#c7c4d8] bg-[#eae6f4]">
               <tr>
-                {["Source", "Status", "Last Sync", "Items Indexed", "Actions"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className={`px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-[#464555] ${
-                        h === "Actions" ? "text-right" : ""
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ),
-                )}
+                {[
+                  "Source",
+                  "Status",
+                  "Last Sync",
+                  "Items Indexed",
+                  "Actions",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className={`px-6 py-3 text-[11px] font-semibold tracking-wide text-[#464555] uppercase ${
+                      h === "Actions" ? "text-right" : ""
+                    }`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e4e1ee]">
@@ -510,11 +536,13 @@ export function ConnectorsPage() {
                 </tr>
               ) : (
                 connectionRows.map((conn) => {
-                  const catalog = CATALOG.find((c) => c.key === conn.providerKey);
+                  const catalog = CATALOG.find(
+                    (c) => c.key === conn.providerKey,
+                  );
                   return (
                     <tr
                       key={conn.id}
-                      className="hover:bg-[#f5f2ff] transition-colors group"
+                      className="group transition-colors hover:bg-[#f5f2ff]"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -526,7 +554,7 @@ export function ConnectorsPage() {
                             />
                           )}
                           <div>
-                            <div className="font-semibold text-sm text-[#1b1b24]">
+                            <div className="text-sm font-semibold text-[#1b1b24]">
                               {conn.name}
                             </div>
                             <div className="text-xs text-[#464555]">
@@ -536,13 +564,16 @@ export function ConnectorsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <StatusBadge status={conn.status} errorMessage={conn.errorMessage} />
+                        <StatusBadge
+                          status={conn.status}
+                          errorMessage={conn.errorMessage}
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-mono text-[13px] text-[#1b1b24]">
                           {conn.lastSyncLabel}
                         </div>
-                        <div className="text-[11px] text-[#464555] uppercase tracking-wide">
+                        <div className="text-[11px] tracking-wide text-[#464555] uppercase">
                           {conn.lastSyncStatus}
                         </div>
                       </td>
@@ -550,12 +581,14 @@ export function ConnectorsPage() {
                         {conn.itemsIndexed.toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-1 opacity-40 transition-opacity group-hover:opacity-100">
                           <button
                             title="View details"
                             aria-label={`View details for ${conn.name}`}
-                            className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
-                            onClick={() => router.push(`/connectors/${conn.id}`)}
+                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
+                            onClick={() =>
+                              router.push(`/connectors/${conn.id}`)
+                            }
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               visibility
@@ -564,8 +597,10 @@ export function ConnectorsPage() {
                           <button
                             title="Sync now"
                             aria-label={`Sync now for ${conn.name}`}
-                            className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
-                            onClick={() => router.push(`/connectors/${conn.id}`)}
+                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
+                            onClick={() =>
+                              router.push(`/connectors/${conn.id}`)
+                            }
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               sync
@@ -574,8 +609,10 @@ export function ConnectorsPage() {
                           <button
                             title="Settings"
                             aria-label={`Settings for ${conn.name}`}
-                            className="p-2 hover:bg-[#e4e1ee] rounded-lg transition-colors text-[#464555]"
-                            onClick={() => router.push(`/connectors/${conn.id}`)}
+                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
+                            onClick={() =>
+                              router.push(`/connectors/${conn.id}`)
+                            }
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               settings
@@ -588,7 +625,7 @@ export function ConnectorsPage() {
                             onClick={() =>
                               handleDeleteConnection(conn.id, conn.name)
                             }
-                            className="p-2 hover:bg-[#fce8e6] rounded-lg transition-colors text-[#b42318] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-lg p-2 text-[#b42318] transition-colors hover:bg-[#fce8e6] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               delete
@@ -608,7 +645,7 @@ export function ConnectorsPage() {
       {/* Connector catalog */}
       <section ref={catalogRef}>
         <div className="mb-5">
-          <h2 className="text-2xl font-semibold text-[#1b1b24] mb-1">
+          <h2 className="mb-1 text-2xl font-semibold text-[#1b1b24]">
             Connector catalog
           </h2>
           <p className="text-sm text-[#464555]">
@@ -616,7 +653,7 @@ export function ConnectorsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
           {CATALOG.filter(
             (entry) => providerKeysFromAPI.has(entry.key) || entry.available,
           ).map((entry) => (

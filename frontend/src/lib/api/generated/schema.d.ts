@@ -1344,7 +1344,15 @@ export interface components {
       /** Scope Mode */
       scope_mode?: "all" | "collection" | "documents" | "none" | null;
       /** Answer Language */
-      answer_language?: "auto" | "same_as_question" | "workspace_default" | "en" | "de" | "es" | "fr" | null;
+      answer_language?:
+        | "auto"
+        | "same_as_question"
+        | "workspace_default"
+        | "en"
+        | "de"
+        | "es"
+        | "fr"
+        | null;
     };
     /** ChatQueryResponse */
     ChatQueryResponse: {
@@ -1516,7 +1524,11 @@ export interface components {
        * Status
        * @enum {string}
        */
-      status: "delete_requested" | "deleting" | "deleted" | "retained_by_policy";
+      status:
+        | "delete_requested"
+        | "deleting"
+        | "deleted"
+        | "retained_by_policy";
       /** Hold Reason */
       hold_reason?: string | null;
     };

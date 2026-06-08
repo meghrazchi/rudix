@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminApiKeysPage } from "@/components/admin/AdminApiKeysPage";
-import type { ApiKey, ApiKeyCreated, ApiKeyListResponse } from "@/lib/api/api-keys";
+import type {
+  ApiKey,
+  ApiKeyCreated,
+  ApiKeyListResponse,
+} from "@/lib/api/api-keys";
 import type { SessionState } from "@/lib/auth-session";
 
 // ─── mocks ───────────────────────────────────────────────────────────────────
@@ -183,14 +187,21 @@ describe("AdminApiKeysPage", () => {
       expect(screen.getByText(/No active API keys/i)).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /Create key/i }));
-    await userEvent.type(screen.getByPlaceholderText(/e.g. CI integration key/i), "My key");
-    await userEvent.click(screen.getByRole("button", { name: /Create key/i, hidden: false }));
+    await userEvent.type(
+      screen.getByPlaceholderText(/e.g. CI integration key/i),
+      "My key",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Create key/i, hidden: false }),
+    );
     await waitFor(() =>
       expect(
         screen.getByText(/This is the only time the full key is shown/i),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText("rudix_abc12345678901234567890abcdef")).toBeInTheDocument();
+    expect(
+      screen.getByText("rudix_abc12345678901234567890abcdef"),
+    ).toBeInTheDocument();
   });
 
   it("shows raw key only in copy-once banner, not in list", async () => {
@@ -199,7 +210,9 @@ describe("AdminApiKeysPage", () => {
     await waitFor(() =>
       expect(screen.getByText("CI Integration")).toBeInTheDocument(),
     );
-    expect(screen.queryByText(/rudix_abc12345678901234567890abcdef/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/rudix_abc12345678901234567890abcdef/),
+    ).not.toBeInTheDocument();
   });
 
   it("shows revoke confirmation dialog", async () => {
@@ -209,9 +222,7 @@ describe("AdminApiKeysPage", () => {
       expect(screen.getByText("CI Integration")).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /Revoke/i }));
-    expect(
-      screen.getByText(/Revoke "CI Integration"\?/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Revoke "CI Integration"\?/i)).toBeInTheDocument();
     expect(
       screen.getByText(/The key will stop working immediately/i),
     ).toBeInTheDocument();
@@ -226,7 +237,9 @@ describe("AdminApiKeysPage", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /Revoke/i }));
     await userEvent.click(screen.getByRole("button", { name: /Revoke key/i }));
-    await waitFor(() => expect(mockApi.revokeApiKey).toHaveBeenCalledWith("key-1"));
+    await waitFor(() =>
+      expect(mockApi.revokeApiKey).toHaveBeenCalledWith("key-1"),
+    );
   });
 
   it("cancels revoke dialog without calling API", async () => {
@@ -238,7 +251,9 @@ describe("AdminApiKeysPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /Revoke/i }));
     await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
     expect(mockApi.revokeApiKey).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Revoke "CI Integration"\?/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Revoke "CI Integration"\?/i),
+    ).not.toBeInTheDocument();
   });
 
   it("calls rotateApiKey and shows copy-once banner", async () => {
@@ -271,7 +286,9 @@ describe("AdminApiKeysPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/api_keys:list permission/i)).toBeInTheDocument(),
     );
-    expect(screen.queryByRole("button", { name: /Create key/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Create key/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows error state when API call fails", async () => {

@@ -403,7 +403,8 @@ describe("ChatPage", () => {
       sort_order: "desc",
     });
 
-    const deferredQuery = createDeferred<Awaited<ReturnType<typeof queryChat>>>();
+    const deferredQuery =
+      createDeferred<Awaited<ReturnType<typeof queryChat>>>();
     vi.mocked(queryChat).mockReturnValue(deferredQuery.promise);
 
     renderPage();
@@ -453,7 +454,9 @@ describe("ChatPage", () => {
       created_at: "2026-05-14T10:10:00Z",
     });
 
-    expect(await screen.findByText("The policy is active.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("The policy is active."),
+    ).toBeInTheDocument();
   });
 
   it("hides debug panel for normal users by default", async () => {
@@ -861,11 +864,11 @@ describe("ChatPage", () => {
     vi.mocked(listConnectorConnections).mockResolvedValue({
       items: [
         {
-          id: "conn-jira-1",
-          provider_key: "jira",
+          id: "conn-confluence-1",
+          provider_key: "confluence",
           provider: {
-            key: "jira",
-            display_name: "Jira",
+            key: "confluence",
+            display_name: "Confluence",
             auth_type: "oauth2",
             capabilities: [],
             config_schema: {},
@@ -873,11 +876,11 @@ describe("ChatPage", () => {
             export_formats: [],
             is_enabled: true,
           },
-          display_name: "Engineering Jira",
+          display_name: "Engineering Confluence",
           external_account_id: null,
           collection_id: null,
           status: "active",
-          auth_config: { project_keys: ["ENG", "DOCS"] },
+          auth_config: { space_keys: ["ENG", "DOCS"] },
           last_sync_at: null,
           error_message: null,
           source_count: 2,
@@ -935,7 +938,7 @@ describe("ChatPage", () => {
     });
     await userEvent.click(
       within(contextDialog).getByRole("button", {
-        name: /Engineering Jira/i,
+        name: /Engineering Confluence/i,
       }),
     );
     await userEvent.click(
@@ -959,7 +962,7 @@ describe("ChatPage", () => {
       scope_mode: "connectors",
       source_scope: {
         mode: "connector_sources",
-        connection_ids: ["conn-jira-1"],
+        connection_ids: ["conn-confluence-1"],
         provider_source_ids: [],
       },
     });
@@ -3135,8 +3138,7 @@ describe("ChatPage", () => {
   });
 
   it("grows the composer textarea from one line up to ten lines", async () => {
-    const composerPlaceholder =
-      "Type a message or use '/' for commands...";
+    const composerPlaceholder = "Type a message or use '/' for commands...";
 
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
@@ -3203,5 +3205,4 @@ describe("ChatPage", () => {
       expect(currentTextarea).toHaveStyle({ overflowY: "auto" });
     });
   });
-
 });

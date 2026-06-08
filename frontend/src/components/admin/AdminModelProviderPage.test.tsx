@@ -134,9 +134,7 @@ describe("AdminModelProviderPage", () => {
     mockApi.getModelProviderSettings.mockResolvedValue(ORG_OVERRIDE_SETTINGS);
 
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Org override")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText("Org override")).toBeTruthy());
   });
 
   it("shows create button when no org settings exist", async () => {

@@ -61,10 +61,10 @@ function PermissionCheckbox({
   disabled?: boolean;
 }) {
   return (
-    <label className="flex items-start gap-2 cursor-pointer group">
+    <label className="group flex cursor-pointer items-start gap-2">
       <input
         type="checkbox"
-        className="mt-0.5 h-4 w-4 accent-[#3525cd] cursor-pointer"
+        className="mt-0.5 h-4 w-4 cursor-pointer accent-[#3525cd]"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(entry.permission, e.target.checked)}
@@ -347,7 +347,7 @@ function RoleFormPanel({
             <div className="space-y-4">
               {Object.entries(grouped).map(([category, entries]) => (
                 <div key={category}>
-                  <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-[#5d58a8]">
+                  <p className="mb-1.5 text-xs font-bold tracking-wide text-[#5d58a8] uppercase">
                     {categoryLabel(category)}
                   </p>
                   <div className="space-y-2 rounded-lg bg-[#f9f8ff] p-3">
@@ -429,7 +429,7 @@ function BuiltinRolePanel({
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
         {Object.entries(grouped).map(([category, entries]) => (
           <div key={category}>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-[#5d58a8]">
+            <p className="mb-1.5 text-xs font-bold tracking-wide text-[#5d58a8] uppercase">
               {categoryLabel(category)}
             </p>
             <div className="space-y-2 rounded-lg bg-[#f9f8ff] p-3">

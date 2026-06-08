@@ -53,10 +53,10 @@ vi.mock("next/navigation", () => ({
 function makeDetail(): ConnectorConnectionDetail {
   return {
     id: "conn-1",
-    provider_key: "jira",
+    provider_key: "confluence",
     provider: {
-      key: "jira",
-      display_name: "Jira",
+      key: "confluence",
+      display_name: "Confluence",
       enabled_by_default: true,
       has_oauth: true,
       capabilities: {
@@ -71,21 +71,24 @@ function makeDetail(): ConnectorConnectionDetail {
         type: "object",
         properties: {
           site_url: { type: "string", format: "uri" },
-          project_keys: { type: "array", items: { type: "string" } },
+          space_keys: { type: "array", items: { type: "string" } },
+          cql_filter: { type: "string" },
+          include_comments: { type: "boolean" },
         },
         required: ["site_url"],
         additionalProperties: false,
       },
     },
-    display_name: "Engineering Jira",
-    external_account_id: "jira-site-1",
+    display_name: "Engineering Docs",
+    external_account_id: "confluence-site-1",
     collection_id: null,
     status: "active",
     auth_config: {
-      provider_key: "jira",
-      site_url: "https://jira.example.test",
-      project_keys: ["ENG", "DOCS"],
-      jql_filter: "status != Done",
+      provider_key: "confluence",
+      site_url: "https://acme.atlassian.net",
+      space_keys: ["ENG", "DOCS"],
+      cql_filter: "type = page",
+      include_comments: true,
     },
     last_sync_at: new Date().toISOString(),
     error_message: null,
@@ -95,23 +98,23 @@ function makeDetail(): ConnectorConnectionDetail {
     updated_at: new Date().toISOString(),
     diagnostics: {
       connection_id: "conn-1",
-      provider_key: "jira",
+      provider_key: "confluence",
       status: "active",
       error_message: null,
       auth_type: "oauth2",
       credential_status: "active",
       credential_version: 1,
       credential_fingerprint: "fingerprint",
-      scopes: ["read:jira-work"],
+      scopes: ["read:confluence-content.all"],
       expires_at: null,
-      metadata: { provider_key: "jira" },
+      metadata: { provider_key: "confluence" },
     },
     source_permission_snapshots: [
       {
         id: "source-1",
-        provider_source_id: "jira-123",
+        provider_source_id: "space-123",
         name: "Engineering Docs",
-        source_type: "space",
+        source_type: "wiki_page",
         is_enabled: true,
         permissions: { entries: [{ type: "user", role: "reader" }] },
       },
@@ -150,10 +153,12 @@ describe("ConnectorConnectionDetailPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("Engineering Jira")).toBeInTheDocument();
-      expect(screen.getByText("Project keys")).toBeInTheDocument();
-      expect(screen.getByText("JQL filter")).toBeInTheDocument();
-      expect(screen.getByText("read:jira-work")).toBeInTheDocument();
+      expect(screen.getByText("Engineering Docs")).toBeInTheDocument();
+      expect(screen.getByText("Space keys")).toBeInTheDocument();
+      expect(screen.getByText("CQL filter")).toBeInTheDocument();
+      expect(
+        screen.getByText("read:confluence-content.all"),
+      ).toBeInTheDocument();
       expect(screen.getByText("Access review hooks")).toBeInTheDocument();
       expect(screen.getByText("Engineering Docs")).toBeInTheDocument();
     });

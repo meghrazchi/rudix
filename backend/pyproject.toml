@@ -71,7 +71,6 @@ markers = [
   "isolation: RAG and vector isolation regression tests (F144 — release blocker for v0.4.0)",
   "guardrails: Prompt injection and citation validation guardrail tests (F145 — release blocker for v0.4.0)",
   "connector_contract: Connector provider adapter contract tests (F241)",
-  "jira_adapter: Jira connector adapter tests (F242)",
 ]
 
 [tool.mypy]

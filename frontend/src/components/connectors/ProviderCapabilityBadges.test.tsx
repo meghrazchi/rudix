@@ -25,7 +25,8 @@ const mockApi = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api/connector-providers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/connector-providers")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/api/connector-providers")>();
   return {
     ...actual,
     listProviders: (...args: unknown[]) => mockApi.listProviders(...args),
@@ -35,16 +36,25 @@ vi.mock("@/lib/api/connector-providers", async (importOriginal) => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeProvider(overrides: Partial<ProviderSummary> = {}): ProviderSummary {
+function makeProvider(
+  overrides: Partial<ProviderSummary> = {},
+): ProviderSummary {
   return {
-    key: "jira",
-    display_name: "Jira",
+    key: "confluence",
+    display_name: "Confluence",
     enabled_by_default: true,
     has_oauth: true,
     capabilities: {
       auth_type: "oauth2",
       capabilities: ["delta_sync", "acls", "attachments", "rate_limits"],
-      rate_limits: [{ name: "rest_api", max_requests: 500, window_seconds: 60, burst: null }],
+      rate_limits: [
+        {
+          name: "rest_api",
+          max_requests: 500,
+          window_seconds: 60,
+          burst: null,
+        },
+      ],
       export_formats: [],
       max_page_size: 100,
       notes: null,
@@ -53,7 +63,9 @@ function makeProvider(overrides: Partial<ProviderSummary> = {}): ProviderSummary
   };
 }
 
-function makeProvidersResponse(providers: ProviderSummary[]): ProvidersListResponse {
+function makeProvidersResponse(
+  providers: ProviderSummary[],
+): ProvidersListResponse {
   return { items: providers, total: providers.length };
 }
 
@@ -61,7 +73,9 @@ function renderWithQuery(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
 }
 
 // ── CapabilityBadge ───────────────────────────────────────────────────────────
@@ -107,7 +121,10 @@ describe("ProviderCapabilityBadges", () => {
   it("filters to onlyCapabilities when provided", () => {
     const provider = makeProvider();
     render(
-      <ProviderCapabilityBadges provider={provider} onlyCapabilities={["delta_sync"]} />,
+      <ProviderCapabilityBadges
+        provider={provider}
+        onlyCapabilities={["delta_sync"]}
+      />,
     );
     expect(screen.getByText("Incremental sync")).toBeInTheDocument();
     expect(screen.queryByText("Permission-aware")).not.toBeInTheDocument();
@@ -117,14 +134,19 @@ describe("ProviderCapabilityBadges", () => {
     const provider = makeProvider({
       capabilities: { ...makeProvider().capabilities, capabilities: [] },
     });
-    const { container } = render(<ProviderCapabilityBadges provider={provider} />);
+    const { container } = render(
+      <ProviderCapabilityBadges provider={provider} />,
+    );
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing when all filtered capabilities absent", () => {
     const provider = makeProvider();
     const { container } = render(
-      <ProviderCapabilityBadges provider={provider} onlyCapabilities={["webhooks"]} />,
+      <ProviderCapabilityBadges
+        provider={provider}
+        onlyCapabilities={["webhooks"]}
+      />,
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -189,7 +211,7 @@ describe("ProviderSetupHints", () => {
 describe("ProviderCard", () => {
   it("renders the provider display name", () => {
     render(<ProviderCard provider={makeProvider()} />);
-    expect(screen.getByText("Jira")).toBeInTheDocument();
+    expect(screen.getByText("Confluence")).toBeInTheDocument();
   });
 
   it("shows OAuth badge when has_oauth is true", () => {
@@ -203,7 +225,9 @@ describe("ProviderCard", () => {
   });
 
   it("applies selected ring style when selected=true", () => {
-    const { container } = render(<ProviderCard provider={makeProvider()} selected />);
+    const { container } = render(
+      <ProviderCard provider={makeProvider()} selected />,
+    );
     expect(container.firstChild).toHaveClass("ring-1");
   });
 
@@ -225,45 +249,41 @@ describe("ProviderPicker", () => {
 
   it("shows loading state while fetching", () => {
     mockApi.listProviders.mockReturnValue(new Promise(() => {}));
-    renderWithQuery(
-      <ProviderPicker selectedKey={null} onSelect={vi.fn()} />,
-    );
+    renderWithQuery(<ProviderPicker selectedKey={null} onSelect={vi.fn()} />);
     expect(screen.getByText("Loading providers…")).toBeInTheDocument();
   });
 
   it("shows error state when fetch fails", async () => {
     mockApi.listProviders.mockRejectedValue(new Error("network error"));
-    renderWithQuery(
-      <ProviderPicker selectedKey={null} onSelect={vi.fn()} />,
-    );
+    renderWithQuery(<ProviderPicker selectedKey={null} onSelect={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByText("Failed to load providers.")).toBeInTheDocument();
     });
   });
 
   it("renders cards for each enabled provider", async () => {
-    const jira = makeProvider({ key: "jira", display_name: "Jira" });
     const confluence = makeProvider({
       key: "confluence",
       display_name: "Confluence",
     });
-    mockApi.listProviders.mockResolvedValue(makeProvidersResponse([jira, confluence]));
-
-    renderWithQuery(
-      <ProviderPicker selectedKey={null} onSelect={vi.fn()} />,
+    mockApi.listProviders.mockResolvedValue(
+      makeProvidersResponse([confluence]),
     );
+
+    renderWithQuery(<ProviderPicker selectedKey={null} onSelect={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByText("Jira")).toBeInTheDocument();
       expect(screen.getByText("Confluence")).toBeInTheDocument();
     });
   });
 
   it("marks the selected provider card with selected style", async () => {
-    const jira = makeProvider({ key: "jira" });
-    mockApi.listProviders.mockResolvedValue(makeProvidersResponse([jira]));
+    const confluence = makeProvider({ key: "confluence" });
+    mockApi.listProviders.mockResolvedValue(
+      makeProvidersResponse([confluence]),
+    );
 
     renderWithQuery(
-      <ProviderPicker selectedKey="jira" onSelect={vi.fn()} />,
+      <ProviderPicker selectedKey="confluence" onSelect={vi.fn()} />,
     );
     await waitFor(() => {
       expect(screen.getByRole("button")).toHaveClass("ring-1");
@@ -272,16 +292,16 @@ describe("ProviderPicker", () => {
 
   it("calls onSelect with the provider key when a card is clicked", async () => {
     const user = userEvent.setup();
-    const jira = makeProvider({ key: "jira" });
-    mockApi.listProviders.mockResolvedValue(makeProvidersResponse([jira]));
+    const confluence = makeProvider({ key: "confluence" });
+    mockApi.listProviders.mockResolvedValue(
+      makeProvidersResponse([confluence]),
+    );
     const onSelect = vi.fn();
 
-    renderWithQuery(
-      <ProviderPicker selectedKey={null} onSelect={onSelect} />,
-    );
-    await waitFor(() => screen.getByText("Jira"));
+    renderWithQuery(<ProviderPicker selectedKey={null} onSelect={onSelect} />);
+    await waitFor(() => screen.getByText("Confluence"));
     await user.click(screen.getByRole("button"));
-    expect(onSelect).toHaveBeenCalledWith("jira");
+    expect(onSelect).toHaveBeenCalledWith("confluence");
   });
 
   it("hides disabled providers from the picker", async () => {
@@ -292,9 +312,7 @@ describe("ProviderPicker", () => {
     });
     mockApi.listProviders.mockResolvedValue(makeProvidersResponse([disabled]));
 
-    renderWithQuery(
-      <ProviderPicker selectedKey={null} onSelect={vi.fn()} />,
-    );
+    renderWithQuery(<ProviderPicker selectedKey={null} onSelect={vi.fn()} />);
     await waitFor(() => {
       expect(screen.queryByText("Legacy")).not.toBeInTheDocument();
     });

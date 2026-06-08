@@ -152,9 +152,7 @@ describe("modelProviderSettingsResponseSchema", () => {
 
   it("does not accept raw API key fields", () => {
     // Ensure the schema has no openai_api_key field
-    const keys = Object.keys(
-      modelProviderSettingsResponseSchema.shape,
-    );
+    const keys = Object.keys(modelProviderSettingsResponseSchema.shape);
     expect(keys).not.toContain("openai_api_key");
     expect(keys).not.toContain("api_key");
   });

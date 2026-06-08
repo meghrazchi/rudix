@@ -83,7 +83,7 @@ Connector ingestion adds a provider-neutral pre-step before item 5:
 4. Shared ingestion creates or updates the `documents` row and links provenance
    through `source_documents` and `source_references`. Connector-backed
    documents also carry provider snapshots so citations can deep-link to the
-   original Jira, Confluence, or Drive item even after the source changes.
+   original connector item even after the source changes.
 
 ### Ingestion Mermaid diagram
 
@@ -333,7 +333,7 @@ Each citation should include:
   "page_number": 4,
   "text_snippet": "Employees are entitled to 20 days...",
   "similarity_score": 0.87,
-  "source_provider": "jira",
+  "source_provider": "confluence",
   "source_title": "PROJ-123",
   "source_section": "Comment 3",
   "source_deep_link": "https://...",

@@ -21,7 +21,13 @@ export const updateModelProviderSettingsSchema = z
       .max(1_000_000)
       .nullable()
       .optional(),
-    timeout_seconds: z.coerce.number().int().min(1).max(600).nullable().optional(),
+    timeout_seconds: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(600)
+      .nullable()
+      .optional(),
     max_retries: z.coerce.number().int().min(0).max(10).nullable().optional(),
     fallback_model: _nonBlankString(255),
     disabled_models: z
@@ -41,7 +47,8 @@ export const updateModelProviderSettingsSchema = z
   .refine(
     (data) =>
       Object.keys(data).some(
-        (key) => key !== "change_note" && data[key as keyof typeof data] !== undefined,
+        (key) =>
+          key !== "change_note" && data[key as keyof typeof data] !== undefined,
       ),
     { message: "At least one setting field must be provided" },
   );

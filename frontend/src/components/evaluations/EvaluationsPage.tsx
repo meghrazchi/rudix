@@ -376,7 +376,8 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
 
   const role = state.session?.role ?? null;
   const canCreateSet = role === "owner" || role === "admin";
-  const canManageQuestions = role === "owner" || role === "admin" || role === "member";
+  const canManageQuestions =
+    role === "owner" || role === "admin" || role === "member";
   const canRun = role === "owner" || role === "admin";
   const canAdmin = role === "owner" || role === "admin";
 
@@ -1213,7 +1214,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               <button
                 type="button"
                 onClick={() => setCompareRunId(null)}
-                className={`rounded px-3 py-1.5 text-xs font-semibold border ${
+                className={`rounded border px-3 py-1.5 text-xs font-semibold ${
                   !compareRunId
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
                     : "border-[#cbc6dd] text-[#403b5f] hover:bg-gray-50"
@@ -1245,73 +1246,76 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
               />
             ) : (
               <>
-            <EvaluationRunDetailSection
-              run={runDetail}
-              datasetName={
-                setItems.find(
-                  (setItem) =>
-                    setItem.evaluation_set_id === runDetail.evaluation_set_id,
-                )?.name ?? runDetail.evaluation_set_id
-              }
-              comparison={buildRunComparison(runDetail.summary)}
-              failureReason={runDetail.failure_reason ?? null}
-              failureType={runDetail.failure_type ?? null}
-            />
+                <EvaluationRunDetailSection
+                  run={runDetail}
+                  datasetName={
+                    setItems.find(
+                      (setItem) =>
+                        setItem.evaluation_set_id ===
+                        runDetail.evaluation_set_id,
+                    )?.name ?? runDetail.evaluation_set_id
+                  }
+                  comparison={buildRunComparison(runDetail.summary)}
+                  failureReason={runDetail.failure_reason ?? null}
+                  failureType={runDetail.failure_type ?? null}
+                />
 
-            <EvaluationCasesSection
-              rows={filteredCaseRows}
-              filters={resultFilters}
-              onFilterChange={setResultFilters}
-            />
+                <EvaluationCasesSection
+                  rows={filteredCaseRows}
+                  filters={resultFilters}
+                  onFilterChange={setResultFilters}
+                />
 
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd8ec] bg-white px-3 py-2">
-              <p className="text-sm text-[#66627d]">
-                Page{" "}
-                {Math.floor(resultOffset / EVALUATION_RESULTS_PAGE_SIZE) + 1} of{" "}
-                {Math.max(
-                  1,
-                  Math.ceil(
-                    (runDetail.results.total || 0) /
-                      EVALUATION_RESULTS_PAGE_SIZE,
-                  ),
-                )}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={resultOffset <= 0}
-                  onClick={() =>
-                    setResultOffsetByRunId((previous) => ({
-                      ...previous,
-                      [activeRunId]: Math.max(
-                        0,
-                        resultOffset - EVALUATION_RESULTS_PAGE_SIZE,
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd8ec] bg-white px-3 py-2">
+                  <p className="text-sm text-[#66627d]">
+                    Page{" "}
+                    {Math.floor(resultOffset / EVALUATION_RESULTS_PAGE_SIZE) +
+                      1}{" "}
+                    of{" "}
+                    {Math.max(
+                      1,
+                      Math.ceil(
+                        (runDetail.results.total || 0) /
+                          EVALUATION_RESULTS_PAGE_SIZE,
                       ),
-                    }))
-                  }
-                  className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  disabled={
-                    resultOffset + EVALUATION_RESULTS_PAGE_SIZE >=
-                    runDetail.results.total
-                  }
-                  onClick={() =>
-                    setResultOffsetByRunId((previous) => ({
-                      ...previous,
-                      [activeRunId]:
-                        resultOffset + EVALUATION_RESULTS_PAGE_SIZE,
-                    }))
-                  }
-                  className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={resultOffset <= 0}
+                      onClick={() =>
+                        setResultOffsetByRunId((previous) => ({
+                          ...previous,
+                          [activeRunId]: Math.max(
+                            0,
+                            resultOffset - EVALUATION_RESULTS_PAGE_SIZE,
+                          ),
+                        }))
+                      }
+                      className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      disabled={
+                        resultOffset + EVALUATION_RESULTS_PAGE_SIZE >=
+                        runDetail.results.total
+                      }
+                      onClick={() =>
+                        setResultOffsetByRunId((previous) => ({
+                          ...previous,
+                          [activeRunId]:
+                            resultOffset + EVALUATION_RESULTS_PAGE_SIZE,
+                        }))
+                      }
+                      className="rounded border border-[#cbc6dd] px-2 py-1 text-xs font-semibold text-[#403b5f] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </>
             )}
           </div>

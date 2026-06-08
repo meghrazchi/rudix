@@ -391,9 +391,9 @@ def test_connector_oauth_client_snapshot_redacts_client_secret() -> None:
     payload["connector_credential_encryption_key"] = "connector-encryption-secret"
     payload["connector_oauth_clients"] = [
         {
-            "provider_key": "jira",
-            "client_id": "jira-client-id",
-            "client_secret": "jira-client-secret",
+            "provider_key": "confluence",
+            "client_id": "confluence-client-id",
+            "client_secret": "confluence-client-secret",
             "redirect_uri": "https://app.example.com/api/v1/connectors/oauth/callback",
         }
     ]
@@ -402,9 +402,9 @@ def test_connector_oauth_client_snapshot_redacts_client_secret() -> None:
     snapshot = settings.sanitized_snapshot()
 
     assert snapshot["connector_credentials"]["encryption_key_set"] is True
-    assert snapshot["connector_credentials"]["oauth_clients"][0]["provider_key"] == "jira"
+    assert snapshot["connector_credentials"]["oauth_clients"][0]["provider_key"] == "confluence"
     assert snapshot["connector_credentials"]["oauth_clients"][0]["client_secret_set"] is True
-    assert "jira-client-secret" not in str(snapshot)
+    assert "confluence-client-secret" not in str(snapshot)
 
 
 def test_rate_limit_disabled_by_default_in_development() -> None:

@@ -109,26 +109,26 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
     connection = await service.create_connection(
         db_session,
         organization_id=org_id,
-        provider_key="jira",
-        display_name="Jira Production",
+        provider_key="confluence",
+        display_name="Confluence Production",
         created_by_user_id=user_id,
-        external_account_id="jira-site-1",
+        external_account_id="confluence-site-1",
     )
     source = await service.create_external_source(
         db_session,
         organization_id=org_id,
         connection_id=connection.id,
         provider_source_id="ENG",
-        source_type="jira_project",
+        source_type="confluence_space",
         name="Engineering",
-        source_url="https://jira.example.test/projects/ENG",
+        source_url="https://confluence.example.test/spaces/ENG",
     )
 
     job = ConnectorSyncJob(
         organization_id=org_id,
         connection_id=connection.id,
         external_source_id=source.id,
-        name="Jira Sync",
+        name="Confluence Sync",
         status="active",
         schedule_json={"type": "interval", "interval_minutes": 60},
         cursor_json={},
@@ -146,7 +146,7 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
         root_provider_item_id=None,
         item_type=ExternalItemType.cloud_file.value,
         title="Specs",
-        source_url="https://jira.example.test/browse/ENG-1",
+        source_url="https://confluence.example.test/pages/ENG-1",
         content_hash="a" * 64,
         source_updated_at=datetime.now(tz=UTC) - timedelta(hours=1),
         sync_version=1,
@@ -196,10 +196,10 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
             document_id=document.id,
             chunk_id=None,
             reference_type="document",
-            source_url="https://jira.example.test/browse/ENG-1",
+            source_url="https://confluence.example.test/pages/ENG-1",
             title="Specs",
             locator_json={},
-            metadata_json={"provider_key": "jira"},
+            metadata_json={"provider_key": "confluence"},
         )
     )
 
@@ -248,7 +248,7 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
                 action="connector.oauth.refresh_failed",
                 resource_type="connector_connection",
                 resource_id=connection.id,
-                metadata_json={"provider_key": "jira"},
+                metadata_json={"provider_key": "confluence"},
             ),
             AuditLog(
                 organization_id=org_id,
@@ -256,7 +256,7 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
                 action="connector.sync.retry_scheduled",
                 resource_type="connector_sync_run",
                 resource_id=None,
-                metadata_json={"provider_key": "jira"},
+                metadata_json={"provider_key": "confluence"},
             ),
             AuditLog(
                 organization_id=org_id,
@@ -264,7 +264,7 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
                 action="connector.sync.item.skipped",
                 resource_type="external_item",
                 resource_id=ext_item.id,
-                metadata_json={"provider_key": "jira"},
+                metadata_json={"provider_key": "confluence"},
             ),
             AuditLog(
                 organization_id=org_id,
@@ -272,7 +272,7 @@ async def _seed_connector_health_data(db_session: AsyncSession) -> dict[str, str
                 action="connector.ingestion.failed",
                 resource_type="external_item",
                 resource_id=ext_item.id,
-                metadata_json={"provider_key": "jira"},
+                metadata_json={"provider_key": "confluence"},
             ),
         ]
     )
@@ -306,7 +306,7 @@ async def test_connector_platform_health_reports_provider_metrics(
     assert data["totals"]["token_refresh_failures"] == 1
     assert data["totals"]["citation_usage"] == 1
     assert data["totals"]["connector_documents"] == 1
-    assert data["providers"][0]["provider_key"] == "jira"
+    assert data["providers"][0]["provider_key"] == "confluence"
     assert data["providers"][0]["top_error_codes"][0]["code"] == "rate_limit"
 
 
@@ -345,9 +345,9 @@ async def test_connector_routes_reject_when_rollout_disabled(
         "/api/v1/connectors/connections",
         headers=_auth(ctx["token"]),
         json={
-            "provider_key": "jira",
-            "display_name": "Jira Production",
-            "external_account_id": "jira-site-1",
+            "provider_key": "confluence",
+            "display_name": "Confluence Production",
+            "external_account_id": "confluence-site-1",
             "config": {},
         },
     )

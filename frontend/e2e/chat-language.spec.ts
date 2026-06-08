@@ -119,7 +119,10 @@ async function installApiMocks(page: Page): Promise<void> {
   });
 }
 
-async function loginAs(page: Page, session: typeof memberSession): Promise<void> {
+async function loginAs(
+  page: Page,
+  session: typeof memberSession,
+): Promise<void> {
   await page.evaluate(
     ([key, value]) => {
       window.localStorage.setItem(key, JSON.stringify(value));
@@ -172,7 +175,9 @@ test.describe("Chat language selector (F231)", () => {
       await route.fallback();
     });
 
-    await page.getByPlaceholder(/Type a message/i).fill("Wie viele Urlaubstage?");
+    await page
+      .getByPlaceholder(/Type a message/i)
+      .fill("Wie viele Urlaubstage?");
     await page.getByRole("button", { name: /Send message/i }).click();
 
     await page.waitForTimeout(500);

@@ -203,9 +203,7 @@ test.describe("Settings E2E smoke", () => {
     await page.goto("/settings");
     await waitForSessionBootstrap(page);
 
-    await expect(
-      page.getByRole("heading", { name: "Settings" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "Profile" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -261,12 +259,19 @@ test.describe("Settings E2E smoke", () => {
     await waitForSessionBootstrap(page);
 
     // Default theme is "light" — click the Dark theme label to dirty the form
-    await page.locator("label").filter({ hasText: /^Dark$/i }).click();
-    await expect(page.locator('input[type="radio"][value="dark"]')).toBeChecked();
+    await page
+      .locator("label")
+      .filter({ hasText: /^Dark$/i })
+      .click();
+    await expect(
+      page.locator('input[type="radio"][value="dark"]'),
+    ).toBeChecked();
 
     // Discard should revert to the last-saved (light) theme
     await page.getByRole("button", { name: "Discard Changes" }).click();
-    await expect(page.locator('input[type="radio"][value="light"]')).toBeChecked();
+    await expect(
+      page.locator('input[type="radio"][value="light"]'),
+    ).toBeChecked();
   });
 
   // ── Direct tab URLs ─────────────────────────────────────────────────────────
@@ -321,9 +326,7 @@ test.describe("Settings E2E smoke", () => {
       "aria-selected",
       "true",
     );
-    await expect(
-      page.getByText("Authentication & Session"),
-    ).toBeVisible();
+    await expect(page.getByText("Authentication & Session")).toBeVisible();
   });
 
   test("direct URL /settings?tab=billing activates the Billing tab for admin", async ({

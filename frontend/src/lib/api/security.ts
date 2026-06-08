@@ -174,9 +174,7 @@ function normalizeSecurityPosture(payload: unknown): SecurityPosture {
         ? r.prompt_injection_protection
         : null,
     citation_validation:
-      typeof r.citation_validation === "boolean"
-        ? r.citation_validation
-        : null,
+      typeof r.citation_validation === "boolean" ? r.citation_validation : null,
     tenant_isolation:
       typeof r.tenant_isolation === "boolean" ? r.tenant_isolation : null,
     output_validation:

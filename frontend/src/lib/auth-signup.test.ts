@@ -62,10 +62,7 @@ describe("startSignupSession", () => {
       }),
     );
 
-    vi.stubGlobal(
-      "fetch",
-      fetchMock,
-    );
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
       startSignupSession({

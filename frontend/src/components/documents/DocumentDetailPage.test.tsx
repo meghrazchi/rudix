@@ -904,9 +904,7 @@ describe("DocumentDetailPage", () => {
     renderPage();
     await screen.findByRole("heading", { name: "lowquality.pdf" });
 
-    expect(
-      screen.getByText(/Low OCR confidence/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Low OCR confidence/i)).toBeInTheDocument();
   });
 
   it("shows admin Set OCR language button for admin role and submits", async () => {

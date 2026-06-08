@@ -73,7 +73,9 @@ function SSOCallbackContent() {
       );
     } catch {
       setStatus("error_exchange");
-      setMessage("An unexpected error occurred while establishing your session. Please try again.");
+      setMessage(
+        "An unexpected error occurred while establishing your session. Please try again.",
+      );
     }
   }, [
     accessToken,
@@ -102,7 +104,7 @@ function SSOCallbackShell({
       className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
-      <main className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white p-8 shadow-sm text-center">
+      <main className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white p-8 text-center shadow-sm">
         <div className="mb-4 flex justify-center">
           <Image
             src="/brand/rudix-mark.svg"
@@ -135,7 +137,7 @@ function SSOCallbackShell({
             </p>
             <a
               href="/login"
-              className="mt-5 inline-block rounded-lg bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] transition"
+              className="mt-5 inline-block rounded-lg bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8]"
             >
               Back to sign-in
             </a>

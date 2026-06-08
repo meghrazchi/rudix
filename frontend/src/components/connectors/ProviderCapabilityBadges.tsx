@@ -54,12 +54,14 @@ const CAPABILITY_META: Record<ConnectorCapabilityKey, CapabilityMeta> = {
   },
   export_formats: {
     label: "Export formats",
-    description: "Multiple content export formats are available for this provider",
+    description:
+      "Multiple content export formats are available for this provider",
     color: "bg-orange-100 text-orange-800",
   },
   rate_limits: {
     label: "Rate-limit aware",
-    description: "Sync respects the provider's API rate limits and retries automatically",
+    description:
+      "Sync respects the provider's API rate limits and retries automatically",
     color: "bg-gray-100 text-gray-700",
   },
 };
@@ -73,14 +75,17 @@ type CapabilityBadgeProps = {
   showTooltip?: boolean;
 };
 
-export function CapabilityBadge({ capability, showTooltip = true }: CapabilityBadgeProps) {
+export function CapabilityBadge({
+  capability,
+  showTooltip = true,
+}: CapabilityBadgeProps) {
   const meta = CAPABILITY_META[capability];
   if (!meta) return null;
 
   return (
     <span
       title={showTooltip ? meta.description : undefined}
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-default ${meta.color}`}
+      className={`inline-flex cursor-default items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.color}`}
     >
       {meta.label}
     </span>
@@ -130,10 +135,14 @@ export function ProviderSetupHints({ provider }: ProviderSetupHintsProps) {
   const hints: string[] = [];
 
   if (hasCapability(provider, "delta_sync")) {
-    hints.push("Incremental syncs will run after the initial full sync to reduce API usage.");
+    hints.push(
+      "Incremental syncs will run after the initial full sync to reduce API usage.",
+    );
   }
   if (hasCapability(provider, "webhooks")) {
-    hints.push("Configure a webhook in your provider settings for near-real-time updates.");
+    hints.push(
+      "Configure a webhook in your provider settings for near-real-time updates.",
+    );
   }
   if (hasCapability(provider, "acls")) {
     hints.push(
@@ -170,7 +179,11 @@ type ProviderCardProps = {
   onClick?: () => void;
 };
 
-export function ProviderCard({ provider, selected = false, onClick }: ProviderCardProps) {
+export function ProviderCard({
+  provider,
+  selected = false,
+  onClick,
+}: ProviderCardProps) {
   return (
     <button
       type="button"
@@ -183,8 +196,12 @@ export function ProviderCard({ provider, selected = false, onClick }: ProviderCa
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-semibold text-gray-900">{provider.display_name}</p>
-          <p className="mt-0.5 text-xs text-gray-500 capitalize">{provider.capabilities.auth_type}</p>
+          <p className="text-sm font-semibold text-gray-900">
+            {provider.display_name}
+          </p>
+          <p className="mt-0.5 text-xs text-gray-500 capitalize">
+            {provider.capabilities.auth_type}
+          </p>
         </div>
         {provider.has_oauth && (
           <span className="rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700">

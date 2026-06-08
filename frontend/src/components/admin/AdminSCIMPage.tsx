@@ -99,32 +99,40 @@ export function AdminSCIMPage() {
   const initiateMutation = useMutation({
     mutationFn: (domain: string) => initiateDomainVerification({ domain }),
     onSuccess: (record) => {
-      queryClient.setQueryData(DOMAINS_KEY, (prev: DomainVerification[] | undefined) => {
-        const existing = prev ?? [];
-        const idx = existing.findIndex((d) => d.id === record.id);
-        if (idx >= 0) {
-          const next = [...existing];
-          next[idx] = record;
-          return next;
-        }
-        return [record, ...existing];
-      });
+      queryClient.setQueryData(
+        DOMAINS_KEY,
+        (prev: DomainVerification[] | undefined) => {
+          const existing = prev ?? [];
+          const idx = existing.findIndex((d) => d.id === record.id);
+          if (idx >= 0) {
+            const next = [...existing];
+            next[idx] = record;
+            return next;
+          }
+          return [record, ...existing];
+        },
+      );
       setNewDomain("");
       setDomainError(null);
     },
     onError: (err) => {
-      setDomainError(getApiErrorMessage(err, "Failed to initiate domain verification."));
+      setDomainError(
+        getApiErrorMessage(err, "Failed to initiate domain verification."),
+      );
     },
   });
 
   const checkMutation = useMutation({
     mutationFn: checkDomainVerification,
     onSuccess: (result: DomainCheckResult) => {
-      queryClient.setQueryData(DOMAINS_KEY, (prev: DomainVerification[] | undefined) => {
-        return (prev ?? []).map((d) =>
-          d.id === result.id ? { ...d, ...result } : d,
-        );
-      });
+      queryClient.setQueryData(
+        DOMAINS_KEY,
+        (prev: DomainVerification[] | undefined) => {
+          return (prev ?? []).map((d) =>
+            d.id === result.id ? { ...d, ...result } : d,
+          );
+        },
+      );
     },
     onError: (err) => {
       setActionError(getApiErrorMessage(err, "Failed to check domain."));
@@ -134,8 +142,10 @@ export function AdminSCIMPage() {
   const deleteDomainMutation = useMutation({
     mutationFn: deleteDomainVerification,
     onSuccess: (_: void, deletedId: string) => {
-      queryClient.setQueryData(DOMAINS_KEY, (prev: DomainVerification[] | undefined) =>
-        (prev ?? []).filter((d) => d.id !== deletedId),
+      queryClient.setQueryData(
+        DOMAINS_KEY,
+        (prev: DomainVerification[] | undefined) =>
+          (prev ?? []).filter((d) => d.id !== deletedId),
       );
     },
     onError: (err) => {
@@ -186,7 +196,7 @@ export function AdminSCIMPage() {
       ) : null}
 
       {/* ── SCIM configuration panel ── */}
-      <section className="rounded-xl border border-[#d7d4e8] bg-white p-6 space-y-5">
+      <section className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-6">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-base font-semibold text-[#2a2640]">
@@ -210,7 +220,11 @@ export function AdminSCIMPage() {
 
         {config ? (
           <div className="space-y-4">
-            <ReadField label="SCIM Base URL" value={config.scim_base_url} mono />
+            <ReadField
+              label="SCIM Base URL"
+              value={config.scim_base_url}
+              mono
+            />
             <ReadField
               label="Token (last 4 chars)"
               value={`…${config.token_hint}`}
@@ -250,7 +264,7 @@ export function AdminSCIMPage() {
                   type="button"
                   onClick={() => setShowRotateConfirm(true)}
                   disabled={isBusy}
-                  className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#5d58a8] hover:bg-[#f5f3ff] disabled:opacity-60 transition"
+                  className="rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
                 >
                   Rotate Token
                 </button>
@@ -258,7 +272,7 @@ export function AdminSCIMPage() {
                   type="button"
                   onClick={() => setShowDisableConfirm(true)}
                   disabled={isBusy}
-                  className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60 transition"
+                  className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
                 >
                   Disable SCIM
                 </button>
@@ -270,7 +284,7 @@ export function AdminSCIMPage() {
             type="button"
             onClick={() => enableMutation.mutate()}
             disabled={isBusy}
-            className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60 transition"
+            className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
           >
             {enableMutation.isPending ? "Enabling…" : "Enable SCIM"}
           </button>
@@ -283,7 +297,7 @@ export function AdminSCIMPage() {
 
       {/* ── New token reveal ── */}
       {newToken ? (
-        <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+        <section className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <p className="text-sm font-semibold text-emerald-800">
             Save your SCIM bearer token — it will not be shown again.
           </p>
@@ -303,14 +317,14 @@ export function AdminSCIMPage() {
       ) : null}
 
       {/* ── Domain verification panel ── */}
-      <section className="rounded-xl border border-[#d7d4e8] bg-white p-6 space-y-5">
+      <section className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-6">
         <div>
           <h2 className="text-base font-semibold text-[#2a2640]">
             Domain Verification
           </h2>
           <p className="mt-0.5 text-xs text-[#68647b]">
-            Verify your organization owns a domain before enforcing
-            domain-based access controls.
+            Verify your organization owns a domain before enforcing domain-based
+            access controls.
           </p>
         </div>
 
@@ -330,7 +344,7 @@ export function AdminSCIMPage() {
                 initiateMutation.mutate(newDomain);
               }}
               disabled={!newDomain.trim() || initiateMutation.isPending}
-              className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60 transition"
+              className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:opacity-60"
             >
               {initiateMutation.isPending ? "Adding…" : "Add Domain"}
             </button>
@@ -355,8 +369,7 @@ export function AdminSCIMPage() {
                 record={d}
                 isOwner={isOwner}
                 isChecking={
-                  checkMutation.isPending &&
-                  checkMutation.variables === d.id
+                  checkMutation.isPending && checkMutation.variables === d.id
                 }
                 isDeleting={
                   deleteDomainMutation.isPending &&
@@ -374,7 +387,9 @@ export function AdminSCIMPage() {
         <ConfirmModal
           title="Disable SCIM?"
           body="This will remove your SCIM configuration and bearer token. Provisioned users will not be removed but future sync events will fail."
-          confirmLabel={disableMutation.isPending ? "Disabling…" : "Disable SCIM"}
+          confirmLabel={
+            disableMutation.isPending ? "Disabling…" : "Disable SCIM"
+          }
           confirmVariant="danger"
           isBusy={disableMutation.isPending}
           onConfirm={() => disableMutation.mutate()}
@@ -424,7 +439,7 @@ function ReadField({
       </p>
       <div className="flex items-center gap-2">
         <p
-          className={`flex-1 break-all rounded border border-[#e4e1f2] bg-[#f9f8ff] px-3 py-1.5 text-sm text-[#2a2640] ${
+          className={`flex-1 rounded border border-[#e4e1f2] bg-[#f9f8ff] px-3 py-1.5 text-sm break-all text-[#2a2640] ${
             mono ? "font-mono text-xs" : ""
           }`}
         >
@@ -433,7 +448,7 @@ function ReadField({
         <button
           type="button"
           onClick={handleCopy}
-          className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] hover:bg-[#f5f3ff] transition"
+          className="shrink-0 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
         >
           {copied ? "Copied" : "Copy"}
         </button>
@@ -454,13 +469,13 @@ function CopyField({ value }: { value: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <code className="flex-1 break-all rounded border border-emerald-200 bg-white px-3 py-2 text-xs font-mono text-emerald-900">
+      <code className="flex-1 rounded border border-emerald-200 bg-white px-3 py-2 font-mono text-xs break-all text-emerald-900">
         {value}
       </code>
       <button
         type="button"
         onClick={handleCopy}
-        className="shrink-0 rounded border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+        className="shrink-0 rounded border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
       >
         {copied ? "Copied!" : "Copy"}
       </button>
@@ -484,7 +499,7 @@ function StatCard({
 
   return (
     <div className={`rounded-lg border px-4 py-3 ${colorClasses}`}>
-      <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+      <p className="text-xs font-semibold tracking-wide uppercase opacity-70">
         {label}
       </p>
       <p className="mt-1 text-2xl font-bold">{value}</p>
@@ -516,7 +531,7 @@ function DomainVerificationCard({
   };
 
   return (
-    <div className="rounded-lg border border-[#e4e1f2] bg-[#fafaff] p-4 space-y-3">
+    <div className="space-y-3 rounded-lg border border-[#e4e1f2] bg-[#fafaff] p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
@@ -535,7 +550,7 @@ function DomainVerificationCard({
             <button
               type="button"
               onClick={() => setShowInstructions((p) => !p)}
-              className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] hover:bg-[#f5f3ff] transition"
+              className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff]"
             >
               {showInstructions ? "Hide" : "Instructions"}
             </button>
@@ -544,7 +559,7 @@ function DomainVerificationCard({
                 type="button"
                 onClick={onCheck}
                 disabled={isChecking}
-                className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] hover:bg-[#f5f3ff] disabled:opacity-60 transition"
+                className="rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
               >
                 {isChecking ? "Checking…" : "Check DNS"}
               </button>
@@ -553,7 +568,7 @@ function DomainVerificationCard({
               type="button"
               onClick={onDelete}
               disabled={isDeleting}
-              className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 hover:bg-rose-50 disabled:opacity-60 transition"
+              className="rounded border border-rose-200 px-2 py-1 text-xs text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
             >
               {isDeleting ? "…" : "Remove"}
             </button>
@@ -572,7 +587,7 @@ function DomainVerificationCard({
       ) : null}
 
       {showInstructions ? (
-        <div className="rounded-lg border border-[#d7d4e8] bg-white p-3 space-y-2 text-xs">
+        <div className="space-y-2 rounded-lg border border-[#d7d4e8] bg-white p-3 text-xs">
           <p className="font-semibold text-[#2a2640]">
             Add the following DNS TXT record to verify ownership:
           </p>
@@ -595,8 +610,8 @@ function DomainVerificationCard({
             </div>
           </div>
           <p className="text-[#a09cb8]">
-            After adding the record, click &quot;Check DNS&quot; to verify.
-            DNS propagation can take up to 48 hours.
+            After adding the record, click &quot;Check DNS&quot; to verify. DNS
+            propagation can take up to 48 hours.
           </p>
         </div>
       ) : null}
@@ -636,7 +651,7 @@ function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={isBusy}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-60 transition ${btnColor}`}
+            className={`flex-1 rounded-lg py-2 text-sm font-semibold text-white transition disabled:opacity-60 ${btnColor}`}
           >
             {confirmLabel}
           </button>
@@ -644,7 +659,7 @@ function ConfirmModal({
             type="button"
             onClick={onCancel}
             disabled={isBusy}
-            className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] hover:bg-[#f5f3ff] disabled:opacity-60 transition"
+            className="flex-1 rounded-lg border border-[#d2cee6] py-2 text-sm font-semibold text-[#5d58a8] transition hover:bg-[#f5f3ff] disabled:opacity-60"
           >
             Cancel
           </button>

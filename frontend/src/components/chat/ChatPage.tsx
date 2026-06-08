@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -610,20 +604,18 @@ function formatConnectorSourceRoots(
   authConfig: Record<string, unknown>,
 ): string[] {
   const rawValues =
-    providerKey === "jira"
-      ? authConfig.project_keys
-      : providerKey === "confluence"
-        ? authConfig.space_keys
-        : providerKey === "google_drive"
-          ? [
-              ...(Array.isArray(authConfig.folder_ids)
-                ? authConfig.folder_ids
-                : []),
-              ...(Array.isArray(authConfig.drive_ids)
-                ? authConfig.drive_ids
-                : []),
-            ]
-          : [];
+    providerKey === "confluence"
+      ? authConfig.space_keys
+      : providerKey === "google_drive"
+        ? [
+            ...(Array.isArray(authConfig.folder_ids)
+              ? authConfig.folder_ids
+              : []),
+            ...(Array.isArray(authConfig.drive_ids)
+              ? authConfig.drive_ids
+              : []),
+          ]
+        : [];
 
   if (!Array.isArray(rawValues)) {
     return [];
@@ -634,7 +626,6 @@ function formatConnectorSourceRoots(
 }
 
 function getConnectorProviderLabel(providerKey: string): string {
-  if (providerKey === "jira") return "Jira";
   if (providerKey === "confluence") return "Confluence";
   if (providerKey === "google_drive") return "Google Drive";
   return providerKey
@@ -3123,8 +3114,8 @@ export function ChatPage() {
                       Connector sources
                     </p>
                     <p className="text-xs text-[#6a6780]">
-                      Select Jira, Confluence, or Google Drive connections and
-                      their synced source roots.
+                      Select Confluence or Google Drive connections and their
+                      synced source roots.
                     </p>
                   </div>
                   <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-[10px] font-semibold text-[#3525cd]">

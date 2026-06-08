@@ -53,16 +53,24 @@ class _FakeOAuthTokenClient:
             refresh_token="refresh-token-secret",
             token_type="Bearer",
             expires_in=60,
-            scopes=["read:jira-work", "offline_access"],
-            provider_account_id="jira-site-1",
+            scopes=[
+                "read:confluence-content.all",
+                "read:confluence-space.summary",
+                "offline_access",
+            ],
+            provider_account_id="confluence-site-1",
         )
         self.refresh_response = OAuthTokenResponse(
             access_token="access-token-refreshed",
             refresh_token="refresh-token-refreshed",
             token_type="Bearer",
             expires_in=3600,
-            scopes=["read:jira-work", "offline_access"],
-            provider_account_id="jira-site-1",
+            scopes=[
+                "read:confluence-content.all",
+                "read:confluence-space.summary",
+                "offline_access",
+            ],
+            provider_account_id="confluence-site-1",
         )
         self.refresh_error: Exception | None = None
 
@@ -113,10 +121,10 @@ async def test_oauth_callback_stores_encrypted_secret_and_safe_metadata(
     connect = await service.begin_connect(
         db_session,
         organization_id=context.organization_id,
-        provider_key="jira",
+        provider_key="confluence",
         redirect_uri="https://app.example.test/oauth/callback",
         user_id=context.user_id,
-        display_name="Jira Production",
+        display_name="Confluence Production",
     )
     connection = await service.complete_callback(
         db_session,
@@ -156,17 +164,19 @@ async def test_oauth_begin_uses_configured_client_credentials(
     connect = await service.begin_connect(
         db_session,
         organization_id=context.organization_id,
-        provider_key="jira",
+        provider_key="confluence",
         redirect_uri="https://app.example.test/oauth/callback",
         user_id=context.user_id,
-        display_name="Jira Production",
+        display_name="Confluence Production",
     )
 
     parsed = urlsplit(connect.authorization_url)
     params = parse_qs(parsed.query)
-    assert params["client_id"] == ["jira-client-id"]
+    assert params["client_id"] == ["confluence-client-id"]
     assert params["redirect_uri"] == ["https://app.example.test/api/v1/connectors/oauth/callback"]
-    assert params["scope"] == ["read:jira-work read:jira-user offline_access"]
+    assert params["scope"] == [
+        "read:confluence-content.all read:confluence-space.summary offline_access"
+    ]
 
 
 @pytest.mark.asyncio
@@ -231,7 +241,7 @@ async def test_expired_oauth_token_refreshes_through_shared_service(
     service = _service(token_client)
     now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
 
-    connection = await _connected_jira(
+    connection = await _connected_confluence(
         db_session,
         service=service,
         context=context,
@@ -272,7 +282,7 @@ async def test_failed_refresh_blocks_connection_without_leaking_provider_error(
     token_client.refresh_error = RuntimeError("refresh_token=provider-secret")
     service = _service(token_client)
     now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
-    connection = await _connected_jira(
+    connection = await _connected_confluence(
         db_session,
         service=service,
         context=context,
@@ -300,7 +310,7 @@ async def test_disconnect_revokes_credential_disables_sync_and_blocks_future_syn
     context = await _seed_connector_context(db_session)
     token_client = _FakeOAuthTokenClient()
     service = _service(token_client)
-    connection = await _connected_jira(
+    connection = await _connected_confluence(
         db_session,
         service=service,
         context=context,
@@ -310,7 +320,7 @@ async def test_disconnect_revokes_credential_disables_sync_and_blocks_future_syn
         db_session,
         organization_id=context.organization_id,
         connection_id=connection.id,
-        name="Daily Jira Sync",
+        name="Daily Confluence Sync",
     )
 
     result = await service.disconnect(
@@ -363,9 +373,9 @@ async def test_invalid_oauth_callback_state_does_not_exchange_code(
 def test_provider_scope_validation_enforces_least_privilege() -> None:
     registry = build_default_provider_registry()
 
-    assert registry.validate_scopes("jira", None) == [
-        "read:jira-work",
-        "read:jira-user",
+    assert registry.validate_scopes("confluence", None) == [
+        "read:confluence-content.all",
+        "read:confluence-space.summary",
         "offline_access",
     ]
     with pytest.raises(ProviderRegistryError, match="not allowed"):
@@ -448,9 +458,9 @@ def _service(token_client: _FakeOAuthTokenClient) -> ConnectorOAuthLifecycleServ
         token_client=token_client,
         oauth_client_settings=[
             ConnectorOAuthClientSettings(
-                provider_key="jira",
-                client_id="jira-client-id",
-                client_secret="jira-client-secret",
+                provider_key="confluence",
+                client_id="confluence-client-id",
+                client_secret="confluence-client-secret",
                 redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
             ),
             ConnectorOAuthClientSettings(
@@ -465,7 +475,7 @@ def _service(token_client: _FakeOAuthTokenClient) -> ConnectorOAuthLifecycleServ
     )
 
 
-async def _connected_jira(
+async def _connected_confluence(
     db_session: AsyncSession,
     *,
     service: ConnectorOAuthLifecycleService,
@@ -475,10 +485,10 @@ async def _connected_jira(
     connect = await service.begin_connect(
         db_session,
         organization_id=context.organization_id,
-        provider_key="jira",
+        provider_key="confluence",
         redirect_uri="https://app.example.test/oauth/callback",
         user_id=context.user_id,
-        display_name="Jira Production",
+        display_name="Confluence Production",
         now=now,
     )
     return await service.complete_callback(

@@ -1302,44 +1302,62 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                     </span>
                                     <span
                                       className={`font-semibold ${
-                                        (detail.ocr_quality_snapshot.avg_confidence ?? 0) >= 0.7
+                                        (detail.ocr_quality_snapshot
+                                          .avg_confidence ?? 0) >= 0.7
                                           ? "text-emerald-700"
-                                          : (detail.ocr_quality_snapshot.avg_confidence ?? 0) >= 0.3
+                                          : (detail.ocr_quality_snapshot
+                                                .avg_confidence ?? 0) >= 0.3
                                             ? "text-amber-600"
                                             : "text-rose-600"
                                       }`}
                                     >
-                                      {detail.ocr_quality_snapshot.avg_confidence !== null &&
-                                      detail.ocr_quality_snapshot.avg_confidence !== undefined
+                                      {detail.ocr_quality_snapshot
+                                        .avg_confidence !== null &&
+                                      detail.ocr_quality_snapshot
+                                        .avg_confidence !== undefined
                                         ? `${(detail.ocr_quality_snapshot.avg_confidence * 100).toFixed(0)}%`
                                         : "-"}
                                     </span>
                                   </div>
                                   <div className="flex items-center justify-between gap-3">
-                                    <span className="text-[#69637f]">Languages used</span>
+                                    <span className="text-[#69637f]">
+                                      Languages used
+                                    </span>
                                     <span className="font-semibold">
-                                      {detail.ocr_quality_snapshot.languages.length > 0
-                                        ? detail.ocr_quality_snapshot.languages.join("+")
+                                      {detail.ocr_quality_snapshot.languages
+                                        .length > 0
+                                        ? detail.ocr_quality_snapshot.languages.join(
+                                            "+",
+                                          )
                                         : "-"}
                                     </span>
                                   </div>
-                                  {detail.ocr_quality_snapshot.pages_failed > 0 ? (
+                                  {detail.ocr_quality_snapshot.pages_failed >
+                                  0 ? (
                                     <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
                                       <p className="text-xs font-semibold text-amber-700">
-                                        {detail.ocr_quality_snapshot.pages_failed} page
-                                        {detail.ocr_quality_snapshot.pages_failed !== 1
+                                        {
+                                          detail.ocr_quality_snapshot
+                                            .pages_failed
+                                        }{" "}
+                                        page
+                                        {detail.ocr_quality_snapshot
+                                          .pages_failed !== 1
                                           ? "s"
                                           : ""}{" "}
                                         failed OCR
                                       </p>
                                     </div>
                                   ) : null}
-                                  {(detail.ocr_quality_snapshot.avg_confidence ?? 1) < 0.3 &&
-                                  detail.ocr_quality_snapshot.pages_completed > 0 ? (
+                                  {(detail.ocr_quality_snapshot
+                                    .avg_confidence ?? 1) < 0.3 &&
+                                  detail.ocr_quality_snapshot.pages_completed >
+                                    0 ? (
                                     <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
                                       <p className="text-xs font-semibold text-amber-700">
-                                        Low OCR confidence — consider re-indexing with the correct
-                                        language pack.
+                                        Low OCR confidence — consider
+                                        re-indexing with the correct language
+                                        pack.
                                       </p>
                                     </div>
                                   ) : null}
@@ -1352,12 +1370,16 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                       <select
                                         value={ocrLangOverrideValue}
                                         onChange={(e) =>
-                                          setOcrLangOverrideValue(e.target.value)
+                                          setOcrLangOverrideValue(
+                                            e.target.value,
+                                          )
                                         }
                                         aria-label="Select OCR language"
                                         className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                                       >
-                                        <option value="">— clear override —</option>
+                                        <option value="">
+                                          — clear override —
+                                        </option>
                                         {OCR_LANGUAGES.map((l) => (
                                           <option key={l.code} value={l.code}>
                                             {l.label}
@@ -1376,11 +1398,15 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                         }}
                                         className="rounded bg-[#3525cd] px-2 py-1 text-xs font-semibold text-white hover:bg-[#2a1eb0] disabled:opacity-50"
                                       >
-                                        {ocrConfigMutation.isPending ? "Saving…" : "Save"}
+                                        {ocrConfigMutation.isPending
+                                          ? "Saving…"
+                                          : "Save"}
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => setOcrLangOverrideOpen(false)}
+                                        onClick={() =>
+                                          setOcrLangOverrideOpen(false)
+                                        }
                                         className="rounded border border-[#c7c4d8] px-2 py-1 text-xs font-medium text-[#69637f] hover:bg-[#f0ecf9]"
                                       >
                                         Cancel
@@ -1428,7 +1454,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                   Confidence
                                 </span>
                                 <span className="font-semibold">
-                                  {(detail.language_confidence * 100).toFixed(0)}%
+                                  {(detail.language_confidence * 100).toFixed(
+                                    0,
+                                  )}
+                                  %
                                 </span>
                               </div>
                             ) : null}
@@ -1452,7 +1481,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                       aria-label="Select override language"
                                       className="flex-1 cursor-pointer rounded border border-[#c7c4d8] bg-white px-2 py-1 text-xs font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                                     >
-                                      <option value="">— clear override —</option>
+                                      <option value="">
+                                        — clear override —
+                                      </option>
                                       {UPLOAD_LANGUAGES.map((l) => (
                                         <option key={l.code} value={l.code}>
                                           {l.label}

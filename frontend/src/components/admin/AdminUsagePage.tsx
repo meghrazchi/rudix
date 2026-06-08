@@ -607,8 +607,7 @@ export function AdminUsagePage() {
           <div>
             <h2 className="text-lg font-bold text-[#2a2640]">Trends by date</h2>
             <p className="mt-1 text-sm text-[#68647b]">
-              Range:{" "}
-              <span className="font-semibold">{usageRange.from}</span> to{" "}
+              Range: <span className="font-semibold">{usageRange.from}</span> to{" "}
               <span className="font-semibold">{usageRange.to}</span>
             </p>
           </div>

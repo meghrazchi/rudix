@@ -2,7 +2,7 @@
 
 ## Objective
 
-The connector platform gives Jira, Confluence, Google Drive, and future providers
+The connector platform gives Confluence, Google Drive, and future providers
 one shared source model, lifecycle, ingestion handoff, and security boundary.
 Provider adapters are responsible for fetching and normalizing external data;
 RAG, document lifecycle, chat, and citation services consume provider-neutral
@@ -16,7 +16,7 @@ Core tables:
 | --- | --- |
 | `connector_providers` | Global provider metadata, auth type, capabilities, config schema, rate limits, export formats |
 | `connector_connections` | Organization-owned provider accounts, optional collection scope, auth config metadata |
-| `external_sources` | Provider containers such as Jira projects, Confluence spaces, Drive folders, or shared drives |
+| `external_sources` | Provider containers such as Confluence spaces, Drive folders, or shared drives |
 | `external_items` | Normalized issues, pages, files, folders, comments, and attachments |
 | `connector_sync_jobs` | Durable sync configuration and cursor state |
 | `connector_sync_runs` | Per-run lifecycle, counters, cursors, and safe error details |
@@ -40,7 +40,7 @@ Each provider registers:
 - JSON object config schema
 - optional rate-limit and export-format descriptors
 
-The default registry includes Jira, Confluence, and Google Drive. New providers
+The default registry includes Confluence and Google Drive. New providers
 can be registered by constructing a `ProviderRegistration` and calling
 `ProviderRegistry.register()` or `ConnectorPlatformService.register_provider()`.
 
@@ -74,7 +74,6 @@ Default least-privilege OAuth scope policy:
 
 | Provider | Required scopes | Optional/default refresh scopes |
 | --- | --- | --- |
-| Jira | `read:jira-work` | `read:jira-user`, `offline_access` |
 | Confluence | `read:confluence-content.all` | `read:confluence-space.summary`, `offline_access` |
 | Google Drive | `https://www.googleapis.com/auth/drive.readonly` | `https://www.googleapis.com/auth/drive.metadata.readonly` |
 
@@ -98,7 +97,6 @@ Adapters must emit `NormalizedExternalItem` records with:
 
 The same contract represents:
 
-- Jira issues, comments, and attachments
 - Confluence pages, comments, and attachments
 - Google Drive files and folders
 
@@ -152,7 +150,7 @@ Recommended rollout stages:
 - `all` for deployments where the platform should be active everywhere except test
 
 New providers should pass the shared contract suite before merging. The
-contract harness exercises provider fixtures and adapter behavior for Jira,
+contract harness exercises provider fixtures and adapter behavior for
 Confluence, Google Drive, and the fake provider used in CI.
 
 Provider-specific code must stay in connector adapters. Shared ingestion and

@@ -83,9 +83,7 @@ export async function testSSOConnection(
   });
 }
 
-export async function discoverSSO(
-  email: string,
-): Promise<SSODiscoverResponse> {
+export async function discoverSSO(email: string): Promise<SSODiscoverResponse> {
   return apiRequest<SSODiscoverResponse>("/auth/sso/discover", {
     method: "POST",
     json: { email },

@@ -244,7 +244,9 @@ describe("AdminSSOPage", () => {
     await waitFor(() => screen.getByText("Paste XML"));
     fireEvent.click(screen.getByText("Paste XML"));
     expect(
-      screen.getByPlaceholderText('<?xml version="1.0"?>\n<EntityDescriptor ...>'),
+      screen.getByPlaceholderText(
+        '<?xml version="1.0"?>\n<EntityDescriptor ...>',
+      ),
     ).toBeTruthy();
   });
 });

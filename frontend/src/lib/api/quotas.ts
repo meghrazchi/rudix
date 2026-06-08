@@ -142,10 +142,12 @@ export type CreateQuotaOverrideRequest = {
   expires_at?: string | null;
 };
 
-export async function listQuotaOverrides(params: {
-  limit?: number;
-  offset?: number;
-} = {}): Promise<QuotaOverrideListResponse> {
+export async function listQuotaOverrides(
+  params: {
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<QuotaOverrideListResponse> {
   return apiRequest<QuotaOverrideListResponse>("/admin/quotas/overrides", {
     query: { limit: params.limit, offset: params.offset },
   });
@@ -185,10 +187,12 @@ export type QuotaChangeLogResponse = {
   total: number;
 };
 
-export async function listQuotaChangeLog(params: {
-  limit?: number;
-  offset?: number;
-} = {}): Promise<QuotaChangeLogResponse> {
+export async function listQuotaChangeLog(
+  params: {
+    limit?: number;
+    offset?: number;
+  } = {},
+): Promise<QuotaChangeLogResponse> {
   return apiRequest<QuotaChangeLogResponse>("/admin/quotas/change-log", {
     query: { limit: params.limit, offset: params.offset },
   });

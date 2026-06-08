@@ -1,8 +1,8 @@
 """Connector file ingestion bridge: routes connector files through the document lifecycle.
 
-Every file fetched from a connector (Jira attachment, Confluence attachment, Google Drive
-file, or any future provider) enters Rudix through this bridge before touching the
-document pipeline.  The bridge enforces the same security controls as a manual upload:
+Every file fetched from a connector (Confluence attachment, Google Drive file, or any
+future provider) enters Rudix through this bridge before touching the document pipeline.
+The bridge enforces the same security controls as a manual upload:
 
   1. MIME / filename validation
   2. SHA-256 checksum + duplicate detection
@@ -36,7 +36,6 @@ from app.domains.documents.services.duplicate_detection import (
     check_for_duplicate,
 )
 from app.domains.documents.services.malware_scan import MalwareScanService
-from app.models.connector import ExternalItem
 from app.models.connector_source import SourceDocument, SourceReference
 from app.models.document import Document
 from app.models.enums import DocumentIngestionSource, DocumentStatus
@@ -613,7 +612,7 @@ def _extract_text_for_dlp(content: bytes, extension: str) -> str:
     return ""
 
 
-def _run_dlp(text: str) -> "DlpScanResult":
+def _run_dlp(text: str) -> DlpScanResult:
     from app.domains.documents.services.dlp_service import scan_text_for_dlp
 
     return scan_text_for_dlp(text, enabled=bool(text), action="quarantine")

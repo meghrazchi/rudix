@@ -52,11 +52,7 @@ export const orgProfileFormSchema = z.object({
       "Slug must be lowercase alphanumeric with hyphens",
     )
     .optional(),
-  primary_domain: z
-    .string()
-    .trim()
-    .nullable()
-    .optional(),
+  primary_domain: z.string().trim().nullable().optional(),
   support_email: z
     .string()
     .trim()
@@ -173,7 +169,10 @@ export function toSettingsErrorState(error: unknown): SettingsErrorState {
   if (error == null) return { kind: "none" };
 
   if (typeof error !== "object") {
-    return { kind: "error", message: "Something went wrong. Please try again." };
+    return {
+      kind: "error",
+      message: "Something went wrong. Please try again.",
+    };
   }
 
   const asObj = error as Record<string, unknown>;

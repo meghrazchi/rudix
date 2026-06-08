@@ -417,8 +417,10 @@ export function DocumentsPage() {
     mutationFn: (documentIds: string[]) => bulkDeleteDocuments(documentIds),
     onSuccess: async (result) => {
       const parts: string[] = [];
-      if (result.accepted > 0) parts.push(`${result.accepted} queued for deletion`);
-      if (result.retained > 0) parts.push(`${result.retained} retained by policy`);
+      if (result.accepted > 0)
+        parts.push(`${result.accepted} queued for deletion`);
+      if (result.retained > 0)
+        parts.push(`${result.retained} retained by policy`);
       if (result.errors > 0) parts.push(`${result.errors} errors`);
       setActionFeedback(parts.join(", ") + ".");
       setActionRequestId(null);
@@ -933,8 +935,9 @@ export function DocumentsPage() {
         successCount += 1;
         latestSuccessDocumentId = result.document_id;
         completed += 1;
-        const uploadedState =
-          result.duplicate_detected ? "queued_duplicate" : "queued";
+        const uploadedState = result.duplicate_detected
+          ? "queued_duplicate"
+          : "queued";
         progressItems = updateUploadProgressItem(
           progressItems,
           index,

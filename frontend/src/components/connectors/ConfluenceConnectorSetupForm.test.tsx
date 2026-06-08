@@ -131,10 +131,7 @@ describe("ConfluenceConnectorSetupForm — validation", () => {
   it("shows inline error on blur for invalid URL", async () => {
     const user = userEvent.setup();
     renderForm();
-    await user.type(
-      screen.getByLabelText(/Confluence site URL/i),
-      "not-a-url",
-    );
+    await user.type(screen.getByLabelText(/Confluence site URL/i), "not-a-url");
     await user.tab();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });

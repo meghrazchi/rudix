@@ -149,9 +149,7 @@ describe("AdminRolesPage", () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/Roles & Permissions/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/roles:view permission/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/roles:view permission/i)).toBeInTheDocument();
     });
   });
 
@@ -166,9 +164,7 @@ describe("AdminRolesPage", () => {
   it("shows empty state when no custom roles exist", async () => {
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.getByText(/No custom roles yet/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/No custom roles yet/i)).toBeInTheDocument();
     });
   });
 
@@ -205,7 +201,9 @@ describe("AdminRolesPage", () => {
       screen.getByPlaceholderText(/e.g. Read-only analyst/i),
       "New Role",
     );
-    await user.click(screen.getByRole("button", { name: /Create role/i, hidden: false }));
+    await user.click(
+      screen.getByRole("button", { name: /Create role/i, hidden: false }),
+    );
     await waitFor(() => {
       expect(mockApi.createCustomRole).toHaveBeenCalledWith(
         expect.objectContaining({ name: "New Role" }),

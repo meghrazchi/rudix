@@ -52,15 +52,15 @@ describe("userProfileSchema", () => {
 
 describe("updateProfileFormSchema", () => {
   it("accepts valid name", () => {
-    expect(
-      updateProfileFormSchema.safeParse({ name: "Bob" }).success,
-    ).toBe(true);
+    expect(updateProfileFormSchema.safeParse({ name: "Bob" }).success).toBe(
+      true,
+    );
   });
 
   it("rejects empty name", () => {
-    expect(
-      updateProfileFormSchema.safeParse({ name: "  " }).success,
-    ).toBe(false);
+    expect(updateProfileFormSchema.safeParse({ name: "  " }).success).toBe(
+      false,
+    );
   });
 
   it("rejects name exceeding 200 characters", () => {
@@ -330,9 +330,9 @@ describe("inviteTeamMemberFormSchema", () => {
 describe("updateTeamMemberRoleFormSchema", () => {
   it("accepts valid roles", () => {
     for (const role of ["admin", "member", "viewer"] as const) {
-      expect(
-        updateTeamMemberRoleFormSchema.safeParse({ role }).success,
-      ).toBe(true);
+      expect(updateTeamMemberRoleFormSchema.safeParse({ role }).success).toBe(
+        true,
+      );
     }
   });
 

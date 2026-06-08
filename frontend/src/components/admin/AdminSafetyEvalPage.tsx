@@ -53,7 +53,9 @@ function runStatusClass(s: string): string {
 }
 
 function passFailClass(passed: boolean): string {
-  return passed ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800";
+  return passed
+    ? "bg-emerald-100 text-emerald-800"
+    : "bg-rose-100 text-rose-800";
 }
 
 function severityClass(s: string): string {
@@ -73,7 +75,11 @@ function passRateBadge(passRate: number | null): React.ReactNode {
   if (passRate == null) return <span className="text-[#777587]">—</span>;
   const pct = Math.round(passRate * 100);
   const color =
-    pct >= 90 ? "text-emerald-700" : pct >= 70 ? "text-amber-700" : "text-rose-700";
+    pct >= 90
+      ? "text-emerald-700"
+      : pct >= 70
+        ? "text-amber-700"
+        : "text-rose-700";
   return <span className={`font-mono font-semibold ${color}`}>{pct}%</span>;
 }
 
@@ -84,7 +90,12 @@ type RunDetailPanelProps = {
 
 function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
   const panelRef = useRef<HTMLElement | null>(null);
-  useOverlayFocus({ isOpen: true, containerRef: panelRef, onClose, lockBodyScroll: false });
+  useOverlayFocus({
+    isOpen: true,
+    containerRef: panelRef,
+    onClose,
+    lockBodyScroll: false,
+  });
 
   const detailQuery = useQuery({
     queryKey: ["safety-evals", "runs", runId, "detail"],
@@ -100,7 +111,7 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="safety-run-detail-title"
-      className="absolute right-0 top-3 z-20 max-h-[min(90vh,820px)] w-full max-w-[520px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
+      className="absolute top-3 right-0 z-20 max-h-[min(90vh,820px)] w-full max-w-[520px] overflow-y-auto rounded-xl border border-[#c7c4d8] bg-white p-4 shadow-2xl"
     >
       <div className="mb-4 flex items-start justify-between gap-3 border-b border-[#e4e1ee] pb-3">
         <div>
@@ -140,31 +151,47 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
         <section className="space-y-4">
           <dl className="grid grid-cols-2 gap-2 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3 text-xs">
             <div>
-              <dt className="font-semibold text-[#777587] uppercase tracking-[0.08em]">Status</dt>
+              <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Status
+              </dt>
               <dd className="mt-0.5">
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${runStatusClass(run.status)}`}>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${runStatusClass(run.status)}`}
+                >
                   {run.status}
                 </span>
               </dd>
             </div>
             <div>
-              <dt className="font-semibold text-[#777587] uppercase tracking-[0.08em]">Pass rate</dt>
+              <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Pass rate
+              </dt>
               <dd className="mt-0.5">{passRateBadge(run.pass_rate)}</dd>
             </div>
             <div>
-              <dt className="font-semibold text-[#777587] uppercase tracking-[0.08em]">Pass / Fail</dt>
+              <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Pass / Fail
+              </dt>
               <dd className="mt-0.5 font-mono text-[#302f39]">
                 {run.pass_count ?? "—"} / {run.fail_count ?? "—"}
               </dd>
             </div>
             <div>
-              <dt className="font-semibold text-[#777587] uppercase tracking-[0.08em]">Suite</dt>
-              <dd className="mt-0.5 text-[#302f39]">{run.suite_name ?? "All"}</dd>
+              <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                Suite
+              </dt>
+              <dd className="mt-0.5 text-[#302f39]">
+                {run.suite_name ?? "All"}
+              </dd>
             </div>
             {run.completed_at ? (
               <div className="col-span-2">
-                <dt className="font-semibold text-[#777587] uppercase tracking-[0.08em]">Completed</dt>
-                <dd className="mt-0.5 font-mono text-[#302f39]">{formatTimestamp(run.completed_at)}</dd>
+                <dt className="font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                  Completed
+                </dt>
+                <dd className="mt-0.5 font-mono text-[#302f39]">
+                  {formatTimestamp(run.completed_at)}
+                </dd>
               </div>
             ) : null}
           </dl>
@@ -190,17 +217,22 @@ function RunDetailPanel({ runId, onClose }: RunDetailPanelProps) {
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${severityClass(r.severity)}`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${severityClass(r.severity)}`}
+                        >
                           {r.severity}
                         </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${passFailClass(r.passed)}`}>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${passFailClass(r.passed)}`}
+                        >
                           {r.passed ? "PASS" : "FAIL"}
                         </span>
                       </div>
                     </div>
                     {!r.passed && r.details?.outcome ? (
                       <p className="mt-1.5 text-xs text-rose-700">
-                        {String(r.details.outcome)} — {String(r.details.expected ?? "")}
+                        {String(r.details.outcome)} —{" "}
+                        {String(r.details.expected ?? "")}
                       </p>
                     ) : null}
                     <p className="mt-1 text-right text-[10px] text-[#777587]">
@@ -249,26 +281,38 @@ export function AdminSafetyEvalPage() {
     enabled: isAdminUser,
     refetchInterval: (query) => {
       const items = query.state.data?.items ?? [];
-      const hasRunning = items.some((r) => r.status === "running" || r.status === "queued");
+      const hasRunning = items.some(
+        (r) => r.status === "running" || r.status === "queued",
+      );
       return hasRunning ? 5000 : false;
     },
   });
 
   const casesQuery = useQuery({
-    queryKey: ["safety-evals", "cases", "list", { suite_name: queryParams.suite_name }],
-    queryFn: () => listSafetyEvalCases({ suite_name: queryParams.suite_name, limit: 1 }),
+    queryKey: [
+      "safety-evals",
+      "cases",
+      "list",
+      { suite_name: queryParams.suite_name },
+    ],
+    queryFn: () =>
+      listSafetyEvalCases({ suite_name: queryParams.suite_name, limit: 1 }),
     enabled: isAdminUser,
   });
 
   const triggerMutation = useMutation({
     mutationFn: triggerSafetyEvalRun,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["safety-evals", "runs"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["safety-evals", "runs"],
+      });
     },
   });
 
   const forbiddenError =
-    runsQuery.isError && isForbiddenError(runsQuery.error) ? runsQuery.error : null;
+    runsQuery.isError && isForbiddenError(runsQuery.error)
+      ? runsQuery.error
+      : null;
 
   if (!isAdminUser) {
     return (
@@ -297,14 +341,19 @@ export function AdminSafetyEvalPage() {
   const runs: SafetyEvalRunResponse[] = runsQuery.data?.items ?? [];
   const pageTotal = runsQuery.data?.total ?? 0;
   const pageStart = pageTotal === 0 ? 0 : offset + 1;
-  const pageEnd = pageTotal === 0 ? 0 : Math.min(offset + PAGE_LIMIT, pageTotal);
+  const pageEnd =
+    pageTotal === 0 ? 0 : Math.min(offset + PAGE_LIMIT, pageTotal);
   const hasPreviousPage = offset > 0;
   const hasNextPage = offset + PAGE_LIMIT < pageTotal;
   const totalCases = casesQuery.data?.total ?? 0;
 
   const latestRun = runs[0];
-  const passedRuns = runs.filter((r) => r.status === "completed" && (r.pass_rate ?? 0) >= 1.0).length;
-  const failedRuns = runs.filter((r) => r.status === "completed" && (r.pass_rate ?? 1.0) < 1.0).length;
+  const passedRuns = runs.filter(
+    (r) => r.status === "completed" && (r.pass_rate ?? 0) >= 1.0,
+  ).length;
+  const failedRuns = runs.filter(
+    (r) => r.status === "completed" && (r.pass_rate ?? 1.0) < 1.0,
+  ).length;
 
   return (
     <section className="space-y-5 bg-[#fcf8ff] px-4 py-5 lg:px-8 lg:py-8">
@@ -318,8 +367,9 @@ export function AdminSafetyEvalPage() {
               Safety eval suite
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Red-team evaluation covering prompt injection, cross-tenant leakage, unsupported
-              claims, malicious document instructions, and unsafe output transformations.
+              Red-team evaluation covering prompt injection, cross-tenant
+              leakage, unsupported claims, malicious document instructions, and
+              unsafe output transformations.
             </p>
           </div>
           <button
@@ -352,25 +402,33 @@ export function AdminSafetyEvalPage() {
           <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
             Total cases
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-[#1b1b24]">{totalCases}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-[#1b1b24]">
+            {totalCases}
+          </p>
         </article>
         <article className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-emerald-700 uppercase">
             All-pass runs (page)
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">{passedRuns}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-emerald-700">
+            {passedRuns}
+          </p>
         </article>
         <article className="rounded-xl border border-rose-200 bg-rose-50/50 p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-[0.08em] text-rose-700 uppercase">
             Regressions (page)
           </p>
-          <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">{failedRuns}</p>
+          <p className="mt-2 font-mono text-3xl font-semibold text-rose-700">
+            {failedRuns}
+          </p>
         </article>
       </section>
 
       {latestRun?.status === "completed" && latestRun.pass_rate != null ? (
         <section className="rounded-xl border border-[#c7c4d8] bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-[#1b1b24]">Latest run summary</h2>
+          <h2 className="mb-3 text-sm font-semibold text-[#1b1b24]">
+            Latest run summary
+          </h2>
           <div className="flex flex-wrap items-center gap-6">
             <div>
               <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
@@ -385,7 +443,8 @@ export function AdminSafetyEvalPage() {
                 Pass / Fail / Total
               </p>
               <p className="mt-1 font-mono text-lg font-semibold text-[#302f39]">
-                {latestRun.pass_count} / {latestRun.fail_count} / {latestRun.total_count}
+                {latestRun.pass_count} / {latestRun.fail_count} /{" "}
+                {latestRun.total_count}
               </p>
             </div>
             {latestRun.suite_name ? (
@@ -393,7 +452,9 @@ export function AdminSafetyEvalPage() {
                 <p className="text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
                   Suite
                 </p>
-                <p className="mt-1 text-sm font-semibold text-[#302f39]">{latestRun.suite_name}</p>
+                <p className="mt-1 text-sm font-semibold text-[#302f39]">
+                  {latestRun.suite_name}
+                </p>
               </div>
             ) : null}
             <div>
@@ -442,7 +503,9 @@ export function AdminSafetyEvalPage() {
       <div ref={tableHostRef} className="relative">
         <section className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e1ee] bg-[#f5f2ff] px-4 py-3">
-            <h2 className="text-lg font-semibold text-[#1b1b24]">Eval run history</h2>
+            <h2 className="text-lg font-semibold text-[#1b1b24]">
+              Eval run history
+            </h2>
             {runsQuery.isSuccess ? (
               <p className="text-xs font-semibold tracking-[0.08em] text-[#777587] uppercase">
                 Showing {pageStart}–{pageEnd} of {pageTotal}
@@ -464,7 +527,9 @@ export function AdminSafetyEvalPage() {
                 compact
                 error={runsQuery.error}
                 description={getApiErrorMessage(runsQuery.error)}
-                onRetry={() => { void runsQuery.refetch(); }}
+                onRetry={() => {
+                  void runsQuery.refetch();
+                }}
               />
             </div>
           ) : null}
@@ -550,7 +615,9 @@ export function AdminSafetyEvalPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setOffset((p) => Math.max(0, p - PAGE_LIMIT))}
+                    onClick={() =>
+                      setOffset((p) => Math.max(0, p - PAGE_LIMIT))
+                    }
                     disabled={!hasPreviousPage || runsQuery.isFetching}
                     className="rounded-lg border border-[#c7c4d8] px-3 py-2 text-sm font-semibold text-[#38485d] enabled:hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
                   >

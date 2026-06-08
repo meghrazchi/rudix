@@ -144,7 +144,9 @@ describe("AdminDeletionStatusPage", () => {
     expect(
       screen.getByText(/document is under legal_hold/i),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /retry/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("calls retryDeleteDocument when retry button is clicked", async () => {
@@ -161,7 +163,9 @@ describe("AdminDeletionStatusPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /retry/i }),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));

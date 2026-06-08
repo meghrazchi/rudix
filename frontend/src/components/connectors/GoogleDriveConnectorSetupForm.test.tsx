@@ -39,14 +39,14 @@ describe("GoogleDriveConnectorSetupForm — rendering", () => {
   it("renders folder IDs and include-shared-drives fields", () => {
     renderForm();
     expect(screen.getByLabelText(/Folder IDs/i)).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/Include Shared Drives/i),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Include Shared Drives/i)).toBeInTheDocument();
   });
 
   it("does not render shared drive IDs field by default", () => {
     renderForm();
-    expect(screen.queryByLabelText(/Shared Drive IDs/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/Shared Drive IDs/i),
+    ).not.toBeInTheDocument();
   });
 
   it("renders shared drive IDs field when include-shared-drives is checked", async () => {
@@ -121,9 +121,7 @@ describe("GoogleDriveConnectorSetupForm — rendering", () => {
 
   it("include_shared_drives checkbox is unchecked by default", () => {
     renderForm();
-    expect(
-      screen.getByLabelText(/Include Shared Drives/i),
-    ).not.toBeChecked();
+    expect(screen.getByLabelText(/Include Shared Drives/i)).not.toBeChecked();
   });
 
   it("shows loading label and disables button when isSubmitting", () => {
@@ -146,10 +144,7 @@ describe("GoogleDriveConnectorSetupForm — validation", () => {
   it("shows error when a folder ID contains a slash", async () => {
     const user = userEvent.setup();
     renderForm();
-    await user.type(
-      screen.getByLabelText(/Folder IDs/i),
-      "some/invalid/path",
-    );
+    await user.type(screen.getByLabelText(/Folder IDs/i), "some/invalid/path");
     await submitForm();
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(/slash/i);

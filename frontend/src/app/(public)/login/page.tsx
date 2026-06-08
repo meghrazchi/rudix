@@ -214,15 +214,13 @@ function LoginPageContent() {
                 SSO is available for {ssoDiscovery.domain}
               </p>
               <p className="mt-0.5 text-xs text-indigo-600">
-                Your organization uses single sign-on. Continue below or sign
-                in with SSO.
+                Your organization uses single sign-on. Continue below or sign in
+                with SSO.
               </p>
               <button
                 type="button"
-                onClick={() =>
-                  window.location.assign(ssoDiscovery.redirectUrl)
-                }
-                className="mt-2 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 transition"
+                onClick={() => window.location.assign(ssoDiscovery.redirectUrl)}
+                className="mt-2 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-800"
               >
                 Continue with SSO
               </button>

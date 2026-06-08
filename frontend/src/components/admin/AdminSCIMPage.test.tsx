@@ -177,14 +177,14 @@ describe("AdminSCIMPage", () => {
     mockApi.enableSCIM.mockResolvedValue(enableResponse);
 
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Enable SCIM")).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText("Enable SCIM")).toBeDefined());
     fireEvent.click(screen.getByText("Enable SCIM"));
 
     await waitFor(() => {
       expect(
-        screen.getByText("Save your SCIM bearer token — it will not be shown again."),
+        screen.getByText(
+          "Save your SCIM bearer token — it will not be shown again.",
+        ),
       ).toBeDefined();
       expect(screen.getByText("a".repeat(64))).toBeDefined();
     });
@@ -213,9 +213,7 @@ describe("AdminSCIMPage", () => {
   it("shows disable confirmation modal when clicking Disable SCIM", async () => {
     mockApi.getSCIMConfig.mockResolvedValue(MOCK_SCIM_CONFIG);
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Disable SCIM")).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText("Disable SCIM")).toBeDefined());
     fireEvent.click(screen.getByText("Disable SCIM"));
     await waitFor(() => {
       expect(screen.getByText("Disable SCIM?")).toBeDefined();
@@ -230,9 +228,7 @@ describe("AdminSCIMPage", () => {
     mockApi.enableSCIM.mockResolvedValue(enableResponse);
 
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Enable SCIM")).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText("Enable SCIM")).toBeDefined());
     fireEvent.click(screen.getByText("Enable SCIM"));
 
     await waitFor(() =>
@@ -242,7 +238,9 @@ describe("AdminSCIMPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.queryByText("Save your SCIM bearer token — it will not be shown again."),
+        screen.queryByText(
+          "Save your SCIM bearer token — it will not be shown again.",
+        ),
       ).toBeNull();
     });
   });
@@ -253,7 +251,9 @@ describe("AdminSCIMPage", () => {
     renderPage();
     await waitFor(() => {
       expect(
-        screen.getByText("No domains added yet. Add a domain above to start verification."),
+        screen.getByText(
+          "No domains added yet. Add a domain above to start verification.",
+        ),
       ).toBeDefined();
     });
   });
@@ -291,9 +291,7 @@ describe("AdminSCIMPage", () => {
   it("shows DNS instructions when clicking Instructions button", async () => {
     mockApi.listDomainVerifications.mockResolvedValue([MOCK_DOMAIN]);
     renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Instructions")).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText("Instructions")).toBeDefined());
     fireEvent.click(screen.getByText("Instructions"));
 
     await waitFor(() => {

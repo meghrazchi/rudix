@@ -90,7 +90,9 @@ function PermissionSnapshotField({
     <div className="rounded-xl border border-[#e8e5f3] bg-[#faf9fe] p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-[#2a2640]">{snapshot.name}</div>
+          <div className="text-sm font-semibold text-[#2a2640]">
+            {snapshot.name}
+          </div>
           <div className="mt-1 text-xs text-[#6a6780]">
             {snapshot.source_type} · {snapshot.provider_source_id}
           </div>
@@ -105,10 +107,8 @@ function PermissionSnapshotField({
           {snapshot.is_enabled ? "Active" : "Disabled"}
         </span>
       </div>
-      <div className="mt-3 text-xs text-[#6a6780]">
-        Permission snapshot
-      </div>
-      <pre className="mt-1 whitespace-pre-wrap break-words rounded-lg bg-white p-2 text-[11px] leading-5 text-[#4b4860]">
+      <div className="mt-3 text-xs text-[#6a6780]">Permission snapshot</div>
+      <pre className="mt-1 rounded-lg bg-white p-2 text-[11px] leading-5 break-words whitespace-pre-wrap text-[#4b4860]">
         {JSON.stringify(snapshot.permissions, null, 2)}
       </pre>
     </div>
@@ -116,19 +116,6 @@ function PermissionSnapshotField({
 }
 
 function scopeFields(providerKey: string, authConfig: Record<string, unknown>) {
-  if (providerKey === "jira") {
-    return [
-      { label: "Project keys", value: formatList(authConfig.project_keys) },
-      {
-        label: "JQL filter",
-        value:
-          typeof authConfig.jql_filter === "string" &&
-          authConfig.jql_filter.trim().length > 0
-            ? [authConfig.jql_filter]
-            : [],
-      },
-    ];
-  }
   if (providerKey === "confluence") {
     return [
       { label: "Space keys", value: formatList(authConfig.space_keys) },
@@ -457,7 +444,8 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             Access review hooks
           </h2>
           <p className="text-sm text-[#68647b]">
-            Permission snapshots that can drive review workflows and source-level governance.
+            Permission snapshots that can drive review workflows and
+            source-level governance.
           </p>
         </div>
         {permissionSnapshots.length === 0 ? (

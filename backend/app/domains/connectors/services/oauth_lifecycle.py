@@ -35,7 +35,7 @@ from app.models.enums import (
     ConnectorCredentialStatus,
 )
 
-_ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"jira", "confluence"})
+_ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"confluence"})
 
 
 class OAuthLifecycleError(ValueError):
@@ -822,7 +822,7 @@ class ConnectorOAuthLifecycleService:
         for client_config in self.oauth_client_settings:
             if client_config.provider_key == normalized_provider_key:
                 return client_config
-        # Atlassian providers (jira, confluence) can share a single "atlassian" credential entry.
+        # Atlassian providers (currently confluence) can share a single "atlassian" credential entry.
         if normalized_provider_key in _ATLASSIAN_PROVIDER_KEYS:
             for client_config in self.oauth_client_settings:
                 if client_config.provider_key == "atlassian":

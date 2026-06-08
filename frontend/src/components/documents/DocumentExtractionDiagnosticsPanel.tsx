@@ -38,7 +38,7 @@ function MetricRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+    <div className="flex items-center justify-between border-b border-gray-100 py-1.5 last:border-0">
       <span className="text-sm text-gray-500">{label}</span>
       <span className="text-sm font-medium text-gray-800">{value}</span>
     </div>
@@ -51,7 +51,7 @@ function ConfidenceBar({ value }: { value: number }) {
     pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
   return (
     <div className="flex items-center gap-2">
-      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-200">
         <div
           className={`h-full rounded-full ${color}`}
           style={{ width: `${pct}%` }}
@@ -82,28 +82,22 @@ export function DocumentExtractionDiagnosticsPanel({
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${profileBadgeClass}`}
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${profileBadgeClass}`}
         >
           {profileLabel}
         </span>
         {snapshot.is_encrypted && (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
             Encrypted
           </span>
         )}
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
         <div className="px-4 py-3">
           <MetricRow label="Pages" value={snapshot.page_count} />
-          <MetricRow
-            label="Text blocks"
-            value={snapshot.total_text_blocks}
-          />
-          <MetricRow
-            label="Tables found"
-            value={snapshot.total_table_blocks}
-          />
+          <MetricRow label="Text blocks" value={snapshot.total_text_blocks} />
+          <MetricRow label="Tables found" value={snapshot.total_table_blocks} />
           <MetricRow
             label="Images / figures"
             value={snapshot.total_image_blocks}
@@ -120,26 +114,26 @@ export function DocumentExtractionDiagnosticsPanel({
             label="Pages with images"
             value={pagesWithImages > 0 ? pagesWithImages : "None"}
           />
-          <MetricRow label="Extraction engine" value={snapshot.extraction_engine} />
+          <MetricRow
+            label="Extraction engine"
+            value={snapshot.extraction_engine}
+          />
           <MetricRow
             label="Extraction confidence"
             value={<ConfidenceBar value={snapshot.extraction_confidence} />}
           />
-          <MetricRow
-            label="Duration"
-            value={`${snapshot.duration_ms} ms`}
-          />
+          <MetricRow label="Duration" value={`${snapshot.duration_ms} ms`} />
         </div>
       </div>
 
       {snapshot.warnings.length > 0 && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-          <p className="text-xs font-semibold text-yellow-800 mb-1">
+          <p className="mb-1 text-xs font-semibold text-yellow-800">
             Extraction warnings ({snapshot.warnings.length})
           </p>
           <ul className="space-y-1">
             {snapshot.warnings.slice(0, 5).map((w, i) => (
-              <li key={i} className="text-xs text-yellow-700 leading-snug">
+              <li key={i} className="text-xs leading-snug text-yellow-700">
                 {w}
               </li>
             ))}
@@ -154,16 +148,16 @@ export function DocumentExtractionDiagnosticsPanel({
 
       {snapshot.pages.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
             Page breakdown
           </p>
-          <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+          <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
             {snapshot.pages.map((page) => (
               <div
                 key={page.page_number}
-                className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded px-2 py-1"
+                className="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs text-gray-600"
               >
-                <span className="font-medium w-14 shrink-0">
+                <span className="w-14 shrink-0 font-medium">
                   Page {page.page_number}
                 </span>
                 <span className="w-20 text-gray-500">
@@ -180,7 +174,7 @@ export function DocumentExtractionDiagnosticsPanel({
                   </span>
                 )}
                 {page.requires_ocr && (
-                  <span className="text-yellow-700 font-medium">OCR</span>
+                  <span className="font-medium text-yellow-700">OCR</span>
                 )}
                 {page.warnings.length > 0 && (
                   <span className="text-red-500" title={page.warnings[0]}>

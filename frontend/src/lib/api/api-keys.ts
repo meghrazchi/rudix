@@ -60,11 +60,12 @@ function normalizeApiKey(value: unknown): ApiKey {
     description: typeof raw.description === "string" ? raw.description : null,
     key_prefix: typeof raw.key_prefix === "string" ? raw.key_prefix : "",
     scopes: Array.isArray(raw.scopes)
-      ? (raw.scopes as unknown[]).filter((s): s is string => typeof s === "string")
+      ? (raw.scopes as unknown[]).filter(
+          (s): s is string => typeof s === "string",
+        )
       : [],
     status: raw.status === "revoked" ? "revoked" : "active",
-    expires_at:
-      typeof raw.expires_at === "string" ? raw.expires_at : null,
+    expires_at: typeof raw.expires_at === "string" ? raw.expires_at : null,
     last_used_at:
       typeof raw.last_used_at === "string" ? raw.last_used_at : null,
     created_by_id:
@@ -138,10 +139,10 @@ export async function updateApiKey(
 }
 
 export async function revokeApiKey(keyId: string): Promise<void> {
-  await apiRequest<unknown>(
-    `/admin/api-keys/${encodeURIComponent(keyId)}`,
-    { method: "DELETE", retry: false },
-  );
+  await apiRequest<unknown>(`/admin/api-keys/${encodeURIComponent(keyId)}`, {
+    method: "DELETE",
+    retry: false,
+  });
 }
 
 export async function rotateApiKey(keyId: string): Promise<ApiKeyCreated> {

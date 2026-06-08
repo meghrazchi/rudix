@@ -249,7 +249,7 @@ function BasicStep({
               onChange({ external_account_id: event.target.value })
             }
             className="mt-1.5 w-full rounded-xl border border-[#d7d4e8] bg-white px-3 py-2.5 text-sm text-[#2a2640] shadow-sm focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none"
-            placeholder="jira-site-1"
+            placeholder="acme.atlassian.net"
           />
         </div>
       </div>
@@ -468,24 +468,6 @@ function ReviewStep({
 
 type OAuthScope = { scope: string; required: boolean; description: string };
 
-const JIRA_SCOPES: OAuthScope[] = [
-  {
-    scope: "read:jira-work",
-    required: true,
-    description: "Read issues, comments, and attachments",
-  },
-  {
-    scope: "read:jira-user",
-    required: false,
-    description: "Read user and group information",
-  },
-  {
-    scope: "offline_access",
-    required: false,
-    description: "Refresh access tokens without re-authentication",
-  },
-];
-
 const CONFLUENCE_SCOPES: OAuthScope[] = [
   {
     scope: "read:confluence-content.all",
@@ -515,15 +497,17 @@ function ConfluenceSetupGuide() {
   }
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-amber-100/60 transition-colors"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-amber-700 text-[20px]">build_circle</span>
+          <span className="material-symbols-outlined text-[20px] text-amber-700">
+            build_circle
+          </span>
           <div>
             <div className="text-sm font-semibold text-amber-900">
               Atlassian app setup required
@@ -534,17 +518,18 @@ function ConfluenceSetupGuide() {
           </div>
         </div>
         <span
-          className={`material-symbols-outlined text-amber-600 text-[20px] transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="border-t border-amber-200 px-5 pb-5 pt-4 space-y-5">
-          <p className="text-sm text-amber-800 leading-relaxed">
-            Rudix connects to Confluence via an OAuth 2.0 (3LO) app you own on the Atlassian
-            Developer Console. Follow these steps once, then come back here to connect.
+        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-amber-800">
+            Rudix connects to Confluence via an OAuth 2.0 (3LO) app you own on
+            the Atlassian Developer Console. Follow these steps once, then come
+            back here to connect.
           </p>
 
           <ol className="space-y-4">
@@ -563,8 +548,9 @@ function ConfluenceSetupGuide() {
                 >
                   developer.atlassian.com/console/myapps
                 </a>
-                , click <strong>Create</strong> → <strong>OAuth 2.0 integration</strong> and give
-                it a name (e.g. <em>Rudix</em>).
+                , click <strong>Create</strong> →{" "}
+                <strong>OAuth 2.0 integration</strong> and give it a name (e.g.{" "}
+                <em>Rudix</em>).
               </div>
             </li>
 
@@ -574,9 +560,9 @@ function ConfluenceSetupGuide() {
                 2
               </span>
               <div className="text-sm text-amber-900">
-                <span className="font-semibold">Enable Confluence API</span> — under{" "}
-                <strong>APIs and features</strong>, click <strong>Add</strong> next to{" "}
-                <strong>Confluence API</strong>.
+                <span className="font-semibold">Enable Confluence API</span> —
+                under <strong>APIs and features</strong>, click{" "}
+                <strong>Add</strong> next to <strong>Confluence API</strong>.
               </div>
             </li>
 
@@ -587,20 +573,22 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Add the callback URL</span> — under{" "}
-                  <strong>Authorization</strong>, paste this exact URL:
+                  <span className="font-semibold">Add the callback URL</span> —
+                  under <strong>Authorization</strong>, paste this exact URL:
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
-                  <span className="flex-1 break-all font-mono text-xs text-[#2a2640]">
+                  <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
                   <button
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 hover:bg-amber-100 transition-colors"
+                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
                   >
-                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                    <span className="material-symbols-outlined text-[16px]">
+                      content_copy
+                    </span>
                   </button>
                 </div>
               </div>
@@ -613,20 +601,28 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Grant permissions</span> — under{" "}
-                  <strong>Confluence API → Permissions</strong>, add these OAuth scopes:
+                  <span className="font-semibold">Grant permissions</span> —
+                  under <strong>Confluence API → Permissions</strong>, add these
+                  OAuth scopes:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white divide-y divide-amber-100 overflow-hidden">
+                <div className="divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-300 bg-white">
                   {CONFLUENCE_SCOPES.map(({ scope, required, description }) => (
-                    <div key={scope} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="font-mono text-xs text-[#2a2640] flex-1">{scope}</span>
-                      <span className="text-xs text-[#6a6780] hidden sm:block">{description}</span>
+                    <div
+                      key={scope}
+                      className="flex items-center gap-3 px-3 py-2.5"
+                    >
+                      <span className="flex-1 font-mono text-xs text-[#2a2640]">
+                        {scope}
+                      </span>
+                      <span className="hidden text-xs text-[#6a6780] sm:block">
+                        {description}
+                      </span>
                       {required ? (
-                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wide">
+                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
                           Required
                         </span>
                       ) : (
-                        <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold text-[#3525cd] uppercase tracking-wide">
+                        <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
                           Recommended
                         </span>
                       )}
@@ -643,11 +639,14 @@ function ConfluenceSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Add credentials to your deployment</span> — copy
-                  the <strong>Client ID</strong> and <strong>Client Secret</strong> from the app
-                  settings page, then set the backend environment variable:
+                  <span className="font-semibold">
+                    Add credentials to your deployment
+                  </span>{" "}
+                  — copy the <strong>Client ID</strong> and{" "}
+                  <strong>Client Secret</strong> from the app settings page,
+                  then set the backend environment variable:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs text-[#2a2640] leading-relaxed">
+                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
                   <div className="pl-2 text-[#464555]">
                     {'[{"provider_key":"confluence",'}
@@ -660,190 +659,20 @@ function ConfluenceSetupGuide() {
                   </div>
                 </div>
                 <p className="text-xs text-amber-700">
-                  To also connect Jira, append a second entry with{" "}
-                  <span className="font-mono">provider_key&nbsp;=&nbsp;&quot;jira&quot;</span>{" "}
-                  to the same array. Both can point to the same Atlassian app credentials.
+                  The same Atlassian app credentials can be reused for other
+                  compatible providers by adding another entry to the array.
                 </p>
               </div>
             </li>
           </ol>
 
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5 text-amber-600">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
               lock
             </span>
             <span>
-              Rudix requests read-only scopes only. It cannot create, edit, or delete any Confluence
-              content.
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function JiraSetupGuide() {
-  const [open, setOpen] = useState(true);
-
-  let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
-  try {
-    const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
-    callbackUrl = `${apiUrl}/connectors/oauth/callback`;
-  } catch {
-    // runtime config unavailable during SSR
-  }
-
-  return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-amber-100/60 transition-colors"
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-amber-700 text-[20px]">build_circle</span>
-          <div>
-            <div className="text-sm font-semibold text-amber-900">
-              Atlassian app setup required
-            </div>
-            <div className="text-xs text-amber-700">
-              One-time prerequisite — create an OAuth app before connecting
-            </div>
-          </div>
-        </div>
-        <span
-          className={`material-symbols-outlined text-amber-600 text-[20px] transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
-        >
-          expand_more
-        </span>
-      </button>
-
-      {open && (
-        <div className="border-t border-amber-200 px-5 pb-5 pt-4 space-y-5">
-          <p className="text-sm text-amber-800 leading-relaxed">
-            Rudix connects to Jira via an OAuth 2.0 (3LO) app you own on the Atlassian Developer
-            Console. Follow these steps once, then come back here to connect.
-          </p>
-
-          <ol className="space-y-4">
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
-                1
-              </span>
-              <div className="text-sm text-amber-900">
-                <span className="font-semibold">Create an app</span> — open{" "}
-                <a
-                  href="https://developer.atlassian.com/console/myapps/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-amber-700"
-                >
-                  developer.atlassian.com/console/myapps
-                </a>
-                , click <strong>Create</strong> → <strong>OAuth 2.0 integration</strong> and give
-                it a name (e.g. <em>Rudix</em>).
-              </div>
-            </li>
-
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
-                2
-              </span>
-              <div className="text-sm text-amber-900">
-                <span className="font-semibold">Enable Jira API</span> — under{" "}
-                <strong>APIs and features</strong>, click <strong>Add</strong> next to{" "}
-                <strong>Jira API</strong>.
-              </div>
-            </li>
-
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
-                3
-              </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
-                <div>
-                  <span className="font-semibold">Add the callback URL</span> — under{" "}
-                  <strong>Authorization</strong>, paste this exact URL:
-                </div>
-                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
-                  <span className="flex-1 break-all font-mono text-xs text-[#2a2640]">
-                    {callbackUrl}
-                  </span>
-                  <button
-                    type="button"
-                    title="Copy callback URL"
-                    onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 hover:bg-amber-100 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                  </button>
-                </div>
-              </div>
-            </li>
-
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
-                4
-              </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
-                <div>
-                  <span className="font-semibold">Grant permissions</span> — under{" "}
-                  <strong>Jira API → Permissions</strong>, add these OAuth scopes:
-                </div>
-                <div className="rounded-xl border border-amber-300 bg-white divide-y divide-amber-100 overflow-hidden">
-                  {JIRA_SCOPES.map(({ scope, required, description }) => (
-                    <div key={scope} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="font-mono text-xs text-[#2a2640] flex-1">{scope}</span>
-                      <span className="text-xs text-[#6a6780] hidden sm:block">{description}</span>
-                      {required ? (
-                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wide">
-                          Required
-                        </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold text-[#3525cd] uppercase tracking-wide">
-                          Recommended
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </li>
-
-            <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
-                5
-              </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
-                <div>
-                  <span className="font-semibold">Add credentials to your deployment</span> — copy
-                  the <strong>Client ID</strong> and <strong>Client Secret</strong> from the app
-                  settings page, then set the backend environment variable:
-                </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs text-[#2a2640] leading-relaxed">
-                  <div>CONNECTOR_OAUTH_CLIENTS=</div>
-                  <div className="pl-2 text-[#464555]">{'[{"provider_key":"jira",'}</div>
-                  <div className="pl-4 text-[#464555]">{'"client_id":"<your-client-id>",'}</div>
-                  <div className="pl-4 text-[#464555]">{'"client_secret":"<your-client-secret>"}]'}</div>
-                </div>
-                <p className="text-xs text-amber-700">
-                  To also connect Confluence, append a second entry with{" "}
-                  <span className="font-mono">provider_key&nbsp;=&nbsp;&quot;confluence&quot;</span>{" "}
-                  to the same array. Both can point to the same Atlassian app credentials.
-                </p>
-              </div>
-            </li>
-          </ol>
-
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5 text-amber-600">
-              lock
-            </span>
-            <span>
-              Rudix requests read-only scopes only. It cannot create, edit, or delete any Jira
-              issues.
+              Rudix requests read-only scopes only. It cannot create, edit, or
+              delete any Confluence content.
             </span>
           </div>
         </div>
@@ -876,15 +705,17 @@ function GoogleDriveSetupGuide() {
   }
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-amber-100/60 transition-colors"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-amber-700 text-[20px]">build_circle</span>
+          <span className="material-symbols-outlined text-[20px] text-amber-700">
+            build_circle
+          </span>
           <div>
             <div className="text-sm font-semibold text-amber-900">
               Google Cloud project setup required
@@ -895,17 +726,18 @@ function GoogleDriveSetupGuide() {
           </div>
         </div>
         <span
-          className={`material-symbols-outlined text-amber-600 text-[20px] transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="border-t border-amber-200 px-5 pb-5 pt-4 space-y-5">
-          <p className="text-sm text-amber-800 leading-relaxed">
-            Rudix connects to Google Drive via an OAuth 2.0 app you own in the Google Cloud
-            Console. Follow these steps once, then come back here to connect.
+        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-amber-800">
+            Rudix connects to Google Drive via an OAuth 2.0 app you own in the
+            Google Cloud Console. Follow these steps once, then come back here
+            to connect.
           </p>
 
           <ol className="space-y-4">
@@ -933,9 +765,12 @@ function GoogleDriveSetupGuide() {
                 2
               </span>
               <div className="text-sm text-amber-900">
-                <span className="font-semibold">Enable the Google Drive API</span> — navigate to{" "}
-                <strong>APIs &amp; Services → Library</strong>, search for{" "}
-                <strong>Google Drive API</strong>, and click <strong>Enable</strong>.
+                <span className="font-semibold">
+                  Enable the Google Drive API
+                </span>{" "}
+                — navigate to <strong>APIs &amp; Services → Library</strong>,
+                search for <strong>Google Drive API</strong>, and click{" "}
+                <strong>Enable</strong>.
               </div>
             </li>
 
@@ -944,10 +779,14 @@ function GoogleDriveSetupGuide() {
                 3
               </span>
               <div className="text-sm text-amber-900">
-                <span className="font-semibold">Configure the OAuth consent screen</span> — under{" "}
-                <strong>APIs &amp; Services → OAuth consent screen</strong>, select{" "}
-                <strong>Internal</strong> (for a Workspace org) or <strong>External</strong>,
-                fill in the app name and support email, then save.
+                <span className="font-semibold">
+                  Configure the OAuth consent screen
+                </span>{" "}
+                — under{" "}
+                <strong>APIs &amp; Services → OAuth consent screen</strong>,
+                select <strong>Internal</strong> (for a Workspace org) or{" "}
+                <strong>External</strong>, fill in the app name and support
+                email, then save.
               </div>
             </li>
 
@@ -957,23 +796,27 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Create OAuth credentials</span> — under{" "}
-                  <strong>APIs &amp; Services → Credentials</strong>, click{" "}
-                  <strong>Create Credentials → OAuth client ID</strong>. Choose{" "}
-                  <strong>Web application</strong> and add this as an{" "}
+                  <span className="font-semibold">
+                    Create OAuth credentials
+                  </span>{" "}
+                  — under <strong>APIs &amp; Services → Credentials</strong>,
+                  click <strong>Create Credentials → OAuth client ID</strong>.
+                  Choose <strong>Web application</strong> and add this as an{" "}
                   <strong>Authorized redirect URI</strong>:
                 </div>
                 <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
-                  <span className="flex-1 break-all font-mono text-xs text-[#2a2640]">
+                  <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
                   <button
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 hover:bg-amber-100 transition-colors"
+                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
                   >
-                    <span className="material-symbols-outlined text-[16px]">content_copy</span>
+                    <span className="material-symbols-outlined text-[16px]">
+                      content_copy
+                    </span>
                   </button>
                 </div>
               </div>
@@ -985,25 +828,37 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Add required OAuth scopes</span> — on the
-                  OAuth consent screen, click <strong>Add or remove scopes</strong> and add:
+                  <span className="font-semibold">
+                    Add required OAuth scopes
+                  </span>{" "}
+                  — on the OAuth consent screen, click{" "}
+                  <strong>Add or remove scopes</strong> and add:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white divide-y divide-amber-100 overflow-hidden">
-                  {GOOGLE_DRIVE_SCOPES.map(({ scope, required, description }) => (
-                    <div key={scope} className="flex items-center gap-3 px-3 py-2.5">
-                      <span className="font-mono text-xs text-[#2a2640] flex-1 break-all">{scope}</span>
-                      <span className="text-xs text-[#6a6780] hidden sm:block shrink-0">{description}</span>
-                      {required ? (
-                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase tracking-wide">
-                          Required
+                <div className="divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-300 bg-white">
+                  {GOOGLE_DRIVE_SCOPES.map(
+                    ({ scope, required, description }) => (
+                      <div
+                        key={scope}
+                        className="flex items-center gap-3 px-3 py-2.5"
+                      >
+                        <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
+                          {scope}
                         </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold text-[#3525cd] uppercase tracking-wide">
-                          Recommended
+                        <span className="hidden shrink-0 text-xs text-[#6a6780] sm:block">
+                          {description}
                         </span>
-                      )}
-                    </div>
-                  ))}
+                        {required ? (
+                          <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
+                            Required
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                    ),
+                  )}
                 </div>
               </div>
             </li>
@@ -1014,27 +869,36 @@ function GoogleDriveSetupGuide() {
               </span>
               <div className="flex-1 space-y-2 text-sm text-amber-900">
                 <div>
-                  <span className="font-semibold">Add credentials to your deployment</span> — copy
-                  the <strong>Client ID</strong> and <strong>Client Secret</strong> from the
-                  credentials page, then set the backend environment variable:
+                  <span className="font-semibold">
+                    Add credentials to your deployment
+                  </span>{" "}
+                  — copy the <strong>Client ID</strong> and{" "}
+                  <strong>Client Secret</strong> from the credentials page, then
+                  set the backend environment variable:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs text-[#2a2640] leading-relaxed">
+                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
-                  <div className="pl-2 text-[#464555]">{'[{"provider_key":"google_drive",'}</div>
-                  <div className="pl-4 text-[#464555]">{'"client_id":"<your-client-id>",'}</div>
-                  <div className="pl-4 text-[#464555]">{'"client_secret":"<your-client-secret>"}]'}</div>
+                  <div className="pl-2 text-[#464555]">
+                    {'[{"provider_key":"google_drive",'}
+                  </div>
+                  <div className="pl-4 text-[#464555]">
+                    {'"client_id":"<your-client-id>",'}
+                  </div>
+                  <div className="pl-4 text-[#464555]">
+                    {'"client_secret":"<your-client-secret>"}]'}
+                  </div>
                 </div>
               </div>
             </li>
           </ol>
 
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5 text-amber-600">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
               lock
             </span>
             <span>
-              Rudix requests read-only scopes only. It cannot create, edit, or delete any Drive
-              files.
+              Rudix requests read-only scopes only. It cannot create, edit, or
+              delete any Drive files.
             </span>
           </div>
         </div>
@@ -1224,7 +1088,6 @@ function ProviderLoader({ providerKey }: Props) {
         </div>
       </header>
 
-      {provider.key === "jira" && <JiraSetupGuide />}
       {provider.key === "confluence" && <ConfluenceSetupGuide />}
       {provider.key === "google_drive" && <GoogleDriveSetupGuide />}
 

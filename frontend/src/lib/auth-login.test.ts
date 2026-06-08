@@ -53,10 +53,7 @@ describe("startLoginSession", () => {
       }),
     );
 
-    vi.stubGlobal(
-      "fetch",
-      fetchMock,
-    );
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
       startLoginSession({

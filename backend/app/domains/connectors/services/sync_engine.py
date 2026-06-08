@@ -536,8 +536,8 @@ class ConnectorSyncEngine:
             sync_run_id=str(sync_run_id),
             provider_key=getattr(connection.provider, "key", None),
             connection_id=str(connection.id),
-            external_source_id=str(connection.external_source_id)
-            if connection.external_source_id
+            external_source_id=str(run.external_source_id)
+            if run.external_source_id
             else None,
             organization_id=str(organization_id),
             items_seen=result.items_seen,

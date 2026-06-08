@@ -16,7 +16,13 @@ export type UploadDocumentResponse = Schemas["UploadDocumentResponse"] & {
 export type DeleteDocumentResponse = Schemas["DeleteDocumentResponse"];
 export type BulkDeleteDocumentResult = {
   document_id: string;
-  status: "delete_requested" | "deleting" | "deleted" | "retained_by_policy" | "not_found" | "error";
+  status:
+    | "delete_requested"
+    | "deleting"
+    | "deleted"
+    | "retained_by_policy"
+    | "not_found"
+    | "error";
   hold_reason?: string | null;
   error?: string | null;
 };
@@ -475,10 +481,13 @@ export async function configureDocumentOcr(
   );
 }
 
-export const OCR_LANGUAGES: ReadonlyArray<{ code: string; label: string; tesseract: string }> =
-  [
-    { code: "en", label: "English", tesseract: "eng" },
-    { code: "de", label: "German", tesseract: "deu" },
-    { code: "es", label: "Spanish", tesseract: "spa" },
-    { code: "fr", label: "French", tesseract: "fra" },
-  ];
+export const OCR_LANGUAGES: ReadonlyArray<{
+  code: string;
+  label: string;
+  tesseract: string;
+}> = [
+  { code: "en", label: "English", tesseract: "eng" },
+  { code: "de", label: "German", tesseract: "deu" },
+  { code: "es", label: "Spanish", tesseract: "spa" },
+  { code: "fr", label: "French", tesseract: "fra" },
+];

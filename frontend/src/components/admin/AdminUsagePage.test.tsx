@@ -245,9 +245,7 @@ describe("AdminUsagePage", () => {
 
   it("shows error state when dashboard query fails", async () => {
     mockState.authState = ADMIN_SESSION;
-    mockApi.getUsageDashboard.mockRejectedValue(
-      new Error("Server error"),
-    );
+    mockApi.getUsageDashboard.mockRejectedValue(new Error("Server error"));
     renderPage();
     await waitFor(() => {
       expect(screen.queryByText("Loading...")).not.toBeInTheDocument();

@@ -41,13 +41,11 @@ HASH_A = "a" * 64
 def test_provider_registry_supports_defaults_and_custom_provider() -> None:
     registry = build_default_provider_registry()
 
-    jira = registry.require("jira")
-    assert jira.capabilities.auth_type == ConnectorAuthType.oauth2
-    assert jira.capabilities.supports(ConnectorCapability.comments)
-    assert jira.capabilities.supports(ConnectorCapability.attachments)
-    assert jira.capabilities.supports(ConnectorCapability.acls)
-
     confluence = registry.require("confluence")
+    assert confluence.capabilities.auth_type == ConnectorAuthType.oauth2
+    assert confluence.capabilities.supports(ConnectorCapability.comments)
+    assert confluence.capabilities.supports(ConnectorCapability.attachments)
+    assert confluence.capabilities.supports(ConnectorCapability.acls)
     assert confluence.capabilities.supports(ConnectorCapability.folders)
     assert confluence.capabilities.supports(ConnectorCapability.export_formats)
 
@@ -142,20 +140,20 @@ async def test_connector_service_enforces_tenant_and_collection_boundaries(
     connection = await service.create_connection(
         db_session,
         organization_id=context.org_one_id,
-        provider_key="jira",
-        display_name="Jira Production",
+        provider_key="confluence",
+        display_name="Confluence Production",
         collection_id=context.collection_one_id,
         created_by_user_id=context.user_one_id,
-        external_account_id="jira-site-1",
+        external_account_id="confluence-site-1",
     )
     source = await service.create_external_source(
         db_session,
         organization_id=context.org_one_id,
         connection_id=connection.id,
         provider_source_id="PROJECT",
-        source_type="jira_project",
+        source_type="confluence_space",
         name="Project",
-        source_url="https://jira.example.test/projects/PROJECT",
+        source_url="https://confluence.example.test/spaces/PROJECT",
     )
     item = await service.upsert_external_item(
         db_session,
@@ -191,7 +189,7 @@ async def test_connector_service_enforces_tenant_and_collection_boundaries(
             organization_id=context.org_one_id,
             connection_id=connection.id,
             provider_source_id="OTHER",
-            source_type="jira_project",
+            source_type="confluence_space",
             name="Other",
             collection_id=context.collection_two_id,
         )
@@ -218,15 +216,15 @@ async def test_connector_service_audits_connection_and_permission_changes(
     connection = await service.create_connection(
         db_session,
         organization_id=context.org_one_id,
-        provider_key="jira",
-        display_name="Jira Production",
+        provider_key="confluence",
+        display_name="Confluence Production",
         collection_id=context.collection_one_id,
         created_by_user_id=context.user_one_id,
-        external_account_id="jira-site-1",
+        external_account_id="confluence-site-1",
         auth_config={
-            "provider_key": "jira",
+            "provider_key": "confluence",
             "api_token": "secret-token",
-            "site_url": "https://jira.example.test",
+            "site_url": "https://confluence.example.test",
         },
     )
     source = await service.create_external_source(
@@ -234,9 +232,9 @@ async def test_connector_service_audits_connection_and_permission_changes(
         organization_id=context.org_one_id,
         connection_id=connection.id,
         provider_source_id="PROJECT",
-        source_type="jira_project",
+        source_type="confluence_space",
         name="Project",
-        source_url="https://jira.example.test/projects/PROJECT",
+        source_url="https://confluence.example.test/spaces/PROJECT",
         permissions={"entries": [{"type": "group", "role": "reader"}]},
     )
     await service.upsert_external_item(
@@ -280,7 +278,7 @@ async def test_connector_service_audits_connection_and_permission_changes(
     assert "connector.source.selected" in actions
     assert "connector.source.permission_changed" in actions
     connection_created = next(log for log in logs if log.action == "connector.connection.created")
-    assert connection_created.metadata_json["provider_key"] == "jira"
+    assert connection_created.metadata_json["provider_key"] == "confluence"
     assert connection.auth_config_json["api_token"] == "***"
     permission_changed = next(
         log for log in logs if log.action == "connector.source.permission_changed"
@@ -373,7 +371,7 @@ async def _create_two_org_context(db_session: AsyncSession) -> ConnectorTestCont
 def _normalized_item(
     *,
     organization_id: UUID,
-    provider_key: str = "jira",
+    provider_key: str = "confluence",
     provider_item_id: str = "item-1",
     item_type: ExternalItemType = ExternalItemType.issue,
     source_url: str = "https://example.test/item-1",

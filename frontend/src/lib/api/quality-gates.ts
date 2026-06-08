@@ -127,7 +127,9 @@ export async function createQualityGate(
   });
 }
 
-export async function getQualityGate(gateId: string): Promise<QualityGateResponse> {
+export async function getQualityGate(
+  gateId: string,
+): Promise<QualityGateResponse> {
   return apiRequest<QualityGateResponse>(
     `/quality-gates/${encodeURIComponent(gateId)}`,
   );
