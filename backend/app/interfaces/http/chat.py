@@ -67,6 +67,7 @@ from app.domains.prompt_templates.services.prompt_template_service import Prompt
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
+from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -1143,6 +1144,46 @@ async def query_chat(
     latencies_ms["persist"] = int((perf_counter() - persist_started) * 1000)
 
     latencies_ms["total"] = int((perf_counter() - total_started) * 1000)
+
+    trace_chat_query(
+        ChatTraceMetadata(
+            request_id=request_id,
+            organization_id=str(organization_id),
+            user_id=str(user_id) if user_id is not None else "",
+            session_id=str(chat_session.id),
+            message_id=str(assistant_message.id),
+            question=payload.question,
+            answer=answer,
+            scope_mode=payload.scope_mode,
+            source_scope_label=source_scope_result.label,
+            feature_area="chat",
+            retrieved_count=len(retrieved_chunks),
+            selected_count=len(selected_chunks),
+            rerank_applied=payload.rerank,
+            cited_count=len(citations),
+            not_found=not_found,
+            citation_validation_failed=citation_validation_failed,
+            confidence_score=confidence_score,
+            confidence_category=confidence_category,
+            llm_model=llm_model,
+            embedding_model=embedding_model,
+            embedding_prompt_tokens=embedding_prompt_tokens,
+            llm_prompt_tokens=llm_prompt_tokens,
+            llm_completion_tokens=llm_completion_tokens,
+            llm_total_tokens=embedding_prompt_tokens + llm_prompt_tokens + llm_completion_tokens,
+            estimated_cost_usd=llm_cost_usd,
+            latencies_ms=dict(latencies_ms),
+            answer_latency_ms=answer_latency_ms,
+            detected_language=detected_language,
+            answer_language_used=answer_language_used,
+            prompt_template_key=PromptTemplateKey.answer_generation.value
+            if answer_prompt_version is not None
+            else None,
+            prompt_template_version=answer_prompt_version.version_number
+            if answer_prompt_version is not None
+            else None,
+        )
+    )
 
     log_query_event(
         event="query.completed",

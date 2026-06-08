@@ -1,0 +1,71 @@
+# Standalone Langfuse observability stack for Rudix (F271).
+#
+# Usage:
+#   cp .env.example .env          # fill in NEXTAUTH_SECRET and SALT
+#   docker compose up -d
+#   open http://localhost:3030    # create an account and project
+#
+# Configure Rudix to send traces:
+#   LANGFUSE_ENABLED=true
+#   LANGFUSE_BASE_URL=http://localhost:3030
+#   LANGFUSE_PUBLIC_KEY=<public key from Langfuse project settings>
+#   LANGFUSE_SECRET_KEY=<secret key from Langfuse project settings>
+#
+# This compose file is *intentionally* separate from the main Rudix
+# docker-compose.yml so it can be started, stopped, and upgraded
+# independently without touching the main application stack.
+#
+# Deployment notes:
+#   - Suitable for local development and single-VM staging.
+#   - Does NOT provide high availability — PostgreSQL data lives in a
+#     named Docker volume. Back it up before upgrades.
+#   - For production consider adding a reverse proxy (nginx/caddy) with
+#     TLS in front of the langfuse service on port 3030.
+#   - NEXTAUTH_URL must match the public URL used by browsers.
+#   - NEXTAUTH_SECRET and SALT must be unique random strings (≥ 32 chars).
+#     Generate with: openssl rand -hex 32
+
+services:
+  langfuse-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD:-langfuse}
+      POSTGRES_DB: langfuse
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  langfuse:
+    image: langfuse/langfuse:2
+    restart: unless-stopped
+    depends_on:
+      langfuse-postgres:
+        condition: service_healthy
+    ports:
+      - "${LANGFUSE_PORT:-3030}:3000"
+    environment:
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_POSTGRES_PASSWORD:-langfuse}@langfuse-postgres:5432/langfuse
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3030}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?LANGFUSE_NEXTAUTH_SECRET is required}
+      SALT: ${LANGFUSE_SALT:?LANGFUSE_SALT is required}
+      # Disable Langfuse's own telemetry (usage metrics sent to Langfuse Inc.)
+      TELEMETRY_ENABLED: "false"
+      # Disable experimental features unless explicitly opted in
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/public/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  langfuse_postgres_data:
+    driver: local

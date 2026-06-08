@@ -95,6 +95,12 @@ class ConnectorRolloutStage(StrEnum):
     all = "all"
 
 
+class LangfuseRedactionMode(StrEnum):
+    none = "none"
+    inputs = "inputs"
+    all = "all"
+
+
 class MCPExternalServerSettings(BaseModel):
     server_id: str = Field(
         min_length=2,
@@ -360,6 +366,15 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     sentry_profiles_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     sentry_test_event_enabled: bool | None = None
+
+    # Langfuse observability (optional, F271)
+    langfuse_enabled: bool = False
+    langfuse_base_url: AnyHttpUrl | None = None
+    langfuse_public_key: str | None = Field(default=None, max_length=256)
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_sample_rate: float = Field(default=1.0, ge=0.0, le=1.0)
+    langfuse_capture_input_output: bool = True
+    langfuse_redaction_mode: LangfuseRedactionMode = LangfuseRedactionMode.none
 
     max_upload_size_mb: int = Field(default=25, ge=1, le=512)
     malware_scan_enabled: bool = True
@@ -1038,6 +1053,13 @@ class Settings(BaseSettings):
             "sentry_traces_sample_rate": self.sentry_traces_sample_rate,
             "sentry_profiles_sample_rate": self.sentry_profiles_sample_rate,
             "sentry_test_event_enabled": self.is_sentry_test_event_enabled,
+            "langfuse_enabled": self.langfuse_enabled,
+            "langfuse_base_url_set": self.langfuse_base_url is not None,
+            "langfuse_public_key_set": self.langfuse_public_key is not None,
+            "langfuse_secret_key_set": self.langfuse_secret_key is not None,
+            "langfuse_sample_rate": self.langfuse_sample_rate,
+            "langfuse_capture_input_output": self.langfuse_capture_input_output,
+            "langfuse_redaction_mode": self.langfuse_redaction_mode.value,
             "max_upload_size_mb": self.max_upload_size_mb,
             "malware_scan": {
                 "enabled": self.malware_scan_enabled,

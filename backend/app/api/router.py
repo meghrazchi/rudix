@@ -21,6 +21,7 @@ from app.interfaces.http import (
     evaluations,
     failed_jobs,
     feedback_review,
+    langfuse_diagnostics,
     model_provider_settings,
     notifications,
     observability,
@@ -68,6 +69,7 @@ protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(observability.router)
+protected_router.include_router(langfuse_diagnostics.router)
 protected_router.include_router(failed_jobs.router)
 protected_router.include_router(admin_sso.router)
 protected_router.include_router(admin_scim.router)
