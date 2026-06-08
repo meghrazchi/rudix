@@ -123,6 +123,21 @@ function memberSession(): SessionState {
   };
 }
 
+function billingAdminSession(): SessionState {
+  return {
+    status: "authenticated",
+    session: {
+      userId: "u4",
+      email: "billing@example.com",
+      role: "billing_admin",
+      organizationId: "org1",
+      organizationName: "Acme",
+      accessToken: "tok",
+      refreshToken: null,
+    },
+  };
+}
+
 const basePlan: BillingPlanInfo = {
   plan_name: "Enterprise Pro",
   status: "active",
@@ -221,7 +236,9 @@ describe("BillingSettingsTab — access control", () => {
     mockAuth.state = memberSession();
     renderTab();
     expect(
-      screen.getByText(/billing settings are available to owners and admins/i),
+      screen.getByText(
+        /billing settings are available to billing admins and owners/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -240,8 +257,20 @@ describe("BillingSettingsTab — access control", () => {
     };
     renderTab();
     expect(
-      screen.getByText(/billing settings are available to owners and admins/i),
+      screen.getByText(
+        /billing settings are available to billing admins and owners/i,
+      ),
     ).toBeInTheDocument();
+  });
+
+  it("allows billing admins to access billing settings", () => {
+    mockAuth.state = billingAdminSession();
+    renderTab();
+    expect(
+      screen.queryByText(
+        /billing settings are available to billing admins and owners/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -328,6 +357,32 @@ describe("BillingSettingsTab — plan card", () => {
     });
   });
 
+  it("renders free badge", async () => {
+    mockBillingApi.getBillingPlanInfo.mockResolvedValue({
+      ...basePlan,
+      status: "free",
+      can_manage_subscription: false,
+      can_cancel_plan: false,
+    });
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Free")).toBeInTheDocument();
+    });
+  });
+
+  it("renders self-hosted badge", async () => {
+    mockBillingApi.getBillingPlanInfo.mockResolvedValue({
+      ...basePlan,
+      status: "self_hosted",
+      can_manage_subscription: false,
+      can_cancel_plan: false,
+    });
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText("Self-hosted")).toBeInTheDocument();
+    });
+  });
+
   it("shows manage subscription button linking to portal URL", async () => {
     mockBillingApi.getBillingPlanInfo.mockResolvedValue(basePlan);
     const original = process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL;
@@ -357,6 +412,38 @@ describe("BillingSettingsTab — plan card", () => {
     renderTab();
     await waitFor(() => {
       expect(screen.getByText(/unable to load/i)).toBeInTheDocument();
+    });
+  });
+
+  it("renders billing contact and payment method placeholder", async () => {
+    mockBillingApi.capabilities = {
+      planEnabled: true,
+      usageEnabled: false,
+      quotasEnabled: false,
+      invoicesEnabled: false,
+      billingContactEnabled: true,
+      updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
+    };
+    mockBillingApi.getBillingPlanInfo.mockResolvedValue(basePlan);
+    mockBillingApi.getBillingContact.mockResolvedValue({
+      email: "billing@example.com",
+      name: "Acme Billing",
+      address_line1: "1 Billing Way",
+      address_line2: null,
+      city: "Berlin",
+      state: null,
+      postal_code: "10115",
+      country: "DE",
+      tax_id: null,
+      payment_method_summary: "Visa ending 4242",
+    });
+    renderTab();
+    await waitFor(() => {
+      expect(screen.getByText(/visa ending 4242/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/payment details are managed in the billing portal/i),
+      ).toBeInTheDocument();
     });
   });
 });

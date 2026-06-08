@@ -86,6 +86,8 @@ export type BillingPlanStatus =
   | "trialing"
   | "past_due"
   | "cancelled"
+  | "free"
+  | "self_hosted"
   | "unknown";
 
 export type BillingCycle = "monthly" | "annual" | null;
@@ -201,6 +203,8 @@ function asPlanStatus(v: unknown): BillingPlanStatus {
     "trialing",
     "past_due",
     "cancelled",
+    "free",
+    "self_hosted",
     "unknown",
   ];
   return (valid as string[]).includes(v as string)

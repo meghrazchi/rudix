@@ -13,6 +13,11 @@ import {
   listAuditLogs,
   type AuditLogListItemResponse,
 } from "@/lib/api/admin-usage";
+import {
+  getBillingCapabilities,
+  getBillingPlanInfo,
+  type BillingPlanStatus,
+} from "@/lib/api/billing";
 import { listChatSessions, type ChatSessionResponse } from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
@@ -37,6 +42,7 @@ import {
   type DashboardRangePreset,
 } from "@/lib/dashboard";
 import { resolveDocumentCapabilities } from "@/lib/documents-ui";
+import { usePermissions } from "@/lib/use-permissions";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const DOCUMENT_PAGE_SIZE = 200;
@@ -78,6 +84,89 @@ type DashboardAuditActivityBundle = {
   items: AuditLogListItemResponse[];
   unavailableReason: string | null;
 };
+
+function BillingStatusBanner() {
+  const { hasPermission } = usePermissions();
+  const canViewBilling =
+    hasPermission("billing:view") || hasPermission("billing:manage");
+  const capabilities = useMemo(() => getBillingCapabilities(), []);
+
+  const planQuery = useQuery({
+    queryKey: ["billing", "dashboard", "plan"],
+    queryFn: getBillingPlanInfo,
+    enabled: canViewBilling && capabilities.planEnabled,
+    retry: false,
+  });
+
+  if (!canViewBilling || !capabilities.planEnabled || !planQuery.data) {
+    return null;
+  }
+
+  const statusCopy: Record<
+    BillingPlanStatus,
+    { tone: string; title: string; body: string }
+  > = {
+    active: {
+      tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      title: "Billing is active",
+      body: "Your subscription is up to date.",
+    },
+    trialing: {
+      tone: "border-sky-200 bg-sky-50 text-sky-900",
+      title: "Trial ending soon",
+      body: planQuery.data.trial_end_date
+        ? `Your trial ends on ${new Date(planQuery.data.trial_end_date).toLocaleDateString()}.`
+        : "Your workspace is currently in a trial period.",
+    },
+    past_due: {
+      tone: "border-amber-200 bg-amber-50 text-amber-900",
+      title: "Payment attention required",
+      body: "Review billing settings to prevent service interruption.",
+    },
+    cancelled: {
+      tone: "border-rose-200 bg-rose-50 text-rose-900",
+      title: "Subscription cancelled",
+      body: "Plan access may change at the next renewal point.",
+    },
+    free: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Free plan",
+      body: "You are on the free tier. Upgrade in billing settings when ready.",
+    },
+    self_hosted: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Self-hosted deployment",
+      body: "Billing is managed outside Rudix for this deployment.",
+    },
+    unknown: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Billing state unknown",
+      body: "The current billing state could not be determined.",
+    },
+  };
+
+  const copy = statusCopy[planQuery.data.status];
+  if (planQuery.data.status === "active") {
+    return null;
+  }
+
+  return (
+    <aside className={`rounded-2xl border px-4 py-3 ${copy.tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">{copy.title}</p>
+          <p className="mt-0.5 text-xs opacity-90">{copy.body}</p>
+        </div>
+        <Link
+          href="/settings?tab=billing"
+          className="shrink-0 rounded-lg border border-current/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/40"
+        >
+          Open billing
+        </Link>
+      </div>
+    </aside>
+  );
+}
 
 function parsePositiveIntegerEnv(
   value: string | undefined,
@@ -878,6 +967,10 @@ export function DashboardPage() {
               </select>
             </label>
           ) : null}
+        </div>
+
+        <div className="mt-4">
+          <BillingStatusBanner />
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">

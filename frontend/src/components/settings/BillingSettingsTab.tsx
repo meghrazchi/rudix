@@ -22,6 +22,7 @@ import { QuotaProgress } from "@/components/settings/QuotaProgress";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import {
   getBillingCapabilities,
+  getBillingContact,
   getBillingPlanInfo,
   getBillingUsageSummary,
   getBillingQuotas,
@@ -32,18 +33,13 @@ import {
   type BillingPlanStatus,
   type InvoiceStatus,
 } from "@/lib/api/billing";
-import type { AppRole } from "@/lib/auth-session";
-import { useAuthSession } from "@/lib/use-auth-session";
+import { usePermissions } from "@/lib/use-permissions";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function trimToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
-}
-
-function isAdminLike(role: AppRole | null | undefined): boolean {
-  return role === "owner" || role === "admin";
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -130,6 +126,14 @@ function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
       label: "Cancelled",
       cls: "bg-rose-100 text-rose-800 border-rose-200",
     },
+    free: {
+      label: "Free",
+      cls: "bg-slate-100 text-slate-700 border-slate-200",
+    },
+    self_hosted: {
+      label: "Self-hosted",
+      cls: "bg-slate-100 text-slate-700 border-slate-200",
+    },
     unknown: {
       label: "Unknown",
       cls: "bg-slate-100 text-slate-700 border-slate-200",
@@ -142,6 +146,59 @@ function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
     >
       {label}
     </span>
+  );
+}
+
+function PlanStatusCallout({ plan }: { plan: BillingPlanInfo }) {
+  const messages: Record<
+    BillingPlanStatus,
+    { tone: string; title: string; body: string }
+  > = {
+    active: {
+      tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
+      title: "Subscription active",
+      body: "Your workspace is on a managed plan and billing is up to date.",
+    },
+    trialing: {
+      tone: "border-sky-200 bg-sky-50 text-sky-900",
+      title: "Trial in progress",
+      body: plan.trial_end_date
+        ? `Your trial ends on ${formatDate(plan.trial_end_date)}.`
+        : "Your workspace is currently in a trial period.",
+    },
+    past_due: {
+      tone: "border-amber-200 bg-amber-50 text-amber-900",
+      title: "Payment attention required",
+      body: "A payment issue is blocking normal subscription processing. Review the billing portal.",
+    },
+    cancelled: {
+      tone: "border-rose-200 bg-rose-50 text-rose-900",
+      title: "Subscription cancelled",
+      body: "The current billing plan has been cancelled. Plan access may change at renewal.",
+    },
+    free: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Free plan",
+      body: "This workspace is using the free tier and can upgrade when ready.",
+    },
+    self_hosted: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Self-hosted deployment",
+      body: "Billing is managed outside Rudix for this deployment.",
+    },
+    unknown: {
+      tone: "border-slate-200 bg-slate-50 text-slate-900",
+      title: "Billing state unknown",
+      body: "The current subscription state could not be determined.",
+    },
+  };
+
+  const message = messages[plan.status];
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${message.tone}`}>
+      <p className="text-sm font-semibold">{message.title}</p>
+      <p className="mt-0.5 text-xs opacity-90">{message.body}</p>
+    </div>
   );
 }
 
@@ -186,11 +243,11 @@ const DATE_RANGE_OPTIONS: { id: BillingDateRange; label: string }[] = [
 
 function PlanCard({
   plan,
-  isOwner,
+  canManageBilling,
   billingPortalUrl,
 }: {
   plan: BillingPlanInfo;
-  isOwner: boolean;
+  canManageBilling: boolean;
   billingPortalUrl: string | null;
 }) {
   const manageUrl =
@@ -218,6 +275,8 @@ function PlanCard({
         </div>
         <PlanStatusBadge status={plan.status} />
       </div>
+
+      <PlanStatusCallout plan={plan} />
 
       <dl className="mb-5 space-y-3">
         {plan.billing_cycle && (
@@ -254,6 +313,12 @@ function PlanCard({
           unit="seats"
         />
         <QuotaProgress
+          label="Monthly questions"
+          used={plan.monthly_questions_used ?? 0}
+          total={plan.monthly_questions_included}
+          unit="questions"
+        />
+        <QuotaProgress
           label="Storage"
           used={storageUsedGb}
           total={storageTotalGb}
@@ -261,20 +326,47 @@ function PlanCard({
         />
       </div>
 
-      {(plan.can_manage_subscription || manageUrl) && (
-        <a
-          href={manageUrl ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
-          aria-label="Manage subscription — opens billing portal"
-        >
-          Manage Subscription
-          <ExternalLink size={14} aria-hidden="true" />
-        </a>
-      )}
+      <div className="space-y-2">
+        {manageUrl ? (
+          <a
+            href={manageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
+            aria-label="Manage subscription — opens billing portal"
+          >
+            Manage Subscription
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        ) : (
+          <p className="text-center text-xs text-[#777587]">
+            No billing portal URL is configured for this deployment. Contact
+            your administrator if you need to change plans.
+          </p>
+        )}
+        {canManageBilling && manageUrl && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <a
+              href={manageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-3 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
+            >
+              Upgrade plan
+            </a>
+            <a
+              href={manageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-3 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
+            >
+              Downgrade plan
+            </a>
+          </div>
+        )}
+      </div>
 
-      {isOwner && plan.can_cancel_plan && (
+      {canManageBilling && plan.can_cancel_plan && (
         <p className="mt-3 text-center text-xs text-[#777587]">
           To cancel your plan, use the billing portal above.
         </p>
@@ -282,38 +374,6 @@ function PlanCard({
       <p className="mt-2 text-center text-[10px] text-[#aaa6b8]">
         Handled securely by your billing provider
       </p>
-    </section>
-  );
-}
-
-// ── LLM Cost Card ─────────────────────────────────────────────────────────────
-
-function LlmCostCard({ costUsd }: { costUsd: number | null }) {
-  if (costUsd === null) return null;
-  const formatted = formatCurrency(costUsd);
-  const [dollars, cents] = formatted.split(".");
-
-  return (
-    <section
-      className="relative overflow-hidden rounded-2xl bg-[#1b1b24] p-6 shadow-lg"
-      aria-label="Estimated LLM cost section"
-    >
-      <p className="mb-3 text-[10px] font-bold tracking-widest text-[#c3c0ff]/70 uppercase">
-        Estimated LLM Costs
-      </p>
-      <div className="mb-1 flex items-baseline gap-1">
-        <span className="text-3xl font-extrabold text-white">{dollars}</span>
-        {cents && (
-          <span className="text-lg font-semibold text-white/60">.{cents}</span>
-        )}
-      </div>
-      <p className="text-[10px] text-[#aaa6b8]">
-        All LLM cost values are estimates only
-      </p>
-      <div
-        className="pointer-events-none absolute -right-6 -bottom-6 h-28 w-28 rounded-full bg-[#3525cd]/20 blur-3xl"
-        aria-hidden="true"
-      />
     </section>
   );
 }
@@ -753,7 +813,8 @@ function BillingNotificationsInfo() {
           },
           {
             label: "Failed payments",
-            description: "Alert for payment failures (owner/admin).",
+            description:
+              "Alert for payment failures (billing admins and owners).",
           },
           {
             label: "Invoice available",
@@ -784,14 +845,109 @@ function BillingNotificationsInfo() {
   );
 }
 
+function BillingContactSection({
+  capabilities,
+  canViewBilling,
+}: {
+  capabilities: ReturnType<typeof getBillingCapabilities>;
+  canViewBilling: boolean;
+}) {
+  const contactQuery = useQuery({
+    queryKey: ["billing", "contact"],
+    queryFn: getBillingContact,
+    enabled: capabilities.billingContactEnabled && canViewBilling,
+    retry: false,
+  });
+
+  return (
+    <section
+      className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
+      aria-label="Billing contact section"
+    >
+      <SectionHeader icon={CreditCard} title="Payment Method" />
+
+      {!capabilities.billingContactEnabled ? (
+        <p className="text-sm text-[#777587]">
+          Billing contact details are not available — deployment-controlled.
+        </p>
+      ) : contactQuery.isLoading ? (
+        <LoadingState compact title="Loading billing contact..." />
+      ) : contactQuery.isError ? (
+        isApiClientError(contactQuery.error) &&
+        contactQuery.error.status === 429 ? (
+          <RateLimitState
+            compact
+            onRetry={() => {
+              void contactQuery.refetch();
+            }}
+          />
+        ) : (
+          <ErrorState
+            compact
+            error={contactQuery.error}
+            description={getApiErrorMessage(contactQuery.error)}
+            onRetry={() => {
+              void contactQuery.refetch();
+            }}
+          />
+        )
+      ) : (
+        <div className="space-y-4">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {[
+              {
+                label: "Billing contact",
+                value:
+                  contactQuery.data?.name ?? contactQuery.data?.email ?? "—",
+              },
+              {
+                label: "Email",
+                value: contactQuery.data?.email ?? "—",
+              },
+              {
+                label: "Address",
+                value:
+                  contactQuery.data?.address_line1 ??
+                  contactQuery.data?.address_line2 ??
+                  "Not provided",
+              },
+              {
+                label: "Payment method",
+                value:
+                  contactQuery.data?.payment_method_summary ??
+                  "Managed securely in the billing portal",
+              },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="rounded-xl border border-[#ebe8f7] bg-[#f8f7ff] px-4 py-3"
+              >
+                <dt className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                  {label}
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-[#1b1b24]">
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-[#777587]">
+            Payment details are managed in the billing portal. No raw payment
+            data is displayed in Rudix.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function BillingSettingsTab() {
-  const { state } = useAuthSession();
-  const session = state.session;
-  const role = session?.role ?? null;
-  const isAdmin = isAdminLike(role);
-  const isOwner = role === "owner";
+  const { hasPermission } = usePermissions();
+  const canViewBilling =
+    hasPermission("billing:view") || hasPermission("billing:manage");
+  const canManageBilling = hasPermission("billing:manage");
 
   const capabilities = useMemo(() => getBillingCapabilities(), []);
 
@@ -802,16 +958,16 @@ export function BillingSettingsTab() {
   const planQuery = useQuery({
     queryKey: ["billing", "plan"],
     queryFn: getBillingPlanInfo,
-    enabled: capabilities.planEnabled && isAdmin,
+    enabled: capabilities.planEnabled && canViewBilling,
     retry: false,
   });
 
-  if (!isAdmin) {
+  if (!canViewBilling) {
     return (
       <ForbiddenState
         compact
         title="Billing restricted"
-        description="Billing settings are available to owners and admins only."
+        description="Billing settings are available to billing admins and owners only."
         backHref="/dashboard"
         backLabel="Back to dashboard"
       />
@@ -854,7 +1010,7 @@ export function BillingSettingsTab() {
             ) : planQuery.data ? (
               <PlanCard
                 plan={planQuery.data}
-                isOwner={isOwner}
+                canManageBilling={canManageBilling}
                 billingPortalUrl={billingPortalUrl}
               />
             ) : null
@@ -889,6 +1045,10 @@ export function BillingSettingsTab() {
           )}
 
           <BillingNotificationsInfo />
+          <BillingContactSection
+            capabilities={capabilities}
+            canViewBilling={canViewBilling}
+          />
         </div>
 
         {/* Right column: Usage + Quotas */}

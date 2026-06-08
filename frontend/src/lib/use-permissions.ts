@@ -187,5 +187,11 @@ export function usePermissions(): UsePermissionsResult {
     [permissions],
   );
 
-  return { role, permissions, hasPermission, hasAnyPermission, hasAllPermissions };
+  return {
+    role,
+    permissions,
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+  };
 }

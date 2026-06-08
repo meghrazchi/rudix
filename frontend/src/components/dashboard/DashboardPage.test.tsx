@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import type { UsageSummaryResponse } from "@/lib/api/admin-usage";
+import type { BillingCapabilities, BillingPlanInfo } from "@/lib/api/billing";
 import type { ListDocumentsOptions } from "@/lib/api/documents";
 import type { SessionState } from "@/lib/auth-session";
 
@@ -17,6 +18,8 @@ const mockApi = vi.hoisted(() => ({
   listChatSessions: vi.fn(),
   getUsageSummary: vi.fn(),
   listAuditLogs: vi.fn(),
+  getBillingCapabilities: vi.fn(),
+  getBillingPlanInfo: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -49,6 +52,12 @@ vi.mock("@/lib/api/admin-usage", () => ({
     limit?: number;
     offset?: number;
   }) => mockApi.listAuditLogs(options),
+}));
+
+vi.mock("@/lib/api/billing", () => ({
+  getBillingCapabilities: () => mockApi.getBillingCapabilities(),
+  getBillingPlanInfo: (...args: unknown[]) =>
+    mockApi.getBillingPlanInfo(...args),
 }));
 
 function renderPage() {
@@ -88,6 +97,8 @@ describe("DashboardPage", () => {
     mockApi.listChatSessions.mockReset();
     mockApi.getUsageSummary.mockReset();
     mockApi.listAuditLogs.mockReset();
+    mockApi.getBillingCapabilities.mockReset();
+    mockApi.getBillingPlanInfo.mockReset();
 
     mockApi.listDocuments.mockImplementation(
       (options?: ListDocumentsOptions) => {
@@ -187,6 +198,40 @@ describe("DashboardPage", () => {
       offset: 0,
       range: { from: "2026-05-01", to: "2026-05-14" },
     });
+
+    mockApi.getBillingCapabilities.mockReturnValue({
+      planEnabled: true,
+      usageEnabled: false,
+      quotasEnabled: false,
+      invoicesEnabled: false,
+      billingContactEnabled: false,
+      updateBillingContactEnabled: false,
+      portalSessionEnabled: false,
+    } satisfies BillingCapabilities);
+
+    mockApi.getBillingPlanInfo.mockResolvedValue({
+      plan_name: "Enterprise Pro",
+      status: "past_due",
+      billing_cycle: "monthly",
+      renewal_date: "2026-06-01T00:00:00Z",
+      trial_end_date: null,
+      seats_used: 24,
+      seats_included: 50,
+      storage_used_gb: 842,
+      storage_included_gb: 2048,
+      monthly_questions_used: 458291,
+      monthly_questions_included: 1000000,
+      token_allowance_used: 1200000000,
+      token_allowance_included: 2500000000,
+      evaluation_allowance_used: null,
+      evaluation_allowance_included: null,
+      agent_allowance_used: null,
+      agent_allowance_included: null,
+      connector_allowance_used: null,
+      connector_allowance_included: null,
+      can_manage_subscription: true,
+      can_cancel_plan: true,
+    } satisfies BillingPlanInfo);
   });
 
   afterEach(() => {
@@ -217,6 +262,30 @@ describe("DashboardPage", () => {
       expect(screen.getByText("$4.50")).toBeInTheDocument();
     });
     await screen.findByText("Recent activity");
+  });
+
+  it("shows the billing warning banner for billing admins when a plan is past due", async () => {
+    mockState.authState = {
+      status: "authenticated",
+      session: {
+        userId: "u-1",
+        email: "billing@example.com",
+        role: "billing_admin",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-1",
+      },
+    };
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Payment attention required"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open billing" })).toHaveAttribute(
+      "href",
+      "/settings?tab=billing",
+    );
   });
 
   it("renders latest documents and recent activity links with quick actions", async () => {
