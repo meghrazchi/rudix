@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from typing import Any
 
 import httpx
@@ -42,14 +43,20 @@ class HttpOAuthTokenClient:
         provider = self.provider_registry.require(provider_key)
         if provider.oauth is None:
             raise OAuthLifecycleError("connector provider does not support OAuth")
-        payload = {
+        use_basic_auth = provider.oauth.token_endpoint_auth_method == "client_secret_basic"
+        payload: dict[str, str] = {
             "grant_type": "authorization_code",
             "code": code,
             "redirect_uri": redirect_uri,
-            "client_id": client_config.client_id,
-            "client_secret": client_config.client_secret.get_secret_value(),
         }
-        return await self._post_token(provider.oauth.token_endpoint, payload)
+        if not use_basic_auth:
+            payload["client_id"] = client_config.client_id or ""
+            payload["client_secret"] = client_config.client_secret.get_secret_value()
+        return await self._post_token(
+            provider.oauth.token_endpoint,
+            payload,
+            basic_auth=_basic_auth_header(client_config) if use_basic_auth else None,
+        )
 
     async def refresh(
         self,
@@ -62,15 +69,21 @@ class HttpOAuthTokenClient:
         provider = self.provider_registry.require(provider_key)
         if provider.oauth is None:
             raise OAuthLifecycleError("connector provider does not support OAuth")
-        payload = {
+        use_basic_auth = provider.oauth.token_endpoint_auth_method == "client_secret_basic"
+        payload: dict[str, str] = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "client_id": client_config.client_id,
-            "client_secret": client_config.client_secret.get_secret_value(),
         }
+        if not use_basic_auth:
+            payload["client_id"] = client_config.client_id or ""
+            payload["client_secret"] = client_config.client_secret.get_secret_value()
         if scopes:
             payload["scope"] = " ".join(scopes)
-        return await self._post_token(provider.oauth.token_endpoint, payload)
+        return await self._post_token(
+            provider.oauth.token_endpoint,
+            payload,
+            basic_auth=_basic_auth_header(client_config) if use_basic_auth else None,
+        )
 
     async def revoke(
         self,
@@ -103,10 +116,17 @@ class HttpOAuthTokenClient:
                 return client_config
         raise OAuthLifecycleError("connector OAuth client is not configured")
 
-    async def _post_token(self, token_endpoint: str, payload: dict[str, Any]) -> OAuthTokenResponse:
+    async def _post_token(
+        self,
+        token_endpoint: str,
+        payload: dict[str, Any],
+        *,
+        basic_auth: str | None = None,
+    ) -> OAuthTokenResponse:
+        headers = {"Authorization": f"Basic {basic_auth}"} if basic_auth else {}
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
             try:
-                response = await client.post(token_endpoint, data=payload)
+                response = await client.post(token_endpoint, data=payload, headers=headers)
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code if exc.response is not None else None
@@ -128,6 +148,11 @@ class HttpOAuthTokenClient:
         if not isinstance(data, dict):
             raise OAuthLifecycleError("OAuth token endpoint returned an invalid payload")
         return OAuthTokenResponse.model_validate(data)
+
+
+def _basic_auth_header(client_config: ConnectorOAuthClientSettings) -> str:
+    raw = f"{client_config.client_id or ''}:{client_config.client_secret.get_secret_value()}"
+    return base64.b64encode(raw.encode()).decode()
 
 
 def _extract_provider_error_code(response: httpx.Response | None) -> str | None:

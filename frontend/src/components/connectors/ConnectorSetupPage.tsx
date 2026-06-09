@@ -958,6 +958,173 @@ function GoogleDriveSetupGuide() {
   );
 }
 
+function NotionSetupGuide() {
+  const [open, setOpen] = useState(true);
+  let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
+  try {
+    const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
+    callbackUrl = `${apiUrl}/connectors/oauth/callback`;
+  } catch {
+    // runtime config unavailable during SSR
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-[20px] text-amber-700">
+            build_circle
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-amber-900">
+              Notion integration setup required
+            </div>
+            <div className="text-xs text-amber-700">
+              One-time prerequisite — create a public OAuth integration before
+              connecting
+            </div>
+          </div>
+        </div>
+        <span
+          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          expand_more
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-amber-800">
+            Rudix connects to Notion via a public OAuth 2.0 integration you own
+            on the Notion developer portal. Follow these steps once, then come
+            back here to connect.
+          </p>
+
+          <ol className="space-y-4">
+            {/* Step 1 */}
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+                1
+              </span>
+              <div className="text-sm text-amber-900">
+                <span className="font-semibold">Create an integration</span> —
+                open{" "}
+                <a
+                  href="https://www.notion.so/my-integrations"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-amber-700"
+                >
+                  notion.so/my-integrations
+                </a>
+                , click <strong>+ New integration</strong>, give it a name
+                (e.g. <em>Rudix</em>), select your workspace, and set the{" "}
+                <strong>Integration type</strong> to{" "}
+                <strong>Public</strong>.
+              </div>
+            </li>
+
+            {/* Step 2 */}
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+                2
+              </span>
+              <div className="flex-1 space-y-2 text-sm text-amber-900">
+                <div>
+                  <span className="font-semibold">Add the redirect URI</span> —
+                  under <strong>OAuth Domain &amp; URIs</strong>, add this exact
+                  URL to <strong>Redirect URIs</strong>:
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
+                  <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
+                    {callbackUrl}
+                  </span>
+                  <button
+                    type="button"
+                    title="Copy callback URL"
+                    onClick={() => navigator.clipboard.writeText(callbackUrl)}
+                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      content_copy
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </li>
+
+            {/* Step 3 */}
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+                3
+              </span>
+              <div className="flex-1 space-y-2 text-sm text-amber-900">
+                <div>
+                  <span className="font-semibold">
+                    Add credentials to your deployment
+                  </span>{" "}
+                  — copy the <strong>OAuth client ID</strong> and{" "}
+                  <strong>OAuth client secret</strong> from the integration
+                  settings, then set the backend environment variable:
+                </div>
+                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                  <div>CONNECTOR_OAUTH_CLIENTS=</div>
+                  <div className="pl-2 text-[#464555]">
+                    {'[{"provider_key":"notion",'}
+                  </div>
+                  <div className="pl-4 text-[#464555]">
+                    {'"client_id":"<your-client-id>",'}
+                  </div>
+                  <div className="pl-4 text-[#464555]">
+                    {'"client_secret":"<your-client-secret>"}]'}
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            {/* Step 4 */}
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+                4
+              </span>
+              <div className="flex-1 space-y-2 text-sm text-amber-900">
+                <div>
+                  <span className="font-semibold">
+                    Choose scope in the wizard
+                  </span>{" "}
+                  — after connecting, optionally scope the sync to specific
+                  pages or databases. Leave blank to index all content the
+                  integration can access.
+                </div>
+                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                  <div>page_ids, database_ids</div>
+                  <div>include_comments, include_attachments</div>
+                  <div>max_page_depth, import_property_metadata</div>
+                </div>
+              </div>
+            </li>
+          </ol>
+
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
+              lock
+            </span>
+            <span>
+              Rudix requests read-only access only. It cannot create, edit, or
+              delete any Notion pages, databases, or comments.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MicrosoftSharePointOneDriveSetupGuide() {
   const [open, setOpen] = useState(true);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
@@ -1318,6 +1485,7 @@ function ProviderLoader({ providerKey }: Props) {
       {provider.key === "microsoft-sharepoint-onedrive" && (
         <MicrosoftSharePointOneDriveSetupGuide />
       )}
+      {provider.key === "notion" && <NotionSetupGuide />}
 
       <WizardShell provider={provider} />
     </section>

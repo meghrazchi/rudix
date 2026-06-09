@@ -176,6 +176,38 @@ function scopeFields(providerKey: string, authConfig: Record<string, unknown>) {
       },
     ];
   }
+  if (providerKey === "notion") {
+    return [
+      { label: "Page IDs", value: formatList(authConfig.page_ids) },
+      { label: "Database IDs", value: formatList(authConfig.database_ids) },
+      {
+        label: "Include comments",
+        value: authConfig.include_comments ? ["Enabled"] : [],
+      },
+      {
+        label: "Include attachments",
+        value: authConfig.include_attachments ? ["Enabled"] : [],
+      },
+      {
+        label: "Max block depth",
+        value:
+          typeof authConfig.max_page_depth === "number"
+            ? [`${authConfig.max_page_depth}`]
+            : [],
+      },
+      {
+        label: "Property metadata",
+        value: authConfig.import_property_metadata ? ["Imported"] : [],
+      },
+      {
+        label: "Sync frequency",
+        value:
+          typeof authConfig.sync_frequency_minutes === "number"
+            ? [`${authConfig.sync_frequency_minutes} minutes`]
+            : [],
+      },
+    ];
+  }
   return Object.entries(authConfig).map(([label, value]) => ({
     label: label.replace(/_/g, " "),
     value: Array.isArray(value)

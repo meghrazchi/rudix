@@ -71,6 +71,7 @@ def build_default_provider_registry() -> ProviderRegistry:
         _confluence_provider(),
         _google_drive_provider(),
         _microsoft_sharepoint_onedrive_provider(),
+        _notion_provider(),
     ):
         registry.register(provider)
     return registry
@@ -313,6 +314,99 @@ def _microsoft_sharepoint_onedrive_provider() -> ProviderRegistration:
             additional_authorization_params={
                 "prompt": "select_account",
             },
+        ),
+    )
+
+
+def _notion_provider() -> ProviderRegistration:
+    return ProviderRegistration(
+        key="notion",
+        display_name="Notion",
+        capabilities=ProviderCapabilities(
+            auth_type=ConnectorAuthType.oauth2,
+            capabilities=frozenset(
+                {
+                    ConnectorCapability.attachments,
+                    ConnectorCapability.comments,
+                    ConnectorCapability.delta_sync,
+                    ConnectorCapability.deletions,
+                    ConnectorCapability.deep_links,
+                    ConnectorCapability.folders,
+                    ConnectorCapability.rate_limits,
+                }
+            ),
+            rate_limits=(
+                ProviderRateLimit(name="notion_api", max_requests=3, window_seconds=1),
+            ),
+            max_page_size=100,
+            notes=(
+                "Connect a Notion workspace and index pages, databases, and database items. "
+                "Page content is rendered from blocks and ingested as plain text. "
+                "Archived pages are tombstoned on the next delta sync."
+            ),
+        ),
+        config_schema={
+            "type": "object",
+            "properties": {
+                "page_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Page IDs",
+                    "description": "Scope sync to specific Notion page UUIDs. Leave blank to sync all accessible pages.",
+                },
+                "database_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Database IDs",
+                    "description": "Scope sync to specific Notion database UUIDs.",
+                },
+                "include_child_pages": {
+                    "type": "boolean",
+                    "title": "Include child pages",
+                    "description": "Recursively include child pages of selected pages.",
+                },
+                "include_comments": {
+                    "type": "boolean",
+                    "title": "Include page comments",
+                    "description": "Import page-level comments as searchable items.",
+                },
+                "include_attachments": {
+                    "type": "boolean",
+                    "title": "Include file attachments",
+                    "description": "Download and ingest file/image/PDF blocks attached to pages.",
+                },
+                "max_page_depth": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "title": "Max block depth",
+                    "description": "Maximum depth of nested blocks to traverse when rendering page content.",
+                },
+                "import_property_metadata": {
+                    "type": "boolean",
+                    "title": "Import database properties",
+                    "description": "Include database property values in item metadata for richer search context.",
+                },
+                "sync_frequency_minutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 10_080,
+                    "title": "Sync frequency (minutes)",
+                    "description": "Suggested sync cadence for this workspace.",
+                },
+            },
+            "additionalProperties": False,
+        },
+        oauth=ProviderOAuthConfig(
+            authorization_endpoint="https://api.notion.com/v1/oauth/authorize",
+            token_endpoint="https://api.notion.com/v1/oauth/token",
+            revoke_endpoint=None,
+            # Notion requires HTTP Basic Auth (client_id:secret) for token exchange.
+            token_endpoint_auth_method="client_secret_basic",
+            default_scopes=(),
+            required_scopes=(),
+            optional_scopes=(),
+            additional_authorization_params={"owner": "user"},
         ),
     )
 

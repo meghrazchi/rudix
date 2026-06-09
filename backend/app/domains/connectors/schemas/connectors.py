@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -52,6 +52,11 @@ class ProviderOAuthConfig(BaseModel):
     authorization_endpoint: str = Field(min_length=1, max_length=2048)
     token_endpoint: str = Field(min_length=1, max_length=2048)
     revoke_endpoint: str | None = Field(default=None, min_length=1, max_length=2048)
+    # RFC 7591 token endpoint auth method. Use "client_secret_basic" for providers
+    # (e.g. Notion) that require HTTP Basic Auth instead of body params.
+    token_endpoint_auth_method: Literal["client_secret_post", "client_secret_basic"] = Field(
+        default="client_secret_post"
+    )
     default_scopes: tuple[str, ...] = Field(default_factory=tuple)
     required_scopes: tuple[str, ...] = Field(default_factory=tuple)
     optional_scopes: tuple[str, ...] = Field(default_factory=tuple)

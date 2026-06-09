@@ -72,7 +72,7 @@ const CATALOG: CatalogEntry[] = [
     brandColor: "#000000",
     initial: "N",
     connected: false,
-    available: false,
+    available: true,
   },
   {
     key: "slack",

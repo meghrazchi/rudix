@@ -9,6 +9,7 @@ from app.domains.connectors.providers.google_drive.adapter import GoogleDriveCon
 from app.domains.connectors.providers.microsoft_sharepoint_onedrive.adapter import (
     MicrosoftSharePointOneDriveConnectorAdapter,
 )
+from app.domains.connectors.providers.notion.adapter import NotionConnectorAdapter
 from app.domains.connectors.services.provider_adapter import default_sync_adapter_registry
 
 default_sync_adapter_registry.register("confluence", ConfluenceConnectorAdapter())
@@ -17,3 +18,4 @@ default_sync_adapter_registry.register(
     "microsoft-sharepoint-onedrive",
     MicrosoftSharePointOneDriveConnectorAdapter(),
 )
+default_sync_adapter_registry.register("notion", NotionConnectorAdapter())

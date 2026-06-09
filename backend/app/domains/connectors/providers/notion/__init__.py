@@ -1,0 +1,1 @@
+"""Notion connector provider adapter."""
