@@ -207,11 +207,10 @@ export function toSettingsErrorState(error: unknown): SettingsErrorState {
 export const PROFILE_UI_STORAGE_KEY = "rudix.settings.profile-ui.v1";
 
 export const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English (United States)" },
-  { value: "de", label: "German (Germany)" },
-  { value: "fr", label: "French (France)" },
-  { value: "es", label: "Spanish" },
-  { value: "ja", label: "Japanese" },
+  { value: "en", label: "English" },
+  { value: "de", label: "Deutsch" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
 ] as const satisfies { value: string; label: string }[];
 
 export const TIMEZONE_OPTIONS = [

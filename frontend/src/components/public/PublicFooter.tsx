@@ -1,5 +1,9 @@
-import Image from "next/image";
+"use client";
 
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   buildFooterLinkGroups,
@@ -11,6 +15,7 @@ type PublicFooterProps = {
 };
 
 export function PublicFooter({ links }: PublicFooterProps) {
+  const t = useTranslations("public.footer");
   const groups = buildFooterLinkGroups(links);
 
   return (
@@ -31,12 +36,12 @@ export function PublicFooter({ links }: PublicFooterProps) {
             <span className="text-sm font-bold text-[#11131a]">Rudix</span>
           </div>
           <p className="mt-3 max-w-xs text-xs leading-6 text-[#626778]">
-            Enterprise-grade RAG infrastructure for secure, scalable knowledge
-            retrieval and AI applications.
+            {t("tagline")}
           </p>
-          <p className="mt-4 text-xs text-[#7c8194]">
-            © 2026 Rudix AI. All rights reserved.
-          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <LanguageSwitcher variant="select" />
+          </div>
+          <p className="mt-3 text-xs text-[#7c8194]">{t("copyright")}</p>
         </div>
 
         {groups.map((group) => (

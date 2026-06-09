@@ -24,6 +24,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
 import { WorkspaceSwitcherCard } from "@/components/workspace/WorkspaceSwitcherCard";
@@ -61,17 +62,14 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-function roleLabel(role: AuthenticatedSession["role"]): string {
-  if (role === "owner") {
-    return "Owner";
-  }
-  if (role === "admin") {
-    return "Admin";
-  }
-  if (role === "member") {
-    return "Member";
-  }
-  return "Viewer";
+function useRoleLabel() {
+  const t = useTranslations("appShell.roles");
+  return function roleLabel(role: AuthenticatedSession["role"]): string {
+    if (role === "owner") return t("owner");
+    if (role === "admin") return t("admin");
+    if (role === "member") return t("member");
+    return t("viewer");
+  };
 }
 
 function profileDisplayName(session: AuthenticatedSession): string {
@@ -96,16 +94,15 @@ function profileInitials(displayName: string): string {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
-function routeDisabledReason(
-  reason: AppNavigationItem["disabledReason"],
-): string {
-  if (reason === "insufficient_role") {
-    return "Insufficient role";
-  }
-  if (reason === "unauthenticated") {
-    return "Authentication required";
-  }
-  return "Unavailable";
+function useRouteDisabledReason() {
+  const t = useTranslations("navigation");
+  return function routeDisabledReason(
+    reason: AppNavigationItem["disabledReason"],
+  ): string {
+    if (reason === "insufficient_role") return t("insufficientRole");
+    if (reason === "unauthenticated") return t("authRequired");
+    return t("sectionUnavailable");
+  };
 }
 
 const NAV_ICONS: Partial<
@@ -178,14 +175,13 @@ function statusFilterFromTokens(tokens: string[]): DocumentStatus | null {
   );
 }
 
-function commandSectionLabel(section: CommandResultSection): string {
-  if (section === "navigation") {
-    return "Pages";
-  }
-  if (section === "documents") {
-    return "Documents";
-  }
-  return "Recent chats";
+function useCommandSectionLabel() {
+  const t = useTranslations("appShell");
+  return function commandSectionLabel(section: CommandResultSection): string {
+    if (section === "navigation") return t("pages");
+    if (section === "documents") return t("documents");
+    return t("recentChats");
+  };
 }
 
 function documentStatusBadgeClass(status: DocumentStatus): string {
@@ -208,6 +204,7 @@ function NavList({
   navItems: AppNavigationItem[];
   onNavigate?: () => void;
 }) {
+  const getDisabledReason = useRouteDisabledReason();
   return (
     <nav className="grid gap-1">
       {navItems
@@ -218,7 +215,7 @@ function NavList({
               <div
                 key={item.key}
                 aria-disabled="true"
-                title={routeDisabledReason(item.disabledReason)}
+                title={getDisabledReason(item.disabledReason)}
                 className="rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-2 text-sm font-semibold text-slate-500"
               >
                 <span className="flex items-center gap-2">
@@ -289,6 +286,12 @@ export function AppShell({
   const helpMenuRef = useRef<HTMLDivElement | null>(null);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
+  const t = useTranslations("appShell");
+  const tCommon = useTranslations("common");
+  const tNav = useTranslations("navigation");
+  const tAuth = useTranslations("auth");
+  const getRoleLabel = useRoleLabel();
+  const getCommandSectionLabel = useCommandSectionLabel();
   const helpItems = useMemo(() => resolveHelpMenuItems(), []);
   const unreadNotificationCount = useNotificationUnreadCount();
   const searchTokens = useMemo(
@@ -499,6 +502,9 @@ export function AppShell({
   const displayName = profileDisplayName(session);
   const displayInitials = profileInitials(displayName);
 
+  const commandSectionLabelFor = (section: CommandResultSection): string =>
+    getCommandSectionLabel(section);
+
   return (
     <div
       className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"
@@ -518,7 +524,7 @@ export function AppShell({
               <p className="text-2xl font-extrabold text-[#3525cd]">Rudix</p>
             </div>
             <p className="text-sm font-semibold text-[#5e5b72]">
-              Enterprise RAG
+              {t("enterpriseRag")}
             </p>
           </div>
 
@@ -536,7 +542,7 @@ export function AppShell({
               ref={mobileSidebarRef}
               role="dialog"
               aria-modal="true"
-              aria-label="Navigation menu"
+              aria-label={t("navigationMenu")}
               className="h-full w-[280px] border-r border-[#d7d4e7] bg-[#f7f5ff] px-4 py-5"
               onClick={(event) => event.stopPropagation()}
             >
@@ -555,7 +561,7 @@ export function AppShell({
                     </p>
                   </div>
                   <p className="text-xs font-semibold tracking-wide text-[#5e5b72] uppercase">
-                    Enterprise RAG
+                    {t("enterpriseRag")}
                   </p>
                 </div>
                 <button
@@ -564,7 +570,7 @@ export function AppShell({
                   onClick={closeMobileSidebar}
                   className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700"
                 >
-                  Close
+                  {t("close")}
                 </button>
               </div>
               <NavList navItems={navItems} onNavigate={closeMobileSidebar} />
@@ -590,8 +596,8 @@ export function AppShell({
                   data-command-autofocus="true"
                   value={commandQuery}
                   onChange={(event) => setCommandQuery(event.target.value)}
-                  placeholder="Search pages, documents, chats, or status (indexed, failed...)"
-                  aria-label="Search across pages, documents, and chats"
+                  placeholder={t("searchKnowledgeBase")}
+                  aria-label={t("searchAriaLabel")}
                   className="h-11 w-full rounded-lg border border-[#d9d4f0] bg-[#faf9ff] px-3 text-sm text-[#1f1e2a] placeholder:text-[#7d7896] focus:border-[#6355d5] focus:outline-none"
                 />
                 <button
@@ -605,13 +611,12 @@ export function AppShell({
 
               <div className="max-h-[68vh] overflow-auto px-3 py-3 sm:px-4 sm:py-4">
                 <p className="mb-3 text-xs text-[#6f6a86]">
-                  Quick navigation and organization-scoped search. Use{" "}
-                  <span className="font-semibold">Cmd/Ctrl + K</span> anytime.
+                  {t("quickNavHint", { shortcut: "Cmd/Ctrl + K" })}
                 </p>
 
                 {commandMenuLoading ? (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-                    Loading search results...
+                    {t("loadingResults")}
                   </p>
                 ) : commandMenuError ? (
                   <div className="space-y-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
@@ -626,7 +631,7 @@ export function AppShell({
                       }}
                       className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-100"
                     >
-                      Retry
+                      {tCommon("retry")}
                     </button>
                   </div>
                 ) : hasCommandResults ? (
@@ -634,7 +639,7 @@ export function AppShell({
                     {navigationResults.length > 0 ? (
                       <section>
                         <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
-                          {commandSectionLabel("navigation")}
+                          {commandSectionLabelFor("navigation")}
                         </p>
                         <ul className="space-y-1">
                           {navigationResults.map((item) => (
@@ -653,7 +658,7 @@ export function AppShell({
                                   </span>
                                 </span>
                                 <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
-                                  Page
+                                  {tCommon("page")}
                                 </span>
                               </Link>
                             </li>
@@ -666,8 +671,8 @@ export function AppShell({
                       <section>
                         <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
                           {hasCommandQuery
-                            ? commandSectionLabel("documents")
-                            : "Recent documents"}
+                            ? commandSectionLabelFor("documents")
+                            : t("recentDocuments")}
                         </p>
                         <ul className="space-y-1">
                           {documentResults.map((document) => (
@@ -682,7 +687,8 @@ export function AppShell({
                                     {document.filename}
                                   </span>
                                   <span className="block text-xs text-[#67637d]">
-                                    {document.file_type.toUpperCase()} • Updated{" "}
+                                    {document.file_type.toUpperCase()} •{" "}
+                                    {t("updated")}{" "}
                                     {new Date(
                                       document.updated_at,
                                     ).toLocaleString()}
@@ -704,8 +710,8 @@ export function AppShell({
                       <section>
                         <p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-[#625d7e] uppercase">
                           {hasCommandQuery
-                            ? commandSectionLabel("chat")
-                            : "Recent chats"}
+                            ? commandSectionLabelFor("chat")
+                            : t("recentChats")}
                         </p>
                         <ul className="space-y-1">
                           {chatResults.map((sessionItem) => (
@@ -719,11 +725,12 @@ export function AppShell({
                                   <span className="block truncate text-sm font-semibold text-[#2f2a46]">
                                     {sessionItem.title?.trim().length
                                       ? sessionItem.title
-                                      : "Untitled session"}
+                                      : t("untitledSession")}
                                   </span>
                                   <span className="block text-xs text-[#67637d]">
-                                    {sessionItem.message_count} messages •
-                                    Updated{" "}
+                                    {sessionItem.message_count}{" "}
+                                    {t("messages")} •{" "}
+                                    {t("updated")}{" "}
                                     {new Date(
                                       sessionItem.updated_at,
                                     ).toLocaleString()}
@@ -742,8 +749,8 @@ export function AppShell({
                 ) : (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
                     {hasCommandQuery
-                      ? "No matching results. Try a filename, status, chat title, or page name."
-                      : "No recent documents or chats yet. Upload a document or ask your first question."}
+                      ? t("noResults")
+                      : t("noDocumentsOrChats")}
                   </p>
                 )}
               </div>
@@ -760,7 +767,7 @@ export function AppShell({
                   onClick={() => setMobileSidebarOpen(true)}
                   className="rounded border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-700 lg:hidden"
                 >
-                  Menu
+                  {t("menu")}
                 </button>
                 <h1 className="truncate text-xl font-semibold text-[#3525cd] lg:text-2xl">
                   {activeRoute.label}
@@ -770,7 +777,7 @@ export function AppShell({
                 <button
                   type="button"
                   onClick={openCommandMenu}
-                  aria-label="Open global search"
+                  aria-label={t("openSearch")}
                   className="relative inline-flex h-11 min-w-[220px] items-center rounded-xl border border-[#e5e3f1] bg-[#f8f7ff] pr-2 pl-10 text-left text-sm font-medium text-[#4a4662] transition outline-none hover:bg-[#f2f0fb] focus-visible:ring-2 focus-visible:ring-[#3525cd]/20 sm:w-80 lg:w-[26rem]"
                 >
                   <span
@@ -780,7 +787,7 @@ export function AppShell({
                     search
                   </span>
                   <span className="mr-2 flex-1 truncate">
-                    Search knowledge base...
+                    {t("searchKnowledgeBase")}
                   </span>
                   <span className="ml-2 hidden shrink-0 rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-[#6f6b87] sm:inline">
                     ⌘/Ctrl K
@@ -793,7 +800,7 @@ export function AppShell({
                     onClick={() => toggleMenu("notifications")}
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "notifications"}
-                    aria-label="Notifications"
+                    aria-label={t("notifications")}
                     className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
                     <span
@@ -824,7 +831,7 @@ export function AppShell({
                     onClick={() => toggleMenu("help")}
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "help"}
-                    aria-label="Help"
+                    aria-label={t("help")}
                     data-onboarding="help-button"
                     className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
@@ -843,7 +850,7 @@ export function AppShell({
                       className="absolute right-0 z-50 mt-2 w-[260px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
                       <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-                        Help
+                        {t("help")}
                       </p>
                       <ul className="space-y-1">
                         <li>
@@ -871,7 +878,7 @@ export function AppShell({
                               <path d="M9 11l3 3L22 4" />
                               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                             </svg>
-                            Getting started
+                            {tNav("gettingStarted")}
                           </button>
                         </li>
                         {helpItems.map((item, index) => {
@@ -911,7 +918,7 @@ export function AppShell({
                     onClick={() => toggleMenu("profile")}
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "profile"}
-                    aria-label="Profile menu"
+                    aria-label={t("profileMenu")}
                     className="inline-flex items-center gap-2 rounded-xl border border-[#e5e3f1] px-2 py-1.5 text-[#4a4662] transition hover:bg-[#f3f1ff]"
                   >
                     <span className="hidden text-right xl:block">
@@ -919,7 +926,7 @@ export function AppShell({
                         {displayName}
                       </span>
                       <span className="block text-[10px] font-semibold tracking-wide text-[#7b7793] uppercase">
-                        {roleLabel(session.role)}
+                        {getRoleLabel(session.role)}
                       </span>
                     </span>
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d9d6e8] bg-[#f4f2ff] text-xs font-bold text-[#3525cd]">
@@ -930,26 +937,26 @@ export function AppShell({
                   {openMenu === "profile" ? (
                     <div
                       role="menu"
-                      aria-label="Profile menu panel"
+                      aria-label={t("profileMenuPanel")}
                       className="absolute right-0 z-50 mt-2 w-[280px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
                       <p className="text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-                        User profile
+                        {t("userProfile")}
                       </p>
                       <p className="mt-2 text-sm font-semibold text-[#2f2a46]">
                         {session.email ?? session.userId}
                       </p>
                       <p className="text-xs text-[#68647b]">
-                        User ID: {session.userId}
+                        {t("userId")}: {session.userId}
                       </p>
                       <p className="mt-1 text-xs text-[#68647b]">
-                        Organization:{" "}
+                        {t("organization")}:{" "}
                         {session.organizationName ??
                           session.organizationId ??
-                          "Unassigned"}
+                          t("unassigned")}
                       </p>
                       <p className="text-xs text-[#68647b]">
-                        Role: {roleLabel(session.role)}
+                        {t("role")}: {getRoleLabel(session.role)}
                       </p>
 
                       <div className="mt-3 border-t border-[#ebe8f7] pt-2">
@@ -960,7 +967,7 @@ export function AppShell({
                           onClick={closeMenu}
                           className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                         >
-                          Settings
+                          {tNav("settings")}
                         </Link>
                         {isAdminLikeRole(session.role) ? (
                           <Link
@@ -969,7 +976,7 @@ export function AppShell({
                             onClick={closeMenu}
                             className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                           >
-                            Admin usage
+                            {tNav("adminUsage")}
                           </Link>
                         ) : null}
                         <button
@@ -981,7 +988,7 @@ export function AppShell({
                           }}
                           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
                         >
-                          Sign out
+                          {tAuth("signOut")}
                         </button>
                       </div>
                     </div>

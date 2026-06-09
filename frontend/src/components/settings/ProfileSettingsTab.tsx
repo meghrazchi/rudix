@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -38,6 +39,10 @@ import {
   TIMEZONE_OPTIONS,
   type ProfileUiPreferences,
 } from "@/lib/schemas/settings";
+import {
+  isValidLocale,
+  LOCALE_COOKIE_NAME,
+} from "@/i18n/routing";
 
 function getInitials(email: string | null): string {
   if (!email) return "?";
@@ -65,6 +70,8 @@ const THEME_ICONS = {
 } as const;
 
 export function ProfileSettingsTab() {
+  const t = useTranslations("settings.profile");
+  const tAuth = useTranslations("auth");
   const router = useRouter();
   const { state, signOut } = useAuthSession();
   const session = state.session;
@@ -137,6 +144,7 @@ export function ProfileSettingsTab() {
     setIsSavingAll(true);
     try {
       const personalValues = personalForm.getValues();
+      const previousLanguage = lastSavedPersonalRef.current.language;
       saveProfileUiPreferences(personalValues);
       lastSavedPersonalRef.current = personalValues;
       personalForm.reset(personalValues);
@@ -149,9 +157,19 @@ export function ProfileSettingsTab() {
 
       showSuccess(
         result.persistenceScope === "remote"
-          ? "Profile settings saved successfully."
-          : "Preferences saved locally for this browser session.",
+          ? t("savedSuccessfully")
+          : t("savedLocally"),
       );
+
+      if (
+        personalValues.language !== previousLanguage &&
+        isValidLocale(personalValues.language)
+      ) {
+        document.cookie = `${LOCALE_COOKIE_NAME}=${personalValues.language}; path=/; samesite=lax; max-age=${60 * 60 * 24 * 365}`;
+        setTimeout(() => {
+          router.refresh();
+        }, 800);
+      }
     } finally {
       setIsSavingAll(false);
     }
@@ -594,7 +612,7 @@ export function ProfileSettingsTab() {
           disabled={isSavingAll}
           className="rounded-2xl px-6 py-3 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Discard Changes
+          {t("discardChanges")}
         </button>
         <button
           type="button"
@@ -604,7 +622,7 @@ export function ProfileSettingsTab() {
           disabled={isSavingAll}
           className="rounded-2xl bg-[#3525cd] px-8 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-[#3525cd]/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSavingAll ? "Saving…" : "Update Profile"}
+          {isSavingAll ? t("saving") : t("updateProfile")}
         </button>
       </div>
 
@@ -633,7 +651,7 @@ export function ProfileSettingsTab() {
               disabled={isSigningOut}
               className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSigningOut ? "Signing out…" : "Sign out"}
+              {isSigningOut ? tAuth("signingOut") : tAuth("signOut")}
             </button>
           </div>
 

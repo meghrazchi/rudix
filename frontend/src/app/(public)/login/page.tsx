@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   discoverSSOForEmail,
@@ -22,7 +23,10 @@ import { getAuthBoundaryMessage } from "@/lib/auth-session";
 import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-function safeErrorMessage(error: unknown): string {
+function safeErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
   if (typeof error === "object" && error !== null && "safeMessage" in error) {
     const candidate = error as Partial<LoginFlowError> & {
       safeMessage?: unknown;
@@ -34,7 +38,7 @@ function safeErrorMessage(error: unknown): string {
       return candidate.safeMessage;
     }
   }
-  return "Sign-in failed. Please try again.";
+  return fallback;
 }
 
 export default function LoginPage() {
@@ -46,19 +50,22 @@ export default function LoginPage() {
 }
 
 function LoginPageFallback() {
+  const t = useTranslations("auth");
   return (
     <div
       className="rudix-auth-pattern flex min-h-screen items-center justify-center px-6"
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <main className="w-full max-w-xl rounded-2xl border border-[#d7d4e8] bg-white p-7 shadow-sm">
-        <p className="text-sm text-[#68647b]">Loading sign-in...</p>
+        <p className="text-sm text-[#68647b]">{t("loadingSignIn")}</p>
       </main>
     </div>
   );
 }
 
 function LoginPageContent() {
+  const t = useTranslations("auth");
+  const tValidation = useTranslations("validation");
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";
@@ -125,15 +132,13 @@ function LoginPageContent() {
       setAuthenticatedSession(session);
       router.replace(resolveAuthenticatedNavigationTarget(nextPath, session));
     } catch (error) {
-      setSubmissionError(safeErrorMessage(error));
+      setSubmissionError(safeErrorMessage(error, t("signInFailed")));
     }
   }
 
   function handleStartSso() {
     if (!ssoStartHref) {
-      setSubmissionError(
-        "Single sign-on is configured but no start URL is available.",
-      );
+      setSubmissionError(t("ssoNotConfigured"));
       return;
     }
 
@@ -149,9 +154,7 @@ function LoginPageContent() {
   }
 
   function handleForgotPasswordPlaceholder() {
-    setForgotPlaceholderMessage(
-      "Password reset is not configured yet. Contact your administrator for account recovery.",
-    );
+    setForgotPlaceholderMessage(t("passwordResetNotConfigured"));
   }
 
   return (
@@ -169,13 +172,12 @@ function LoginPageContent() {
             className="h-[18px] w-[18px]"
           />
           <p className="text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-            Rudix Access
+            {t("signInLabel")}
           </p>
         </div>
-        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">Sign in</h1>
+        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">{t("signIn")}</h1>
         <p className="mb-6 text-sm text-[#68647b]">
-          Enter your credentials to start your Rudix session. Protected routes
-          will return you here when authentication is required.
+          {t("signInDescription")}
         </p>
 
         {authNoticeMessage ? (
@@ -191,7 +193,7 @@ function LoginPageContent() {
         >
           <label className="block" htmlFor="email">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Email
+              {t("email")}
             </span>
             <input
               id="email"
@@ -211,25 +213,24 @@ function LoginPageContent() {
           {ssoDiscovery.status === "found" ? (
             <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-sm text-indigo-800">
               <p className="font-semibold">
-                SSO is available for {ssoDiscovery.domain}
+                {t("ssoAvailableFor", { domain: ssoDiscovery.domain })}
               </p>
               <p className="mt-0.5 text-xs text-indigo-600">
-                Your organization uses single sign-on. Continue below or sign in
-                with SSO.
+                {t("ssoDescription")}
               </p>
               <button
                 type="button"
                 onClick={() => window.location.assign(ssoDiscovery.redirectUrl)}
                 className="mt-2 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-800"
               >
-                Continue with SSO
+                {t("continueWithSso")}
               </button>
             </div>
           ) : null}
 
           <label className="block" htmlFor="password">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Password
+              {t("password")}
             </span>
             <input
               id="password"
@@ -251,7 +252,7 @@ function LoginPageContent() {
                 href={forgotPasswordHref}
                 className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
-                Forgot password?
+                {t("forgotPassword")}
               </a>
             ) : (
               <button
@@ -259,7 +260,7 @@ function LoginPageContent() {
                 onClick={handleForgotPasswordPlaceholder}
                 className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
-                Forgot password?
+                {t("forgotPassword")}
               </button>
             )}
             <div className="flex items-center gap-3">
@@ -267,13 +268,13 @@ function LoginPageContent() {
                 href="/signup"
                 className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
-                Create account
+                {t("createAccount")}
               </Link>
               <Link
                 href="/"
                 className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
-                Back to public home
+                {t("backToHome")}
               </Link>
             </div>
           </div>
@@ -298,7 +299,7 @@ function LoginPageContent() {
             disabled={form.formState.isSubmitting || state.status === "loading"}
             className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {form.formState.isSubmitting ? "Signing in..." : "Sign in"}
+            {form.formState.isSubmitting ? t("signingIn") : t("signIn")}
           </button>
         </form>
 
@@ -309,7 +310,7 @@ function LoginPageContent() {
               onClick={handleStartSso}
               className="h-10 w-full rounded-lg border border-[#d2cee6] bg-white px-5 text-sm font-semibold text-[#3525cd] transition hover:bg-[#f5f3ff]"
             >
-              Continue with {providerLabel}
+              {t("continueWith", { provider: providerLabel })}
             </button>
           </div>
         ) : null}

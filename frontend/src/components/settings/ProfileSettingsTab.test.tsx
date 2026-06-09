@@ -18,6 +18,7 @@ const mockState = vi.hoisted(() => ({
   authState: { status: "authenticated", session: null } as SessionState,
   signOut: vi.fn(),
   replace: vi.fn(),
+  refresh: vi.fn(),
 }));
 
 const mockPreferencesApi = vi.hoisted(() => ({
@@ -48,6 +49,7 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockState.replace,
+    refresh: mockState.refresh,
   }),
 }));
 
