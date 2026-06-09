@@ -306,11 +306,10 @@ def _microsoft_sharepoint_onedrive_provider() -> ProviderRegistration:
                 "Sites.Read.All",
             ),
             required_scopes=(
-                "offline_access",
                 "Files.Read.All",
                 "Sites.Read.All",
             ),
-            optional_scopes=(),
+            optional_scopes=("offline_access",),
             additional_authorization_params={
                 "prompt": "select_account",
             },

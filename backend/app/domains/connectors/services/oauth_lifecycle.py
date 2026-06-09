@@ -26,6 +26,7 @@ from app.domains.connectors.services.credential_vault import (
 )
 from app.domains.connectors.services.provider_registry import (
     ProviderRegistry,
+    ProviderRegistryError,
     default_provider_registry,
 )
 from app.models.connector import ConnectorConnection, ConnectorProvider
@@ -36,6 +37,9 @@ from app.models.enums import (
 )
 
 _ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"confluence"})
+_TOKEN_RESPONSE_IGNORED_SCOPES: frozenset[str] = frozenset(
+    {"offline_access", "openid", "profile", "email"}
+)
 
 
 class OAuthLifecycleError(ValueError):
@@ -140,7 +144,10 @@ class ConnectorOAuthLifecycleService:
         provider = self.provider_registry.require(provider_key)
         if provider.oauth is None:
             raise OAuthLifecycleError("connector provider does not support OAuth")
-        scopes = self.provider_registry.validate_scopes(provider_key, requested_scopes)
+        try:
+            scopes = self.provider_registry.validate_scopes(provider_key, requested_scopes)
+        except ProviderRegistryError as exc:
+            raise OAuthLifecycleError(str(exc)) from exc
         client_config = self._require_oauth_client(provider_key)
         effective_redirect_uri = (
             str(client_config.redirect_uri) if client_config.redirect_uri else redirect_uri
@@ -344,10 +351,32 @@ class ConnectorOAuthLifecycleService:
             raise OAuthRefreshError("connector credential refresh failed") from exc
 
         provider_key = await self._provider_key(session, connection)
-        scopes = self.provider_registry.validate_scopes(
-            provider_key,
-            token_response.resolved_scopes(list(credential.scopes_json or payload.scopes)),
-        )
+        try:
+            scopes = _resolve_effective_oauth_scopes(
+                self.provider_registry,
+                provider_key,
+                token_response.resolved_scopes(list(credential.scopes_json or payload.scopes)),
+                fallback_scopes=list(credential.scopes_json or payload.scopes),
+            )
+        except ProviderRegistryError as exc:
+            await self._mark_refresh_failed(
+                session,
+                connection=connection,
+                credential=credential,
+                reason=exc.__class__.__name__,
+            )
+            await self._audit(
+                session,
+                organization_id=organization_id,
+                user_id=None,
+                action="connector.oauth.refresh_failed",
+                resource_id=connection.id,
+                metadata={
+                    "provider_key": provider_key,
+                    "reason": exc.__class__.__name__,
+                },
+            )
+            raise OAuthRefreshError("connector credential refresh failed") from exc
         refreshed_payload = OAuthCredentialPayload(
             access_token=token_response.access_token,
             refresh_token=token_response.refresh_token or payload.refresh_token,
@@ -648,10 +677,15 @@ class ConnectorOAuthLifecycleService:
             redirect_uri=oauth_state.redirect_uri,
             scopes=list(oauth_state.requested_scopes_json or []),
         )
-        scopes = self.provider_registry.validate_scopes(
-            oauth_state.provider_key,
-            token_response.resolved_scopes(list(oauth_state.requested_scopes_json or [])),
-        )
+        try:
+            scopes = _resolve_effective_oauth_scopes(
+                self.provider_registry,
+                oauth_state.provider_key,
+                token_response.resolved_scopes(list(oauth_state.requested_scopes_json or [])),
+                fallback_scopes=list(oauth_state.requested_scopes_json or []),
+            )
+        except ProviderRegistryError as exc:
+            raise OAuthLifecycleError(str(exc)) from exc
         expires_at = _resolve_expires_at(token_response, now)
         payload = OAuthCredentialPayload(
             access_token=token_response.access_token,
@@ -877,7 +911,59 @@ def _is_expired(
     return _as_aware(expires_at) <= now + timedelta(seconds=refresh_skew_seconds)
 
 
+def _resolve_effective_oauth_scopes(
+    provider_registry: ProviderRegistry,
+    provider_key: str,
+    token_scopes: list[str] | tuple[str, ...] | None,
+    *,
+    fallback_scopes: list[str] | tuple[str, ...] | None,
+) -> list[str]:
+    provider = provider_registry.require(provider_key)
+    if provider.oauth is None:
+        raise OAuthLifecycleError("connector provider does not support OAuth")
+
+    token_effective_scopes = [
+        scope
+        for scope in _normalize_scopes(token_scopes or [])
+        if scope not in _TOKEN_RESPONSE_IGNORED_SCOPES
+    ]
+    fallback_effective_scopes = [
+        scope
+        for scope in _normalize_scopes(fallback_scopes or [])
+        if scope not in _TOKEN_RESPONSE_IGNORED_SCOPES
+    ]
+    effective_scopes = token_effective_scopes
+    missing_required = set(provider.oauth.required_scopes).difference(effective_scopes)
+    if missing_required and not set(provider.oauth.required_scopes).difference(
+        fallback_effective_scopes
+    ):
+        effective_scopes = fallback_effective_scopes
+        missing_required = set(provider.oauth.required_scopes).difference(effective_scopes)
+    if missing_required:
+        missing_text = ", ".join(sorted(missing_required))
+        raise ProviderRegistryError(
+            f"requested OAuth scopes are missing required scopes: {missing_text}"
+        )
+
+    unsupported = set(effective_scopes).difference(provider.oauth.allowed_scopes)
+    if unsupported:
+        unsupported_text = ", ".join(sorted(unsupported))
+        raise ProviderRegistryError(
+            f"requested OAuth scopes are not allowed for {provider.key}: {unsupported_text}"
+        )
+    return effective_scopes
+
+
 def _as_aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _normalize_scopes(scopes: list[str] | tuple[str, ...]) -> list[str]:
+    normalized: list[str] = []
+    for raw_scope in scopes:
+        scope = raw_scope.strip()
+        if scope and scope not in normalized:
+            normalized.append(scope)
+    return normalized

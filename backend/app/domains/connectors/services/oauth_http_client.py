@@ -37,6 +37,7 @@ class HttpOAuthTokenClient:
         redirect_uri: str,
         scopes: list[str],
     ) -> OAuthTokenResponse:
+        del scopes
         client_config = self._require_client(provider_key)
         provider = self.provider_registry.require(provider_key)
         if provider.oauth is None:
@@ -109,8 +110,15 @@ class HttpOAuthTokenClient:
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
                 status_code = exc.response.status_code if exc.response is not None else None
+                provider_error = (
+                    _extract_provider_error_code(exc.response) if exc.response else None
+                )
                 if status_code is None:
                     raise OAuthLifecycleError("OAuth token endpoint rejected the request") from exc
+                if provider_error is not None:
+                    raise OAuthLifecycleError(
+                        f"OAuth token endpoint rejected the request (HTTP {status_code}: {provider_error})"
+                    ) from exc
                 raise OAuthLifecycleError(
                     f"OAuth token endpoint rejected the request (HTTP {status_code})"
                 ) from exc
@@ -120,3 +128,19 @@ class HttpOAuthTokenClient:
         if not isinstance(data, dict):
             raise OAuthLifecycleError("OAuth token endpoint returned an invalid payload")
         return OAuthTokenResponse.model_validate(data)
+
+
+def _extract_provider_error_code(response: httpx.Response | None) -> str | None:
+    if response is None:
+        return None
+    try:
+        data = response.json()
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    error = data.get("error")
+    if not isinstance(error, str):
+        return None
+    cleaned = error.strip()
+    return cleaned or None

@@ -373,6 +373,107 @@ async def test_invalid_oauth_callback_state_does_not_exchange_code(
     assert token_client.exchange_calls == []
 
 
+@pytest.mark.asyncio
+async def test_oauth_callback_uses_requested_scopes_when_token_response_is_incomplete(
+    db_session: AsyncSession,
+) -> None:
+    context = await _seed_connector_context(db_session)
+    token_client = _FakeOAuthTokenClient()
+    token_client.exchange_response = OAuthTokenResponse(
+        access_token="access-token-secret",
+        refresh_token="refresh-token-secret",
+        token_type="Bearer",
+        expires_in=60,
+        scopes=["Files.Read.All"],
+        provider_account_id="confluence-site-1",
+    )
+    repository = ConnectorRepository()
+    provider_registry = build_default_provider_registry()
+    service = ConnectorOAuthLifecycleService(
+        repository=repository,
+        platform_service=ConnectorPlatformService(
+            repository=repository,
+            provider_registry=provider_registry,
+        ),
+        provider_registry=provider_registry,
+        vault=ConnectorCredentialVault(
+            repository=repository,
+            cipher=CredentialCipher(secret="connector-test-secret", key_id="test-key"),
+        ),
+        token_client=token_client,
+        oauth_client_settings=[
+            ConnectorOAuthClientSettings(
+                provider_key="microsoft-sharepoint-onedrive",
+                client_id="microsoft-client-id",
+                client_secret="microsoft-client-secret",
+                redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
+            )
+        ],
+        state_ttl_seconds=600,
+        refresh_skew_seconds=60,
+    )
+
+    connect = await service.begin_connect(
+        db_session,
+        organization_id=context.organization_id,
+        provider_key="microsoft-sharepoint-onedrive",
+        redirect_uri="https://app.example.test/oauth/callback",
+        user_id=context.user_id,
+        display_name="SharePoint Production",
+    )
+
+    connection = await service.complete_callback(
+        db_session,
+        organization_id=context.organization_id,
+        state=connect.state,
+        code="oauth-code",
+        user_id=context.user_id,
+    )
+
+    assert token_client.exchange_calls == ["oauth-code"]
+    credential = await _current_credential(db_session, connection.id)
+    assert credential is not None
+    assert credential.scopes_json == [
+        "Files.Read.All",
+        "Sites.Read.All",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_oauth_refresh_uses_requested_scopes_when_token_response_is_incomplete(
+    db_session: AsyncSession,
+) -> None:
+    context = await _seed_connector_context(db_session)
+    token_client = _FakeOAuthTokenClient()
+    service = _service(token_client)
+    now = datetime(2026, 6, 5, 12, 0, tzinfo=UTC)
+
+    connection = await _connected_confluence(
+        db_session,
+        service=service,
+        context=context,
+        now=now,
+    )
+    token_client.refresh_response = OAuthTokenResponse(
+        access_token="access-token-refreshed",
+        refresh_token="refresh-token-refreshed",
+        token_type="Bearer",
+        expires_in=3600,
+        scopes=["offline_access"],
+        provider_account_id="confluence-site-1",
+    )
+
+    payload = await service.get_valid_oauth_payload(
+        db_session,
+        organization_id=context.organization_id,
+        connection_id=connection.id,
+        now=now + timedelta(minutes=2),
+    )
+
+    assert payload.access_token == "access-token-refreshed"
+    assert connection.status == ConnectorConnectionStatus.active.value
+
+
 def test_provider_scope_validation_enforces_least_privilege() -> None:
     registry = build_default_provider_registry()
 
@@ -392,6 +493,16 @@ def test_provider_scope_validation_enforces_least_privilege() -> None:
     with pytest.raises(ProviderRegistryError, match="missing required"):
         registry.validate_scopes("confluence", ["offline_access"])
 
+    assert registry.validate_scopes("microsoft-sharepoint-onedrive", None) == [
+        "offline_access",
+        "Files.Read.All",
+        "Sites.Read.All",
+    ]
+    assert registry.validate_scopes(
+        "microsoft-sharepoint-onedrive",
+        ["Files.Read.All", "Sites.Read.All"],
+    ) == ["Files.Read.All", "Sites.Read.All"]
+
 
 @pytest.mark.asyncio
 async def test_oauth_token_exchange_401_is_wrapped_as_safe_error(
@@ -410,10 +521,76 @@ async def test_oauth_token_exchange_401_is_wrapped_as_safe_error(
             )
 
     class _FakeAsyncClient:
+        last_payload: dict[str, object] | None = None
+
         def __init__(self, *args: object, **kwargs: object) -> None:
             del args, kwargs
 
-        async def __aenter__(self) -> "_FakeAsyncClient":
+        async def __aenter__(self) -> _FakeAsyncClient:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            del args
+
+        async def post(self, url: str, data: dict[str, object]) -> _FakeResponse:
+            _FakeAsyncClient.last_payload = {"url": url, **data}
+            return _FakeResponse(url)
+
+    monkeypatch.setattr(
+        "app.domains.connectors.services.oauth_http_client.httpx.AsyncClient",
+        _FakeAsyncClient,
+    )
+
+    client = HttpOAuthTokenClient(
+        client_settings=[
+            ConnectorOAuthClientSettings(
+                provider_key="microsoft-sharepoint-onedrive",
+                client_id="client-id",
+                client_secret="client-secret",
+            )
+        ]
+    )
+
+    with pytest.raises(
+        OAuthLifecycleError,
+        match="OAuth token endpoint rejected the request \\(HTTP 401\\)",
+    ):
+        await client.exchange_code(
+            provider_key="microsoft-sharepoint-onedrive",
+            code="oauth-code",
+            redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
+            scopes=["Files.Read.All", "Sites.Read.All", "offline_access"],
+        )
+
+    assert _FakeAsyncClient.last_payload is not None
+    assert "scope" not in _FakeAsyncClient.last_payload
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_exchange_400_includes_provider_error_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakeResponse:
+        def __init__(self, url: str) -> None:
+            self.status_code = 400
+            self.request = httpx.Request("POST", url)
+
+        def raise_for_status(self) -> None:
+            raise httpx.HTTPStatusError(
+                "400 Bad Request",
+                request=self.request,
+                response=httpx.Response(
+                    400,
+                    json={"error": "invalid_grant", "error_description": "bad code"},
+                    request=self.request,
+                ),
+            )
+
+    class _FakeAsyncClient:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        async def __aenter__(self) -> _FakeAsyncClient:
             return self
 
         async def __aexit__(self, *args: object) -> None:
@@ -440,7 +617,7 @@ async def test_oauth_token_exchange_401_is_wrapped_as_safe_error(
 
     with pytest.raises(
         OAuthLifecycleError,
-        match="OAuth token endpoint rejected the request \\(HTTP 401\\)",
+        match="OAuth token endpoint rejected the request \\(HTTP 400: invalid_grant\\)",
     ):
         await client.exchange_code(
             provider_key="microsoft-sharepoint-onedrive",
