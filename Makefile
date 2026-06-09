@@ -1,4 +1,5 @@
 .PHONY: up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
+	up-ollama up-vllm up-litellm down-local-llm logs-local-llm pull-local-model \
 	migrate test lint check-backend \
 	frontend-dev frontend-build frontend-lint frontend-typecheck frontend-test frontend-e2e frontend-format check-frontend \
 	api-types api-types-check api-types-update \
@@ -26,6 +27,29 @@ down-v:
 
 down-mcp:
 	$(COMPOSE) --profile mcp stop mcp
+
+## Local model profiles — F222
+# Start one provider at a time; each binds to the internal network only (no host ports).
+# Set LOCAL_LLM_BASE_URL and LLM_DEFAULT_PROVIDER=local in .env before starting the stack.
+# See .env.example for per-provider URL and model name guidance.
+
+up-ollama:
+	$(COMPOSE) --profile ollama up -d --build ollama
+
+up-vllm:
+	$(COMPOSE) --profile vllm up -d --build vllm
+
+up-litellm:
+	$(COMPOSE) --profile litellm up -d --build litellm
+
+down-local-llm:
+	$(COMPOSE) --profile ollama --profile vllm --profile litellm stop ollama vllm litellm 2>/dev/null; true
+
+logs-local-llm:
+	$(COMPOSE) --profile ollama --profile vllm --profile litellm logs -f ollama vllm litellm 2>/dev/null; true
+
+pull-local-model:
+	$(COMPOSE) --profile ollama exec ollama ollama pull $${OLLAMA_MODEL:-llama3.2}
 
 restart:
 	$(COMPOSE) restart

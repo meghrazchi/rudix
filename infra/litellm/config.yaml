@@ -1,0 +1,46 @@
+# LiteLLM gateway configuration — F222
+#
+# This file is mounted read-only into the litellm container at /etc/litellm/config.yaml.
+# Edit it to add or remove model routes, then restart: docker compose --profile litellm restart litellm
+#
+# SECURITY: Do not store real API keys here. Inject them as environment variables referenced
+# below (e.g. os.environ/SOME_VAR), or via the LITELLM_MASTER_KEY env var in docker-compose.yml.
+#
+# Full docs: https://docs.litellm.ai/docs/proxy/configs
+
+general_settings:
+  # Master key is injected via LITELLM_MASTER_KEY env var (set in .env, not here).
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+model_list:
+  # ── Ollama routes (requires make up-ollama) ───────────────────────────────
+  # The hostname "ollama" resolves over the internal Docker network.
+  - model_name: llama3.2
+    litellm_params:
+      model: ollama/llama3.2
+      api_base: http://ollama:11434
+
+  - model_name: llama3.2:1b
+    litellm_params:
+      model: ollama/llama3.2:1b
+      api_base: http://ollama:11434
+
+  # ── vLLM routes (requires make up-vllm) ──────────────────────────────────
+  # The hostname "vllm" resolves over the internal Docker network.
+  - model_name: mistral-7b
+    litellm_params:
+      model: openai/mistralai/Mistral-7B-v0.1
+      api_base: http://vllm:8000/v1
+      api_key: not-required
+
+  # ── Add your own routes below ─────────────────────────────────────────────
+  # Example — proxied OpenAI (inject key as env var, never hard-code it):
+  # - model_name: gpt-4o-mini
+  #   litellm_params:
+  #     model: openai/gpt-4o-mini
+  #     api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  # Redact sensitive fields from logs; model responses may still contain user data.
+  redact_user_api_key_info: true
+  drop_params: true

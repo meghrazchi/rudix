@@ -228,8 +228,92 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Local model profiles ──────────────────────────────────────────────────
+  # Start with:  make up-ollama | make up-vllm | make up-litellm
+  # These services are bound to the internal Docker network only (no host
+  # ports). API/worker reach them via service-name DNS (e.g. http://ollama:11434).
+  # Set LOCAL_LLM_BASE_URL, LOCAL_LLM_MODEL, LLM_DEFAULT_PROVIDER=local in .env.
+  # WARNING: local model logs may contain prompt text — treat as sensitive.
+
+  ollama:
+    profiles: ["ollama"]
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    # No host-port binding — internal network only.
+    # To expose for host tools: add  ports: ["11434:11434"]  in a local override.
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT:-8g}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    restart: unless-stopped
+
+  vllm:
+    profiles: ["vllm"]
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
+    command: >
+      --model ${VLLM_MODEL:-mistralai/Mistral-7B-v0.1}
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len ${VLLM_MAX_MODEL_LEN:-4096}
+    # No host-port binding — internal network only.
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${VLLM_HF_TOKEN:-}
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        limits:
+          memory: ${VLLM_MEMORY_LIMIT:-16g}
+        # Uncomment and adjust to enable NVIDIA GPU pass-through:
+        # reservations:
+        #   devices:
+        #     - driver: nvidia
+        #       count: ${VLLM_GPU_COUNT:-1}
+        #       capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  litellm:
+    profiles: ["litellm"]
+    image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm:main-latest}
+    command: ["--config", "/etc/litellm/config.yaml", "--host", "0.0.0.0", "--port", "4000"]
+    # No host-port binding — internal network only.
+    # WARNING: never commit LITELLM_MASTER_KEY or upstream API keys to version control.
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-local-dev-change-me}
+      LITELLM_LOG: ${LITELLM_LOG_LEVEL:-WARNING}
+    volumes:
+      - ./infra/litellm/config.yaml:/etc/litellm/config.yaml:ro
+    deploy:
+      resources:
+        limits:
+          memory: ${LITELLM_MEMORY_LIMIT:-2g}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4000/health/liveliness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   qdrant_data:
   minio_data:
   clamav_data:
+  ollama_data:
+  vllm_cache:
