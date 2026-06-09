@@ -338,6 +338,14 @@ class Settings(BaseSettings):
     openai_llm_input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
     openai_llm_output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
 
+    # Local LLM (OpenAI-compatible) provider settings — F218
+    local_llm_base_url: AnyHttpUrl | None = None
+    local_llm_api_key: SecretStr | None = None
+    local_llm_model: str = Field(default="", min_length=0, max_length=128)
+    local_llm_provider_kind: str = Field(default="generic", min_length=1, max_length=64)
+    local_llm_timeout_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
+    local_llm_json_mode_enabled: bool = True
+
     auth_provider: AuthProvider = AuthProvider.app
     app_auth_secret: SecretStr = SecretStr("dev-insecure-change-me")
     app_auth_access_token_ttl_seconds: int = Field(default=3600, ge=60, le=604800)

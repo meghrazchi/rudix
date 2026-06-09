@@ -16,6 +16,7 @@ from app.domains.ai.providers.errors import (
     UnsupportedCapabilityError,
 )
 from app.domains.ai.providers.factory import UnknownProviderError, default_provider_factory
+from app.domains.ai.providers.local.adapter import OpenAICompatibleChatProvider
 from app.domains.ai.providers.protocols import (
     ChatCompletionProvider,
     ChatCompletionRequest,
@@ -127,6 +128,7 @@ __all__ = [
     "EmbeddingResponse",
     "InvalidProviderResponseError",
     "ModelCapability",
+    "OpenAICompatibleChatProvider",
     "ProviderError",
     "ProviderInternalError",
     "ProviderPolicyBlockedError",

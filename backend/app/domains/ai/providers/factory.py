@@ -34,6 +34,8 @@ class ProviderFactory:
     def _build_chat_provider(self, key: str) -> ChatCompletionProvider:
         if key == "openai":
             return self._build_openai_chat_provider()
+        if key == "local":
+            return self._build_local_chat_provider()
         raise UnknownProviderError(f"No chat provider registered for key '{key}'")
 
     def _build_embedding_provider(self, key: str) -> EmbeddingProvider:
@@ -81,6 +83,33 @@ class ProviderFactory:
         )
         return OpenAIEmbeddingProvider(
             client=client, model_name=settings.openai_embedding_model
+        )
+
+    def _build_local_chat_provider(self) -> ChatCompletionProvider:
+        from openai import AsyncOpenAI
+
+        from app.core.config import settings
+        from app.domains.ai.providers.local.adapter import OpenAICompatibleChatProvider
+
+        if settings.local_llm_base_url is None:
+            raise ProviderUnavailableError(
+                "Local LLM base URL is not configured (LOCAL_LLM_BASE_URL)"
+            )
+        api_key = (
+            settings.local_llm_api_key.get_secret_value()
+            if settings.local_llm_api_key is not None
+            else "not-required"
+        )
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=str(settings.local_llm_base_url),
+            timeout=settings.local_llm_timeout_seconds,
+            max_retries=0,
+        )
+        return OpenAICompatibleChatProvider(
+            client=client,
+            model_name=settings.local_llm_model,
+            json_mode_enabled=settings.local_llm_json_mode_enabled,
         )
 
 
