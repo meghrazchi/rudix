@@ -151,6 +151,71 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
+    if (path === "/admin/model-providers" && request.method() === "GET") {
+      await fulfillJson(route, {
+        providers: [
+          {
+            provider_key: "chat",
+            provider_type: "openai",
+            model_name: "gpt-4o",
+            is_configured: true,
+            task_assignments: [
+              "chat",
+              "summarization",
+              "comparison",
+              "evaluations",
+              "agentic",
+            ],
+            capability: {
+              context_window: 128000,
+              supports_json_mode: true,
+              supports_tool_calling: true,
+              supports_streaming: true,
+              is_embedding_model: false,
+              embedding_dimension: null,
+              cost_behavior: "per_token",
+            },
+            reindex_required: false,
+          },
+          {
+            provider_key: "embeddings",
+            provider_type: "openai",
+            model_name: "text-embedding-3-small",
+            is_configured: true,
+            task_assignments: ["embeddings"],
+            capability: {
+              context_window: 8191,
+              supports_json_mode: false,
+              supports_tool_calling: false,
+              supports_streaming: false,
+              is_embedding_model: true,
+              embedding_dimension: 1536,
+              cost_behavior: "per_token",
+            },
+            reindex_required: false,
+          },
+        ],
+      });
+      return;
+    }
+
+    if (
+      path === "/admin/model-providers/test" &&
+      request.method() === "POST"
+    ) {
+      const body = await request.postDataJSON();
+      await fulfillJson(route, {
+        provider_key: body.provider_key,
+        provider_type: "openai",
+        model_name: body.provider_key === "chat" ? "gpt-4o" : "text-embedding-3-small",
+        status: "ok",
+        latency_ms: 87,
+        error_code: null,
+        error_message: null,
+      });
+      return;
+    }
+
     await fulfillJson(
       route,
       { detail: `No settings e2e mock for ${request.method()} ${path}` },
@@ -520,5 +585,82 @@ test.describe("Settings E2E smoke", () => {
     await expect(
       page.getByRole("heading", { name: "Account Identity" }),
     ).toBeVisible();
+  });
+});
+
+// ── Model provider diagnostics smoke ─────────────────────────────────────────
+
+test.describe("Model provider diagnostics E2E smoke", () => {
+  test("admin can navigate to /admin/model-diagnostics and see provider cards", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/admin/model-diagnostics");
+    await waitForSessionBootstrap(page);
+
+    await expect(
+      page.getByRole("heading", { name: "Model provider diagnostics" }),
+    ).toBeVisible();
+    await expect(page.getByText("gpt-4o")).toBeVisible();
+    await expect(page.getByText("text-embedding-3-small")).toBeVisible();
+  });
+
+  test("admin sees both provider cards with Configured badges", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/admin/model-diagnostics");
+    await waitForSessionBootstrap(page);
+
+    const configuredBadges = page.getByText("Configured");
+    await expect(configuredBadges.first()).toBeVisible();
+  });
+
+  test("admin sees Test connection buttons and can click one", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page);
+
+    await page.goto("/admin/model-diagnostics");
+    await waitForSessionBootstrap(page);
+
+    const testButtons = page.getByRole("button", { name: "Test connection" });
+    await expect(testButtons.first()).toBeVisible();
+
+    await testButtons.first().click();
+
+    await expect(page.getByText("Connected")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("87 ms")).toBeVisible();
+  });
+
+  test("non-admin member sees provider cards but no Test connection button", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await seedAuthenticatedSession(page, memberSession);
+
+    await page.goto("/admin/model-diagnostics");
+    await waitForSessionBootstrap(page);
+
+    await expect(
+      page.getByRole("heading", { name: "Model provider diagnostics" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Test connection" }),
+    ).not.toBeVisible();
+  });
+
+  test("unauthenticated user is redirected to login from /admin/model-diagnostics", async ({
+    page,
+  }) => {
+    await installApiMocks(page);
+    await page.goto("/admin/model-diagnostics");
+    await waitForSessionBootstrap(page);
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
   });
 });
