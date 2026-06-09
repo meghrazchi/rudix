@@ -48,6 +48,8 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.ai.profile.schemas import TaskType
+from app.domains.ai.profile.service import resolve_task_profile
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
     LLMService,
@@ -705,12 +707,24 @@ async def query_chat(
     llm_prompt_tokens = 0
     llm_completion_tokens = 0
     llm_model: str | None = None
+    llm_provider: str | None = None
+    llm_fallback_used = False
+    llm_fallback_from: str | None = None
+    llm_fallback_to: str | None = None
+    llm_fallback_reason: str | None = None
     llm_cost_usd = None
     llm_latency_ms = 0
     answer = _NOT_FOUND_ANSWER
     citations: list[ChatCitationResponse] = []
     not_found = injection_check.blocked
     citation_validation_failed = False
+
+    # Resolve the effective model profile for this organisation (F223).
+    chat_profile = await resolve_task_profile(
+        db_session,
+        organization_id=organization_id,
+        task_type=TaskType.chat,
+    )
 
     # Language detection and answer language resolution (F231).
     detected_language: str | None = None
@@ -754,6 +768,7 @@ async def query_chat(
         try:
             llm_result = await _llm_service.generate_answer(
                 prompt=prompt,
+                resolved_profile=chat_profile,
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             log_query_event(
@@ -771,6 +786,11 @@ async def query_chat(
             ) from exc
         llm_latency_ms = llm_result.latency_ms
         llm_model = llm_result.model_name
+        llm_provider = llm_result.provider_key
+        llm_fallback_used = llm_result.fallback_used
+        llm_fallback_from = llm_result.fallback_from
+        llm_fallback_to = llm_result.fallback_to
+        llm_fallback_reason = llm_result.fallback_reason
         llm_prompt_tokens = llm_result.prompt_tokens
         llm_completion_tokens = llm_result.completion_tokens
         llm_cost_usd = llm_result.approximate_cost_usd
@@ -901,6 +921,7 @@ async def query_chat(
             try:
                 llm_result = await _llm_service.generate_answer(
                     prompt=prompt,
+                    resolved_profile=chat_profile,
                 )
             except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
                 log_query_event(
@@ -919,6 +940,11 @@ async def query_chat(
 
             llm_latency_ms = llm_result.latency_ms
             llm_model = llm_result.model_name
+            llm_provider = llm_result.provider_key
+            llm_fallback_used = llm_result.fallback_used
+            llm_fallback_from = llm_result.fallback_from
+            llm_fallback_to = llm_result.fallback_to
+            llm_fallback_reason = llm_result.fallback_reason
             llm_prompt_tokens = llm_result.prompt_tokens
             llm_completion_tokens = llm_result.completion_tokens
             llm_cost_usd = llm_result.approximate_cost_usd
@@ -1069,6 +1095,11 @@ async def query_chat(
                 "rerank_applied": payload.rerank,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
+                "llm_provider": llm_provider,
+                "fallback_used": llm_fallback_used,
+                "fallback_from": llm_fallback_from,
+                "fallback_to": llm_fallback_to,
+                "fallback_reason": llm_fallback_reason,
                 "prompt_template": {
                     "key": PromptTemplateKey.answer_generation.value,
                     "version_number": answer_prompt_version.version_number,
@@ -1145,7 +1176,10 @@ async def query_chat(
             confidence_score=confidence_score,
             confidence_category=confidence_category,
             llm_model=llm_model,
+            llm_provider=llm_provider,
             embedding_model=embedding_model,
+            fallback_used=llm_fallback_used,
+            fallback_reason=llm_fallback_reason,
             embedding_prompt_tokens=embedding_prompt_tokens,
             llm_prompt_tokens=llm_prompt_tokens,
             llm_completion_tokens=llm_completion_tokens,
@@ -1213,6 +1247,11 @@ async def query_chat(
             source_scope=source_scope_result.label,
             embedding_model=embedding_model,
             llm_model=llm_model,
+            llm_provider=llm_provider,
+            fallback_used=llm_fallback_used,
+            fallback_from=llm_fallback_from,
+            fallback_to=llm_fallback_to,
+            fallback_reason=llm_fallback_reason,
             detected_language=detected_language,
             answer_language_used=answer_language_used,
             prompt_template_key=PromptTemplateKey.answer_generation.value

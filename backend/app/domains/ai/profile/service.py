@@ -223,6 +223,7 @@ def _profile_to_resolved(profile: OrgModelProfile) -> ResolvedTaskProfile:
         task_type=TaskType(profile.task_type),
         provider_type=profile.provider_type,
         base_model=profile.base_model,
+        context_window=profile.context_window,
         max_tokens=profile.max_tokens,
         temperature=temp,
         json_mode=profile.json_mode,
@@ -231,6 +232,22 @@ def _profile_to_resolved(profile: OrgModelProfile) -> ResolvedTaskProfile:
         source=ProfileSource.org_profile,
         version=profile.version,
     )
+
+
+async def resolve_task_profile(
+    db: AsyncSession,
+    *,
+    organization_id: UUID,
+    task_type: TaskType,
+) -> ResolvedTaskProfile:
+    """Return the effective profile for a single task type.
+
+    Falls back to env default when no org-level override is configured.
+    """
+    profile = await get_profile(db, organization_id=organization_id, task_type=task_type)
+    if profile is not None:
+        return _profile_to_resolved(profile)
+    return _env_default_for_task(task_type)
 
 
 async def resolve_effective_policy(

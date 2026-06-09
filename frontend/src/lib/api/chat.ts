@@ -45,6 +45,11 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
 };
 export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   source_scope?: string | null;
+  llm_provider?: string | null;
+  fallback_used?: boolean;
+  fallback_from?: string | null;
+  fallback_to?: string | null;
+  fallback_reason?: string | null;
 };
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];

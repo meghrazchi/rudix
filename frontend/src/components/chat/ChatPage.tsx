@@ -2809,6 +2809,20 @@ export function ChatPage() {
                   </div>
                 ) : null}
 
+                {/* Fallback warning — visible to all users */}
+                {selectedCitationTurn?.response.debug?.fallback_used ? (
+                  <div className="mt-3 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <span className="mt-0.5 shrink-0">⚠</span>
+                    <span>
+                      Answer generated via fallback provider
+                      {selectedCitationTurn.response.debug.fallback_to
+                        ? ` (${selectedCitationTurn.response.debug.fallback_to})`
+                        : ""}
+                      . Your local model was temporarily unavailable.
+                    </span>
+                  </div>
+                ) : null}
+
                 {/* Debug details for admins */}
                 {showDebugDetails && selectedCitationTurn?.response.debug ? (
                   <details className="mt-4">
@@ -2824,13 +2838,21 @@ export function ChatPage() {
                             "rerank_applied",
                             "embedding_model",
                             "llm_model",
+                            "llm_provider",
+                            "fallback_used",
+                            "fallback_from",
+                            "fallback_to",
                             "detected_language",
                             "answer_language_used",
                           ] as const
                         ).map((key) => (
                           <div
                             key={key}
-                            className={key === "llm_model" ? "col-span-2" : ""}
+                            className={
+                              key === "llm_model" || key === "llm_provider"
+                                ? "col-span-2"
+                                : ""
+                            }
                           >
                             <dt className="font-semibold">{key}</dt>
                             <dd>

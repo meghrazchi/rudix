@@ -140,6 +140,7 @@ class ResolvedTaskProfile(BaseModel):
     task_type: TaskType
     provider_type: str
     base_model: str
+    context_window: int | None = None
     max_tokens: int | None = None
     temperature: float | None = None
     json_mode: bool

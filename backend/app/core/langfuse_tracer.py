@@ -163,9 +163,12 @@ class ChatTraceMetadata:
     citation_validation_failed: bool = False
     confidence_score: float | None = None
     confidence_category: str | None = None
-    # Models
+    # Models and provider routing
     llm_model: str | None = None
+    llm_provider: str | None = None
     embedding_model: str | None = None
+    fallback_used: bool = False
+    fallback_reason: str | None = None
     # Tokens / cost
     embedding_prompt_tokens: int = 0
     llm_prompt_tokens: int = 0
@@ -239,6 +242,10 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
     ]
     if metadata.llm_model:
         tags.append(f"model:{metadata.llm_model}")
+    if metadata.llm_provider:
+        tags.append(f"provider:{metadata.llm_provider}")
+    if metadata.fallback_used:
+        tags.append("fallback_used")
     if metadata.not_found:
         tags.append("not_found")
     if metadata.citation_validation_failed:
@@ -262,6 +269,9 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         "confidence_score": metadata.confidence_score,
         "confidence_category": metadata.confidence_category,
         "embedding_model": metadata.embedding_model,
+        "llm_provider": metadata.llm_provider,
+        "fallback_used": metadata.fallback_used,
+        "fallback_reason": metadata.fallback_reason,
         "detected_language": metadata.detected_language,
         "answer_language_used": metadata.answer_language_used,
         "prompt_template_key": metadata.prompt_template_key,
@@ -327,7 +337,9 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         gen_meta: dict[str, object] = {
             "latency_ms": metadata.latencies_ms.get("llm"),
             "not_found": metadata.not_found,
-            "fallback_used": metadata.scope_mode == "none",
+            "provider": metadata.llm_provider,
+            "fallback_used": metadata.fallback_used,
+            "fallback_reason": metadata.fallback_reason,
         }
         if metadata.estimated_cost_usd is not None:
             gen_meta["estimated_cost_usd"] = str(metadata.estimated_cost_usd)

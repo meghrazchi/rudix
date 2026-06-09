@@ -205,6 +205,11 @@ class ChatDebugResponse(BaseModel):
     source_scope: str | None = None
     embedding_model: str | None = None
     llm_model: str | None = None
+    llm_provider: str | None = None
+    fallback_used: bool = False
+    fallback_from: str | None = None
+    fallback_to: str | None = None
+    fallback_reason: str | None = None
     detected_language: str | None = None
     answer_language_used: str | None = None
     prompt_template_key: str | None = None
