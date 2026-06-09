@@ -178,6 +178,12 @@ export const queryKeys = {
     changeLog: (params?: Record<string, unknown>) =>
       ["model-provider-settings", "change-log", params ?? {}] as const,
   },
+  modelProfiles: {
+    all: ["model-profiles"] as const,
+    list: ["model-profiles", "list"] as const,
+    effective: ["model-profiles", "effective"] as const,
+    detail: (taskType: string) => ["model-profiles", "detail", taskType] as const,
+  },
   quotas: {
     all: ["quotas"] as const,
     policy: ["quotas", "policy"] as const,

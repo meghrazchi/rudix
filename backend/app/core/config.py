@@ -478,6 +478,12 @@ class Settings(BaseSettings):
     feature_enable_embeddings: bool = True
     feature_enable_llm: bool = True
     feature_enable_evaluations: bool = True
+    # F220: Model profiles and provider policy
+    feature_enable_local_llm_profiles: bool = False
+    feature_enable_local_embedding_profiles: bool = False
+    feature_enable_provider_fallback: bool = False
+    feature_allow_request_model_override: bool = False
+    feature_enable_experimental_profiles: bool = False
     feature_enable_pipeline_explorer: bool = True
     feature_enable_agents: bool | None = None
     feature_enable_chunking_profiles: bool = False
