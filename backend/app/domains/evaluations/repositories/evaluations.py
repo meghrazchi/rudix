@@ -811,6 +811,30 @@ class EvaluationRepository:
         result = await session.execute(query)
         return int(result.scalar_one())
 
+    async def list_runs_by_provider_profile_for_org(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        evaluation_set_id: UUID | None = None,
+        limit: int = 200,
+    ) -> list[EvaluationRun]:
+        """Return completed runs grouped usable for profile-comparison reports."""
+        query = (
+            select(EvaluationRun)
+            .join(EvaluationSet, EvaluationSet.id == EvaluationRun.evaluation_set_id)
+            .where(
+                EvaluationSet.organization_id == organization_id,
+                EvaluationRun.status == "completed",
+                EvaluationRun.provider_profile.isnot(None),
+            )
+        )
+        if evaluation_set_id is not None:
+            query = query.where(EvaluationRun.evaluation_set_id == evaluation_set_id)
+        query = query.order_by(EvaluationRun.completed_at.desc()).limit(limit)
+        result = await session.execute(query)
+        return list(result.scalars().all())
+
     async def list_all_evaluation_results_for_run(
         self,
         session: AsyncSession,

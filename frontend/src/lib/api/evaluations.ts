@@ -346,6 +346,14 @@ export async function getEvaluationRun(
   );
 }
 
+export type LocalModelMetrics = {
+  invalid_json_rate: number | null;
+  timeout_rate: number | null;
+  fallback_frequency: number | null;
+  estimated_compute_latency_ms: number | null;
+  tokens_per_second: number | null;
+};
+
 export type EvaluationRunSummaryResponse = {
   evaluation_run_id: string;
   evaluation_set_id: string;
@@ -356,6 +364,9 @@ export type EvaluationRunSummaryResponse = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  model_profile_key: string | null;
+  provider_type: string | null;
+  provider_profile: string | null;
 };
 
 export type EvaluationRunListResponse = {
@@ -450,4 +461,90 @@ export function buildComparisonExportUrl(
     format,
   });
   return `/api/v1/evaluations/compare/export?${params.toString()}`;
+}
+
+// ---------------------------------------------------------------------------
+// F226 — Benchmark suites and model-profile comparison
+// ---------------------------------------------------------------------------
+
+export type BenchmarkSuite = {
+  suite_id: string;
+  name: string;
+  description: string;
+  quality_dimension: string;
+  case_count: number;
+};
+
+export type BenchmarkSuiteListResponse = {
+  items: BenchmarkSuite[];
+  total: number;
+};
+
+export type TriggerBenchmarkRunRequest = {
+  suite_id: string;
+  provider_profile: "cloud_baseline" | "local_profile" | "fallback_profile";
+  evaluation_set_id?: string | null;
+  top_k?: number;
+  rerank?: boolean;
+};
+
+export type TriggerBenchmarkRunResponse = {
+  evaluation_run_id: string;
+  suite_id: string;
+  provider_profile: string;
+  status: "queued";
+};
+
+export type ProviderProfileSummary = {
+  provider_profile: string;
+  provider_type: string | null;
+  run_count: number;
+  latest_run_id: string | null;
+  retrieval_hit_rate: number | null;
+  citation_accuracy_score: number | null;
+  faithfulness_score: number | null;
+  answer_relevance_score: number | null;
+  not_found_rate: number | null;
+  latency_ms_average: number | null;
+  cost_usd_total: number | null;
+  local_model_metrics: LocalModelMetrics | null;
+};
+
+export type ReleaseGateRecommendation = {
+  provider_profile: string;
+  is_ready: boolean;
+  failing_checks: string[];
+  passing_checks: string[];
+  recommendation: string;
+};
+
+export type ModelProfileComparisonReport = {
+  organization_id: string;
+  evaluation_set_id: string | null;
+  profiles: ProviderProfileSummary[];
+  release_gate_recommendations: ReleaseGateRecommendation[];
+  default_thresholds: Record<string, number>;
+  generated_at: string;
+};
+
+export async function listBenchmarkSuites(): Promise<BenchmarkSuiteListResponse> {
+  return apiRequest<BenchmarkSuiteListResponse>("/evaluations/benchmark-suites");
+}
+
+export async function triggerBenchmarkRun(
+  suiteId: string,
+  payload: TriggerBenchmarkRunRequest,
+): Promise<TriggerBenchmarkRunResponse> {
+  return apiRequest<TriggerBenchmarkRunResponse>(
+    `/evaluations/benchmark-suites/${encodeURIComponent(suiteId)}/run`,
+    { method: "POST", json: payload },
+  );
+}
+
+export async function getModelProfileComparisonReport(
+  evaluationSetId?: string | null,
+): Promise<ModelProfileComparisonReport> {
+  return apiRequest<ModelProfileComparisonReport>("/evaluations/model-profile-report", {
+    query: evaluationSetId ? { evaluation_set_id: evaluationSetId } : undefined,
+  });
 }

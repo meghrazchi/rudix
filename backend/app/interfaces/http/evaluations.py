@@ -1,5 +1,6 @@
 import csv
 import io
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -12,18 +13,30 @@ from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_evaluation_event
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.evaluations.benchmark_suites import (
+    get_benchmark_suite,
+    list_benchmark_suites,
+)
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import (
+    BenchmarkSuiteListResponse,
+    BenchmarkSuiteResponse,
     CaseComparisonRow,
     EvaluationRunDetailResponse,
     EvaluationRunListResponse,
     EvaluationRunResultListResponse,
     EvaluationRunResultResponse,
     EvaluationRunSummaryResponse,
+    LocalModelMetrics,
     MetricDelta,
+    ModelProfileComparisonReport,
+    ProviderProfileSummary,
     RunComparisonResponse,
     RunEvaluationRequest,
     RunEvaluationResponse,
+    TriggerBenchmarkRunRequest,
+    TriggerBenchmarkRunResponse,
+    _build_release_gate_recommendation,
 )
 from app.models.enums import EvaluationRunStatus, OrganizationRole
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun
@@ -239,6 +252,9 @@ async def get_evaluation_run_detail(
             limit=limit,
             offset=offset,
         ),
+        model_profile_key=evaluation_run.model_profile_key,
+        provider_type=evaluation_run.provider_type,
+        provider_profile=evaluation_run.provider_profile,
     )
 
 
@@ -349,6 +365,9 @@ def _to_run_summary_response(run: EvaluationRun) -> EvaluationRunSummaryResponse
         completed_at=run.completed_at,
         created_at=run.created_at,
         updated_at=run.updated_at,
+        model_profile_key=run.model_profile_key,
+        provider_type=run.provider_type,
+        provider_profile=run.provider_profile,
     )
 
 
@@ -821,4 +840,302 @@ async def export_comparison_report(
         content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=comparison.csv"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# F226 — Benchmark suites and model-profile comparison
+# ---------------------------------------------------------------------------
+
+
+@router.get("/benchmark-suites", response_model=BenchmarkSuiteListResponse)
+async def list_benchmark_suite_catalog(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+) -> BenchmarkSuiteListResponse:
+    suites = list_benchmark_suites()
+    items = [
+        BenchmarkSuiteResponse(
+            suite_id=s.suite_id,
+            name=s.name,
+            description=s.description,
+            quality_dimension=s.quality_dimension,
+            case_count=len(s.cases),
+        )
+        for s in suites
+    ]
+    return BenchmarkSuiteListResponse(items=items, total=len(items))
+
+
+@router.post(
+    "/benchmark-suites/{suite_id}/run",
+    response_model=TriggerBenchmarkRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def trigger_benchmark_run(
+    suite_id: str,
+    payload: TriggerBenchmarkRunRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.evaluation))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> TriggerBenchmarkRunResponse:
+    suite = get_benchmark_suite(suite_id)
+    if suite is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benchmark suite not found")
+
+    organization_id = _organization_id_from_principal(principal)
+    user_id = _user_id_from_principal(principal)
+
+    # Resolve or create the evaluation set for this benchmark suite.
+    set_id_str = payload.evaluation_set_id
+    if set_id_str is not None:
+        try:
+            set_uuid = UUID(set_id_str)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="evaluation_set_id is not a valid UUID",
+            ) from exc
+        eval_set = await evaluation_repository.get_evaluation_set(
+            db_session, evaluation_set_id=set_uuid, organization_id=organization_id
+        )
+        if eval_set is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation set not found"
+            )
+    else:
+        eval_set = await evaluation_repository.create_evaluation_set(
+            db_session,
+            organization_id=organization_id,
+            name=f"[Benchmark] {suite.name}",
+            description=suite.description,
+            owner_id=user_id,
+        )
+        for case in suite.cases:
+            await evaluation_repository.create_evaluation_question(
+                db_session,
+                evaluation_set_id=eval_set.id,
+                question=case.question,
+                expected_answer=case.expected_answer,
+                difficulty=case.difficulty,
+                metadata={"tags": case.tags},
+            )
+        await db_session.flush()
+
+    active = await evaluation_repository.count_active_runs_for_set(
+        db_session, evaluation_set_id=eval_set.id
+    )
+    if active > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active evaluation run already exists for this set. Wait for it to complete.",
+        )
+
+    run_config: dict = {
+        "run_name": f"[{payload.provider_profile}] {suite.name}",
+        "top_k": payload.top_k,
+        "rerank": payload.rerank,
+        "benchmark_suite_id": suite_id,
+        "provider_profile_label": payload.provider_profile,
+    }
+    evaluation_run = await evaluation_repository.create_evaluation_run(
+        db_session,
+        evaluation_set_id=eval_set.id,
+        config=run_config,
+    )
+    evaluation_run.provider_profile = payload.provider_profile
+    await db_session.flush()
+
+    run_evaluation_task.delay(str(evaluation_run.id))
+
+    log_evaluation_event(
+        event="evaluation.benchmark.triggered",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=str(evaluation_run.id),
+        status_code=status.HTTP_202_ACCEPTED,
+        suite_id=suite_id,
+        provider_profile=payload.provider_profile,
+    )
+    return TriggerBenchmarkRunResponse(
+        evaluation_run_id=str(evaluation_run.id),
+        suite_id=suite_id,
+        provider_profile=payload.provider_profile,
+    )
+
+
+def _extract_local_model_metrics(summary: dict[str, object]) -> LocalModelMetrics:
+    def _f(key: str) -> float | None:
+        v = summary.get(key)
+        if v is None or isinstance(v, bool):
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        return None
+
+    return LocalModelMetrics(
+        invalid_json_rate=_f("invalid_json_rate"),
+        timeout_rate=_f("timeout_rate"),
+        fallback_frequency=_f("fallback_frequency"),
+        estimated_compute_latency_ms=_f("estimated_compute_latency_ms"),
+        tokens_per_second=_f("tokens_per_second"),
+    )
+
+
+def _aggregate_provider_profile_summary(
+    runs: list[EvaluationRun],
+    profile_label: str,
+) -> ProviderProfileSummary:
+    profile_runs = [r for r in runs if r.provider_profile == profile_label]
+    if not profile_runs:
+        return ProviderProfileSummary(
+            provider_profile=profile_label,
+            run_count=0,
+        )
+
+    metrics_keys = [
+        "retrieval_hit_rate",
+        "citation_accuracy_score",
+        "faithfulness_score",
+        "answer_relevance_score",
+        "not_found_rate",
+        "latency_ms_average",
+        "cost_usd_total",
+    ]
+
+    accum: dict[str, list[float]] = {k: [] for k in metrics_keys}
+    local_accum: dict[str, list[float]] = {
+        "invalid_json_rate": [],
+        "timeout_rate": [],
+        "fallback_frequency": [],
+        "estimated_compute_latency_ms": [],
+        "tokens_per_second": [],
+    }
+    latest_run_id: str | None = None
+    provider_type: str | None = None
+
+    for run in profile_runs:
+        if latest_run_id is None:
+            latest_run_id = str(run.id)
+            provider_type = run.provider_type
+        raw_config = run.config if isinstance(run.config, dict) else {}
+        summary_value = raw_config.get("metrics_summary")
+        summary = summary_value if isinstance(summary_value, dict) else {}
+
+        for k in metrics_keys:
+            v = summary.get(k)
+            if v is not None and not isinstance(v, bool) and isinstance(v, (int, float)):
+                accum[k].append(float(v))
+
+        for k in local_accum:
+            v = summary.get(k)
+            if v is not None and not isinstance(v, bool) and isinstance(v, (int, float)):
+                local_accum[k].append(float(v))
+
+    def _avg(values: list[float]) -> float | None:
+        return sum(values) / len(values) if values else None
+
+    local_metrics_obj = LocalModelMetrics(
+        invalid_json_rate=_avg(local_accum["invalid_json_rate"]),
+        timeout_rate=_avg(local_accum["timeout_rate"]),
+        fallback_frequency=_avg(local_accum["fallback_frequency"]),
+        estimated_compute_latency_ms=_avg(local_accum["estimated_compute_latency_ms"]),
+        tokens_per_second=_avg(local_accum["tokens_per_second"]),
+    )
+    has_local = any(
+        v is not None
+        for v in [
+            local_metrics_obj.invalid_json_rate,
+            local_metrics_obj.timeout_rate,
+            local_metrics_obj.fallback_frequency,
+        ]
+    )
+
+    return ProviderProfileSummary(
+        provider_profile=profile_label,
+        provider_type=provider_type,
+        run_count=len(profile_runs),
+        latest_run_id=latest_run_id,
+        retrieval_hit_rate=_avg(accum["retrieval_hit_rate"]),
+        citation_accuracy_score=_avg(accum["citation_accuracy_score"]),
+        faithfulness_score=_avg(accum["faithfulness_score"]),
+        answer_relevance_score=_avg(accum["answer_relevance_score"]),
+        not_found_rate=_avg(accum["not_found_rate"]),
+        latency_ms_average=_avg(accum["latency_ms_average"]),
+        cost_usd_total=_avg(accum["cost_usd_total"]),
+        local_model_metrics=local_metrics_obj if has_local else None,
+    )
+
+
+@router.get("/model-profile-report", response_model=ModelProfileComparisonReport)
+async def get_model_profile_comparison_report(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    evaluation_set_id: Annotated[str | None, Query()] = None,
+) -> ModelProfileComparisonReport:
+    organization_id = _organization_id_from_principal(principal)
+
+    set_uuid: UUID | None = None
+    if evaluation_set_id is not None:
+        try:
+            set_uuid = UUID(evaluation_set_id)
+        except ValueError:
+            pass
+
+    runs = await evaluation_repository.list_runs_by_provider_profile_for_org(
+        db_session,
+        organization_id=organization_id,
+        evaluation_set_id=set_uuid,
+    )
+
+    profile_labels = ["cloud_baseline", "local_profile", "fallback_profile"]
+    profiles = [
+        _aggregate_provider_profile_summary(runs, label)
+        for label in profile_labels
+        if any(r.provider_profile == label for r in runs)
+        or label in ("cloud_baseline", "local_profile")
+    ]
+
+    recommendations = [
+        _build_release_gate_recommendation(p)
+        for p in profiles
+        if p.provider_profile != "cloud_baseline" and p.run_count > 0
+    ]
+
+    log_evaluation_event(
+        event="evaluation.model_profile_report.requested",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        status_code=status.HTTP_200_OK,
+        profile_count=len(profiles),
+    )
+    return ModelProfileComparisonReport(
+        organization_id=principal.organization_id or "",
+        evaluation_set_id=evaluation_set_id,
+        profiles=profiles,
+        release_gate_recommendations=recommendations,
+        generated_at=datetime.now(UTC),
     )

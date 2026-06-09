@@ -129,3 +129,10 @@ check-all:
 	$(MAKE) check-backend
 	$(MAKE) check-frontend
 	$(MAKE) api-types-check
+
+## Local model benchmark (F226)
+# Run local model benchmark suites against cloud_baseline and local_profile, then
+# fetch the model-profile comparison report. Requires a running API and the
+# RUDIX_API_BASE_URL / RUDIX_API_TOKEN environment variables to be set.
+benchmark-local-model:
+	python ci/scripts/local_model_benchmark.py

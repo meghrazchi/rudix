@@ -129,6 +129,7 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         Index("idx_eval_runs_set", "evaluation_set_id", "created_at"),
         Index("idx_evaluation_runs_prompt_template_version", "prompt_template_version_id"),
+        Index("idx_evaluation_runs_provider_profile", "provider_profile"),
     )
 
     evaluation_set_id: Mapped[UUID] = mapped_column(
@@ -147,6 +148,9 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    model_profile_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provider_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    provider_profile: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     evaluation_set = relationship("EvaluationSet", back_populates="runs")
     prompt_template_version = relationship(

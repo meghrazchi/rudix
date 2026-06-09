@@ -451,6 +451,9 @@ class EvaluationRunDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     results: EvaluationRunResultListResponse
+    model_profile_key: str | None = None
+    provider_type: str | None = None
+    provider_profile: str | None = None
 
 
 class EvaluationRunSummaryResponse(BaseModel):
@@ -463,6 +466,9 @@ class EvaluationRunSummaryResponse(BaseModel):
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    model_profile_key: str | None = None
+    provider_type: str | None = None
+    provider_profile: str | None = None
 
 
 class EvaluationRunListResponse(BaseModel):
@@ -506,3 +512,206 @@ class RunComparisonResponse(BaseModel):
 
 EvaluationRunConfig.model_rebuild()
 RunEvaluationRequest.model_rebuild()
+
+
+# ---------------------------------------------------------------------------
+# F226 — Local model evaluation, benchmark suites, and model profile comparison
+# ---------------------------------------------------------------------------
+
+
+class LocalModelMetrics(BaseModel):
+    """Local-provider-specific quality indicators stored in config metrics_summary."""
+
+    invalid_json_rate: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Fraction of responses that failed JSON parsing (evaluations task)",
+    )
+    timeout_rate: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Fraction of inference calls that exceeded the configured timeout",
+    )
+    fallback_frequency: float | None = Field(
+        default=None, ge=0.0, le=1.0,
+        description="Fraction of calls that fell back to the fallback provider",
+    )
+    estimated_compute_latency_ms: float | None = Field(
+        default=None, ge=0.0,
+        description="Median end-to-end latency in ms (estimated from result latency_ms values)",
+    )
+    tokens_per_second: float | None = Field(
+        default=None, ge=0.0,
+        description="Estimated token throughput when reported by the local provider",
+    )
+
+
+class BenchmarkSuiteResponse(BaseModel):
+    suite_id: str
+    name: str
+    description: str
+    quality_dimension: str
+    case_count: int
+
+
+class BenchmarkSuiteListResponse(BaseModel):
+    items: list[BenchmarkSuiteResponse]
+    total: int
+
+
+class TriggerBenchmarkRunRequest(BaseModel):
+    suite_id: str = Field(min_length=1, max_length=64)
+    provider_profile: Literal["cloud_baseline", "local_profile", "fallback_profile"] = (
+        "local_profile"
+    )
+    evaluation_set_id: str | None = Field(
+        default=None,
+        description=(
+            "Use an existing evaluation set. If omitted a temporary set is created "
+            "from the suite's seed cases."
+        ),
+    )
+    top_k: int = Field(default=5, ge=1, le=50)
+    rerank: bool = True
+
+    @field_validator("suite_id")
+    @classmethod
+    def validate_suite_id(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("suite_id must not be blank")
+        return trimmed
+
+
+class TriggerBenchmarkRunResponse(BaseModel):
+    evaluation_run_id: str
+    suite_id: str
+    provider_profile: str
+    status: Literal["queued"] = "queued"
+
+
+class ProviderProfileSummary(BaseModel):
+    """Aggregated quality summary for one provider profile label."""
+
+    provider_profile: str
+    provider_type: str | None = None
+    run_count: int
+    latest_run_id: str | None = None
+    retrieval_hit_rate: float | None = None
+    citation_accuracy_score: float | None = None
+    faithfulness_score: float | None = None
+    answer_relevance_score: float | None = None
+    not_found_rate: float | None = None
+    latency_ms_average: float | None = None
+    cost_usd_total: float | None = None
+    local_model_metrics: LocalModelMetrics | None = None
+
+
+class ReleaseGateRecommendation(BaseModel):
+    """Pass/fail recommendation for promoting a local model profile."""
+
+    provider_profile: str
+    is_ready: bool
+    failing_checks: list[str]
+    passing_checks: list[str]
+    recommendation: str
+
+
+_DEFAULT_GATE_THRESHOLDS: dict[str, float] = {
+    "retrieval_hit_rate_min": 0.70,
+    "citation_accuracy_score_min": 0.75,
+    "faithfulness_score_min": 0.70,
+    "answer_relevance_score_min": 0.70,
+    "not_found_rate_max": 0.20,
+    "invalid_json_rate_max": 0.05,
+    "timeout_rate_max": 0.10,
+    "fallback_frequency_max": 0.15,
+}
+
+
+def _build_release_gate_recommendation(
+    summary: "ProviderProfileSummary",
+    thresholds: dict[str, float] | None = None,
+) -> ReleaseGateRecommendation:
+    t = dict(_DEFAULT_GATE_THRESHOLDS)
+    if thresholds:
+        t.update(thresholds)
+
+    local = summary.local_model_metrics or LocalModelMetrics()
+    checks: list[tuple[str, bool]] = [
+        (
+            f"retrieval_hit_rate ≥ {t['retrieval_hit_rate_min']:.0%}",
+            summary.retrieval_hit_rate is not None
+            and summary.retrieval_hit_rate >= t["retrieval_hit_rate_min"],
+        ),
+        (
+            f"citation_accuracy ≥ {t['citation_accuracy_score_min']:.0%}",
+            summary.citation_accuracy_score is not None
+            and summary.citation_accuracy_score >= t["citation_accuracy_score_min"],
+        ),
+        (
+            f"faithfulness ≥ {t['faithfulness_score_min']:.0%}",
+            summary.faithfulness_score is not None
+            and summary.faithfulness_score >= t["faithfulness_score_min"],
+        ),
+        (
+            f"answer_relevance ≥ {t['answer_relevance_score_min']:.0%}",
+            summary.answer_relevance_score is not None
+            and summary.answer_relevance_score >= t["answer_relevance_score_min"],
+        ),
+        (
+            f"not_found_rate ≤ {t['not_found_rate_max']:.0%}",
+            summary.not_found_rate is None
+            or summary.not_found_rate <= t["not_found_rate_max"],
+        ),
+        (
+            f"invalid_json_rate ≤ {t['invalid_json_rate_max']:.0%}",
+            local.invalid_json_rate is None
+            or local.invalid_json_rate <= t["invalid_json_rate_max"],
+        ),
+        (
+            f"timeout_rate ≤ {t['timeout_rate_max']:.0%}",
+            local.timeout_rate is None
+            or local.timeout_rate <= t["timeout_rate_max"],
+        ),
+        (
+            f"fallback_frequency ≤ {t['fallback_frequency_max']:.0%}",
+            local.fallback_frequency is None
+            or local.fallback_frequency <= t["fallback_frequency_max"],
+        ),
+    ]
+
+    passing = [label for label, passed in checks if passed]
+    failing = [label for label, passed in checks if not passed]
+    is_ready = len(failing) == 0
+
+    if is_ready:
+        recommendation = (
+            f"Profile '{summary.provider_profile}' meets all release-gate thresholds "
+            "and is safe to promote to default."
+        )
+    else:
+        recommendation = (
+            f"Profile '{summary.provider_profile}' fails {len(failing)} check(s): "
+            + ", ".join(failing)
+            + ". Resolve these before promoting to default."
+        )
+
+    return ReleaseGateRecommendation(
+        provider_profile=summary.provider_profile,
+        is_ready=is_ready,
+        failing_checks=failing,
+        passing_checks=passing,
+        recommendation=recommendation,
+    )
+
+
+class ModelProfileComparisonReport(BaseModel):
+    """Cloud-baseline vs local-profile vs fallback-profile quality comparison."""
+
+    organization_id: str
+    evaluation_set_id: str | None = None
+    profiles: list[ProviderProfileSummary]
+    release_gate_recommendations: list[ReleaseGateRecommendation]
+    default_thresholds: dict[str, float] = Field(
+        default_factory=lambda: dict(_DEFAULT_GATE_THRESHOLDS)
+    )
+    generated_at: datetime
