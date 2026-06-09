@@ -273,3 +273,28 @@ class PromptTemplateVersionState(StrEnum):
     draft = "draft"
     review = "review"
     published = "published"
+
+
+class EmailProviderType(StrEnum):
+    console = "console"
+    smtp = "smtp"
+    resend = "resend"
+    postmark = "postmark"
+
+
+class EmailEventType(StrEnum):
+    invite_received = "invite_received"
+    upload_failed = "upload_failed"
+    upload_indexed = "upload_indexed"
+    connector_sync_failed = "connector_sync_failed"
+    billing_warning = "billing_warning"
+    quota_warning = "quota_warning"
+    security_alert = "security_alert"
+
+
+class EmailDeliveryStatus(StrEnum):
+    queued = "queued"
+    sent = "sent"
+    failed = "failed"
+    bounced = "bounced"
+    unsubscribed = "unsubscribed"

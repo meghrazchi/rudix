@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Connector sync failed</h1>
+<span class="badge badge-error">Sync Failed</span>
+<p style="margin-top:12px">Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>
+  The <strong>{{ connector_name or "connector" }}</strong> sync job failed
+  {% if failed_at %}on <strong>{{ failed_at }}</strong>{% endif %}.
+</p>
+{% if error_summary %}
+<p><strong>Reason:</strong> {{ error_summary }}</p>
+{% endif %}
+<p>
+  Documents from this connector may be out of date. An admin can retry the sync
+  from the connector management page.
+</p>
+{% if connector_url %}
+<a class="btn" href="{{ connector_url }}">Manage Connector</a>
+{% endif %}
+<p style="font-size:13px; color:#6b778c;">
+  Rudix will automatically retry failed syncs according to the retry policy.
+</p>
+{% endblock %}

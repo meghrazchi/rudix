@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_permission, require_roles
+from app.core.config import settings
 from app.models.permissions import PermissionType
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import get_logger
@@ -201,6 +202,25 @@ async def invite_team_member(
         },
     )
     await db_session.commit()
+
+    if invited:
+        from app.workers.email_tasks import dispatch_email
+
+        dispatch_email(
+            organization_id=str(organization_id),
+            user_id=str(user.id),
+            recipient_email=normalized_email,
+            event_type="invite_received",
+            template_name="invite.html",
+            subject=f"You've been invited to join {getattr(member.organization, 'name', 'Rudix')}",
+            template_context={
+                "org_name": getattr(member.organization, "name", "Rudix"),
+                "inviter_name": None,
+                "role": payload.role,
+                "accept_url": str(settings.frontend_base_url).rstrip("/") + "/accept-invite",
+                "recipient_name": team_service.display_name_for_email(normalized_email),
+            },
+        )
 
     team_logger.info(
         "team.member.invited",

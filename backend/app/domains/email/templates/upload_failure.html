@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Document processing failed</h1>
+<span class="badge badge-error">Failed</span>
+<p style="margin-top:12px">Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>
+  The document <strong>{{ document_name or "Unknown document" }}</strong>
+  could not be processed and indexed.
+</p>
+{% if error_summary %}
+<p><strong>Reason:</strong> {{ error_summary }}</p>
+{% endif %}
+<p>
+  You can re-upload the file or check the document details page for more information.
+</p>
+{% if document_url %}
+<a class="btn" href="{{ document_url }}">View Document</a>
+{% endif %}
+<p style="font-size:13px; color:#6b778c;">
+  If this keeps happening, please contact your workspace administrator.
+</p>
+{% endblock %}

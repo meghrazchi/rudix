@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>You've been invited to {{ org_name }}</h1>
+<p>Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>
+  <strong>{{ inviter_name or "A team admin" }}</strong> has invited you to join
+  <strong>{{ org_name }}</strong> on Rudix as a <strong>{{ role }}</strong>.
+</p>
+<p>Click the button below to accept the invitation and set up your account.</p>
+<a class="btn" href="{{ accept_url }}">Accept Invitation</a>
+<p style="font-size:13px; color:#6b778c;">
+  This invitation link expires in {{ expiry_hours or 72 }} hours.
+  If you were not expecting this invite, you can safely ignore this email.
+</p>
+{% endblock %}

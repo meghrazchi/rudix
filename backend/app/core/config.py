@@ -385,6 +385,22 @@ class Settings(BaseSettings):
     sentry_profiles_sample_rate: float | None = Field(default=None, ge=0.0, le=1.0)
     sentry_test_event_enabled: bool | None = None
 
+    # Transactional email (F251)
+    email_enabled: bool = False
+    email_provider: str = Field(default="console", pattern=r"^(console|smtp|resend|postmark)$")
+    email_from_address: str = Field(default="noreply@example.com", min_length=5, max_length=255)
+    email_from_name: str = Field(default="Rudix", min_length=1, max_length=120)
+    email_reply_to: str | None = Field(default=None, max_length=255)
+    email_max_retries: int = Field(default=3, ge=0, le=10)
+    smtp_host: str = Field(default="localhost", min_length=1, max_length=255)
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str | None = Field(default=None, max_length=255)
+    smtp_password: SecretStr | None = None
+    smtp_use_tls: bool = True
+    smtp_timeout_seconds: float = Field(default=10.0, ge=1.0, le=60.0)
+    resend_api_key: SecretStr | None = None
+    postmark_server_token: SecretStr | None = None
+
     # Langfuse observability (optional, F271)
     langfuse_enabled: bool = False
     langfuse_base_url: AnyHttpUrl | None = None
@@ -1093,6 +1109,17 @@ class Settings(BaseSettings):
             "sentry_traces_sample_rate": self.sentry_traces_sample_rate,
             "sentry_profiles_sample_rate": self.sentry_profiles_sample_rate,
             "sentry_test_event_enabled": self.is_sentry_test_event_enabled,
+            "email": {
+                "enabled": self.email_enabled,
+                "provider": self.email_provider,
+                "from_address": self.email_from_address,
+                "from_name": self.email_from_name,
+                "smtp_host": self.smtp_host,
+                "smtp_port": self.smtp_port,
+                "smtp_use_tls": self.smtp_use_tls,
+                "resend_api_key_set": self.resend_api_key is not None,
+                "postmark_server_token_set": self.postmark_server_token is not None,
+            },
             "langfuse_enabled": self.langfuse_enabled,
             "langfuse_base_url_set": self.langfuse_base_url is not None,
             "langfuse_public_key_set": self.langfuse_public_key is not None,

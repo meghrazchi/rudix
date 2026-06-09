@@ -148,6 +148,20 @@ class ConnectorSyncTask(RudixTask):
             organization_id=organization_id,
             error=str(exc),
         )
+        try:
+            from app.workers.email_helper import emit_connector_sync_failure_email
+            from datetime import UTC, datetime as _dt
+
+            _org_owner_id = kwargs.get("owner_user_id")
+            emit_connector_sync_failure_email(
+                organization_id=organization_id,
+                user_id=_org_owner_id,
+                connector_name=kwargs.get("connector_name"),
+                error_summary=str(exc)[:256],
+                failed_at=_dt.now(UTC).strftime("%Y-%m-%d %H:%M"),
+            )
+        except Exception:
+            pass
 
 
 @celery_app.task(

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Security alert</h1>
+<span class="badge badge-error">Security</span>
+<p style="margin-top:12px">Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>{{ alert_message }}</p>
+{% if details %}
+<p>{{ details }}</p>
+{% endif %}
+{% if occurred_at %}
+<p style="font-size:13px; color:#6b778c;"><strong>Time:</strong> {{ occurred_at }} (UTC)</p>
+{% endif %}
+{% if action_url %}
+<a class="btn" href="{{ action_url }}">Review Security Settings</a>
+{% endif %}
+<p style="font-size:13px; color:#6b778c;">
+  If you did not perform this action, contact your workspace administrator immediately.
+  This is a mandatory security notification and cannot be unsubscribed from.
+</p>
+{% endblock %}

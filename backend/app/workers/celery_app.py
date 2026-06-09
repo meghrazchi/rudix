@@ -13,6 +13,7 @@ celery_app = Celery(
     backend=redis_result_backend_url(),
     include=[
         "app.workers.document_tasks",
+        "app.workers.email_tasks",
         "app.workers.evaluation_tasks",
         "app.workers.connector_sync_tasks",
     ],
@@ -63,6 +64,7 @@ celery_app.conf.update(
             settings.celery_queue_connector_sync,
             routing_key=settings.celery_queue_connector_sync,
         ),
+        Queue("email", routing_key="email"),
     ),
     beat_schedule={
         "connector-sync-schedule-poll": {
@@ -94,6 +96,10 @@ celery_app.conf.update(
         "connectors.sync.schedule_poll": {
             "queue": settings.celery_queue_connector_sync,
             "routing_key": settings.celery_queue_connector_sync,
+        },
+        "app.workers.email_tasks.send_transactional_email": {
+            "queue": "email",
+            "routing_key": "email",
         },
     },
 )

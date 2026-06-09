@@ -16,6 +16,7 @@ from app.models.connector_credential import ConnectorCredential, ConnectorOAuthS
 from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.document import Document, DocumentChunk, DocumentPage
+from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.evaluation import (
     EvaluationDatasetVersion,
     EvaluationQuestion,
@@ -69,6 +70,8 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentPage",
+    "EmailDeliveryLog",
+    "UserNotificationPreference",
     "EvaluationDatasetVersion",
     "EvaluationQuestion",
     "EvaluationResult",

@@ -1961,6 +1961,14 @@ class DocumentTask(RudixTask):
                 href=f"/documents?highlight={document_id}",
                 source_id=document_id,
             )
+            from app.workers.email_helper import emit_upload_failure_email
+
+            emit_upload_failure_email(
+                organization_id=kwargs.get("organization_id"),
+                user_id=kwargs.get("user_id"),
+                document_id=document_id,
+                error_summary=error_details.get("stage"),
+            )
         except Exception:
             return
 

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ warning_title or "Billing or quota warning" }}</h1>
+<span class="badge badge-warning">Warning</span>
+<p style="margin-top:12px">Hi{{ " " + recipient_name if recipient_name else "" }},</p>
+<p>{{ warning_message }}</p>
+{% if details %}
+<p>{{ details }}</p>
+{% endif %}
+{% if billing_url %}
+<a class="btn" href="{{ billing_url }}">Review Billing</a>
+{% endif %}
+<p style="font-size:13px; color:#6b778c;">
+  This notification was sent because you are a billing admin for
+  <strong>{{ org_name }}</strong>.
+</p>
+{% endblock %}
