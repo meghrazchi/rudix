@@ -1575,7 +1575,21 @@ async def _extract_and_store_document_pages_async(
                             "heading_density": sig.heading_density,
                             "total_token_count": sig.total_token_count,
                         }
+                if embedding_result is not None:
+                    _chunking_config_snapshot["embedding_provider_type"] = (
+                        embedding_result.provider_type
+                    )
+                    _chunking_config_snapshot["embedding_vector_dimension"] = (
+                        embedding_result.vector_dimension
+                    )
                 if persist_document_state:
+                    if embedding_result is not None:
+                        await _document_repository.update_document_embedding_metadata(
+                            session,
+                            document_id=parsed_document_id,
+                            embedding_provider_type=embedding_result.provider_type,
+                            embedding_vector_dimension=embedding_result.vector_dimension,
+                        )
                     updated = await _document_repository.update_document_status(
                         session,
                         document_id=parsed_document_id,

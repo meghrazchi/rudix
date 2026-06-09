@@ -269,6 +269,8 @@ class DocumentChunkingDiagnosticsResponse(BaseModel):
     chunk_overlap_tokens: int | None = None
     embedding_model: str | None = None
     index_version: str | None = None
+    embedding_provider_type: str | None = None
+    embedding_vector_dimension: int | None = None
     ocr_applied: bool | None = None
     hierarchical_mode: bool = False
     parent_chunk_count: int | None = None
@@ -301,6 +303,8 @@ class DocumentDetailResponse(BaseModel):
     ocr_languages_override: str | None = None
     ocr_quality_snapshot: dict | None = None
     extraction_snapshot: dict | None = None
+    embedding_provider_type: str | None = None
+    embedding_vector_dimension: int | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
     created_at: datetime

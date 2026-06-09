@@ -228,6 +228,16 @@ def _build_chunking_diagnostics(
             if snapshot and snapshot.get("index_version")
             else None
         ),
+        embedding_provider_type=(
+            str(snapshot.get("embedding_provider_type"))
+            if snapshot and snapshot.get("embedding_provider_type")
+            else None
+        ),
+        embedding_vector_dimension=(
+            int(snapshot.get("embedding_vector_dimension"))
+            if snapshot and snapshot.get("embedding_vector_dimension") is not None
+            else None
+        ),
         ocr_applied=(
             bool(snapshot.get("ocr_applied"))
             if snapshot and snapshot.get("ocr_applied") is not None
@@ -838,6 +848,8 @@ async def get_document(
     doc_ocr_languages_override = document.ocr_languages_override
     doc_ocr_quality_snapshot = document.ocr_quality_snapshot
     doc_extraction_snapshot = document.extraction_snapshot
+    doc_embedding_provider_type = document.embedding_provider_type
+    doc_embedding_vector_dimension = document.embedding_vector_dimension
 
     safe_error_message, safe_error_details = _safe_error_payload(document)
     chunk_count = await document_repository.count_document_chunks(
@@ -913,6 +925,8 @@ async def get_document(
         ocr_languages_override=doc_ocr_languages_override,
         ocr_quality_snapshot=doc_ocr_quality_snapshot,
         extraction_snapshot=doc_extraction_snapshot,
+        embedding_provider_type=doc_embedding_provider_type,
+        embedding_vector_dimension=doc_embedding_vector_dimension,
         retention_class=doc_retention_class,
         notes=doc_notes,
         tags=doc_tags,

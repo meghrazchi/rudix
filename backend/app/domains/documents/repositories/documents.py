@@ -236,6 +236,24 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
+    async def update_document_embedding_metadata(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        embedding_provider_type: str,
+        embedding_vector_dimension: int,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.embedding_provider_type = embedding_provider_type
+        document.embedding_vector_dimension = embedding_vector_dimension
+        await session.flush()
+        await session.refresh(document)
+        return document
+
     async def update_document_language(
         self,
         session: AsyncSession,

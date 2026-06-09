@@ -81,6 +81,8 @@ export type DocumentChunkingDiagnosticsResponse = {
   chunk_overlap_tokens?: number | null;
   embedding_model?: string | null;
   index_version?: string | null;
+  embedding_provider_type?: string | null;
+  embedding_vector_dimension?: number | null;
   ocr_applied?: boolean | null;
   hierarchical_mode?: boolean;
   parent_chunk_count?: number | null;
@@ -120,6 +122,8 @@ export type DocumentDetailResponse = Omit<
   ocr_languages_override?: string | null;
   ocr_quality_snapshot?: OcrQualitySnapshot | null;
   extraction_snapshot?: ExtractionSnapshot | null;
+  embedding_provider_type?: string | null;
+  embedding_vector_dimension?: number | null;
   chunking_diagnostics?: DocumentChunkingDiagnosticsResponse | null;
 };
 

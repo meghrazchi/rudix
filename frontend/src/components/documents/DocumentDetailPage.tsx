@@ -1165,6 +1165,26 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                     "-"}
                                 </span>
                               </div>
+                              {detail.embedding_provider_type && (
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">
+                                    Embedding provider
+                                  </span>
+                                  <span className="font-semibold">
+                                    {detail.embedding_provider_type}
+                                  </span>
+                                </div>
+                              )}
+                              {detail.embedding_vector_dimension != null && (
+                                <div className="flex items-center justify-between gap-3">
+                                  <span className="text-[#69637f]">
+                                    Vector dimension
+                                  </span>
+                                  <span className="font-semibold">
+                                    {detail.embedding_vector_dimension}
+                                  </span>
+                                </div>
+                              )}
                               <div className="flex items-center justify-between gap-3">
                                 <span className="text-[#69637f]">
                                   Pipeline surface

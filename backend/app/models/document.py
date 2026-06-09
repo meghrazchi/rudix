@@ -106,6 +106,9 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ocr_quality_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # extraction_snapshot: structured extraction diagnostics from the F237 PDF extraction pipeline.
     extraction_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Embedding provenance (F219): set when document is indexed; tracks which provider/dimension was used.
+    embedding_provider_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    embedding_vector_dimension: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Connector ingestion provenance (F245): links back to the ExternalItem this document came from.
     # NULL for manually uploaded documents.
     ingestion_source: Mapped[str | None] = mapped_column(String(32), nullable=True)

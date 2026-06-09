@@ -346,6 +346,12 @@ class Settings(BaseSettings):
     local_llm_timeout_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
     local_llm_json_mode_enabled: bool = True
 
+    # Local embedding (OpenAI-compatible /v1/embeddings) provider settings — F219
+    local_embedding_base_url: AnyHttpUrl | None = None
+    local_embedding_api_key: SecretStr | None = None
+    local_embedding_model: str = Field(default="", min_length=0, max_length=128)
+    local_embedding_timeout_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
+
     auth_provider: AuthProvider = AuthProvider.app
     app_auth_secret: SecretStr = SecretStr("dev-insecure-change-me")
     app_auth_access_token_ttl_seconds: int = Field(default=3600, ge=60, le=604800)
@@ -911,6 +917,16 @@ class Settings(BaseSettings):
                 "embedding_default_provider=openai and the corresponding feature is enabled"
             )
 
+        if self.feature_enable_embeddings and self.embedding_default_provider == "local":
+            if self.local_embedding_base_url is None:
+                raise ValueError(
+                    "local_embedding_base_url is required when embedding_default_provider=local"
+                )
+            if not self.local_embedding_model.strip():
+                raise ValueError(
+                    "local_embedding_model is required when embedding_default_provider=local"
+                )
+
         if self.environment == Environment.production:
             if self.sentry_dsn is None:
                 raise ValueError("sentry_dsn is required in production")
@@ -1027,6 +1043,10 @@ class Settings(BaseSettings):
             "openai_api_key_set": self.openai_api_key is not None,
             "openai_embedding_model": self.openai_embedding_model,
             "openai_llm_model": self.openai_llm_model,
+            "local_embedding_base_url_set": self.local_embedding_base_url is not None,
+            "local_embedding_api_key_set": self.local_embedding_api_key is not None,
+            "local_embedding_model": self.local_embedding_model,
+            "local_embedding_timeout_seconds": self.local_embedding_timeout_seconds,
             "llm_retry_max_attempts": self.llm_retry_max_attempts,
             "llm_retry_base_seconds": self.llm_retry_base_seconds,
             "llm_retry_max_seconds": self.llm_retry_max_seconds,

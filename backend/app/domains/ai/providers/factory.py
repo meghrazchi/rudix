@@ -41,6 +41,8 @@ class ProviderFactory:
     def _build_embedding_provider(self, key: str) -> EmbeddingProvider:
         if key == "openai":
             return self._build_openai_embedding_provider()
+        if key == "local":
+            return self._build_local_embedding_provider()
         raise UnknownProviderError(f"No embedding provider registered for key '{key}'")
 
     def _build_openai_chat_provider(self) -> ChatCompletionProvider:
@@ -83,6 +85,34 @@ class ProviderFactory:
         )
         return OpenAIEmbeddingProvider(
             client=client, model_name=settings.openai_embedding_model
+        )
+
+    def _build_local_embedding_provider(self) -> EmbeddingProvider:
+        from openai import AsyncOpenAI
+
+        from app.core.config import settings
+        from app.domains.ai.providers.local.embedding_adapter import (
+            OpenAICompatibleEmbeddingProvider,
+        )
+
+        if settings.local_embedding_base_url is None:
+            raise ProviderUnavailableError(
+                "Local embedding base URL is not configured (LOCAL_EMBEDDING_BASE_URL)"
+            )
+        api_key = (
+            settings.local_embedding_api_key.get_secret_value()
+            if settings.local_embedding_api_key is not None
+            else "not-required"
+        )
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=str(settings.local_embedding_base_url),
+            timeout=settings.local_embedding_timeout_seconds,
+            max_retries=0,
+        )
+        return OpenAICompatibleEmbeddingProvider(
+            client=client,
+            model_name=settings.local_embedding_model,
         )
 
     def _build_local_chat_provider(self) -> ChatCompletionProvider:

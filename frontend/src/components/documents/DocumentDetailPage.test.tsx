@@ -963,4 +963,56 @@ describe("DocumentDetailPage", () => {
       });
     });
   });
+
+  it("shows embedding provider type and vector dimension when set on the document", async () => {
+    mockApi.getDocumentDetail.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "policy.pdf",
+      file_type: "pdf",
+      status: "indexed",
+      page_count: 12,
+      chunk_count: 120,
+      checksum: "abc123",
+      error_message: null,
+      error_details: null,
+      language: "en",
+      embedding_provider_type: "local",
+      embedding_vector_dimension: 768,
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: "2026-05-15T10:00:00Z",
+    });
+    renderPage();
+
+    await screen.findByRole("heading", { name: "policy.pdf" });
+    expect(await screen.findByText("local")).toBeInTheDocument();
+    expect(await screen.findByText("768")).toBeInTheDocument();
+  });
+
+  it("hides embedding provider rows when metadata is not yet set", async () => {
+    mockApi.getDocumentDetail.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "new.pdf",
+      file_type: "pdf",
+      status: "processing",
+      page_count: null,
+      chunk_count: 0,
+      checksum: null,
+      error_message: null,
+      error_details: null,
+      language: null,
+      embedding_provider_type: null,
+      embedding_vector_dimension: null,
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-06-09T10:00:00Z",
+      updated_at: "2026-06-09T10:00:00Z",
+    });
+    renderPage();
+
+    await screen.findByRole("heading", { name: "new.pdf" });
+    expect(screen.queryByText("Embedding provider")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vector dimension")).not.toBeInTheDocument();
+  });
 });

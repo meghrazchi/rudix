@@ -36,6 +36,9 @@ class EmbeddingResult:
     vectors_by_chunk_id: dict[UUID, list[float]]
     model_name: str
     index_version: str
+    provider_type: str
+    is_local: bool
+    vector_dimension: int
     batch_count: int
     retry_count: int
     input_tokens: int
@@ -61,6 +64,7 @@ class EmbeddingService:
         *,
         model_name: str | None = None,
         index_version: str | None = None,
+        provider_type: str | None = None,
         batch_max_items: int | None = None,
         batch_max_tokens: int | None = None,
         retry_max_attempts: int | None = None,
@@ -71,6 +75,7 @@ class EmbeddingService:
     ) -> None:
         self.model_name = (model_name or settings.openai_embedding_model).strip()
         self.index_version = (index_version or settings.document_index_version).strip()
+        self.provider_type = (provider_type or settings.embedding_default_provider).strip().lower()
         self.batch_max_items = batch_max_items or settings.embedding_batch_max_items
         self.batch_max_tokens = batch_max_tokens or settings.embedding_batch_max_tokens
         self.retry_max_attempts = retry_max_attempts or settings.embedding_retry_max_attempts
@@ -173,6 +178,9 @@ class EmbeddingService:
                 vectors_by_chunk_id={},
                 model_name=self.model_name,
                 index_version=self.index_version,
+                provider_type=self.provider_type,
+                is_local=self.provider_type == "local",
+                vector_dimension=0,
                 batch_count=0,
                 retry_count=0,
                 input_tokens=0,
@@ -205,11 +213,16 @@ class EmbeddingService:
             total_retries += retries_used
 
         cost_usd = (Decimal(total_tokens) * self.cost_per_million_tokens_usd) / Decimal(1_000_000)
+        first_vector = next(iter(vectors_by_chunk_id.values()), None)
+        vector_dimension = len(first_vector) if first_vector is not None else 0
 
         return EmbeddingResult(
             vectors_by_chunk_id=vectors_by_chunk_id,
             model_name=self.model_name,
             index_version=self.index_version,
+            provider_type=self.provider_type,
+            is_local=self.provider_type == "local",
+            vector_dimension=vector_dimension,
             batch_count=len(batches),
             retry_count=total_retries,
             input_tokens=total_input_tokens,
