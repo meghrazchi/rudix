@@ -105,6 +105,59 @@ function makeConfluenceProvider(): ProviderSummary {
   };
 }
 
+function makeMicrosoftProvider(): ProviderSummary {
+  return {
+    key: "microsoft-sharepoint-onedrive",
+    display_name: "SharePoint / OneDrive",
+    enabled_by_default: true,
+    has_oauth: true,
+    capabilities: {
+      auth_type: "oauth2",
+      capabilities: ["files", "deletions", "deep_links", "acls", "delta_sync"],
+      rate_limits: [],
+      export_formats: [],
+      max_page_size: 200,
+      notes:
+        "Connect a Microsoft 365 tenant and choose sites, libraries, drives, and folders.",
+    },
+    config_schema: {
+      type: "object",
+      properties: {
+        site_ids: {
+          type: "array",
+          items: { type: "string" },
+          title: "SharePoint site IDs",
+        },
+        drive_ids: {
+          type: "array",
+          items: { type: "string" },
+          title: "Drive IDs",
+        },
+        folder_ids: {
+          type: "array",
+          items: { type: "string" },
+          title: "Folder IDs",
+        },
+        allowed_file_types: {
+          type: "array",
+          items: { type: "string" },
+          title: "Allowed file types",
+        },
+        sync_frequency_minutes: {
+          type: "integer",
+          title: "Sync frequency (minutes)",
+        },
+        permission_import_behavior: {
+          type: "string",
+          title: "Permission import behavior",
+        },
+      },
+      required: ["site_ids", "drive_ids"],
+      additionalProperties: false,
+    },
+  };
+}
+
 describe("ConnectorSetupPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -227,6 +280,31 @@ describe("ConnectorSetupPage", () => {
           },
         }),
       );
+    });
+  });
+
+  it("renders the Microsoft setup guide and provider-driven fields", async () => {
+    mockApi.getProvider.mockResolvedValue(makeMicrosoftProvider());
+    const user = userEvent.setup();
+    render(<ConnectorSetupPage providerKey="microsoft-sharepoint-onedrive" />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Connect SharePoint / OneDrive"),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Microsoft 365 tenant setup required"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Tenant / account ID")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /next/i }));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/SharePoint site IDs/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Drive IDs/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Folder IDs/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Allowed file types/i)).toBeInTheDocument();
     });
   });
 });

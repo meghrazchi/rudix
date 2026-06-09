@@ -94,9 +94,12 @@ function fieldLabel(name: string, field: ProviderConfigSchemaField): string {
 function fieldPlaceholder(
   name: string,
   field: ProviderConfigSchemaField,
+  providerKey?: string,
 ): string {
   if (field.format === "uri") {
-    return "https://example.atlassian.net";
+    return providerKey === "microsoft-sharepoint-onedrive"
+      ? "https://contoso.sharepoint.com"
+      : "https://example.atlassian.net";
   }
   if (field.type === "array") {
     return `${name.replace(/_/g, " ")} separated by commas`;
@@ -104,7 +107,33 @@ function fieldPlaceholder(
   if (field.type === "boolean") {
     return "true";
   }
+  if (name === "external_account_id") {
+    return providerKey === "microsoft-sharepoint-onedrive"
+      ? "contoso.onmicrosoft.com or user@contoso.com"
+      : "acme.atlassian.net";
+  }
   return name.replace(/_/g, " ");
+}
+
+function externalAccountFieldLabel(providerKey: string): string {
+  if (providerKey === "microsoft-sharepoint-onedrive") {
+    return "Tenant / account ID";
+  }
+  return "External account ID";
+}
+
+function externalAccountHelperText(providerKey: string): string {
+  if (providerKey === "microsoft-sharepoint-onedrive") {
+    return "Optional metadata used to distinguish multiple Microsoft 365 tenants or accounts.";
+  }
+  return "Optional metadata used to distinguish multiple accounts from the same provider.";
+}
+
+function externalAccountPlaceholder(providerKey: string): string {
+  if (providerKey === "microsoft-sharepoint-onedrive") {
+    return "contoso.onmicrosoft.com or user@contoso.com";
+  }
+  return "acme.atlassian.net";
 }
 
 function validateConfigField(
@@ -235,11 +264,10 @@ function BasicStep({
             className="block text-sm font-semibold text-[#2a2640]"
             htmlFor="connector-external-account-id"
           >
-            External account ID
+            {externalAccountFieldLabel(provider.key)}
           </label>
           <p className="mt-1 text-xs text-[#6a6780]">
-            Optional metadata used to distinguish multiple accounts from the
-            same provider.
+            {externalAccountHelperText(provider.key)}
           </p>
           <input
             id="connector-external-account-id"
@@ -249,7 +277,7 @@ function BasicStep({
               onChange({ external_account_id: event.target.value })
             }
             className="mt-1.5 w-full rounded-xl border border-[#d7d4e8] bg-white px-3 py-2.5 text-sm text-[#2a2640] shadow-sm focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/20 focus:outline-none"
-            placeholder="acme.atlassian.net"
+            placeholder={externalAccountPlaceholder(provider.key)}
           />
         </div>
       </div>
@@ -694,6 +722,29 @@ const GOOGLE_DRIVE_SCOPES: OAuthScope[] = [
   },
 ];
 
+const MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES: OAuthScope[] = [
+  {
+    scope: "offline_access",
+    required: true,
+    description: "Refresh access without reauthorizing the app",
+  },
+  {
+    scope: "Files.Read.All",
+    required: true,
+    description: "Read OneDrive files and document library content",
+  },
+  {
+    scope: "Sites.Read.All",
+    required: true,
+    description: "Discover SharePoint sites and libraries",
+  },
+  {
+    scope: "User.Read",
+    required: false,
+    description: "Validate the signed-in Microsoft account",
+  },
+];
+
 function GoogleDriveSetupGuide() {
   const [open, setOpen] = useState(true);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
@@ -907,6 +958,180 @@ function GoogleDriveSetupGuide() {
   );
 }
 
+function MicrosoftSharePointOneDriveSetupGuide() {
+  const [open, setOpen] = useState(true);
+  let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
+  try {
+    const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
+    callbackUrl = `${apiUrl}/connectors/oauth/callback`;
+  } catch {
+    // runtime config unavailable during SSR
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-sky-100/60"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="material-symbols-outlined text-[20px] text-sky-700">
+            cloud_done
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-sky-900">
+              Microsoft 365 tenant setup required
+            </div>
+            <div className="text-xs text-sky-700">
+              One-time prerequisite - create an Azure app registration before
+              connecting
+            </div>
+          </div>
+        </div>
+        <span
+          className={`material-symbols-outlined shrink-0 text-[20px] text-sky-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          expand_more
+        </span>
+      </button>
+
+      {open && (
+        <div className="space-y-5 border-t border-sky-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-sky-800">
+            Rudix connects to SharePoint and OneDrive through Microsoft Graph.
+            After the OAuth app is configured, choose the sites, libraries,
+            drives, and folders you want to index, then scope file types and
+            sync frequency through the shared wizard fields.
+          </p>
+
+          <ol className="space-y-4">
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+                1
+              </span>
+              <div className="text-sm text-sky-900">
+                <span className="font-semibold">Register an app</span> - open
+                the{" "}
+                <a
+                  href="https://portal.azure.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-sky-700"
+                >
+                  Azure portal
+                </a>
+                , create an app registration, and note the tenant, client ID,
+                and client secret for your deployment.
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+                2
+              </span>
+              <div className="text-sm text-sky-900">
+                <span className="font-semibold">Add the redirect URI</span> -
+                under <strong>Authentication</strong>, add this exact callback
+                URL:
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+                3
+              </span>
+              <div className="flex-1 space-y-2 text-sm text-sky-900">
+                <div>
+                  <span className="font-semibold">
+                    Grant Microsoft Graph permissions
+                  </span>{" "}
+                  - add the read-only scopes below so Rudix can validate the
+                  tenant, discover sites and drives, and read document content.
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-3 py-2">
+                  <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
+                    {callbackUrl}
+                  </span>
+                  <button
+                    type="button"
+                    title="Copy callback URL"
+                    onClick={() => navigator.clipboard.writeText(callbackUrl)}
+                    className="shrink-0 rounded-lg p-1.5 text-sky-600 transition-colors hover:bg-sky-100"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">
+                      content_copy
+                    </span>
+                  </button>
+                </div>
+                <div className="divide-y divide-sky-100 overflow-hidden rounded-xl border border-sky-300 bg-white">
+                  {MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES.map(
+                    ({ scope, required, description }) => (
+                      <div
+                        key={scope}
+                        className="flex items-center gap-3 px-3 py-2.5"
+                      >
+                        <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
+                          {scope}
+                        </span>
+                        <span className="hidden text-xs text-[#6a6780] sm:block">
+                          {description}
+                        </span>
+                        {required ? (
+                          <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-rose-700 uppercase">
+                            Required
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-[#ece8ff] px-2 py-0.5 text-[10px] font-bold tracking-wide text-[#3525cd] uppercase">
+                            Recommended
+                          </span>
+                        )}
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+                4
+              </span>
+              <div className="flex-1 space-y-2 text-sm text-sky-900">
+                <div>
+                  <span className="font-semibold">
+                    Choose source scope in the wizard
+                  </span>{" "}
+                  - select the SharePoint sites, document libraries, OneDrive
+                  drives, and folders to index, then set allowed file types and
+                  sync frequency.
+                </div>
+                <div className="rounded-xl border border-sky-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                  <div>site_ids, drive_ids, folder_ids</div>
+                  <div>allowed_file_types, include_folder_paths</div>
+                  <div>exclude_folder_paths, sync_frequency_minutes</div>
+                  <div>permission_import_behavior, max_file_size_mb</div>
+                </div>
+              </div>
+            </li>
+          </ol>
+
+          <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-white p-3 text-xs text-sky-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-sky-600">
+              lock
+            </span>
+            <span>
+              Rudix requests read-only Graph scopes only. It does not modify or
+              delete content in Microsoft 365.
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WizardShell({ provider }: { provider: ProviderSummary }) {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1090,6 +1315,9 @@ function ProviderLoader({ providerKey }: Props) {
 
       {provider.key === "confluence" && <ConfluenceSetupGuide />}
       {provider.key === "google_drive" && <GoogleDriveSetupGuide />}
+      {provider.key === "microsoft-sharepoint-onedrive" && (
+        <MicrosoftSharePointOneDriveSetupGuide />
+      )}
 
       <WizardShell provider={provider} />
     </section>

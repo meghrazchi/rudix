@@ -167,6 +167,22 @@ describe("ConnectorsPage", () => {
     });
   });
 
+  it("shows Microsoft SharePoint / OneDrive as connectable in the catalog", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText("SharePoint / OneDrive")).toBeInTheDocument();
+      const description = screen.getByText(
+        "Connect Microsoft 365 sites, document libraries, and OneDrive files.",
+      );
+      const card = description.closest("div");
+      expect(card).not.toBeNull();
+      expect(
+        within(card as HTMLElement).getByRole("button", { name: "Connect" }),
+      ).toBeInTheDocument();
+    });
+  });
+
   it("links the Google Drive catalog button to the setup wizard", async () => {
     renderPage();
 
@@ -183,6 +199,27 @@ describe("ConnectorsPage", () => {
 
     await waitFor(() => {
       expect(routerPush).toHaveBeenCalledWith("/connectors/new/google_drive");
+    });
+  });
+
+  it("links the Microsoft catalog button to the setup wizard", async () => {
+    renderPage();
+
+    const user = userEvent.setup();
+    const description = await screen.findByText(
+      "Connect Microsoft 365 sites, document libraries, and OneDrive files.",
+    );
+    const card = description.closest("div");
+    expect(card).not.toBeNull();
+
+    await user.click(
+      within(card as HTMLElement).getByRole("button", { name: "Connect" }),
+    );
+
+    await waitFor(() => {
+      expect(routerPush).toHaveBeenCalledWith(
+        "/connectors/new/microsoft-sharepoint-onedrive",
+      );
     });
   });
 

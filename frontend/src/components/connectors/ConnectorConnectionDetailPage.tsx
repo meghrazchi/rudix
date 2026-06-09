@@ -143,6 +143,39 @@ function scopeFields(providerKey: string, authConfig: Record<string, unknown>) {
       },
     ];
   }
+  if (providerKey === "microsoft-sharepoint-onedrive") {
+    return [
+      { label: "SharePoint site IDs", value: formatList(authConfig.site_ids) },
+      { label: "Drive IDs", value: formatList(authConfig.drive_ids) },
+      { label: "Folder IDs", value: formatList(authConfig.folder_ids) },
+      {
+        label: "Allowed file types",
+        value: formatList(authConfig.allowed_file_types),
+      },
+      {
+        label: "Include folder paths",
+        value: formatList(authConfig.include_folder_paths),
+      },
+      {
+        label: "Exclude folder paths",
+        value: formatList(authConfig.exclude_folder_paths),
+      },
+      {
+        label: "Sync frequency",
+        value:
+          typeof authConfig.sync_frequency_minutes === "number"
+            ? [`${authConfig.sync_frequency_minutes} minutes`]
+            : [],
+      },
+      {
+        label: "Permission import",
+        value:
+          typeof authConfig.permission_import_behavior === "string"
+            ? [authConfig.permission_import_behavior]
+            : [],
+      },
+    ];
+  }
   return Object.entries(authConfig).map(([label, value]) => ({
     label: label.replace(/_/g, " "),
     value: Array.isArray(value)

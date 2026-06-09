@@ -70,6 +70,7 @@ def build_default_provider_registry() -> ProviderRegistry:
     for provider in (
         _confluence_provider(),
         _google_drive_provider(),
+        _microsoft_sharepoint_onedrive_provider(),
     ):
         registry.register(provider)
     return registry
@@ -190,6 +191,128 @@ def _google_drive_provider() -> ProviderRegistration:
             additional_authorization_params={
                 "access_type": "offline",
                 "prompt": "consent",
+            },
+        ),
+    )
+
+
+def _microsoft_sharepoint_onedrive_provider() -> ProviderRegistration:
+    return ProviderRegistration(
+        key="microsoft-sharepoint-onedrive",
+        display_name="Microsoft SharePoint / OneDrive",
+        capabilities=ProviderCapabilities(
+            auth_type=ConnectorAuthType.oauth2,
+            capabilities=frozenset(
+                {
+                    ConnectorCapability.acls,
+                    ConnectorCapability.delta_sync,
+                    ConnectorCapability.deletions,
+                    ConnectorCapability.deep_links,
+                    ConnectorCapability.files,
+                    ConnectorCapability.folders,
+                    ConnectorCapability.rate_limits,
+                }
+            ),
+            rate_limits=(
+                ProviderRateLimit(name="graph_api", max_requests=10_000, window_seconds=60),
+            ),
+            export_formats=(
+                ProviderExportFormat(format="pdf", mime_type="application/pdf"),
+                ProviderExportFormat(format="text", mime_type="text/plain"),
+            ),
+            max_page_size=200,
+            notes=(
+                "Connect a Microsoft 365 tenant, choose SharePoint sites, document libraries, "
+                "folders, or OneDrive drives, and keep provenance and ACL metadata attached to "
+                "every synced file."
+            ),
+        ),
+        config_schema={
+            "type": "object",
+            "properties": {
+                "site_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "SharePoint site IDs",
+                    "description": "Composite IDs in the form site:<site-id>. Leave blank to discover sources first.",
+                },
+                "drive_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Drive IDs",
+                    "description": "Composite IDs in the form drive:<drive-id> for SharePoint libraries or OneDrive drives.",
+                },
+                "folder_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Folder IDs",
+                    "description": "Composite IDs in the form folder:<drive-id>:<folder-id> to scope sync to subfolders.",
+                },
+                "allowed_file_types": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Allowed file types",
+                    "description": "Allowed MIME types or exports such as application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, or text/markdown.",
+                },
+                "max_file_size_mb": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10_240,
+                    "title": "Max file size (MB)",
+                    "description": "Skip downloaded files larger than this limit before ingestion.",
+                },
+                "include_folder_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Include folder paths",
+                    "description": "Only sync items whose relative folder path matches one of these prefixes.",
+                },
+                "exclude_folder_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "title": "Exclude folder paths",
+                    "description": "Skip items under matching folder path prefixes.",
+                },
+                "sync_frequency_minutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 10_080,
+                    "title": "Sync frequency (minutes)",
+                    "description": "Suggested sync cadence for this source set.",
+                },
+                "max_downloads_per_sync": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100_000,
+                    "title": "Max downloads per sync",
+                    "description": "Safety cap for downloaded files during a single sync run.",
+                },
+                "permission_import_behavior": {
+                    "type": "string",
+                    "enum": ["none", "direct"],
+                    "title": "Permission import behavior",
+                    "description": "Choose whether to import direct SharePoint/OneDrive permissions for ACL-aware citations.",
+                },
+            },
+            "additionalProperties": False,
+        },
+        oauth=ProviderOAuthConfig(
+            authorization_endpoint="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            token_endpoint="https://login.microsoftonline.com/common/oauth2/v2.0/token",
+            revoke_endpoint=None,
+            default_scopes=(
+                "offline_access",
+                "Files.Read.All",
+                "Sites.Read.All",
+            ),
+            required_scopes=(
+                "offline_access",
+                "Files.Read.All",
+                "Sites.Read.All",
+            ),
+            optional_scopes=(),
+            additional_authorization_params={
+                "prompt": "select_account",
             },
         ),
     )

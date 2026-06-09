@@ -56,13 +56,14 @@ const CATALOG: CatalogEntry[] = [
     available: true,
   },
   {
-    key: "sharepoint",
-    name: "SharePoint",
-    description: "Connect Microsoft 365 sites and enterprise file libraries.",
+    key: "microsoft-sharepoint-onedrive",
+    name: "SharePoint / OneDrive",
+    description:
+      "Connect Microsoft 365 sites, document libraries, and OneDrive files.",
     brandColor: "#0078D4",
-    initial: "S",
+    initial: "M",
     connected: false,
-    available: false,
+    available: true,
   },
   {
     key: "notion",

@@ -58,6 +58,22 @@ const CAPABILITY_META: Record<ConnectorCapabilityKey, CapabilityMeta> = {
       "Multiple content export formats are available for this provider",
     color: "bg-orange-100 text-orange-800",
   },
+  files: {
+    label: "Files",
+    description:
+      "File objects are indexed through the shared document pipeline",
+    color: "bg-green-100 text-green-800",
+  },
+  deletions: {
+    label: "Deletions",
+    description: "Deleted source items are propagated as tombstones",
+    color: "bg-rose-100 text-rose-800",
+  },
+  deep_links: {
+    label: "Deep links",
+    description: "Citations can open the original source item directly",
+    color: "bg-sky-100 text-sky-800",
+  },
   rate_limits: {
     label: "Rate-limit aware",
     description:

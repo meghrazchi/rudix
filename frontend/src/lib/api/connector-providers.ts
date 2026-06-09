@@ -15,7 +15,10 @@ export type ConnectorCapabilityKey =
   | "acls"
   | "delta_sync"
   | "rate_limits"
-  | "export_formats";
+  | "export_formats"
+  | "files"
+  | "deletions"
+  | "deep_links";
 
 export type ProviderRateLimit = {
   name: string;
@@ -27,6 +30,21 @@ export type ProviderRateLimit = {
 export type ProviderExportFormat = {
   format: string;
   mime_type: string;
+};
+
+export type ProviderConfigSchemaField = {
+  type: "string" | "boolean" | "array" | "integer" | "number";
+  title?: string | null;
+  description?: string | null;
+  format?: string | null;
+  items?: { type: string } | null;
+};
+
+export type ProviderConfigSchema = {
+  type: "object";
+  properties: Record<string, ProviderConfigSchemaField>;
+  required?: string[];
+  additionalProperties?: boolean;
 };
 
 export type ProviderCapabilities = {
@@ -44,6 +62,7 @@ export type ProviderSummary = {
   enabled_by_default: boolean;
   has_oauth: boolean;
   capabilities: ProviderCapabilities;
+  config_schema: ProviderConfigSchema;
 };
 
 export type ProvidersListResponse = {

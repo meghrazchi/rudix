@@ -56,10 +56,13 @@ class ConnectorCapability(StrEnum):
     attachments = "attachments"
     comments = "comments"
     folders = "folders"
+    files = "files"
     acls = "acls"
     delta_sync = "delta_sync"
+    deletions = "deletions"
     rate_limits = "rate_limits"
     export_formats = "export_formats"
+    deep_links = "deep_links"
 
 
 class ConnectorConnectionStatus(StrEnum):

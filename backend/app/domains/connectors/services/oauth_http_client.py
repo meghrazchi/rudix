@@ -104,8 +104,18 @@ class HttpOAuthTokenClient:
 
     async def _post_token(self, token_endpoint: str, payload: dict[str, Any]) -> OAuthTokenResponse:
         async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-            response = await client.post(token_endpoint, data=payload)
-            response.raise_for_status()
+            try:
+                response = await client.post(token_endpoint, data=payload)
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code if exc.response is not None else None
+                if status_code is None:
+                    raise OAuthLifecycleError("OAuth token endpoint rejected the request") from exc
+                raise OAuthLifecycleError(
+                    f"OAuth token endpoint rejected the request (HTTP {status_code})"
+                ) from exc
+            except httpx.RequestError as exc:
+                raise OAuthLifecycleError("OAuth token endpoint is unreachable") from exc
             data = response.json()
         if not isinstance(data, dict):
             raise OAuthLifecycleError("OAuth token endpoint returned an invalid payload")

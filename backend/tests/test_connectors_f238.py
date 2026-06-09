@@ -53,6 +53,14 @@ def test_provider_registry_supports_defaults_and_custom_provider() -> None:
     assert google_drive.capabilities.supports(ConnectorCapability.delta_sync)
     assert google_drive.capabilities.supports(ConnectorCapability.folders)
 
+    microsoft = registry.require("microsoft-sharepoint-onedrive")
+    assert microsoft.capabilities.supports(ConnectorCapability.files)
+    assert microsoft.capabilities.supports(ConnectorCapability.deep_links)
+    assert microsoft.capabilities.supports(ConnectorCapability.deletions)
+    assert microsoft.capabilities.supports(ConnectorCapability.acls)
+    assert microsoft.capabilities.supports(ConnectorCapability.delta_sync)
+    assert microsoft.capabilities.supports(ConnectorCapability.folders)
+
     custom = ProviderRegistration(
         key="linear",
         display_name="Linear",

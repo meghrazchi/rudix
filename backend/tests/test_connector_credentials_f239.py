@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,9 +20,11 @@ from app.domains.connectors.services.credential_vault import (
     ConnectorCredentialVault,
     CredentialVault,
 )
+from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
 from app.domains.connectors.services.oauth_lifecycle import (
     ConnectorOAuthLifecycleService,
     ConnectorSyncBlockedError,
+    OAuthLifecycleError,
     OAuthRefreshError,
     OAuthStateValidationError,
 )
@@ -388,6 +391,63 @@ def test_provider_scope_validation_enforces_least_privilege() -> None:
         )
     with pytest.raises(ProviderRegistryError, match="missing required"):
         registry.validate_scopes("confluence", ["offline_access"])
+
+
+@pytest.mark.asyncio
+async def test_oauth_token_exchange_401_is_wrapped_as_safe_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _FakeResponse:
+        def __init__(self, url: str) -> None:
+            self.status_code = 401
+            self.request = httpx.Request("POST", url)
+
+        def raise_for_status(self) -> None:
+            raise httpx.HTTPStatusError(
+                "401 Unauthorized",
+                request=self.request,
+                response=httpx.Response(401, request=self.request),
+            )
+
+    class _FakeAsyncClient:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            del args, kwargs
+
+        async def __aenter__(self) -> "_FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            del args
+
+        async def post(self, url: str, data: dict[str, object]) -> _FakeResponse:
+            del data
+            return _FakeResponse(url)
+
+    monkeypatch.setattr(
+        "app.domains.connectors.services.oauth_http_client.httpx.AsyncClient",
+        _FakeAsyncClient,
+    )
+
+    client = HttpOAuthTokenClient(
+        client_settings=[
+            ConnectorOAuthClientSettings(
+                provider_key="microsoft-sharepoint-onedrive",
+                client_id="client-id",
+                client_secret="client-secret",
+            )
+        ]
+    )
+
+    with pytest.raises(
+        OAuthLifecycleError,
+        match="OAuth token endpoint rejected the request \\(HTTP 401\\)",
+    ):
+        await client.exchange_code(
+            provider_key="microsoft-sharepoint-onedrive",
+            code="oauth-code",
+            redirect_uri="https://app.example.test/api/v1/connectors/oauth/callback",
+            scopes=["Files.Read.All", "Sites.Read.All", "offline_access"],
+        )
 
 
 def test_connector_secret_redaction_handles_oauth_and_api_key_shapes() -> None:

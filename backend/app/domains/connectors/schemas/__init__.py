@@ -1,1 +1,2 @@
-"""Connector schema exports."""
+"""Connector schemas."""
+

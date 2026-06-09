@@ -59,6 +59,12 @@ function makeProvider(
       max_page_size: 100,
       notes: null,
     },
+    config_schema: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
     ...overrides,
   };
 }
@@ -116,6 +122,21 @@ describe("ProviderCapabilityBadges", () => {
     expect(screen.getByText("Permission-aware")).toBeInTheDocument();
     expect(screen.getByText("Attachments")).toBeInTheDocument();
     expect(screen.getByText("Rate-limit aware")).toBeInTheDocument();
+  });
+
+  it("renders Microsoft-specific capability badges", () => {
+    const provider = makeProvider({
+      key: "microsoft-sharepoint-onedrive",
+      display_name: "SharePoint / OneDrive",
+      capabilities: {
+        ...makeProvider().capabilities,
+        capabilities: ["files", "deletions", "deep_links"],
+      },
+    });
+    render(<ProviderCapabilityBadges provider={provider} />);
+    expect(screen.getByText("Files")).toBeInTheDocument();
+    expect(screen.getByText("Deletions")).toBeInTheDocument();
+    expect(screen.getByText("Deep links")).toBeInTheDocument();
   });
 
   it("filters to onlyCapabilities when provided", () => {

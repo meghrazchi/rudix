@@ -42,6 +42,23 @@ export type SourcePermissionSnapshot = {
   permissions: Record<string, unknown>;
 };
 
+export type ConnectorDiscoveryItem = {
+  provider_source_id: string;
+  name: string;
+  source_type: string;
+  source_url: string | null;
+  parent_provider_source_id: string | null;
+  metadata: Record<string, unknown>;
+  permissions: Record<string, unknown>;
+};
+
+export type ConnectorDiscoveryResponse = {
+  items: ConnectorDiscoveryItem[];
+  total: number;
+  next_cursor: Record<string, unknown> | null;
+  has_more: boolean;
+};
+
 export type ConnectorConnectionDetail = ConnectorConnectionSummary & {
   diagnostics: ConnectorDiagnostics;
   source_permission_snapshots: SourcePermissionSnapshot[];
@@ -136,5 +153,41 @@ export async function deleteConnectorConnection(
   return apiRequest<void>(
     `/connectors/connections/${encodeURIComponent(connectionId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function discoverConnectorSources(
+  connectionId: string,
+  providerKey: string,
+  scope: "sites" | "drives" | "libraries" | "folders",
+  params?: {
+    cursor?: string | null;
+    siteId?: string | null;
+    driveId?: string | null;
+    folderId?: string | null;
+    pageSize?: number;
+  },
+): Promise<ConnectorDiscoveryResponse> {
+  const search = new URLSearchParams();
+  if (params?.cursor) {
+    search.set("cursor", params.cursor);
+  }
+  if (params?.siteId) {
+    search.set("site_id", params.siteId);
+  }
+  if (params?.driveId) {
+    search.set("drive_id", params.driveId);
+  }
+  if (params?.folderId) {
+    search.set("folder_id", params.folderId);
+  }
+  if (params?.pageSize) {
+    search.set("page_size", String(params.pageSize));
+  }
+
+  const query = search.toString();
+  const suffix = query.length > 0 ? `?${query}` : "";
+  return apiRequest<ConnectorDiscoveryResponse>(
+    `/connectors/connections/${encodeURIComponent(connectionId)}/providers/${encodeURIComponent(providerKey)}/discover/${scope}${suffix}`,
   );
 }
