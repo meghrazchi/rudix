@@ -5,12 +5,15 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  DEFAULT_PROVIDER_SECURITY,
   getGovernancePolicy,
   type GovernancePolicyResponse,
   type GovernancePolicyState,
   type ExternalMcpServerPolicy,
+  type ProviderSecurityPolicy,
   updateGovernancePolicy,
 } from "@/lib/api/admin-governance";
+import { ProviderSecuritySection } from "@/components/admin/governance/ProviderSecuritySection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
 import { canViewAdminUsage } from "@/lib/dashboard";
@@ -96,6 +99,12 @@ function clonePolicy(policy: GovernancePolicyState): GovernancePolicyState {
       side_effect_tools: [...server.side_effect_tools],
       required_roles: [...server.required_roles],
     })),
+    provider_security: {
+      ...(policy.provider_security ?? DEFAULT_PROVIDER_SECURITY),
+      allowed_provider_profiles: [
+        ...(policy.provider_security?.allowed_provider_profiles ?? []),
+      ],
+    },
   };
 }
 
@@ -129,6 +138,7 @@ export function AdminGovernancePage() {
     null,
   );
   const [sideEffectAck, setSideEffectAck] = useState(false);
+  const [cloudFallbackAck, setCloudFallbackAck] = useState(false);
   const [newServer, setNewServer] =
     useState<NewServerFormState>(DEFAULT_NEW_SERVER);
 
@@ -147,11 +157,14 @@ export function AdminGovernancePage() {
       return updateGovernancePolicy({
         ...policy,
         side_effect_warning_acknowledged: sideEffectAck,
+        provider_security: policy.provider_security ?? DEFAULT_PROVIDER_SECURITY,
+        cloud_fallback_warning_acknowledged: cloudFallbackAck,
       });
     },
     onSuccess: (response) => {
       setDraftPolicy(clonePolicy(response.policy));
       setSideEffectAck(false);
+      setCloudFallbackAck(false);
       queryClient.setQueryData(
         queryKeys.admin.governance,
         (previous: GovernancePolicyResponse | undefined) => {
@@ -408,6 +421,15 @@ export function AdminGovernancePage() {
           )}
         </article>
       </section>
+
+      <ProviderSecuritySection
+        policy={policy.provider_security ?? DEFAULT_PROVIDER_SECURITY}
+        cloudFallbackAck={cloudFallbackAck}
+        onPolicyChange={(next: ProviderSecurityPolicy) =>
+          setDraftPolicy({ ...policy, provider_security: next })
+        }
+        onCloudFallbackAckChange={setCloudFallbackAck}
+      />
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <h2 className="text-lg font-bold text-[#2a2640]">Tool allowlist</h2>

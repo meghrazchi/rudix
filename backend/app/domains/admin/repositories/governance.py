@@ -42,8 +42,15 @@ class GovernancePolicyRepository:
         max_total_tokens: int | None,
         max_total_cost_usd: Decimal | None,
         external_mcp_servers: list[dict],
+        # F225 provider security fields
+        local_only_mode: bool = False,
+        cloud_fallback_allowed: bool = True,
+        allowed_provider_profiles: list[str] | None = None,
+        admin_only_model_selection: bool = True,
+        retention_warning_acknowledged: bool = False,
     ) -> OrganizationGovernancePolicy:
         policy = await self.get_by_organization(session, organization_id=organization_id)
+        allowed_profiles = list(allowed_provider_profiles or [])
         if policy is None:
             policy = OrganizationGovernancePolicy(
                 organization_id=organization_id,
@@ -61,6 +68,11 @@ class GovernancePolicyRepository:
                 max_total_tokens=max_total_tokens,
                 max_total_cost_usd=max_total_cost_usd,
                 external_mcp_servers_json=list(external_mcp_servers),
+                local_only_mode=local_only_mode,
+                cloud_fallback_allowed=cloud_fallback_allowed,
+                allowed_provider_profiles_json=allowed_profiles,
+                admin_only_model_selection=admin_only_model_selection,
+                retention_warning_acknowledged=retention_warning_acknowledged,
             )
             session.add(policy)
             await session.flush()
@@ -81,6 +93,11 @@ class GovernancePolicyRepository:
         policy.max_total_tokens = max_total_tokens
         policy.max_total_cost_usd = max_total_cost_usd
         policy.external_mcp_servers_json = list(external_mcp_servers)
+        policy.local_only_mode = local_only_mode
+        policy.cloud_fallback_allowed = cloud_fallback_allowed
+        policy.allowed_provider_profiles_json = allowed_profiles
+        policy.admin_only_model_selection = admin_only_model_selection
+        policy.retention_warning_acknowledged = retention_warning_acknowledged
         await session.flush()
         await session.refresh(policy)
         return policy

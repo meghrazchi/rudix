@@ -36,6 +36,22 @@ export type ExternalMcpServerPolicy = {
   approval_required_for_side_effect: boolean;
 };
 
+export type ProviderSecurityPolicy = {
+  local_only_mode: boolean;
+  cloud_fallback_allowed: boolean;
+  allowed_provider_profiles: string[];
+  admin_only_model_selection: boolean;
+  retention_warning_acknowledged: boolean;
+};
+
+export const DEFAULT_PROVIDER_SECURITY: ProviderSecurityPolicy = {
+  local_only_mode: false,
+  cloud_fallback_allowed: true,
+  allowed_provider_profiles: [],
+  admin_only_model_selection: true,
+  retention_warning_acknowledged: false,
+};
+
 export type GovernancePolicyState = {
   agentic_mode_enabled: boolean;
   mcp_exposure_enabled: boolean;
@@ -43,6 +59,7 @@ export type GovernancePolicyState = {
   allowed_tool_names: string[];
   budgets: GovernanceBudgetConfig;
   external_mcp_servers: ExternalMcpServerPolicy[];
+  provider_security: ProviderSecurityPolicy;
 };
 
 export type GovernanceMcpStatus = {
@@ -75,6 +92,8 @@ export type GovernancePolicyUpdateRequest = {
   budgets?: GovernanceBudgetConfig;
   external_mcp_servers?: ExternalMcpServerPolicy[];
   side_effect_warning_acknowledged?: boolean;
+  provider_security?: Partial<ProviderSecurityPolicy>;
+  cloud_fallback_warning_acknowledged?: boolean;
 };
 
 export type GovernancePolicyUpdateResponse = {

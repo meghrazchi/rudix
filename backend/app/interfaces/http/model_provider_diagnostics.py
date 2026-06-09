@@ -17,11 +17,14 @@ import asyncio
 import time
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.db.session import get_db_session
+from app.domains.admin.audit_events import PROVIDER_TEST_CONNECTION
+from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.ai.providers.capability_registry import default_capability_registry
 from app.domains.ai.providers.errors import (
     ProviderError,
@@ -32,8 +35,10 @@ from app.domains.ai.providers.factory import UnknownProviderError, default_provi
 from app.domains.ai.providers.protocols import ChatCompletionRequest, EmbeddingRequest
 from app.models.enums import OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/admin/model-providers", tags=["admin-model-providers"])
+_audit = AuditLogService()
 
 _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
 _ALL_ROLES = (
@@ -234,11 +239,13 @@ async def list_model_providers(
 @router.post("/test", response_model=TestProviderResponse)
 async def test_provider_connection(
     payload: TestProviderRequest,
-    _principal: Annotated[
+    request: Request,
+    principal: Annotated[
         AuthenticatedPrincipal,
         Depends(require_roles(*_ADMIN_ROLES)),
     ],
     __: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> TestProviderResponse:
     """Run a live connectivity probe against the specified provider.
 
@@ -249,6 +256,21 @@ async def test_provider_connection(
     Rate-limited to the admin bucket.
     """
     from app.core.config import settings
+    from uuid import UUID
+
+    def _org_id() -> UUID | None:
+        try:
+            return UUID(principal.organization_id) if principal.organization_id else None
+        except ValueError:
+            return None
+
+    def _user_id() -> UUID | None:
+        try:
+            return UUID(principal.user_id)
+        except (ValueError, AttributeError):
+            return None
+
+    request_id = getattr(request.state, "request_id", None) or request.headers.get("x-request-id")
 
     if payload.provider_key == "chat":
         provider_type = settings.llm_default_provider
@@ -271,7 +293,7 @@ async def test_provider_connection(
             )
             await asyncio.wait_for(provider.complete(req), timeout=_PROBE_TIMEOUT_SECONDS)
             latency_ms = int((time.monotonic() - start) * 1000)
-            return TestProviderResponse(
+            response = TestProviderResponse(
                 provider_key="chat",
                 provider_type=provider_type,
                 model_name=model_name,
@@ -281,7 +303,7 @@ async def test_provider_connection(
         except (ProviderError, UnknownProviderError, asyncio.TimeoutError, Exception) as exc:
             latency_ms = int((time.monotonic() - start) * 1000)
             error_code, error_message = _classify_probe_error(exc)
-            return TestProviderResponse(
+            response = TestProviderResponse(
                 provider_key="chat",
                 provider_type=provider_type,
                 model_name=model_name,
@@ -290,37 +312,58 @@ async def test_provider_connection(
                 error_code=error_code,
                 error_message=error_message,
             )
-
-    # embeddings
-    provider_type = settings.embedding_default_provider
-    model_name = (
-        settings.openai_embedding_model
-        if provider_type == "openai"
-        else settings.local_embedding_model
-    )
-
-    start = time.monotonic()
-    try:
-        provider = default_provider_factory.get_embedding_provider()
-        req = EmbeddingRequest(texts=["test"], model=model_name)
-        await asyncio.wait_for(provider.embed(req), timeout=_PROBE_TIMEOUT_SECONDS)
-        latency_ms = int((time.monotonic() - start) * 1000)
-        return TestProviderResponse(
-            provider_key="embeddings",
-            provider_type=provider_type,
-            model_name=model_name,
-            status="ok",
-            latency_ms=latency_ms,
+    else:
+        # embeddings
+        provider_type = settings.embedding_default_provider
+        model_name = (
+            settings.openai_embedding_model
+            if provider_type == "openai"
+            else settings.local_embedding_model
         )
-    except (ProviderError, UnknownProviderError, asyncio.TimeoutError, Exception) as exc:
-        latency_ms = int((time.monotonic() - start) * 1000)
-        error_code, error_message = _classify_probe_error(exc)
-        return TestProviderResponse(
-            provider_key="embeddings",
-            provider_type=provider_type,
-            model_name=model_name,
-            status=error_code,
-            latency_ms=latency_ms,
-            error_code=error_code,
-            error_message=error_message,
+
+        start = time.monotonic()
+        try:
+            provider = default_provider_factory.get_embedding_provider()
+            req = EmbeddingRequest(texts=["test"], model=model_name)
+            await asyncio.wait_for(provider.embed(req), timeout=_PROBE_TIMEOUT_SECONDS)
+            latency_ms = int((time.monotonic() - start) * 1000)
+            response = TestProviderResponse(
+                provider_key="embeddings",
+                provider_type=provider_type,
+                model_name=model_name,
+                status="ok",
+                latency_ms=latency_ms,
+            )
+        except (ProviderError, UnknownProviderError, asyncio.TimeoutError, Exception) as exc:
+            latency_ms = int((time.monotonic() - start) * 1000)
+            error_code, error_message = _classify_probe_error(exc)
+            response = TestProviderResponse(
+                provider_key="embeddings",
+                provider_type=provider_type,
+                model_name=model_name,
+                status=error_code,
+                latency_ms=latency_ms,
+                error_code=error_code,
+                error_message=error_message,
+            )
+
+    org_id = _org_id()
+    if org_id is not None:
+        await _audit.record(
+            db_session,
+            organization_id=org_id,
+            user_id=_user_id(),
+            action=PROVIDER_TEST_CONNECTION,
+            resource_type="model_provider",
+            request_id=request_id,
+            metadata={
+                "provider_key": payload.provider_key,
+                "provider_type": provider_type,
+                "status": response.status,
+                "latency_ms": response.latency_ms,
+                "error_code": response.error_code,
+            },
         )
+        await db_session.commit()
+
+    return response

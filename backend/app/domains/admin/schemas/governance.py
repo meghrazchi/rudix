@@ -128,6 +128,16 @@ class GovernanceBudgetConfig(BaseModel):
     max_total_cost_usd: Decimal | None = Field(default=None, ge=0, le=1_000_000)
 
 
+class ProviderSecurityPolicy(BaseModel):
+    """Provider routing and privacy controls (F225)."""
+
+    local_only_mode: bool = False
+    cloud_fallback_allowed: bool = True
+    allowed_provider_profiles: list[str] = Field(default_factory=list)
+    admin_only_model_selection: bool = True
+    retention_warning_acknowledged: bool = False
+
+
 class GovernancePolicyState(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -137,6 +147,9 @@ class GovernancePolicyState(BaseModel):
     allowed_tool_names: list[str] = Field(default_factory=list)
     budgets: GovernanceBudgetConfig
     external_mcp_servers: list[ExternalMCPServerPolicy] = Field(default_factory=list)
+    provider_security: ProviderSecurityPolicy = Field(
+        default_factory=ProviderSecurityPolicy
+    )
 
 
 class GovernanceMCPStatus(BaseModel):
@@ -172,6 +185,9 @@ class GovernancePolicyUpdateRequest(BaseModel):
         max_length=30,
     )
     side_effect_warning_acknowledged: bool = False
+    # F225 — provider security fields
+    provider_security: ProviderSecurityPolicy | None = None
+    cloud_fallback_warning_acknowledged: bool = False
 
     @field_validator("allowed_tool_names")
     @classmethod

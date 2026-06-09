@@ -110,5 +110,33 @@ class OrganizationGovernancePolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=list,
     )
 
+    # F225 — provider security & governance controls
+    local_only_mode: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    cloud_fallback_allowed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    allowed_provider_profiles_json: Mapped[list[str]] = mapped_column(
+        "allowed_provider_profiles",
+        JSON,
+        nullable=False,
+        default=list,
+    )
+    admin_only_model_selection: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+    retention_warning_acknowledged: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
     organization = relationship("Organization", back_populates="governance_policy")
     updated_by_user = relationship("User", back_populates="governance_policies_updated")

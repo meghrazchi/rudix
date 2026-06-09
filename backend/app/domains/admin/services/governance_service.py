@@ -18,6 +18,7 @@ from app.domains.admin.schemas.governance import (
     GovernancePolicyUpdateRequest,
     GovernancePolicyUpdateResponse,
     GovernanceToolSummary,
+    ProviderSecurityPolicy,
 )
 from app.domains.agents.schemas import ToolEffectPolicy, ToolSpec
 from app.domains.agents.services.tool_registry import build_default_tool_specs
@@ -94,6 +95,7 @@ class GovernancePolicyService:
             previous=current_state,
             current=next_state,
         )
+        ps = next_state.provider_security
         stored = await self._repository.upsert(
             session,
             organization_id=organization_id,
@@ -113,6 +115,11 @@ class GovernancePolicyService:
             external_mcp_servers=[
                 server.model_dump(mode="json") for server in next_state.external_mcp_servers
             ],
+            local_only_mode=ps.local_only_mode,
+            cloud_fallback_allowed=ps.cloud_fallback_allowed,
+            allowed_provider_profiles=list(ps.allowed_provider_profiles),
+            admin_only_model_selection=ps.admin_only_model_selection,
+            retention_warning_acknowledged=ps.retention_warning_acknowledged,
         )
 
         warnings = self._resolve_warnings(policy_state=next_state)
@@ -189,6 +196,13 @@ class GovernancePolicyService:
                 else None,
             ),
             external_mcp_servers=external_servers,
+            provider_security=ProviderSecurityPolicy(
+                local_only_mode=stored.local_only_mode,
+                cloud_fallback_allowed=stored.cloud_fallback_allowed,
+                allowed_provider_profiles=list(stored.allowed_provider_profiles_json or []),
+                admin_only_model_selection=stored.admin_only_model_selection,
+                retention_warning_acknowledged=stored.retention_warning_acknowledged,
+            ),
         )
 
     def _sanitize_allowed_tools(self, candidates: list[str] | None) -> list[str]:
@@ -268,6 +282,32 @@ class GovernancePolicyService:
             if payload.external_mcp_servers is not None
             else current_state.external_mcp_servers
         )
+
+        # F225: provider security update
+        current_ps = current_state.provider_security
+        if payload.provider_security is not None:
+            ps_in = payload.provider_security
+            # Re-enabling cloud fallback from local-only requires acknowledgment
+            was_local_only = current_ps.local_only_mode
+            turning_off_local_only = was_local_only and not ps_in.local_only_mode
+            enabling_cloud_fallback = (
+                not current_ps.cloud_fallback_allowed and ps_in.cloud_fallback_allowed
+            )
+            if (turning_off_local_only or enabling_cloud_fallback) and not payload.cloud_fallback_warning_acknowledged:
+                raise ValueError(
+                    "cloud_fallback_warning_acknowledged must be true when enabling cloud "
+                    "provider access from a local-only deployment."
+                )
+            next_ps = ProviderSecurityPolicy(
+                local_only_mode=ps_in.local_only_mode,
+                cloud_fallback_allowed=ps_in.cloud_fallback_allowed,
+                allowed_provider_profiles=list(ps_in.allowed_provider_profiles),
+                admin_only_model_selection=ps_in.admin_only_model_selection,
+                retention_warning_acknowledged=ps_in.retention_warning_acknowledged,
+            )
+        else:
+            next_ps = current_ps
+
         return GovernancePolicyState(
             agentic_mode_enabled=current_state.agentic_mode_enabled
             if payload.agentic_mode_enabled is None
@@ -279,6 +319,7 @@ class GovernancePolicyService:
             allowed_tool_names=next_allowed,
             budgets=next_budgets,
             external_mcp_servers=next_external_servers,
+            provider_security=next_ps,
         )
 
     def _resolve_warnings(self, *, policy_state: GovernancePolicyState) -> list[str]:
@@ -305,6 +346,18 @@ class GovernancePolicyService:
             )
         if not policy_state.allowed_tool_names:
             warnings.append("No tools are allowlisted. Agent runs will not be able to call tools.")
+
+        ps = policy_state.provider_security
+        if ps.local_only_mode and ps.cloud_fallback_allowed:
+            warnings.append(
+                "local_only_mode is enabled but cloud_fallback_allowed is also true. "
+                "Set cloud_fallback_allowed=false to guarantee no cloud provider is ever contacted."
+            )
+        if ps.local_only_mode and not ps.retention_warning_acknowledged:
+            warnings.append(
+                "Local-only mode is active. Ensure logs and traces do not forward data to "
+                "cloud services. Acknowledge with retention_warning_acknowledged=true."
+            )
         return warnings
 
     def _changed_fields(

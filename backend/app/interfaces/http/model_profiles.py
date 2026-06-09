@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
+from app.domains.admin.audit_events import MODEL_PROFILE_DELETED, MODEL_PROFILE_UPSERTED
 from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.ai.profile.schemas import (
     EffectiveModelPolicyResponse,
@@ -242,7 +243,7 @@ async def upsert_model_profile(
         db_session,
         organization_id=organization_id,
         user_id=user_id,
-        action="model_profile.upserted",
+        action=MODEL_PROFILE_UPSERTED,
         resource_type="org_model_profile",
         resource_id=profile.id,
         request_id=request_id,
@@ -251,6 +252,7 @@ async def upsert_model_profile(
             "provider_type": profile.provider_type,
             "base_model": profile.base_model,
             "version": profile.version,
+            "is_experimental": profile.is_experimental,
         },
     )
     await db_session.commit()
@@ -293,7 +295,7 @@ async def delete_model_profile(
         db_session,
         organization_id=organization_id,
         user_id=user_id,
-        action="model_profile.deleted",
+        action=MODEL_PROFILE_DELETED,
         resource_type="org_model_profile",
         resource_id=None,
         request_id=request_id,

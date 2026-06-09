@@ -31,3 +31,15 @@ class ProviderPolicyBlockedError(ProviderError):
 
 class ProviderInternalError(ProviderError):
     """Provider reported an internal error."""
+
+
+class CloudFallbackDisabledError(ProviderError):
+    """Fallback to a cloud provider is disabled by org governance policy."""
+
+
+class ProviderNotAllowedError(ProviderError):
+    """The requested provider is not in the org's allowed-provider list."""
+
+
+class ModelProfileNotAllowedError(ProviderError):
+    """The resolved model profile is blocked by org governance policy."""

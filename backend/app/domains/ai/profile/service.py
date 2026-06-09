@@ -29,7 +29,14 @@ from app.domains.ai.profile.schemas import (
     ValidateProfileRequest,
     ValidateProfileResponse,
 )
+from app.domains.ai.providers.errors import (
+    CloudFallbackDisabledError,
+    ProviderNotAllowedError,
+)
+from app.domains.admin.schemas.governance import ProviderSecurityPolicy
 from app.models.model_profile import OrgModelProfile, OrgModelProfileChangeLog
+
+_CLOUD_PROVIDER_KEYS = frozenset({"openai"})
 
 # ---------------------------------------------------------------------------
 # Env-level defaults per task type
@@ -248,6 +255,50 @@ def _profile_to_resolved(profile: OrgModelProfile) -> ResolvedTaskProfile:
         source=ProfileSource.org_profile,
         version=profile.version,
     )
+
+
+def check_provider_governance(
+    profile: ResolvedTaskProfile,
+    policy: ProviderSecurityPolicy,
+) -> None:
+    """Raise a governance error if the resolved profile violates the org policy.
+
+    Call this immediately after resolve_task_profile() and before constructing
+    any provider request so that document content never reaches a blocked provider.
+
+    Raises:
+        ProviderNotAllowedError: provider_type is cloud but local_only_mode=True,
+            or provider_type is not in the non-empty allowed_provider_profiles list.
+        CloudFallbackDisabledError: profile has a cloud fallback key but
+            cloud_fallback_allowed=False.
+    """
+    provider = profile.provider_type
+    is_cloud = provider in _CLOUD_PROVIDER_KEYS
+
+    if policy.local_only_mode and is_cloud:
+        raise ProviderNotAllowedError(
+            f"provider_not_allowed: provider '{provider}' is a cloud provider but "
+            "local_only_mode is enabled for this organisation."
+        )
+
+    if (
+        policy.allowed_provider_profiles
+        and provider not in policy.allowed_provider_profiles
+    ):
+        allowed = ", ".join(sorted(policy.allowed_provider_profiles))
+        raise ProviderNotAllowedError(
+            f"provider_not_allowed: provider '{provider}' is not in the org's "
+            f"allowed provider list ({allowed})."
+        )
+
+    fallback = profile.fallback_provider_key
+    if fallback and not policy.cloud_fallback_allowed:
+        fallback_is_cloud = fallback in _CLOUD_PROVIDER_KEYS
+        if fallback_is_cloud:
+            raise CloudFallbackDisabledError(
+                f"cloud_fallback_disabled: fallback provider '{fallback}' is a cloud provider "
+                "but cloud_fallback_allowed is disabled for this organisation."
+            )
 
 
 async def resolve_task_profile(
