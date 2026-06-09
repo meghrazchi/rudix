@@ -28,24 +28,23 @@ os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from app.core.config import settings
+from app.domains.ai.providers.protocols import EmbeddingRequest, EmbeddingResponse
 from app.domains.chat.services.query_retrieval_service import QueryRetrievalService
 
 
-class FakeEmbeddingsEndpoint:
+class FakeEmbeddingProvider:
     def __init__(self) -> None:
-        self.calls: list[dict[str, object]] = []
+        self.calls: list[EmbeddingRequest] = []
 
-    async def create(self, *, model: str, input: list[str]) -> object:
-        self.calls.append({"model": model, "input": input})
-        return SimpleNamespace(
-            data=[SimpleNamespace(embedding=[0.01] * settings.qdrant_vector_size)],
-            usage=SimpleNamespace(prompt_tokens=11),
+    async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        self.calls.append(request)
+        return EmbeddingResponse(
+            vectors=[[0.01] * settings.qdrant_vector_size],
+            model=request.model or "text-embedding-3-small",
+            prompt_tokens=11,
+            total_tokens=11,
+            latency_ms=1,
         )
-
-
-class FakeOpenAIClient:
-    def __init__(self) -> None:
-        self.embeddings = FakeEmbeddingsEndpoint()
 
 
 @dataclass(frozen=True)
@@ -76,19 +75,19 @@ class FakeQdrantQueryPointsClient:
 
 @pytest.mark.asyncio
 async def test_embed_query_uses_configured_embedding_model() -> None:
-    fake_openai = FakeOpenAIClient()
+    fake_provider = FakeEmbeddingProvider()
     service = QueryRetrievalService(
         embedding_model="text-embedding-3-small",
-        openai_client=fake_openai,
+        embedding_provider=fake_provider,
     )
 
     vector, prompt_tokens = await service.embed_query(question="How many leave days?")
 
     assert len(vector) == settings.qdrant_vector_size
     assert prompt_tokens == 11
-    assert len(fake_openai.embeddings.calls) == 1
-    assert fake_openai.embeddings.calls[0]["model"] == "text-embedding-3-small"
-    assert fake_openai.embeddings.calls[0]["input"] == ["How many leave days?"]
+    assert len(fake_provider.calls) == 1
+    assert fake_provider.calls[0].model == "text-embedding-3-small"
+    assert fake_provider.calls[0].texts == ["How many leave days?"]
 
 
 def test_retrieve_candidates_applies_org_and_document_filters() -> None:
@@ -239,7 +238,7 @@ async def test_embed_and_retrieve_returns_required_citation_metadata() -> None:
     organization_id = uuid4()
     document_id = uuid4()
     chunk_id = uuid4()
-    fake_openai = FakeOpenAIClient()
+    fake_provider = FakeEmbeddingProvider()
     fake_qdrant = FakeQdrantClient(
         results=[
             FakeQdrantResult(
@@ -256,7 +255,7 @@ async def test_embed_and_retrieve_returns_required_citation_metadata() -> None:
         ]
     )
     service = QueryRetrievalService(
-        openai_client=fake_openai,
+        embedding_provider=fake_provider,
         qdrant_client=fake_qdrant,
     )
 

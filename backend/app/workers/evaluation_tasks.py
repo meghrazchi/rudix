@@ -9,7 +9,6 @@ from time import perf_counter
 from typing import Any
 from uuid import UUID
 
-from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -58,7 +57,6 @@ _confidence_service = ConfidenceService()
 _evaluation_metrics_service = EvaluationMetricsService()
 _audit_log_service = AuditLogService()
 _document_repository = DocumentRepository()
-_openai_client: AsyncOpenAI | None = None
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
 
@@ -285,35 +283,6 @@ def _record_worker_audit(
     )
 
 
-def _get_openai_client() -> AsyncOpenAI:
-    global _openai_client
-    if _openai_client is None:
-        if settings.openai_api_key is None:
-            raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(
-            float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
-        )
-        _openai_client = AsyncOpenAI(
-            api_key=settings.openai_api_key.get_secret_value(),
-            timeout=timeout_seconds,
-            max_retries=0,
-        )
-    return _openai_client
-
-
-def _extract_message_text(content: object) -> str:
-    if isinstance(content, str):
-        return content.strip()
-    if isinstance(content, list):
-        text_parts: list[str] = []
-        for item in content:
-            text = getattr(item, "text", None)
-            if isinstance(text, str) and text.strip():
-                text_parts.append(text.strip())
-        return "\n".join(text_parts).strip()
-    return ""
-
-
 def _coerce_score(value: object) -> float | None:
     if isinstance(value, (int, float)):
         numeric = float(value)
@@ -335,6 +304,9 @@ async def _evaluate_with_llm_judge_async(
     generated_answer: str,
     retrieved_chunks: list[RetrievedChunk],
 ) -> EvaluationJudgeScores:
+    from app.domains.ai.providers.factory import default_provider_factory
+    from app.domains.ai.providers.protocols import ChatCompletionRequest
+
     context_lines: list[str] = []
     for index, chunk in enumerate(retrieved_chunks[:6], start=1):
         context_lines.append(
@@ -357,26 +329,20 @@ async def _evaluate_with_llm_judge_async(
         f"Assistant answer:\n{generated_answer}\n\n"
         f"Retrieved context:\n{context_block}\n"
     )
-    response = await _get_openai_client().chat.completions.create(
-        model=model_name,
-        temperature=0,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are an evaluation judge. Score only groundedness and relevance. "
-                    "Do not return any keys except faithfulness_score and answer_relevance_score."
-                ),
-            },
-            {"role": "user", "content": prompt},
-        ],
+    provider = default_provider_factory.get_chat_provider()
+    response = await provider.complete(
+        ChatCompletionRequest(
+            prompt=prompt,
+            model=model_name,
+            temperature=0.0,
+            json_mode=True,
+            system_message=(
+                "You are an evaluation judge. Score only groundedness and relevance. "
+                "Do not return any keys except faithfulness_score and answer_relevance_score."
+            ),
+        )
     )
-    choices = getattr(response, "choices", None) or []
-    if not choices:
-        raise RuntimeError("Judge response did not include choices")
-    raw_content = _extract_message_text(choices[0].message.content)
-    payload = json.loads(raw_content)
+    payload = json.loads(response.content)
     faithfulness_score = _coerce_score(payload.get("faithfulness_score"))
     answer_relevance_score = _coerce_score(payload.get("answer_relevance_score"))
     return EvaluationJudgeScores(
@@ -893,7 +859,6 @@ async def _evaluate_question_pipeline_async(
     embed_started = perf_counter()
     query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
         question=question_text,
-        openai_client=_get_openai_client(),
     )
     latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
 
@@ -976,7 +941,6 @@ async def _evaluate_question_pipeline_async(
         try:
             llm_result = await llm_service.generate_answer(
                 prompt=prompt,
-                openai_client=_get_openai_client(),
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             raise RuntimeError("llm_generation_failed") from exc

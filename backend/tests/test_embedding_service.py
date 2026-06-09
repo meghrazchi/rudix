@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-# Ensure strict settings can be loaded when importing modules in tests.
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("API_BASE_URL", "http://localhost:8000")
 os.environ.setdefault("FRONTEND_BASE_URL", "http://localhost:3000")
@@ -25,6 +24,11 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 os.environ.setdefault("AUTH_PROVIDER", "app")
 os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
+from app.domains.ai.providers.errors import (
+    InvalidProviderResponseError,
+    ProviderUnavailableError,
+)
+from app.domains.ai.providers.protocols import EmbeddingRequest, EmbeddingResponse
 from app.domains.documents.services.embedding_service import (
     EmbeddingService,
     PermanentEmbeddingError,
@@ -39,68 +43,42 @@ class FakeChunk:
     token_count: int
 
 
-@dataclass(frozen=True)
-class FakeEmbedding:
-    index: int
-    embedding: list[float]
+class FakeEmbeddingProvider:
+    """Fake EmbeddingProvider for unit tests."""
 
-
-@dataclass(frozen=True)
-class FakeUsage:
-    prompt_tokens: int
-    total_tokens: int
-
-
-@dataclass(frozen=True)
-class FakeResponse:
-    data: list[FakeEmbedding]
-    usage: FakeUsage
-
-
-class FakeEmbeddingsEndpoint:
-    def __init__(self, responses: list[FakeResponse | Exception]) -> None:
+    def __init__(self, responses: list[EmbeddingResponse | Exception]) -> None:
         self._responses = responses
-        self.calls: list[dict[str, object]] = []
+        self.calls: list[EmbeddingRequest] = []
 
-    async def create(self, *, model: str, input: list[str]) -> FakeResponse:
-        self.calls.append({"model": model, "input": input})
+    async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        self.calls.append(request)
         if not self._responses:
-            raise RuntimeError("missing fake response")
-        next_response = self._responses.pop(0)
-        if isinstance(next_response, Exception):
-            raise next_response
-        return next_response
+            raise RuntimeError("No fake response available")
+        item = self._responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
 
 
-class FakeOpenAIClient:
-    def __init__(self, responses: list[FakeResponse | Exception]) -> None:
-        self.embeddings = FakeEmbeddingsEndpoint(responses)
+def _response(vectors: list[list[float]], prompt_tokens: int = 100, total_tokens: int = 100) -> EmbeddingResponse:
+    return EmbeddingResponse(
+        vectors=vectors,
+        model="text-embedding-3-small",
+        prompt_tokens=prompt_tokens,
+        total_tokens=total_tokens,
+        latency_ms=5,
+    )
 
 
 @pytest.mark.asyncio
 async def test_embed_chunks_batches_and_tracks_usage() -> None:
-    chunks = [FakeChunk(id=uuid4(), text=f"chunk-{index}", token_count=50) for index in range(5)]
+    chunks = [FakeChunk(id=uuid4(), text=f"chunk-{i}", token_count=50) for i in range(5)]
 
-    client = FakeOpenAIClient(
+    provider = FakeEmbeddingProvider(
         responses=[
-            FakeResponse(
-                data=[
-                    FakeEmbedding(index=0, embedding=[0.1, 0.2]),
-                    FakeEmbedding(index=1, embedding=[0.3, 0.4]),
-                ],
-                usage=FakeUsage(prompt_tokens=100, total_tokens=100),
-            ),
-            FakeResponse(
-                data=[
-                    FakeEmbedding(index=0, embedding=[0.5, 0.6]),
-                    FakeEmbedding(index=1, embedding=[0.7, 0.8]),
-                ],
-                usage=FakeUsage(prompt_tokens=100, total_tokens=100),
-            ),
-            FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.9, 1.0])],
-                usage=FakeUsage(prompt_tokens=50, total_tokens=50),
-            ),
+            _response([[0.1, 0.2], [0.3, 0.4]], prompt_tokens=100, total_tokens=100),
+            _response([[0.5, 0.6], [0.7, 0.8]], prompt_tokens=100, total_tokens=100),
+            _response([[0.9, 1.0]], prompt_tokens=50, total_tokens=50),
         ]
     )
 
@@ -109,15 +87,15 @@ async def test_embed_chunks_batches_and_tracks_usage() -> None:
         batch_max_tokens=1000,
         retry_max_attempts=2,
         cost_per_million_tokens_usd=1.0,
-        openai_client=client,
+        provider=provider,
         model_name="text-embedding-3-small",
         index_version="v-test",
     )
 
     result = await service.embed_chunks(chunks=chunks)
 
-    assert len(client.embeddings.calls) == 3
-    assert [len(call["input"]) for call in client.embeddings.calls] == [2, 2, 1]
+    assert len(provider.calls) == 3
+    assert [len(call.texts) for call in provider.calls] == [2, 2, 1]
     assert result.batch_count == 3
     assert result.retry_count == 0
     assert result.input_tokens == 250
@@ -134,33 +112,24 @@ async def test_embed_chunks_respects_token_batch_budget() -> None:
         FakeChunk(id=uuid4(), text="c", token_count=40),
     ]
 
-    client = FakeOpenAIClient(
+    provider = FakeEmbeddingProvider(
         responses=[
-            FakeResponse(
-                data=[
-                    FakeEmbedding(index=0, embedding=[0.1]),
-                    FakeEmbedding(index=1, embedding=[0.2]),
-                ],
-                usage=FakeUsage(prompt_tokens=240, total_tokens=240),
-            ),
-            FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.3])],
-                usage=FakeUsage(prompt_tokens=40, total_tokens=40),
-            ),
+            _response([[0.1], [0.2]], prompt_tokens=240, total_tokens=240),
+            _response([[0.3]], prompt_tokens=40, total_tokens=40),
         ]
     )
 
     service = EmbeddingService(
         batch_max_items=100,
         batch_max_tokens=250,
-        openai_client=client,
+        provider=provider,
         model_name="text-embedding-3-small",
     )
 
     result = await service.embed_chunks(chunks=chunks)
 
-    assert len(client.embeddings.calls) == 2
-    assert [len(call["input"]) for call in client.embeddings.calls] == [2, 1]
+    assert len(provider.calls) == 2
+    assert [len(call.texts) for call in provider.calls] == [2, 1]
     assert result.batch_count == 2
 
 
@@ -168,13 +137,10 @@ async def test_embed_chunks_respects_token_batch_budget() -> None:
 async def test_embed_chunks_retries_transient_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     chunks = [FakeChunk(id=uuid4(), text="chunk", token_count=10)]
 
-    client = FakeOpenAIClient(
+    provider = FakeEmbeddingProvider(
         responses=[
-            OSError("temporary network failure"),
-            FakeResponse(
-                data=[FakeEmbedding(index=0, embedding=[0.1, 0.2, 0.3])],
-                usage=FakeUsage(prompt_tokens=10, total_tokens=10),
-            ),
+            ProviderUnavailableError("temporary network failure"),
+            _response([[0.1, 0.2, 0.3]]),
         ]
     )
 
@@ -191,12 +157,12 @@ async def test_embed_chunks_retries_transient_errors(monkeypatch: pytest.MonkeyP
         retry_max_attempts=3,
         retry_base_seconds=0.1,
         retry_max_seconds=1.0,
-        openai_client=client,
+        provider=provider,
     )
 
     result = await service.embed_chunks(chunks=chunks)
 
-    assert len(client.embeddings.calls) == 2
+    assert len(provider.calls) == 2
     assert sleep_calls == [0.1]
     assert result.retry_count == 1
 
@@ -207,11 +173,11 @@ async def test_embed_chunks_raises_transient_after_retry_exhaustion(
 ) -> None:
     chunks = [FakeChunk(id=uuid4(), text="chunk", token_count=10)]
 
-    client = FakeOpenAIClient(
+    provider = FakeEmbeddingProvider(
         responses=[
-            OSError("temporary network failure"),
-            OSError("temporary network failure"),
-            OSError("temporary network failure"),
+            ProviderUnavailableError("network failure"),
+            ProviderUnavailableError("network failure"),
+            ProviderUnavailableError("network failure"),
         ]
     )
 
@@ -228,13 +194,13 @@ async def test_embed_chunks_raises_transient_after_retry_exhaustion(
         retry_max_attempts=3,
         retry_base_seconds=0.2,
         retry_max_seconds=0.5,
-        openai_client=client,
+        provider=provider,
     )
 
     with pytest.raises(TransientEmbeddingError, match="failed after retries"):
         await service.embed_chunks(chunks=chunks)
 
-    assert len(client.embeddings.calls) == 3
+    assert len(provider.calls) == 3
     assert sleep_calls == [0.2, 0.4]
 
 
@@ -242,15 +208,15 @@ async def test_embed_chunks_raises_transient_after_retry_exhaustion(
 async def test_embed_chunks_raises_permanent_for_non_transient_error() -> None:
     chunks = [FakeChunk(id=uuid4(), text="chunk", token_count=10)]
 
-    client = FakeOpenAIClient(
+    provider = FakeEmbeddingProvider(
         responses=[
-            ValueError("bad request payload"),
+            InvalidProviderResponseError("invalid response from provider"),
         ]
     )
 
-    service = EmbeddingService(openai_client=client)
+    service = EmbeddingService(provider=provider)
 
     with pytest.raises(PermanentEmbeddingError, match="failed permanently"):
         await service.embed_chunks(chunks=chunks)
 
-    assert len(client.embeddings.calls) == 1
+    assert len(provider.calls) == 1

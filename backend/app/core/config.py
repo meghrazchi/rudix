@@ -323,6 +323,10 @@ class Settings(BaseSettings):
     dependency_read_timeout_seconds: float = Field(default=1.0, ge=0.1, le=120.0)
     dependency_max_retries: int = Field(default=0, ge=0, le=10)
 
+    # Provider routing — new settings with backwards-compatible OpenAI defaults
+    llm_default_provider: str = Field(default="openai", min_length=1, max_length=64)
+    embedding_default_provider: str = Field(default="openai", min_length=1, max_length=64)
+
     openai_api_key: SecretStr | None = None
     openai_embedding_model: str = Field(
         default="text-embedding-3-small", min_length=3, max_length=128
@@ -887,14 +891,16 @@ class Settings(BaseSettings):
         if self.auth_provider == AuthProvider.supabase and self.supabase_jwt_audience is None:
             raise ValueError("supabase_jwt_audience is required when auth_provider=supabase")
 
-        needs_openai = (
-            self.feature_enable_embeddings
-            or self.feature_enable_llm
-            or self.feature_enable_evaluations
+        needs_openai_for_llm = (
+            self.feature_enable_llm or self.feature_enable_evaluations
+        ) and self.llm_default_provider == "openai"
+        needs_openai_for_embeddings = (
+            self.feature_enable_embeddings and self.embedding_default_provider == "openai"
         )
-        if needs_openai and self.openai_api_key is None:
+        if (needs_openai_for_llm or needs_openai_for_embeddings) and self.openai_api_key is None:
             raise ValueError(
-                "openai_api_key is required when embeddings, llm, or evaluations are enabled"
+                "openai_api_key is required when llm_default_provider=openai or "
+                "embedding_default_provider=openai and the corresponding feature is enabled"
             )
 
         if self.environment == Environment.production:

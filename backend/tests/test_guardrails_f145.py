@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -55,6 +54,12 @@ from app.clients import qdrant_client as qdrant_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.core.safety_guardrails import InjectionCheckResult, PromptInjectionGuard
+from app.domains.ai.providers.protocols import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+)
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.llm_service import ParsedCitation
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
@@ -130,33 +135,37 @@ class FakeQdrantClient:
         return list(self._results)
 
 
-class FakeEmbeddingsEndpoint:
-    def __init__(self, vector_size: int) -> None:
-        self.vector_size = vector_size
-
-    async def create(self, *, model: str, input: list[str]) -> object:
-        return SimpleNamespace(
-            data=[SimpleNamespace(embedding=[0.01] * self.vector_size)],
-            usage=SimpleNamespace(prompt_tokens=7),
-        )
-
-
-class FakeChatCompletionsEndpoint:
+class _FakeChatProvider:
     def __init__(self, *, answer: str) -> None:
-        self.answer = answer
+        self._answer = answer
 
-    async def create(self, **kwargs: object) -> object:
-        return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=self.answer))],
-            usage=SimpleNamespace(prompt_tokens=31, completion_tokens=17),
+    async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        return ChatCompletionResponse(
+            content=self._answer,
             model=settings.openai_llm_model,
+            prompt_tokens=31,
+            completion_tokens=17,
+            total_tokens=48,
+            latency_ms=1,
         )
 
 
-class FakeOpenAIClient:
-    def __init__(self, *, answer: str) -> None:
-        self.embeddings = FakeEmbeddingsEndpoint(settings.qdrant_vector_size)
-        self.chat = SimpleNamespace(completions=FakeChatCompletionsEndpoint(answer=answer))
+class _FakeEmbeddingProvider:
+    async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        return EmbeddingResponse(
+            vectors=[[0.01] * settings.qdrant_vector_size] * len(request.texts),
+            model=settings.openai_embedding_model,
+            prompt_tokens=7,
+            total_tokens=7,
+            latency_ms=1,
+        )
+
+
+def _inject_providers(monkeypatch: pytest.MonkeyPatch, *, answer: str) -> None:
+    monkeypatch.setattr(chat_api._llm_service, "_provider", _FakeChatProvider(answer=answer))
+    monkeypatch.setattr(
+        chat_api._query_retrieval_service, "_embedding_provider", _FakeEmbeddingProvider()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +215,8 @@ async def chat_client(
 
     app.dependency_overrides.clear()
     qdrant_module.qdrant_client = None
-    chat_api._openai_client = None
+    chat_api._llm_service._provider = None
+    chat_api._query_retrieval_service._embedding_provider = None
 
 
 async def _seed_principal(db_session: AsyncSession) -> tuple[User, Organization]:
@@ -638,26 +648,24 @@ async def test_injection_question_returns_not_found_safely(
         expires_in_seconds=600,
     )
 
-    llm_calls: list[dict[str, object]] = []
+    llm_provider_calls: list[ChatCompletionRequest] = []
 
-    class TrackingCompletions:
-        async def create(self, **kwargs: object) -> object:
-            llm_calls.append(kwargs)
-            return SimpleNamespace(
-                choices=[
-                    SimpleNamespace(
-                        message=SimpleNamespace(
-                            content='{"answer":"hacked","not_found":false,"citations":[]}'
-                        )
-                    )
-                ],
-                usage=SimpleNamespace(prompt_tokens=0, completion_tokens=0),
+    class TrackingChatProvider:
+        async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+            llm_provider_calls.append(request)
+            return ChatCompletionResponse(
+                content='{"answer":"hacked","not_found":false,"citations":[]}',
                 model=settings.openai_llm_model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+                latency_ms=0,
             )
 
-    fake_openai = FakeOpenAIClient(answer="")
-    fake_openai.chat = SimpleNamespace(completions=TrackingCompletions())
-    monkeypatch.setattr(chat_api, "_openai_client", fake_openai)
+    monkeypatch.setattr(chat_api._llm_service, "_provider", TrackingChatProvider())
+    monkeypatch.setattr(
+        chat_api._query_retrieval_service, "_embedding_provider", _FakeEmbeddingProvider()
+    )
 
     qdrant_module.qdrant_client = FakeQdrantClient(
         [
@@ -694,7 +702,7 @@ async def test_injection_question_returns_not_found_safely(
     assert "injection" not in body["answer"].lower()
     assert "blocked" not in body["answer"].lower()
     # LLM must NOT have been called.
-    assert llm_calls == [], "LLM should not be called for injection-blocked questions"
+    assert llm_provider_calls == [], "LLM should not be called for injection-blocked questions"
 
 
 @pytest.mark.asyncio
@@ -723,7 +731,7 @@ async def test_injection_in_document_text_does_not_override_answer(
 
     # LLM returns a well-formed not-found (simulating the model obeying the grounding rules).
     fake_llm_answer = '{"answer":"I could not find this information in the uploaded documents.","not_found":true,"citations":[]}'
-    monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=fake_llm_answer))
+    _inject_providers(monkeypatch, answer=fake_llm_answer)
 
     qdrant_module.qdrant_client = FakeQdrantClient(
         [
@@ -787,7 +795,7 @@ async def test_low_confidence_retrieval_returns_not_found(
 
     # No Qdrant results returned (below threshold / no match).
     qdrant_module.qdrant_client = FakeQdrantClient([])
-    monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer="irrelevant"))
+    _inject_providers(monkeypatch, answer="irrelevant")
 
     response = await chat_client.post(
         "/api/v1/chat",
@@ -837,7 +845,7 @@ async def test_fake_citation_sets_citation_validation_failed(
         f'"filename":"fabricated.pdf","page_number":9}}'
         f"]}}"
     )
-    monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=llm_answer))
+    _inject_providers(monkeypatch, answer=llm_answer)
 
     qdrant_module.qdrant_client = FakeQdrantClient(
         [
@@ -903,7 +911,7 @@ async def test_valid_citations_do_not_set_citation_validation_failed(
         f'"filename":"legit.pdf","page_number":1,"text_snippet":"Annual leave is 20 days"}}'
         f"]}}"
     )
-    monkeypatch.setattr(chat_api, "_openai_client", FakeOpenAIClient(answer=llm_answer))
+    _inject_providers(monkeypatch, answer=llm_answer)
 
     qdrant_module.qdrant_client = FakeQdrantClient(
         [

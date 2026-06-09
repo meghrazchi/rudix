@@ -5,23 +5,22 @@ import json
 from dataclasses import dataclass
 from decimal import Decimal
 from time import perf_counter
-from typing import Any, Protocol
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import settings
+from app.domains.ai.providers.errors import (
+    ProviderInternalError,
+    ProviderQuotaExceededError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+    UnsupportedCapabilityError,
+)
+from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionProvider
 
-
-class ChatCompletionsEndpointLike(Protocol):
-    async def create(self, **kwargs: object) -> Any: ...
-
-
-class ChatEndpointLike(Protocol):
-    completions: ChatCompletionsEndpointLike
-
-
-class OpenAIClientLike(Protocol):
-    chat: ChatEndpointLike
+if TYPE_CHECKING:
+    pass
 
 
 class LLMServiceError(RuntimeError):
@@ -65,6 +64,14 @@ class LLMAnswerResult:
     used_fallback_parser: bool
 
 
+_TRANSIENT_PROVIDER_ERRORS = (
+    ProviderTimeoutError,
+    ProviderQuotaExceededError,
+    ProviderUnavailableError,
+    ProviderInternalError,
+)
+
+
 class LLMService:
     def __init__(
         self,
@@ -76,6 +83,7 @@ class LLMService:
         input_cost_per_million_tokens_usd: float | None = None,
         output_cost_per_million_tokens_usd: float | None = None,
         max_answer_chars: int = 8000,
+        provider: ChatCompletionProvider | None = None,
     ) -> None:
         self.model_name = (model_name or settings.openai_llm_model).strip()
         self.retry_max_attempts = retry_max_attempts or settings.llm_retry_max_attempts
@@ -92,19 +100,14 @@ class LLMService:
             else settings.openai_llm_output_cost_per_million_tokens_usd
         )
         self.max_answer_chars = max_answer_chars
+        self._provider = provider
 
-    @staticmethod
-    def _extract_answer_content(content: object) -> str:
-        if isinstance(content, str):
-            return content.strip()
-        if isinstance(content, list):
-            text_parts: list[str] = []
-            for item in content:
-                text = getattr(item, "text", None)
-                if isinstance(text, str) and text.strip():
-                    text_parts.append(text.strip())
-            return "\n".join(text_parts).strip()
-        return ""
+    def _resolve_provider(self) -> ChatCompletionProvider:
+        if self._provider is None:
+            from app.domains.ai.providers.factory import default_provider_factory
+
+            self._provider = default_provider_factory.get_chat_provider()
+        return self._provider
 
     @staticmethod
     def _parse_strict_output(raw_text: str) -> ParsedLLMOutput:
@@ -120,33 +123,6 @@ class LLMService:
         payload = json.loads(raw_text[start : end + 1])
         return ParsedLLMOutput.model_validate(payload)
 
-    @staticmethod
-    def _is_response_format_unsupported(exc: Exception) -> bool:
-        message = str(exc).lower()
-        return "response_format" in message and "support" in message
-
-    @staticmethod
-    def _is_transient_error(exc: Exception) -> bool:
-        if isinstance(exc, OSError):
-            return True
-        status_code = getattr(exc, "status_code", None)
-        if isinstance(status_code, int) and status_code in {408, 409, 429, 500, 502, 503, 504}:
-            return True
-        code = str(getattr(exc, "code", "")).lower()
-        if code in {"rate_limit_exceeded", "timeout", "server_error"}:
-            return True
-        name = exc.__class__.__name__.lower()
-        return any(
-            fragment in name
-            for fragment in (
-                "timeout",
-                "connection",
-                "ratelimit",
-                "internalserver",
-                "tempor",
-            )
-        )
-
     def _estimate_cost(self, *, prompt_tokens: int, completion_tokens: int) -> Decimal:
         input_cost = (Decimal(prompt_tokens) / Decimal(1_000_000)) * Decimal(
             str(self.input_cost_per_million_tokens_usd)
@@ -160,45 +136,56 @@ class LLMService:
         self,
         *,
         prompt: str,
-        openai_client: OpenAIClientLike,
     ) -> LLMAnswerResult:
         if not settings.feature_enable_llm:
             raise PermanentLLMServiceError("LLM feature is disabled")
         if not prompt.strip():
             raise PermanentLLMServiceError("prompt is required")
 
+        provider = self._resolve_provider()
         started = perf_counter()
         retries = 0
-        supports_response_format = True
+        supports_json_mode = True
         last_error: Exception | None = None
 
         attempt = 1
         while attempt <= self.retry_max_attempts:
-            request_payload: dict[str, object] = {
-                "model": self.model_name,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "Answer questions only from retrieved document context.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0,
-            }
-            if supports_response_format:
-                request_payload["response_format"] = {"type": "json_object"}
-
+            request = ChatCompletionRequest(
+                prompt=prompt,
+                model=self.model_name,
+                temperature=0.0,
+                json_mode=supports_json_mode,
+            )
             try:
-                response = await openai_client.chat.completions.create(**request_payload)
-            except Exception as exc:
-                last_error = exc
-                if supports_response_format and self._is_response_format_unsupported(exc):
-                    supports_response_format = False
+                response = await provider.complete(request)
+            except UnsupportedCapabilityError:
+                if supports_json_mode:
+                    supports_json_mode = False
                     continue
-                if not self._is_transient_error(exc):
-                    raise PermanentLLMServiceError("LLM request failed permanently") from exc
+                raise PermanentLLMServiceError(
+                    "LLM does not support JSON mode and fallback failed"
+                )
+            except _TRANSIENT_PROVIDER_ERRORS as exc:
+                last_error = exc
                 if attempt >= self.retry_max_attempts:
-                    raise TransientLLMServiceError("LLM request failed after retries") from exc
+                    raise TransientLLMServiceError(
+                        "LLM request failed after retries"
+                    ) from exc
+                retries += 1
+                backoff = min(
+                    self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
+                )
+                await asyncio.sleep(backoff)
+                attempt += 1
+                continue
+            except Exception as exc:
+                raise PermanentLLMServiceError("LLM request failed permanently") from exc
+
+            raw_text = response.content
+            if not raw_text:
+                last_error = RuntimeError("LLM response contained no content")
+                if attempt >= self.retry_max_attempts:
+                    raise PermanentLLMServiceError("LLM response contained no content")
                 retries += 1
                 backoff = min(
                     self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
@@ -207,20 +194,6 @@ class LLMService:
                 attempt += 1
                 continue
 
-            choices = getattr(response, "choices", None) or []
-            if not choices:
-                last_error = RuntimeError("LLM response contained no choices")
-                if attempt >= self.retry_max_attempts:
-                    raise PermanentLLMServiceError("LLM response contained no choices")
-                retries += 1
-                backoff = min(
-                    self.retry_base_seconds * (2 ** (attempt - 1)), self.retry_max_seconds
-                )
-                await asyncio.sleep(backoff)
-                attempt += 1
-                continue
-
-            raw_text = self._extract_answer_content(choices[0].message.content)
             used_fallback_parser = False
             try:
                 parsed = self._parse_strict_output(raw_text)
@@ -246,29 +219,17 @@ class LLMService:
             if not answer:
                 parsed = ParsedLLMOutput(answer="", not_found=True, citations=[])
 
-            usage = getattr(response, "usage", None)
-            prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-            completion_tokens = (
-                int(getattr(usage, "completion_tokens", 0)) if usage is not None else 0
-            )
-            total_tokens = (
-                int(getattr(usage, "total_tokens", prompt_tokens + completion_tokens))
-                if usage is not None
-                else prompt_tokens + completion_tokens
-            )
-            model_name = str(getattr(response, "model", self.model_name))
-
             return LLMAnswerResult(
                 answer=answer,
                 not_found=parsed.not_found,
                 citations=parsed.citations,
-                model_name=model_name,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
+                model_name=response.model,
+                prompt_tokens=response.prompt_tokens,
+                completion_tokens=response.completion_tokens,
+                total_tokens=response.total_tokens,
                 approximate_cost_usd=self._estimate_cost(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
+                    prompt_tokens=response.prompt_tokens,
+                    completion_tokens=response.completion_tokens,
                 ),
                 latency_ms=int((perf_counter() - started) * 1000),
                 retry_count=retries,

@@ -4,32 +4,23 @@ import asyncio
 from dataclasses import dataclass
 from decimal import Decimal
 from time import perf_counter
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from openai import (
-    APIConnectionError,
-    APITimeoutError,
-    AsyncOpenAI,
-    InternalServerError,
-    RateLimitError,
-)
-
 from app.core.config import settings
+from app.domains.ai.providers.errors import (
+    ProviderInternalError,
+    ProviderQuotaExceededError,
+    ProviderTimeoutError,
+    ProviderUnavailableError,
+)
+from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 
 
 class ChunkLike(Protocol):
     id: UUID
     text: str
     token_count: int
-
-
-class EmbeddingsEndpointLike(Protocol):
-    async def create(self, *, model: str, input: list[str]) -> Any: ...
-
-
-class OpenAIClientLike(Protocol):
-    embeddings: EmbeddingsEndpointLike
 
 
 class TransientEmbeddingError(Exception):
@@ -53,6 +44,15 @@ class EmbeddingResult:
     approximate_cost_usd: Decimal
 
 
+_TRANSIENT_PROVIDER_ERRORS = (
+    TransientEmbeddingError,
+    ProviderTimeoutError,
+    ProviderQuotaExceededError,
+    ProviderUnavailableError,
+    ProviderInternalError,
+)
+
+
 class EmbeddingService:
     """Generate chunk embeddings with batching, retries, and usage tracking."""
 
@@ -67,7 +67,7 @@ class EmbeddingService:
         retry_base_seconds: float | None = None,
         retry_max_seconds: float | None = None,
         cost_per_million_tokens_usd: float | None = None,
-        openai_client: OpenAIClientLike | None = None,
+        provider: EmbeddingProvider | None = None,
     ) -> None:
         self.model_name = (model_name or settings.openai_embedding_model).strip()
         self.index_version = (index_version or settings.document_index_version).strip()
@@ -78,25 +78,19 @@ class EmbeddingService:
         self.retry_max_seconds = retry_max_seconds or settings.embedding_retry_max_seconds
         self.cost_per_million_tokens_usd = Decimal(
             str(
-                cost_per_million_tokens_usd or settings.openai_embedding_cost_per_million_tokens_usd
+                cost_per_million_tokens_usd
+                or settings.openai_embedding_cost_per_million_tokens_usd
             )
         )
-        self._openai_client = openai_client
+        self._provider = provider
 
     @property
-    def openai_client(self) -> OpenAIClientLike:
-        if self._openai_client is None:
-            if settings.openai_api_key is None:
-                raise PermanentEmbeddingError("openai_api_key is not configured")
-            timeout_seconds = max(
-                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
-            )
-            self._openai_client = AsyncOpenAI(
-                api_key=settings.openai_api_key.get_secret_value(),
-                timeout=timeout_seconds,
-                max_retries=0,
-            )
-        return self._openai_client
+    def embedding_provider(self) -> EmbeddingProvider:
+        if self._provider is None:
+            from app.domains.ai.providers.factory import default_provider_factory
+
+            self._provider = default_provider_factory.get_embedding_provider()
+        return self._provider
 
     def _build_batches(self, chunks: list[ChunkLike]) -> list[list[ChunkLike]]:
         batches: list[list[ChunkLike]] = []
@@ -127,58 +121,35 @@ class EmbeddingService:
 
     @staticmethod
     def _is_transient_error(exc: Exception) -> bool:
-        return isinstance(
-            exc,
-            (
-                TransientEmbeddingError,
-                APIConnectionError,
-                APITimeoutError,
-                RateLimitError,
-                InternalServerError,
-                TimeoutError,
-                ConnectionError,
-                OSError,
-            ),
-        )
+        return isinstance(exc, _TRANSIENT_PROVIDER_ERRORS)
 
     async def _embed_single_batch(
         self, *, batch: list[ChunkLike]
     ) -> tuple[list[list[float]], int, int, int, int]:
         texts = [chunk.text for chunk in batch]
-        fallback_tokens = sum(max(0, chunk.token_count) for chunk in batch)
         attempts = 0
 
         while attempts < self.retry_max_attempts:
             attempts += 1
-            started = perf_counter()
             try:
-                response = await self.openai_client.embeddings.create(
-                    model=self.model_name, input=texts
+                response = await self.embedding_provider.embed(
+                    EmbeddingRequest(texts=texts, model=self.model_name)
                 )
-                latency_ms = int((perf_counter() - started) * 1000)
-
-                vectors: list[list[float] | None] = [None] * len(batch)
-                for item in response.data:
-                    index = int(item.index)
-                    if index < 0 or index >= len(batch):
-                        raise PermanentEmbeddingError(
-                            f"embedding response index out of range: {index}"
-                        )
-                    vectors[index] = [float(value) for value in item.embedding]
-
-                if any(vector is None for vector in vectors):
-                    raise PermanentEmbeddingError("embedding response is missing vectors")
-
-                prompt_tokens = int(getattr(response.usage, "prompt_tokens", fallback_tokens))
-                total_tokens = int(getattr(response.usage, "total_tokens", prompt_tokens))
+                if len(response.vectors) != len(batch):
+                    raise PermanentEmbeddingError(
+                        f"embedding response has wrong number of vectors: "
+                        f"expected {len(batch)}, got {len(response.vectors)}"
+                    )
                 retries_used = attempts - 1
                 return (
-                    [vector for vector in vectors if vector is not None],
-                    prompt_tokens,
-                    total_tokens,
-                    latency_ms,
+                    response.vectors,
+                    response.prompt_tokens,
+                    response.total_tokens,
+                    response.latency_ms,
                     retries_used,
                 )
+            except PermanentEmbeddingError:
+                raise
             except Exception as exc:
                 if not self._is_transient_error(exc):
                     raise PermanentEmbeddingError(

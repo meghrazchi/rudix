@@ -4,19 +4,10 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from uuid import UUID
 
-from openai import AsyncOpenAI
-
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import settings
+from app.domains.ai.providers.protocols import EmbeddingProvider, EmbeddingRequest
 from app.domains.documents.services.qdrant_filters import build_organization_filter
-
-
-class EmbeddingsEndpointLike(Protocol):
-    async def create(self, *, model: str, input: list[str]) -> Any: ...
-
-
-class OpenAIClientLike(Protocol):
-    embeddings: EmbeddingsEndpointLike
 
 
 class QdrantClientLike(Protocol):
@@ -54,28 +45,21 @@ class QueryRetrievalService:
         embedding_model: str | None = None,
         qdrant_collection: str | None = None,
         vector_size: int | None = None,
-        openai_client: OpenAIClientLike | None = None,
+        embedding_provider: EmbeddingProvider | None = None,
         qdrant_client: QdrantClientLike | None = None,
     ) -> None:
         self.embedding_model = (embedding_model or settings.openai_embedding_model).strip()
         self.qdrant_collection = (qdrant_collection or settings.qdrant_collection).strip()
         self.vector_size = vector_size or settings.qdrant_vector_size
-        self._openai_client = openai_client
+        self._embedding_provider = embedding_provider
         self._qdrant_client = qdrant_client
 
-    def _resolve_openai_client(self) -> OpenAIClientLike:
-        if self._openai_client is None:
-            if settings.openai_api_key is None:
-                raise RuntimeError("OpenAI API key is not configured")
-            timeout_seconds = max(
-                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
-            )
-            self._openai_client = AsyncOpenAI(
-                api_key=settings.openai_api_key.get_secret_value(),
-                timeout=timeout_seconds,
-                max_retries=0,
-            )
-        return self._openai_client
+    def _resolve_embedding_provider(self) -> EmbeddingProvider:
+        if self._embedding_provider is None:
+            from app.domains.ai.providers.factory import default_provider_factory
+
+            self._embedding_provider = default_provider_factory.get_embedding_provider()
+        return self._embedding_provider
 
     def _resolve_qdrant_client(self) -> QdrantClientLike:
         if self._qdrant_client is None:
@@ -90,27 +74,24 @@ class QueryRetrievalService:
         self,
         *,
         question: str,
-        openai_client: OpenAIClientLike | None = None,
+        provider: EmbeddingProvider | None = None,
     ) -> tuple[list[float], int]:
         if not question.strip():
             raise ValueError("question is required")
 
-        response = await (openai_client or self._resolve_openai_client()).embeddings.create(
-            model=self.embedding_model,
-            input=[question],
+        embedding_provider = provider or self._resolve_embedding_provider()
+        response = await embedding_provider.embed(
+            EmbeddingRequest(texts=[question], model=self.embedding_model)
         )
-        if not response.data:
+        if not response.vectors:
             raise RuntimeError("Embedding response did not include vectors")
 
-        vector = [float(value) for value in response.data[0].embedding]
+        vector = response.vectors[0]
         if len(vector) != self.vector_size:
             raise RuntimeError(
                 f"Embedding dimension mismatch: expected {self.vector_size}, got {len(vector)}"
             )
-
-        usage = getattr(response, "usage", None)
-        prompt_tokens = int(getattr(usage, "prompt_tokens", 0)) if usage is not None else 0
-        return vector, prompt_tokens
+        return vector, response.prompt_tokens
 
     def retrieve_candidates(
         self,
@@ -177,7 +158,6 @@ class QueryRetrievalService:
                 else None
             )
             similarity_score = float(getattr(result, "score", 0.0) or 0.0)
-
             section_path = str(payload.get("section_path") or "").strip() or None
             chunk_level = int(payload.get("chunk_level") or 0)
             parent_chunk_id: UUID | None = None
@@ -185,7 +165,7 @@ class QueryRetrievalService:
             if raw_parent_id:
                 try:
                     parent_chunk_id = UUID(str(raw_parent_id))
-                except (ValueError, TypeError):
+                except (TypeError, ValueError):
                     parent_chunk_id = None
             parent_text = str(payload.get("parent_text") or "").strip() or None
 
@@ -204,7 +184,37 @@ class QueryRetrievalService:
                 )
             )
 
-        return sorted(candidates, key=lambda candidate: candidate.similarity_score, reverse=True)
+        return candidates
+
+    async def embed_and_retrieve(
+        self,
+        *,
+        question: str,
+        organization_id: UUID,
+        document_ids: list[UUID] | None,
+        initial_top_k: int,
+        index_version: str | None = None,
+        provider: EmbeddingProvider | None = None,
+        qdrant_client: QdrantClientLike | None = None,
+    ) -> QueryRetrievalResult:
+        query_vector, prompt_tokens = await self.embed_query(
+            question=question,
+            provider=provider,
+        )
+        candidates = self.retrieve_candidates(
+            query_vector=query_vector,
+            organization_id=organization_id,
+            document_ids=document_ids,
+            initial_top_k=initial_top_k,
+            index_version=index_version,
+            qdrant_client=qdrant_client,
+        )
+        return QueryRetrievalResult(
+            embedding_model=self.embedding_model,
+            embedding_prompt_tokens=prompt_tokens,
+            query_vector=query_vector,
+            candidates=candidates,
+        )
 
     def _search_results(
         self,
@@ -243,33 +253,3 @@ class QueryRetrievalService:
             return list(points)
 
         raise AttributeError("Qdrant client has neither 'search' nor 'query_points'")
-
-    async def embed_and_retrieve(
-        self,
-        *,
-        question: str,
-        organization_id: UUID,
-        document_ids: list[UUID] | None,
-        initial_top_k: int,
-        index_version: str | None = None,
-        openai_client: OpenAIClientLike | None = None,
-        qdrant_client: QdrantClientLike | None = None,
-    ) -> QueryRetrievalResult:
-        query_vector, prompt_tokens = await self.embed_query(
-            question=question,
-            openai_client=openai_client,
-        )
-        candidates = self.retrieve_candidates(
-            query_vector=query_vector,
-            organization_id=organization_id,
-            document_ids=document_ids,
-            initial_top_k=initial_top_k,
-            index_version=index_version,
-            qdrant_client=qdrant_client,
-        )
-        return QueryRetrievalResult(
-            embedding_model=self.embedding_model,
-            embedding_prompt_tokens=prompt_tokens,
-            query_vector=query_vector,
-            candidates=candidates,
-        )

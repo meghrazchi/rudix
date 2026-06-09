@@ -5,7 +5,6 @@ from time import perf_counter
 from typing import Any
 from uuid import UUID
 
-from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.auth.errors import AuthorizationError
@@ -169,12 +168,10 @@ class DocumentIntelligenceToolService:
         confidence_service: ConfidenceService | None = None,
         llm_service: LLMService | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
-        openai_client: Any | None = None,
         qdrant_client: Any | None = None,
     ) -> None:
         self._document_repository = document_repository or DocumentRepository()
         self._query_retrieval_service = query_retrieval_service or QueryRetrievalService(
-            openai_client=openai_client,
             qdrant_client=qdrant_client,
         )
         self._rerank_service = rerank_service or RerankService()
@@ -183,7 +180,6 @@ class DocumentIntelligenceToolService:
         self._confidence_service = confidence_service or ConfidenceService()
         self._llm_service = llm_service or LLMService()
         self._session_factory = session_factory or SessionLocal
-        self._openai_client = openai_client
         self._qdrant_client = qdrant_client
 
     async def search_documents(
@@ -562,20 +558,6 @@ class DocumentIntelligenceToolService:
             raise AuthorizationError("Document not found or inaccessible")
         return document
 
-    def _resolve_openai_client(self) -> Any:
-        if self._openai_client is None:
-            if settings.openai_api_key is None:
-                raise RuntimeError("OpenAI API key is not configured")
-            timeout_seconds = max(
-                float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
-            )
-            self._openai_client = AsyncOpenAI(
-                api_key=settings.openai_api_key.get_secret_value(),
-                timeout=timeout_seconds,
-                max_retries=0,
-            )
-        return self._openai_client
-
     def _resolve_qdrant_client(self) -> Any:
         if self._qdrant_client is None:
             if qdrant_module.qdrant_client is None:
@@ -640,17 +622,13 @@ class DocumentIntelligenceToolService:
     ) -> dict[str, Any]:
         organization_id = self._organization_uuid(principal)
         retrieval_top_k = max(top_k, self._rerank_service.candidate_count if rerank else top_k)
-        retrieval_openai_client = self._openai_client
-        retrieval_qdrant_client = self._qdrant_client
-
         started_total = perf_counter()
         retrieval_result = await self._query_retrieval_service.embed_and_retrieve(
             question=question,
             organization_id=organization_id,
             document_ids=document_ids,
             initial_top_k=retrieval_top_k,
-            openai_client=retrieval_openai_client,
-            qdrant_client=retrieval_qdrant_client,
+            qdrant_client=self._qdrant_client,
         )
         retrieved_chunks = [
             _to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates
@@ -736,7 +714,6 @@ class DocumentIntelligenceToolService:
         try:
             llm_result = await self._llm_service.generate_answer(
                 prompt=prompt,
-                openai_client=self._resolve_openai_client(),
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             raise RuntimeError("LLM answer generation failed") from exc

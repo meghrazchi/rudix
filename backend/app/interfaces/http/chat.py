@@ -6,7 +6,6 @@ from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
@@ -78,7 +77,6 @@ usage_repository = UsageRepository()
 audit_log_service = AuditLogService()
 
 _MAX_ACTIVE_SHARES_PER_SESSION = 10
-_openai_client: AsyncOpenAI | None = None
 _query_retrieval_service = QueryRetrievalService()
 _source_scope_service = SourceScopeService()
 _rerank_service = RerankService()
@@ -127,22 +125,6 @@ def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UU
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Principal identity context is invalid",
         ) from exc
-
-
-def _get_openai_client() -> AsyncOpenAI:
-    global _openai_client
-    if _openai_client is None:
-        if settings.openai_api_key is None:
-            raise RuntimeError("OpenAI API key is not configured")
-        timeout_seconds = max(
-            float(settings.request_timeout_seconds), settings.dependency_read_timeout_seconds
-        )
-        _openai_client = AsyncOpenAI(
-            api_key=settings.openai_api_key.get_secret_value(),
-            timeout=timeout_seconds,
-            max_retries=0,
-        )
-    return _openai_client
 
 
 def _get_qdrant_client():
@@ -772,7 +754,6 @@ async def query_chat(
         try:
             llm_result = await _llm_service.generate_answer(
                 prompt=prompt,
-                openai_client=_get_openai_client(),
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             log_query_event(
@@ -816,7 +797,6 @@ async def query_chat(
         try:
             query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
                 question=payload.question,
-                openai_client=_get_openai_client(),
             )
         except Exception as exc:
             log_query_event(
@@ -921,7 +901,6 @@ async def query_chat(
             try:
                 llm_result = await _llm_service.generate_answer(
                     prompt=prompt,
-                    openai_client=_get_openai_client(),
                 )
             except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
                 log_query_event(
