@@ -528,6 +528,22 @@ class AgentRuntime:
             )
 
         outcome = self._build_outcome(context=context)
+        # Capture provider metadata from the last tool's debug output.
+        _last_debug = (
+            context.latest_output.get("debug")
+            if isinstance(context.latest_output, dict)
+            else None
+        )
+        _run_provider_key = None
+        _run_provider_type = None
+        if isinstance(_last_debug, dict):
+            _pk = _last_debug.get("provider_key")
+            if isinstance(_pk, str) and _pk.strip():
+                _run_provider_key = _pk.strip()
+            _pt = _last_debug.get("provider_type")
+            if isinstance(_pt, str) and _pt.strip():
+                _run_provider_type = _pt.strip()
+
         await self._repository.update_agent_run(
             session,
             agent_run_id=run.id,
@@ -545,6 +561,8 @@ class AgentRuntime:
                 "steps_executed": context.steps_executed,
                 "tool_calls_executed": context.tool_calls_executed,
                 "blocked_document_instruction_signals": context.blocked_document_instruction_signals,
+                "provider_key": _run_provider_key,
+                "provider_type": _run_provider_type,
             },
         )
         confidence_score = (
@@ -1064,13 +1082,28 @@ class AgentRuntime:
         if error_code is not None:
             metadata["error_code"] = error_code
 
+        # Derive the actual provider/model from the last tool output debug block.
+        provider_key: str = settings.openai_llm_model
+        provider_type: str | None = None
+        if isinstance(context.latest_output, dict):
+            _debug = context.latest_output.get("debug")
+            if isinstance(_debug, dict):
+                _pk = _debug.get("provider_key")
+                if isinstance(_pk, str) and _pk.strip():
+                    provider_key = _pk.strip()
+                _pt = _debug.get("provider_type")
+                if isinstance(_pt, str) and _pt.strip():
+                    provider_type = _pt.strip()
+        if provider_type is not None:
+            metadata["provider_type"] = provider_type
+
         try:
             await self._usage_repository.create_usage_event(
                 session,
                 organization_id=organization_id,
                 user_id=user_id,
                 event_type="agent.runtime",
-                model_name=settings.openai_llm_model,
+                model_name=provider_key,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 cost_usd=context.total_cost_usd,

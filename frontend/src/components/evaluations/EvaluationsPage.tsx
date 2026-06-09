@@ -64,6 +64,7 @@ import {
 import { listChunkingProfiles } from "@/lib/api/chunking-profiles";
 import { listDocuments } from "@/lib/api/documents";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
+import { listModelProfiles } from "@/lib/api/model-profiles";
 import { queryKeys } from "@/lib/api/query";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
@@ -417,6 +418,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
   const [runRerank, setRunRerank] = useState(true);
   const [runModelName, setRunModelName] = useState("");
   const [runMetricOptions, setRunMetricOptions] = useState("");
+  const [runModelProfileId, setRunModelProfileId] = useState("");
   const [runDocumentIds, setRunDocumentIds] = useState<string[]>([]);
   const [runChunkingProfileIds, setRunChunkingProfileIds] = useState<string[]>(
     [],
@@ -526,6 +528,12 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
         sort_by: "updated_at",
         sort_order: "desc",
       }),
+  });
+
+  const modelProfilesQuery = useQuery({
+    queryKey: queryKeys.modelProfiles.list,
+    queryFn: listModelProfiles,
+    staleTime: 60_000,
   });
 
   const chunkingProfilesQuery = useQuery({
@@ -643,6 +651,7 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
           top_k: topK,
           rerank: runRerank,
           model_name: modelName,
+          model_profile_id: runModelProfileId.trim() || undefined,
           selected_document_ids: runDocumentIds,
           metric_options: metricOptions,
           chunking_profile_id:
@@ -1469,6 +1478,11 @@ export function EvaluationsPage({ initialRunId = null }: EvaluationsPageProps) {
             [key]: value,
           }));
         }}
+        modelProfiles={modelProfilesQuery.data?.items ?? []}
+        isModelProfilesLoading={modelProfilesQuery.isLoading}
+        modelProfilesError={modelProfilesQuery.error}
+        selectedModelProfileId={runModelProfileId}
+        onModelProfileChange={setRunModelProfileId}
       />
     </section>
   );

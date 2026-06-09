@@ -71,6 +71,8 @@ export type EvaluationRunConfig = Omit<
   chunking_profile_config?: ChunkingProfileConfigInput | null;
   comparison_targets?: EvaluationChunkingComparisonTarget[];
   regression_thresholds?: EvaluationRegressionThresholds | null;
+  /** UUID of an OrgModelProfile to use for this run. When omitted the org's evaluations task profile is resolved at runtime. */
+  model_profile_id?: string | null;
 };
 
 export type RunEvaluationRequest = Omit<BaseRunEvaluationRequest, "config"> & {

@@ -102,6 +102,22 @@ async def get_profile(
     return result.scalar_one_or_none()
 
 
+async def get_profile_by_id(
+    db: AsyncSession,
+    *,
+    profile_id: UUID,
+    organization_id: UUID,
+) -> OrgModelProfile | None:
+    """Look up a profile by its UUID, enforcing org isolation."""
+    result = await db.execute(
+        select(OrgModelProfile).where(
+            OrgModelProfile.id == profile_id,
+            OrgModelProfile.organization_id == organization_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_profiles(
     db: AsyncSession,
     *,

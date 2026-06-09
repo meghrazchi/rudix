@@ -15,6 +15,8 @@ from app.core.document_errors import decode_document_error
 from app.db.session import SessionLocal
 from app.domains.agents.schemas import ToolCall
 from app.domains.agents.services.tool_registry import ToolRegistry
+from app.domains.ai.profile.schemas import TaskType
+from app.domains.ai.profile.service import resolve_task_profile
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import (
     ConfidenceChunkSignal,
@@ -623,6 +625,19 @@ class DocumentIntelligenceToolService:
         organization_id = self._organization_uuid(principal)
         retrieval_top_k = max(top_k, self._rerank_service.candidate_count if rerank else top_k)
         started_total = perf_counter()
+
+        # Resolve the org's agentic model profile for provider-neutral routing.
+        agentic_profile = None
+        try:
+            async with self._session_factory() as profile_session:
+                agentic_profile = await resolve_task_profile(
+                    profile_session,
+                    organization_id=organization_id,
+                    task_type=TaskType.agentic,
+                )
+        except Exception:
+            pass  # Fall back to LLMService defaults on resolution failure.
+
         retrieval_result = await self._query_retrieval_service.embed_and_retrieve(
             question=question,
             organization_id=organization_id,
@@ -680,6 +695,8 @@ class DocumentIntelligenceToolService:
                     "rerank_applied": rerank,
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": None,
+                    "provider_key": agentic_profile.provider_type if agentic_profile is not None else None,
+                    "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
                     "usage": {
                         "embedding_prompt_tokens": embedding_tokens,
                         "llm_prompt_tokens": 0,
@@ -714,6 +731,7 @@ class DocumentIntelligenceToolService:
         try:
             llm_result = await self._llm_service.generate_answer(
                 prompt=prompt,
+                resolved_profile=agentic_profile,
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             raise RuntimeError("LLM answer generation failed") from exc
@@ -744,6 +762,8 @@ class DocumentIntelligenceToolService:
                     "rerank_applied": rerank,
                     "embedding_model": retrieval_result.embedding_model,
                     "llm_model": llm_result.model_name,
+                    "provider_key": llm_result.provider_key,
+                    "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
                     "usage": {
                         "embedding_prompt_tokens": embedding_tokens,
                         "llm_prompt_tokens": llm_result.prompt_tokens,
@@ -811,6 +831,8 @@ class DocumentIntelligenceToolService:
                 "rerank_applied": rerank,
                 "embedding_model": retrieval_result.embedding_model,
                 "llm_model": llm_result.model_name,
+                "provider_key": llm_result.provider_key,
+                "provider_type": agentic_profile.provider_type if agentic_profile is not None else None,
                 "citation_validation_score": citation_result.validation_score,
                 "usage": {
                     "embedding_prompt_tokens": embedding_tokens,

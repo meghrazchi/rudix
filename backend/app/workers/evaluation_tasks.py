@@ -15,6 +15,12 @@ from app.core.config import settings
 from app.core.logging import log_evaluation_event
 from app.db.session import SessionLocal
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.ai.profile.schemas import ResolvedTaskProfile, TaskType
+from app.domains.ai.profile.service import (
+    _profile_to_resolved,
+    get_profile_by_id,
+    resolve_task_profile,
+)
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
 from app.domains.chat.services.llm_service import (
@@ -86,6 +92,9 @@ class EvaluationRunConfig:
     profile_version: str | None
     comparison_targets: list[ChunkingComparisonTarget]
     regression_thresholds: EvaluationRegressionThresholds
+    # Optional: pin a specific OrgModelProfile UUID for this run.
+    # When None the org's evaluations task profile is resolved at runtime.
+    model_profile_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -303,6 +312,7 @@ async def _evaluate_with_llm_judge_async(
     expected_answer: str | None,
     generated_answer: str,
     retrieved_chunks: list[RetrievedChunk],
+    resolved_profile: ResolvedTaskProfile | None = None,
 ) -> EvaluationJudgeScores:
     from app.domains.ai.providers.factory import default_provider_factory
     from app.domains.ai.providers.protocols import ChatCompletionRequest
@@ -329,11 +339,16 @@ async def _evaluate_with_llm_judge_async(
         f"Assistant answer:\n{generated_answer}\n\n"
         f"Retrieved context:\n{context_block}\n"
     )
-    provider = default_provider_factory.get_chat_provider()
+    if resolved_profile is not None:
+        provider = default_provider_factory.get_chat_provider(resolved_profile.provider_type)
+        judge_model = resolved_profile.base_model
+    else:
+        provider = default_provider_factory.get_chat_provider()
+        judge_model = model_name
     response = await provider.complete(
         ChatCompletionRequest(
             prompt=prompt,
-            model=model_name,
+            model=judge_model,
             temperature=0.0,
             json_mode=True,
             system_message=(
@@ -348,7 +363,7 @@ async def _evaluate_with_llm_judge_async(
     return EvaluationJudgeScores(
         faithfulness_score=faithfulness_score,
         answer_relevance_score=answer_relevance_score,
-        provider="llm_judge",
+        provider=resolved_profile.provider_type if resolved_profile is not None else "llm_judge",
     )
 
 
@@ -524,6 +539,10 @@ def _parse_run_config(raw_config: dict[str, Any]) -> EvaluationRunConfig:
     if raw_profile_version is not None and not isinstance(raw_profile_version, str):
         raise PermanentTaskError("Invalid evaluation run config: profile_version")
 
+    raw_model_profile_id = raw_config.get("model_profile_id")
+    if raw_model_profile_id is not None and not isinstance(raw_model_profile_id, str):
+        raise PermanentTaskError("Invalid evaluation run config: model_profile_id")
+
     return EvaluationRunConfig(
         run_name=run_name,
         top_k=top_k,
@@ -541,6 +560,7 @@ def _parse_run_config(raw_config: dict[str, Any]) -> EvaluationRunConfig:
         profile_version=_normalize_optional_label(raw_profile_version),
         comparison_targets=_parse_comparison_targets(raw_config.get("comparison_targets", [])),
         regression_thresholds=_parse_regression_thresholds(raw_config.get("regression_thresholds")),
+        model_profile_id=_normalize_optional_label(raw_model_profile_id),
     )
 
 
@@ -851,6 +871,7 @@ async def _evaluate_question_pipeline_async(
     index_version: str | None = None,
     prompt_template_content: str | None = None,
     prompt_template_metadata: dict[str, Any] | None = None,
+    resolved_profile: ResolvedTaskProfile | None = None,
 ) -> EvaluationQuestionComputation:
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
@@ -941,6 +962,7 @@ async def _evaluate_question_pipeline_async(
         try:
             llm_result = await llm_service.generate_answer(
                 prompt=prompt,
+                resolved_profile=resolved_profile,
             )
         except (TransientLLMServiceError, PermanentLLMServiceError) as exc:
             raise RuntimeError("llm_generation_failed") from exc
@@ -998,6 +1020,7 @@ async def _evaluate_question_pipeline_async(
                     expected_answer=expected_answer,
                     generated_answer=answer,
                     retrieved_chunks=selected_chunks,
+                    resolved_profile=resolved_profile,
                 )
             except Exception as exc:
                 judge_error = exc.__class__.__name__
@@ -1047,6 +1070,7 @@ async def _evaluate_question_pipeline_async(
     if retrieval_score is None:
         retrieval_score = retrieved_chunks[0].similarity_score if retrieved_chunks else None
 
+    provider_key = resolved_profile.provider_type if resolved_profile is not None else settings.llm_default_provider
     details: dict[str, Any] = {
         "status": "completed",
         "question": question_text,
@@ -1066,6 +1090,9 @@ async def _evaluate_question_pipeline_async(
         "rerank_applied": config.rerank,
         "embedding_model": embedding_model,
         "llm_model": llm_model,
+        "provider_key": provider_key,
+        "provider_type": resolved_profile.provider_type if resolved_profile is not None else None,
+        "base_model": resolved_profile.base_model if resolved_profile is not None else config.model_name,
         "token_input_count": embedding_prompt_tokens + llm_prompt_tokens,
         "token_output_count": llm_completion_tokens,
         "cost_usd": float(total_cost_usd),
@@ -1149,6 +1176,30 @@ async def _run_evaluation_async(
                     }
                 )
         llm_service = LLMService(model_name=run_config.model_name)
+        resolved_run_profile: ResolvedTaskProfile | None = None
+        if run_config.model_profile_id is not None:
+            try:
+                profile_uuid = UUID(run_config.model_profile_id)
+            except ValueError as exc:
+                raise PermanentTaskError(
+                    f"Invalid model_profile_id in run config: {run_config.model_profile_id}"
+                ) from exc
+            profile_row = await get_profile_by_id(
+                session,
+                profile_id=profile_uuid,
+                organization_id=evaluation_set.organization_id,
+            )
+            if profile_row is None:
+                raise PermanentTaskError(
+                    f"Model profile not found or inaccessible: {run_config.model_profile_id}"
+                )
+            resolved_run_profile = _profile_to_resolved(profile_row)
+        else:
+            resolved_run_profile = await resolve_task_profile(
+                session,
+                organization_id=evaluation_set.organization_id,
+                task_type=TaskType.evaluations,
+            )
         corpus_document_ids = _resolve_corpus_document_ids(
             selected_document_ids=run_config.selected_document_ids,
             questions=questions,
@@ -1244,6 +1295,7 @@ async def _run_evaluation_async(
                         index_version=target_index_version,
                         prompt_template_content=prompt_template_content,
                         prompt_template_metadata=prompt_template_metadata,
+                        resolved_profile=resolved_run_profile,
                     )
                 except Exception as exc:
                     question_failure_count += 1
@@ -1430,6 +1482,15 @@ async def _run_evaluation_async(
             metrics_summary["prompt_template"] = dict(prompt_template_metadata)
         if comparison_payload is not None:
             metrics_summary["comparison"] = comparison_payload
+        if resolved_run_profile is not None:
+            metrics_summary["model_profile"] = {
+                "provider_type": resolved_run_profile.provider_type,
+                "base_model": resolved_run_profile.base_model,
+                "source": resolved_run_profile.source.value,
+                "task_type": resolved_run_profile.task_type.value,
+                "version": resolved_run_profile.version,
+                "is_local": resolved_run_profile.provider_type == "local",
+            }
 
         try:
             updated_run = await _evaluation_repository.update_evaluation_run_config(

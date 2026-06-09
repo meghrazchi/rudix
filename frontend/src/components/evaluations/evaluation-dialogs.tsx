@@ -6,6 +6,7 @@ import { LoadingState } from "@/components/states/LoadingState";
 import type { ChunkingProfile } from "@/lib/schemas/chunking-profiles";
 import type { DocumentListResponse } from "@/lib/api/documents";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import type { ModelProfileResponse } from "@/lib/api/model-profiles";
 
 type CreateSetDialogProps = {
   containerRef?: RefObject<HTMLDivElement | null>;
@@ -151,6 +152,10 @@ type StartRunDialogProps = {
   indexedDocuments: DocumentListResponse["items"];
   isDocumentsLoading: boolean;
   documentsError: unknown;
+  modelProfiles: ModelProfileResponse[];
+  isModelProfilesLoading: boolean;
+  modelProfilesError: unknown;
+  selectedModelProfileId: string;
   error: string | null;
   onClose: () => void;
   onSubmit: () => void;
@@ -160,6 +165,7 @@ type StartRunDialogProps = {
   onMetricOptionsChange: (next: string) => void;
   onToggleDocument: (documentId: string) => void;
   onToggleChunkingProfile: (profileId: string) => void;
+  onModelProfileChange: (profileId: string) => void;
   onRegressionThresholdChange: (
     key:
       | "retrievalHitRateMin"
@@ -188,6 +194,10 @@ export function StartEvaluationRunDialog({
   indexedDocuments,
   isDocumentsLoading,
   documentsError,
+  modelProfiles,
+  isModelProfilesLoading,
+  modelProfilesError,
+  selectedModelProfileId,
   error,
   onClose,
   onSubmit,
@@ -197,6 +207,7 @@ export function StartEvaluationRunDialog({
   onMetricOptionsChange,
   onToggleDocument,
   onToggleChunkingProfile,
+  onModelProfileChange,
   onRegressionThresholdChange,
 }: StartRunDialogProps) {
   if (!isOpen) {
@@ -277,6 +288,42 @@ export function StartEvaluationRunDialog({
                 className="h-9 rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640]"
               />
             </label>
+          </div>
+
+          <div className="space-y-2 rounded-lg border border-[#e6e2f2] bg-[#fcfbff] p-3">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-[#65617b] uppercase">
+                Model profile
+              </p>
+              <p className="mt-1 text-xs text-[#6d6983]">
+                Select a saved model profile to benchmark. Leave unset to use
+                the org&apos;s default evaluations profile.
+              </p>
+            </div>
+            {isModelProfilesLoading ? (
+              <LoadingState compact title="Loading model profiles..." />
+            ) : modelProfilesError ? (
+              <ErrorState
+                compact
+                error={modelProfilesError}
+                description={getApiErrorMessage(modelProfilesError)}
+              />
+            ) : (
+              <select
+                value={selectedModelProfileId}
+                onChange={(event) => onModelProfileChange(event.target.value)}
+                className="h-9 w-full rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640] bg-white"
+              >
+                <option value="">Org default (evaluations profile)</option>
+                {modelProfiles.map((profile) => (
+                  <option key={profile.profile_id} value={profile.profile_id}>
+                    {profile.profile_name} — {profile.provider_type}/
+                    {profile.base_model}
+                    {profile.is_experimental ? " (experimental)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <label className="flex items-start gap-2 rounded-lg border border-[#ded9ec] bg-[#fcfbff] p-3 text-sm text-[#3e3a59]">

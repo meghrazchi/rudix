@@ -359,6 +359,61 @@ function CaseRow({ row }: { row: EvaluationCaseView }) {
   );
 }
 
+type ModelProfileMeta = {
+  provider_type?: string | null;
+  base_model?: string | null;
+  source?: string | null;
+  task_type?: string | null;
+  is_local?: boolean | null;
+};
+
+function extractModelProfile(
+  summary: Record<string, unknown> | null | undefined,
+): ModelProfileMeta | null {
+  if (!summary || typeof summary !== "object") return null;
+  const mp = summary["model_profile"];
+  if (!mp || typeof mp !== "object") return null;
+  return mp as ModelProfileMeta;
+}
+
+function ModelProfileCard({ summary }: { summary: Record<string, unknown> | null | undefined }) {
+  const mp = extractModelProfile(summary);
+  if (!mp) return null;
+
+  return (
+    <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
+      <h3 className="text-sm font-semibold text-[#2f2a48]">Model profile</h3>
+      <dl className="mt-2 grid gap-2 sm:grid-cols-3 text-sm">
+        <div>
+          <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
+            Provider
+          </dt>
+          <dd className="font-medium text-[#312b4c]">
+            {mp.provider_type ?? "—"}
+            {mp.is_local ? (
+              <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                local
+              </span>
+            ) : null}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
+            Base model
+          </dt>
+          <dd className="font-medium text-[#312b4c]">{mp.base_model ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
+            Source
+          </dt>
+          <dd className="text-[#4a4565]">{mp.source ?? "—"}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
 export function EvaluationRunDetailSection({
   run,
   datasetName,
@@ -399,6 +454,7 @@ export function EvaluationRunDetailSection({
 
       <p className="text-sm text-[#65617c]">Dataset: {datasetName}</p>
       <StatusSummary run={run} datasetName={datasetName} />
+      <ModelProfileCard summary={run.summary} />
 
       {failureReason ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
