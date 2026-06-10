@@ -1,17 +1,23 @@
 """Confluence Cloud connector adapter.
 
-Implements the ConnectorProviderAdapter contract using the Confluence Cloud REST API v1.
+Implements the ConnectorProviderAdapter contract using the Confluence Cloud REST API v1
+via the Atlassian OAuth 2.0 (3LO) gateway at api.atlassian.com.
 
 Credential dict shape (OAuth2, stored in decrypted_credential):
     {
         "auth_type": "oauth2",
         "access_token": "<token>",
-        "refresh_token": "<token>",         # optional
-        "site_url": "https://mysite.atlassian.net",  # required
-        "space_keys": ["SPACE1", "SPACE2"], # optional – if omitted, all spaces
-        "cql_filter": 'label = "docs"',     # optional extra CQL predicate
-        "include_comments": true,           # optional – default False (avoids N+1 calls)
+        "refresh_token": "<token>",               # optional
+        "cloud_id": "1324a887-45db-...",          # required — set at OAuth callback time
+        "site_url": "https://myteam.atlassian.net",  # for human-readable page URLs
+        "space_keys": ["SPACE1", "SPACE2"],       # optional – if omitted, all spaces
+        "cql_filter": 'label = "docs"',           # optional extra CQL predicate
+        "include_comments": true,                 # optional – default False
     }
+
+cloud_id is discovered automatically via the accessible-resources endpoint during the
+OAuth callback and stored in credential metadata.  All Confluence API calls go through
+https://api.atlassian.com/ex/confluence/{cloud_id}/wiki/rest/api/...
 
 Cursor shape for full sync:    {"start": 0}
 Cursor shape for delta sync:   {"since": "2024-01-01T00:00:00+00:00", "start": 0}
@@ -27,6 +33,7 @@ import httpx
 
 from app.domains.connectors.providers.confluence.normalizer import (
     _page_url,
+    _storage_html_to_text,
     normalize_attachment,
     normalize_comment,
     normalize_page,
@@ -44,6 +51,7 @@ from app.domains.connectors.services.provider_adapter import (
 )
 from app.domains.connectors.schemas.connectors import NormalizedExternalItem
 
+_ATLASSIAN_API_BASE = "https://api.atlassian.com/ex/confluence"
 _CONFLUENCE_EXPAND = "body.storage,version,space,ancestors,metadata.labels,history"
 _COMMENT_EXPAND = "body.storage,version"
 _ATTACHMENT_EXPAND = "version"
@@ -51,14 +59,26 @@ _DEFAULT_TIMEOUT = 30.0
 _MAX_COMMENTS_PER_PAGE = 25
 
 
-def _require_site_url(credential: dict[str, Any]) -> str:
-    site_url = (credential.get("site_url") or "").strip().rstrip("/")
-    if not site_url:
-        raise ConnectorContentError(
-            "Confluence credential is missing 'site_url'. "
-            "Re-authorize the connection and include the Confluence site URL."
+def _require_cloud_id(credential: dict[str, Any]) -> str:
+    cloud_id = (credential.get("cloud_id") or "").strip()
+    if not cloud_id:
+        raise ConnectorAuthError(
+            "Confluence credential is missing 'cloud_id'. "
+            "Re-authorize the connection to allow Rudix to discover your Confluence site."
         )
-    return site_url
+    return cloud_id
+
+
+def _api_base(cloud_id: str) -> str:
+    return f"{_ATLASSIAN_API_BASE}/{cloud_id}/wiki/rest/api"
+
+
+def _site_url_for_display(credential: dict[str, Any], cloud_id: str) -> str:
+    """Return a site URL suitable for building human-readable page links."""
+    site_url = (credential.get("site_url") or "").strip().rstrip("/")
+    if site_url:
+        return site_url
+    return f"https://api.atlassian.com/ex/confluence/{cloud_id}"
 
 
 def _bearer_headers(access_token: str) -> dict[str, str]:
@@ -120,10 +140,19 @@ def _resolve_space_keys(
 
 
 class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
-    """Confluence Cloud adapter: full sync + delta sync via CQL, optional comments and attachments."""
+    """Confluence Cloud adapter: full sync + delta sync via CQL, optional comments and attachments.
+
+    All API calls use the Atlassian OAuth 2.0 (3LO) gateway:
+        https://api.atlassian.com/ex/confluence/{cloud_id}/wiki/rest/api/...
+    """
 
     def __init__(self, *, timeout: float = _DEFAULT_TIMEOUT) -> None:
         self._timeout = timeout
+        # Cache page bodies fetched during list_items/delta_sync so
+        # download_file_content can return them without a second HTTP call.
+        # Confluence Cloud's v1 GET /content/{id} returns 410 for some pages
+        # even though the CQL search endpoint serves them fine.
+        self._page_body_cache: dict[str, tuple[str, str]] = {}  # page_id -> (body_text, title)
 
     # ------------------------------------------------------------------
     # ConnectorProviderAdapter contract
@@ -141,7 +170,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         page_size: int,
     ) -> ItemPage:
         """Full sync: fetch all pages matching the configured CQL."""
-        site_url = _require_site_url(decrypted_credential)
+        cloud_id = _require_cloud_id(decrypted_credential)
+        site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
         space_keys = _resolve_space_keys(provider_source_id, decrypted_credential)
         cql_filter = decrypted_credential.get("cql_filter")
@@ -155,7 +185,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         ext_src_uuid = UUID(external_source_id) if external_source_id else None
 
         pages, has_next = await self._search_pages(
-            site_url=site_url,
+            cloud_id=cloud_id,
             access_token=access_token,
             cql=cql,
             start=start,
@@ -178,8 +208,9 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 items.extend(
                     await self._extract_comments(
                         page,
-                        site_url=site_url,
+                        cloud_id=cloud_id,
                         access_token=access_token,
+                        site_url=site_url,
                         organization_id=org_uuid,
                         connection_id=conn_uuid,
                         external_source_id=ext_src_uuid,
@@ -205,7 +236,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         page_size: int,
     ) -> DeltaPage:
         """Incremental sync: fetch pages modified since cursor['since']."""
-        site_url = _require_site_url(decrypted_credential)
+        cloud_id = _require_cloud_id(decrypted_credential)
+        site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
         space_keys = _resolve_space_keys(provider_source_id, decrypted_credential)
         cql_filter = decrypted_credential.get("cql_filter")
@@ -220,7 +252,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         ext_src_uuid = UUID(external_source_id) if external_source_id else None
 
         pages, has_next = await self._search_pages(
-            site_url=site_url,
+            cloud_id=cloud_id,
             access_token=access_token,
             cql=cql,
             start=start,
@@ -250,8 +282,9 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
             if include_comments:
                 for comment_item in await self._extract_comments(
                     page,
-                    site_url=site_url,
+                    cloud_id=cloud_id,
                     access_token=access_token,
+                    site_url=site_url,
                     organization_id=org_uuid,
                     connection_id=conn_uuid,
                     external_source_id=ext_src_uuid,
@@ -297,7 +330,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         *provider_item_id* is the page ID (numeric string, e.g. "123456").
         Returns NormalizedExternalItem records for each attachment.
         """
-        site_url = _require_site_url(decrypted_credential)
+        cloud_id = _require_cloud_id(decrypted_credential)
+        site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
 
         org_id = decrypted_credential.get("_organization_id")
@@ -312,7 +346,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
             return []
 
         attachments = await self._get_page_attachments(
-            site_url=site_url,
+            cloud_id=cloud_id,
             access_token=access_token,
             page_id=provider_item_id,
         )
@@ -330,6 +364,59 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
             for att in attachments
         ]
 
+    async def download_file_content(
+        self,
+        *,
+        provider_item_id: str,
+        mime_type: str | None,
+        decrypted_credential: dict,
+    ) -> tuple[bytes, str, str] | None:
+        """Return a Confluence page body as plain text bytes.
+
+        Prefers the body already cached from list_items/delta_sync to avoid a
+        second HTTP call. Confluece Cloud's v1 GET /content/{id} returns 410
+        for some pages even though the CQL search endpoint serves them fine.
+        Falls back to an API fetch only on a cache miss (e.g. test scenarios).
+        """
+        del mime_type
+        cached = self._page_body_cache.pop(provider_item_id, None)
+        if cached is not None:
+            body_text, title = cached
+            if not body_text.strip():
+                return None
+            filename = f"{title[:200]}.txt"
+            return body_text.encode("utf-8"), filename, "text/plain"
+
+        # Cache miss: fetch the page body directly.
+        cloud_id = _require_cloud_id(decrypted_credential)
+        access_token = decrypted_credential.get("access_token", "")
+        url = f"{_api_base(cloud_id)}/content/{provider_item_id}"
+        params = {"expand": "body.storage,title,version,space"}
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.get(
+                url,
+                params=params,
+                headers=_bearer_headers(access_token),
+            )
+        _raise_for_status(response)
+        page = response.json()
+        title = page.get("title") or provider_item_id
+        body_html = (page.get("body") or {}).get("storage", {}).get("value", "")
+        body_text = _storage_html_to_text(body_html)
+        if not body_text.strip():
+            return None
+        filename = f"{title[:200]}.txt"
+        return body_text.encode("utf-8"), filename, "text/plain"
+
+    def _cache_page_body(self, page: dict[str, Any]) -> None:
+        page_id = page.get("id", "")
+        if not page_id:
+            return
+        body_html = (page.get("body") or {}).get("storage", {}).get("value", "")
+        body_text = _storage_html_to_text(body_html)
+        title = page.get("title") or page_id
+        self._page_body_cache[page_id] = (body_text, title)
+
     # ------------------------------------------------------------------
     # Private HTTP helpers
     # ------------------------------------------------------------------
@@ -337,14 +424,14 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
     async def _search_pages(
         self,
         *,
-        site_url: str,
+        cloud_id: str,
         access_token: str,
         cql: str,
         start: int,
         limit: int,
     ) -> tuple[list[dict[str, Any]], bool]:
         """Return (pages, has_next) from a CQL content search."""
-        url = f"{site_url}/wiki/rest/api/content/search"
+        url = f"{_api_base(cloud_id)}/content/search"
         params = {
             "cql": cql,
             "start": start,
@@ -360,18 +447,20 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         _raise_for_status(response)
         data = response.json()
         pages = data.get("results", [])
+        for page in pages:
+            self._cache_page_body(page)
         has_next = "_links" in data and "next" in (data.get("_links") or {})
         return pages, has_next
 
     async def _get_page_attachments(
         self,
         *,
-        site_url: str,
+        cloud_id: str,
         access_token: str,
         page_id: str,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        url = f"{site_url}/wiki/rest/api/content/{page_id}/child/attachment"
+        url = f"{_api_base(cloud_id)}/content/{page_id}/child/attachment"
         params = {"expand": _ATTACHMENT_EXPAND, "limit": limit}
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
@@ -385,12 +474,12 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
     async def _get_page_comments(
         self,
         *,
-        site_url: str,
+        cloud_id: str,
         access_token: str,
         page_id: str,
         limit: int = _MAX_COMMENTS_PER_PAGE,
     ) -> list[dict[str, Any]]:
-        url = f"{site_url}/wiki/rest/api/content/{page_id}/child/comment"
+        url = f"{_api_base(cloud_id)}/content/{page_id}/child/comment"
         params = {"expand": _COMMENT_EXPAND, "limit": limit}
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
@@ -405,8 +494,9 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         self,
         page: dict[str, Any],
         *,
-        site_url: str,
+        cloud_id: str,
         access_token: str,
+        site_url: str,
         organization_id: UUID,
         connection_id: UUID,
         external_source_id: UUID | None,
@@ -414,7 +504,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         page_id = page["id"]
         url = _page_url(site_url, page)
         comments = await self._get_page_comments(
-            site_url=site_url,
+            cloud_id=cloud_id,
             access_token=access_token,
             page_id=page_id,
         )

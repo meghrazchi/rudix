@@ -4,7 +4,7 @@ import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import urlencode
 from uuid import UUID
 
@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import ConnectorOAuthClientSettings, settings
+from app.core.logging import get_logger
 from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
 from app.domains.connectors.audit import ConnectorAuditAction
 from app.domains.connectors.repositories.connectors import ConnectorRepository
@@ -35,6 +36,8 @@ from app.models.enums import (
     ConnectorConnectionStatus,
     ConnectorCredentialStatus,
 )
+
+_logger = get_logger("connectors.oauth_lifecycle")
 
 _ATLASSIAN_PROVIDER_KEYS: frozenset[str] = frozenset({"confluence"})
 _TOKEN_RESPONSE_IGNORED_SCOPES: frozenset[str] = frozenset(
@@ -695,6 +698,15 @@ class ConnectorOAuthLifecycleService:
             scopes=scopes,
             provider_account_id=token_response.provider_account_id,
         )
+
+        # For providers that expose an accessible-resources endpoint (e.g. Atlassian),
+        # discover the cloud_id and site_url now so the adapter can use the correct
+        # api.atlassian.com/ex/confluence/{cloud_id}/... URL format.
+        resource_metadata = await self._fetch_accessible_resources_metadata(
+            provider_key=oauth_state.provider_key,
+            access_token=token_response.access_token,
+        )
+
         connection = await self._connection_for_state(
             session,
             organization_id=organization_id,
@@ -711,6 +723,7 @@ class ConnectorOAuthLifecycleService:
                 "oauth_flow": "callback",
                 "has_refresh_token": token_response.refresh_token is not None,
                 **(oauth_state.config_json or {}),
+                **resource_metadata,
             },
             issued_at=now,
             expires_at=expires_at,
@@ -764,6 +777,48 @@ class ConnectorOAuthLifecycleService:
             )
         except ConnectorBoundaryError:
             raise
+
+    async def _fetch_accessible_resources_metadata(
+        self,
+        *,
+        provider_key: str,
+        access_token: str,
+    ) -> dict[str, Any]:
+        """Call the provider's accessible-resources endpoint (if any) and return
+        metadata to merge into the credential: cloud_id, site_url, accessible_resources.
+
+        Failure is non-fatal: logs a warning and returns an empty dict so the
+        OAuth callback still succeeds. The adapter will raise ConnectorAuthError
+        if cloud_id is missing when the sync eventually runs.
+        """
+        provider = self.provider_registry.get(provider_key)
+        if provider is None or provider.oauth is None:
+            return {}
+        endpoint = provider.oauth.accessible_resources_endpoint
+        if not endpoint:
+            return {}
+        if self.token_client is None or not hasattr(self.token_client, "fetch_accessible_resources"):
+            return {}
+        try:
+            resources: list[dict] = await self.token_client.fetch_accessible_resources(  # type: ignore[attr-defined]
+                access_token=access_token,
+                endpoint=endpoint,
+            )
+        except Exception as exc:
+            _logger.warning(
+                "connector.oauth.accessible_resources_failed",
+                provider_key=provider_key,
+                error=str(exc)[:200],
+            )
+            return {}
+        if not resources:
+            return {}
+        primary = resources[0]
+        return {
+            "cloud_id": primary.get("id"),
+            "site_url": (primary.get("url") or "").rstrip("/"),
+            "accessible_resources": resources,
+        }
 
     async def _mark_refresh_failed(
         self,

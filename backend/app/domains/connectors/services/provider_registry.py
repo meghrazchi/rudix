@@ -105,17 +105,11 @@ def _confluence_provider() -> ProviderRegistration:
         config_schema={
             "type": "object",
             "properties": {
-                "site_url": {
-                    "type": "string",
-                    "format": "uri",
-                    "title": "Confluence site URL",
-                    "description": "Your Atlassian site, for example https://myteam.atlassian.net.",
-                },
                 "space_keys": {
                     "type": "array",
                     "items": {"type": "string"},
                     "title": "Space keys",
-                    "description": "Comma-separated Confluence space keys to sync. Leave blank to sync all accessible spaces.",
+                    "description": "Confluence space keys to sync. Leave blank to sync all accessible spaces.",
                 },
                 "cql_filter": {
                     "type": "string",
@@ -128,20 +122,34 @@ def _confluence_provider() -> ProviderRegistration:
                     "description": "Import page comments as searchable items.",
                 },
             },
-            "required": ["site_url"],
             "additionalProperties": False,
         },
         oauth=ProviderOAuthConfig(
             authorization_endpoint="https://auth.atlassian.com/authorize",
             token_endpoint="https://auth.atlassian.com/oauth/token",
             revoke_endpoint="https://auth.atlassian.com/oauth/token/revoke",
+            accessible_resources_endpoint="https://api.atlassian.com/oauth/token/accessible-resources",
             default_scopes=(
                 "read:confluence-content.all",
                 "read:confluence-space.summary",
+                "read:confluence-content.summary",
+                "read:confluence-user",
+                "search:confluence",
+                "readonly:content.attachment:confluence",
                 "offline_access",
             ),
             required_scopes=("read:confluence-content.all",),
-            optional_scopes=("read:confluence-space.summary", "offline_access"),
+            optional_scopes=(
+                "read:confluence-space.summary",
+                "read:confluence-content.summary",
+                "read:confluence-user",
+                "read:confluence-props",
+                "read:confluence-content.permission",
+                "read:confluence-groups",
+                "search:confluence",
+                "readonly:content.attachment:confluence",
+                "offline_access",
+            ),
             additional_authorization_params={"audience": "api.atlassian.com"},
         ),
     )

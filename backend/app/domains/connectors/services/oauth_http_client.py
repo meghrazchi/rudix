@@ -85,6 +85,40 @@ class HttpOAuthTokenClient:
             basic_auth=_basic_auth_header(client_config) if use_basic_auth else None,
         )
 
+    async def fetch_accessible_resources(
+        self,
+        *,
+        access_token: str,
+        endpoint: str,
+    ) -> list[dict]:
+        """Fetch the list of accessible cloud resources for a given access token.
+
+        Used by Atlassian (Confluence/Jira) to resolve the cloud_id after token exchange.
+        Returns a list of resource dicts, each containing at minimum "id" and "url".
+        """
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+            try:
+                response = await client.get(endpoint, headers=headers)
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                raise OAuthLifecycleError(
+                    f"accessible-resources endpoint returned HTTP {exc.response.status_code}"
+                ) from exc
+            except httpx.RequestError as exc:
+                raise OAuthLifecycleError(
+                    "accessible-resources endpoint is unreachable"
+                ) from exc
+        data = response.json()
+        if not isinstance(data, list):
+            raise OAuthLifecycleError(
+                "accessible-resources endpoint returned an unexpected payload"
+            )
+        return data
+
     async def revoke(
         self,
         *,

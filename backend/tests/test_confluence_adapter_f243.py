@@ -29,6 +29,7 @@ import pytest
 
 from app.domains.connectors.providers.confluence.adapter import (
     ConfluenceConnectorAdapter,
+    _ATLASSIAN_API_BASE,
     _build_cql,
     _resolve_space_keys,
 )
@@ -42,7 +43,6 @@ from app.domains.connectors.providers.confluence.normalizer import (
 from app.domains.connectors.sdk.testing import run_adapter_contract_suite
 from app.domains.connectors.services.provider_adapter import (
     ConnectorAuthError,
-    ConnectorContentError,
     ConnectorProviderUnavailableError,
     ConnectorRateLimitError,
     ItemPage,
@@ -56,10 +56,15 @@ _CONN_ID = str(uuid4())
 _ORG_UUID = UUID(_ORG_ID)
 _CONN_UUID = UUID(_CONN_ID)
 
+_CLOUD_ID = "1324a887-45db-1bf4-1e99-ef0ff456d421"
+_SITE_URL = "https://mysite.atlassian.net"
+_API_BASE = f"{_ATLASSIAN_API_BASE}/{_CLOUD_ID}/wiki/rest/api"
+
 _BASE_CRED = {
     "auth_type": "oauth2",
     "access_token": "test-token-abc",
-    "site_url": "https://mysite.atlassian.net",
+    "cloud_id": _CLOUD_ID,
+    "site_url": _SITE_URL,
 }
 
 _SAMPLE_PAGE = {
@@ -175,7 +180,7 @@ def _make_httpx_response(data: dict, *, status: int = 200) -> httpx.Response:
         status_code=status,
         headers={"content-type": "application/json"},
         content=content,
-        request=httpx.Request("GET", "https://mysite.atlassian.net/wiki/rest/api/content/search"),
+        request=httpx.Request("GET", f"{_API_BASE}/content/search"),
     )
 
 
@@ -184,7 +189,7 @@ def _make_httpx_error_response(*, status: int, headers: dict | None = None) -> h
         status_code=status,
         headers=headers or {},
         content=b'{"message": "error"}',
-        request=httpx.Request("GET", "https://mysite.atlassian.net/wiki/rest/api/content/search"),
+        request=httpx.Request("GET", f"{_API_BASE}/content/search"),
     )
 
 
@@ -613,11 +618,11 @@ async def test_list_items_sends_bearer_token() -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_items_no_site_url_raises() -> None:
+async def test_list_items_no_cloud_id_raises() -> None:
     adapter = ConfluenceConnectorAdapter()
     cred = {"auth_type": "oauth2", "access_token": "token"}
 
-    with pytest.raises(ConnectorContentError, match="site_url"):
+    with pytest.raises(ConnectorAuthError, match="cloud_id"):
         await adapter.list_items(
             organization_id=_ORG_ID,
             connection_id=_CONN_ID,
@@ -627,6 +632,40 @@ async def test_list_items_no_site_url_raises() -> None:
             cursor={},
             page_size=10,
         )
+
+
+@pytest.mark.asyncio
+async def test_list_items_uses_api_atlassian_url() -> None:
+    """API calls must use api.atlassian.com/ex/confluence/{cloud_id}/... not the site URL."""
+    adapter = ConfluenceConnectorAdapter()
+    mock_response = _make_httpx_response(_SEARCH_RESPONSE_EMPTY)
+    captured_urls: list[str] = []
+
+    async def fake_get(url, *, params=None, headers=None):
+        captured_urls.append(url)
+        return mock_response
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = fake_get
+        mock_client_cls.return_value = mock_client
+
+        await adapter.list_items(
+            organization_id=_ORG_ID,
+            connection_id=_CONN_ID,
+            external_source_id=None,
+            provider_source_id=None,
+            decrypted_credential=_BASE_CRED,
+            cursor={},
+            page_size=10,
+        )
+
+    assert len(captured_urls) == 1
+    assert captured_urls[0].startswith("https://api.atlassian.com/ex/confluence/")
+    assert _CLOUD_ID in captured_urls[0]
+    assert _SITE_URL not in captured_urls[0]
 
 
 @pytest.mark.asyncio
@@ -1027,6 +1066,157 @@ async def test_confluence_adapter_passes_contract_suite() -> None:
             connection_id=_CONN_ID,
             credential=_BASE_CRED,
         )
+
+
+# ---------------------------------------------------------------------------
+# Adapter — download_file_content
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_download_file_content_uses_cache_no_http_call() -> None:
+    """Normal production path: body already in cache from list_items, no HTTP call."""
+    adapter = ConfluenceConnectorAdapter()
+    adapter._page_body_cache["123456"] = ("Welcome to the platform. Read carefully.", "Getting Started Guide")
+
+    http_called = False
+
+    async def fail_if_called(url, **kwargs):
+        nonlocal http_called
+        http_called = True
+        raise AssertionError("HTTP call should not happen when cache is warm")
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = fail_if_called
+        mock_client_cls.return_value = mock_client
+
+        result = await adapter.download_file_content(
+            provider_item_id="123456",
+            mime_type=None,
+            decrypted_credential=_BASE_CRED,
+        )
+
+    assert not http_called
+    assert result is not None
+    content_bytes, filename, mime = result
+    assert mime == "text/plain"
+    assert "Getting Started Guide" in filename
+    assert "Welcome to the platform" in content_bytes.decode("utf-8")
+    # cache entry must be consumed
+    assert "123456" not in adapter._page_body_cache
+
+
+@pytest.mark.asyncio
+async def test_download_file_content_falls_back_to_http_on_cache_miss() -> None:
+    """Fallback path: cache miss triggers HTTP fetch (e.g. after a cold start)."""
+    adapter = ConfluenceConnectorAdapter()
+    page_response = {
+        "id": "123456",
+        "title": "Getting Started Guide",
+        "body": {
+            "storage": {
+                "value": "<p>Welcome to the platform. <strong>Read carefully.</strong></p>",
+                "representation": "storage",
+            }
+        },
+    }
+    mock_response = _make_httpx_response(page_response)
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        result = await adapter.download_file_content(
+            provider_item_id="123456",
+            mime_type=None,
+            decrypted_credential=_BASE_CRED,
+        )
+
+    assert result is not None
+    content_bytes, filename, mime = result
+    assert mime == "text/plain"
+    assert filename.endswith(".txt")
+    assert "Getting Started Guide" in filename
+    text = content_bytes.decode("utf-8")
+    assert "Welcome to the platform" in text
+    assert "Read carefully" in text
+
+
+@pytest.mark.asyncio
+async def test_list_items_populates_page_body_cache() -> None:
+    """list_items must cache page bodies so download_file_content avoids a second HTTP call."""
+    adapter = ConfluenceConnectorAdapter()
+    mock_response = _make_httpx_response(_SEARCH_RESPONSE_SINGLE)
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client_cls.return_value = _patch_client([mock_response])
+
+        await adapter.list_items(
+            organization_id=_ORG_ID,
+            connection_id=_CONN_ID,
+            external_source_id=None,
+            provider_source_id=None,
+            decrypted_credential=_BASE_CRED,
+            cursor={},
+            page_size=50,
+        )
+
+    assert "123456" in adapter._page_body_cache
+    body_text, title = adapter._page_body_cache["123456"]
+    assert "Welcome to the platform" in body_text
+    assert title == "Getting Started Guide"
+
+
+@pytest.mark.asyncio
+async def test_download_file_content_empty_body_returns_none() -> None:
+    adapter = ConfluenceConnectorAdapter()
+    page_response = {
+        "id": "123456",
+        "title": "Empty Page",
+        "body": {"storage": {"value": "", "representation": "storage"}},
+    }
+    mock_response = _make_httpx_response(page_response)
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        result = await adapter.download_file_content(
+            provider_item_id="123456",
+            mime_type=None,
+            decrypted_credential=_BASE_CRED,
+        )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_download_file_content_401_raises_auth_error() -> None:
+    adapter = ConfluenceConnectorAdapter()
+    mock_response = _make_httpx_error_response(status=401)
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client_cls.return_value = mock_client
+
+        with pytest.raises(ConnectorAuthError):
+            await adapter.download_file_content(
+                provider_item_id="123456",
+                mime_type=None,
+                decrypted_credential=_BASE_CRED,
+            )
 
 
 # ---------------------------------------------------------------------------

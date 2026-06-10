@@ -8,10 +8,12 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.db.session import SessionLocal
+from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
+from app.domains.connectors.services.oauth_http_client import HttpOAuthTokenClient
+from app.domains.connectors.services.oauth_lifecycle import ConnectorOAuthLifecycleService
 from app.domains.connectors.services.provider_adapter import (
     ConnectorRateLimitError,
 )
-from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
@@ -31,7 +33,12 @@ async def _run_sync_async(
     except ValueError as exc:
         raise PermanentTaskError(f"Invalid UUID: {exc}") from exc
 
-    engine = ConnectorSyncEngine(ingestion_bridge=ConnectorIngestionBridge())
+    engine = ConnectorSyncEngine(
+        ingestion_bridge=ConnectorIngestionBridge(),
+        oauth_lifecycle=ConnectorOAuthLifecycleService(
+            token_client=HttpOAuthTokenClient(),
+        ),
+    )
     async with SessionLocal() as session:
         async with session.begin():
             try:

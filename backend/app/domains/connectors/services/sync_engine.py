@@ -11,6 +11,7 @@ from uuid import UUID
 
 if TYPE_CHECKING:
     from app.domains.connectors.services.ingestion_bridge import ConnectorIngestionBridge
+    from app.domains.connectors.services.oauth_lifecycle import ConnectorOAuthLifecycleService
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,9 +33,11 @@ from app.domains.connectors.services.provider_adapter import (
     default_sync_adapter_registry,
 )
 from app.models.connector import ConnectorConnection, ExternalItem
+from app.models.connector_credential import ConnectorCredential
 from app.models.connector_source import SourceDocument
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import (
+    ConnectorAuthType,
     ConnectorConnectionStatus,
     ConnectorCredentialStatus,
     ConnectorSyncJobStatus,
@@ -49,7 +52,7 @@ _MAX_SCHEDULE_LOOKBACK_DAYS = 7
 
 # Item types whose content should be downloaded and ingested as Documents.
 _FILE_ITEM_TYPES: frozenset[str] = frozenset(
-    {ExternalItemType.cloud_file, ExternalItemType.attachment}
+    {ExternalItemType.cloud_file, ExternalItemType.attachment, ExternalItemType.wiki_page}
 )
 
 
@@ -98,12 +101,14 @@ class ConnectorSyncEngine:
         credential_vault: CredentialVault | None = None,
         ingestion_bridge: ConnectorIngestionBridge | None = None,
         audit_service: AuditLogService | None = None,
+        oauth_lifecycle: ConnectorOAuthLifecycleService | None = None,
     ) -> None:
         self.repository = repository or ConnectorRepository()
         self.adapter_registry = adapter_registry or default_sync_adapter_registry
         self.credential_vault = credential_vault or CredentialVault()
         self.ingestion_bridge = ingestion_bridge
         self.audit_service = audit_service or AuditLogService()
+        self._oauth_lifecycle = oauth_lifecycle
 
     # -----------------------------------------------------------------------
     # Job management
@@ -441,6 +446,10 @@ class ConnectorSyncEngine:
         if credential.status == ConnectorCredentialStatus.revoked.value:
             return await self._fail_run(session, run, "credential has been revoked")
 
+        credential = await self._refresh_oauth_if_needed(
+            session, connection=connection, credential=credential, organization_id=organization_id
+        )
+
         try:
             decrypted = self.credential_vault.decrypt(credential)
         except Exception as exc:
@@ -476,8 +485,24 @@ class ConnectorSyncEngine:
                     decrypted_credential=decrypted,
                 )
         except ConnectorAuthError as exc:
-            await self._mark_connection_error(session, connection, str(exc))
-            return await self._fail_run(session, run, str(exc), error_code="auth_error")
+            # For OAuth connections: attempt a token refresh + one retry before giving up.
+            # This handles expired tokens regardless of whether expires_at is set in the DB.
+            retry_result = await self._refresh_and_retry(
+                session,
+                run=run,
+                job=job,
+                connection=connection,
+                adapter=adapter,
+                credential=credential,
+                organization_id=organization_id,
+                cursor_before=cursor_before,
+                use_incremental=use_incremental,
+            )
+            if retry_result is not None:
+                result = retry_result
+            else:
+                await self._mark_connection_error(session, connection, str(exc))
+                return await self._fail_run(session, run, str(exc), error_code="auth_error")
         except ConnectorRateLimitError as exc:
             return await self._fail_run(
                 session,
@@ -1312,6 +1337,143 @@ class ConnectorSyncEngine:
             raise SyncEngineError(
                 "sync is already queued or running for this job; cancel or wait for it to finish"
             )
+
+    async def _refresh_oauth_if_needed(
+        self,
+        session: AsyncSession,
+        *,
+        connection: ConnectorConnection,
+        credential: ConnectorCredential,
+        organization_id: UUID,
+    ) -> ConnectorCredential:
+        """Proactively refresh an OAuth credential that is expired or near expiry.
+
+        Returns the refreshed credential if refresh succeeded, otherwise the original.
+        No-ops when oauth_lifecycle is not configured or credential is not OAuth.
+        """
+        if self._oauth_lifecycle is None:
+            return credential
+        if credential.auth_type != ConnectorAuthType.oauth2.value:
+            return credential
+
+        expires_at = credential.expires_at
+        if expires_at is None:
+            return credential
+
+        now = datetime.now(UTC)
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at > now + timedelta(seconds=60):
+            return credential
+
+        _logger.info(
+            "connector.sync.proactive_token_refresh",
+            connection_id=str(connection.id),
+            provider_key=getattr(getattr(connection, "provider", None), "key", None),
+            expires_at=expires_at.isoformat(),
+        )
+        try:
+            await self._oauth_lifecycle.refresh_oauth_credential(
+                session,
+                organization_id=organization_id,
+                connection_id=connection.id,
+            )
+            refreshed = await self.repository.get_current_credential(
+                session,
+                organization_id=organization_id,
+                connection_id=connection.id,
+            )
+            if refreshed is not None:
+                return refreshed
+        except Exception as exc:
+            _logger.warning(
+                "connector.sync.proactive_token_refresh_failed",
+                connection_id=str(connection.id),
+                error=str(exc)[:200],
+            )
+        return credential
+
+    async def _refresh_and_retry(
+        self,
+        session: AsyncSession,
+        *,
+        run: ConnectorSyncRun,
+        job: ConnectorSyncJob,
+        connection: ConnectorConnection,
+        adapter: Any,
+        credential: ConnectorCredential,
+        organization_id: UUID,
+        cursor_before: dict,
+        use_incremental: bool,
+    ) -> SyncRunResult | None:
+        """On auth failure, refresh the OAuth token and retry the sync once.
+
+        Returns the SyncRunResult on success, or None if this connection is not
+        OAuth, no lifecycle service is configured, or the refresh/retry also fails.
+        """
+        if self._oauth_lifecycle is None:
+            return None
+        if credential.auth_type != ConnectorAuthType.oauth2.value:
+            return None
+
+        _logger.info(
+            "connector.sync.auth_error_refresh_attempt",
+            connection_id=str(connection.id),
+            provider_key=getattr(getattr(connection, "provider", None), "key", None),
+        )
+        try:
+            await self._oauth_lifecycle.refresh_oauth_credential(
+                session,
+                organization_id=organization_id,
+                connection_id=connection.id,
+            )
+            new_credential = await self.repository.get_current_credential(
+                session,
+                organization_id=organization_id,
+                connection_id=connection.id,
+            )
+            if new_credential is None:
+                return None
+            new_decrypted = self.credential_vault.decrypt(new_credential)
+        except Exception as exc:
+            _logger.warning(
+                "connector.sync.auth_error_refresh_failed",
+                connection_id=str(connection.id),
+                error=str(exc)[:200],
+            )
+            return None
+
+        _logger.info(
+            "connector.sync.auth_error_retry",
+            connection_id=str(connection.id),
+        )
+        try:
+            if use_incremental:
+                return await self._run_incremental_sync(
+                    session,
+                    run=run,
+                    job=job,
+                    connection=connection,
+                    adapter=adapter,
+                    decrypted_credential=new_decrypted,
+                    cursor=cursor_before,
+                )
+            else:
+                return await self._run_full_sync(
+                    session,
+                    run=run,
+                    job=job,
+                    connection=connection,
+                    adapter=adapter,
+                    decrypted_credential=new_decrypted,
+                )
+        except Exception as exc:
+            _logger.warning(
+                "connector.sync.auth_error_retry_failed",
+                connection_id=str(connection.id),
+                error=str(exc)[:200],
+            )
+            return None
 
     async def _mark_connection_error(
         self,

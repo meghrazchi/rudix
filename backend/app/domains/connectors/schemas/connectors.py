@@ -57,6 +57,10 @@ class ProviderOAuthConfig(BaseModel):
     token_endpoint_auth_method: Literal["client_secret_post", "client_secret_basic"] = Field(
         default="client_secret_post"
     )
+    # For providers (e.g. Atlassian) that require a post-token "which sites can I access?"
+    # call. When set, the lifecycle service fetches accessible resources after token exchange
+    # and stores the primary cloud_id + site_url in the credential metadata.
+    accessible_resources_endpoint: str | None = Field(default=None, min_length=1, max_length=2048)
     default_scopes: tuple[str, ...] = Field(default_factory=tuple)
     required_scopes: tuple[str, ...] = Field(default_factory=tuple)
     optional_scopes: tuple[str, ...] = Field(default_factory=tuple)
