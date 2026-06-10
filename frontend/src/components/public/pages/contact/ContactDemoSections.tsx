@@ -1,48 +1,31 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { ContactDemoFormCard } from "@/components/public/pages/contact/ContactDemoFormCard";
-import {
-  CONTACT_CARDS,
-  CONTACT_FIT_HIGHLIGHTS,
-} from "@/components/public/pages/contact/contactData";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 import type { ContactSubmissionConfig } from "@/lib/public-site/contact";
+import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 type ContactDemoSectionsProps = {
   links: PublicSiteLinks;
   submissionConfig: ContactSubmissionConfig;
 };
 
-function cardHref(
-  cardTitle: (typeof CONTACT_CARDS)[number]["title"],
-  links: PublicSiteLinks,
-): string {
-  if (cardTitle === "Sales") {
-    return links.contact;
-  }
-
-  if (cardTitle === "Support") {
-    return links.contact;
-  }
-
-  if (cardTitle === "Security review") {
-    return links.securityContact;
-  }
-
-  return links.docs;
-}
-
 export function ContactHeroSection() {
+  const t = useTranslations("public.contact");
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 pt-14 pb-12 lg:px-8 lg:pt-20 lg:pb-16">
       <span className="text-xs font-bold tracking-[0.13em] text-[#3f37cd] uppercase">
-        Connect with the Rudix team
+        {t("hero.badge")}
       </span>
       <h1 className="mt-3 max-w-4xl text-4xl leading-tight font-black text-[#10131c] lg:text-6xl">
-        Speak with us about your document workflow
+        {t("hero.heading")}
       </h1>
       <p className="mt-4 max-w-3xl text-sm leading-8 text-[#5c6278] lg:text-lg">
-        Book a demo or contact Rudix to discuss secure ingestion, retrieval,
-        evaluation, and governance requirements for your team.
+        {t("hero.description")}
       </p>
     </section>
   );
@@ -52,6 +35,42 @@ export function ContactMainSection({
   links,
   submissionConfig,
 }: ContactDemoSectionsProps) {
+  const t = useTranslations("public.contact");
+
+  const fitHighlights = [
+    t("goodFit.item0"),
+    t("goodFit.item1"),
+    t("goodFit.item2"),
+    t("goodFit.item3"),
+  ];
+
+  const cards = [
+    {
+      title: t("cards.salesTitle"),
+      desc: t("cards.salesDesc"),
+      cta: t("cards.salesCta"),
+      href: links.contact,
+    },
+    {
+      title: t("cards.supportTitle"),
+      desc: t("cards.supportDesc"),
+      cta: t("cards.supportCta"),
+      href: links.contact,
+    },
+    {
+      title: t("cards.securityTitle"),
+      desc: t("cards.securityDesc"),
+      cta: t("cards.securityCta"),
+      href: links.securityContact,
+    },
+    {
+      title: t("cards.statusTitle"),
+      desc: t("cards.statusDesc"),
+      cta: t("cards.statusCta"),
+      href: links.docs,
+    },
+  ];
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-8 lg:pb-20">
       <div className="grid gap-6 lg:grid-cols-12">
@@ -66,10 +85,10 @@ export function ContactMainSection({
         <div className="space-y-6 lg:col-span-5">
           <article className="rounded-xl bg-[#3525cd] p-7 text-white shadow-sm md:p-9">
             <h2 className="text-2xl font-black">
-              Good fit for teams that need
+              {t("goodFit.heading")}
             </h2>
             <ul className="mt-5 space-y-3">
-              {CONTACT_FIT_HIGHLIGHTS.map((highlight) => (
+              {fitHighlights.map((highlight) => (
                 <li key={highlight} className="flex items-start gap-2">
                   <span
                     className="material-symbols-outlined mt-0.5 text-[#8af1a8]"
@@ -89,20 +108,20 @@ export function ContactMainSection({
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-semibold tracking-[0.08em] text-[#c5cae0] uppercase">
                 <span className="h-2 w-2 rounded-full bg-[#108548]" />
-                System health
+                {t("systemHealth.label")}
               </div>
-              <span className="text-xs text-[#9ca2bd]">Operational</span>
+              <span className="text-xs text-[#9ca2bd]">{t("systemHealth.operational")}</span>
             </div>
             <ul className="space-y-1.5 text-sm text-[#d6dbf0]">
-              <li>&gt; Ingestion queue: healthy</li>
-              <li>&gt; Retrieval latency: within target</li>
-              <li>&gt; Evaluation jobs: available</li>
-              <li>&gt; Audit pipeline: active</li>
+              <li>{t("systemHealth.ingestion")}</li>
+              <li>{t("systemHealth.retrieval")}</li>
+              <li>{t("systemHealth.evaluation")}</li>
+              <li>{t("systemHealth.audit")}</li>
             </ul>
           </article>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {CONTACT_CARDS.map((card) => (
+            {cards.map((card) => (
               <article
                 key={card.title}
                 className="rounded-xl border border-[#d8dce8] bg-white p-5 shadow-sm"
@@ -111,13 +130,13 @@ export function ContactMainSection({
                   {card.title}
                 </h3>
                 <p className="mt-2 text-sm leading-7 text-[#5b6278]">
-                  {card.description}
+                  {card.desc}
                 </p>
                 <PublicActionLink
-                  href={cardHref(card.title, links)}
+                  href={card.href}
                   className="mt-4 inline-block text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
                 >
-                  {card.actionLabel}
+                  {card.cta}
                 </PublicActionLink>
               </article>
             ))}

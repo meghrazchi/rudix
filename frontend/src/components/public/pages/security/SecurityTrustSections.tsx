@@ -1,11 +1,11 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
-  accessAndGovernanceCards,
-  complianceReadinessItems,
-  documentLifecycleStages,
-  retentionAndDeletionItems,
-  sampleAuditEvents,
   securityPillars,
+  sampleAuditEvents,
   type SecurityPillarIcon,
 } from "@/components/public/pages/security/securityData";
 
@@ -158,32 +158,32 @@ export function SecurityHeroSection({
   securityReviewHref: string;
   architectureHref: string;
 }) {
+  const t = useTranslations("public.security");
+
   return (
     <section className="relative overflow-hidden border-b border-[#d8dce7] bg-[radial-gradient(circle_at_top,rgba(56,43,225,0.11),transparent_58%)] py-18 lg:py-24">
       <div className="mx-auto w-full max-w-7xl px-4 text-center lg:px-8">
         <span className="inline-flex rounded-full bg-[#e4e1ff] px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#3b2fcb] uppercase">
-          Security and trust
+          {t("hero.badge")}
         </span>
         <h1 className="mx-auto mt-5 max-w-4xl text-4xl leading-tight font-black text-[#10131c] lg:text-6xl">
-          Security-first document AI for trusted enterprise knowledge
+          {t("hero.heading")}
         </h1>
         <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-[#596077] lg:text-base">
-          Rudix helps teams run document workflows with privacy, organization
-          isolation, and traceable governance controls from ingestion to cited
-          answers.
+          {t("hero.description")}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <PublicActionLink
             href={securityReviewHref}
             className="rounded-lg bg-[#3525cd] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(53,37,205,0.26)] transition hover:bg-[#2a1fc1]"
           >
-            Request Security Review
+            {t("hero.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={architectureHref}
             className="rounded-lg border border-[#cfd5e6] bg-white px-5 py-3 text-sm font-semibold text-[#21283d] transition hover:bg-[#f4f6fd]"
           >
-            Review Architecture
+            {t("hero.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>
@@ -192,6 +192,38 @@ export function SecurityHeroSection({
 }
 
 export function SecurityPillarsSection() {
+  const t = useTranslations("public.security");
+
+  const translatedPillars = securityPillars.map((pillar) => {
+    const key = pillar.icon as
+      | "privacy"
+      | "isolation"
+      | "access"
+      | "audit"
+      | "upload"
+      | "encryption"
+      | "observability";
+
+    const keyMap: Record<typeof key, string> = {
+      privacy: "documentPrivacy",
+      isolation: "orgIsolation",
+      access: "accessControl",
+      audit: "auditLogs",
+      upload: "safeUploads",
+      encryption: "encryption",
+      observability: "observability",
+    };
+
+    const prefix = keyMap[key];
+
+    return {
+      icon: pillar.icon,
+      title: t(`pillars.${prefix}Title` as Parameters<typeof t>[0]),
+      description: t(`pillars.${prefix}Desc` as Parameters<typeof t>[0]),
+      callout: t(`pillars.${prefix}Callout` as Parameters<typeof t>[0]),
+    };
+  });
+
   return (
     <section
       aria-labelledby="security-pillars-title"
@@ -202,16 +234,15 @@ export function SecurityPillarsSection() {
           id="security-pillars-title"
           className="text-3xl font-black text-[#12151f] lg:text-5xl"
         >
-          Core security pillars
+          {t("pillars.heading")}
         </h2>
         <p className="mt-3 text-sm leading-7 text-[#5b6277] lg:text-base">
-          Security controls are embedded across document handling, access, and
-          operational workflows.
+          {t("pillars.description")}
         </p>
       </div>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {securityPillars.map((pillar) => (
+        {translatedPillars.map((pillar) => (
           <article
             key={pillar.title}
             className="flex h-full flex-col rounded-2xl border border-[#d8dce8] bg-white p-6 shadow-sm"
@@ -236,6 +267,20 @@ export function SecurityPillarsSection() {
 }
 
 export function DocumentHandlingSection() {
+  const t = useTranslations("public.security");
+
+  const documentLifecycleStages = [
+    { title: t("documentHandling.validateTitle"), description: t("documentHandling.validateDesc") },
+    { title: t("documentHandling.storeTitle"), description: t("documentHandling.storeDesc") },
+    { title: t("documentHandling.parseTitle"), description: t("documentHandling.parseDesc") },
+    { title: t("documentHandling.chunkTitle"), description: t("documentHandling.chunkDesc") },
+    { title: t("documentHandling.embedTitle"), description: t("documentHandling.embedDesc") },
+    { title: t("documentHandling.indexTitle"), description: t("documentHandling.indexDesc") },
+    { title: t("documentHandling.answerTitle"), description: t("documentHandling.answerDesc") },
+    { title: t("documentHandling.deleteTitle"), description: t("documentHandling.deleteDesc") },
+    { title: t("documentHandling.reindexTitle"), description: t("documentHandling.reindexDesc") },
+  ];
+
   return (
     <section
       aria-labelledby="document-handling-title"
@@ -247,13 +292,10 @@ export function DocumentHandlingSection() {
             id="document-handling-title"
             className="text-3xl font-black text-[#12151f] lg:text-5xl"
           >
-            Document handling lifecycle
+            {t("documentHandling.heading")}
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#5b6277] lg:text-base">
-            Rudix processes documents through a controlled lifecycle:
-            validation, object storage, parsing, chunking, embeddings, vector
-            indexing, citation-backed answers, and deletion or re-index
-            operations.
+            {t("documentHandling.description")}
           </p>
         </div>
 
@@ -281,6 +323,27 @@ export function DocumentHandlingSection() {
 }
 
 export function AccessGovernanceSection() {
+  const t = useTranslations("public.security");
+
+  const accessAndGovernanceCards = [
+    {
+      title: t("accessGovernance.authSessionTitle"),
+      description: t("accessGovernance.authSessionDesc"),
+    },
+    {
+      title: t("accessGovernance.roleAccessTitle"),
+      description: t("accessGovernance.roleAccessDesc"),
+    },
+    {
+      title: t("accessGovernance.adminGovernanceTitle"),
+      description: t("accessGovernance.adminGovernanceDesc"),
+    },
+    {
+      title: t("accessGovernance.routeBoundariesTitle"),
+      description: t("accessGovernance.routeBoundariesDesc"),
+    },
+  ];
+
   return (
     <section
       aria-labelledby="access-governance-title"
@@ -291,11 +354,10 @@ export function AccessGovernanceSection() {
           id="access-governance-title"
           className="text-3xl font-black text-[#12151f] lg:text-5xl"
         >
-          Access, session safety, and governance
+          {t("accessGovernance.heading")}
         </h2>
         <p className="mt-3 text-sm leading-7 text-[#5b6277] lg:text-base">
-          Authentication, authorization, and route boundaries are designed to
-          keep public content separate from private workspace operations.
+          {t("accessGovernance.description")}
         </p>
       </div>
 
@@ -377,6 +439,20 @@ export function ComplianceAndRetentionSection({
 }: {
   securityContactHref: string;
 }) {
+  const t = useTranslations("public.security");
+
+  const complianceReadinessItems = [
+    t("compliance.readiness0"),
+    t("compliance.readiness1"),
+    t("compliance.readiness2"),
+  ];
+
+  const retentionAndDeletionItems = [
+    t("compliance.retention0"),
+    t("compliance.retention1"),
+    t("compliance.retention2"),
+  ];
+
   return (
     <section
       aria-labelledby="compliance-readiness-title"
@@ -388,8 +464,11 @@ export function ComplianceAndRetentionSection({
             id="compliance-readiness-title"
             className="text-2xl font-black lg:text-3xl"
           >
-            Compliance readiness with careful claims
+            {t("compliance.heading")}
           </h2>
+          <p className="mt-2 text-sm leading-7 text-[#c4cbdd]">
+            {t("compliance.description")}
+          </p>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-[#c4cbdd]">
             {complianceReadinessItems.map((item) => (
               <li key={item} className="flex gap-2">
@@ -402,7 +481,7 @@ export function ComplianceAndRetentionSection({
 
         <article className="rounded-2xl border border-white/12 bg-white/5 p-6">
           <h2 className="text-2xl font-black lg:text-3xl">
-            Data retention and deletion posture
+            {t("compliance.retentionHeading")}
           </h2>
           <ul className="mt-4 space-y-3 text-sm leading-7 text-[#c4cbdd]">
             {retentionAndDeletionItems.map((item) => (
@@ -416,7 +495,7 @@ export function ComplianceAndRetentionSection({
             href={securityContactHref}
             className="mt-6 inline-flex rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2a1fc1]"
           >
-            Contact Security Team
+            {t("cta.primaryCta")}
           </PublicActionLink>
         </article>
       </div>

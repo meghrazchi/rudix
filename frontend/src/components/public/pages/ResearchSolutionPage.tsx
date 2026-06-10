@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
@@ -19,6 +20,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function ResearchBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -27,7 +30,7 @@ function ResearchBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -35,14 +38,14 @@ function ResearchBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Research
+          {t("research.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -58,6 +61,8 @@ function ResearchHeroSection({
   demoHref: string;
   docsHref: string;
 }) {
+  const t = useTranslations("public.research");
+
   return (
     <section
       aria-labelledby="research-hero-title"
@@ -68,33 +73,31 @@ function ResearchHeroSection({
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#e2dfff] px-3 py-1 text-[#3323cc]">
             <Sym name="analytics" className="text-[18px]" />
             <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-              Analyst Intelligence
+              {t("hero.badge")}
             </span>
           </div>
           <h1
             id="research-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
           >
-            Extract insights from technical PDFs and reports.
+            {t("hero.heading")}
           </h1>
           <p className="mb-8 max-w-xl text-lg leading-7 text-[#464555]">
-            A high-fidelity workspace for market analysts and researchers.
-            Transform massive document silos into structured, traceable
-            intelligence with enterprise-grade RAG.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4">
             <PublicActionLink
               href={demoHref}
               className="inline-flex items-center gap-2 rounded-xl bg-[#3525cd] px-8 py-4 text-base font-semibold text-white transition hover:shadow-xl active:scale-95"
             >
-              Request Demo
+              {t("hero.primaryCta")}
               <Sym name="arrow_forward" />
             </PublicActionLink>
             <PublicActionLink
               href={docsHref}
               className="rounded-xl border border-[#777587] px-8 py-4 text-base font-semibold text-[#1a1b20] transition hover:bg-[#eeedf3] active:scale-95"
             >
-              View Documentation
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -541,6 +544,8 @@ function ResearchFinalCtaSection({
   demoHref: string;
   contactHref: string;
 }) {
+  const t = useTranslations("public.research");
+
   return (
     <section aria-labelledby="research-cta-title" className="mb-24 py-24">
       <div className="mx-auto max-w-[1440px] px-10">
@@ -554,24 +559,23 @@ function ResearchFinalCtaSection({
               id="research-cta-title"
               className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
-              Ready to upgrade your research infrastructure?
+              {t("cta.heading")}
             </h2>
             <p className="mb-12 text-lg leading-7 opacity-90">
-              Join top-tier analyst teams using Rudix to out-research the
-              competition with higher fidelity and faster turnaround.
+              {t("cta.description")}
             </p>
             <div className="flex flex-col justify-center gap-6 sm:flex-row">
               <PublicActionLink
                 href={demoHref}
                 className="rounded-2xl bg-white px-10 py-5 font-bold text-[#3525cd] transition hover:scale-105 active:scale-95"
               >
-                Get Started Now
+                {t("cta.primaryCta")}
               </PublicActionLink>
               <PublicActionLink
                 href={contactHref}
                 className="rounded-2xl border-2 border-white px-10 py-5 font-bold text-white transition hover:bg-white/10 active:scale-95"
               >
-                Book Sales Call
+                {t("cta.secondaryCta")}
               </PublicActionLink>
             </div>
           </div>

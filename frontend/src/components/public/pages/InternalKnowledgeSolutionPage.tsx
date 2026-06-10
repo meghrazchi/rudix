@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
@@ -19,6 +20,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function InternalKnowledgeBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -27,7 +30,7 @@ function InternalKnowledgeBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -35,14 +38,14 @@ function InternalKnowledgeBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Internal Knowledge
+          {t("internalKnowledge.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -58,6 +61,8 @@ function InternalKnowledgeHeroSection({
   trialHref: string;
   demoHref: string;
 }) {
+  const t = useTranslations("public.internalKnowledge");
+
   return (
     <section
       aria-labelledby="ik-hero-title"
@@ -66,32 +71,29 @@ function InternalKnowledgeHeroSection({
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div>
           <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            Internal Knowledge Assistant
+            {t("hero.badge")}
           </span>
           <h1
             id="ik-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Your team&apos;s knowledge,{" "}
-            <span className="text-[#3525cd]">instantly accessible.</span>
+            {t("hero.heading")}
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            Stop hunting through outdated PDFs and buried Slack threads. Rudix
-            indexes your entire organizational brain to provide verified,
-            instant answers to any internal query.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4">
             <PublicActionLink
               href={trialHref}
               className="rounded-xl bg-[#3525cd] px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
             >
-              Get Started
+              {t("hero.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href={demoHref}
               className="rounded-xl border border-[#777587] px-8 py-4 text-lg font-semibold text-[#1a1b20] transition hover:bg-[#f4f3f9] active:scale-95"
             >
-              Watch Demo
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -515,6 +517,8 @@ function InternalKnowledgeFinalCtaSection({
   demoHref: string;
   pricingHref: string;
 }) {
+  const t = useTranslations("public.internalKnowledge");
+
   return (
     <section
       aria-labelledby="ik-cta-title"
@@ -530,24 +534,23 @@ function InternalKnowledgeFinalCtaSection({
             id="ik-cta-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
           >
-            Stop searching. Start knowing.
+            {t("cta.heading")}
           </h2>
           <p className="mb-10 text-lg leading-7 text-[#dad7ff] opacity-90">
-            Transform your internal documentation from a static library into a
-            dynamic conversation. Deploy Rudix in under 30 minutes.
+            {t("cta.description")}
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <PublicActionLink
               href={demoHref}
               className="rounded-xl bg-white px-8 py-4 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
             >
-              Speak to us
+              {t("cta.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href={pricingHref}
               className="rounded-xl border border-white/20 bg-white/10 px-8 py-4 text-lg font-bold text-white transition hover:bg-white/20 active:scale-95"
             >
-              View Pricing
+              {t("cta.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>

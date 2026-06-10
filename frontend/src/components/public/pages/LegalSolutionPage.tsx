@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
@@ -17,6 +19,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function LegalBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -25,7 +29,7 @@ function LegalBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -33,14 +37,14 @@ function LegalBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Legal
+          {t("legal.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -50,6 +54,8 @@ function LegalBreadcrumb() {
 // ── hero ──────────────────────────────────────────────────────────────────────
 
 function LegalHeroSection({ demoHref }: { demoHref: string }) {
+  const t = useTranslations("public.legal");
+
   return (
     <section
       aria-labelledby="legal-hero-title"
@@ -61,25 +67,23 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#3525cd]/10 px-3 py-1 text-[#3525cd]">
             <Sym name="gavel" className="text-[18px]" />
             <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-              Legal Intelligence
+              {t("hero.badge")}
             </span>
           </div>
           <h1
             id="legal-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#1a1b20] lg:text-[48px] lg:leading-[56px]"
           >
-            Ask contracts and policies with source-backed answers.
+            {t("hero.heading")}
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            Search contracts, legal policies, vendor agreements, renewal terms,
-            obligations, and deadlines with citations. Built for
-            enterprise-grade compliance.
+            {t("hero.description")}
           </p>
           <PublicActionLink
             href={demoHref}
             className="inline-flex items-center gap-2 rounded-xl bg-[#3525cd] px-8 py-4 text-lg font-bold text-white shadow-lg shadow-[#3525cd]/20 transition hover:opacity-90 active:scale-95"
           >
-            Speak to us about legal workflows
+            {t("hero.primaryCta")}
             <Sym name="arrow_forward" />
           </PublicActionLink>
         </div>
@@ -89,23 +93,19 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
             <div className="mb-4 flex items-center gap-4 rounded-lg border border-white/10 bg-[#0A0A0F] p-4">
               <Sym name="search" className="text-[#c3c0ff]" />
               <span className="text-sm text-[#c3c0ff]/60 italic">
-                &quot;When is the termination notice for the AWS contract?&quot;
+                {t("hero.queryExample")}
               </span>
             </div>
             <div className="rounded-lg bg-[#eeedf3] p-4">
               <p className="mb-3 text-base leading-relaxed text-[#1a1b20]">
-                The AWS Master Service Agreement requires a{" "}
-                <strong className="text-[#3525cd]">
-                  90-day written notice
-                </strong>{" "}
-                prior to the end of the current term for non-renewal.
+                {t("hero.answerText")}
               </p>
               <div className="flex flex-wrap gap-2">
                 <span className="rounded border-l-2 border-[#3525cd] bg-[#3525cd]/5 px-2 py-1 text-[12px] font-semibold text-[#3525cd]">
-                  AWS_MSA_2023.pdf · p. 14
+                  {t("hero.citation1")}
                 </span>
                 <span className="rounded border-l-2 border-[#3525cd] bg-[#3525cd]/5 px-2 py-1 text-[12px] font-semibold text-[#3525cd]">
-                  Section 12.2 (Termination)
+                  {t("hero.citation2")}
                 </span>
               </div>
             </div>
@@ -120,24 +120,26 @@ function LegalHeroSection({ demoHref }: { demoHref: string }) {
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function LegalProblemSection() {
+  const t = useTranslations("public.legal");
+
   const problems = [
     {
       icon: "description",
       iconBg: "bg-[#ba1a1a]/10 text-[#ba1a1a]",
-      title: "Long Contracts",
-      body: "Navigating 100+ page agreements to find a single liability sub-clause takes hours of expensive legal time.",
+      title: t("problems.longContractsTitle"),
+      body: t("problems.longContractsBody"),
     },
     {
       icon: "repeat",
       iconBg: "bg-[#3525cd]/10 text-[#3525cd]",
-      title: "Repeated Questions",
-      body: "Sales and procurement teams ask the same Standard Terms questions daily, clogging legal support queues.",
+      title: t("problems.repeatedQuestionsTitle"),
+      body: t("problems.repeatedQuestionsBody"),
     },
     {
       icon: "event_busy",
       iconBg: "bg-[#E24329]/10 text-[#E24329]",
-      title: "Missed Deadlines",
-      body: "Auto-renewal dates buried in legacy PDFs are easily missed, leading to unwanted multi-year commitments.",
+      title: t("problems.missedDeadlinesTitle"),
+      body: t("problems.missedDeadlinesBody"),
     },
   ];
 
@@ -152,11 +154,10 @@ function LegalProblemSection() {
             id="legal-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Contracts are too important to search manually.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Manual legal reviews slow down deals and increase operational risk.
-            Rudix eliminates the friction.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -185,13 +186,15 @@ function LegalProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function LegalDocumentSourcesSection() {
+  const t = useTranslations("public.legal");
+
   const sources = [
-    { icon: "groups", label: "Customer contracts" },
-    { icon: "shopping_cart", label: "Vendor agreements" },
-    { icon: "lock", label: "NDAs" },
-    { icon: "gavel", label: "DPAs" },
-    { icon: "verified_user", label: "Terms of service" },
-    { icon: "library_books", label: "Legal guidance" },
+    { icon: "groups", label: t("documentSources.customerContracts") },
+    { icon: "shopping_cart", label: t("documentSources.vendorAgreements") },
+    { icon: "lock", label: t("documentSources.ndas") },
+    { icon: "gavel", label: t("documentSources.dpas") },
+    { icon: "verified_user", label: t("documentSources.termsOfService") },
+    { icon: "library_books", label: t("documentSources.legalGuidance") },
   ];
 
   return (
@@ -206,11 +209,10 @@ function LegalDocumentSourcesSection() {
               id="legal-doc-sources-title"
               className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
-              Built for every legal asset.
+              {t("documentSources.heading")}
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Rudix supports complex document hierarchies and cross-references
-              between master agreements and local statements of work.
+              {t("documentSources.description")}
             </p>
             <ul className="grid grid-cols-2 gap-4">
               {sources.map((s) => (
@@ -243,10 +245,10 @@ function LegalDocumentSourcesSection() {
                   </div>
                 </div>
                 <h4 className="mb-2 text-[24px] font-semibold text-white">
-                  Instant Ingestion
+                  {t("documentSources.instantIngestion")}
                 </h4>
                 <p className="text-[#c3c0ff]/70">
-                  Secure, encrypted processing of all legal formats.
+                  {t("documentSources.ingestionDesc")}
                 </p>
               </div>
             </div>
@@ -260,10 +262,12 @@ function LegalDocumentSourcesSection() {
 // ── example questions ─────────────────────────────────────────────────────────
 
 function LegalExampleQuestionsSection() {
+  const t = useTranslations("public.legal");
+
   const questions = [
-    "What is the termination notice period?",
-    "Does this contract renew automatically?",
-    "Is there a limitation of liability clause?",
+    t("questions.q1"),
+    t("questions.q2"),
+    t("questions.q3"),
   ];
 
   return (
@@ -275,18 +279,17 @@ function LegalExampleQuestionsSection() {
         <div className="mb-12 flex flex-col items-end justify-between gap-6 md:flex-row">
           <div>
             <span className="mb-4 block text-[12px] font-semibold tracking-[0.05em] text-[#c3c0ff] uppercase">
-              Use Cases
+              {t("questions.sectionLabel")}
             </span>
             <h2
               id="legal-questions-title"
               className="text-[30px] leading-[38px] font-semibold text-white"
             >
-              Ask your data anything.
+              {t("questions.heading")}
             </h2>
           </div>
           <p className="max-w-sm text-base leading-6 text-[#c3c0ff]/60">
-            From simple lookups to complex risk analysis, Rudix provides instant
-            clarity.
+            {t("questions.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -311,6 +314,8 @@ function LegalExampleQuestionsSection() {
 // ── citations ─────────────────────────────────────────────────────────────────
 
 function LegalCitationsSection({ securityHref }: { securityHref: string }) {
+  const t = useTranslations("public.legal");
+
   return (
     <section
       aria-labelledby="legal-citations-title"
@@ -360,12 +365,10 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
               id="legal-citations-title"
               className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
             >
-              Trust the source.
+              {t("citations.heading")}
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Every answer from Rudix includes specific source snippets,
-              document names, and page numbers. We never hallucinate terms — we
-              only retrieve facts.
+              {t("citations.description")}
             </p>
             <ul className="mb-8 space-y-4">
               <li className="flex items-start gap-4 text-base leading-6">
@@ -374,8 +377,8 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   className="mt-0.5 shrink-0 text-[#108548]"
                 />
                 <div>
-                  <strong>Deep linking:</strong> Click a citation to jump
-                  directly to the paragraph in the original document.
+                  <strong>{t("citations.deepLinkingLabel")}</strong>{" "}
+                  {t("citations.deepLinkingDetail")}
                 </div>
               </li>
               <li className="flex items-start gap-4 text-base leading-6">
@@ -384,8 +387,8 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   className="mt-0.5 shrink-0 text-[#108548]"
                 />
                 <div>
-                  <strong>Audit trails:</strong> Full history of who asked what
-                  and which documents were referenced.
+                  <strong>{t("citations.auditTrailsLabel")}</strong>{" "}
+                  {t("citations.auditTrailsDetail")}
                 </div>
               </li>
               <li className="flex items-start gap-4 text-base leading-6">
@@ -394,8 +397,8 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
                   className="mt-0.5 shrink-0 text-[#108548]"
                 />
                 <div>
-                  <strong>Access controls:</strong> Role-scoped workspaces keep
-                  privileged documents separate.
+                  <strong>{t("citations.accessControlsLabel")}</strong>{" "}
+                  {t("citations.accessControlsDetail")}
                 </div>
               </li>
             </ul>
@@ -404,20 +407,17 @@ function LegalCitationsSection({ securityHref }: { securityHref: string }) {
               <div className="mb-2 flex items-center gap-2 text-[#777587]">
                 <Sym name="info" className="text-base" />
                 <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-                  Responsible use
+                  {t("citations.responsibleUseLabel")}
                 </span>
               </div>
               <p className="text-sm leading-5 text-[#464555]">
-                Rudix supports legal research and document workflows. It does
-                not replace attorney review or constitute legal advice. All
-                retrieved information should be verified by qualified legal
-                counsel before reliance.
+                {t("citations.responsibleUseText")}
               </p>
               <PublicActionLink
                 href={securityHref}
                 className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3525cd] hover:underline"
               >
-                Security &amp; Compliance{" "}
+                {t("citations.securityCta")}{" "}
                 <Sym name="arrow_forward" className="text-sm" />
               </PublicActionLink>
             </div>
@@ -437,6 +437,8 @@ function LegalFinalCtaSection({
   demoHref: string;
   trialHref: string;
 }) {
+  const t = useTranslations("public.legal");
+
   return (
     <section aria-labelledby="legal-cta-title" className="mb-24 py-24">
       <div className="mx-auto max-w-[1440px] px-10">
@@ -448,24 +450,23 @@ function LegalFinalCtaSection({
               id="legal-cta-title"
               className="mb-8 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
-              Find contract answers faster.
+              {t("cta.heading")}
             </h2>
             <p className="mb-10 text-xl leading-7 opacity-90">
-              Join top legal teams using Rudix to automate contract intelligence
-              and reduce legal risk.
+              {t("cta.description")}
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
               <PublicActionLink
                 href={trialHref}
                 className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:shadow-xl active:scale-95"
               >
-                Start Free Trial
+                {t("cta.primaryCta")}
               </PublicActionLink>
               <PublicActionLink
                 href={demoHref}
                 className="rounded-xl border-2 border-white/30 bg-transparent px-10 py-5 text-lg font-bold text-white transition hover:bg-white/10 active:scale-95"
               >
-                Book a Demo
+                {t("cta.secondaryCta")}
               </PublicActionLink>
             </div>
           </div>

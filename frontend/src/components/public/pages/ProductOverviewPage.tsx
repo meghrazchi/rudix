@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { FaqSection } from "@/components/public/sections/PublicSections";
@@ -9,92 +12,6 @@ type WorkflowIconKey =
   | "data_object"
   | "manage_search"
   | "check_circle";
-
-const workflowNodes: Array<{
-  title: string;
-  description: string;
-  iconLabel: WorkflowIconKey;
-}> = [
-  {
-    title: "Multi-Modal Upload",
-    description: "PDF, DOCX, and TXT ingestion",
-    iconLabel: "upload_file",
-  },
-  {
-    title: "Chunking and Vector",
-    description: "Structured semantic decomposition",
-    iconLabel: "data_object",
-  },
-  {
-    title: "Retrieval Grids",
-    description: "Top-k retrieval with reranking",
-    iconLabel: "manage_search",
-  },
-  {
-    title: "Trusted Answer",
-    description: "Grounded response with citations",
-    iconLabel: "check_circle",
-  },
-];
-
-const adminHighlights = [
-  {
-    title: "SOC 2-aligned workflows",
-    description:
-      "Apply governance-ready controls across documents, chat, and evaluation operations.",
-  },
-  {
-    title: "Usage analytics",
-    description:
-      "Track token usage, latency, and adoption trends for operational planning.",
-  },
-];
-
-const integrationHighlights = [
-  {
-    title: "API-first foundation",
-    description:
-      "Adopt Rudix in phases with typed interfaces that fit existing workflows and delivery processes.",
-  },
-  {
-    title: "Future-ready connectors",
-    description:
-      "Plan for controlled connector and MCP expansion without changing core document governance.",
-  },
-  {
-    title: "Operator visibility",
-    description:
-      "Keep pipeline health and quality metrics in one view for faster incident response and tuning.",
-  },
-];
-
-const faqs = [
-  {
-    question: "Which file types can we upload?",
-    answer:
-      "Rudix supports PDF, DOCX, and TXT uploads with organization-scoped processing controls.",
-  },
-  {
-    question: "Are answers citation-backed?",
-    answer:
-      "Yes. Rudix returns answer references so teams can inspect source evidence and answer grounding.",
-  },
-  {
-    question: "Can we evaluate answer quality before rollout?",
-    answer:
-      "Yes. Evaluation runs provide repeatable quality checks for retrieval and final answer behavior.",
-  },
-  {
-    question: "How does Rudix support data isolation?",
-    answer:
-      "Rudix enforces organization-level boundaries across documents, retrieval, and user-facing workflows.",
-  },
-  {
-    question: "Can we deploy Rudix in our own environment?",
-    answer:
-      "Rudix is designed for container-based deployment with environment-driven configuration and operations.",
-  },
-];
 
 function WorkflowNode({
   title,
@@ -192,36 +109,44 @@ function WorkflowNodeIcon({ icon }: { icon: WorkflowIconKey }) {
 }
 
 function ProductHero() {
+  const t = useTranslations("public.product");
   const links = resolvePublicSiteLinks();
 
   return (
     <section className="mx-auto grid w-full max-w-7xl gap-10 px-4 pt-16 pb-18 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:pt-24 lg:pb-24">
       <div>
         <div className="inline-flex items-center rounded-full border border-[#d6d2ff] bg-[#f2f0ff] px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#473dd8] uppercase">
-          Enterprise-Grade RAG
+          {t("hero.badge")}
         </div>
         <h1 className="mt-5 text-4xl leading-tight font-black text-[#0f1220] lg:text-6xl">
-          The Infrastructure for{" "}
-          <span className="text-[#3525cd]">High-Fidelity</span> Document
-          Intelligence
+          {(() => {
+            const title = t("hero.title");
+            const highlight = t("hero.titleHighlight");
+            const parts = title.split(highlight);
+            return (
+              <>
+                {parts[0]}
+                <span className="text-[#3525cd]">{highlight}</span>
+                {parts[1]}
+              </>
+            );
+          })()}
         </h1>
         <p className="mt-5 max-w-xl text-sm leading-7 text-[#505566] lg:text-base">
-          Rudix orchestrates document ingestion, retrieval, grounded answers,
-          and evaluation into one production-ready workflow for enterprise
-          teams.
+          {t("hero.description")}
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <PublicActionLink
             href={links.requestDemo}
             className="rounded-lg bg-[#3525cd] px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(53,37,205,0.28)] transition hover:bg-[#2b1fc1]"
           >
-            Request Demo
+            {t("hero.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={links.app}
             className="rounded-lg border border-[#d7dbe8] bg-white px-5 py-3 text-sm font-semibold text-[#1f2433] transition hover:bg-[#f5f7fc]"
           >
-            View Pipeline Explorer
+            {t("hero.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>
@@ -229,7 +154,7 @@ function ProductHero() {
         <div className="overflow-hidden rounded-xl border border-[#e6e8ef] bg-[#f9faff]">
           <Image
             src="/images/pipeline-rag-sample.png"
-            alt="Rudix pipeline interface preview"
+            alt={t("hero.imageAlt")}
             width={1600}
             height={900}
             priority
@@ -238,8 +163,7 @@ function ProductHero() {
           />
         </div>
         <figcaption className="sr-only">
-          Product UI preview with ingestion, retrieval, and answer trace
-          visibility.
+          {t("hero.imageCaption")}
         </figcaption>
       </figure>
     </section>
@@ -247,15 +171,44 @@ function ProductHero() {
 }
 
 function WorkflowSection() {
+  const t = useTranslations("public.product");
+
+  const workflowNodes: Array<{
+    title: string;
+    description: string;
+    iconLabel: WorkflowIconKey;
+  }> = [
+    {
+      title: t("workflowSection.multiModalUploadTitle"),
+      description: t("workflowSection.multiModalUploadDesc"),
+      iconLabel: "upload_file",
+    },
+    {
+      title: t("workflowSection.chunkingVectorTitle"),
+      description: t("workflowSection.chunkingVectorDesc"),
+      iconLabel: "data_object",
+    },
+    {
+      title: t("workflowSection.retrievalGridsTitle"),
+      description: t("workflowSection.retrievalGridsDesc"),
+      iconLabel: "manage_search",
+    },
+    {
+      title: t("workflowSection.trustedAnswerTitle"),
+      description: t("workflowSection.trustedAnswerDesc"),
+      iconLabel: "check_circle",
+    },
+  ];
+
   return (
     <section className="border-y border-[#dee1ea] bg-white">
       <div className="mx-auto w-full max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
         <div className="text-center">
           <p className="text-[10px] font-bold tracking-[0.2em] text-[#6e7286] uppercase">
-            End-to-End Orchestration
+            {t("workflowSection.label")}
           </p>
           <h2 className="mt-3 text-3xl font-black text-[#10131c] lg:text-5xl">
-            The Rudix Engine Workflow
+            {t("workflowSection.heading")}
           </h2>
         </div>
         <div className="mt-10 flex flex-col items-center gap-0 md:flex-row md:justify-center">
@@ -286,6 +239,8 @@ function WorkflowSection() {
 }
 
 function DocumentAndAnswerSection() {
+  const t = useTranslations("public.product");
+
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
       <div className="grid gap-16 lg:grid-cols-2 lg:items-center">
@@ -323,22 +278,19 @@ function DocumentAndAnswerSection() {
         </div>
         <div>
           <h2 className="text-3xl font-black text-[#10131c] lg:text-5xl">
-            Precision Document Management
+            {t("documentsSection.heading")}
           </h2>
           <p className="mt-4 text-sm leading-7 text-[#545a6c] lg:text-base">
-            Handle high-volume document operations with structured ingestion
-            status, reliable metadata, and clear traceability for each indexed
-            asset.
+            {t("documentsSection.description")}
           </p>
           <ul className="mt-6 space-y-3">
             <li className="flex items-start gap-3 text-sm leading-7 text-[#31364a]">
               <span className="mt-[6px] h-2 w-2 rounded-full bg-[#3525cd]" />
-              Smart parsing across mixed document layouts and formats.
+              {t("documentsSection.feature1")}
             </li>
             <li className="flex items-start gap-3 text-sm leading-7 text-[#31364a]">
               <span className="mt-[6px] h-2 w-2 rounded-full bg-[#3525cd]" />
-              Reliable re-indexing workflows for updated policy and knowledge
-              documents.
+              {t("documentsSection.feature2")}
             </li>
           </ul>
         </div>
@@ -347,20 +299,17 @@ function DocumentAndAnswerSection() {
       <div className="mt-18 grid gap-16 lg:grid-cols-2 lg:items-center">
         <div className="order-2 lg:order-1">
           <h2 className="text-3xl font-black text-[#10131c] lg:text-5xl">
-            Grounded Answers with Citations
+            {t("groundedAnswers.heading")}
           </h2>
           <p className="mt-4 text-sm leading-7 text-[#545a6c] lg:text-base">
-            Every response is tied to supporting evidence so teams can verify
-            claims and inspect referenced snippets with confidence.
+            {t("groundedAnswers.description")}
           </p>
           <div className="mt-6 rounded-2xl border border-[#dde1ea] bg-[#f8f9fe] p-5">
             <p className="text-xs font-semibold tracking-[0.1em] text-[#4b5170] uppercase">
-              Source transparency
+              {t("documentsSection.sourceTransparencyLabel")}
             </p>
             <p className="mt-2 text-sm leading-7 text-[#495063]">
-              Citation markers connect each answer to original source snippets,
-              giving reviewers an audit-friendly path from response to
-              supporting evidence.
+              {t("documentsSection.sourceTransparencyText")}
             </p>
           </div>
         </div>
@@ -388,6 +337,7 @@ function DocumentAndAnswerSection() {
 }
 
 function MetricsAndPipelineSection() {
+  const t = useTranslations("public.product");
   const links = resolvePublicSiteLinks();
 
   return (
@@ -396,7 +346,7 @@ function MetricsAndPipelineSection() {
         <div className="grid gap-4 md:grid-cols-3">
           <article className="rounded-2xl border border-white/12 bg-white/5 p-6">
             <p className="text-xs font-bold tracking-[0.14em] text-[#c5c1ff] uppercase">
-              Accuracy score
+              {t("metrics.accuracyScore")}
             </p>
             <p className="mt-2 text-4xl font-black">98.4%</p>
             <div className="mt-4 h-1.5 rounded-full bg-white/10">
@@ -405,7 +355,7 @@ function MetricsAndPipelineSection() {
           </article>
           <article className="rounded-2xl border border-white/12 bg-white/5 p-6">
             <p className="text-xs font-bold tracking-[0.14em] text-[#8ce5ae] uppercase">
-              Latency p99
+              {t("metrics.latencyP99")}
             </p>
             <p className="mt-2 text-4xl font-black">840ms</p>
             <div className="mt-4 h-1.5 rounded-full bg-white/10">
@@ -414,7 +364,7 @@ function MetricsAndPipelineSection() {
           </article>
           <article className="rounded-2xl border border-white/12 bg-white/5 p-6">
             <p className="text-xs font-bold tracking-[0.14em] text-[#ffb18a] uppercase">
-              Retrieval precision
+              {t("metrics.retrievalPrecision")}
             </p>
             <p className="mt-2 text-4xl font-black">0.96</p>
             <div className="mt-4 h-1.5 rounded-full bg-white/10">
@@ -426,23 +376,22 @@ function MetricsAndPipelineSection() {
         <div className="mt-12 grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
             <h2 className="text-3xl font-black lg:text-5xl">
-              Pipeline Explorer Visualizer
+              {t("pipeline.heading")}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[#cad1e5] lg:text-base">
-              Trace ingestion, retrieval, and answer stages in one timeline so
-              teams can debug behavior and improve quality with confidence.
+              {t("pipeline.description")}
             </p>
             <PublicActionLink
               href={links.app}
               className="mt-7 inline-flex rounded-lg bg-[#d4d0ff] px-5 py-3 text-sm font-semibold text-[#1f176d] transition hover:bg-[#c7c2ff]"
             >
-              Open Pipeline Explorer
+              {t("pipeline.openCta")}
             </PublicActionLink>
           </div>
           <div className="rounded-3xl border border-white/12 bg-white/5 p-4">
             <Image
               src="/images/pipeline-rag-sample.png"
-              alt="Pipeline dashboard preview with retrieval and latency signals"
+              alt={t("pipeline.imageAlt")}
               width={1600}
               height={900}
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -456,7 +405,34 @@ function MetricsAndPipelineSection() {
 }
 
 function AdminAndIntegrationSection() {
+  const t = useTranslations("public.product");
   const links = resolvePublicSiteLinks();
+
+  const adminHighlights = [
+    {
+      title: t("admin.soc2Title"),
+      description: t("admin.soc2Desc"),
+    },
+    {
+      title: t("admin.usageAnalyticsTitle"),
+      description: t("admin.usageAnalyticsDesc"),
+    },
+  ];
+
+  const integrationHighlights = [
+    {
+      title: t("integration.apiFirstTitle"),
+      description: t("integration.apiFirstDesc"),
+    },
+    {
+      title: t("integration.futureReadyTitle"),
+      description: t("integration.futureReadyDesc"),
+    },
+    {
+      title: t("integration.operatorVisibilityTitle"),
+      description: t("integration.operatorVisibilityDesc"),
+    },
+  ];
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-16 lg:px-8 lg:py-24">
@@ -464,11 +440,10 @@ function AdminAndIntegrationSection() {
         <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
           <div>
             <h2 className="text-3xl font-black text-[#10131c] lg:text-5xl">
-              Unified Admin Control
+              {t("admin.heading")}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[#555b6d] lg:text-base">
-              Keep governance and operations aligned with built-in observability
-              for usage, policy, and health trends.
+              {t("admin.description")}
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {adminHighlights.map((item) => (
@@ -490,19 +465,19 @@ function AdminAndIntegrationSection() {
                 href="/admin/usage"
                 className="rounded-md bg-[#3525cd] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#291ec0]"
               >
-                Usage Analytics
+                {t("admin.usageAnalyticsCta")}
               </PublicActionLink>
               <PublicActionLink
                 href="/admin/audit-logs"
                 className="rounded-md border border-[#ccd3e4] bg-white px-4 py-2.5 text-xs font-semibold text-[#232a42] transition hover:bg-[#f5f7fc]"
               >
-                Audit Logs
+                {t("admin.auditLogsCta")}
               </PublicActionLink>
               <PublicActionLink
                 href="/admin/monitoring"
                 className="rounded-md border border-[#ccd3e4] bg-white px-4 py-2.5 text-xs font-semibold text-[#232a42] transition hover:bg-[#f5f7fc]"
               >
-                Monitoring
+                {t("admin.monitoringCta")}
               </PublicActionLink>
             </div>
           </div>
@@ -526,26 +501,26 @@ function AdminAndIntegrationSection() {
 
       <div className="mt-10 rounded-[28px] bg-[linear-gradient(135deg,#2a2fe3_0%,#251bc0_52%,#3b1ed0_100%)] px-8 py-14 text-center text-white lg:px-12 lg:py-16">
         <h2 className="text-4xl font-black lg:text-6xl">
-          Ready to architect your data engine?
+          {t("cta.heading")}
         </h2>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <PublicActionLink
             href={links.requestDemo}
             className="rounded-lg bg-white px-5 py-3 text-sm font-semibold text-[#2d25cb] shadow-[0_12px_28px_rgba(0,0,0,0.25)] transition hover:bg-[#eff1ff]"
           >
-            Speak to us
+            {t("cta.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={links.docs}
             className="rounded-lg border border-white/70 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
           >
-            Developer Sandbox
+            {t("cta.secondaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={links.security}
             className="rounded-lg border border-white/55 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/8"
           >
-            View Security Page
+            {t("cta.tertiaryCta")}
           </PublicActionLink>
         </div>
       </div>
@@ -554,6 +529,16 @@ function AdminAndIntegrationSection() {
 }
 
 export function ProductOverviewPage() {
+  const t = useTranslations("public.product");
+
+  const faqs = [
+    { question: t("faq.fileTypesQ"), answer: t("faq.fileTypesA") },
+    { question: t("faq.citationsQ"), answer: t("faq.citationsA") },
+    { question: t("faq.evaluationQ"), answer: t("faq.evaluationA") },
+    { question: t("faq.isolationQ"), answer: t("faq.isolationA") },
+    { question: t("faq.deploymentQ"), answer: t("faq.deploymentA") },
+  ];
+
   return (
     <>
       <ProductHero />
@@ -561,7 +546,7 @@ export function ProductOverviewPage() {
       <DocumentAndAnswerSection />
       <MetricsAndPipelineSection />
       <AdminAndIntegrationSection />
-      <FaqSection title="Product FAQ" items={faqs} />
+      <FaqSection title={t("faq.title")} items={faqs} />
     </>
   );
 }

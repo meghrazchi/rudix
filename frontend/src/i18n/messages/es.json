@@ -41,13 +41,13 @@
     "chat": "Chat",
     "collections": "Colecciones",
     "evaluations": "Evaluaciones",
-    "pipeline": "Tubería RAG",
+    "pipeline": "Pipeline RAG",
     "connectors": "Conectores",
     "settings": "Configuración",
     "admin": "Administración",
     "help": "Ayuda",
     "gettingStarted": "Primeros pasos",
-    "adminUsage": "Uso administrativo",
+    "adminUsage": "Uso de administración",
     "insufficientRole": "Rol insuficiente",
     "authRequired": "Autenticación requerida",
     "sectionUnavailable": "No disponible"
@@ -55,35 +55,35 @@
   "auth": {
     "signIn": "Iniciar sesión",
     "signInLabel": "Acceso a Rudix",
-    "signInDescription": "Ingrese sus credenciales para iniciar su sesión de Rudix. Las rutas protegidas lo redirigirán aquí cuando se requiera autenticación.",
+    "signInDescription": "Introduce tus credenciales para iniciar tu sesión de Rudix. Las rutas protegidas te devolverán aquí cuando se requiera autenticación.",
     "signingIn": "Iniciando sesión...",
     "signOut": "Cerrar sesión",
     "signingOut": "Cerrando sesión…",
-    "signOutDescription": "Finalizar su sesión actual en este dispositivo.",
+    "signOutDescription": "Finaliza tu sesión actual en este dispositivo.",
     "signOutAllDevices": "Cerrar sesión en todos los dispositivos",
-    "signOutAllDevicesDescription": "Revocar todas las sesiones activas y cerrar sesión en todos lados.",
-    "signOutEverywhere": "Cerrar sesión en todos lados",
+    "signOutAllDevicesDescription": "Revoca todas las sesiones activas y cierra sesión en todas partes.",
+    "signOutEverywhere": "Cerrar sesión en todas partes",
     "createAccount": "Crear cuenta",
-    "backToHome": "Volver al inicio",
+    "backToHome": "Volver al inicio público",
     "email": "Correo electrónico",
     "password": "Contraseña",
-    "forgotPassword": "¿Olvidó su contraseña?",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
     "continueWith": "Continuar con {provider}",
-    "ssoAvailableFor": "SSO disponible para {domain}",
-    "ssoDescription": "Su organización usa inicio de sesión único. Continúe a continuación o inicie sesión con SSO.",
+    "ssoAvailableFor": "SSO está disponible para {domain}",
+    "ssoDescription": "Tu organización usa inicio de sesión único. Continúa abajo o inicia sesión con SSO.",
     "continueWithSso": "Continuar con SSO",
     "loadingSignIn": "Cargando inicio de sesión...",
-    "signInFailed": "Error al iniciar sesión. Por favor, inténtelo de nuevo.",
-    "passwordResetNotConfigured": "El restablecimiento de contraseña aún no está configurado. Contacte a su administrador para recuperar el acceso.",
-    "ssoNotConfigured": "El inicio de sesión único está configurado pero no hay URL de inicio disponible.",
-    "sessionExpired": "Su sesión ha expirado. Por favor, inicie sesión de nuevo.",
-    "insufficientRole": "No tiene el rol requerido para acceder a este recurso.",
-    "signUpTitle": "Crear su cuenta",
-    "alreadyHaveAccount": "¿Ya tiene una cuenta?"
+    "signInFailed": "Error al iniciar sesión. Inténtalo de nuevo.",
+    "passwordResetNotConfigured": "El restablecimiento de contraseña aún no está configurado. Contacta con tu administrador para recuperar la cuenta.",
+    "ssoNotConfigured": "El inicio de sesión único está configurado, pero no hay una URL de inicio disponible.",
+    "sessionExpired": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+    "insufficientRole": "No tienes el rol requerido para acceder a este recurso.",
+    "signUpTitle": "Crea tu cuenta",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?"
   },
   "validation": {
     "emailRequired": "El correo electrónico es obligatorio",
-    "emailInvalid": "Ingrese una dirección de correo válida",
+    "emailInvalid": "Introduce una dirección de correo electrónico válida",
     "passwordRequired": "La contraseña es obligatoria",
     "passwordMinLength": "La contraseña debe tener al menos {min} caracteres",
     "fieldRequired": "Este campo es obligatorio",
@@ -101,27 +101,965 @@
       "mobileNav": "Navegación móvil"
     },
     "footer": {
-      "tagline": "Infraestructura RAG de nivel empresarial para recuperación de conocimiento segura, escalable y aplicaciones de IA.",
+      "tagline": "Infraestructura RAG de nivel empresarial para recuperación de conocimiento segura y escalable y aplicaciones de IA.",
       "copyright": "© 2026 Rudix AI. Todos los derechos reservados.",
       "changeLanguage": "Cambiar idioma"
     },
     "home": "Inicio",
-    "language": "Idioma"
+    "language": "Idioma",
+    "breadcrumb": {
+      "solutions": "Soluciones"
+    },
+    "seo": {
+      "home": {
+        "title": "Infraestructura RAG empresarial | Rudix",
+        "description": "Rudix es una plataforma RAG empresarial lista para producción con ingesta segura, chat fundamentado, analítica de evaluaciones y observabilidad del pipeline."
+      },
+      "product": {
+        "title": "Resumen del producto | Rudix",
+        "description": "Descubre cómo Rudix convierte documentos en respuestas indexadas y respaldadas por citas, con evaluaciones, visibilidad del pipeline y operaciones listas para gobernanza."
+      },
+      "pricing": {
+        "title": "Precios | Rudix",
+        "description": "Compara los planes de Rudix para IA documental, chat RAG, evaluaciones y gobernanza con orientación de empaquetado configurable."
+      },
+      "security": {
+        "title": "Seguridad y confianza | Rudix",
+        "description": "Rudix está creado para entornos regulados con límites arquitectónicos, auditabilidad y controles de manejo de datos."
+      },
+      "contact": {
+        "title": "Contacto y demo | Rudix",
+        "description": "Habla con el equipo de Rudix sobre tu flujo de trabajo documental, solicitud de demo o revisión de seguridad."
+      },
+      "solutions": {
+        "title": "Soluciones | Rudix",
+        "description": "Preguntas y respuestas de documentos con IA para todos los equipos empresariales — RR. HH., Legal, Ventas, Cumplimiento, Operaciones y más."
+      },
+      "hr": {
+        "title": "Solución de RR. HH. | Rudix",
+        "description": "Ayuda a los empleados a encontrar respuestas en manuales, guías de beneficios y políticas de RR. HH. con IA respaldada por citas."
+      },
+      "legal": {
+        "title": "Solución legal | Rudix",
+        "description": "Busca contratos, políticas legales y acuerdos con respuestas respaldadas por fuentes y pistas de auditoría."
+      },
+      "compliance": {
+        "title": "Solución de cumplimiento | Rudix",
+        "description": "Recupera evidencia de auditoría y documentación de cumplimiento al instante con búsqueda de IA respaldada por citas."
+      },
+      "sales": {
+        "title": "Solución de ventas | Rudix",
+        "description": "Gana acuerdos con inteligencia de producto citada. Da a los AEs respuestas instantáneas desde tu base de conocimiento."
+      },
+      "support": {
+        "title": "Solución de soporte | Rudix",
+        "description": "Ayuda a los agentes de soporte a responder más rápido con acceso instantáneo a documentación y guías de resolución."
+      },
+      "research": {
+        "title": "Solución de investigación | Rudix",
+        "description": "Extrae información de PDFs técnicos e informes de investigación con inteligencia documental basada en RAG."
+      },
+      "operations": {
+        "title": "Solución de operaciones | Rudix",
+        "description": "Respuestas de runbooks cuando tu equipo las necesita — recuperación instantánea para respuesta a incidentes y guía de procesos."
+      },
+      "procurement": {
+        "title": "Solución de compras | Rudix",
+        "description": "Evalúa proveedores con revisión documental impulsada por IA y respuestas instantáneas a preguntas de cumplimiento."
+      },
+      "internalKnowledge": {
+        "title": "Conocimiento interno | Rudix",
+        "description": "Haz que el conocimiento institucional de tu equipo sea accesible al instante con búsqueda respaldada por citas."
+      },
+      "clientPortal": {
+        "title": "Portal de clientes | Rudix",
+        "description": "Da a los clientes respuestas instantáneas desde tu documentación aprobada con preguntas y respuestas de IA delimitadas."
+      }
+    },
+    "landing": {
+      "hero": {
+        "badge": "Infraestructura RAG lista para empresas",
+        "title": "Pregunta a tus documentos.",
+        "titleHighlight": "Obtén las respuestas que necesitas.",
+        "description": "Convierte PDFs, DOCX y manuales técnicos complejos en asistentes de IA precisos con citas completas y visibilidad a nivel de infraestructura.",
+        "primaryCta": "Habla con nosotros",
+        "secondaryCta": "Probar la demo",
+        "imageAlt": "Interfaz de producto de Rudix que muestra recuperación de documentos y respuestas fundamentadas",
+        "trustSoc2": "Cumple con SOC 2",
+        "trustGdpr": "Lista para GDPR",
+        "trustPrivateCloud": "Nube privada"
+      },
+      "problems": {
+        "heading": "Tu equipo tiene las respuestas. Solo están enterradas.",
+        "description": "El conocimiento aislado y la documentación desordenada son los impuestos ocultos sobre tu productividad.",
+        "manualSearchingTitle": "Búsqueda manual",
+        "manualSearchingDesc": "Horas perdidas buscando en PDFs dispersos, SharePoint y wikis antiguos una única verdad.",
+        "repeatedQuestionsTitle": "Preguntas repetidas",
+        "repeatedQuestionsDesc": "Expertos en la materia respondiendo una y otra vez las mismas preguntas de \"¿Cómo hago...?\".",
+        "untrustedAITitle": "IA no confiable",
+        "untrustedAIDesc": "LLMs genéricos que alucinan respuestas sin citas ni barreras específicas del contexto.",
+        "knowledgeSilosTitle": "Silos de conocimiento",
+        "knowledgeSilosDesc": "Datos críticos atrapados en silos departamentales, inaccesibles para equipos multifuncionales."
+      },
+      "workflow": {
+        "heading": "Sube. Pregunta. Verifica.",
+        "pipelineExplorer": "Explorador de pipeline",
+        "liveStatus": "Estado en vivo: ejecutándose",
+        "input": "Entrada",
+        "active": "Activo",
+        "output": "Salida",
+        "ingestionTitle": "Ingesta e indexación",
+        "ingestionDesc": "Rudix analiza automáticamente PDFs, Word y JSON, convirtiéndolos en embeddings vectoriales de alta dimensión buscables.",
+        "retrievalTitle": "Recuperación semántica",
+        "retrievalDesc": "Cuando un usuario hace una pregunta, nuestro motor RAG recupera los fragmentos exactos necesarios para responderla, ni más ni menos.",
+        "generationTitle": "Generación fundamentada",
+        "generationDesc": "La IA responde solo con base en los datos recuperados, proporcionando enlaces directos a las fuentes para una transparencia absoluta."
+      },
+      "useCases": {
+        "heading": "Creado para todos los equipos.",
+        "description": "Soluciones específicas para conocimiento empresarial complejo.",
+        "legalLabel": "Legal y cumplimiento",
+        "legalTitle": "\"¿La sección 4.2 permite sublicencias?\"",
+        "legalDesc": "Revisa miles de contratos en segundos con citas exactas de cláusulas.",
+        "supportLabel": "Soporte al cliente",
+        "supportTitle": "\"¿Cuál es la política para devoluciones internacionales?\"",
+        "supportDesc": "Empodera a los agentes con respuestas instantáneas y precisas desde los manuales más recientes.",
+        "engineeringLabel": "Producto e ingeniería",
+        "engineeringTitle": "\"¿Cuáles son los límites de tasa de API para el nivel 2?\"",
+        "engineeringDesc": "Muestra especificaciones técnicas y límites arquitectónicos directamente a los desarrolladores.",
+        "hrLabel": "Recursos Humanos",
+        "hrTitle": "\"¿Cuántos días de licencia por duelo se permiten?\"",
+        "hrDesc": "Automatiza consultas de empleados con respuestas alineadas con políticas.",
+        "salesOpsLabel": "Operaciones de ventas",
+        "salesOpsTitle": "\"¿Admitimos SSO para clientes Enterprise?\"",
+        "salesOpsDesc": "Obtén respuestas inmediatas para RFPs y cuestionarios de seguridad."
+      },
+      "security": {
+        "heading": "Diseñado para flujos de trabajo de documentos privados.",
+        "description": "No solo protegemos tus datos. Los diseñamos para aislamiento total y auditabilidad.",
+        "imageAlt": "Visualización de flujo de trabajo empresarial seguro",
+        "dataIsolationTitle": "Aislamiento de datos",
+        "dataIsolationDesc": "Bases de datos vectoriales separadas para cada espacio de trabajo. Tus documentos nunca se mezclan con otros.",
+        "auditLogsTitle": "Registros de auditoría",
+        "auditLogsDesc": "Haz seguimiento de cada consulta, recuperación y acción administrativa con registros detallados con marca de tiempo.",
+        "encryptionTitle": "Cifrado de extremo a extremo",
+        "encryptionDesc": "AES-256 en reposo y TLS 1.3 en tránsito, con soporte de Bring Your Own Key para empresas."
+      },
+      "cta": {
+        "heading": "¿Listo para convertir tus documentos en un asistente de IA?",
+        "description": "Únete a equipos de ingeniería innovadores que usan Rudix para la excelencia del conocimiento.",
+        "primaryCta": "Habla con nosotros",
+        "secondaryCta": "Ver documentación"
+      }
+    },
+    "product": {
+      "hero": {
+        "badge": "RAG de nivel empresarial",
+        "title": "La infraestructura para inteligencia documental de alta fidelidad",
+        "titleHighlight": "Alta fidelidad",
+        "description": "Rudix orquesta la ingesta documental, la recuperación, las respuestas fundamentadas y la evaluación en un flujo de trabajo listo para producción para equipos empresariales.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver Explorador de pipeline",
+        "imageAlt": "Vista previa de la interfaz de pipeline de Rudix",
+        "imageCaption": "Vista previa de la interfaz de producto con visibilidad de ingesta, recuperación y trazabilidad de respuestas."
+      },
+      "workflowSection": {
+        "label": "Orquestación de extremo a extremo",
+        "heading": "Flujo del motor Rudix",
+        "multiModalUploadTitle": "Carga multimodal",
+        "multiModalUploadDesc": "Ingesta de PDF, DOCX y TXT",
+        "chunkingVectorTitle": "Fragmentación y vector",
+        "chunkingVectorDesc": "Descomposición semántica estructurada",
+        "retrievalGridsTitle": "Cuadrículas de recuperación",
+        "retrievalGridsDesc": "Recuperación top-k con reranking",
+        "trustedAnswerTitle": "Respuesta confiable",
+        "trustedAnswerDesc": "Respuesta fundamentada con citas"
+      },
+      "documentsSection": {
+        "heading": "Gestión documental precisa",
+        "description": "Maneja operaciones documentales de alto volumen con estado de ingesta estructurado, metadatos fiables y trazabilidad clara para cada activo indexado.",
+        "feature1": "Análisis inteligente en diseños y formatos de documentos mixtos.",
+        "feature2": "Flujos de reindexación fiables para documentos de políticas y conocimiento actualizados.",
+        "sourceTransparencyLabel": "Transparencia de fuentes",
+        "sourceTransparencyText": "Los marcadores de cita conectan cada respuesta con fragmentos de la fuente original, dando a los revisores una ruta apta para auditorías desde la respuesta hasta la evidencia de respaldo."
+      },
+      "groundedAnswers": {
+        "heading": "Respuestas fundamentadas con citas",
+        "description": "Cada respuesta está vinculada a evidencia de respaldo para que los equipos puedan verificar afirmaciones e inspeccionar fragmentos referenciados con confianza."
+      },
+      "metrics": {
+        "accuracyScore": "Puntuación de precisión",
+        "latencyP99": "Latencia p99",
+        "retrievalPrecision": "Precisión de recuperación"
+      },
+      "pipeline": {
+        "heading": "Visualizador del Explorador de pipeline",
+        "description": "Traza las etapas de ingesta, recuperación y respuesta en una sola línea de tiempo para que los equipos depuren el comportamiento y mejoren la calidad con confianza.",
+        "openCta": "Abrir Explorador de pipeline",
+        "imageAlt": "Vista previa del panel de pipeline con señales de recuperación y latencia"
+      },
+      "admin": {
+        "heading": "Control administrativo unificado",
+        "description": "Mantén la gobernanza y las operaciones alineadas con observabilidad integrada para uso, políticas y tendencias de salud.",
+        "soc2Title": "Flujos de trabajo alineados con SOC 2",
+        "soc2Desc": "Aplica controles listos para gobernanza en documentos, chat y operaciones de evaluación.",
+        "usageAnalyticsTitle": "Analítica de uso",
+        "usageAnalyticsDesc": "Haz seguimiento del uso de tokens, la latencia y las tendencias de adopción para la planificación operativa.",
+        "usageAnalyticsCta": "Analítica de uso",
+        "auditLogsCta": "Registros de auditoría",
+        "monitoringCta": "Monitoreo"
+      },
+      "integration": {
+        "apiFirstTitle": "Base API-first",
+        "apiFirstDesc": "Adopta Rudix por fases con interfaces tipadas que encajan en flujos de trabajo y procesos de entrega existentes.",
+        "futureReadyTitle": "Conectores preparados para el futuro",
+        "futureReadyDesc": "Planifica una expansión controlada de conectores y MCP sin cambiar la gobernanza documental central.",
+        "operatorVisibilityTitle": "Visibilidad para operadores",
+        "operatorVisibilityDesc": "Mantén la salud del pipeline y las métricas de calidad en una sola vista para acelerar la respuesta a incidentes y el ajuste."
+      },
+      "cta": {
+        "heading": "¿Listo para diseñar tu motor de datos?",
+        "primaryCta": "Habla con nosotros",
+        "secondaryCta": "Sandbox para desarrolladores",
+        "tertiaryCta": "Ver página de seguridad"
+      },
+      "faq": {
+        "title": "FAQ del producto",
+        "fileTypesQ": "¿Qué tipos de archivo podemos subir?",
+        "fileTypesA": "Rudix admite cargas de PDF, DOCX y TXT con controles de procesamiento delimitados por organización.",
+        "citationsQ": "¿Las respuestas están respaldadas por citas?",
+        "citationsA": "Sí. Rudix devuelve referencias de respuesta para que los equipos puedan inspeccionar la evidencia fuente y el fundamento de la respuesta.",
+        "evaluationQ": "¿Podemos evaluar la calidad de las respuestas antes del despliegue?",
+        "evaluationA": "Sí. Las ejecuciones de evaluación ofrecen verificaciones de calidad repetibles para la recuperación y el comportamiento de la respuesta final.",
+        "isolationQ": "¿Cómo admite Rudix el aislamiento de datos?",
+        "isolationA": "Rudix impone límites a nivel de organización en documentos, recuperación y flujos de trabajo orientados al usuario.",
+        "deploymentQ": "¿Podemos desplegar Rudix en nuestro propio entorno?",
+        "deploymentA": "Rudix está diseñado para despliegue basado en contenedores con configuración y operaciones controladas por variables de entorno."
+      }
+    },
+    "pricing": {
+      "hero": {
+        "badge": "Precios",
+        "heading": "Elige un plan para operaciones confiables de IA documental",
+        "description": "Compara niveles para ingesta documental, chat RAG, evaluaciones y gobernanza para adoptar Rudix al ritmo adecuado.",
+        "startTrialCta": "Iniciar prueba",
+        "requestDemoCta": "Solicitar demo",
+        "loginCta": "Iniciar sesión"
+      },
+      "plans": {
+        "heading": "Planes para cada etapa de despliegue",
+        "description": "Los precios se muestran intencionalmente como marcadores de contacto hasta que el empaquetado final se apruebe para tu entorno y perfil de uso.",
+        "contactUs": "Contáctanos",
+        "starterBadge": "Para pilotos enfocados",
+        "starterTitle": "Starter",
+        "starterSummary": "Lanza una prueba de valor segura para un equipo con flujos centrales de preguntas y respuestas documentales.",
+        "starterBillingHint": "El empaquetado comercial se finaliza durante la revisión de la solución.",
+        "starterH0": "Ingesta documental central y chat respaldado por citas",
+        "starterH1": "Cuotas iniciales de documentos e indexación",
+        "starterH2": "Visibilidad básica de uso y calidad",
+        "starterH3": "Soporte por correo y guía de incorporación",
+        "starterCta": "Iniciar prueba",
+        "teamBadge": "Más elegido para despliegues",
+        "teamTitle": "Team",
+        "teamSummary": "Escala entre departamentos con mayor gobernanza, evaluaciones y controles operativos.",
+        "teamBillingHint": "El empaquetado se adapta a la forma de uso y a los requisitos del equipo.",
+        "teamH0": "Asignaciones ampliadas de documentos, almacenamiento e indexación",
+        "teamH1": "Ejecuciones de evaluación y flujos de seguimiento de calidad",
+        "teamH2": "Visibilidad de registros de auditoría y colaboración basada en roles",
+        "teamH3": "Soporte prioritario y asesoría de arquitectura",
+        "teamCta": "Solicitar demo",
+        "enterpriseBadge": "Para necesidades avanzadas de gobernanza",
+        "enterpriseTitle": "Enterprise",
+        "enterpriseSummary": "Alinea despliegue privado, revisión de seguridad y requisitos de gobernanza para entornos regulados o de alta escala.",
+        "enterpriseBillingHint": "Los términos finales dependen del despliegue, los controles y el modelo de soporte.",
+        "enterpriseH0": "Opciones de despliegue privado y control del entorno",
+        "enterpriseH1": "Políticas avanzadas de gobernanza y flujos de aprobación",
+        "enterpriseH2": "Incorporación personalizada, planificación de éxito y soporte",
+        "enterpriseH3": "Flujo de revisión de seguridad con arquitectos de soluciones",
+        "enterpriseCta": "Contactar con ventas"
+      },
+      "usageLimits": {
+        "heading": "Guía de uso y límites",
+        "description": "Los límites finales dependen del nivel seleccionado y del perfil de despliegue en documentos, preguntas, evaluaciones, cargas de indexación, almacenamiento y escala organizativa.",
+        "documentsTitle": "Documentos y trabajos de indexación",
+        "documentsDetail": "Los límites pueden ajustarse por nivel para rendimiento de ingesta, trabajos en cola y operaciones de frescura del índice.",
+        "questionsTitle": "Preguntas, tokens y evaluaciones",
+        "questionsDetail": "Los controles de uso incluyen volumen de chat/preguntas, presupuestos de tokens y asignación de ejecuciones de evaluación.",
+        "storageTitle": "Almacenamiento y organizaciones",
+        "storageDetail": "Los niveles pueden mapearse a envolventes de almacenamiento, asignaciones de miembros del equipo y necesidades de gobernanza organizativa."
+      },
+      "comparison": {
+        "heading": "Comparación de planes",
+        "description": "Compara capacidades de un vistazo. La vista móvil usa tarjetas apiladas para mayor legibilidad.",
+        "capability": "Capacidad",
+        "starter": "Starter",
+        "team": "Team",
+        "enterprise": "Enterprise",
+        "rowDocumentCapabilityLabel": "Capacidad documental",
+        "rowDocumentStarterValue": "Límites Starter",
+        "rowDocumentTeamValue": "Límites ampliados",
+        "rowDocumentEnterpriseValue": "Programa personalizado",
+        "rowStorageCapabilityLabel": "Almacenamiento e indexación",
+        "rowStorageStarterValue": "Flujos centrales de indexación",
+        "rowStorageTeamValue": "Mayor rendimiento de indexación",
+        "rowStorageEnterpriseValue": "Optimización a gran escala",
+        "rowTeamAccessCapabilityLabel": "Miembros del equipo y acceso",
+        "rowTeamAccessStarterValue": "Configuración para equipo pequeño",
+        "rowTeamAccessTeamValue": "Colaboración entre equipos",
+        "rowTeamAccessEnterpriseValue": "Modelo de roles empresarial",
+        "rowEvaluationsCapabilityLabel": "Ejecuciones de evaluación",
+        "rowEvaluationsStarterValue": "Ejecuciones limitadas",
+        "rowEvaluationsTeamValue": "Cadencia de validación de producción",
+        "rowEvaluationsEnterpriseValue": "Programa de calidad personalizado",
+        "rowAuditCapabilityLabel": "Registros de auditoría y gobernanza",
+        "rowAuditStarterValue": "Visibilidad básica",
+        "rowAuditTeamValue": "Controles de gobernanza ampliados",
+        "rowAuditEnterpriseValue": "Controles avanzados de políticas",
+        "rowDeploymentCapabilityLabel": "Opciones de despliegue",
+        "rowDeploymentStarterValue": "Despliegue estándar",
+        "rowDeploymentTeamValue": "Estándar + asesoría",
+        "rowDeploymentEnterpriseValue": "Opciones de despliegue privado",
+        "rowSupportCapabilityLabel": "Nivel de soporte",
+        "rowSupportStarterValue": "Soporte por correo",
+        "rowSupportTeamValue": "Soporte prioritario",
+        "rowSupportEnterpriseValue": "Plan de éxito dedicado"
+      },
+      "faq": {
+        "title": "FAQ de precios",
+        "trialQ": "¿Podemos empezar con una prueba antes de comprometernos con un plan?",
+        "trialA": "Sí. Los equipos pueden comenzar con un flujo de prueba y luego pasar al nivel que mejor se ajuste al alcance del despliegue y las necesidades de gobernanza.",
+        "upgradesQ": "¿Cómo funcionan las actualizaciones cuando crece nuestro uso?",
+        "upgradesA": "Rudix admite expansión por etapas para que puedas aumentar uso, controles y soporte sin reconstruir tus flujos documentales.",
+        "securityReviewQ": "¿Podemos solicitar una revisión de seguridad durante las conversaciones de precios?",
+        "securityReviewA": "Sí. Las conversaciones de revisión de seguridad pueden incluirse durante la selección del plan, especialmente para despliegue privado o requisitos regulados.",
+        "selfHostedQ": "¿Admiten modelos autoalojados o de despliegue privado?",
+        "selfHostedA": "Las opciones de despliegue privado están disponibles mediante empaquetado empresarial según los requisitos de infraestructura y gobernanza.",
+        "billingQ": "¿A quién debemos contactar para preguntas comerciales y de facturación?",
+        "billingA": "Usa la ruta Contactar con ventas en esta página y el equipo de Rudix te dirigirá al contacto comercial adecuado."
+      },
+      "cta": {
+        "heading": "¿Necesitas un plan a medida?",
+        "description": "Habla con el equipo de Rudix para alinear límites de uso, postura de despliegue y cobertura de soporte con tu despliegue.",
+        "primaryCta": "Contactar con ventas",
+        "secondaryCta": "Solicitar demo"
+      }
+    },
+    "security": {
+      "hero": {
+        "badge": "Seguridad y confianza",
+        "heading": "Seguridad y gobernanza para IA documental privada",
+        "description": "Rudix está creado para entornos regulados y equipos de seguridad empresarial que necesitan límites arquitectónicos, auditabilidad y controles de manejo de datos.",
+        "primaryCta": "Solicitar revisión de seguridad",
+        "secondaryCta": "Ver arquitectura"
+      },
+      "pillars": {
+        "heading": "Pilares de seguridad",
+        "description": "Controles arquitectónicos centrales que protegen documentos, acceso y operaciones.",
+        "documentPrivacyTitle": "Privacidad documental",
+        "documentPrivacyDesc": "Los documentos se manejan dentro de flujos delimitados por organización con almacenamiento protegido y rutas de recuperación controladas.",
+        "documentPrivacyCallout": "Valores predeterminados centrados en la privacidad",
+        "orgIsolationTitle": "Aislamiento de organización",
+        "orgIsolationDesc": "El acceso a datos se mantiene consciente del inquilino para que los equipos solo recuperen contenido de la organización a la que pertenecen.",
+        "orgIsolationCallout": "Límites de acceso por inquilino",
+        "accessControlTitle": "Control de acceso",
+        "accessControlDesc": "Los permisos basados en roles se aplican en acciones de documentos, operaciones de recuperación y superficies administrativas.",
+        "accessControlCallout": "Modelo de roles de mínimo privilegio",
+        "auditLogsTitle": "Registros de auditoría",
+        "auditLogsDesc": "Las acciones relevantes para seguridad pueden rastrearse con contexto de solicitud para apoyar revisiones operativas e investigaciones.",
+        "auditLogsCallout": "Registros de actividad trazables",
+        "safeUploadsTitle": "Cargas seguras",
+        "safeUploadsDesc": "Las cargas se validan antes del procesamiento para reducir riesgos de cargas malformadas y proteger la calidad de ingesta.",
+        "safeUploadsCallout": "Validación antes de indexar",
+        "encryptionTitle": "Postura de cifrado",
+        "encryptionDesc": "Rudix está diseñado para transporte cifrado y almacenamiento cifrado alineados con controles de despliegue empresarial.",
+        "encryptionCallout": "Cifrado en tránsito y en reposo",
+        "observabilityTitle": "Observabilidad operativa",
+        "observabilityDesc": "Los equipos pueden monitorear la salud de solicitudes y fallos con telemetría segura que evita exponer texto documental sensible.",
+        "observabilityCallout": "Visibilidad operativa segura"
+      },
+      "documentHandling": {
+        "heading": "Ciclo de vida del manejo documental",
+        "description": "Procesamiento seguro desde la carga hasta el estado indexado.",
+        "validateTitle": "Validar",
+        "validateDesc": "Comprueba el tipo y la estructura del archivo antes de que comience el procesamiento.",
+        "storeTitle": "Almacenar",
+        "storeDesc": "Escribe archivos aceptados en almacenamiento de objetos protegido.",
+        "parseTitle": "Analizar",
+        "parseDesc": "Extrae texto estructurado y metadatos de forma segura.",
+        "chunkTitle": "Fragmentar",
+        "chunkDesc": "Divide el contenido en segmentos adecuados para recuperación.",
+        "embedTitle": "Incrustar",
+        "embedDesc": "Genera representaciones vectoriales para búsqueda.",
+        "indexTitle": "Indexar",
+        "indexDesc": "Publica vectores delimitados en el índice de la organización.",
+        "answerTitle": "Responder con citas",
+        "answerDesc": "Devuelve respuestas fundamentadas en referencias de fuentes.",
+        "deleteTitle": "Eliminar",
+        "deleteDesc": "Respeta flujos de eliminación en almacenamiento e índices.",
+        "reindexTitle": "Reindexar",
+        "reindexDesc": "Reconstruye el estado del índice cuando el contenido se actualiza."
+      },
+      "accessGovernance": {
+        "heading": "Acceso y gobernanza",
+        "description": "Controles por rol, seguridad de sesión y visibilidad administrativa.",
+        "authSessionTitle": "Autenticación y seguridad de sesión",
+        "authSessionDesc": "Los flujos autenticados están separados de las páginas públicas, con comprobaciones de sesión y límites de rutas protegidas.",
+        "roleAccessTitle": "Acceso basado en roles",
+        "roleAccessDesc": "Los permisos pueden delimitarse por rol y contexto de organización para controlar acciones documentales y administrativas.",
+        "adminGovernanceTitle": "Gobernanza administrativa",
+        "adminGovernanceDesc": "Los controles administrativos apoyan la gestión de políticas, barreras de herramientas y flujos de revisión operativa.",
+        "routeBoundariesTitle": "Límites de rutas públicas/privadas",
+        "routeBoundariesDesc": "Las rutas de marketing permanecen públicas mientras que los espacios de trabajo de la aplicación requieren acceso autenticado."
+      },
+      "compliance": {
+        "heading": "Preparación para cumplimiento",
+        "description": "Rudix está diseñado para entornos con requisitos formales de seguridad y retención.",
+        "readiness0": "La documentación de seguridad y los mapeos de controles pueden compartirse durante la revisión empresarial.",
+        "readiness1": "La preparación para flujos SOC 2, GDPR, HIPAA o ISO depende de tus controles de despliegue y proceso de validación.",
+        "readiness2": "Rudix no afirma certificaciones para tu organización salvo que se verifiquen en tu entorno.",
+        "retentionHeading": "Retención y eliminación",
+        "retention0": "Los plazos de retención deben definirse según la política de tu organización y requisitos legales.",
+        "retention1": "Los flujos de eliminación deben cubrir almacenamiento de objetos, índices buscables y artefactos derivados.",
+        "retention2": "Los flujos de reindexación admiten actualización de documentos obsoletos y cambios de políticas."
+      },
+      "faq": {
+        "title": "FAQ de seguridad",
+        "logsQ": "¿Rudix expone texto documental sin procesar en los logs de forma predeterminada?",
+        "logsA": "Rudix está diseñado para observabilidad segura y evita exponer texto documental protegido sin procesar en logs operativos predeterminados.",
+        "privateQ": "¿Podemos mantener Rudix en un modelo de despliegue privado?",
+        "privateA": "Sí. Rudix admite patrones de despliegue donde la infraestructura y el manejo de datos permanecen dentro de tu entorno controlado.",
+        "isolationQ": "¿Cómo funciona el aislamiento de organización?",
+        "isolationA": "Las comprobaciones de acceso y filtros de recuperación son delimitados por organización para que los datos permanezcan separados entre inquilinos.",
+        "reviewQ": "¿Podemos revisar los controles de seguridad antes del despliegue?",
+        "reviewA": "Sí. Usa una sesión de revisión de seguridad para validar arquitectura, controles de acceso y requisitos de manejo de datos para tu caso de uso."
+      },
+      "cta": {
+        "heading": "Solicita una revisión de seguridad",
+        "description": "Habla sobre límites de despliegue, expectativas de manejo de datos y requisitos de gobernanza con el equipo de Rudix.",
+        "primaryCta": "Hablar con Seguridad",
+        "secondaryCta": "Solicitar demo"
+      }
+    },
+    "contact": {
+      "hero": {
+        "badge": "Conecta con el equipo de Rudix",
+        "heading": "Habla con nosotros sobre tu flujo documental",
+        "description": "Reserva una demo o contacta a Rudix para hablar sobre ingesta segura, recuperación, evaluación y requisitos de gobernanza para tu equipo."
+      },
+      "form": {
+        "title": "Solicitar una demo",
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Correo de trabajo",
+        "company": "Nombre de la empresa",
+        "role": "Tu rol",
+        "useCase": "Caso de uso principal",
+        "message": "Mensaje",
+        "messagePlaceholder": "Cuéntanos sobre tu caso de uso, requisitos de despliegue o preguntas",
+        "submit": "Enviar solicitud",
+        "submitting": "Enviando...",
+        "success": "Solicitud enviada",
+        "successDescription": "Gracias por tu interés. El equipo de Rudix se pondrá en contacto pronto.",
+        "error": "Error al enviar. Inténtalo de nuevo o usa una opción de contacto alternativa abajo.",
+        "rolePlaceholder": "Selecciona tu rol",
+        "useCasePlaceholder": "Selecciona tu caso de uso principal",
+        "roleOptCtoVp": "CTO / VP de Ingeniería",
+        "roleOptSolutionsArchitect": "Arquitecto de soluciones",
+        "roleOptDevopsSre": "DevOps / SRE",
+        "roleOptProductManagement": "Gestión de producto",
+        "roleOptSecurityCompliance": "Seguridad / Cumplimiento",
+        "roleOptOther": "Otro",
+        "useCaseOptRagPipeline": "Optimización de pipeline RAG",
+        "useCaseOptCompliance": "Flujos de cumplimiento automatizados",
+        "useCaseOptExtraction": "Extracción de datos de alto volumen",
+        "useCaseOptGovernance": "Preparación para gobernanza y auditoría",
+        "useCaseOptMigration": "Migración de flujos heredados",
+        "useCaseOptOther": "Otro",
+        "schedulerLabel": "¿Prefieres programar directamente?",
+        "schedulerCta": "Programar por calendario",
+        "fallbackEmailLabel": "O escríbenos a",
+        "fallbackCta": "Contactar por correo"
+      },
+      "goodFit": {
+        "heading": "Ideal para equipos que necesitan",
+        "item0": "Latencia subsegundo para preguntas y respuestas respaldadas por recuperación a escala.",
+        "item1": "Barreras de seguridad y privacidad para flujos documentales sensibles.",
+        "item2": "Postura de despliegue flexible para requisitos de gobernanza empresarial.",
+        "item3": "Planificación de integración alineada con operaciones de entrega existentes."
+      },
+      "systemHealth": {
+        "label": "Salud del sistema",
+        "operational": "Operativo",
+        "ingestion": "> Cola de ingesta: saludable",
+        "retrieval": "> Latencia de recuperación: dentro del objetivo",
+        "evaluation": "> Trabajos de evaluación: disponibles",
+        "audit": "> Pipeline de auditoría: activo"
+      },
+      "cards": {
+        "salesTitle": "Ventas",
+        "salesDesc": "Habla sobre planes de despliegue, empaquetado e hitos de adopción empresarial.",
+        "salesCta": "Contactar con ventas",
+        "supportTitle": "Soporte",
+        "supportDesc": "Obtén guía de configuración, soporte de incorporación y mejores prácticas operativas.",
+        "supportCta": "Contactar con soporte",
+        "securityTitle": "Revisión de seguridad",
+        "securityDesc": "Coordina solicitudes de revisión de seguridad y confianza con el equipo de Rudix.",
+        "securityCta": "Contacto de seguridad",
+        "statusTitle": "Estado y documentación",
+        "statusDesc": "Revisa el estado de la plataforma y la documentación de implementación en cualquier momento.",
+        "statusCta": "Abrir recursos"
+      },
+      "faq": {
+        "title": "FAQ de contacto y demo",
+        "demoQ": "¿Podemos solicitar una demo antes de finalizar el empaquetado?",
+        "demoA": "Sí. El equipo de Rudix puede realizar una demo guiada alineada con tu flujo documental y objetivos de despliegue.",
+        "securityQ": "¿Admiten solicitudes de revisión de seguridad?",
+        "securityA": "Sí. Puedes enviar preguntas de revisión de seguridad por esta página y coordinar los próximos pasos con el equipo.",
+        "schedulingQ": "¿Podemos usar un enlace de programación en lugar de un envío directo por API?",
+        "schedulingA": "Sí. Cuando está configurado, el flujo de contacto puede dirigir a un destino de programación o CRM.",
+        "fallbackQ": "¿Qué ocurre si el envío de contacto no está configurado?",
+        "fallbackA": "La página ofrece opciones de contacto alternativas para que los visitantes aún puedan comunicarse con ventas, soporte y contactos de seguridad."
+      },
+      "cta": {
+        "heading": "¿Necesitas una demostración en vivo?",
+        "description": "Programa una demo con Rudix para revisar tu caso de uso, criterios de éxito y ruta de despliegue.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "solutions": {
+      "breadcrumb": "Soluciones",
+      "hero": {
+        "badge": "Ecosistema de soluciones",
+        "heading": "Preguntas y respuestas con IA documental para todos los equipos.",
+        "description": "Rudix ayuda a cada departamento a pasar de documentos fragmentados a respuestas buscables y respaldadas por citas con visibilidad de flujo, controles de calidad y operaciones listas para gobernanza.",
+        "explorePlatformCta": "Explorar plataforma",
+        "viewApiDocsCta": "Ver docs de API"
+      },
+      "cards": {
+        "heading": "Casos de uso empresariales",
+        "description": "Rutas de solución específicas por departamento construidas sobre una base Rudix compartida."
+      },
+      "crossValue": {
+        "heading": "Valor compartido en todas las soluciones",
+        "description": "Cada departamento se beneficia de la misma plataforma Rudix segura, fundamentada y auditable.",
+        "secureUploadTitle": "Carga e ingesta seguras",
+        "secureUploadDesc": "Lleva archivos departamentales a flujos conscientes de políticas con estados de procesamiento trazables.",
+        "citationBackedTitle": "Respuestas respaldadas por citas",
+        "citationBackedDesc": "Fundamenta respuestas en referencias de fuente para que los equipos verifiquen evidencia y contexto rápidamente.",
+        "evaluationQualityTitle": "Calidad impulsada por evaluaciones",
+        "evaluationQualityDesc": "Usa ejecuciones de evaluación repetibles para monitorear recuperación y rendimiento de respuestas a lo largo del tiempo.",
+        "governanceTitle": "Gobernanza y auditabilidad",
+        "governanceDesc": "Aplica controles por rol con visibilidad operativa en flujos de documentos y respuestas."
+      },
+      "questionMatrix": {
+        "heading": "Matriz de preguntas de ejemplo",
+        "description": "Mira cómo Rudix maneja consultas multi-salto y de alta densidad.",
+        "complexity": "Complejidad",
+        "sampleQuery": "Consulta de ejemplo",
+        "retrievalStrategy": "Estrategia de recuperación",
+        "singleHopLabel": "UN SOLO SALTO",
+        "singleHopQuery": "\"¿Cuál es nuestra política de trabajo remoto en Alemania?\"",
+        "singleHopStrategy": "Semántica híbrida + palabra clave",
+        "multiHopLabel": "MULTI-SALTO",
+        "multiHopQuery": "\"Compara nuestro crecimiento de ingresos del Q3 con la proyección del informe anual de 2022.\"",
+        "multiHopStrategy": "Encadenamiento entre documentos",
+        "structuralLabel": "ESTRUCTURAL",
+        "structuralQuery": "\"Enumera en una tabla todos los proveedores con contratos que vencen antes del 31 de diciembre.\"",
+        "structuralStrategy": "Agente de extracción JSON/tabla",
+        "reasoningLabel": "RAZONAMIENTO",
+        "reasoningQuery": "\"¿La nueva enmienda del GDPR entra en conflicto con nuestro flujo actual de almacenamiento de datos?\"",
+        "reasoningStrategy": "Verificación contextual con LLM"
+      },
+      "workflowStrip": {
+        "title": "De documentos dispersos a respuestas confiables",
+        "description": "Usa un modelo de entrega consistente que admite incorporación, aseguramiento de calidad y fiabilidad a largo plazo para casos de uso departamentales."
+      },
+      "cta": {
+        "heading": "Mapea el flujo de trabajo de tu equipo",
+        "description": "Ve la ruta de solución Rudix adecuada para tu departamento y alinea un plan de despliegue.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "hr": {
+      "breadcrumb": "RR. HH.",
+      "hero": {
+        "badge": "Soluciones empresariales de RR. HH.",
+        "heading": "Respuestas de RR. HH. desde tus políticas reales.",
+        "description": "Ayuda a los empleados a encontrar respuestas en manuales, guías de beneficios, políticas de licencia, documentos de incorporación y procesos internos de RR. HH. con precisión quirúrgica.",
+        "primaryCta": "Habla con nosotros sobre RR. HH.",
+        "secondaryCta": "Todas las soluciones",
+        "assistantLabel": "Asistente de políticas · Espacio de RR. HH.",
+        "q0": "¿Cuál es la política de licencia parental por región?",
+        "q1": "¿Qué documentos de incorporación se requieren antes del primer día?",
+        "q2": "¿Cuál es el límite de reembolso por trabajo remoto?",
+        "engineLabel": "Motor de RR. HH. de Rudix",
+        "engineAnswer": "Tienes derecho a 16 semanas de licencia totalmente remunerada…",
+        "engineCitation": "[Guía global de beneficios, p. 42]"
+      },
+      "problems": {
+        "heading": "Los equipos de RR. HH. responden las mismas preguntas cada semana.",
+        "description": "La clasificación manual es el cuello de botella para escalar la cultura empresarial. Deja de ser un motor de búsqueda para tus propios documentos.",
+        "repeatedQuestionsTitle": "Preguntas repetidas",
+        "repeatedQuestionsBody": "Los empleados hacen las mismas preguntas a diario, consumiendo tiempo que podría dedicarse a iniciativas estratégicas de RR. HH.",
+        "hardToSearchTitle": "Difícil de buscar",
+        "hardToSearchBody": "PDFs estáticos y páginas de intranet desordenadas hacen casi imposible que el personal encuentre la única respuesta correcta.",
+        "accuracyGapsTitle": "Brechas de precisión",
+        "accuracyGapsBody": "Los documentos obsoletos generan información contradictoria. Rudix garantiza que las respuestas provengan de versiones actuales."
+      },
+      "flow": {
+        "heading": "Flujo de infraestructura de políticas",
+        "description": "Cómo Rudix transforma documentos de RR. HH. en respuestas fundamentadas.",
+        "step01": "Paso 01",
+        "step02": "Paso 02",
+        "step03": "Paso 03",
+        "step04": "Paso 04",
+        "uploadTitle": "RR. HH. sube políticas",
+        "uploadDesc": "Ingiere de forma segura PDFs, DOCX o archivos de texto en el espacio de Rudix.",
+        "uploadFilename": "policy_v4.pdf",
+        "uploadProgress": "Subiendo… 82%",
+        "indexTitle": "Rudix indexa",
+        "indexDesc": "La arquitectura RAG avanzada divide el texto en embeddings vectoriales semánticos para una recuperación precisa.",
+        "askTitle": "Los empleados preguntan",
+        "askDesc": "El personal consulta al asistente en lenguaje natural desde cualquier interfaz.",
+        "askQuery": "\"¿Cuál es la política de licencia parental?\"",
+        "answerTitle": "Respuestas citadas",
+        "answerDesc": "Rudix ofrece respuestas fundamentadas con citas textuales del documento fuente.",
+        "answerExample": "\"Tienes derecho a 16 semanas… [Política de licencias p. 14]\""
+      },
+      "documentSources": {
+        "heading": "Fuentes documentales compatibles",
+        "description": "Ya sea un manual de 200 páginas o un memorando de una página, Rudix procesa cada matiz del conocimiento organizativo.",
+        "handbook": "Manual del empleado",
+        "benefits": "Guía de inscripción a beneficios",
+        "leavePolicy": "Políticas de licencia y tiempo libre",
+        "expense": "SOPs de gastos y trabajo remoto",
+        "remoteWork": "Política de trabajo remoto",
+        "onboarding": "Lista de verificación de incorporación",
+        "roleTransition": "Guías de transición de rol",
+        "training": "Materiales de capacitación",
+        "exampleQA": "Ejemplo de P&R",
+        "q1": "\"¿Cuántos días de baja por enfermedad por mes?\"",
+        "a1": "Los empleados acumulan 1,5 días de baja por enfermedad al mes hasta 18 días al año.",
+        "a1Source": "[Política de licencias 2024, §3.2]",
+        "q2": "\"¿Cuál es el límite de gastos por trabajo remoto?\"",
+        "a2": "Hasta $75/mes para gastos de oficina en casa con aprobación del gerente.",
+        "a2Source": "[SOP de trabajo remoto, §4]"
+      },
+      "exampleQuestions": {
+        "sectionLabel": "Experiencia del empleado",
+        "heading": "Claridad instantánea para cada consulta.",
+        "engineLabel": "Motor de RR. HH. de Rudix",
+        "parentalLeaveQ": "¿Cuál es la política de licencia parental?",
+        "parentalLeaveA": "Nuestra política ofrece 16 semanas de licencia totalmente remunerada para cuidadores principales. Esto se aplica a nacimiento, adopción o acogida. La elegibilidad comienza después de 6 meses de empleo continuo.",
+        "parentalLeaveCitation": "Guía global de beneficios, p. 42",
+        "vacationQ": "¿Cuántos días de vacaciones tengo?",
+        "vacationA": "Los empleados estándar reciben 25 días por año calendario, prorrateados según la fecha de inicio. Se pueden transferir hasta 5 días al año siguiente.",
+        "vacationCitation": "Manual del empleado, §6.1",
+        "expenseQ": "¿Cómo presento una reclamación de gastos?",
+        "expenseA": "Inicia sesión en el portal de gastos con tu correo de empresa y envía los recibos antes del día 25 de cada mes para el reembolso en el siguiente ciclo de pago.",
+        "expenseCitation": "Política de gastos, §2",
+        "notCoveredQ": "¿Qué pasa si mi pregunta no está cubierta en el manual?",
+        "notCoveredA": "Rudix mostrará una respuesta de baja confianza o no encontrada y sugerirá contactar directamente a RR. HH. La calidad de las respuestas se mide para abordar brechas de cobertura en la próxima actualización de políticas.",
+        "notCoveredCitation": "Sin fuente directa — baja confianza indicada"
+      },
+      "security": {
+        "heading": "Creado para la sensibilidad de datos de RR. HH.",
+        "description": "Los documentos de RR. HH. contienen información sensible de empleados. Rudix está creado con acceso basado en roles, gobernanza de datos y límites claros entre lo que Rudix responde y lo que pertenece a tu equipo de RR. HH.",
+        "encryptionFeature": "Cifrado de extremo a extremo en reposo y en tránsito",
+        "roleAccessFeature": "Acceso por rol — los empleados solo ven su contenido",
+        "auditLogFeature": "Registro de auditoría completo para cada consulta y acción documental",
+        "usageNote": "Nota de uso: Rudix no toma decisiones laborales ni determinaciones legales. La gobernanza de datos sensibles sigue siendo responsabilidad de tu organización."
+      },
+      "cta": {
+        "heading": "Convierte tus documentos de RR. HH. en un asistente de políticas.",
+        "description": "Reduce consultas repetitivas de RR. HH. y ofrece a los empleados respuestas consistentes, fundamentadas en fuentes, desde el primer día.",
+        "primaryCta": "Habla con nosotros sobre RR. HH.",
+        "secondaryCta": "Ver todas las soluciones"
+      }
+    },
+    "legal": {
+      "breadcrumb": "Legal",
+      "hero": {
+        "badge": "Inteligencia legal",
+        "heading": "Pregunta a contratos y políticas con respuestas respaldadas por fuentes.",
+        "description": "Busca contratos, políticas legales, acuerdos con proveedores, términos de renovación, obligaciones y plazos con citas. Creado para cumplimiento de nivel empresarial.",
+        "primaryCta": "Habla con nosotros sobre flujos legales",
+        "queryExample": "\"¿Cuál es el aviso de terminación para el contrato de AWS?\"",
+        "answerText": "El Acuerdo Marco de Servicios de AWS requiere un aviso escrito de 90 días antes del final del plazo actual para la no renovación.",
+        "citation1": "AWS_MSA_2023.pdf · p. 14",
+        "citation2": "Sección 12.2 (Terminación)"
+      },
+      "problems": {
+        "heading": "Los contratos son demasiado importantes para buscarlos manualmente.",
+        "description": "Las revisiones legales manuales ralentizan acuerdos y aumentan el riesgo operativo. Rudix elimina la fricción.",
+        "longContractsTitle": "Contratos largos",
+        "longContractsBody": "Navegar acuerdos de más de 100 páginas para encontrar una sola subcláusula de responsabilidad toma horas de tiempo legal costoso.",
+        "repeatedQuestionsTitle": "Preguntas repetidas",
+        "repeatedQuestionsBody": "Los equipos de ventas y compras hacen las mismas preguntas sobre términos estándar a diario, saturando las colas de soporte legal.",
+        "missedDeadlinesTitle": "Plazos perdidos",
+        "missedDeadlinesBody": "Las fechas de renovación automática enterradas en PDFs heredados se pasan por alto fácilmente, generando compromisos plurianuales no deseados."
+      },
+      "documentSources": {
+        "heading": "Creado para todos los activos legales.",
+        "description": "Rudix admite jerarquías documentales complejas y referencias cruzadas entre acuerdos marco y declaraciones de trabajo locales.",
+        "customerContracts": "Contratos de clientes",
+        "vendorAgreements": "Acuerdos con proveedores",
+        "ndas": "NDAs",
+        "dpas": "DPAs",
+        "termsOfService": "Términos de servicio",
+        "legalGuidance": "Orientación legal",
+        "instantIngestion": "Ingesta instantánea",
+        "ingestionDesc": "Procesamiento seguro y cifrado de todos los formatos legales."
+      },
+      "questions": {
+        "sectionLabel": "Casos de uso",
+        "heading": "Pregunta cualquier cosa a tus datos.",
+        "description": "Desde búsquedas simples hasta análisis de riesgos complejos, Rudix ofrece claridad instantánea.",
+        "q1": "¿Cuál es el período de aviso de terminación?",
+        "q2": "¿Este contrato se renueva automáticamente?",
+        "q3": "¿Existe una cláusula de limitación de responsabilidad?"
+      },
+      "citations": {
+        "heading": "Confía en la fuente.",
+        "description": "Cada respuesta de Rudix incluye fragmentos de fuente, nombres de documentos y números de página específicos. Nunca alucinamos términos: solo recuperamos hechos.",
+        "deepLinkingLabel": "Enlace profundo:",
+        "deepLinkingDetail": "Haz clic en una cita para saltar directamente al párrafo del documento original.",
+        "auditTrailsLabel": "Pistas de auditoría:",
+        "auditTrailsDetail": "Historial completo de quién preguntó qué y qué documentos fueron referenciados.",
+        "accessControlsLabel": "Controles de acceso:",
+        "accessControlsDetail": "Los espacios por rol mantienen separados los documentos privilegiados.",
+        "responsibleUseLabel": "Uso responsable",
+        "responsibleUseText": "Rudix apoya la investigación legal y los flujos documentales. No reemplaza la revisión de abogados ni constituye asesoramiento legal. Toda información recuperada debe ser verificada por asesoría legal cualificada antes de confiar en ella.",
+        "securityCta": "Seguridad y cumplimiento"
+      },
+      "cta": {
+        "heading": "Encuentra respuestas contractuales más rápido.",
+        "description": "Únete a equipos legales líderes que usan Rudix para automatizar inteligencia contractual y reducir riesgo legal.",
+        "primaryCta": "Iniciar prueba gratuita",
+        "secondaryCta": "Reservar una demo"
+      }
+    },
+    "compliance": {
+      "breadcrumb": "Cumplimiento",
+      "hero": {
+        "badge": "Solución: Cumplimiento",
+        "heading": "Encuentra evidencia de auditoría más rápido.",
+        "description": "Usa Rudix para recuperar respuestas citadas desde políticas, procedimientos, documentos de seguridad, evidencia de auditoría y archivos de cumplimiento.",
+        "primaryCta": "Habla con nosotros sobre cumplimiento"
+      },
+      "problems": {
+        "heading": "La evidencia de auditoría es difícil de encontrar cuando está repartida entre archivos.",
+        "description": "La recopilación manual consume recursos y arriesga incumplimientos. Rudix centraliza el proceso de descubrimiento con precisión.",
+        "evidenceFragTitle": "Fragmentación de evidencia",
+        "evidenceFragBody": "La documentación dispersa en unidades en la nube, correos y servidores locales hace casi imposible gestionar auditorías completas.",
+        "traceabilityTitle": "Brechas de trazabilidad",
+        "traceabilityBody": "Las respuestas de políticas a menudo carecen de enlaces directos a documentos fuente, obligando a los responsables de cumplimiento a volver a verificar manualmente cada afirmación.",
+        "manualDrainTitle": "Agotamiento por recopilación manual",
+        "manualDrainBody": "Los auditores dedican el 60% de su tiempo a recopilar evidencia en lugar de analizarla. La recuperación manual es lenta, propensa a errores y costosa."
+      },
+      "documentSources": {
+        "heading": "Sube todo. Encuentra cualquier cosa.",
+        "description": "Rudix ingiere todo tu ecosistema de cumplimiento, manteniendo contexto completo e integridad estructural en diversos formatos de archivo.",
+        "securityPolicies": "Políticas de seguridad",
+        "auditEvidence": "Evidencia de auditoría",
+        "riskAssessments": "Evaluaciones de riesgo",
+        "accessReviews": "Revisiones de acceso",
+        "incidentResponse": "Respuesta a incidentes"
+      },
+      "examples": {
+        "heading": "Interroga tu evidencia.",
+        "description": "Haz preguntas en lenguaje natural y obtén respuestas citadas al instante desde tu biblioteca de cumplimiento.",
+        "retentionQ": "¿Dónde está la política de retención de datos?",
+        "retentionA": "Rudix identifica párrafos específicos en Global_Privacy_v4.pdf y los cruza con SOPs internos.",
+        "accessReviewsQ": "¿Qué evidencia respalda las revisiones de acceso?",
+        "accessReviewsA": "Extrae al instante exportaciones de logs Q1–Q4 y el procedimiento de aprobación IAM citado en tu último plan de auditoría.",
+        "encryptionQ": "¿Qué política menciona requisitos de cifrado?",
+        "encryptionA": "Escanea todos los controles de seguridad y destaca cláusulas ISO 27001 Anexo A mapeadas a estándares técnicos internos."
+      },
+      "trust": {
+        "heading": "Creado para confianza de nivel empresarial.",
+        "description": "El cumplimiento no se trata solo de encontrar datos, sino de verificarlos de forma segura y mantener una pista perfecta.",
+        "auditRefsTitle": "Referencias de fuente aptas para auditorías",
+        "auditRefsBody": "Cada respuesta incluye enlaces profundos a la página y el párrafo exactos del documento fuente.",
+        "permFilterTitle": "Recuperación filtrada por permisos",
+        "permFilterBody": "Los usuarios solo pueden recuperar información de documentos que están explícitamente autorizados a ver en tu sistema IAM.",
+        "activityLogsTitle": "Registros de actividad administrativa",
+        "activityLogsBody": "Historial completo e inmutable de cada consulta, respuesta y acceso a documentos para gobernanza interna.",
+        "disclaimerLabel": "Descargo de cumplimiento",
+        "disclaimerText": "Rudix apoya el descubrimiento de evidencia y la investigación de políticas. No emite certificaciones ni reemplaza la revisión de auditores. Toda evidencia recuperada debe ser validada por tu equipo de cumplimiento antes de enviarla a cualquier organismo regulador.",
+        "securityCta": "Seguridad y cumplimiento",
+        "activityStream": "Flujo de actividad",
+        "viewFullAuditTrail": "Ver pista de auditoría completa"
+      },
+      "cta": {
+        "heading": "Haz que la evidencia de cumplimiento sea más fácil de encontrar.",
+        "description": "Únete a equipos empresariales innovadores que han reducido su tiempo de preparación de auditorías con la recuperación de alta fidelidad de Rudix.",
+        "primaryCta": "Habla con nosotros",
+        "secondaryCta": "Ver documentación"
+      }
+    },
+    "sales": {
+      "breadcrumb": "Ventas",
+      "hero": {
+        "badge": "Motor de habilitación de ventas",
+        "heading": "Gana acuerdos con inteligencia de producto citada.",
+        "headingHighlight": "inteligencia de producto.",
+        "description": "Permite que tus AEs y SEs respondan preguntas técnicas complejas al instante. Rudix indexa toda tu base de conocimiento para proporcionar inteligencia de ventas citada, precisa y en tiempo real.",
+        "primaryCta": "Empieza gratis",
+        "secondaryCta": "Ver demo"
+      },
+      "problems": {
+        "heading": "El coste de la fricción en ventas",
+        "description": "Buscar el material adecuado no debería ser el cuello de botella en tu ciclo de ventas.",
+        "lostCaseStudiesTitle": "Casos de éxito perdidos",
+        "lostCaseStudiesBody": "Tu mejor historia de éxito en salud está enterrada en un hilo de Slack de 2022. Los AEs pierden 4 horas semanales buscando pruebas relevantes.",
+        "outdatedPricingTitle": "Precios obsoletos",
+        "outdatedPricingBody": "Los representantes que presentan hojas de precios heredadas generan enorme fricción contractual y erosión de margen en etapas de cierre.",
+        "battlecardFrictionTitle": "Fricción de battlecards",
+        "battlecardFrictionBody": "El FUD de competidores cambia cada semana. Sin acceso instantáneo a contraargumentos tácticos, tu equipo pierde impulso en evaluaciones frente a frente."
+      },
+      "documentSources": {
+        "heading": "Tu conocimiento, unificado.",
+        "description": "Rudix indexa y estructura datos de todos los lugares donde vive tu material de ventas:",
+        "productSpecs": "Especificaciones de producto",
+        "caseStudies": "Casos de éxito",
+        "rfpTemplates": "Plantillas RFP",
+        "pricingSheets": "Hojas de precios",
+        "battlecards": "Battlecards",
+        "proposalDecks": "Presentaciones de propuesta"
+      },
+      "queries": {
+        "heading": "Pregunta cualquier cosa. Obtén la respuesta.",
+        "description": "No más desplazamiento manual. Tu equipo hace preguntas en español claro y obtiene respuestas verificadas con enlaces directos a la fuente.",
+        "q1": "\"¿Qué caso de éxito encaja con un prospecto de salud que busca cumplimiento SOC2?\"",
+        "q2": "\"¿Cuáles son nuestras ventajas competitivas frente a Enterprise-X?\"",
+        "q2Answer": "\"Según la 'Battlecard Q3', nuestras ventajas son (1) despliegue VPC nativo y (2) manejo de datos sin PII…\"",
+        "q3": "\"¿Podemos ofrecer un 15% de descuento por un plazo de 3 años en el nivel Enterprise?\"",
+        "knowledgeBase": "Base de conocimiento",
+        "aeQuery": "Consulta de AE",
+        "securityDocs": "Docs de seguridad"
+      },
+      "cta": {
+        "heading": "¿Listo para acelerar tus acuerdos?",
+        "description": "Únete a equipos de ventas de alto rendimiento que usan Rudix para mostrar inteligencia técnica en segundos, no horas.",
+        "primaryCta": "Programar una demo",
+        "secondaryCta": "Ver precios"
+      }
+    },
+    "support": {
+      "breadcrumb": "Soporte",
+      "hero": {
+        "badge": "Soluciones de soporte",
+        "heading": "Ayuda a los agentes de soporte a responder más rápido.",
+        "description": "Da a los equipos de soporte acceso instantáneo a respuestas desde documentación de producto, guías de resolución, FAQs, runbooks y notas de lanzamiento.",
+        "primaryCta": "Habla con nosotros sobre soporte",
+        "secondaryCta": "Contacto"
+      },
+      "cta": {
+        "heading": "Transforma tu base de conocimiento de soporte.",
+        "description": "Da a los agentes de soporte respuestas instantáneas respaldadas por citas desde toda tu biblioteca documental.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "research": {
+      "breadcrumb": "Investigación",
+      "hero": {
+        "badge": "Inteligencia para analistas",
+        "heading": "Extrae información de PDFs técnicos e informes.",
+        "description": "Ayuda a analistas a navegar grandes corpus documentales con extracción, comparación y síntesis respaldadas por citas impulsadas por RAG.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver docs de API"
+      },
+      "cta": {
+        "heading": "Acelera tus flujos de investigación.",
+        "description": "Da a analistas respuestas instantáneas y citadas desde toda tu biblioteca de investigación.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "operations": {
+      "breadcrumb": "Operaciones",
+      "hero": {
+        "badge": "Operaciones y respuesta a incidentes",
+        "heading": "Respuestas de runbooks cuando tu equipo las necesita.",
+        "description": "Ayuda a equipos de operaciones, IT, DevOps y SRE a recuperar rápidamente pasos de incidentes, procedimientos de resolución y guía de procesos internos con RAG de alta fidelidad.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver docs de API"
+      },
+      "cta": {
+        "heading": "Equipa a tus equipos de operaciones con acceso instantáneo a runbooks.",
+        "description": "Da a equipos de ops respuestas verificadas y citadas desde toda tu base de conocimiento operativo.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "procurement": {
+      "breadcrumb": "Compras",
+      "hero": {
+        "badge": "Compras y revisión de proveedores",
+        "heading": "Evalúa proveedores con revisión documental impulsada por IA.",
+        "description": "Acelera tu proceso de evaluación de seguridad y legal. La plataforma habilitada por RAG de Rudix ingiere documentación compleja de proveedores para ofrecer respuestas instantáneas y citadas a tus preguntas de cumplimiento más críticas.",
+        "primaryCta": "Empieza gratis",
+        "secondaryCta": "Solicitar demo"
+      },
+      "cta": {
+        "heading": "Acelera tu proceso de evaluación de proveedores.",
+        "description": "Da a equipos de compras respuestas instantáneas y citadas desde documentación de proveedores y archivos de cumplimiento.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "internalKnowledge": {
+      "breadcrumb": "Conocimiento interno",
+      "hero": {
+        "badge": "Asistente de conocimiento interno",
+        "heading": "El conocimiento de tu equipo, accesible al instante.",
+        "headingHighlight": "accesible al instante.",
+        "description": "Deja de buscar en PDFs obsoletos e hilos de Slack enterrados. Rudix indexa todo el cerebro organizativo para proporcionar respuestas verificadas y respaldadas por citas.",
+        "primaryCta": "Empieza gratis",
+        "secondaryCta": "Solicitar demo"
+      },
+      "cta": {
+        "heading": "Haz que tu conocimiento institucional sea buscable.",
+        "description": "Da a toda tu organización acceso instantáneo a respuestas citadas desde tu base de conocimiento.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    },
+    "clientPortal": {
+      "breadcrumb": "Portal de clientes",
+      "hero": {
+        "badge": "Portal de conocimiento para clientes",
+        "heading": "Da a los clientes respuestas instantáneas desde tu documentación aprobada.",
+        "description": "Despliega una capa de P&R con IA delimitada sobre tus documentos orientados al cliente. Reduce preguntas repetitivas de soporte, acelera la incorporación y da a los clientes respuestas respaldadas por citas — sin sobrecargar a tu equipo.",
+        "primaryCta": "Empieza gratis",
+        "secondaryCta": "Solicitar demo"
+      },
+      "cta": {
+        "heading": "Transforma la experiencia de documentación de tus clientes.",
+        "description": "Da a los clientes respuestas instantáneas y citadas desde tu biblioteca documental aprobada.",
+        "primaryCta": "Solicitar demo",
+        "secondaryCta": "Ver producto"
+      }
+    }
   },
   "dashboard": {
     "title": "Panel",
-    "description": "Resumen de su base de conocimiento y actividad de IA",
-    "enterpriseRag": "RAG Empresarial",
+    "description": "Resumen de tu base de conocimiento y actividad de IA",
+    "enterpriseRag": "RAG empresarial",
     "recentActivity": "Actividad reciente",
     "quickActions": "Acciones rápidas",
     "noActivity": "Sin actividad reciente"
   },
   "documents": {
     "title": "Documentos",
-    "description": "Administre los documentos de su base de conocimiento",
+    "description": "Gestiona los documentos de tu base de conocimiento",
     "upload": "Subir documento",
     "noDocuments": "Aún no hay documentos",
-    "noDocumentsDescription": "Suba un documento para comenzar",
+    "noDocumentsDescription": "Sube un documento para empezar",
     "status": {
       "uploaded": "Subido",
       "processing": "Procesando",
@@ -137,43 +1075,43 @@
   },
   "chat": {
     "title": "Chat",
-    "description": "Haga preguntas sobre sus documentos",
-    "searchPlaceholder": "Buscar páginas, documentos, chats o estado (indexado, fallido...)",
+    "description": "Haz preguntas sobre tus documentos",
+    "searchPlaceholder": "Busca páginas, documentos, chats o estado (indexado, fallido...)",
     "untitledSession": "Sesión sin título",
     "recentChats": "Chats recientes",
-    "noDocumentsOrChats": "Aún no hay documentos o chats recientes. Suba un documento o haga su primera pregunta.",
-    "noResults": "No hay resultados coincidentes. Pruebe con un nombre de archivo, estado, título de chat o nombre de página.",
+    "noDocumentsOrChats": "Aún no hay documentos ni chats recientes. Sube un documento o haz tu primera pregunta.",
+    "noResults": "No hay resultados coincidentes. Prueba con un nombre de archivo, estado, título de chat o nombre de página.",
     "loadingResults": "Cargando resultados de búsqueda...",
     "messageCount": "{count} mensajes",
     "updated": "Actualizado",
     "newChat": "Nuevo chat",
-    "typeMessage": "Escriba un mensaje..."
+    "typeMessage": "Escribe un mensaje..."
   },
   "evaluations": {
     "title": "Evaluaciones",
-    "description": "Evalúe la calidad de su tubería RAG",
+    "description": "Evalúa la calidad de tu pipeline RAG",
     "runEvaluation": "Ejecutar evaluación",
     "noEvaluations": "Aún no hay evaluaciones"
   },
   "collections": {
     "title": "Colecciones",
-    "description": "Organice documentos en colecciones",
+    "description": "Organiza documentos en colecciones",
     "create": "Crear colección",
     "noCollections": "Aún no hay colecciones"
   },
   "connectors": {
     "title": "Conectores",
-    "description": "Conectar fuentes de datos externas",
-    "addConnector": "Agregar conector",
+    "description": "Conecta fuentes de datos externas",
+    "addConnector": "Añadir conector",
     "noConnectors": "No hay conectores configurados"
   },
   "pipeline": {
-    "title": "Tubería RAG",
-    "description": "Configure y monitoree su tubería de recuperación"
+    "title": "Pipeline RAG",
+    "description": "Configura y monitorea tu pipeline de recuperación"
   },
   "settings": {
     "title": "Configuración",
-    "description": "Administre su cuenta, organización, seguridad y facturación.",
+    "description": "Gestiona la configuración de tu cuenta, organización, seguridad y facturación.",
     "rudixSettings": "Configuración de Rudix",
     "tabs": {
       "profile": "Perfil",
@@ -185,14 +1123,14 @@
       "title": "Perfil",
       "accountIdentity": "Identidad de cuenta",
       "personalPreferences": "Preferencias personales",
-      "aiRagDefaults": "Valores predeterminados IA/RAG",
+      "aiRagDefaults": "Valores predeterminados de IA/RAG",
       "notifications": "Notificaciones",
       "accountActions": "Acciones de cuenta",
       "displayLanguage": "Idioma de visualización",
       "timezone": "Zona horaria",
       "interfaceTheme": "Tema de interfaz",
       "fullName": "Nombre completo",
-      "emailAddress": "Dirección de correo",
+      "emailAddress": "Dirección de correo electrónico",
       "role": "Rol",
       "updateProfile": "Actualizar perfil",
       "saving": "Guardando…",
@@ -201,12 +1139,12 @@
       "savedLocally": "Preferencias guardadas localmente para esta sesión del navegador.",
       "copyId": "Copiar ID",
       "copied": "¡Copiado!",
-      "signOutDescription": "Finalizar su sesión actual en este dispositivo.",
-      "signOutAllDevicesDescription": "Revocar todas las sesiones activas y cerrar sesión en todos lados.",
+      "signOutDescription": "Finaliza tu sesión actual en este dispositivo.",
+      "signOutAllDevicesDescription": "Revoca todas las sesiones activas y cierra sesión en todas partes.",
       "deleteAccount": "Eliminar cuenta personal",
-      "deleteAccountDescription": "Eliminar permanentemente su cuenta y los datos asociados.",
+      "deleteAccountDescription": "Elimina permanentemente tu cuenta y los datos asociados.",
       "notAvailable": "No disponible — controlado por el despliegue.",
-      "signOutEverywhere": "Cerrar sesión en todos lados",
+      "signOutEverywhere": "Cerrar sesión en todas partes",
       "unavailable": "No disponible",
       "expertMode": "Modo experto",
       "languageChanging": "Aplicando preferencia de idioma…"
@@ -224,7 +1162,7 @@
   "appShell": {
     "searchKnowledgeBase": "Buscar en la base de conocimiento...",
     "searchAriaLabel": "Buscar en páginas, documentos y chats",
-    "quickNavHint": "Navegación rápida y búsqueda en el alcance de la organización. Use {shortcut} en cualquier momento.",
+    "quickNavHint": "Navegación rápida y búsqueda delimitada por organización. Usa {shortcut} en cualquier momento.",
     "recentDocuments": "Documentos recientes",
     "recentChats": "Chats recientes",
     "pages": "Páginas",
@@ -237,13 +1175,13 @@
     "notifications": "Notificaciones",
     "help": "Ayuda",
     "profileMenu": "Menú de perfil",
-    "profileMenuPanel": "Panel del menú de perfil",
+    "profileMenuPanel": "Panel de menú de perfil",
     "userProfile": "Perfil de usuario",
     "organization": "Organización",
     "role": "Rol",
     "loadingResults": "Cargando resultados de búsqueda...",
-    "noResults": "No hay resultados coincidentes. Pruebe con un nombre de archivo, estado, título de chat o nombre de página.",
-    "noDocumentsOrChats": "Aún no hay documentos o chats recientes. Suba un documento o haga su primera pregunta.",
+    "noResults": "No hay resultados coincidentes. Prueba con un nombre de archivo, estado, título de chat o nombre de página.",
+    "noDocumentsOrChats": "Aún no hay documentos ni chats recientes. Sube un documento o haz tu primera pregunta.",
     "untitledSession": "Sesión sin título",
     "messages": "mensajes",
     "updated": "Actualizado",
@@ -253,32 +1191,32 @@
       "owner": "Propietario",
       "admin": "Administrador",
       "member": "Miembro",
-      "viewer": "Observador"
+      "viewer": "Visualizador"
     },
-    "enterpriseRag": "RAG Empresarial",
+    "enterpriseRag": "RAG empresarial",
     "navigationMenu": "Menú de navegación",
     "loadingSession": "Cargando sesión",
-    "loadingSessionDescription": "Verificando su cuenta y acceso de organización para este espacio de trabajo.",
+    "loadingSessionDescription": "Comprobando tu cuenta y el acceso a la organización para este espacio de trabajo.",
     "unassigned": "Sin asignar",
     "userId": "ID de usuario"
   },
   "errors": {
     "pageNotFound": "Página no encontrada",
-    "pageNotFoundDescription": "La página que busca no existe.",
+    "pageNotFoundDescription": "La página que buscas no existe.",
     "forbidden": "Acceso denegado",
-    "forbiddenDescription": "No tiene permiso para acceder a esta página.",
+    "forbiddenDescription": "No tienes permiso para acceder a esta página.",
     "serverError": "Algo salió mal",
-    "serverErrorDescription": "Ocurrió un error inesperado. Por favor, inténtelo de nuevo.",
-    "loadingFailed": "Error al cargar",
-    "retryFailed": "Reintento fallido. Por favor, inténtelo más tarde.",
-    "configIncomplete": "Configuración de frontend incompleta",
-    "configIncompleteDescription": "Faltan valores de entorno públicos requeridos o son inválidos. Actualice su archivo de entorno de frontend y reinicie la aplicación.",
-    "startupCheck": "Verificación de inicio de Rudix"
+    "serverErrorDescription": "Ocurrió un error inesperado. Inténtalo de nuevo.",
+    "loadingFailed": "No se pudo cargar",
+    "retryFailed": "Reintento fallido. Inténtalo de nuevo más tarde.",
+    "configIncomplete": "La configuración del frontend está incompleta",
+    "configIncompleteDescription": "Faltan valores públicos de entorno requeridos o no son válidos. Actualiza el archivo de entorno del frontend y reinicia la app.",
+    "startupCheck": "Comprobación de inicio de Rudix"
   },
   "toasts": {
     "saved": "Guardado correctamente",
     "deleted": "Eliminado correctamente",
-    "error": "Ocurrió un error. Por favor, inténtelo de nuevo.",
+    "error": "Ocurrió un error. Inténtalo de nuevo.",
     "copied": "Copiado al portapapeles"
   },
   "languageSwitcher": {

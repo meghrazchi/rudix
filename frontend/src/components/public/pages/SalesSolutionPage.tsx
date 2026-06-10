@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
@@ -19,6 +20,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function SalesBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -27,7 +30,7 @@ function SalesBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -35,14 +38,14 @@ function SalesBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Sales
+          {t("sales.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -58,6 +61,8 @@ function SalesHeroSection({
   trialHref: string;
   demoHref: string;
 }) {
+  const t = useTranslations("public.sales");
+
   return (
     <section
       aria-labelledby="sales-hero-title"
@@ -68,34 +73,31 @@ function SalesHeroSection({
           <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-[#e2dfff] px-3 py-1 text-[#3525cd]">
             <Sym name="verified" className="text-[18px]" />
             <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-              Sales Enablement Engine
+              {t("hero.badge")}
             </span>
           </div>
           <h1
             id="sales-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Win deals with cited{" "}
-            <span className="text-[#3525cd]">product intelligence.</span>
+            {t("hero.heading")}
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            Empower your AEs and SEs to answer complex technical questions
-            instantly. Rudix indexes your entire knowledge base to provide
-            cited, accurate sales intelligence in real-time.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4">
             <PublicActionLink
               href={trialHref}
               className="inline-flex items-center gap-3 rounded-xl bg-[#3525cd] px-8 py-4 text-[24px] font-semibold text-white shadow-lg shadow-[#3525cd]/20 transition hover:shadow-xl active:scale-95"
             >
-              Start for free
+              {t("hero.primaryCta")}
               <Sym name="arrow_forward" />
             </PublicActionLink>
             <PublicActionLink
               href={demoHref}
               className="rounded-xl border border-[#c7c4d8] bg-[#faf9ff] px-8 py-4 text-[24px] font-semibold text-[#1a1b20] transition hover:bg-[#eeedf3] active:scale-95"
             >
-              View Demo
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -174,24 +176,26 @@ function SalesHeroSection({
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function SalesProblemSection() {
+  const t = useTranslations("public.sales");
+
   const problems = [
     {
       icon: "search_off",
       iconBg: "bg-red-50 text-[#ba1a1a]",
-      title: "Lost Case Studies",
-      body: "Your best healthcare success story is buried in a 2022 Slack thread. AEs waste 4 hours weekly searching for relevant proof points.",
+      title: t("problems.lostCaseStudiesTitle"),
+      body: t("problems.lostCaseStudiesBody"),
     },
     {
       icon: "history",
       iconBg: "bg-orange-50 text-[#E24329]",
-      title: "Outdated Pricing",
-      body: "Reps pitching legacy pricing sheets leads to massive contract friction and margin erosion during closing stages.",
+      title: t("problems.outdatedPricingTitle"),
+      body: t("problems.outdatedPricingBody"),
     },
     {
       icon: "swords",
       iconBg: "bg-[#3525cd]/5 text-[#3525cd]",
-      title: "Battlecard Friction",
-      body: "Competitor FUD changes weekly. Without instant access to tactical counters, your team loses momentum in head-to-head evals.",
+      title: t("problems.battlecardFrictionTitle"),
+      body: t("problems.battlecardFrictionBody"),
     },
   ];
 
@@ -203,11 +207,10 @@ function SalesProblemSection() {
             id="sales-problem-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            The Cost of Sales Friction
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Searching for the right collateral shouldn&apos;t be the bottleneck
-            in your deal cycle.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -236,13 +239,15 @@ function SalesProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function SalesDocumentSourcesSection() {
+  const t = useTranslations("public.sales");
+
   const sources = [
-    { icon: "description", label: "Product Specs" },
-    { icon: "auto_stories", label: "Case Studies" },
-    { icon: "analytics", label: "RFP Templates" },
-    { icon: "payments", label: "Pricing Sheets" },
-    { icon: "military_tech", label: "Battlecards" },
-    { icon: "handshake", label: "Proposal Decks" },
+    { icon: "description", label: t("documentSources.productSpecs") },
+    { icon: "auto_stories", label: t("documentSources.caseStudies") },
+    { icon: "analytics", label: t("documentSources.rfpTemplates") },
+    { icon: "payments", label: t("documentSources.pricingSheets") },
+    { icon: "military_tech", label: t("documentSources.battlecards") },
+    { icon: "handshake", label: t("documentSources.proposalDecks") },
   ];
 
   return (
@@ -257,11 +262,10 @@ function SalesDocumentSourcesSection() {
               id="sales-doc-sources-title"
               className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
             >
-              Your knowledge, unified.
+              {t("documentSources.heading")}
             </h2>
             <p className="mb-8 text-lg leading-7 text-[#464555]">
-              Rudix indexes and structures data from all the places your sales
-              collateral lives:
+              {t("documentSources.description")}
             </p>
             <ul className="grid grid-cols-2 gap-4">
               {sources.map((s) => (
@@ -329,6 +333,8 @@ function SalesDocumentSourcesSection() {
 // ── example queries ───────────────────────────────────────────────────────────
 
 function SalesExampleQueriesSection() {
+  const t = useTranslations("public.sales");
+
   return (
     <section
       aria-labelledby="sales-queries-title"
@@ -341,37 +347,28 @@ function SalesExampleQueriesSection() {
               id="sales-queries-title"
               className="mb-6 text-4xl leading-tight font-bold tracking-tight lg:text-[48px] lg:leading-[56px]"
             >
-              Ask anything.
-              <br />
-              Get the answer.
+              {t("queries.heading")}
             </h2>
             <p className="mb-10 text-lg leading-7 text-[#47464d]">
-              No more manual scrolling. Your team asks questions in plain
-              English and gets verified responses with direct links to the
-              source.
+              {t("queries.description")}
             </p>
             <ul className="space-y-4">
               <li className="group cursor-default rounded-xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10">
                 <p className="text-base leading-6 text-[#faf9ff] transition group-hover:text-[#c3c0ff]">
-                  &quot;Which case study fits a healthcare prospect looking for
-                  SOC2 compliance?&quot;
+                  {t("queries.q1")}
                 </p>
               </li>
               <li className="rounded-xl border border-[#3525cd]/50 bg-white/10 p-5">
                 <p className="mb-4 text-base leading-6 text-[#c3c0ff]">
-                  &quot;What are our competitive advantages against
-                  Enterprise-X?&quot;
+                  {t("queries.q2")}
                 </p>
                 <div className="border-l-2 border-[#c3c0ff] pl-4 text-sm text-[#faf9ff]/80 italic">
-                  &quot;Based on the &apos;Q3 Battlecard&apos;, our advantages
-                  are (1) Native VPC deployment and (2) No-PII data
-                  handling…&quot;
+                  {t("queries.q2Answer")}
                 </div>
               </li>
               <li className="group cursor-default rounded-xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10">
                 <p className="text-base leading-6 text-[#faf9ff] transition group-hover:text-[#c3c0ff]">
-                  &quot;Can we offer a 15% discount for a 3-year term on the
-                  Enterprise tier?&quot;
+                  {t("queries.q3")}
                 </p>
               </li>
             </ul>
@@ -389,19 +386,20 @@ function SalesExampleQueriesSection() {
               </div>
               <div className="absolute top-0 left-0 rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-sm">
-                  <Sym name="folder_zip" className="text-base" /> Knowledge Base
+                  <Sym name="folder_zip" className="text-base" />{" "}
+                  {t("queries.knowledgeBase")}
                 </div>
               </div>
               <div className="absolute right-0 bottom-10 rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-sm">
-                  <Sym name="record_voice_over" className="text-base" /> AE
-                  Query
+                  <Sym name="record_voice_over" className="text-base" />{" "}
+                  {t("queries.aeQuery")}
                 </div>
               </div>
               <div className="absolute top-20 right-10 rounded-lg border border-white/10 bg-white/5 p-4 backdrop-blur-md">
                 <div className="flex items-center gap-2 text-sm">
-                  <Sym name="verified_user" className="text-base" /> Security
-                  Docs
+                  <Sym name="verified_user" className="text-base" />{" "}
+                  {t("queries.securityDocs")}
                 </div>
               </div>
             </div>
@@ -421,6 +419,8 @@ function SalesFinalCtaSection({
   demoHref: string;
   pricingHref: string;
 }) {
+  const t = useTranslations("public.sales");
+
   return (
     <section
       aria-labelledby="sales-cta-title"
@@ -435,24 +435,23 @@ function SalesFinalCtaSection({
           id="sales-cta-title"
           className="mb-8 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
         >
-          Ready to accelerate your deals?
+          {t("cta.heading")}
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-lg leading-7 text-[#464555]">
-          Join high-performing sales teams using Rudix to surface technical
-          intelligence in seconds, not hours.
+          {t("cta.description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <PublicActionLink
             href={demoHref}
             className="rounded-xl bg-[#3525cd] px-10 py-5 text-[24px] font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
           >
-            Schedule a Demo
+            {t("cta.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={pricingHref}
             className="rounded-xl border border-[#c7c4d8] bg-white px-10 py-5 text-[24px] font-semibold text-[#1a1b20] transition hover:bg-[#eeedf3] active:scale-95"
           >
-            View Pricing
+            {t("cta.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>

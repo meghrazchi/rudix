@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
@@ -17,6 +19,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function ClientPortalBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -25,7 +29,7 @@ function ClientPortalBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -33,14 +37,14 @@ function ClientPortalBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Client Portal
+          {t("clientPortal.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -56,6 +60,8 @@ function ClientPortalHeroSection({
   trialHref: string;
   demoHref: string;
 }) {
+  const t = useTranslations("public.clientPortal");
+
   return (
     <section
       aria-labelledby="cp-hero-title"
@@ -64,31 +70,29 @@ function ClientPortalHeroSection({
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div className="z-10">
           <span className="mb-6 inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            Client Knowledge Portal
+            {t("hero.badge")}
           </span>
           <h1
             id="cp-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Give clients instant answers from your approved documentation.
+            {t("hero.heading")}
           </h1>
           <p className="mb-10 max-w-xl text-lg leading-7 text-[#464555]">
-            Deploy a scoped AI Q&A layer over your client-facing docs. Reduce
-            repetitive support questions, accelerate onboarding, and give
-            customers citation-backed answers — without overloading your team.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4">
             <PublicActionLink
               href={trialHref}
               className="rounded-lg bg-[#3525cd] px-8 py-4 font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
             >
-              Start Free Trial
+              {t("hero.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href={demoHref}
               className="rounded-lg border border-[#c7c4d8] px-8 py-4 font-semibold text-[#0A0A0F] transition hover:bg-[#eeedf3] active:scale-95"
             >
-              Request Demo
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -549,6 +553,8 @@ function ClientPortalFinalCtaSection({
   demoHref: string;
   trialHref: string;
 }) {
+  const t = useTranslations("public.clientPortal");
+
   return (
     <section
       aria-labelledby="cp-cta-title"
@@ -564,25 +570,23 @@ function ClientPortalFinalCtaSection({
             id="cp-cta-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Your clients deserve better answers.
+            {t("cta.heading")}
           </h2>
           <p className="mb-10 text-lg leading-7 text-[#464555]">
-            Deploy a scoped, citation-backed knowledge layer your customers can
-            trust — without overloading your support team or overpromising
-            capabilities that aren&apos;t ready yet.
+            {t("cta.description")}
           </p>
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <PublicActionLink
               href={demoHref}
               className="rounded-xl bg-[#3525cd] px-10 py-5 text-lg font-bold text-white shadow-lg transition hover:-translate-y-1 hover:shadow-xl active:scale-95"
             >
-              Schedule a Demo
+              {t("cta.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href={trialHref}
               className="rounded-xl bg-[#0A0A0F] px-10 py-5 text-lg font-bold text-[#faf9ff] transition hover:bg-black active:scale-95"
             >
-              Get Started Free
+              {t("cta.secondaryCta")}
             </PublicActionLink>
           </div>
           <p className="mt-8 text-[12px] font-semibold tracking-[0.05em] text-[#777587] uppercase">

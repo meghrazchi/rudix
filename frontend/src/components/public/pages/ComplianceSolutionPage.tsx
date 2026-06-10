@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
@@ -19,6 +20,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function ComplianceBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -27,7 +30,7 @@ function ComplianceBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -35,14 +38,14 @@ function ComplianceBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Compliance
+          {t("compliance.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -52,6 +55,8 @@ function ComplianceBreadcrumb() {
 // ── hero ──────────────────────────────────────────────────────────────────────
 
 function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
+  const t = useTranslations("public.compliance");
+
   return (
     <section
       aria-labelledby="compliance-hero-title"
@@ -61,24 +66,23 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
       <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-16 px-10 lg:grid-cols-2">
         <div className="space-y-8">
           <span className="inline-block rounded-full bg-[#e2dfff] px-3 py-1 text-[12px] font-semibold tracking-[0.05em] text-[#3323cc] uppercase">
-            Solution: Compliance
+            {t("hero.badge")}
           </span>
           <h1
             id="compliance-hero-title"
             className="max-w-xl text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Find audit evidence faster.
+            {t("hero.heading")}
           </h1>
           <p className="max-w-lg text-lg leading-7 text-[#464555]">
-            Use Rudix to retrieve cited answers from policies, procedures,
-            security documents, audit evidence, and compliance files.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4 pt-4">
             <PublicActionLink
               href={demoHref}
               className="rounded-xl bg-[#3525cd] px-8 py-4 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:opacity-90 active:scale-95"
             >
-              Speak to us about compliance
+              {t("hero.primaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -130,24 +134,26 @@ function ComplianceHeroSection({ demoHref }: { demoHref: string }) {
 // ── problem ───────────────────────────────────────────────────────────────────
 
 function ComplianceProblemSection() {
+  const t = useTranslations("public.compliance");
+
   const problems = [
     {
       icon: "folder_off",
       iconBg: "bg-[#ffdad6]/30 text-[#ba1a1a]",
-      title: "Evidence Fragmentation",
-      body: "Scattered documentation across disparate cloud drives, emails, and local servers makes comprehensive audits nearly impossible to manage.",
+      title: t("problems.evidenceFragTitle"),
+      body: t("problems.evidenceFragBody"),
     },
     {
       icon: "link",
       iconBg: "bg-[#3525cd]/10 text-[#3525cd]",
-      title: "Traceability Gaps",
-      body: "Policy answers frequently lack direct links to original source documents, leaving compliance officers to manually re-verify every claim.",
+      title: t("problems.traceabilityTitle"),
+      body: t("problems.traceabilityBody"),
     },
     {
       icon: "timer",
       iconBg: "bg-[#E24329]/10 text-[#E24329]",
-      title: "Manual Collection Drain",
-      body: "Auditors spend 60% of their time collecting evidence instead of analyzing it. Manual retrieval is slow, error-prone, and expensive.",
+      title: t("problems.manualDrainTitle"),
+      body: t("problems.manualDrainBody"),
     },
   ];
 
@@ -162,11 +168,10 @@ function ComplianceProblemSection() {
             id="compliance-problem-title"
             className="text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Audit evidence is difficult to find when it is spread across files.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto max-w-2xl text-base leading-6 text-[#464555]">
-            Manual collection drains resources and risks non-compliance. Rudix
-            centralizes the discovery process with precision.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -195,12 +200,14 @@ function ComplianceProblemSection() {
 // ── document sources ──────────────────────────────────────────────────────────
 
 function ComplianceDocumentSourcesSection() {
+  const t = useTranslations("public.compliance");
+
   const sources = [
-    { icon: "gpp_good", label: "Security Policies" },
-    { icon: "fact_check", label: "Audit Evidence" },
-    { icon: "warning", label: "Risk Assessments" },
-    { icon: "group", label: "Access Reviews" },
-    { icon: "emergency", label: "Incident Response" },
+    { icon: "gpp_good", label: t("documentSources.securityPolicies") },
+    { icon: "fact_check", label: t("documentSources.auditEvidence") },
+    { icon: "warning", label: t("documentSources.riskAssessments") },
+    { icon: "group", label: t("documentSources.accessReviews") },
+    { icon: "emergency", label: t("documentSources.incidentResponse") },
   ];
 
   return (
@@ -214,11 +221,10 @@ function ComplianceDocumentSourcesSection() {
             id="compliance-doc-sources-title"
             className="mb-6 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
           >
-            Upload everything. Find anything.
+            {t("documentSources.heading")}
           </h2>
           <p className="mb-12 text-lg leading-7 text-[#464555]">
-            Rudix ingests your entire compliance ecosystem, maintaining full
-            context and structural integrity across diverse file formats.
+            {t("documentSources.description")}
           </p>
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {sources.map((s) => (
@@ -281,24 +287,23 @@ function ComplianceDocumentSourcesSection() {
 // ── example questions ─────────────────────────────────────────────────────────
 
 function ComplianceExampleQuestionsSection() {
+  const t = useTranslations("public.compliance");
+
   const examples = [
     {
       icon: "question_mark",
-      question: "Where is the data retention policy?",
-      answer:
-        "Rudix identifies specific paragraphs in Global_Privacy_v4.pdf and cross-references internal SOPs.",
+      question: t("examples.retentionQ"),
+      answer: t("examples.retentionA"),
     },
     {
       icon: "verified",
-      question: "What evidence supports access reviews?",
-      answer:
-        "Instantly pulls Q1–Q4 log exports and the IAM approval procedure cited in your latest audit plan.",
+      question: t("examples.accessReviewsQ"),
+      answer: t("examples.accessReviewsA"),
     },
     {
       icon: "enhanced_encryption",
-      question: "Which policy mentions encryption requirements?",
-      answer:
-        "Scans all security controls and highlights ISO 27001 Annex A clauses mapped to internal technical standards.",
+      question: t("examples.encryptionQ"),
+      answer: t("examples.encryptionA"),
     },
   ];
 
@@ -314,11 +319,10 @@ function ComplianceExampleQuestionsSection() {
             id="compliance-questions-title"
             className="mb-4 text-[30px] leading-[38px] font-semibold text-white"
           >
-            Interrogate your evidence.
+            {t("examples.heading")}
           </h2>
           <p className="max-w-xl text-lg leading-7 text-[#e3e2e8]">
-            Ask natural language questions and get cited answers instantly from
-            your compliance library.
+            {t("examples.description")}
           </p>
         </div>
         <ul className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -344,21 +348,23 @@ function ComplianceExampleQuestionsSection() {
 // ── trust / governance ────────────────────────────────────────────────────────
 
 function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
+  const t = useTranslations("public.compliance");
+
   const features = [
     {
       icon: "menu_book",
-      title: "Audit-friendly source references",
-      body: "Every answer includes deep-links to the exact page and paragraph of the source document.",
+      title: t("trust.auditRefsTitle"),
+      body: t("trust.auditRefsBody"),
     },
     {
       icon: "lock_person",
-      title: "Permission-filtered retrieval",
-      body: "Users can only retrieve information from documents they are explicitly authorized to view in your IAM system.",
+      title: t("trust.permFilterTitle"),
+      body: t("trust.permFilterBody"),
     },
     {
       icon: "receipt_long",
-      title: "Admin activity logs",
-      body: "Complete immutable history of every query, response, and document access for internal governance.",
+      title: t("trust.activityLogsTitle"),
+      body: t("trust.activityLogsBody"),
     },
   ];
 
@@ -405,11 +411,10 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                   id="compliance-trust-title"
                   className="mb-4 text-[30px] leading-[38px] font-semibold text-[#0A0A0F]"
                 >
-                  Built for enterprise-grade trust.
+                  {t("trust.heading")}
                 </h2>
                 <p className="text-lg leading-7 text-[#464555]">
-                  Compliance isn&apos;t just about finding data — it&apos;s
-                  about verifying it securely and maintaining a perfect trail.
+                  {t("trust.description")}
                 </p>
               </div>
 
@@ -435,20 +440,17 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                 <div className="mb-2 flex items-center gap-2 text-[#777587]">
                   <Sym name="info" className="text-base" />
                   <span className="text-[12px] font-semibold tracking-[0.05em] uppercase">
-                    Compliance disclaimer
+                    {t("trust.disclaimerLabel")}
                   </span>
                 </div>
                 <p className="text-sm leading-5 text-[#464555]">
-                  Rudix supports evidence discovery and policy research. It does
-                  not issue certifications or replace auditor review. All
-                  retrieved evidence should be validated by your compliance team
-                  before submission to any regulatory body.
+                  {t("trust.disclaimerText")}
                 </p>
                 <PublicActionLink
                   href={securityHref}
                   className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-[#3525cd] hover:underline"
                 >
-                  Security &amp; Compliance
+                  {t("trust.securityCta")}
                   <Sym name="arrow_forward" className="text-sm" />
                 </PublicActionLink>
               </div>
@@ -464,7 +466,7 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
                     />
                   </div>
                   <span className="text-[12px] font-semibold tracking-[0.05em] text-[#464555] uppercase">
-                    Activity Stream
+                    {t("trust.activityStream")}
                   </span>
                 </div>
 
@@ -496,7 +498,7 @@ function ComplianceTrustSection({ securityHref }: { securityHref: string }) {
 
                 <div className="flex justify-center border-t border-[#c7c4d8] pt-4">
                   <span className="text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
-                    View Full Audit Trail
+                    {t("trust.viewFullAuditTrail")}
                   </span>
                 </div>
               </div>
@@ -517,6 +519,8 @@ function ComplianceFinalCtaSection({
   demoHref: string;
   docsHref: string;
 }) {
+  const t = useTranslations("public.compliance");
+
   return (
     <section
       aria-labelledby="compliance-cta-title"
@@ -528,24 +532,23 @@ function ComplianceFinalCtaSection({
           id="compliance-cta-title"
           className="mb-8 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
         >
-          Make compliance evidence easier to find.
+          {t("cta.heading")}
         </h2>
         <p className="mb-12 text-lg leading-7 text-[#464555]">
-          Join forward-thinking enterprise teams who have cut their audit
-          preparation time with Rudix high-fidelity retrieval.
+          {t("cta.description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <PublicActionLink
             href={demoHref}
             className="rounded-xl bg-[#3525cd] px-10 py-5 text-[24px] leading-8 font-semibold text-white shadow-lg transition hover:shadow-xl active:scale-95"
           >
-            Speak to us
+            {t("cta.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={docsHref}
             className="rounded-xl border border-[#3525cd] bg-white px-10 py-5 text-[24px] leading-8 font-semibold text-[#3525cd] transition hover:bg-[#e2dfff]/30 active:scale-95"
           >
-            View Documentation
+            {t("cta.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>

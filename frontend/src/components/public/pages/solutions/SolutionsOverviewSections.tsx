@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   AudienceIcon,
@@ -5,35 +9,8 @@ import {
 } from "@/components/public/pages/solutions/enterpriseUseCases";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
-type CrossSolutionValue = {
-  title: string;
-  description: string;
-};
-
-const crossSolutionValues: CrossSolutionValue[] = [
-  {
-    title: "Secure upload and ingestion",
-    description:
-      "Bring departmental files into policy-aware workflows with traceable processing states.",
-  },
-  {
-    title: "Citation-backed responses",
-    description:
-      "Ground answers in source references so teams can verify evidence and context quickly.",
-  },
-  {
-    title: "Evaluation-driven quality",
-    description:
-      "Use repeatable evaluation runs to monitor retrieval and answer performance over time.",
-  },
-  {
-    title: "Governance and auditability",
-    description:
-      "Apply role-scoped controls with operational visibility across document and answer workflows.",
-  },
-];
-
 export function SolutionsHero() {
+  const t = useTranslations("public.solutions");
   const links = resolvePublicSiteLinks();
 
   return (
@@ -41,28 +18,26 @@ export function SolutionsHero() {
       <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
         <div className="max-w-3xl">
           <span className="inline-flex rounded-full bg-[#e7e4ff] px-3 py-1 text-[11px] font-bold tracking-[0.11em] text-[#3f32d2] uppercase">
-            Solutions ecosystem
+            {t("hero.badge")}
           </span>
           <h1 className="mt-5 text-4xl leading-tight font-black text-[#0f1118] lg:text-6xl">
-            AI document Q&A for every team.
+            {t("hero.heading")}
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5a6072] lg:text-base">
-            Rudix helps each department move from fragmented documents to
-            searchable, citation-backed answers with workflow visibility,
-            quality controls, and governance-ready operations.
+            {t("hero.description")}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <PublicActionLink
               href={links.product}
               className="rounded-lg bg-[#3525cd] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(53,37,205,0.25)] transition hover:bg-[#291ec0]"
             >
-              Explore Platform
+              {t("hero.explorePlatformCta")}
             </PublicActionLink>
             <PublicActionLink
               href={links.docs}
               className="rounded-lg border border-[#cfd4e2] bg-white px-5 py-3 text-sm font-semibold text-[#23283a] transition hover:bg-[#f4f6fc]"
             >
-              View API Docs
+              {t("hero.viewApiDocsCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -76,6 +51,8 @@ export function SolutionsHero() {
 }
 
 export function SolutionCardsSection() {
+  const t = useTranslations("public.solutions");
+
   return (
     <section
       aria-labelledby="solutions-cards-title"
@@ -86,11 +63,10 @@ export function SolutionCardsSection() {
           id="solutions-cards-title"
           className="text-3xl font-black text-[#12141b] lg:text-5xl"
         >
-          Enterprise Use Cases
+          {t("cards.heading")}
         </h2>
         <p className="mt-3 text-sm leading-7 text-[#5b6173] lg:text-base">
-          Department-specific solution paths built on one shared Rudix
-          foundation.
+          {t("cards.description")}
         </p>
       </div>
 
@@ -137,6 +113,27 @@ export function SolutionCardsSection() {
 }
 
 export function CrossSolutionValueSection() {
+  const t = useTranslations("public.solutions");
+
+  const crossSolutionValues = [
+    {
+      title: t("crossValue.secureUploadTitle"),
+      description: t("crossValue.secureUploadDesc"),
+    },
+    {
+      title: t("crossValue.citationBackedTitle"),
+      description: t("crossValue.citationBackedDesc"),
+    },
+    {
+      title: t("crossValue.evaluationQualityTitle"),
+      description: t("crossValue.evaluationQualityDesc"),
+    },
+    {
+      title: t("crossValue.governanceTitle"),
+      description: t("crossValue.governanceDesc"),
+    },
+  ];
+
   return (
     <section
       id="cross-solution-value"
@@ -149,11 +146,10 @@ export function CrossSolutionValueSection() {
             id="cross-solution-value-title"
             className="text-3xl font-black text-[#12141b] lg:text-5xl"
           >
-            Shared value across all solutions
+            {t("crossValue.heading")}
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#5b6173] lg:text-base">
-            Every department benefits from the same secure, grounded, and
-            auditable Rudix platform.
+            {t("crossValue.description")}
           </p>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -177,6 +173,8 @@ export function CrossSolutionValueSection() {
 }
 
 export function QuestionMatrixSection() {
+  const t = useTranslations("public.solutions");
+
   return (
     <section aria-labelledby="question-matrix-title" className="bg-[#eaecf3]">
       <div className="mx-auto w-full max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
@@ -185,10 +183,10 @@ export function QuestionMatrixSection() {
             id="question-matrix-title"
             className="text-3xl font-black text-[#12141b] lg:text-5xl"
           >
-            Example Question Matrix
+            {t("questionMatrix.heading")}
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#5b6173] lg:text-base">
-            See how Rudix handles multi-hop and high-density queries.
+            {t("questionMatrix.description")}
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -196,13 +194,13 @@ export function QuestionMatrixSection() {
             <thead>
               <tr>
                 <th className="border-b border-[#d1d6e3] bg-[#e6e9f2] p-6 text-left text-sm font-semibold text-[#2d3246]">
-                  Complexity
+                  {t("questionMatrix.complexity")}
                 </th>
                 <th className="border-b border-[#d1d6e3] bg-[#e6e9f2] p-6 text-left text-sm font-semibold text-[#2d3246]">
-                  Sample Query
+                  {t("questionMatrix.sampleQuery")}
                 </th>
                 <th className="border-b border-[#d1d6e3] bg-[#e6e9f2] p-6 text-left text-sm font-semibold text-[#2d3246]">
-                  Retrieval Strategy
+                  {t("questionMatrix.retrievalStrategy")}
                 </th>
               </tr>
             </thead>
@@ -210,56 +208,53 @@ export function QuestionMatrixSection() {
               <tr>
                 <td className="p-6">
                   <span className="rounded bg-[#95f7b2] px-2 py-1 text-xs font-bold text-[#043520]">
-                    SINGLE-HOP
+                    {t("questionMatrix.singleHopLabel")}
                   </span>
                 </td>
                 <td className="p-6 text-sm text-[#4f566b] italic">
-                  &quot;What is our policy on remote work in Germany?&quot;
+                  {t("questionMatrix.singleHopQuery")}
                 </td>
                 <td className="p-6 font-mono text-sm text-[#3037db]">
-                  Hybrid semantic + keyword
+                  {t("questionMatrix.singleHopStrategy")}
                 </td>
               </tr>
               <tr>
                 <td className="p-6">
                   <span className="rounded bg-[#e5e1e9] px-2 py-1 text-xs font-bold text-[#2b2c35]">
-                    MULTI-HOP
+                    {t("questionMatrix.multiHopLabel")}
                   </span>
                 </td>
                 <td className="p-6 text-sm text-[#4f566b] italic">
-                  &quot;Compare our Q3 revenue growth with the projection in the
-                  2022 annual report.&quot;
+                  {t("questionMatrix.multiHopQuery")}
                 </td>
                 <td className="p-6 font-mono text-sm text-[#3037db]">
-                  Cross-document chaining
+                  {t("questionMatrix.multiHopStrategy")}
                 </td>
               </tr>
               <tr>
                 <td className="p-6">
                   <span className="rounded bg-[#e2dfff] px-2 py-1 text-xs font-bold text-[#25147c]">
-                    STRUCTURAL
+                    {t("questionMatrix.structuralLabel")}
                   </span>
                 </td>
                 <td className="p-6 text-sm text-[#4f566b] italic">
-                  &quot;List all vendors with contracts expiring before Dec 31
-                  in a table.&quot;
+                  {t("questionMatrix.structuralQuery")}
                 </td>
                 <td className="p-6 font-mono text-sm text-[#3037db]">
-                  JSON/Table extraction agent
+                  {t("questionMatrix.structuralStrategy")}
                 </td>
               </tr>
               <tr>
                 <td className="p-6">
                   <span className="rounded bg-[#ffdad6] px-2 py-1 text-xs font-bold text-[#8d1013]">
-                    REASONING
+                    {t("questionMatrix.reasoningLabel")}
                   </span>
                 </td>
                 <td className="p-6 text-sm text-[#4f566b] italic">
-                  &quot;Does the new GDPR amendment conflict with our current
-                  data storage flow?&quot;
+                  {t("questionMatrix.reasoningQuery")}
                 </td>
                 <td className="p-6 font-mono text-sm text-[#3037db]">
-                  Contextual LLM verification
+                  {t("questionMatrix.reasoningStrategy")}
                 </td>
               </tr>
             </tbody>

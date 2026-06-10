@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
@@ -19,6 +20,8 @@ function Sym({ name, className = "" }: { name: string; className?: string }) {
 // ── breadcrumb ────────────────────────────────────────────────────────────────
 
 function OperationsBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -27,7 +30,7 @@ function OperationsBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
@@ -35,14 +38,14 @@ function OperationsBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#c7c4d8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          Operations
+          {t("operations.breadcrumb")}
         </li>
       </ol>
     </nav>
@@ -58,6 +61,8 @@ function OperationsHeroSection({
   demoHref: string;
   docsHref: string;
 }) {
+  const t = useTranslations("public.operations");
+
   return (
     <section
       aria-labelledby="ops-hero-title"
@@ -66,31 +71,29 @@ function OperationsHeroSection({
       <div className="relative z-10 mx-auto max-w-[1440px] px-10">
         <div className="max-w-3xl">
           <span className="mb-6 inline-block rounded-full bg-[#3525cd]/10 px-4 py-1.5 text-[12px] font-semibold tracking-[0.05em] text-[#3525cd] uppercase">
-            Operations &amp; Incident Response
+            {t("hero.badge")}
           </span>
           <h1
             id="ops-hero-title"
             className="mb-6 text-4xl leading-tight font-bold tracking-tight text-[#0A0A0F] lg:text-[48px] lg:leading-[56px]"
           >
-            Runbook answers when your team needs them.
+            {t("hero.heading")}
           </h1>
           <p className="mb-10 max-w-2xl text-lg leading-7 text-[#464555]">
-            Help operations, IT, DevOps, and SRE teams quickly retrieve incident
-            steps, troubleshooting procedures, and internal process guidance
-            with high-fidelity RAG.
+            {t("hero.description")}
           </p>
           <div className="flex flex-wrap gap-4">
             <PublicActionLink
               href={demoHref}
               className="rounded-xl bg-[#3525cd] px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-[#3525cd]/20 transition hover:opacity-90 active:scale-95"
             >
-              Speak to us about operations
+              {t("hero.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href={docsHref}
               className="rounded-xl border border-[#c7c4d8] bg-[#faf9ff] px-8 py-4 text-lg font-semibold text-[#1a1b20] transition hover:bg-[#f4f3f9] active:scale-95"
             >
-              View documentation
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -454,6 +457,8 @@ function OperationsFinalCtaSection({
   demoHref: string;
   contactHref: string;
 }) {
+  const t = useTranslations("public.operations");
+
   return (
     <section
       aria-labelledby="ops-cta-title"
@@ -474,25 +479,23 @@ function OperationsFinalCtaSection({
           id="ops-cta-title"
           className="mb-8 text-4xl leading-tight font-bold tracking-tight text-white lg:text-[48px] lg:leading-[56px]"
         >
-          Make runbooks easier to use.
+          {t("cta.heading")}
         </h2>
         <p className="mx-auto mb-12 max-w-2xl text-lg leading-7 text-[#c3c0ff]">
-          Reduce MTTR and eliminate documentation silos with Rudix. Your
-          infrastructure is only as reliable as your team&apos;s access to
-          information.
+          {t("cta.description")}
         </p>
         <div className="flex flex-col justify-center gap-4 sm:flex-row">
           <PublicActionLink
             href={demoHref}
             className="rounded-xl bg-white px-10 py-5 text-lg font-bold text-[#3525cd] transition hover:bg-[#e2dfff] active:scale-95"
           >
-            Speak to us about operations
+            {t("cta.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href={contactHref}
             className="rounded-xl border border-white/30 bg-[#4f46e5] px-10 py-5 text-lg font-bold text-white transition hover:bg-[#3525cd]/80 active:scale-95"
           >
-            Book a Live Demo
+            {t("cta.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>

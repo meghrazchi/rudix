@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import {
   FinalCtaBand,
   FaqSection,
@@ -8,11 +12,19 @@ import {
   PricingPlanCardsSection,
   UsageLimitsSection,
 } from "@/components/public/pages/pricing/PricingSections";
-import { pricingFaqs } from "@/components/public/pages/pricing/pricingData";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 export function PricingOverviewPage() {
+  const t = useTranslations("public.pricing");
   const links = resolvePublicSiteLinks();
+
+  const pricingFaqs = [
+    { question: t("faq.trialQ"), answer: t("faq.trialA") },
+    { question: t("faq.upgradesQ"), answer: t("faq.upgradesA") },
+    { question: t("faq.securityReviewQ"), answer: t("faq.securityReviewA") },
+    { question: t("faq.selfHostedQ"), answer: t("faq.selfHostedA") },
+    { question: t("faq.billingQ"), answer: t("faq.billingA") },
+  ];
 
   return (
     <>
@@ -21,14 +33,14 @@ export function PricingOverviewPage() {
       <UsageLimitsSection />
       <PlanComparisonSection />
 
-      <FaqSection title="Pricing FAQ" items={pricingFaqs} />
+      <FaqSection title={t("faq.title")} items={pricingFaqs} />
 
       <FinalCtaBand
-        title="Need a tailored plan?"
-        description="Talk with the Rudix team to align usage limits, deployment posture, and support coverage with your rollout."
-        primaryLabel="Contact Sales"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primaryLabel={t("cta.primaryCta")}
         primaryHref={links.contact}
-        secondaryLabel="Request Demo"
+        secondaryLabel={t("cta.secondaryCta")}
         secondaryHref={links.requestDemo}
       />
     </>

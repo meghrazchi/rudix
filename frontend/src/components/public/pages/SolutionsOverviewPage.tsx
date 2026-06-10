@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   FinalCtaBand,
@@ -14,6 +18,8 @@ import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 import { SOLUTION_OVERVIEW_FLOW_STEPS } from "@/lib/public-site/solutions";
 
 function SolutionsBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -22,14 +28,14 @@ function SolutionsBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#61677a]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#2a2f40]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#9ca3b8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#252a3b]">
-          Solutions
+          {t("breadcrumb.solutions")}
         </li>
       </ol>
     </nav>
@@ -37,6 +43,7 @@ function SolutionsBreadcrumb() {
 }
 
 export function SolutionsOverviewPage() {
+  const t = useTranslations("public.solutions");
   const links = resolvePublicSiteLinks();
 
   return (
@@ -48,19 +55,19 @@ export function SolutionsOverviewPage() {
       <WorkflowPlaybookSection />
 
       <WorkflowStripSection
-        title="From scattered documents to trusted answers"
-        description="Use a consistent delivery model that supports onboarding, quality assurance, and long-term reliability for department-specific use cases."
+        title={t("workflowStrip.title")}
+        description={t("workflowStrip.description")}
         steps={SOLUTION_OVERVIEW_FLOW_STEPS}
       />
 
       <QuestionMatrixSection />
 
       <FinalCtaBand
-        title="Map your team’s workflow"
-        description="See the right Rudix solution path for your department and align on a rollout plan."
-        primaryLabel="Request Demo"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primaryLabel={t("cta.primaryCta")}
         primaryHref={links.requestDemo}
-        secondaryLabel="View Product"
+        secondaryLabel={t("cta.secondaryCta")}
         secondaryHref={links.product}
       />
     </>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
@@ -141,6 +143,8 @@ function IconChevron() {
 // ── sections ─────────────────────────────────────────────────────────────────
 
 function HRHeroSection({ demoHref }: { demoHref: string }) {
+  const t = useTranslations("public.hr");
+
   return (
     <section
       aria-labelledby="hr-hero-title"
@@ -150,31 +154,29 @@ function HRHeroSection({ demoHref }: { demoHref: string }) {
       <div className="mx-auto grid w-full max-w-7xl items-center gap-16 px-4 lg:grid-cols-2 lg:px-8">
         <div className="relative z-10">
           <span className="inline-block rounded-full bg-[#ecebff] px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#3a35e8] uppercase">
-            Enterprise HR Solutions
+            {t("hero.badge")}
           </span>
           <h1
             id="hr-hero-title"
             className="mt-6 text-4xl leading-tight font-black tracking-tight text-[#0f1117] lg:text-5xl"
           >
-            HR answers from your actual policies.
+            {t("hero.heading")}
           </h1>
           <p className="mt-5 max-w-lg text-base leading-7 text-[#505465]">
-            Help employees find answers from handbooks, benefits guides, leave
-            policies, onboarding documents, and internal HR processes with
-            surgical precision.
+            {t("hero.description")}
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
             <PublicActionLink
               href={demoHref}
               className="rounded-md bg-[#3a35e8] px-7 py-3.5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(58,53,232,0.35)] transition hover:bg-[#2d2ad1] active:scale-95"
             >
-              Speak to us about HR
+              {t("hero.primaryCta")}
             </PublicActionLink>
             <PublicActionLink
               href="/solutions"
               className="rounded-md border border-[#d0d5e4] px-7 py-3.5 text-sm font-semibold text-[#343a50] transition hover:bg-[#f4f6fb]"
             >
-              All solutions
+              {t("hero.secondaryCta")}
             </PublicActionLink>
           </div>
         </div>
@@ -186,14 +188,10 @@ function HRHeroSection({ demoHref }: { demoHref: string }) {
           >
             <div className="rounded-lg border border-[#e6e7ef] bg-[#f8f8fc] p-6">
               <p className="mb-4 text-[11px] font-bold tracking-widest text-[#3a35e8] uppercase">
-                Policy assistant · HR workspace
+                {t("hero.assistantLabel")}
               </p>
               <div className="space-y-3">
-                {[
-                  "What is the parental leave policy by region?",
-                  "Which onboarding documents are required before day one?",
-                  "What is the remote work reimbursement limit?",
-                ].map((q) => (
+                {[t("hero.q0"), t("hero.q1"), t("hero.q2")].map((q) => (
                   <div
                     key={q}
                     className="rounded-lg bg-white p-3 text-sm text-[#252a3b] shadow-sm"
@@ -204,12 +202,12 @@ function HRHeroSection({ demoHref }: { demoHref: string }) {
               </div>
               <div className="mt-4 rounded-lg border-l-4 border-[#3a35e8] bg-[#ecebff]/60 p-3">
                 <p className="text-xs font-semibold text-[#3a35e8]">
-                  Rudix HR Engine
+                  {t("hero.engineLabel")}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-[#252a3b]">
-                  You are eligible for 16 weeks of fully paid leave…{" "}
+                  {t("hero.engineAnswer")}{" "}
                   <span className="font-medium text-[#3a35e8]">
-                    [Global Benefits Guide, p. 42]
+                    {t("hero.engineCitation")}
                   </span>
                 </p>
               </div>
@@ -222,24 +220,26 @@ function HRHeroSection({ demoHref }: { demoHref: string }) {
 }
 
 function HRProblemSection() {
+  const t = useTranslations("public.hr");
+
   const problems = [
     {
       icon: <IconRepeat />,
       iconBg: "bg-red-100 text-red-700",
-      title: "Repeated Questions",
-      body: "Employees ask the same questions daily, draining bandwidth from strategic HR initiatives.",
+      title: t("problems.repeatedQuestionsTitle"),
+      body: t("problems.repeatedQuestionsBody"),
     },
     {
       icon: <IconSearchOff />,
       iconBg: "bg-[#e8e7ed] text-[#464555]",
-      title: "Hard to Search",
-      body: "Static PDFs and messy intranet pages make finding the one true answer nearly impossible for staff.",
+      title: t("problems.hardToSearchTitle"),
+      body: t("problems.hardToSearchBody"),
     },
     {
       icon: <IconShield />,
       iconBg: "bg-[#d1fae5] text-[#065f46]",
-      title: "Accuracy Gaps",
-      body: "Outdated documents lead to conflicting information. Rudix ensures answers come from current versions.",
+      title: t("problems.accuracyGapsTitle"),
+      body: t("problems.accuracyGapsBody"),
     },
   ];
 
@@ -251,11 +251,10 @@ function HRProblemSection() {
             id="problem-title"
             className="text-3xl font-black text-[#0f1117] lg:text-4xl"
           >
-            HR teams answer the same questions every week.
+            {t("problems.heading")}
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#505465]">
-            Manual triage is the bottleneck of scaling enterprise culture. Stop
-            being a search engine for your own documents.
+            {t("problems.description")}
           </p>
         </div>
         <ul className="grid gap-6 md:grid-cols-3">
@@ -282,6 +281,8 @@ function HRProblemSection() {
 }
 
 function HRFlowSection() {
+  const t = useTranslations("public.hr");
+
   return (
     <section aria-labelledby="flow-title" className="bg-white py-24">
       <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
@@ -290,45 +291,43 @@ function HRFlowSection() {
             id="flow-title"
             className="text-3xl font-black text-[#0f1117] lg:text-4xl"
           >
-            Policy infrastructure flow
+            {t("flow.heading")}
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#505465]">
-            How Rudix transforms HR documents into grounded answers.
+            {t("flow.description")}
           </p>
         </div>
 
         <ol className="grid gap-6 lg:grid-cols-4">
           <li className="flex flex-col rounded-xl border border-[#d8dce7] bg-[#f4f3f9] p-7">
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#3a35e8] uppercase">
-              Step 01
+              {t("flow.step01")}
             </p>
             <h3 className="mt-3 text-base font-semibold text-[#0f1117]">
-              HR uploads policies
+              {t("flow.uploadTitle")}
             </h3>
             <p className="mt-2 grow text-sm leading-6 text-[#505465]">
-              Securely ingest PDFs, DOCX, or text files into the Rudix
-              workspace.
+              {t("flow.uploadDesc")}
             </p>
             <div className="mt-7 rounded border border-[#d8dce7] bg-white p-3 font-mono text-xs text-[#505465]">
               <div className="mb-1.5 flex items-center gap-2">
                 <IconDocument />
-                <span>policy_v4.pdf</span>
+                <span>{t("flow.uploadFilename")}</span>
               </div>
               <div className="flex items-center gap-2 text-[#3a35e8]">
                 <IconUpload />
-                <span>Uploading… 82%</span>
+                <span>{t("flow.uploadProgress")}</span>
               </div>
             </div>
           </li>
 
           <li className="flex flex-col rounded-xl bg-[#0f1117] p-7 text-white">
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#c3c0ff] uppercase">
-              Step 02
+              {t("flow.step02")}
             </p>
-            <h3 className="mt-3 text-base font-semibold">Rudix indexes</h3>
+            <h3 className="mt-3 text-base font-semibold">{t("flow.indexTitle")}</h3>
             <p className="mt-2 grow text-sm leading-6 text-[#c7cede]">
-              Advanced RAG architecture breaks text into semantic vector
-              embeddings for precise retrieval.
+              {t("flow.indexDesc")}
             </p>
             <div className="mt-7">
               <svg viewBox="0 0 200 32" className="w-full" aria-hidden="true">
@@ -368,31 +367,29 @@ function HRFlowSection() {
 
           <li className="flex flex-col rounded-xl border border-[#d8dce7] bg-[#f4f3f9] p-7">
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#3a35e8] uppercase">
-              Step 03
+              {t("flow.step03")}
             </p>
             <h3 className="mt-3 text-base font-semibold text-[#0f1117]">
-              Employees ask
+              {t("flow.askTitle")}
             </h3>
             <p className="mt-2 grow text-sm leading-6 text-[#505465]">
-              Staff query the assistant in plain language from any interface.
+              {t("flow.askDesc")}
             </p>
             <div className="mt-7 rounded-full border border-[#d8dce7] bg-white px-4 py-2.5 text-xs text-[#505465] italic shadow-sm">
-              &quot;What is the parental leave policy?&quot;
+              &quot;{t("flow.askQuery")}&quot;
             </div>
           </li>
 
           <li className="flex flex-col rounded-xl bg-[#3a35e8] p-7 text-white">
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#c3c0ff] uppercase">
-              Step 04
+              {t("flow.step04")}
             </p>
-            <h3 className="mt-3 text-base font-semibold">Cited answers</h3>
+            <h3 className="mt-3 text-base font-semibold">{t("flow.answerTitle")}</h3>
             <p className="mt-2 grow text-sm leading-6 text-[#d8dcff]">
-              Rudix provides grounded answers with verbatim citations from the
-              source document.
+              {t("flow.answerDesc")}
             </p>
             <div className="mt-7 rounded bg-white/10 p-3 text-xs leading-5 text-[#e8e6ff]">
-              &quot;You are eligible for 16 weeks…{" "}
-              <span className="font-medium">[Leave Policy p. 14]</span>&quot;
+              {t("flow.answerExample")}
             </div>
           </li>
         </ol>
@@ -402,15 +399,17 @@ function HRFlowSection() {
 }
 
 function HRDocumentSourcesSection() {
+  const t = useTranslations("public.hr");
+
   const sources = [
-    { label: "Employee handbook" },
-    { label: "Benefits enrollment guide" },
-    { label: "Leave and time-off policies" },
-    { label: "Expense and remote work SOPs" },
-    { label: "Remote work policy" },
-    { label: "Onboarding checklist" },
-    { label: "Role transition guides" },
-    { label: "Training materials" },
+    { label: t("documentSources.handbook") },
+    { label: t("documentSources.benefits") },
+    { label: t("documentSources.leavePolicy") },
+    { label: t("documentSources.expense") },
+    { label: t("documentSources.remoteWork") },
+    { label: t("documentSources.onboarding") },
+    { label: t("documentSources.roleTransition") },
+    { label: t("documentSources.training") },
   ];
 
   return (
@@ -422,11 +421,10 @@ function HRDocumentSourcesSection() {
               id="doc-sources-title"
               className="text-3xl font-black text-[#0f1117] lg:text-4xl"
             >
-              Supported document sources
+              {t("documentSources.heading")}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[#505465]">
-              Whether it&apos;s a 200-page handbook or a one-page memo, Rudix
-              processes every nuance of your organizational knowledge.
+              {t("documentSources.description")}
             </p>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {sources.map((s) => (
@@ -447,32 +445,30 @@ function HRDocumentSourcesSection() {
 
           <div className="rounded-2xl border border-[#d8dce7] bg-white p-8 shadow-sm">
             <p className="text-[11px] font-bold tracking-widest text-[#3a35e8] uppercase">
-              Example Q&amp;A
+              {t("documentSources.exampleQA")}
             </p>
             <div className="mt-4 space-y-4 text-sm">
               <div className="rounded-lg bg-[#f4f3f9] p-4">
                 <p className="font-semibold text-[#0f1117]">
-                  &quot;How many days of sick leave per month?&quot;
+                  {t("documentSources.q1")}
                 </p>
                 <div className="mt-3 border-l-4 border-[#3a35e8] pl-3 text-[#505465]">
-                  Employees accrue 1.5 sick days per month up to 18 days per
-                  year.
+                  {t("documentSources.a1")}
                   <br />
                   <span className="mt-1 block text-xs font-medium text-[#3a35e8]">
-                    [Leave Policy 2024, §3.2]
+                    {t("documentSources.a1Source")}
                   </span>
                 </div>
               </div>
               <div className="rounded-lg bg-[#f4f3f9] p-4">
                 <p className="font-semibold text-[#0f1117]">
-                  &quot;What is the remote work expense limit?&quot;
+                  {t("documentSources.q2")}
                 </p>
                 <div className="mt-3 border-l-4 border-[#3a35e8] pl-3 text-[#505465]">
-                  Up to $75/month for home-office expenses with manager
-                  approval.
+                  {t("documentSources.a2")}
                   <br />
                   <span className="mt-1 block text-xs font-medium text-[#3a35e8]">
-                    [Remote Work SOP, §4]
+                    {t("documentSources.a2Source")}
                   </span>
                 </div>
               </div>
@@ -485,38 +481,36 @@ function HRDocumentSourcesSection() {
 }
 
 function HRExampleQuestionsSection() {
+  const t = useTranslations("public.hr");
+
   const questions = [
     {
       initials: "JD",
       avatarBg: "bg-[#e8e7ed]",
-      question: "What is the parental leave policy?",
-      answer:
-        "Our policy provides 16 weeks of fully paid leave for primary caregivers. This applies to birth, adoption, or foster placement. Eligibility begins after 6 months of continuous employment.",
-      citation: "Global Benefits Guide, p. 42",
+      question: t("exampleQuestions.parentalLeaveQ"),
+      answer: t("exampleQuestions.parentalLeaveA"),
+      citation: t("exampleQuestions.parentalLeaveCitation"),
     },
     {
       initials: "AK",
       avatarBg: "bg-[#ecebff]",
-      question: "How many vacation days do I get?",
-      answer:
-        "Standard employees receive 25 days per calendar year, prorated based on start date. Up to 5 days can be carried over to the next year.",
-      citation: "Employee Handbook, §6.1",
+      question: t("exampleQuestions.vacationQ"),
+      answer: t("exampleQuestions.vacationA"),
+      citation: t("exampleQuestions.vacationCitation"),
     },
     {
       initials: "MR",
       avatarBg: "bg-[#d1fae5]",
-      question: "How do I submit an expense claim?",
-      answer:
-        "Log into the expense portal with your company email and submit receipts by the 25th of each month for reimbursement in the next pay cycle.",
-      citation: "Expense Policy, §2",
+      question: t("exampleQuestions.expenseQ"),
+      answer: t("exampleQuestions.expenseA"),
+      citation: t("exampleQuestions.expenseCitation"),
     },
     {
       initials: "SL",
       avatarBg: "bg-[#fde68a]",
-      question: "What happens if my question is not covered in the handbook?",
-      answer:
-        "Rudix will surface a low-confidence or not-found response and suggest contacting HR directly. Answer quality is tracked so coverage gaps can be addressed in the next policy update.",
-      citation: "No direct source — low confidence indicated",
+      question: t("exampleQuestions.notCoveredQ"),
+      answer: t("exampleQuestions.notCoveredA"),
+      citation: t("exampleQuestions.notCoveredCitation"),
     },
   ];
 
@@ -525,13 +519,13 @@ function HRExampleQuestionsSection() {
       <div className="mx-auto w-full max-w-7xl px-4 lg:px-8">
         <div className="mb-12">
           <span className="text-[11px] font-bold tracking-[0.12em] text-[#3a35e8] uppercase">
-            Employee experience
+            {t("exampleQuestions.sectionLabel")}
           </span>
           <h2
             id="questions-title"
             className="mt-2 text-3xl font-black text-[#0f1117] lg:text-4xl"
           >
-            Instant clarity for every query.
+            {t("exampleQuestions.heading")}
           </h2>
         </div>
 
@@ -553,7 +547,7 @@ function HRExampleQuestionsSection() {
                 <div className="border-t border-[#ecebff] px-5 pt-4 pb-5">
                   <div className="rounded-lg border-l-4 border-[#3a35e8] bg-[#ecebff]/40 p-4">
                     <p className="text-[10px] font-bold tracking-widest text-[#3a35e8] uppercase">
-                      Rudix HR Engine
+                      {t("exampleQuestions.engineLabel")}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-[#252a3b]">
                       {q.answer}
@@ -573,18 +567,20 @@ function HRExampleQuestionsSection() {
 }
 
 function HRSecuritySection() {
+  const t = useTranslations("public.hr");
+
   const features = [
     {
       icon: <IconLock />,
-      label: "End-to-end encryption at rest and in transit",
+      label: t("security.encryptionFeature"),
     },
     {
       icon: <IconShield />,
-      label: "Role-scoped access — employees only see their content",
+      label: t("security.roleAccessFeature"),
     },
     {
       icon: <IconHistory />,
-      label: "Complete audit log for every query and document action",
+      label: t("security.auditLogFeature"),
     },
   ];
 
@@ -597,12 +593,10 @@ function HRSecuritySection() {
               id="security-title"
               className="text-2xl font-black text-white lg:text-3xl"
             >
-              Built for HR data sensitivity
+              {t("security.heading")}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[#c7cede]">
-              HR documents contain sensitive employee information. Rudix is
-              built with role-aware access, data governance, and clear
-              boundaries between what Rudix answers and what your HR team owns.
+              {t("security.description")}
             </p>
             <ul className="mt-8 space-y-5">
               {features.map((f) => (
@@ -655,9 +649,7 @@ function HRSecuritySection() {
               {"}"}
             </pre>
             <p className="mt-5 text-xs text-[#636a7f]">
-              Usage note: Rudix does not make employment decisions or legal
-              determinations. Sensitive data governance remains with your
-              organization.
+              {t("security.usageNote")}
             </p>
           </div>
         </div>
@@ -667,6 +659,8 @@ function HRSecuritySection() {
 }
 
 function HRFinalCtaSection({ demoHref }: { demoHref: string }) {
+  const t = useTranslations("public.hr");
+
   return (
     <section
       aria-labelledby="hr-cta-title"
@@ -677,24 +671,23 @@ function HRFinalCtaSection({ demoHref }: { demoHref: string }) {
           id="hr-cta-title"
           className="text-4xl font-black text-white lg:text-5xl"
         >
-          Turn your HR documents into a policy assistant.
+          {t("cta.heading")}
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#d8dcff]">
-          Reduce repetitive HR queries and give employees consistent,
-          source-grounded answers from day one.
+          {t("cta.description")}
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <PublicActionLink
             href={demoHref}
             className="rounded-md bg-white px-8 py-4 text-sm font-semibold text-[#2d2ad1] shadow-[0_10px_30px_rgba(0,0,0,0.25)] transition hover:bg-[#f2f4ff] active:scale-95"
           >
-            Speak to us about HR
+            {t("cta.primaryCta")}
           </PublicActionLink>
           <PublicActionLink
             href="/solutions"
             className="rounded-md border border-white/70 px-8 py-4 text-sm font-semibold text-white transition hover:bg-white/10"
           >
-            View all solutions
+            {t("cta.secondaryCta")}
           </PublicActionLink>
         </div>
       </div>
@@ -703,6 +696,8 @@ function HRFinalCtaSection({ demoHref }: { demoHref: string }) {
 }
 
 function HRBreadcrumb() {
+  const t = useTranslations("public");
+
   return (
     <nav
       aria-label="Breadcrumb"
@@ -711,7 +706,7 @@ function HRBreadcrumb() {
       <ol className="flex items-center gap-2 text-xs text-[#61677a]">
         <li>
           <PublicActionLink href="/" className="hover:text-[#2a2f40]">
-            Home
+            {t("home")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#9ca3b8]">
@@ -719,14 +714,14 @@ function HRBreadcrumb() {
         </li>
         <li>
           <PublicActionLink href="/solutions" className="hover:text-[#2a2f40]">
-            Solutions
+            {t("breadcrumb.solutions")}
           </PublicActionLink>
         </li>
         <li aria-hidden="true" className="text-[#9ca3b8]">
           /
         </li>
         <li aria-current="page" className="font-semibold text-[#252a3b]">
-          HR
+          {t("hr.breadcrumb")}
         </li>
       </ol>
     </nav>

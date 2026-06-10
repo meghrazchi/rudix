@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
@@ -52,6 +53,7 @@ export function ContactDemoFormCard({
   supportHref,
   schedulerHref,
 }: ContactDemoFormCardProps) {
+  const t = useTranslations("public.contact.form");
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState<string | null>(
     null,
@@ -89,10 +91,9 @@ export function ContactDemoFormCard({
 
   return (
     <div className="rounded-xl border border-[#d7dce8] bg-white p-7 shadow-sm md:p-10">
-      <h2 className="text-2xl font-black text-[#141826]">Book a demo</h2>
+      <h2 className="text-2xl font-black text-[#141826]">{t("title")}</h2>
       <p className="mt-2 text-sm leading-7 text-[#5e657b]">
-        Tell us about your document workflow goals and we will route your
-        request to the right specialist.
+        {t("messagePlaceholder")}
       </p>
 
       {isUnavailable ? (
@@ -139,7 +140,7 @@ export function ContactDemoFormCard({
         <div className="grid gap-5 md:grid-cols-2">
           <label htmlFor="fullName" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Full name
+              {t("firstName")} {t("lastName")}
             </span>
             <input
               id="fullName"
@@ -157,7 +158,7 @@ export function ContactDemoFormCard({
 
           <label htmlFor="workEmail" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Work email
+              {t("email")}
             </span>
             <input
               id="workEmail"
@@ -175,7 +176,7 @@ export function ContactDemoFormCard({
 
           <label htmlFor="company" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Company
+              {t("company")}
             </span>
             <input
               id="company"
@@ -216,14 +217,14 @@ export function ContactDemoFormCard({
 
           <label htmlFor="roleTitle" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Role / title
+              {t("role")}
             </span>
             <select
               id="roleTitle"
               {...form.register("roleTitle")}
               className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             >
-              <option value="">Select your role</option>
+              <option value="">{t("rolePlaceholder")}</option>
               {CONTACT_ROLE_OPTIONS.map((roleOption) => (
                 <option key={roleOption.value} value={roleOption.label}>
                   {roleOption.label}
@@ -239,14 +240,14 @@ export function ContactDemoFormCard({
 
           <label htmlFor="useCase" className="block">
             <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-              Primary use case
+              {t("useCase")}
             </span>
             <select
               id="useCase"
               {...form.register("useCase")}
               className="h-11 w-full rounded-lg border border-[#d2d7e4] px-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
             >
-              <option value="">Select use case</option>
+              <option value="">{t("useCasePlaceholder")}</option>
               {CONTACT_USE_CASE_OPTIONS.map((useCaseOption) => (
                 <option key={useCaseOption.value} value={useCaseOption.label}>
                   {useCaseOption.label}
@@ -263,14 +264,14 @@ export function ContactDemoFormCard({
 
         <label htmlFor="message" className="block">
           <span className="mb-1 block text-xs font-semibold tracking-wide text-[#696f84] uppercase">
-            Message
+            {t("message")}
           </span>
           <textarea
             id="message"
             rows={4}
             {...form.register("message")}
             className="w-full rounded-lg border border-[#d2d7e4] px-3 py-3 text-sm ring-[#3525cd]/20 outline-none focus:ring"
-            placeholder="Tell us about your document workflow, current challenges, and timelines."
+            placeholder={t("messagePlaceholder")}
           />
           {form.formState.errors.message?.message ? (
             <p role="alert" className="mt-1 text-xs text-rose-700">
@@ -321,20 +322,31 @@ export function ContactDemoFormCard({
           disabled={form.formState.isSubmitting || isUnavailable}
           className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#3525cd] px-4 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {form.formState.isSubmitting ? "Submitting..." : "Submit Request"}
+          {form.formState.isSubmitting ? t("submitting") : t("submit")}
         </button>
       </form>
 
       {schedulerHref ? (
         <div className="mt-5 border-t border-[#e4e8f2] pt-5">
+          <p className="text-sm text-[#5e657b]">{t("schedulerLabel")}</p>
           <PublicActionLink
             href={schedulerHref}
-            className="text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
+            className="mt-1 inline-block text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
           >
-            Prefer scheduling directly? Open calendar
+            {t("schedulerCta")}
           </PublicActionLink>
         </div>
       ) : null}
+
+      <div className="mt-4 border-t border-[#e4e8f2] pt-4">
+        <p className="text-sm text-[#5e657b]">{t("fallbackEmailLabel")}</p>
+        <PublicActionLink
+          href={supportHref}
+          className="mt-1 inline-block text-sm font-semibold text-[#3128ad] underline decoration-[#b8bde9]"
+        >
+          {t("fallbackCta")}
+        </PublicActionLink>
+      </div>
     </div>
   );
 }

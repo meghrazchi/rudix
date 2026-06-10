@@ -106,7 +106,897 @@
       "changeLanguage": "Sprache ändern"
     },
     "home": "Startseite",
-    "language": "Sprache"
+    "language": "Sprache",
+    "breadcrumb": {
+      "solutions": "Lösungen"
+    },
+    "seo": {
+      "home": { "title": "Enterprise-RAG-Infrastruktur | Rudix", "description": "Rudix ist eine produktionsreife Enterprise-RAG-Plattform mit sicherer Datenaufnahme, fundierten Chats, Bewertungsanalysen und Pipeline-Observability." },
+      "product": { "title": "Produktübersicht | Rudix", "description": "Erfahren Sie, wie Rudix Dokumente in indizierte, quellengestützte Antworten mit Bewertungen, Pipeline-Transparenz und governance-fähigen Abläufen umwandelt." },
+      "pricing": { "title": "Preise | Rudix", "description": "Vergleichen Sie Rudix-Pläne für Dokument-KI, RAG-Chat, Bewertungen und Governance mit konfigurierbaren Paketierungsoptionen." },
+      "security": { "title": "Sicherheit & Vertrauen | Rudix", "description": "Rudix wurde für regulierte Umgebungen entwickelt – mit Architekturschranken, Nachvollziehbarkeit und Datenverwaltungskontrollen." },
+      "contact": { "title": "Kontakt & Demo | Rudix", "description": "Sprechen Sie mit dem Rudix-Team über Ihren Dokumenten-Workflow, eine Demo-Anfrage oder eine Sicherheitsprüfung." },
+      "solutions": { "title": "Lösungen | Rudix", "description": "KI-Dokumenten-Q&A für jedes Enterprise-Team – HR, Recht, Vertrieb, Compliance, Betrieb und mehr." },
+      "hr": { "title": "HR-Lösung | Rudix", "description": "Helfen Sie Mitarbeitern, Antworten in Handbüchern, Leistungsleitfäden und HR-Richtlinien mit quellengestützter KI zu finden." },
+      "legal": { "title": "Rechtliche Lösung | Rudix", "description": "Suchen Sie Verträge, Rechtsrichtlinien und Vereinbarungen mit quellengestützten Antworten und Prüfpfaden." },
+      "compliance": { "title": "Compliance-Lösung | Rudix", "description": "Rufen Sie Prüfnachweise und Compliance-Dokumentation sofort mit quellengestützter KI-Suche ab." },
+      "sales": { "title": "Vertriebs-Lösung | Rudix", "description": "Gewinnen Sie Deals mit zitierten Produktinformationen. Stärken Sie AEs mit sofortigen Antworten aus Ihrer Wissensbasis." },
+      "support": { "title": "Support-Lösung | Rudix", "description": "Helfen Sie Support-Mitarbeitern, schneller zu antworten, mit sofortigem Zugriff auf Dokumentation und Leitfäden." },
+      "research": { "title": "Forschungs-Lösung | Rudix", "description": "Extrahieren Sie Erkenntnisse aus technischen PDFs und Berichten mit RAG-gesteuerter Dokumentenintelligenz." },
+      "operations": { "title": "Betriebs-Lösung | Rudix", "description": "Runbook-Antworten, wenn Ihr Team sie braucht – sofortiger Abruf für Incident-Response und Prozessanleitung." },
+      "procurement": { "title": "Beschaffungs-Lösung | Rudix", "description": "Bewerten Sie Anbieter mit KI-gestützter Dokumentenprüfung und sofortigen Antworten auf Compliance-Fragen." },
+      "internalKnowledge": { "title": "Internes Wissen | Rudix", "description": "Machen Sie das institutionelle Wissen Ihres Teams mit quellengestützter Suche sofort zugänglich." },
+      "clientPortal": { "title": "Kundenportal | Rudix", "description": "Geben Sie Kunden sofortige Antworten aus Ihrer freigegebenen Dokumentation mit bereichsspezifischer KI-Frage-und-Antwort." }
+    },
+    "landing": {
+      "hero": {
+        "badge": "Enterprise-ready RAG-Infrastruktur",
+        "title": "Fragen Sie Ihre Dokumente.",
+        "titleHighlight": "Erhalten Sie die Antworten, die Sie brauchen.",
+        "description": "Verwandeln Sie PDFs, DOCX und komplexe technische Handbücher in präzise KI-Assistenten mit vollständigen Quellenangaben und infrastruktureller Transparenz.",
+        "primaryCta": "Sprechen Sie uns an",
+        "secondaryCta": "Demo ausprobieren",
+        "imageAlt": "Rudix-Produktoberfläche mit Dokumentenabfrage und fundierten Antworten",
+        "trustSoc2": "SOC 2 Konform",
+        "trustGdpr": "DSGVO-Bereit",
+        "trustPrivateCloud": "Private Cloud"
+      },
+      "problems": {
+        "heading": "Ihr Team hat die Antworten. Sie sind nur vergraben.",
+        "description": "Isoliertes Wissen und unübersichtliche Dokumentation sind die versteckten Produktivitätshemmer.",
+        "manualSearchingTitle": "Manuelle Suche",
+        "manualSearchingDesc": "Stunden verschwendet mit der Suche in verstreuten PDFs, SharePoint und alten Wikis nach einer einzigen Wahrheit.",
+        "repeatedQuestionsTitle": "Wiederholte Fragen",
+        "repeatedQuestionsDesc": "Fachexperten beantworten immer wieder dieselben \"Wie mache ich...\"-Fragen.",
+        "untrustedAITitle": "Nicht vertrauenswürdige KI",
+        "untrustedAIDesc": "Generische LLMs, die Antworten ohne Quellenangaben oder kontextspezifische Schutzmaßnahmen halluzinieren.",
+        "knowledgeSilosTitle": "Wissenssilos",
+        "knowledgeSilosDesc": "Kritische Daten stecken in Abteilungssilos fest und sind für bereichsübergreifende Teams nicht erreichbar."
+      },
+      "workflow": {
+        "heading": "Hochladen. Fragen. Verifizieren.",
+        "pipelineExplorer": "Pipeline-Explorer",
+        "liveStatus": "Live-Status: läuft",
+        "input": "Eingabe",
+        "active": "Aktiv",
+        "output": "Ausgabe",
+        "ingestionTitle": "Aufnahme & Indexierung",
+        "ingestionDesc": "Rudix analysiert PDFs, Word und JSON automatisch und wandelt sie in durchsuchbare hochdimensionale Vektoreinbettungen um.",
+        "retrievalTitle": "Semantischer Abruf",
+        "retrievalDesc": "Wenn ein Benutzer eine Frage stellt, ruft unsere RAG-Engine genau die Textabschnitte ab, die zur Beantwortung benötigt werden – nicht mehr und nicht weniger.",
+        "generationTitle": "Fundierte Generierung",
+        "generationDesc": "Die KI antwortet ausschließlich auf Basis abgerufener Daten und liefert direkte Links zu Quellen für absolute Transparenz."
+      },
+      "useCases": {
+        "heading": "Für jedes Team entwickelt.",
+        "description": "Spezifische Lösungen für komplexes Enterprise-Wissen.",
+        "legalLabel": "Recht & Compliance",
+        "legalTitle": "\"Erlaubt Abschnitt 4.2 eine Unterlizenzierung?\"",
+        "legalDesc": "Prüfen Sie Tausende von Verträgen in Sekunden mit genauen Klauselzitaten.",
+        "supportLabel": "Kundensupport",
+        "supportTitle": "\"Wie lautet die Richtlinie für internationale Rücksendungen?\"",
+        "supportDesc": "Stärken Sie Mitarbeiter mit sofortigen, genauen Antworten aus aktuellen Handbüchern.",
+        "engineeringLabel": "Produkt & Entwicklung",
+        "engineeringTitle": "\"Wie lauten die API-Ratenlimits für Tier 2?\"",
+        "engineeringDesc": "Technische Spezifikationen und Architekturlimits direkt an Entwickler weitergeben.",
+        "hrLabel": "Personalwesen",
+        "hrTitle": "\"Wie viele Tage Trauerurlaub sind zulässig?\"",
+        "hrDesc": "Mitarbeiteranfragen mit richtlinienkonformen Antworten automatisieren.",
+        "salesOpsLabel": "Vertriebsoperationen",
+        "salesOpsTitle": "\"Unterstützen wir SSO für Enterprise-Kunden?\"",
+        "salesOpsDesc": "Sofortige Antworten für RFPs und Sicherheitsfragebögen erhalten."
+      },
+      "security": {
+        "heading": "Entwickelt für private Dokumenten-Workflows.",
+        "description": "Wir sichern Ihre Daten nicht nur. Wir gestalten sie für vollständige Isolation und Nachvollziehbarkeit.",
+        "imageAlt": "Visualisierung eines sicheren Enterprise-Workflows",
+        "dataIsolationTitle": "Datenisolierung",
+        "dataIsolationDesc": "Separate Vektordatenbanken für jeden Arbeitsbereich. Ihre Dokumente vermischen sich nie mit anderen.",
+        "auditLogsTitle": "Prüfprotokolle",
+        "auditLogsDesc": "Verfolgen Sie jede Abfrage, jeden Abruf und jede administrative Aktion mit detaillierten zeitgestempelten Protokollen.",
+        "encryptionTitle": "Ende-zu-Ende-Verschlüsselung",
+        "encryptionDesc": "AES-256 im Ruhezustand und TLS 1.3 bei der Übertragung, mit Bring Your Own Key-Unterstützung für Enterprise."
+      },
+      "cta": {
+        "heading": "Bereit, Ihre Dokumente in einen KI-Assistenten zu verwandeln?",
+        "description": "Schließen Sie sich zukunftsorientierten Entwicklungsteams an, die Rudix für exzellentes Wissensmanagement nutzen.",
+        "primaryCta": "Sprechen Sie uns an",
+        "secondaryCta": "Dokumentation ansehen"
+      }
+    },
+    "product": {
+      "hero": {
+        "badge": "Enterprise-Grade RAG",
+        "title": "Die Infrastruktur für hochpräzise Dokumentenintelligenz",
+        "titleHighlight": "hochpräzise",
+        "description": "Rudix orchestriert Dokumentenaufnahme, -abruf, fundierte Antworten und Bewertungen in einem produktionsbereiten Workflow für Enterprise-Teams.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Pipeline-Explorer ansehen",
+        "imageAlt": "Vorschau der Rudix-Pipeline-Oberfläche",
+        "imageCaption": "Produktoberflächen-Vorschau mit Aufnahme-, Abruf- und Antwortnachverfolgung."
+      },
+      "workflowSection": {
+        "label": "End-to-End-Orchestrierung",
+        "heading": "Der Rudix-Engine-Workflow",
+        "multiModalUploadTitle": "Multimodaler Upload",
+        "multiModalUploadDesc": "PDF-, DOCX- und TXT-Aufnahme",
+        "chunkingVectorTitle": "Chunking und Vektor",
+        "chunkingVectorDesc": "Strukturierte semantische Zerlegung",
+        "retrievalGridsTitle": "Abrufgitter",
+        "retrievalGridsDesc": "Top-k-Abruf mit Reranking",
+        "trustedAnswerTitle": "Vertrauenswürdige Antwort",
+        "trustedAnswerDesc": "Fundierte Antwort mit Quellenangaben"
+      },
+      "documentsSection": {
+        "heading": "Präzises Dokumentenmanagement",
+        "description": "Verwalten Sie hochvolumige Dokumentenoperationen mit strukturiertem Aufnahmestatus, zuverlässigen Metadaten und klarer Nachvollziehbarkeit für jedes indexierte Asset.",
+        "feature1": "Intelligentes Parsen über gemischte Dokumentlayouts und -formate hinweg.",
+        "feature2": "Zuverlässige Re-Indexierungs-Workflows für aktualisierte Richtlinien- und Wissensdokumente.",
+        "sourceTransparencyLabel": "Quellentransparenz",
+        "sourceTransparencyText": "Zitiermarkierungen verbinden jede Antwort mit den ursprünglichen Quelltextausschnitten und geben Prüfern einen prüffreundlichen Weg von der Antwort zum Belegnachweise."
+      },
+      "groundedAnswers": {
+        "heading": "Fundierte Antworten mit Quellenangaben",
+        "description": "Jede Antwort ist an Belegnachweise geknüpft, damit Teams Behauptungen verifizieren und referenzierte Ausschnitte mit Sicherheit prüfen können."
+      },
+      "metrics": {
+        "accuracyScore": "Genauigkeitsbewertung",
+        "latencyP99": "Latenz p99",
+        "retrievalPrecision": "Abrufpräzision"
+      },
+      "pipeline": {
+        "heading": "Pipeline-Explorer-Visualizer",
+        "description": "Verfolgen Sie Aufnahme-, Abruf- und Antwortphasen in einer Zeitachse, damit Teams das Verhalten debuggen und die Qualität zuverlässig verbessern können.",
+        "openCta": "Pipeline-Explorer öffnen",
+        "imageAlt": "Pipeline-Dashboard-Vorschau mit Abruf- und Latenzsignalen"
+      },
+      "admin": {
+        "heading": "Einheitliche Admin-Kontrolle",
+        "description": "Halten Sie Governance und Betrieb mit integrierter Observability für Nutzung, Richtlinien und Gesundheitstrends abgestimmt.",
+        "soc2Title": "SOC 2-konforme Workflows",
+        "soc2Desc": "Governance-fähige Kontrollen für Dokumente, Chat und Bewertungsoperationen anwenden.",
+        "usageAnalyticsTitle": "Nutzungsanalysen",
+        "usageAnalyticsDesc": "Token-Nutzung, Latenz und Adoptionstrends für die Betriebsplanung verfolgen.",
+        "usageAnalyticsCta": "Nutzungsanalysen",
+        "auditLogsCta": "Prüfprotokolle",
+        "monitoringCta": "Überwachung"
+      },
+      "integration": {
+        "apiFirstTitle": "API-First-Grundlage",
+        "apiFirstDesc": "Rudix schrittweise mit typisierten Schnittstellen einführen, die bestehende Workflows und Lieferprozesse ergänzen.",
+        "futureReadyTitle": "Zukunftssichere Konnektoren",
+        "futureReadyDesc": "Kontrollierte Konnektor- und MCP-Erweiterung planen, ohne die Kerndokumenten-Governance zu ändern.",
+        "operatorVisibilityTitle": "Operator-Transparenz",
+        "operatorVisibilityDesc": "Pipeline-Zustand und Qualitätsmetriken in einer Ansicht für schnellere Incident-Response und Feinabstimmung."
+      },
+      "cta": {
+        "heading": "Bereit, Ihre Daten-Engine zu gestalten?",
+        "primaryCta": "Sprechen Sie uns an",
+        "secondaryCta": "Entwickler-Sandbox",
+        "tertiaryCta": "Sicherheitsseite ansehen"
+      },
+      "faq": {
+        "title": "Produkt-FAQ",
+        "fileTypesQ": "Welche Dateitypen können wir hochladen?",
+        "fileTypesA": "Rudix unterstützt PDF-, DOCX- und TXT-Uploads mit organisationsspezifischen Verarbeitungskontrollen.",
+        "citationsQ": "Sind Antworten mit Quellenangaben versehen?",
+        "citationsA": "Ja. Rudix gibt Antwortreferenzen zurück, damit Teams Belegnachweise und die Fundierung der Antworten prüfen können.",
+        "evaluationQ": "Können wir die Antwortqualität vor der Einführung bewerten?",
+        "evaluationA": "Ja. Bewertungsläufe bieten wiederholbare Qualitätsprüfungen für Abruf- und Antwortverhalten.",
+        "isolationQ": "Wie unterstützt Rudix die Datenisolierung?",
+        "isolationA": "Rudix setzt organisationsweite Grenzen für Dokumente, Abruf und benutzerseitige Workflows durch.",
+        "deploymentQ": "Können wir Rudix in unserer eigenen Umgebung bereitstellen?",
+        "deploymentA": "Rudix ist für containerbasierte Bereitstellung mit umgebungsgesteuerter Konfiguration und Betrieb ausgelegt."
+      }
+    },
+    "pricing": {
+      "hero": {
+        "badge": "Preise",
+        "heading": "Wählen Sie einen Plan für zuverlässige Dokument-KI-Operationen",
+        "description": "Vergleichen Sie Stufen für Dokumentenaufnahme, RAG-Chat, Bewertungen und Governance, um Rudix im richtigen Tempo einzuführen.",
+        "startTrialCta": "Testversion starten",
+        "requestDemoCta": "Demo anfragen",
+        "loginCta": "Anmelden"
+      },
+      "plans": {
+        "heading": "Pläne für jede Einführungsphase",
+        "description": "Die Preise werden bewusst als Kontaktplatzhalter angezeigt, bis die endgültige Paketierung für Ihre Umgebung und Ihr Nutzungsprofil genehmigt ist.",
+        "contactUs": "Kontaktieren Sie uns",
+        "starterBadge": "Für gezielte Pilotprojekte",
+        "starterTitle": "Starter",
+        "starterSummary": "Starten Sie einen sicheren Proof-of-Value für ein Team mit grundlegenden Dokumenten-Q&A-Workflows.",
+        "starterBillingHint": "Die kommerzielle Paketierung wird während der Lösungsüberprüfung finalisiert.",
+        "starterH0": "Kerndokumentenaufnahme und quellengestützter Chat",
+        "starterH1": "Starter-Dokument- und Indexierungskontingente",
+        "starterH2": "Grundlegende Nutzungs- und Qualitätstransparenz",
+        "starterH3": "E-Mail-Support und Onboarding-Anleitung",
+        "starterCta": "Testversion starten",
+        "teamBadge": "Am häufigsten für Einführungen gewählt",
+        "teamTitle": "Team",
+        "teamSummary": "Skalieren Sie abteilungsübergreifend mit stärkerer Governance, Bewertungen und Betriebskontrollen.",
+        "teamBillingHint": "Die Paketierung wird auf Nutzungsform und Teamanforderungen abgestimmt.",
+        "teamH0": "Erweiterte Dokument-, Speicher- und Indexierungskontingente",
+        "teamH1": "Bewertungsläufe und Qualitätsverfolgungsworkflows",
+        "teamH2": "Prüfprotokoll-Transparenz und rollenbasierte Zusammenarbeit",
+        "teamH3": "Priorisierter Support und Architekturberatung",
+        "teamCta": "Demo anfragen",
+        "enterpriseBadge": "Für erweiterte Governance-Anforderungen",
+        "enterpriseTitle": "Enterprise",
+        "enterpriseSummary": "Stimmen Sie private Bereitstellung, Sicherheitsprüfung und Governance-Anforderungen für regulierte oder hochskalierte Umgebungen ab.",
+        "enterpriseBillingHint": "Die endgültigen Bedingungen hängen von Bereitstellung, Kontrollen und Support-Modell ab.",
+        "enterpriseH0": "Private Bereitstellungs- und Umgebungskontrolloptionen",
+        "enterpriseH1": "Erweiterte Governance-Richtlinien und Genehmigungsworkflows",
+        "enterpriseH2": "Individuelles Onboarding, Erfolgsplanung und Support",
+        "enterpriseH3": "Sicherheitsprüfungsworkflow mit Lösungsarchitekten",
+        "enterpriseCta": "Vertrieb kontaktieren"
+      },
+      "usageLimits": {
+        "heading": "Nutzungs- und Kontingentleitfaden",
+        "description": "Die endgültigen Grenzen hängen von Ihrer gewählten Stufe und dem Einführungsprofil für Dokumente, Fragen, Bewertungen, Indexierungsworkloads, Speicher und Organisationsgröße ab.",
+        "documentsTitle": "Dokumente und Indexierungsaufgaben",
+        "documentsDetail": "Grenzen können nach Stufe für Aufnahmedurchsatz, wartende Aufgaben und Index-Aktualisierungsoperationen angepasst werden.",
+        "questionsTitle": "Fragen, Token und Bewertungen",
+        "questionsDetail": "Nutzungskontrollen umfassen Chat-/Fragenvolumen, Token-Budgets und Bewertungslaufkontingente.",
+        "storageTitle": "Speicher und Organisationen",
+        "storageDetail": "Stufen können auf Speicherrahmen, Teammitgliederkontingente und organisationsweite Governance-Anforderungen abgestimmt werden."
+      },
+      "comparison": {
+        "heading": "Planvergleich",
+        "description": "Vergleichen Sie Funktionen auf einen Blick. Die mobile Ansicht verwendet gestapelte Karten für bessere Lesbarkeit.",
+        "capability": "Funktion",
+        "starter": "Starter",
+        "team": "Team",
+        "enterprise": "Enterprise",
+        "rowDocumentCapabilityLabel": "Dokumentkapazität",
+        "rowDocumentStarterValue": "Starter-Grenzen",
+        "rowDocumentTeamValue": "Erweiterte Grenzen",
+        "rowDocumentEnterpriseValue": "Individuelles Programm",
+        "rowStorageCapabilityLabel": "Speicher und Indexierung",
+        "rowStorageStarterValue": "Kern-Indexierungsworkflows",
+        "rowStorageTeamValue": "Höherer Indexierungsdurchsatz",
+        "rowStorageEnterpriseValue": "Großskalenoptimierung",
+        "rowTeamAccessCapabilityLabel": "Teammitglieder und Zugang",
+        "rowTeamAccessStarterValue": "Kleinteam-Einrichtung",
+        "rowTeamAccessTeamValue": "Abteilungsübergreifende Zusammenarbeit",
+        "rowTeamAccessEnterpriseValue": "Enterprise-Rollenmodell",
+        "rowEvaluationsCapabilityLabel": "Bewertungsläufe",
+        "rowEvaluationsStarterValue": "Begrenzte Läufe",
+        "rowEvaluationsTeamValue": "Produktionsvalidierungsrhythmus",
+        "rowEvaluationsEnterpriseValue": "Individuelles Qualitätsprogramm",
+        "rowAuditCapabilityLabel": "Prüfprotokolle und Governance",
+        "rowAuditStarterValue": "Grundlegende Transparenz",
+        "rowAuditTeamValue": "Erweiterte Governance-Kontrollen",
+        "rowAuditEnterpriseValue": "Erweiterte Richtlinienkontrollen",
+        "rowDeploymentCapabilityLabel": "Bereitstellungsoptionen",
+        "rowDeploymentStarterValue": "Standardbereitstellung",
+        "rowDeploymentTeamValue": "Standard + Beratung",
+        "rowDeploymentEnterpriseValue": "Private Bereitstellungsoptionen",
+        "rowSupportCapabilityLabel": "Support-Stufe",
+        "rowSupportStarterValue": "E-Mail-Support",
+        "rowSupportTeamValue": "Priorisierter Support",
+        "rowSupportEnterpriseValue": "Dedizierter Erfolgsplan"
+      },
+      "faq": {
+        "title": "Preis-FAQ",
+        "trialQ": "Können wir mit einer Testversion beginnen, bevor wir uns für einen Plan entscheiden?",
+        "trialA": "Ja. Teams können mit einem Test-Workflow beginnen und dann zur Stufe wechseln, die am besten zum Einführungsumfang und den Governance-Anforderungen passt.",
+        "upgradesQ": "Wie funktionieren Upgrades, wenn unsere Nutzung wächst?",
+        "upgradesA": "Rudix unterstützt stufenweise Erweiterungen, damit Sie Nutzung, Kontrollen und Support erhöhen können, ohne Ihre Dokumenten-Workflows neu aufzubauen.",
+        "securityReviewQ": "Können wir während der Preisverhandlungen eine Sicherheitsprüfung anfordern?",
+        "securityReviewA": "Ja. Sicherheitsprüfungsgespräche können während der Planauswahl einbezogen werden, insbesondere bei privater Bereitstellung oder regulierten Anforderungen.",
+        "selfHostedQ": "Unterstützen Sie selbst gehostete oder private Bereitstellungsmodelle?",
+        "selfHostedA": "Private Bereitstellungsoptionen sind über Enterprise-Pakete auf Basis von Infrastruktur- und Governance-Anforderungen verfügbar.",
+        "billingQ": "An wen wenden wir uns bei Abrechnungs- und Handelsfragen?",
+        "billingA": "Nutzen Sie den Vertriebskontakt-Pfad auf dieser Seite, und das Rudix-Team leitet Sie an den richtigen Handelsansprechpartner weiter."
+      },
+      "cta": {
+        "heading": "Benötigen Sie einen maßgeschneiderten Plan?",
+        "description": "Sprechen Sie mit dem Rudix-Team, um Nutzungsgrenzen, Bereitstellungsposition und Support-Abdeckung auf Ihre Einführung abzustimmen.",
+        "primaryCta": "Vertrieb kontaktieren",
+        "secondaryCta": "Demo anfragen"
+      }
+    },
+    "security": {
+      "hero": {
+        "badge": "Sicherheit & Vertrauen",
+        "heading": "Sicherheit und Governance für private Dokument-KI",
+        "description": "Rudix wurde für regulierte Umgebungen und Enterprise-Sicherheitsteams entwickelt, die Architekturschranken, Nachvollziehbarkeit und Datenverwaltungskontrollen benötigen.",
+        "primaryCta": "Sicherheitsprüfung anfragen",
+        "secondaryCta": "Architektur ansehen"
+      },
+      "pillars": {
+        "heading": "Sicherheitssäulen",
+        "description": "Grundlegende Architekturkontrollen zum Schutz von Dokumenten, Zugang und Betrieb.",
+        "documentPrivacyTitle": "Dokumentdatenschutz",
+        "documentPrivacyDesc": "Dokumente werden in organisationsspezifischen Workflows mit geschütztem Speicher und kontrollierten Abrufpfaden verarbeitet.",
+        "documentPrivacyCallout": "Datenschutz als Standard",
+        "orgIsolationTitle": "Organisationsisolierung",
+        "orgIsolationDesc": "Der Datenzugang bleibt mandantenbezogen, sodass Teams nur Inhalte ihrer eigenen Organisation abrufen.",
+        "orgIsolationCallout": "Mandantenspezifische Zugriffsgrenzen",
+        "accessControlTitle": "Zugangskontrolle",
+        "accessControlDesc": "Rollenbasierte Berechtigungen werden für Dokumentenaktionen, Abrufoperationen und Admin-Oberflächen durchgesetzt.",
+        "accessControlCallout": "Least-Privilege-Rollenmodell",
+        "auditLogsTitle": "Prüfprotokolle",
+        "auditLogsDesc": "Sicherheitsrelevante Aktionen können mit Anforderungskontext verfolgt werden, um Betriebsprüfungen und Untersuchungen zu unterstützen.",
+        "auditLogsCallout": "Nachvollziehbare Aktivitätsaufzeichnungen",
+        "safeUploadsTitle": "Sichere Uploads",
+        "safeUploadsDesc": "Uploads werden vor der Verarbeitung validiert, um Risiken durch fehlerhafte Nutzdaten zu reduzieren und die Aufnahmequalität zu schützen.",
+        "safeUploadsCallout": "Validierung vor der Indexierung",
+        "encryptionTitle": "Verschlüsselungsstatus",
+        "encryptionDesc": "Rudix ist für verschlüsselte Übertragung und Speicherung ausgelegt, abgestimmt auf Enterprise-Bereitstellungskontrollen.",
+        "encryptionCallout": "Verschlüsselt bei Übertragung und im Ruhezustand",
+        "observabilityTitle": "Betriebliche Observability",
+        "observabilityDesc": "Teams können den Anforderungszustand und Fehler mit sicherer Telemetrie überwachen, ohne sensiblen Dokumenttext preiszugeben.",
+        "observabilityCallout": "Sichere betriebliche Transparenz"
+      },
+      "documentHandling": {
+        "heading": "Dokumentverarbeitungslebenszyklus",
+        "description": "Sichere Verarbeitung vom Upload bis zum indexierten Zustand.",
+        "validateTitle": "Validieren",
+        "validateDesc": "Dateityp und Struktur vor Beginn der Verarbeitung prüfen.",
+        "storeTitle": "Speichern",
+        "storeDesc": "Akzeptierte Dateien in geschützten Objektspeicher schreiben.",
+        "parseTitle": "Parsen",
+        "parseDesc": "Strukturierten Text und Metadaten sicher extrahieren.",
+        "chunkTitle": "Segmentieren",
+        "chunkDesc": "Inhalt in abruffreundliche Segmente aufteilen.",
+        "embedTitle": "Einbetten",
+        "embedDesc": "Vektordarstellungen für die Suche generieren.",
+        "indexTitle": "Indexieren",
+        "indexDesc": "Bereichsspezifische Vektoren im Organisationsindex veröffentlichen.",
+        "answerTitle": "Mit Quellenangaben antworten",
+        "answerDesc": "Antworten zurückgeben, die in Quellenreferenzen verankert sind.",
+        "deleteTitle": "Löschen",
+        "deleteDesc": "Lösch-Workflows für Speicher und Indizes einhalten.",
+        "reindexTitle": "Neu indexieren",
+        "reindexDesc": "Indexzustand neu aufbauen, wenn Inhalte aktualisiert werden."
+      },
+      "accessGovernance": {
+        "heading": "Zugang und Governance",
+        "description": "Rollenspezifische Kontrollen, Sitzungssicherheit und administrative Transparenz.",
+        "authSessionTitle": "Authentifizierung und Sitzungssicherheit",
+        "authSessionDesc": "Authentifizierte Flows sind von öffentlichen Seiten getrennt, mit Sitzungsprüfungen und geschützten Routengrenzen.",
+        "roleAccessTitle": "Rollenbasierter Zugang",
+        "roleAccessDesc": "Berechtigungen können nach Rolle und Organisationskontext eingegrenzt werden, um Dokument- und Admin-Aktionen zu steuern.",
+        "adminGovernanceTitle": "Admin-Governance",
+        "adminGovernanceDesc": "Administrative Kontrollen unterstützen Richtlinienverwaltung, Tool-Schutzmaßnahmen und betriebliche Prüfungsworkflows.",
+        "routeBoundariesTitle": "Öffentliche/private Routengrenzen",
+        "routeBoundariesDesc": "Marketing-Routen bleiben öffentlich, während Anwendungs-Arbeitsbereiche authentifizierten Zugang erfordern."
+      },
+      "compliance": {
+        "heading": "Compliance-Bereitschaft",
+        "description": "Rudix wurde für Umgebungen mit formalen Sicherheits- und Aufbewahrungsanforderungen entwickelt.",
+        "readiness0": "Sicherheitsdokumentation und Kontrollzuordnungen können während der Enterprise-Prüfung bereitgestellt werden.",
+        "readiness1": "Die Bereitschaft für SOC 2-, DSGVO-, HIPAA- oder ISO-Workflows hängt von Ihren Bereitstellungskontrollen und dem Validierungsprozess ab.",
+        "readiness2": "Rudix beansprucht keine Zertifizierungen für Ihre Organisation, solange diese nicht in Ihrer Umgebung verifiziert wurden.",
+        "retentionHeading": "Aufbewahrung und Löschung",
+        "retention0": "Aufbewahrungsfristen sollten durch Ihre Organisationsrichtlinie und gesetzliche Anforderungen festgelegt werden.",
+        "retention1": "Lösch-Workflows sollten Objektspeicher, durchsuchbare Indizes und abgeleitete Artefakte abdecken.",
+        "retention2": "Re-Indexierungs-Workflows unterstützen die Aktualisierung veralteter Dokumente und Richtlinien."
+      },
+      "faq": {
+        "title": "Sicherheits-FAQ",
+        "logsQ": "Gibt Rudix standardmäßig rohen Dokumenttext in Protokollen aus?",
+        "logsA": "Rudix ist auf sichere Observability ausgelegt und vermeidet die Ausgabe von rohem, geschütztem Dokumenttext in Standard-Betriebsprotokollen.",
+        "privateQ": "Können wir Rudix in einem privaten Bereitstellungsmodell betreiben?",
+        "privateA": "Ja. Rudix unterstützt Bereitstellungsmuster, bei denen Infrastruktur und Datenverarbeitung in Ihrer kontrollierten Umgebung verbleiben.",
+        "isolationQ": "Wie funktioniert die Organisationsisolierung?",
+        "isolationA": "Zugangsprüfungen und Abruffilter sind organisationsspezifisch, sodass Daten mandantenübergreifend getrennt bleiben.",
+        "reviewQ": "Können wir Sicherheitskontrollen vor der Einführung prüfen?",
+        "reviewA": "Ja. Nutzen Sie eine Sicherheitsprüfungssitzung, um Architektur, Zugriffskontrollen und Datenverarbeitungsanforderungen für Ihren Anwendungsfall zu validieren."
+      },
+      "cta": {
+        "heading": "Sicherheitsprüfung anfragen",
+        "description": "Besprechen Sie Bereitstellungsgrenzen, Datenverarbeitungserwartungen und Governance-Anforderungen mit dem Rudix-Team.",
+        "primaryCta": "Sicherheit kontaktieren",
+        "secondaryCta": "Demo anfragen"
+      }
+    },
+    "contact": {
+      "hero": {
+        "badge": "Mit dem Rudix-Team verbinden",
+        "heading": "Sprechen Sie mit uns über Ihren Dokumenten-Workflow",
+        "description": "Buchen Sie eine Demo oder kontaktieren Sie Rudix, um sichere Aufnahme, Abruf, Bewertung und Governance-Anforderungen für Ihr Team zu besprechen."
+      },
+      "form": {
+        "title": "Demo anfragen",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "email": "Geschäftliche E-Mail",
+        "company": "Unternehmensname",
+        "role": "Ihre Rolle",
+        "useCase": "Primärer Anwendungsfall",
+        "message": "Nachricht",
+        "messagePlaceholder": "Erzählen Sie uns von Ihrem Anwendungsfall, Ihren Bereitstellungsanforderungen oder Fragen",
+        "submit": "Anfrage absenden",
+        "submitting": "Wird gesendet...",
+        "success": "Anfrage eingegangen",
+        "successDescription": "Vielen Dank für Ihr Interesse. Das Rudix-Team wird sich in Kürze bei Ihnen melden.",
+        "error": "Übermittlung fehlgeschlagen. Bitte versuchen Sie es erneut oder nutzen Sie einen der alternativen Kontaktwege unten.",
+        "rolePlaceholder": "Wählen Sie Ihre Rolle",
+        "useCasePlaceholder": "Wählen Sie Ihren primären Anwendungsfall",
+        "roleOptCtoVp": "CTO / VP Engineering",
+        "roleOptSolutionsArchitect": "Lösungsarchitekt",
+        "roleOptDevopsSre": "DevOps / SRE",
+        "roleOptProductManagement": "Produktmanagement",
+        "roleOptSecurityCompliance": "Sicherheit / Compliance",
+        "roleOptOther": "Sonstiges",
+        "useCaseOptRagPipeline": "RAG-Pipeline-Optimierung",
+        "useCaseOptCompliance": "Automatisierte Compliance-Workflows",
+        "useCaseOptExtraction": "Hochvolumige Datenextraktion",
+        "useCaseOptGovernance": "Governance und Prüfungsbereitschaft",
+        "useCaseOptMigration": "Migration veralteter Workflows",
+        "useCaseOptOther": "Sonstiges",
+        "schedulerLabel": "Lieber direkt einen Termin vereinbaren?",
+        "schedulerCta": "Per Kalender planen",
+        "fallbackEmailLabel": "Oder schreiben Sie uns an",
+        "fallbackCta": "Per E-Mail kontaktieren"
+      },
+      "goodFit": {
+        "heading": "Geeignet für Teams, die benötigen",
+        "item0": "Untersekundige Latenz für abrufgestützte Q&A in großem Maßstab.",
+        "item1": "Sicherheits- und Datenschutzmaßnahmen für sensible Dokumenten-Workflows.",
+        "item2": "Flexible Bereitstellungsposition für Enterprise-Governance-Anforderungen.",
+        "item3": "Integrationsplanung abgestimmt auf bestehende Lieferabläufe."
+      },
+      "systemHealth": {
+        "label": "Systemzustand",
+        "operational": "Betriebsbereit",
+        "ingestion": "> Aufnahmewarteschlange: gesund",
+        "retrieval": "> Abruflatenz: im Zielbereich",
+        "evaluation": "> Bewertungsaufgaben: verfügbar",
+        "audit": "> Prüf-Pipeline: aktiv"
+      },
+      "cards": {
+        "salesTitle": "Vertrieb",
+        "salesDesc": "Einführungspläne, Paketierung und Enterprise-Adoptionsmeilensteine besprechen.",
+        "salesCta": "Vertrieb kontaktieren",
+        "supportTitle": "Support",
+        "supportDesc": "Einrichtungsanleitung, Onboarding-Unterstützung und bewährte Betriebspraktiken erhalten.",
+        "supportCta": "Support kontaktieren",
+        "securityTitle": "Sicherheitsprüfung",
+        "securityDesc": "Sicherheits- und Vertrauensprüfungsanfragen mit dem Rudix-Team koordinieren.",
+        "securityCta": "Sicherheitskontakt",
+        "statusTitle": "Status und Dokumentation",
+        "statusDesc": "Plattformstatus und Implementierungsdokumentation jederzeit abrufen.",
+        "statusCta": "Ressourcen öffnen"
+      },
+      "faq": {
+        "title": "Kontakt- und Demo-FAQ",
+        "demoQ": "Können wir eine Demo anfragen, bevor die Paketierung finalisiert ist?",
+        "demoA": "Ja. Das Rudix-Team kann eine geführte Demo durchführen, die auf Ihren Dokumenten-Workflow und Ihre Einführungsziele abgestimmt ist.",
+        "securityQ": "Unterstützen Sie Sicherheitsprüfungsanfragen?",
+        "securityA": "Ja. Sie können Sicherheitsprüfungsfragen über diese Seite weiterleiten und die nächsten Schritte mit dem Team koordinieren.",
+        "schedulingQ": "Können wir statt einer direkten API-Übermittlung einen Terminplanungslink verwenden?",
+        "schedulingA": "Ja. Bei entsprechender Konfiguration kann der Kontakt-Flow zu einem Terminplanungs- oder CRM-Ziel weitergeleitet werden.",
+        "fallbackQ": "Was passiert, wenn die Kontaktübermittlung nicht konfiguriert ist?",
+        "fallbackA": "Die Seite bietet alternative Kontaktoptionen, damit Besucher weiterhin Vertriebs-, Support- und Sicherheitskontakte erreichen können."
+      },
+      "cta": {
+        "heading": "Möchten Sie eine Live-Demonstration?",
+        "description": "Vereinbaren Sie eine Demo mit Rudix, um Ihren Anwendungsfall, Ihre Erfolgskriterien und Ihren Einführungspfad zu besprechen.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "solutions": {
+      "breadcrumb": "Lösungen",
+      "hero": {
+        "badge": "Lösungs-Ökosystem",
+        "heading": "KI-Dokumenten-Q&A für jedes Team.",
+        "description": "Rudix hilft jeder Abteilung, von fragmentierten Dokumenten zu durchsuchbaren, quellengestützten Antworten mit Workflow-Transparenz, Qualitätskontrollen und governance-fähigem Betrieb zu wechseln.",
+        "explorePlatformCta": "Plattform erkunden",
+        "viewApiDocsCta": "API-Dokumentation ansehen"
+      },
+      "cards": {
+        "heading": "Enterprise-Anwendungsfälle",
+        "description": "Abteilungsspezifische Lösungspfade auf einer gemeinsamen Rudix-Grundlage."
+      },
+      "crossValue": {
+        "heading": "Gemeinsamer Mehrwert in allen Lösungen",
+        "description": "Jede Abteilung profitiert von derselben sicheren, fundierten und prüfbaren Rudix-Plattform.",
+        "secureUploadTitle": "Sicherer Upload und Aufnahme",
+        "secureUploadDesc": "Abteilungsdateien in richtlinienkonforme Workflows mit nachvollziehbaren Verarbeitungsstatus einbringen.",
+        "citationBackedTitle": "Quellengestützte Antworten",
+        "citationBackedDesc": "Antworten in Quellenreferenzen verankern, damit Teams Belege und Kontext schnell verifizieren können.",
+        "evaluationQualityTitle": "Bewertungsgetriebene Qualität",
+        "evaluationQualityDesc": "Wiederholbare Bewertungsläufe nutzen, um Abruf- und Antwortleistung über die Zeit zu überwachen.",
+        "governanceTitle": "Governance und Prüfbarkeit",
+        "governanceDesc": "Rollenspezifische Kontrollen mit betrieblicher Transparenz für Dokument- und Antwort-Workflows anwenden."
+      },
+      "questionMatrix": {
+        "heading": "Beispiel-Fragematrix",
+        "description": "Sehen Sie, wie Rudix mehrstufige und inhaltsdichte Anfragen verarbeitet.",
+        "complexity": "Komplexität",
+        "sampleQuery": "Beispielanfrage",
+        "retrievalStrategy": "Abrufstrategie",
+        "singleHopLabel": "EINSTUFIG",
+        "singleHopQuery": "\"Was ist unsere Richtlinie zur Telearbeit in Deutschland?\"",
+        "singleHopStrategy": "Hybride Semantik + Schlüsselwort",
+        "multiHopLabel": "MEHRSTUFIG",
+        "multiHopQuery": "\"Vergleichen Sie unser Q3-Umsatzwachstum mit der Prognose im Jahresbericht 2022.\"",
+        "multiHopStrategy": "Dokumentübergreifende Verkettung",
+        "structuralLabel": "STRUKTURELL",
+        "structuralQuery": "\"Listen Sie alle Anbieter mit vor dem 31. Dez. ablaufenden Verträgen in einer Tabelle auf.\"",
+        "structuralStrategy": "JSON-/Tabellenextraktionsagent",
+        "reasoningLabel": "SCHLUSSFOLGERUNG",
+        "reasoningQuery": "\"Widerspricht die neue DSGVO-Änderung unserem aktuellen Datenspeicher-Workflow?\"",
+        "reasoningStrategy": "Kontextuelle LLM-Verifikation"
+      },
+      "workflowStrip": {
+        "title": "Von verstreuten Dokumenten zu vertrauenswürdigen Antworten",
+        "description": "Ein konsistentes Liefermodell nutzen, das Onboarding, Qualitätssicherung und langfristige Zuverlässigkeit für abteilungsspezifische Anwendungsfälle unterstützt."
+      },
+      "cta": {
+        "heading": "Den Workflow Ihres Teams abbilden",
+        "description": "Den richtigen Rudix-Lösungspfad für Ihre Abteilung finden und einen Einführungsplan abstimmen.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "hr": {
+      "breadcrumb": "HR",
+      "hero": {
+        "badge": "Enterprise-HR-Lösungen",
+        "heading": "HR-Antworten aus Ihren tatsächlichen Richtlinien.",
+        "description": "Helfen Sie Mitarbeitern, Antworten in Handbüchern, Leistungsleitfäden, Urlaubsrichtlinien, Onboarding-Dokumenten und internen HR-Prozessen mit chirurgischer Präzision zu finden.",
+        "primaryCta": "Sprechen Sie uns zur HR an",
+        "secondaryCta": "Alle Lösungen",
+        "assistantLabel": "Richtlinienassistent · HR-Arbeitsbereich",
+        "q0": "Wie lautet die Elternzeitrichtlinie nach Region?",
+        "q1": "Welche Onboarding-Dokumente sind vor dem ersten Tag erforderlich?",
+        "q2": "Was ist das Erstattungslimit für Telearbeit?",
+        "engineLabel": "Rudix HR-Engine",
+        "engineAnswer": "Sie haben Anspruch auf 16 Wochen vollbezahlten Urlaub…",
+        "engineCitation": "[Globaler Leistungsleitfaden, S. 42]"
+      },
+      "problems": {
+        "heading": "HR-Teams beantworten jede Woche dieselben Fragen.",
+        "description": "Manuelle Triage ist der Engpass beim Skalieren der Enterprise-Unternehmenskultur. Hören Sie auf, eine Suchmaschine für Ihre eigenen Dokumente zu sein.",
+        "repeatedQuestionsTitle": "Wiederholte Fragen",
+        "repeatedQuestionsBody": "Mitarbeiter stellen täglich dieselben Fragen und belasten die Kapazitäten strategischer HR-Initiativen.",
+        "hardToSearchTitle": "Schwer durchsuchbar",
+        "hardToSearchBody": "Statische PDFs und unübersichtliche Intranetseiten machen es für Mitarbeiter nahezu unmöglich, die eine richtige Antwort zu finden.",
+        "accuracyGapsTitle": "Genauigkeitslücken",
+        "accuracyGapsBody": "Veraltete Dokumente führen zu widersprüchlichen Informationen. Rudix stellt sicher, dass Antworten aus aktuellen Versionen stammen."
+      },
+      "flow": {
+        "heading": "Richtlinieninfrastruktur-Ablauf",
+        "description": "Wie Rudix HR-Dokumente in fundierte Antworten umwandelt.",
+        "step01": "Schritt 01",
+        "step02": "Schritt 02",
+        "step03": "Schritt 03",
+        "step04": "Schritt 04",
+        "uploadTitle": "HR lädt Richtlinien hoch",
+        "uploadDesc": "PDFs, DOCX oder Textdateien sicher in den Rudix-Arbeitsbereich aufnehmen.",
+        "uploadFilename": "richtlinie_v4.pdf",
+        "uploadProgress": "Wird hochgeladen… 82 %",
+        "indexTitle": "Rudix indexiert",
+        "indexDesc": "Fortschrittliche RAG-Architektur zerlegt Text in semantische Vektoreinbettungen für präzisen Abruf.",
+        "askTitle": "Mitarbeiter fragen",
+        "askDesc": "Mitarbeiter stellen dem Assistenten Fragen in natürlicher Sprache über jede Oberfläche.",
+        "askQuery": "\"Wie lautet die Elternzeitrichtlinie?\"",
+        "answerTitle": "Belegte Antworten",
+        "answerDesc": "Rudix liefert fundierte Antworten mit wörtlichen Zitaten aus dem Quelldokument.",
+        "answerExample": "\"Sie haben Anspruch auf 16 Wochen… [Urlaubsrichtlinie S. 14]\""
+      },
+      "documentSources": {
+        "heading": "Unterstützte Dokumentquellen",
+        "description": "Ob 200-seitiges Handbuch oder einseitiges Memo — Rudix verarbeitet jede Nuance Ihres organisatorischen Wissens.",
+        "handbook": "Mitarbeiterhandbuch",
+        "benefits": "Leistungsregistrierungsleitfaden",
+        "leavePolicy": "Urlaubs- und Freizeitrichtlinien",
+        "expense": "Spesen- und Telearbeit-SOPs",
+        "remoteWork": "Telearbeitsrichtlinie",
+        "onboarding": "Onboarding-Checkliste",
+        "roleTransition": "Rollenwechselleitfäden",
+        "training": "Schulungsmaterialien",
+        "exampleQA": "Beispiel-Q&A",
+        "q1": "\"Wie viele Krankheitstage pro Monat?\"",
+        "a1": "Mitarbeiter erhalten 1,5 Krankheitstage pro Monat, bis zu 18 Tagen pro Jahr.",
+        "a1Source": "[Urlaubsrichtlinie 2024, §3.2]",
+        "q2": "\"Was ist das Spesengrenzwert für Telearbeit?\"",
+        "a2": "Bis zu 75 €/Monat für Heimarbeitskosten mit Genehmigung des Vorgesetzten.",
+        "a2Source": "[Telearbeit-SOP, §4]"
+      },
+      "exampleQuestions": {
+        "sectionLabel": "Mitarbeitererfahrung",
+        "heading": "Sofortige Klarheit für jede Anfrage.",
+        "engineLabel": "Rudix HR-Engine",
+        "parentalLeaveQ": "Wie lautet die Elternzeitrichtlinie?",
+        "parentalLeaveA": "Unsere Richtlinie sieht 16 Wochen vollbezahlten Urlaub für primäre Betreuungspersonen vor. Dies gilt für Geburt, Adoption oder Pflegeplatzierung. Die Berechtigung beginnt nach 6 Monaten ununterbrochener Beschäftigung.",
+        "parentalLeaveCitation": "Globaler Leistungsleitfaden, S. 42",
+        "vacationQ": "Wie viele Urlaubstage habe ich?",
+        "vacationA": "Standardmitarbeiter erhalten 25 Tage pro Kalenderjahr, anteilig nach Eintrittsdatum. Bis zu 5 Tage können ins nächste Jahr übertragen werden.",
+        "vacationCitation": "Mitarbeiterhandbuch, §6.1",
+        "expenseQ": "Wie reiche ich einen Spesenantrag ein?",
+        "expenseA": "Melden Sie sich im Spesenportal mit Ihrer Unternehmens-E-Mail an und reichen Sie Belege bis zum 25. des Monats für die Erstattung im nächsten Gehaltsabschnitt ein.",
+        "expenseCitation": "Spesenrichtlinie, §2",
+        "notCoveredQ": "Was passiert, wenn meine Frage nicht im Handbuch behandelt wird?",
+        "notCoveredA": "Rudix gibt eine Antwort mit geringer Sicherheit oder eine Nicht-gefunden-Antwort zurück und empfiehlt, direkt die HR zu kontaktieren. Die Antwortqualität wird verfolgt, sodass Abdeckungslücken beim nächsten Richtlinienupdate behoben werden können.",
+        "notCoveredCitation": "Keine direkte Quelle — geringe Sicherheit angegeben"
+      },
+      "security": {
+        "heading": "Entwickelt für die Sensibilität von HR-Daten",
+        "description": "HR-Dokumente enthalten sensible Mitarbeiterinformationen. Rudix wurde mit rollenbasiertem Zugang, Datenverwaltung und klaren Grenzen zwischen dem, was Rudix beantwortet, und dem, was Ihr HR-Team verantwortet, entwickelt.",
+        "encryptionFeature": "Ende-zu-Ende-Verschlüsselung im Ruhezustand und bei Übertragung",
+        "roleAccessFeature": "Rollenspezifischer Zugang — Mitarbeiter sehen nur ihre Inhalte",
+        "auditLogFeature": "Vollständiges Prüfprotokoll für jede Anfrage und Dokumentenaktion",
+        "usageNote": "Nutzungshinweis: Rudix trifft keine Beschäftigungsentscheidungen oder rechtlichen Feststellungen. Die Governance sensibler Daten verbleibt bei Ihrer Organisation."
+      },
+      "cta": {
+        "heading": "Verwandeln Sie Ihre HR-Dokumente in einen Richtlinienassistenten.",
+        "description": "Reduzieren Sie wiederkehrende HR-Anfragen und geben Sie Mitarbeitern von Anfang an konsistente, quellengestützte Antworten.",
+        "primaryCta": "Sprechen Sie uns zur HR an",
+        "secondaryCta": "Alle Lösungen ansehen"
+      }
+    },
+    "legal": {
+      "breadcrumb": "Recht",
+      "hero": {
+        "badge": "Rechtliche Intelligenz",
+        "heading": "Verträge und Richtlinien mit quellengestützten Antworten befragen.",
+        "description": "Durchsuchen Sie Verträge, Rechtsrichtlinien, Lieferantenvereinbarungen, Verlängerungsbedingungen, Verpflichtungen und Fristen mit Quellenangaben. Entwickelt für Enterprise-Compliance.",
+        "primaryCta": "Sprechen Sie uns zu rechtlichen Workflows an",
+        "queryExample": "\"Wann ist die Kündigungsfrist für den AWS-Vertrag?\"",
+        "answerText": "Der AWS Master Service Agreement erfordert eine schriftliche 90-Tage-Kündigung vor Ende der aktuellen Laufzeit für Nicht-Verlängerung.",
+        "citation1": "AWS_MSA_2023.pdf · S. 14",
+        "citation2": "Abschnitt 12.2 (Kündigung)"
+      },
+      "problems": {
+        "heading": "Verträge sind zu wichtig für manuelle Suche.",
+        "description": "Manuelle Rechtsprüfungen verlangsamen Deals und erhöhen das operative Risiko. Rudix beseitigt die Reibungsverluste.",
+        "longContractsTitle": "Lange Verträge",
+        "longContractsBody": "In 100+ seitigen Vereinbarungen eine einzelne Haftungsunterklausel zu finden, kostet Stunden teurer Rechtszeit.",
+        "repeatedQuestionsTitle": "Wiederholte Fragen",
+        "repeatedQuestionsBody": "Vertriebs- und Beschaffungsteams stellen täglich dieselben Standardbedingungsfragen und verstopfen die Rechts-Support-Warteschlangen.",
+        "missedDeadlinesTitle": "Verpasste Fristen",
+        "missedDeadlinesBody": "In alten PDFs vergrabene Auto-Verlängerungstermine werden leicht übersehen und führen zu ungewollten mehrjährigen Verpflichtungen."
+      },
+      "documentSources": {
+        "heading": "Entwickelt für jeden rechtlichen Asset.",
+        "description": "Rudix unterstützt komplexe Dokumentenhierarchien und Querverweise zwischen Rahmenvereinbarungen und lokalen Leistungsbeschreibungen.",
+        "customerContracts": "Kundenverträge",
+        "vendorAgreements": "Lieferantenvereinbarungen",
+        "ndas": "NDAs",
+        "dpas": "DPAs",
+        "termsOfService": "Nutzungsbedingungen",
+        "legalGuidance": "Rechtliche Leitlinien",
+        "instantIngestion": "Sofortige Aufnahme",
+        "ingestionDesc": "Sichere, verschlüsselte Verarbeitung aller Rechtsformate."
+      },
+      "questions": {
+        "sectionLabel": "Anwendungsfälle",
+        "heading": "Alles aus Ihren Daten abfragen.",
+        "description": "Von einfachen Nachschlägen bis zu komplexen Risikoanalysen — Rudix liefert sofortige Klarheit.",
+        "q1": "Wie lang ist die Kündigungsfrist?",
+        "q2": "Verlängert sich dieser Vertrag automatisch?",
+        "q3": "Gibt es eine Haftungsbegrenzungsklausel?"
+      },
+      "citations": {
+        "heading": "Der Quelle vertrauen.",
+        "description": "Jede Antwort von Rudix enthält spezifische Quelltextausschnitte, Dokumentnamen und Seitenzahlen. Wir halluzinieren keine Bedingungen — wir rufen nur Fakten ab.",
+        "deepLinkingLabel": "Deep Linking:",
+        "deepLinkingDetail": "Klicken Sie auf eine Quellenangabe, um direkt zum Absatz im Originaldokument zu springen.",
+        "auditTrailsLabel": "Prüfpfade:",
+        "auditTrailsDetail": "Vollständige Historie, wer was gefragt und welche Dokumente referenziert wurden.",
+        "accessControlsLabel": "Zugriffskontrollen:",
+        "accessControlsDetail": "Rollenspezifische Arbeitsbereiche halten privilegierte Dokumente getrennt.",
+        "responsibleUseLabel": "Verantwortungsvoller Einsatz",
+        "responsibleUseText": "Rudix unterstützt Recherchetätigkeiten und Dokumenten-Workflows. Es ersetzt keine Anwaltsberatung und stellt keine Rechtsberatung dar. Alle abgerufenen Informationen sollten vor der Nutzung von qualifiziertem Rechtsanwalt geprüft werden.",
+        "securityCta": "Sicherheit & Compliance"
+      },
+      "cta": {
+        "heading": "Vertragsantworten schneller finden.",
+        "description": "Schließen Sie sich führenden Rechtsteams an, die Rudix nutzen, um Vertragsintelligenz zu automatisieren und Rechtsrisiken zu reduzieren.",
+        "primaryCta": "Kostenlose Testversion starten",
+        "secondaryCta": "Demo buchen"
+      }
+    },
+    "compliance": {
+      "breadcrumb": "Compliance",
+      "hero": {
+        "badge": "Lösung: Compliance",
+        "heading": "Prüfnachweise schneller finden.",
+        "description": "Nutzen Sie Rudix, um belegte Antworten aus Richtlinien, Verfahren, Sicherheitsdokumenten, Prüfnachweisen und Compliance-Dateien abzurufen.",
+        "primaryCta": "Sprechen Sie uns zur Compliance an"
+      },
+      "problems": {
+        "heading": "Prüfnachweise sind schwer zu finden, wenn sie über Dateien verteilt sind.",
+        "description": "Manuelle Sammlung bindet Ressourcen und riskiert Nicht-Compliance. Rudix zentralisiert den Entdeckungsprozess mit Präzision.",
+        "evidenceFragTitle": "Nachweis-Fragmentierung",
+        "evidenceFragBody": "Verstreute Dokumentation auf verschiedenen Cloud-Laufwerken, E-Mails und lokalen Servern macht umfassende Audits nahezu unmöglich zu verwalten.",
+        "traceabilityTitle": "Nachverfolgbarkeitslücken",
+        "traceabilityBody": "Richtlinienantworten fehlen häufig direkte Links zu Originalquelldokumenten, sodass Compliance-Beauftrage jeden Anspruch manuell neu verifizieren müssen.",
+        "manualDrainTitle": "Manueller Aufwand",
+        "manualDrainBody": "Prüfer verbringen 60 % ihrer Zeit mit dem Sammeln von Nachweisen statt mit deren Analyse. Manueller Abruf ist langsam, fehleranfällig und teuer."
+      },
+      "documentSources": {
+        "heading": "Alles hochladen. Alles finden.",
+        "description": "Rudix nimmt Ihr gesamtes Compliance-Ökosystem auf und bewahrt dabei den vollständigen Kontext und die strukturelle Integrität über verschiedene Dateiformate hinweg.",
+        "securityPolicies": "Sicherheitsrichtlinien",
+        "auditEvidence": "Prüfnachweise",
+        "riskAssessments": "Risikobewertungen",
+        "accessReviews": "Zugangsprüfungen",
+        "incidentResponse": "Incident-Response"
+      },
+      "examples": {
+        "heading": "Ihre Nachweise befragen.",
+        "description": "Stellen Sie Fragen in natürlicher Sprache und erhalten Sie sofort belegte Antworten aus Ihrer Compliance-Bibliothek.",
+        "retentionQ": "Wo ist die Datenhaltungsrichtlinie?",
+        "retentionA": "Rudix identifiziert spezifische Absätze in Global_Privacy_v4.pdf und verweist auf interne SOPs.",
+        "accessReviewsQ": "Welche Nachweise unterstützen Zugangsprüfungen?",
+        "accessReviewsA": "Ruft sofort Q1–Q4-Protokollexporte und die IAM-Genehmigungsverfahren aus Ihrem neuesten Prüfplan ab.",
+        "encryptionQ": "Welche Richtlinie erwähnt Verschlüsselungsanforderungen?",
+        "encryptionA": "Durchsucht alle Sicherheitskontrollen und hebt ISO-27001-Anhang-A-Klauseln hervor, die internen technischen Standards zugeordnet sind."
+      },
+      "trust": {
+        "heading": "Entwickelt für Enterprise-Grade-Vertrauen.",
+        "description": "Compliance geht nicht nur darum, Daten zu finden — sondern sie sicher zu verifizieren und einen lückenlosen Pfad zu bewahren.",
+        "auditRefsTitle": "Prüffreundliche Quellenreferenzen",
+        "auditRefsBody": "Jede Antwort enthält Deep-Links zur genauen Seite und zum Absatz des Quelldokuments.",
+        "permFilterTitle": "Berechtigungsgefilterter Abruf",
+        "permFilterBody": "Benutzer können nur Informationen aus Dokumenten abrufen, für die sie in Ihrem IAM-System ausdrücklich autorisiert sind.",
+        "activityLogsTitle": "Admin-Aktivitätsprotokolle",
+        "activityLogsBody": "Vollständige unveränderliche Historie jeder Abfrage, Antwort und jedes Dokumentenzugriffs für die interne Governance.",
+        "disclaimerLabel": "Compliance-Hinweis",
+        "disclaimerText": "Rudix unterstützt die Nachweisrecherche und Richtlinienrecherche. Es stellt keine Zertifizierungen aus und ersetzt keine Prüferbeurteilung. Alle abgerufenen Nachweise sollten vor der Vorlage bei einer Regulierungsbehörde von Ihrem Compliance-Team validiert werden.",
+        "securityCta": "Sicherheit & Compliance",
+        "activityStream": "Aktivitätsstrom",
+        "viewFullAuditTrail": "Vollständigen Prüfpfad ansehen"
+      },
+      "cta": {
+        "heading": "Compliance-Nachweise leichter auffindbar machen.",
+        "description": "Schließen Sie sich zukunftsorientierten Enterprise-Teams an, die ihre Prüfungsvorbereitungszeit mit dem hochpräzisen Abruf von Rudix verkürzt haben.",
+        "primaryCta": "Sprechen Sie uns an",
+        "secondaryCta": "Dokumentation ansehen"
+      }
+    },
+    "sales": {
+      "breadcrumb": "Vertrieb",
+      "hero": {
+        "badge": "Vertriebsaktivierungs-Engine",
+        "heading": "Deals gewinnen mit belegter Produktintelligenz.",
+        "headingHighlight": "Produktintelligenz.",
+        "description": "Befähigen Sie Ihre AEs und SEs, komplexe technische Fragen sofort zu beantworten. Rudix indexiert Ihre gesamte Wissensbasis für belegte, präzise Vertriebsintelligenz in Echtzeit.",
+        "primaryCta": "Kostenlos starten",
+        "secondaryCta": "Demo ansehen"
+      },
+      "problems": {
+        "heading": "Die Kosten von Vertriebsreibung",
+        "description": "Die Suche nach den richtigen Unterlagen sollte nicht der Engpass in Ihrem Deal-Zyklus sein.",
+        "lostCaseStudiesTitle": "Verlorene Fallstudien",
+        "lostCaseStudiesBody": "Ihre beste Healthcare-Erfolgsgeschichte steckt in einem Slack-Thread von 2022. AEs verschwenden 4 Stunden pro Woche mit der Suche nach relevanten Belegen.",
+        "outdatedPricingTitle": "Veraltete Preise",
+        "outdatedPricingBody": "Vertreter, die veraltete Preislisten präsentieren, führen zu massiver Vertragsreibung und Margenerosion in der Abschlussphase.",
+        "battlecardFrictionTitle": "Battlecard-Reibung",
+        "battlecardFrictionBody": "Wettbewerber-FUD ändert sich wöchentlich. Ohne sofortigen Zugang zu taktischen Gegenargumenten verliert Ihr Team Momentum bei direkten Vergleichen."
+      },
+      "documentSources": {
+        "heading": "Ihr Wissen, vereint.",
+        "description": "Rudix indexiert und strukturiert Daten aus allen Orten, an denen Ihre Vertriebs-Unterlagen leben:",
+        "productSpecs": "Produktspezifikationen",
+        "caseStudies": "Fallstudien",
+        "rfpTemplates": "RFP-Vorlagen",
+        "pricingSheets": "Preislisten",
+        "battlecards": "Battlecards",
+        "proposalDecks": "Angebotspräsentationen"
+      },
+      "queries": {
+        "heading": "Alles fragen. Die Antwort erhalten.",
+        "description": "Kein manuelles Scrollen mehr. Ihr Team stellt Fragen auf Deutsch und erhält verifizierte Antworten mit direkten Links zur Quelle.",
+        "q1": "\"Welche Fallstudie passt zu einem Healthcare-Interessenten, der SOC2-Compliance sucht?\"",
+        "q2": "\"Was sind unsere Wettbewerbsvorteile gegenüber Enterprise-X?\"",
+        "q2Answer": "\"Laut der 'Q3-Battlecard' sind unsere Vorteile: (1) Native VPC-Bereitstellung und (2) Keine PII-Datenverarbeitung…\"",
+        "q3": "\"Können wir einen 15 %-Rabatt für eine 3-Jahres-Laufzeit im Enterprise-Tier anbieten?\"",
+        "knowledgeBase": "Wissensbasis",
+        "aeQuery": "AE-Anfrage",
+        "securityDocs": "Sicherheitsdokumente"
+      },
+      "cta": {
+        "heading": "Bereit, Ihre Deals zu beschleunigen?",
+        "description": "Schließen Sie sich leistungsstarken Vertriebsteams an, die Rudix nutzen, um technische Intelligenz in Sekunden statt Stunden zu finden.",
+        "primaryCta": "Demo vereinbaren",
+        "secondaryCta": "Preise ansehen"
+      }
+    },
+    "support": {
+      "breadcrumb": "Support",
+      "hero": {
+        "badge": "Support-Lösungen",
+        "heading": "Support-Mitarbeitern helfen, schneller zu antworten.",
+        "description": "Geben Sie Support-Teams sofortigen Zugang zu Antworten aus Produktdokumentation, Fehlerbehebungsleitfäden, FAQs, Runbooks und Release-Notizen.",
+        "primaryCta": "Sprechen Sie uns zum Support an",
+        "secondaryCta": "Kontakt"
+      },
+      "cta": {
+        "heading": "Verwandeln Sie Ihre Support-Wissensbasis.",
+        "description": "Geben Sie Support-Mitarbeitern sofortige, quellengestützte Antworten aus Ihrer gesamten Dokumentationsbibliothek.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "research": {
+      "breadcrumb": "Forschung",
+      "hero": {
+        "badge": "Analysten-Intelligenz",
+        "heading": "Erkenntnisse aus technischen PDFs und Berichten extrahieren.",
+        "description": "Helfen Sie Analysten, große Dokumentenkorpora mit RAG-gesteuerter Extraktion, Vergleich und quellengestützter Synthese zu navigieren.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "API-Dokumentation ansehen"
+      },
+      "cta": {
+        "heading": "Ihre Forschungs-Workflows beschleunigen.",
+        "description": "Geben Sie Analysten sofortige, belegte Antworten aus Ihrer gesamten Forschungsbibliothek.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "operations": {
+      "breadcrumb": "Betrieb",
+      "hero": {
+        "badge": "Betrieb & Incident-Response",
+        "heading": "Runbook-Antworten, wenn Ihr Team sie braucht.",
+        "description": "Helfen Sie Betriebs-, IT-, DevOps- und SRE-Teams, Incident-Schritte, Fehlerbehebungsverfahren und interne Prozessleitfäden mit hochpräzisem RAG schnell abzurufen.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "API-Dokumentation ansehen"
+      },
+      "cta": {
+        "heading": "Ihre Betriebsteams mit sofortigem Runbook-Zugang ausstatten.",
+        "description": "Geben Sie Ops-Teams verifizierte, belegte Antworten aus Ihrer gesamten operativen Wissensbasis.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "procurement": {
+      "breadcrumb": "Beschaffung",
+      "hero": {
+        "badge": "Beschaffung & Anbieterbewertung",
+        "heading": "Anbieter mit KI-gestützter Dokumentenprüfung bewerten.",
+        "description": "Beschleunigen Sie Ihren Sicherheits- und Rechtsüberprüfungsprozess. Die RAG-fähige Plattform von Rudix nimmt komplexe Anbieterdokumentation auf, um sofortige, belegte Antworten auf Ihre wichtigsten Compliance-Fragen zu liefern.",
+        "primaryCta": "Kostenlos starten",
+        "secondaryCta": "Demo anfragen"
+      },
+      "cta": {
+        "heading": "Ihren Anbieterbewertungsprozess beschleunigen.",
+        "description": "Geben Sie Beschaffungsteams sofortige, belegte Antworten aus Anbieterdokumentation und Compliance-Dateien.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "internalKnowledge": {
+      "breadcrumb": "Internes Wissen",
+      "hero": {
+        "badge": "Interner Wissensassistent",
+        "heading": "Das Wissen Ihres Teams, sofort zugänglich.",
+        "headingHighlight": "sofort zugänglich.",
+        "description": "Hören Sie auf, in veralteten PDFs und vergrabenen Slack-Threads zu suchen. Rudix indexiert Ihr gesamtes organisatorisches Wissen, um verifizierte, quellengestützte Antworten zu liefern.",
+        "primaryCta": "Kostenlos starten",
+        "secondaryCta": "Demo anfragen"
+      },
+      "cta": {
+        "heading": "Ihr institutionelles Wissen durchsuchbar machen.",
+        "description": "Geben Sie Ihrer gesamten Organisation sofortigen Zugang zu belegten Antworten aus Ihrer Wissensbasis.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    },
+    "clientPortal": {
+      "breadcrumb": "Kundenportal",
+      "hero": {
+        "badge": "Kunden-Wissensportal",
+        "heading": "Kunden sofortige Antworten aus Ihrer freigegebenen Dokumentation geben.",
+        "description": "Stellen Sie eine bereichsspezifische KI-Q&A-Schicht über Ihren kundenseitigen Dokumenten bereit. Reduzieren Sie wiederkehrende Support-Fragen, beschleunigen Sie das Onboarding und geben Sie Kunden quellengestützte Antworten — ohne Ihr Team zu überlasten.",
+        "primaryCta": "Kostenlos starten",
+        "secondaryCta": "Demo anfragen"
+      },
+      "cta": {
+        "heading": "Ihr Kundendokumentationserlebnis transformieren.",
+        "description": "Geben Sie Kunden sofortige, belegte Antworten aus Ihrer freigegebenen Dokumentationsbibliothek.",
+        "primaryCta": "Demo anfragen",
+        "secondaryCta": "Produkt ansehen"
+      }
+    }
   },
   "dashboard": {
     "title": "Dashboard",

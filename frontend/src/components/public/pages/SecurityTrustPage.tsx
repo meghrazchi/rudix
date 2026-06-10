@@ -1,3 +1,7 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import {
   FaqSection,
   FinalCtaBand,
@@ -9,11 +13,18 @@ import {
   SecurityHeroSection,
   SecurityPillarsSection,
 } from "@/components/public/pages/security/SecurityTrustSections";
-import { securityFaqs } from "@/components/public/pages/security/securityData";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 export function SecurityTrustPage() {
+  const t = useTranslations("public.security");
   const links = resolvePublicSiteLinks();
+
+  const securityFaqs = [
+    { question: t("faq.logsQ"), answer: t("faq.logsA") },
+    { question: t("faq.privateQ"), answer: t("faq.privateA") },
+    { question: t("faq.isolationQ"), answer: t("faq.isolationA") },
+    { question: t("faq.reviewQ"), answer: t("faq.reviewA") },
+  ];
 
   return (
     <>
@@ -28,14 +39,14 @@ export function SecurityTrustPage() {
         securityContactHref={links.securityContact}
       />
 
-      <FaqSection title="Security FAQ" items={securityFaqs} />
+      <FaqSection title={t("faq.title")} items={securityFaqs} />
 
       <FinalCtaBand
-        title="Request a security review"
-        description="Discuss deployment boundaries, data-handling expectations, and governance requirements with the Rudix team."
-        primaryLabel="Talk to Security"
+        title={t("cta.heading")}
+        description={t("cta.description")}
+        primaryLabel={t("cta.primaryCta")}
         primaryHref={links.securityContact}
-        secondaryLabel="Request Demo"
+        secondaryLabel={t("cta.secondaryCta")}
         secondaryHref={links.requestDemo}
       />
     </>

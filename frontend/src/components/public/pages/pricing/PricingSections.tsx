@@ -1,10 +1,9 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
-import {
-  comparisonRows,
-  pricingPlans,
-  usageLimitNotes,
-  type PlanId,
-} from "@/components/public/pages/pricing/pricingData";
+import { type PlanId } from "@/components/public/pages/pricing/pricingData";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 type PlanCtaConfig = {
@@ -37,37 +36,38 @@ function planCtaConfig(planId: PlanId, links: PublicSiteLinks): PlanCtaConfig {
 }
 
 export function PricingHeroSection({ links }: { links: PublicSiteLinks }) {
+  const t = useTranslations("public.pricing");
+
   return (
     <section className="relative overflow-hidden border-b border-[#d8dce7] bg-[radial-gradient(circle_at_top,rgba(56,43,225,0.1),transparent_62%)] py-16 lg:py-22">
       <div className="mx-auto w-full max-w-7xl px-4 text-center lg:px-8">
         <span className="inline-flex rounded-full bg-[#e4e1ff] px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-[#3b2fcb] uppercase">
-          Pricing
+          {t("hero.badge")}
         </span>
         <h1 className="mx-auto mt-5 max-w-4xl text-4xl leading-tight font-black text-[#10131c] lg:text-6xl">
-          Choose a plan for trusted document AI operations
+          {t("hero.heading")}
         </h1>
         <p className="mx-auto mt-4 max-w-3xl text-sm leading-7 text-[#5a6074] lg:text-base">
-          Compare tiers for document ingestion, RAG chat, evaluations, and
-          governance so you can adopt Rudix at the right pace.
+          {t("hero.description")}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <PublicActionLink
             href={links.startTrial}
             className="rounded-lg bg-[#3525cd] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(53,37,205,0.24)] transition hover:bg-[#2a1fc1]"
           >
-            Start Trial
+            {t("hero.startTrialCta")}
           </PublicActionLink>
           <PublicActionLink
             href={links.requestDemo}
             className="rounded-lg border border-[#cfd4e4] bg-white px-5 py-3 text-sm font-semibold text-[#21283d] transition hover:bg-[#f4f6fd]"
           >
-            Request Demo
+            {t("hero.requestDemoCta")}
           </PublicActionLink>
           <PublicActionLink
             href={links.login}
             className="rounded-lg border border-[#d6dbe9] bg-[#f8f9fc] px-5 py-3 text-sm font-semibold text-[#2a3044] transition hover:bg-[#eef1f8]"
           >
-            Login
+            {t("hero.loginCta")}
           </PublicActionLink>
         </div>
       </div>
@@ -76,6 +76,65 @@ export function PricingHeroSection({ links }: { links: PublicSiteLinks }) {
 }
 
 export function PricingPlanCardsSection({ links }: { links: PublicSiteLinks }) {
+  const t = useTranslations("public.pricing");
+
+  const plans: Array<{
+    id: PlanId;
+    badge: string;
+    title: string;
+    summary: string;
+    priceLabel: string;
+    billingHint: string;
+    highlights: string[];
+    ctaLabel: string;
+  }> = [
+    {
+      id: "starter",
+      badge: t("plans.starterBadge"),
+      title: t("plans.starterTitle"),
+      summary: t("plans.starterSummary"),
+      priceLabel: t("plans.contactUs"),
+      billingHint: t("plans.starterBillingHint"),
+      highlights: [
+        t("plans.starterH0"),
+        t("plans.starterH1"),
+        t("plans.starterH2"),
+        t("plans.starterH3"),
+      ],
+      ctaLabel: t("plans.starterCta"),
+    },
+    {
+      id: "team",
+      badge: t("plans.teamBadge"),
+      title: t("plans.teamTitle"),
+      summary: t("plans.teamSummary"),
+      priceLabel: t("plans.contactUs"),
+      billingHint: t("plans.teamBillingHint"),
+      highlights: [
+        t("plans.teamH0"),
+        t("plans.teamH1"),
+        t("plans.teamH2"),
+        t("plans.teamH3"),
+      ],
+      ctaLabel: t("plans.teamCta"),
+    },
+    {
+      id: "enterprise",
+      badge: t("plans.enterpriseBadge"),
+      title: t("plans.enterpriseTitle"),
+      summary: t("plans.enterpriseSummary"),
+      priceLabel: t("plans.contactUs"),
+      billingHint: t("plans.enterpriseBillingHint"),
+      highlights: [
+        t("plans.enterpriseH0"),
+        t("plans.enterpriseH1"),
+        t("plans.enterpriseH2"),
+        t("plans.enterpriseH3"),
+      ],
+      ctaLabel: t("plans.enterpriseCta"),
+    },
+  ];
+
   return (
     <section
       aria-labelledby="pricing-plans-title"
@@ -86,16 +145,15 @@ export function PricingPlanCardsSection({ links }: { links: PublicSiteLinks }) {
           id="pricing-plans-title"
           className="text-3xl font-black text-[#12151f] lg:text-5xl"
         >
-          Plans for every rollout stage
+          {t("plans.heading")}
         </h2>
         <p className="mt-3 text-sm leading-7 text-[#5b6278] lg:text-base">
-          Prices are intentionally shown as contact placeholders until final
-          packaging is approved for your environment and usage profile.
+          {t("plans.description")}
         </p>
       </div>
 
       <div className="mt-8 grid gap-4 lg:grid-cols-3">
-        {pricingPlans.map((plan) => {
+        {plans.map((plan) => {
           const cta = planCtaConfig(plan.id, links);
           return (
             <article
@@ -148,6 +206,23 @@ export function PricingPlanCardsSection({ links }: { links: PublicSiteLinks }) {
 }
 
 export function UsageLimitsSection() {
+  const t = useTranslations("public.pricing");
+
+  const usageLimitNotes = [
+    {
+      title: t("usageLimits.documentsTitle"),
+      detail: t("usageLimits.documentsDetail"),
+    },
+    {
+      title: t("usageLimits.questionsTitle"),
+      detail: t("usageLimits.questionsDetail"),
+    },
+    {
+      title: t("usageLimits.storageTitle"),
+      detail: t("usageLimits.storageDetail"),
+    },
+  ];
+
   return (
     <section
       aria-labelledby="usage-limits-title"
@@ -159,12 +234,10 @@ export function UsageLimitsSection() {
             id="usage-limits-title"
             className="text-3xl font-black text-[#12151f] lg:text-5xl"
           >
-            Usage and limit guidance
+            {t("usageLimits.heading")}
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#5a6074] lg:text-base">
-            Final limits depend on your selected tier and rollout profile across
-            documents, questions, evaluations, indexing workloads, storage, and
-            organization scale.
+            {t("usageLimits.description")}
           </p>
         </div>
 
@@ -189,6 +262,53 @@ export function UsageLimitsSection() {
 }
 
 export function PlanComparisonSection() {
+  const t = useTranslations("public.pricing");
+
+  const comparisonRows = [
+    {
+      capability: t("comparison.rowDocumentCapabilityLabel"),
+      starter: t("comparison.rowDocumentStarterValue"),
+      team: t("comparison.rowDocumentTeamValue"),
+      enterprise: t("comparison.rowDocumentEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowStorageCapabilityLabel"),
+      starter: t("comparison.rowStorageStarterValue"),
+      team: t("comparison.rowStorageTeamValue"),
+      enterprise: t("comparison.rowStorageEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowTeamAccessCapabilityLabel"),
+      starter: t("comparison.rowTeamAccessStarterValue"),
+      team: t("comparison.rowTeamAccessTeamValue"),
+      enterprise: t("comparison.rowTeamAccessEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowEvaluationsCapabilityLabel"),
+      starter: t("comparison.rowEvaluationsStarterValue"),
+      team: t("comparison.rowEvaluationsTeamValue"),
+      enterprise: t("comparison.rowEvaluationsEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowAuditCapabilityLabel"),
+      starter: t("comparison.rowAuditStarterValue"),
+      team: t("comparison.rowAuditTeamValue"),
+      enterprise: t("comparison.rowAuditEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowDeploymentCapabilityLabel"),
+      starter: t("comparison.rowDeploymentStarterValue"),
+      team: t("comparison.rowDeploymentTeamValue"),
+      enterprise: t("comparison.rowDeploymentEnterpriseValue"),
+    },
+    {
+      capability: t("comparison.rowSupportCapabilityLabel"),
+      starter: t("comparison.rowSupportStarterValue"),
+      team: t("comparison.rowSupportTeamValue"),
+      enterprise: t("comparison.rowSupportEnterpriseValue"),
+    },
+  ];
+
   return (
     <section
       aria-labelledby="plan-comparison-title"
@@ -199,11 +319,10 @@ export function PlanComparisonSection() {
           id="plan-comparison-title"
           className="text-3xl font-black text-[#12151f] lg:text-5xl"
         >
-          Plan comparison
+          {t("comparison.heading")}
         </h2>
         <p className="mt-3 text-sm leading-7 text-[#5a6074] lg:text-base">
-          Compare capabilities at a glance. Mobile view uses stacked cards for
-          readability.
+          {t("comparison.description")}
         </p>
       </div>
 
@@ -212,16 +331,16 @@ export function PlanComparisonSection() {
           <thead>
             <tr>
               <th className="border-b border-[#d8dce8] bg-[#eceef5] px-4 py-3 text-xs font-bold tracking-[0.1em] text-[#4f556d] uppercase">
-                Capability
+                {t("comparison.capability")}
               </th>
               <th className="border-b border-[#d8dce8] bg-[#eceef5] px-4 py-3 text-xs font-bold tracking-[0.1em] text-[#4f556d] uppercase">
-                Starter
+                {t("comparison.starter")}
               </th>
               <th className="border-b border-[#d8dce8] bg-[#eceef5] px-4 py-3 text-xs font-bold tracking-[0.1em] text-[#4f556d] uppercase">
-                Team
+                {t("comparison.team")}
               </th>
               <th className="border-b border-[#d8dce8] bg-[#eceef5] px-4 py-3 text-xs font-bold tracking-[0.1em] text-[#4f556d] uppercase">
-                Enterprise
+                {t("comparison.enterprise")}
               </th>
             </tr>
           </thead>
@@ -255,15 +374,15 @@ export function PlanComparisonSection() {
             </h3>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">Starter</dt>
+                <dt className="font-semibold text-[#50576f]">{t("comparison.starter")}</dt>
                 <dd className="text-right text-[#2a3043]">{row.starter}</dd>
               </div>
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">Team</dt>
+                <dt className="font-semibold text-[#50576f]">{t("comparison.team")}</dt>
                 <dd className="text-right text-[#2a3043]">{row.team}</dd>
               </div>
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">Enterprise</dt>
+                <dt className="font-semibold text-[#50576f]">{t("comparison.enterprise")}</dt>
                 <dd className="text-right text-[#2a3043]">{row.enterprise}</dd>
               </div>
             </dl>
