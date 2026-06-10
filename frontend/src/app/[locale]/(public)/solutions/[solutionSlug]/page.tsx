@@ -8,15 +8,19 @@ import {
   SOLUTION_AUDIENCES,
   type SolutionSlug,
 } from "@/lib/public-site/solutions";
+import { SUPPORTED_LOCALES } from "@/i18n/routing";
 
 type SolutionDetailRouteProps = {
-  params: Promise<{ solutionSlug: string }>;
+  params: Promise<{ locale: string; solutionSlug: string }>;
 };
 
 export function generateStaticParams() {
-  return SOLUTION_AUDIENCES.map((solution) => ({
-    solutionSlug: solution.slug,
-  }));
+  return SUPPORTED_LOCALES.flatMap((locale) =>
+    SOLUTION_AUDIENCES.map((solution) => ({
+      locale,
+      solutionSlug: solution.slug,
+    })),
+  );
 }
 
 export async function generateMetadata({ params }: SolutionDetailRouteProps) {

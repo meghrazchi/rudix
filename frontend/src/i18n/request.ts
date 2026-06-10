@@ -7,10 +7,17 @@ import {
   LOCALE_COOKIE_NAME,
 } from "./routing";
 
-export default getRequestConfig(async () => {
-  const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
-  const locale = isValidLocale(cookieValue) ? cookieValue : DEFAULT_LOCALE;
+export default getRequestConfig(async ({ requestLocale }) => {
+  const urlLocale = await requestLocale;
+
+  let locale: typeof DEFAULT_LOCALE;
+  if (isValidLocale(urlLocale)) {
+    locale = urlLocale;
+  } else {
+    const cookieStore = await cookies();
+    const cookieValue = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
+    locale = isValidLocale(cookieValue) ? cookieValue : DEFAULT_LOCALE;
+  }
 
   return {
     locale,

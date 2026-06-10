@@ -8,6 +8,7 @@ export const LOCALE_COOKIE_NAME = "NEXT_LOCALE";
 export const routing = defineRouting({
   locales: SUPPORTED_LOCALES,
   defaultLocale: DEFAULT_LOCALE,
+  localePrefix: "always",
 });
 
 export function isValidLocale(value: unknown): value is SupportedLocale {

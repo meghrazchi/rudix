@@ -1,14 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 
-import {
-  LOCALE_COOKIE_NAME,
-  SUPPORTED_LOCALES,
-  type SupportedLocale,
-} from "@/i18n/routing";
+import { usePathname, useRouter } from "@/i18n/navigation";
+import { SUPPORTED_LOCALES, type SupportedLocale } from "@/i18n/routing";
 
 type LanguageSwitcherVariant = "select" | "buttons";
 
@@ -31,15 +27,14 @@ export function LanguageSwitcher({
   const t = useTranslations("languageSwitcher");
   const currentLocale = useLocale() as SupportedLocale;
   const router = useRouter();
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   function applyLocale(locale: SupportedLocale): void {
     if (locale === currentLocale) return;
 
-    document.cookie = `${LOCALE_COOKIE_NAME}=${locale}; path=/; samesite=lax; max-age=${60 * 60 * 24 * 365}`;
-
     startTransition(() => {
-      router.refresh();
+      router.replace(pathname, { locale });
     });
   }
 
