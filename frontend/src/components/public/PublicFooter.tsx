@@ -5,10 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PublicActionLink } from "@/components/public/PublicActionLink";
-import {
-  buildFooterLinkGroups,
-  type PublicSiteLinks,
-} from "@/lib/public-site/links";
+import type { PublicSiteLinks } from "@/lib/public-site/links";
 
 type PublicFooterProps = {
   links: PublicSiteLinks;
@@ -16,7 +13,32 @@ type PublicFooterProps = {
 
 export function PublicFooter({ links }: PublicFooterProps) {
   const t = useTranslations("public.footer");
-  const groups = buildFooterLinkGroups(links);
+  const groups = [
+    {
+      heading: t("groups.product"),
+      items: [
+        { label: t("links.productOverview"), href: links.product },
+        { label: t("links.pipelineExplorer"), href: links.app },
+        { label: t("links.documentation"), href: links.docs },
+      ],
+    },
+    {
+      heading: t("groups.solutions"),
+      items: [
+        { label: t("links.useCases"), href: links.solutions },
+        { label: t("links.security"), href: links.security },
+        { label: t("links.pricing"), href: links.pricing },
+      ],
+    },
+    {
+      heading: t("groups.company"),
+      items: [
+        { label: t("links.contact"), href: links.contact },
+        { label: t("links.status"), href: links.status },
+        { label: t("links.login"), href: links.login },
+      ],
+    },
+  ];
 
   return (
     <footer

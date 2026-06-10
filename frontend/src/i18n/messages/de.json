@@ -98,12 +98,34 @@
       "openMenu": "Navigationsmenü öffnen",
       "closeMenu": "Navigationsmenü schließen",
       "primaryNav": "Hauptnavigation",
-      "mobileNav": "Mobile Navigation"
+      "mobileNav": "Mobile Navigation",
+      "items": {
+        "product": "Produkt",
+        "solutions": "Lösungen",
+        "security": "Sicherheit",
+        "pricing": "Preise"
+      }
     },
     "footer": {
       "tagline": "Enterprise-RAG-Infrastruktur für sichere, skalierbare Wissensabfrage und KI-Anwendungen.",
       "copyright": "© 2026 Rudix AI. Alle Rechte vorbehalten.",
-      "changeLanguage": "Sprache ändern"
+      "changeLanguage": "Sprache ändern",
+      "groups": {
+        "product": "Produkt",
+        "solutions": "Lösungen",
+        "company": "Unternehmen & Support"
+      },
+      "links": {
+        "productOverview": "Produktübersicht",
+        "pipelineExplorer": "Pipeline-Explorer",
+        "documentation": "Dokumentation",
+        "useCases": "Anwendungsfälle",
+        "security": "Sicherheit",
+        "pricing": "Preise",
+        "contact": "Kontakt",
+        "status": "Status",
+        "login": "Anmelden"
+      }
     },
     "home": "Startseite",
     "language": "Sprache",
@@ -111,22 +133,70 @@
       "solutions": "Lösungen"
     },
     "seo": {
-      "home": { "title": "Enterprise-RAG-Infrastruktur | Rudix", "description": "Rudix ist eine produktionsreife Enterprise-RAG-Plattform mit sicherer Datenaufnahme, fundierten Chats, Bewertungsanalysen und Pipeline-Observability." },
-      "product": { "title": "Produktübersicht | Rudix", "description": "Erfahren Sie, wie Rudix Dokumente in indizierte, quellengestützte Antworten mit Bewertungen, Pipeline-Transparenz und governance-fähigen Abläufen umwandelt." },
-      "pricing": { "title": "Preise | Rudix", "description": "Vergleichen Sie Rudix-Pläne für Dokument-KI, RAG-Chat, Bewertungen und Governance mit konfigurierbaren Paketierungsoptionen." },
-      "security": { "title": "Sicherheit & Vertrauen | Rudix", "description": "Rudix wurde für regulierte Umgebungen entwickelt – mit Architekturschranken, Nachvollziehbarkeit und Datenverwaltungskontrollen." },
-      "contact": { "title": "Kontakt & Demo | Rudix", "description": "Sprechen Sie mit dem Rudix-Team über Ihren Dokumenten-Workflow, eine Demo-Anfrage oder eine Sicherheitsprüfung." },
-      "solutions": { "title": "Lösungen | Rudix", "description": "KI-Dokumenten-Q&A für jedes Enterprise-Team – HR, Recht, Vertrieb, Compliance, Betrieb und mehr." },
-      "hr": { "title": "HR-Lösung | Rudix", "description": "Helfen Sie Mitarbeitern, Antworten in Handbüchern, Leistungsleitfäden und HR-Richtlinien mit quellengestützter KI zu finden." },
-      "legal": { "title": "Rechtliche Lösung | Rudix", "description": "Suchen Sie Verträge, Rechtsrichtlinien und Vereinbarungen mit quellengestützten Antworten und Prüfpfaden." },
-      "compliance": { "title": "Compliance-Lösung | Rudix", "description": "Rufen Sie Prüfnachweise und Compliance-Dokumentation sofort mit quellengestützter KI-Suche ab." },
-      "sales": { "title": "Vertriebs-Lösung | Rudix", "description": "Gewinnen Sie Deals mit zitierten Produktinformationen. Stärken Sie AEs mit sofortigen Antworten aus Ihrer Wissensbasis." },
-      "support": { "title": "Support-Lösung | Rudix", "description": "Helfen Sie Support-Mitarbeitern, schneller zu antworten, mit sofortigem Zugriff auf Dokumentation und Leitfäden." },
-      "research": { "title": "Forschungs-Lösung | Rudix", "description": "Extrahieren Sie Erkenntnisse aus technischen PDFs und Berichten mit RAG-gesteuerter Dokumentenintelligenz." },
-      "operations": { "title": "Betriebs-Lösung | Rudix", "description": "Runbook-Antworten, wenn Ihr Team sie braucht – sofortiger Abruf für Incident-Response und Prozessanleitung." },
-      "procurement": { "title": "Beschaffungs-Lösung | Rudix", "description": "Bewerten Sie Anbieter mit KI-gestützter Dokumentenprüfung und sofortigen Antworten auf Compliance-Fragen." },
-      "internalKnowledge": { "title": "Internes Wissen | Rudix", "description": "Machen Sie das institutionelle Wissen Ihres Teams mit quellengestützter Suche sofort zugänglich." },
-      "clientPortal": { "title": "Kundenportal | Rudix", "description": "Geben Sie Kunden sofortige Antworten aus Ihrer freigegebenen Dokumentation mit bereichsspezifischer KI-Frage-und-Antwort." }
+      "home": {
+        "title": "Enterprise-RAG-Infrastruktur | Rudix",
+        "description": "Rudix ist eine produktionsreife Enterprise-RAG-Plattform mit sicherer Datenaufnahme, fundierten Chats, Bewertungsanalysen und Pipeline-Observability."
+      },
+      "product": {
+        "title": "Produktübersicht | Rudix",
+        "description": "Erfahren Sie, wie Rudix Dokumente in indizierte, quellengestützte Antworten mit Bewertungen, Pipeline-Transparenz und governance-fähigen Abläufen umwandelt."
+      },
+      "pricing": {
+        "title": "Preise | Rudix",
+        "description": "Vergleichen Sie Rudix-Pläne für Dokument-KI, RAG-Chat, Bewertungen und Governance mit konfigurierbaren Paketierungsoptionen."
+      },
+      "security": {
+        "title": "Sicherheit & Vertrauen | Rudix",
+        "description": "Rudix wurde für regulierte Umgebungen entwickelt – mit Architekturschranken, Nachvollziehbarkeit und Datenverwaltungskontrollen."
+      },
+      "contact": {
+        "title": "Kontakt & Demo | Rudix",
+        "description": "Sprechen Sie mit dem Rudix-Team über Ihren Dokumenten-Workflow, eine Demo-Anfrage oder eine Sicherheitsprüfung."
+      },
+      "solutions": {
+        "title": "Lösungen | Rudix",
+        "description": "KI-Dokumenten-Q&A für jedes Enterprise-Team – HR, Recht, Vertrieb, Compliance, Betrieb und mehr."
+      },
+      "hr": {
+        "title": "HR-Lösung | Rudix",
+        "description": "Helfen Sie Mitarbeitern, Antworten in Handbüchern, Leistungsleitfäden und HR-Richtlinien mit quellengestützter KI zu finden."
+      },
+      "legal": {
+        "title": "Rechtliche Lösung | Rudix",
+        "description": "Suchen Sie Verträge, Rechtsrichtlinien und Vereinbarungen mit quellengestützten Antworten und Prüfpfaden."
+      },
+      "compliance": {
+        "title": "Compliance-Lösung | Rudix",
+        "description": "Rufen Sie Prüfnachweise und Compliance-Dokumentation sofort mit quellengestützter KI-Suche ab."
+      },
+      "sales": {
+        "title": "Vertriebs-Lösung | Rudix",
+        "description": "Gewinnen Sie Deals mit zitierten Produktinformationen. Stärken Sie AEs mit sofortigen Antworten aus Ihrer Wissensbasis."
+      },
+      "support": {
+        "title": "Support-Lösung | Rudix",
+        "description": "Helfen Sie Support-Mitarbeitern, schneller zu antworten, mit sofortigem Zugriff auf Dokumentation und Leitfäden."
+      },
+      "research": {
+        "title": "Forschungs-Lösung | Rudix",
+        "description": "Extrahieren Sie Erkenntnisse aus technischen PDFs und Berichten mit RAG-gesteuerter Dokumentenintelligenz."
+      },
+      "operations": {
+        "title": "Betriebs-Lösung | Rudix",
+        "description": "Runbook-Antworten, wenn Ihr Team sie braucht – sofortiger Abruf für Incident-Response und Prozessanleitung."
+      },
+      "procurement": {
+        "title": "Beschaffungs-Lösung | Rudix",
+        "description": "Bewerten Sie Anbieter mit KI-gestützter Dokumentenprüfung und sofortigen Antworten auf Compliance-Fragen."
+      },
+      "internalKnowledge": {
+        "title": "Internes Wissen | Rudix",
+        "description": "Machen Sie das institutionelle Wissen Ihres Teams mit quellengestützter Suche sofort zugänglich."
+      },
+      "clientPortal": {
+        "title": "Kundenportal | Rudix",
+        "description": "Geben Sie Kunden sofortige Antworten aus Ihrer freigegebenen Dokumentation mit bereichsspezifischer KI-Frage-und-Antwort."
+      }
     },
     "landing": {
       "hero": {
@@ -530,7 +600,9 @@
         "schedulerLabel": "Lieber direkt einen Termin vereinbaren?",
         "schedulerCta": "Per Kalender planen",
         "fallbackEmailLabel": "Oder schreiben Sie uns an",
-        "fallbackCta": "Per E-Mail kontaktieren"
+        "fallbackCta": "Per E-Mail kontaktieren",
+        "unconfiguredNotice": "Die Kontaktübermittlung ist derzeit nicht konfiguriert. Sie können das Team weiterhin über alternative Kontaktwege erreichen.",
+        "retryLink": "Mit alternativem Kontaktweg erneut versuchen"
       },
       "goodFit": {
         "heading": "Geeignet für Teams, die benötigen",
@@ -590,7 +662,49 @@
       },
       "cards": {
         "heading": "Enterprise-Anwendungsfälle",
-        "description": "Abteilungsspezifische Lösungspfade auf einer gemeinsamen Rudix-Grundlage."
+        "description": "Abteilungsspezifische Lösungspfade auf einer gemeinsamen Rudix-Grundlage.",
+        "items": {
+          "knowledge": {
+            "title": "Internes Wissen",
+            "description": "Zentralisieren Sie Wikis, Handbücher und Teamdokumentation für ein sofortiges Onboarding."
+          },
+          "hr": {
+            "title": "Personal (HR)",
+            "description": "Automatisieren Sie Richtlinienanfragen und Leistungsklärungen mit hochpräzisem Retrieval."
+          },
+          "support": {
+            "title": "Support",
+            "description": "Statten Sie Agenten mit Echtzeitzugriff auf technische Handbücher und Lösungshistorien aus."
+          },
+          "legal": {
+            "title": "Legal",
+            "description": "Extrahieren Sie Klauseln und analysieren Sie Vertragsabweichungen in umfangreichen Repositories."
+          },
+          "compliance": {
+            "title": "Compliance",
+            "description": "Prüfen Sie regulatorische Einreichungen und stellen Sie die Einhaltung internationaler Standards sicher."
+          },
+          "operations": {
+            "title": "Betrieb",
+            "description": "Überwachen Sie Lieferkettenunterlagen und betriebliche SOPs mit semantischer Suche."
+          },
+          "sales": {
+            "title": "Vertrieb",
+            "description": "Versorgen Sie Account Manager mit Wettbewerbsinformationen und Fallstudien in Echtzeit."
+          },
+          "procurement": {
+            "title": "Beschaffung",
+            "description": "Optimieren Sie Lieferantenbewertungen und RFP-Antwortextraktionen durch RAG-Pipelines."
+          },
+          "research": {
+            "title": "Forschung",
+            "description": "Verdichten Sie komplexe Whitepapers und Labordaten zu umsetzbaren F&E-Erkenntnissen."
+          },
+          "portal": {
+            "title": "Kundenportal",
+            "description": "Bieten Sie Kunden direkten KI-gestützten Zugriff auf ihre Projektdokumentation."
+          }
+        }
       },
       "crossValue": {
         "heading": "Gemeinsamer Mehrwert in allen Lösungen",
@@ -625,7 +739,15 @@
       },
       "workflowStrip": {
         "title": "Von verstreuten Dokumenten zu vertrauenswürdigen Antworten",
-        "description": "Ein konsistentes Liefermodell nutzen, das Onboarding, Qualitätssicherung und langfristige Zuverlässigkeit für abteilungsspezifische Anwendungsfälle unterstützt."
+        "description": "Ein konsistentes Liefermodell nutzen, das Onboarding, Qualitätssicherung und langfristige Zuverlässigkeit für abteilungsspezifische Anwendungsfälle unterstützt.",
+        "collectTitle": "Erfassen",
+        "collectDesc": "Abteilungsdokumente in einem verwalteten Workspace zusammenführen statt in verstreuten Repositories.",
+        "prepareTitle": "Aufbereiten",
+        "prepareDesc": "Inhalte validieren, strukturieren und indizieren, damit Teams vertrauenswürdigen Kontext schnell finden.",
+        "answerTitle": "Beantworten",
+        "answerDesc": "Quellengestützte Antworten für echte Abteilungs-Workflows liefern – kein generischer Chat-Output.",
+        "improveTitle": "Verbessern",
+        "improveDesc": "Evaluierungen, Nachvollziehbarkeit und Monitoring nutzen, um Qualität und Konsistenz kontinuierlich zu steigern."
       },
       "cta": {
         "heading": "Den Workflow Ihres Teams abbilden",

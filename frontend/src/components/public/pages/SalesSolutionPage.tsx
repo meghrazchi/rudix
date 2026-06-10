@@ -23,9 +23,10 @@ function SalesBreadcrumb() {
   const t = useTranslations("public");
 
   return (
-    <nav
+    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
+      <nav
       aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-[1440px] px-10 pt-6"
+      className="mx-auto w-full max-w-[1440px] px-10 py-3"
     >
       <ol className="flex items-center gap-2 text-xs text-[#777587]">
         <li>
@@ -49,6 +50,7 @@ function SalesBreadcrumb() {
         </li>
       </ol>
     </nav>
+    </div>
   );
 }
 

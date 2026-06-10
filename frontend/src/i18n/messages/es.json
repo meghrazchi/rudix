@@ -98,12 +98,34 @@
       "openMenu": "Abrir menú de navegación",
       "closeMenu": "Cerrar menú de navegación",
       "primaryNav": "Navegación principal",
-      "mobileNav": "Navegación móvil"
+      "mobileNav": "Navegación móvil",
+      "items": {
+        "product": "Producto",
+        "solutions": "Soluciones",
+        "security": "Seguridad",
+        "pricing": "Precios"
+      }
     },
     "footer": {
       "tagline": "Infraestructura RAG de nivel empresarial para recuperación de conocimiento segura y escalable y aplicaciones de IA.",
       "copyright": "© 2026 Rudix AI. Todos los derechos reservados.",
-      "changeLanguage": "Cambiar idioma"
+      "changeLanguage": "Cambiar idioma",
+      "groups": {
+        "product": "Producto",
+        "solutions": "Soluciones",
+        "company": "Empresa y soporte"
+      },
+      "links": {
+        "productOverview": "Descripción del producto",
+        "pipelineExplorer": "Explorador de pipeline",
+        "documentation": "Documentación",
+        "useCases": "Casos de uso",
+        "security": "Seguridad",
+        "pricing": "Precios",
+        "contact": "Contacto",
+        "status": "Estado",
+        "login": "Iniciar sesión"
+      }
     },
     "home": "Inicio",
     "language": "Idioma",
@@ -578,7 +600,9 @@
         "schedulerLabel": "¿Prefieres programar directamente?",
         "schedulerCta": "Programar por calendario",
         "fallbackEmailLabel": "O escríbenos a",
-        "fallbackCta": "Contactar por correo"
+        "fallbackCta": "Contactar por correo",
+        "unconfiguredNotice": "El envío de contacto no está configurado en este momento. Aún puede comunicarse con el equipo a través de otras vías de contacto.",
+        "retryLink": "Reintentar con una ruta de contacto alternativa"
       },
       "goodFit": {
         "heading": "Ideal para equipos que necesitan",
@@ -638,7 +662,49 @@
       },
       "cards": {
         "heading": "Casos de uso empresariales",
-        "description": "Rutas de solución específicas por departamento construidas sobre una base Rudix compartida."
+        "description": "Rutas de solución específicas por departamento construidas sobre una base Rudix compartida.",
+        "items": {
+          "knowledge": {
+            "title": "Conocimiento interno",
+            "description": "Centralice wikis, manuales y documentación de equipos para una incorporación inmediata."
+          },
+          "hr": {
+            "title": "Recursos Humanos",
+            "description": "Automatice consultas de políticas y aclaraciones de beneficios con recuperación de alta precisión."
+          },
+          "support": {
+            "title": "Soporte",
+            "description": "Dote a los agentes de acceso en tiempo real a manuales técnicos e historiales de resolución."
+          },
+          "legal": {
+            "title": "Legal",
+            "description": "Extraiga cláusulas y analice variaciones de contratos en repositorios masivos rápidamente."
+          },
+          "compliance": {
+            "title": "Cumplimiento normativo",
+            "description": "Audite presentaciones regulatorias y garantice el cumplimiento de estándares internacionales."
+          },
+          "operations": {
+            "title": "Operaciones",
+            "description": "Supervise la documentación de la cadena de suministro y los SOPs operativos con búsqueda semántica."
+          },
+          "sales": {
+            "title": "Ventas",
+            "description": "Equipe a los ejecutivos de cuentas con inteligencia competitiva y casos de estudio en llamadas en vivo."
+          },
+          "procurement": {
+            "title": "Compras",
+            "description": "Agilice las evaluaciones de proveedores y la extracción de respuestas RFP mediante pipelines RAG."
+          },
+          "research": {
+            "title": "Investigación",
+            "description": "Sintetice documentos técnicos complejos y datos de laboratorio en perspectivas de I+D accionables."
+          },
+          "portal": {
+            "title": "Portal de clientes",
+            "description": "Proporcione a los clientes acceso directo impulsado por IA a su documentación de proyectos."
+          }
+        }
       },
       "crossValue": {
         "heading": "Valor compartido en todas las soluciones",
@@ -673,7 +739,15 @@
       },
       "workflowStrip": {
         "title": "De documentos dispersos a respuestas confiables",
-        "description": "Usa un modelo de entrega consistente que admite incorporación, aseguramiento de calidad y fiabilidad a largo plazo para casos de uso departamentales."
+        "description": "Usa un modelo de entrega consistente que admite incorporación, aseguramiento de calidad y fiabilidad a largo plazo para casos de uso departamentales.",
+        "collectTitle": "Recopilar",
+        "collectDesc": "Centraliza los documentos del departamento en un espacio de trabajo gestionado en lugar de repositorios dispersos.",
+        "prepareTitle": "Preparar",
+        "prepareDesc": "Valida, estructura e indexa el contenido para que los equipos encuentren contexto confiable rápidamente.",
+        "answerTitle": "Responder",
+        "answerDesc": "Proporciona respuestas respaldadas por citas para flujos de trabajo departamentales reales, no salida de chat genérica.",
+        "improveTitle": "Mejorar",
+        "improveDesc": "Usa evaluaciones, auditabilidad y monitoreo para aumentar la calidad y consistencia con el tiempo."
       },
       "cta": {
         "heading": "Mapea el flujo de trabajo de tu equipo",

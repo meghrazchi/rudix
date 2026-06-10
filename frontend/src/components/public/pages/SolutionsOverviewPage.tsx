@@ -15,15 +15,15 @@ import {
 } from "@/components/public/pages/solutions/SolutionsOverviewSections";
 import { WorkflowPlaybookSection } from "@/components/public/pages/solutions/WorkflowPlaybookSection";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
-import { SOLUTION_OVERVIEW_FLOW_STEPS } from "@/lib/public-site/solutions";
 
 function SolutionsBreadcrumb() {
   const t = useTranslations("public");
 
   return (
-    <nav
+    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
+      <nav
       aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-7xl px-4 pt-8 lg:px-8"
+      className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-8"
     >
       <ol className="flex items-center gap-2 text-xs text-[#61677a]">
         <li>
@@ -39,6 +39,7 @@ function SolutionsBreadcrumb() {
         </li>
       </ol>
     </nav>
+    </div>
   );
 }
 
@@ -57,7 +58,12 @@ export function SolutionsOverviewPage() {
       <WorkflowStripSection
         title={t("workflowStrip.title")}
         description={t("workflowStrip.description")}
-        steps={SOLUTION_OVERVIEW_FLOW_STEPS}
+        steps={[
+          { title: t("workflowStrip.collectTitle"), description: t("workflowStrip.collectDesc") },
+          { title: t("workflowStrip.prepareTitle"), description: t("workflowStrip.prepareDesc") },
+          { title: t("workflowStrip.answerTitle"), description: t("workflowStrip.answerDesc") },
+          { title: t("workflowStrip.improveTitle"), description: t("workflowStrip.improveDesc") },
+        ]}
       />
 
       <QuestionMatrixSection />

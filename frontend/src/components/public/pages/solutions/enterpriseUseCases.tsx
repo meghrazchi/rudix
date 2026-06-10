@@ -1,109 +1,19 @@
-import { SOLUTION_AUDIENCES } from "@/lib/public-site/solutions";
-
-export type EnterpriseUseCaseCard = {
-  id: string;
-  title: string;
-  description: string;
-  icon:
-    | "knowledge"
-    | "hr"
-    | "support"
-    | "legal"
-    | "compliance"
-    | "operations"
-    | "sales"
-    | "procurement"
-    | "research"
-    | "portal";
-  href?: string;
-};
-
-export const enterpriseUseCaseCards: EnterpriseUseCaseCard[] = [
-  {
-    id: "knowledge",
-    title: "Internal Knowledge",
-    description:
-      "Centralize wikis, handbooks, and team documentation for instant employee onboarding.",
-    icon: "knowledge",
-    href: SOLUTION_AUDIENCES[7].routePath,
-  },
-  {
-    id: "hr",
-    title: "HR",
-    description:
-      "Automate policy queries and benefit clarifications with high-precision retrieval.",
-    icon: "hr",
-    href: SOLUTION_AUDIENCES[0].routePath,
-  },
-  {
-    id: "support",
-    title: "Support",
-    description:
-      "Empower agents with real-time access to technical manuals and resolution histories.",
-    icon: "support",
-    href: SOLUTION_AUDIENCES[1].routePath,
-  },
-  {
-    id: "legal",
-    title: "Legal",
-    description:
-      "Rapidly extract clauses and analyze contract variances across massive repositories.",
-    icon: "legal",
-    href: SOLUTION_AUDIENCES[2].routePath,
-  },
-  {
-    id: "compliance",
-    title: "Compliance",
-    description:
-      "Audit regulatory filings and ensure adherence to international standards instantly.",
-    icon: "compliance",
-    href: SOLUTION_AUDIENCES[3].routePath,
-  },
-  {
-    id: "operations",
-    title: "Operations",
-    description:
-      "Monitor supply chain documentation and operational SOPs with semantic search.",
-    icon: "operations",
-    href: SOLUTION_AUDIENCES[4].routePath,
-  },
-  {
-    id: "sales",
-    title: "Sales",
-    description:
-      "Arm account executives with competitive intel and case studies during live calls.",
-    icon: "sales",
-    href: SOLUTION_AUDIENCES[6].routePath,
-  },
-  {
-    id: "procurement",
-    title: "Procurement",
-    description:
-      "Streamline vendor evaluations and RFP response extraction through RAG pipelines.",
-    icon: "procurement",
-    href: SOLUTION_AUDIENCES[8].routePath,
-  },
-  {
-    id: "research",
-    title: "Research",
-    description:
-      "Synthesize complex whitepapers and lab data into actionable R&D insights.",
-    icon: "research",
-    href: SOLUTION_AUDIENCES[5].routePath,
-  },
-  {
-    id: "portal",
-    title: "Client Portal",
-    description:
-      "Provide customers with direct, AI-powered access to their project documentation.",
-    icon: "portal",
-  },
-];
+export type AudienceIconType =
+  | "knowledge"
+  | "hr"
+  | "support"
+  | "legal"
+  | "compliance"
+  | "operations"
+  | "sales"
+  | "procurement"
+  | "research"
+  | "portal";
 
 export function AudienceIcon({
   icon,
 }: {
-  icon: EnterpriseUseCaseCard["icon"];
+  icon: AudienceIconType;
 }) {
   if (icon === "knowledge") {
     return (

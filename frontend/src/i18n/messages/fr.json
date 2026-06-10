@@ -98,12 +98,34 @@
       "openMenu": "Ouvrir le menu de navigation",
       "closeMenu": "Fermer le menu de navigation",
       "primaryNav": "Navigation principale",
-      "mobileNav": "Navigation mobile"
+      "mobileNav": "Navigation mobile",
+      "items": {
+        "product": "Produit",
+        "solutions": "Solutions",
+        "security": "Sécurité",
+        "pricing": "Tarifs"
+      }
     },
     "footer": {
       "tagline": "Infrastructure RAG de niveau entreprise pour une récupération de connaissances sécurisée et évolutive et des applications d'IA.",
       "copyright": "© 2026 Rudix AI. Tous droits réservés.",
-      "changeLanguage": "Changer de langue"
+      "changeLanguage": "Changer de langue",
+      "groups": {
+        "product": "Produit",
+        "solutions": "Solutions",
+        "company": "Entreprise & Support"
+      },
+      "links": {
+        "productOverview": "Aperçu du produit",
+        "pipelineExplorer": "Explorateur de pipeline",
+        "documentation": "Documentation",
+        "useCases": "Cas d'utilisation",
+        "security": "Sécurité",
+        "pricing": "Tarifs",
+        "contact": "Contact",
+        "status": "Statut",
+        "login": "Connexion"
+      }
     },
     "home": "Accueil",
     "language": "Langue",
@@ -578,7 +600,9 @@
         "schedulerLabel": "Vous préférez planifier directement ?",
         "schedulerCta": "Planifier via calendrier",
         "fallbackEmailLabel": "Ou écrivez-nous à",
-        "fallbackCta": "Contact par e-mail"
+        "fallbackCta": "Contact par e-mail",
+        "unconfiguredNotice": "L'envoi de contact n'est pas configuré pour le moment. Vous pouvez toujours contacter l'équipe via d'autres voies de contact.",
+        "retryLink": "Réessayer avec un autre moyen de contact"
       },
       "goodFit": {
         "heading": "Adapté aux équipes qui ont besoin de",
@@ -638,7 +662,49 @@
       },
       "cards": {
         "heading": "Cas d'usage entreprise",
-        "description": "Parcours de solution propres à chaque département, bâtis sur une base Rudix partagée."
+        "description": "Parcours de solution propres à chaque département, bâtis sur une base Rudix partagée.",
+        "items": {
+          "knowledge": {
+            "title": "Connaissance interne",
+            "description": "Centralisez wikis, manuels et documentation d'équipe pour un onboarding immédiat."
+          },
+          "hr": {
+            "title": "RH",
+            "description": "Automatisez les requêtes de politique et les clarifications d'avantages avec une récupération haute précision."
+          },
+          "support": {
+            "title": "Support",
+            "description": "Dotez les agents d'un accès en temps réel aux manuels techniques et aux historiques de résolution."
+          },
+          "legal": {
+            "title": "Juridique",
+            "description": "Extrayez rapidement des clauses et analysez les écarts contractuels dans des référentiels massifs."
+          },
+          "compliance": {
+            "title": "Conformité",
+            "description": "Auditez les dépôts réglementaires et assurez la conformité aux normes internationales instantanément."
+          },
+          "operations": {
+            "title": "Opérations",
+            "description": "Surveillez la documentation de la chaîne d'approvisionnement et les SOPs opérationnels avec la recherche sémantique."
+          },
+          "sales": {
+            "title": "Commercial",
+            "description": "Équipez les chargés de compte avec des informations concurrentielles et des études de cas lors des appels en direct."
+          },
+          "procurement": {
+            "title": "Achats",
+            "description": "Rationalisez les évaluations fournisseurs et l'extraction de réponses RFP via des pipelines RAG."
+          },
+          "research": {
+            "title": "Recherche",
+            "description": "Synthétisez des livres blancs complexes et des données de laboratoire en insights R&D exploitables."
+          },
+          "portal": {
+            "title": "Portail client",
+            "description": "Offrez aux clients un accès direct alimenté par l'IA à leur documentation de projet."
+          }
+        }
       },
       "crossValue": {
         "heading": "Valeur partagée dans toutes les solutions",
@@ -673,7 +739,15 @@
       },
       "workflowStrip": {
         "title": "De documents dispersés à des réponses fiables",
-        "description": "Utilisez un modèle de livraison cohérent qui prend en charge onboarding, assurance qualité et fiabilité long terme pour les cas d'usage départementaux."
+        "description": "Utilisez un modèle de livraison cohérent qui prend en charge onboarding, assurance qualité et fiabilité long terme pour les cas d'usage départementaux.",
+        "collectTitle": "Collecter",
+        "collectDesc": "Centralisez les documents du département dans un espace de travail géré plutôt que dans des référentiels dispersés.",
+        "prepareTitle": "Préparer",
+        "prepareDesc": "Validez, structurez et indexez le contenu pour que les équipes trouvent rapidement un contexte fiable.",
+        "answerTitle": "Répondre",
+        "answerDesc": "Fournissez des réponses appuyées par des citations pour de vrais workflows départementaux, pas une sortie de chat générique.",
+        "improveTitle": "Améliorer",
+        "improveDesc": "Utilisez les évaluations, l'auditabilité et le monitoring pour améliorer la qualité et la cohérence dans le temps."
       },
       "cta": {
         "heading": "Cartographiez le workflow de votre équipe",

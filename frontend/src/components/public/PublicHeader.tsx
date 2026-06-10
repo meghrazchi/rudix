@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
-import { buildPrimaryNavItems } from "@/lib/public-site/links";
 
 type PublicHeaderProps = {
   links: PublicSiteLinks;
@@ -15,7 +14,12 @@ type PublicHeaderProps = {
 
 export function PublicHeader({ links }: PublicHeaderProps) {
   const t = useTranslations("public.nav");
-  const navItems = buildPrimaryNavItems(links);
+  const navItems = [
+    { label: t("items.product"), href: links.product },
+    { label: t("items.solutions"), href: links.solutions },
+    { label: t("items.security"), href: links.security },
+    { label: t("items.pricing"), href: links.pricing },
+  ];
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const firstMobileLinkRef = useRef<HTMLAnchorElement | null>(null);

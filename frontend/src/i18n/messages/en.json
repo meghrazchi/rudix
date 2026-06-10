@@ -98,12 +98,34 @@
       "openMenu": "Open navigation menu",
       "closeMenu": "Close navigation menu",
       "primaryNav": "Primary navigation",
-      "mobileNav": "Mobile navigation"
+      "mobileNav": "Mobile navigation",
+      "items": {
+        "product": "Product",
+        "solutions": "Solutions",
+        "security": "Security",
+        "pricing": "Pricing"
+      }
     },
     "footer": {
       "tagline": "Enterprise-grade RAG infrastructure for secure, scalable knowledge retrieval and AI applications.",
       "copyright": "© 2026 Rudix AI. All rights reserved.",
-      "changeLanguage": "Change language"
+      "changeLanguage": "Change language",
+      "groups": {
+        "product": "Product",
+        "solutions": "Solutions",
+        "company": "Company & Support"
+      },
+      "links": {
+        "productOverview": "Product Overview",
+        "pipelineExplorer": "Pipeline Explorer",
+        "documentation": "Documentation",
+        "useCases": "Use Cases",
+        "security": "Security",
+        "pricing": "Pricing",
+        "contact": "Contact",
+        "status": "Status",
+        "login": "Login"
+      }
     },
     "home": "Home",
     "language": "Language",
@@ -111,22 +133,70 @@
       "solutions": "Solutions"
     },
     "seo": {
-      "home": { "title": "Enterprise RAG Infrastructure | Rudix", "description": "Rudix is a production-ready enterprise RAG platform with secure ingestion, grounded chat, evaluation analytics, and pipeline observability." },
-      "product": { "title": "Product Overview | Rudix", "description": "See how Rudix turns documents into indexed, citation-backed answers with evaluations, pipeline visibility, and governance-ready operations." },
-      "pricing": { "title": "Pricing | Rudix", "description": "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance." },
-      "security": { "title": "Security & Trust | Rudix", "description": "Rudix is built for regulated environments with architectural boundaries, auditability, and data-handling controls." },
-      "contact": { "title": "Contact & Demo | Rudix", "description": "Speak with the Rudix team about your document workflow, demo request, or security review." },
-      "solutions": { "title": "Solutions | Rudix", "description": "AI document Q&A for every enterprise team — HR, Legal, Sales, Compliance, Operations, and more." },
-      "hr": { "title": "HR Solution | Rudix", "description": "Help employees find answers from handbooks, benefits guides, and HR policies with citation-backed AI." },
-      "legal": { "title": "Legal Solution | Rudix", "description": "Search contracts, legal policies, and agreements with source-backed answers and audit trails." },
-      "compliance": { "title": "Compliance Solution | Rudix", "description": "Retrieve audit evidence and compliance documentation instantly with citation-backed AI search." },
-      "sales": { "title": "Sales Solution | Rudix", "description": "Win deals with cited product intelligence. Empower AEs with instant answers from your knowledge base." },
-      "support": { "title": "Support Solution | Rudix", "description": "Help support agents answer faster with instant access to documentation and troubleshooting guides." },
-      "research": { "title": "Research Solution | Rudix", "description": "Extract insights from technical PDFs and research reports with RAG-powered document intelligence." },
-      "operations": { "title": "Operations Solution | Rudix", "description": "Runbook answers when your team needs them — instant retrieval for incident response and process guidance." },
-      "procurement": { "title": "Procurement Solution | Rudix", "description": "Evaluate vendors with AI-powered document review and instant answers to compliance questions." },
-      "internalKnowledge": { "title": "Internal Knowledge | Rudix", "description": "Make your team's institutional knowledge instantly accessible with citation-backed search." },
-      "clientPortal": { "title": "Client Portal | Rudix", "description": "Give clients instant answers from your approved documentation with scoped AI Q&A." }
+      "home": {
+        "title": "Enterprise RAG Infrastructure | Rudix",
+        "description": "Rudix is a production-ready enterprise RAG platform with secure ingestion, grounded chat, evaluation analytics, and pipeline observability."
+      },
+      "product": {
+        "title": "Product Overview | Rudix",
+        "description": "See how Rudix turns documents into indexed, citation-backed answers with evaluations, pipeline visibility, and governance-ready operations."
+      },
+      "pricing": {
+        "title": "Pricing | Rudix",
+        "description": "Compare Rudix plans for document AI, RAG chat, evaluations, and governance with configurable packaging guidance."
+      },
+      "security": {
+        "title": "Security & Trust | Rudix",
+        "description": "Rudix is built for regulated environments with architectural boundaries, auditability, and data-handling controls."
+      },
+      "contact": {
+        "title": "Contact & Demo | Rudix",
+        "description": "Speak with the Rudix team about your document workflow, demo request, or security review."
+      },
+      "solutions": {
+        "title": "Solutions | Rudix",
+        "description": "AI document Q&A for every enterprise team — HR, Legal, Sales, Compliance, Operations, and more."
+      },
+      "hr": {
+        "title": "HR Solution | Rudix",
+        "description": "Help employees find answers from handbooks, benefits guides, and HR policies with citation-backed AI."
+      },
+      "legal": {
+        "title": "Legal Solution | Rudix",
+        "description": "Search contracts, legal policies, and agreements with source-backed answers and audit trails."
+      },
+      "compliance": {
+        "title": "Compliance Solution | Rudix",
+        "description": "Retrieve audit evidence and compliance documentation instantly with citation-backed AI search."
+      },
+      "sales": {
+        "title": "Sales Solution | Rudix",
+        "description": "Win deals with cited product intelligence. Empower AEs with instant answers from your knowledge base."
+      },
+      "support": {
+        "title": "Support Solution | Rudix",
+        "description": "Help support agents answer faster with instant access to documentation and troubleshooting guides."
+      },
+      "research": {
+        "title": "Research Solution | Rudix",
+        "description": "Extract insights from technical PDFs and research reports with RAG-powered document intelligence."
+      },
+      "operations": {
+        "title": "Operations Solution | Rudix",
+        "description": "Runbook answers when your team needs them — instant retrieval for incident response and process guidance."
+      },
+      "procurement": {
+        "title": "Procurement Solution | Rudix",
+        "description": "Evaluate vendors with AI-powered document review and instant answers to compliance questions."
+      },
+      "internalKnowledge": {
+        "title": "Internal Knowledge | Rudix",
+        "description": "Make your team's institutional knowledge instantly accessible with citation-backed search."
+      },
+      "clientPortal": {
+        "title": "Client Portal | Rudix",
+        "description": "Give clients instant answers from your approved documentation with scoped AI Q&A."
+      }
     },
     "landing": {
       "hero": {
@@ -530,7 +600,9 @@
         "schedulerLabel": "Prefer to schedule directly?",
         "schedulerCta": "Schedule via calendar",
         "fallbackEmailLabel": "Or email us at",
-        "fallbackCta": "Contact via email"
+        "fallbackCta": "Contact via email",
+        "unconfiguredNotice": "Contact submission is not configured right now. You can still reach the team through alternate contact paths.",
+        "retryLink": "Retry with alternate contact path"
       },
       "goodFit": {
         "heading": "Good fit for teams that need",
@@ -590,7 +662,49 @@
       },
       "cards": {
         "heading": "Enterprise Use Cases",
-        "description": "Department-specific solution paths built on one shared Rudix foundation."
+        "description": "Department-specific solution paths built on one shared Rudix foundation.",
+        "items": {
+          "knowledge": {
+            "title": "Internal Knowledge",
+            "description": "Centralize wikis, handbooks, and team documentation for instant employee onboarding."
+          },
+          "hr": {
+            "title": "HR",
+            "description": "Automate policy queries and benefit clarifications with high-precision retrieval."
+          },
+          "support": {
+            "title": "Support",
+            "description": "Empower agents with real-time access to technical manuals and resolution histories."
+          },
+          "legal": {
+            "title": "Legal",
+            "description": "Rapidly extract clauses and analyze contract variances across massive repositories."
+          },
+          "compliance": {
+            "title": "Compliance",
+            "description": "Audit regulatory filings and ensure adherence to international standards instantly."
+          },
+          "operations": {
+            "title": "Operations",
+            "description": "Monitor supply chain documentation and operational SOPs with semantic search."
+          },
+          "sales": {
+            "title": "Sales",
+            "description": "Arm account executives with competitive intel and case studies during live calls."
+          },
+          "procurement": {
+            "title": "Procurement",
+            "description": "Streamline vendor evaluations and RFP response extraction through RAG pipelines."
+          },
+          "research": {
+            "title": "Research",
+            "description": "Synthesize complex whitepapers and lab data into actionable R&D insights."
+          },
+          "portal": {
+            "title": "Client Portal",
+            "description": "Provide customers with direct, AI-powered access to their project documentation."
+          }
+        }
       },
       "crossValue": {
         "heading": "Shared value across all solutions",
@@ -625,7 +739,15 @@
       },
       "workflowStrip": {
         "title": "From scattered documents to trusted answers",
-        "description": "Use a consistent delivery model that supports onboarding, quality assurance, and long-term reliability for department-specific use cases."
+        "description": "Use a consistent delivery model that supports onboarding, quality assurance, and long-term reliability for department-specific use cases.",
+        "collectTitle": "Collect",
+        "collectDesc": "Bring department documents into one governed workspace instead of scattered repositories.",
+        "prepareTitle": "Prepare",
+        "prepareDesc": "Validate, structure, and index content so teams can search trusted context quickly.",
+        "answerTitle": "Answer",
+        "answerDesc": "Provide citation-backed responses for real department workflows, not generic chat output.",
+        "improveTitle": "Improve",
+        "improveDesc": "Use evaluations, auditability, and monitoring to raise quality and consistency over time."
       },
       "cta": {
         "heading": "Map your team's workflow",

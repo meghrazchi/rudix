@@ -699,9 +699,10 @@ function HRBreadcrumb() {
   const t = useTranslations("public");
 
   return (
-    <nav
+    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
+      <nav
       aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-7xl px-4 pt-6 lg:px-8"
+      className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-8"
     >
       <ol className="flex items-center gap-2 text-xs text-[#61677a]">
         <li>
@@ -725,6 +726,7 @@ function HRBreadcrumb() {
         </li>
       </ol>
     </nav>
+    </div>
   );
 }
 

@@ -98,8 +98,7 @@ export function ContactDemoFormCard({
 
       {isUnavailable ? (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Contact submission is not configured right now. You can still reach
-          the team through alternate contact paths.
+          {t("unconfiguredNotice")}
         </div>
       ) : null}
 
@@ -116,7 +115,7 @@ export function ContactDemoFormCard({
             href={retryHref}
             className="mt-2 inline-block font-semibold underline decoration-rose-300"
           >
-            Retry with alternate contact path
+            {t("retryLink")}
           </PublicActionLink>
         </div>
       ) : null}

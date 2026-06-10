@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { PublicActionLink } from "@/components/public/PublicActionLink";
 import {
   FaqSection,
@@ -17,33 +19,37 @@ type SolutionDetailPageProps = {
 };
 
 function SolutionBreadcrumb({ solution }: { solution: SolutionAudience }) {
+  const t = useTranslations("public");
+
   return (
-    <nav
-      aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-7xl px-4 pt-8 lg:px-8"
-    >
-      <ol className="flex items-center gap-2 text-xs text-[#61677a]">
-        <li>
-          <PublicActionLink href="/" className="hover:text-[#2a2f40]">
-            Home
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#9ca3b8]">
-          /
-        </li>
-        <li>
-          <PublicActionLink href="/solutions" className="hover:text-[#2a2f40]">
-            Solutions
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#9ca3b8]">
-          /
-        </li>
-        <li aria-current="page" className="font-semibold text-[#252a3b]">
-          {solution.shortLabel}
-        </li>
-      </ol>
-    </nav>
+    <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
+      <nav
+        aria-label="Breadcrumb"
+        className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-8"
+      >
+        <ol className="flex items-center gap-2 text-xs text-[#61677a]">
+          <li>
+            <PublicActionLink href="/" className="hover:text-[#2a2f40]">
+              {t("home")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#9ca3b8]">
+            /
+          </li>
+          <li>
+            <PublicActionLink href="/solutions" className="hover:text-[#2a2f40]">
+              {t("breadcrumb.solutions")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#9ca3b8]">
+            /
+          </li>
+          <li aria-current="page" className="font-semibold text-[#252a3b]">
+            {solution.shortLabel}
+          </li>
+        </ol>
+      </nav>
+    </div>
   );
 }
 
