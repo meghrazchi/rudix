@@ -5,12 +5,17 @@ future provider) enters Rudix through this bridge before touching the document p
 The bridge enforces the same security controls as a manual upload:
 
   1. MIME / filename validation
-  2. SHA-256 checksum + duplicate detection
+  2. SHA-256 checksum + duplicate detection (new items) / existing-item update (re-syncs)
   3. ClamAV malware scan  →  status: infected
   4. Basic text extraction for DLP scan  →  status: blocked
   5. Object-storage upload (MinIO/S3)
-  6. Document + SourceDocument record creation
+  6. Document + SourceDocument record creation (or in-place update on re-sync)
   7. SourceReference records (document-level, chunk_id=None; chunk-level refs added later)
+
+When a connector item is re-synced with changed content the bridge finds the existing
+SourceDocument by external_item_id, updates the linked Document in-place (new storage key,
+reset to pending_scan), and re-queues it for chunking/embedding — no duplicate Document is
+created.
 
 The bridge does NOT run chunking / embedding inline; instead it creates the Document in
 ``pending_scan`` → ``processing`` status and expects the existing document processing
@@ -145,6 +150,29 @@ class ConnectorIngestionBridge:
         sync_version:
             Current sync run version (timestamp-based integer).
         """
+        # ------------------------------------------------------------------
+        # 0. Re-sync update path: if this ExternalItem was already ingested,
+        #    update the existing Document in-place rather than creating a new one.
+        # ------------------------------------------------------------------
+        existing_src = await self._find_existing_source_document(session, external_item_id)
+        if existing_src is not None:
+            return await self._reingest_existing_item(
+                session,
+                existing_src=existing_src,
+                external_item_id=external_item_id,
+                organization_id=organization_id,
+                collection_id=collection_id,
+                sync_run_id=sync_run_id,
+                uploader_user_id=uploader_user_id,
+                content=content,
+                filename=filename,
+                mime_type=mime_type,
+                source_url=source_url,
+                title=title,
+                metadata=metadata,
+                sync_version=sync_version,
+            )
+
         # ------------------------------------------------------------------
         # 1. MIME / filename / size validation
         # ------------------------------------------------------------------
@@ -575,6 +603,251 @@ class ConnectorIngestionBridge:
         await session.flush()
         await session.refresh(ref)
         return ref
+
+    async def _find_existing_source_document(
+        self,
+        session: AsyncSession,
+        external_item_id: UUID,
+    ) -> SourceDocument | None:
+        result = await session.execute(
+            select(SourceDocument)
+            .where(SourceDocument.external_item_id == external_item_id)
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def _reingest_existing_item(
+        self,
+        session: AsyncSession,
+        *,
+        existing_src: SourceDocument,
+        external_item_id: UUID,
+        organization_id: UUID,
+        collection_id: UUID | None,
+        sync_run_id: UUID | None,
+        uploader_user_id: UUID,
+        content: bytes,
+        filename: str,
+        mime_type: str | None,
+        source_url: str,
+        title: str,
+        metadata: dict,
+        sync_version: int,
+    ) -> IngestionResult:
+        """Update an already-indexed connector item with new content.
+
+        Re-runs security checks, uploads new bytes under a fresh storage key,
+        updates the existing Document in-place (so no duplicate is created),
+        and returns pending_scan so the caller re-queues it for processing.
+        """
+        resolved_mime = (mime_type or "").strip().lower().split(";")[0].strip()
+        extension = _CONNECTOR_ALLOWED_MIME.get(resolved_mime)
+        if extension is None:
+            suffix = Path(filename).suffix.lower().lstrip(".")
+            if suffix in {"pdf", "txt", "docx"}:
+                extension = suffix
+            else:
+                _logger.info(
+                    "connector.ingestion.update_unsupported",
+                    external_item_id=str(external_item_id),
+                    mime_type=resolved_mime,
+                )
+                return IngestionResult(
+                    document_id=existing_src.document_id,
+                    source_document_id=existing_src.id,
+                    status=DocumentStatus.unsupported,
+                    checksum=None,
+                    is_duplicate=False,
+                    duplicate_of_document_id=None,
+                    error=f"unsupported mime type on update: {resolved_mime}",
+                )
+
+        if not content or len(content) > _MAX_FILE_SIZE_BYTES:
+            return IngestionResult(
+                document_id=existing_src.document_id,
+                source_document_id=existing_src.id,
+                status=DocumentStatus.unsupported,
+                checksum=None,
+                is_duplicate=False,
+                duplicate_of_document_id=None,
+                error="empty or oversized file on update",
+            )
+
+        if extension in _MAGIC_BYTES:
+            offset, expected = _MAGIC_BYTES[extension]
+            if (
+                len(content) < offset + len(expected)
+                or content[offset : offset + len(expected)] != expected
+            ):
+                return IngestionResult(
+                    document_id=existing_src.document_id,
+                    source_document_id=existing_src.id,
+                    status=DocumentStatus.unsupported,
+                    checksum=None,
+                    is_duplicate=False,
+                    duplicate_of_document_id=None,
+                    error=f"magic bytes mismatch on update for extension .{extension}",
+                )
+
+        if extension == "pdf":
+            header = content[:_PDF_HEADER_SCAN_BYTES]
+            if _PDF_ENCRYPT_MARKER in header or _PDF_ENCRYPT_MARKER.lower() in header.lower():
+                return IngestionResult(
+                    document_id=existing_src.document_id,
+                    source_document_id=existing_src.id,
+                    status=DocumentStatus.unsupported,
+                    checksum=None,
+                    is_duplicate=False,
+                    duplicate_of_document_id=None,
+                    error="encrypted/password-protected PDF not supported on update",
+                )
+
+        checksum = hashlib.sha256(content).hexdigest()
+
+        # Short-circuit: if the file bytes haven't changed, only bump lineage metadata.
+        # The sync engine uses ExternalItem.content_hash (which covers title/version/etc.)
+        # for change detection, so we can reach here even when the actual bytes are identical.
+        if existing_src.content_hash == checksum:
+            existing_src.sync_version = sync_version
+            existing_src.sync_run_id = sync_run_id
+            if collection_id is not None:
+                existing_src.collection_id = collection_id
+            await session.flush()
+            await self._upsert_source_reference(
+                session,
+                source_document_id=existing_src.id,
+                external_item_id=external_item_id,
+                document_id=existing_src.document_id,
+                organization_id=organization_id,
+                source_url=source_url,
+                title=title,
+                metadata=metadata,
+            )
+            return IngestionResult(
+                document_id=existing_src.document_id,
+                source_document_id=existing_src.id,
+                status=DocumentStatus.skipped,
+                checksum=checksum,
+                is_duplicate=True,
+                duplicate_of_document_id=existing_src.document_id,
+                error=None,
+            )
+
+        scan_result = await self._malware_scan.scan_bytes(content=content)
+        scan_dict = {
+            "scanner": scan_result.scanner,
+            "status": scan_result.status,
+            "signature": scan_result.signature,
+            "duration_ms": scan_result.duration_ms,
+            "error_type": scan_result.error_type,
+        }
+
+        dlp_text = _extract_text_for_dlp(content, extension)
+        dlp_result = _run_dlp(dlp_text)
+        dlp_dict = dlp_result.to_dict()
+
+        # Determine final Document status before touching storage.
+        if scan_result.status == "infected":
+            new_doc_status = DocumentStatus.infected
+        elif dlp_result.action in {"quarantine", "reject"}:
+            new_doc_status = DocumentStatus.blocked
+        else:
+            new_doc_status = DocumentStatus.pending_scan
+
+        # Upload new content only when the document is clean.
+        storage_key: str | None = None
+        if new_doc_status == DocumentStatus.pending_scan:
+            storage_key = _build_storage_key(organization_id, extension)
+            try:
+                await _upload_to_storage("documents", storage_key, content, resolved_mime)
+            except Exception as exc:
+                _logger.error(
+                    "connector.ingestion.update_storage_failed",
+                    external_item_id=str(external_item_id),
+                    error=str(exc),
+                )
+                return IngestionResult(
+                    document_id=existing_src.document_id,
+                    source_document_id=existing_src.id,
+                    status=DocumentStatus.failed,
+                    checksum=checksum,
+                    is_duplicate=False,
+                    duplicate_of_document_id=None,
+                    error=f"storage upload failed on update: {exc}",
+                )
+
+        # Update the existing Document in-place.
+        doc_result = await session.execute(
+            select(Document).where(Document.id == existing_src.document_id)
+        )
+        doc = doc_result.scalar_one_or_none()
+        if doc is None:
+            # Linked Document was hard-deleted; create a fresh one.
+            doc = await self._create_document(
+                session,
+                organization_id=organization_id,
+                uploader_user_id=uploader_user_id,
+                filename=_safe_filename(filename, extension),
+                extension=extension,
+                checksum=checksum,
+                size=len(content),
+                status=new_doc_status,
+                security_scan_result=scan_dict,
+                dlp_scan_result=dlp_dict,
+                external_item_id=external_item_id,
+                storage_bucket="documents" if storage_key else "",
+                storage_key=storage_key or "",
+            )
+            existing_src.document_id = doc.id
+        else:
+            doc.checksum = checksum
+            doc.file_type = extension
+            doc.status = new_doc_status.value
+            doc.security_scan_result = scan_dict
+            doc.dlp_scan_result = dlp_dict
+            if storage_key:
+                doc.storage_bucket = "documents"
+                doc.storage_object_key = storage_key
+            await session.flush()
+            await session.refresh(doc)
+
+        # Update SourceDocument lineage.
+        existing_src.content_hash = checksum
+        existing_src.sync_version = sync_version
+        existing_src.sync_run_id = sync_run_id
+        if collection_id is not None:
+            existing_src.collection_id = collection_id
+        await session.flush()
+
+        # Update SourceReference.
+        await self._upsert_source_reference(
+            session,
+            source_document_id=existing_src.id,
+            external_item_id=external_item_id,
+            document_id=doc.id,
+            organization_id=organization_id,
+            source_url=source_url,
+            title=title,
+            metadata=metadata,
+        )
+
+        _logger.info(
+            "connector.ingestion.updated",
+            external_item_id=str(external_item_id),
+            document_id=str(doc.id),
+            status=new_doc_status.value,
+            extension=extension,
+            size=len(content),
+        )
+        return IngestionResult(
+            document_id=doc.id,
+            source_document_id=existing_src.id,
+            status=new_doc_status,
+            checksum=checksum,
+            is_duplicate=False,
+            duplicate_of_document_id=None,
+            error=None,
+        )
 
 
 # ---------------------------------------------------------------------------

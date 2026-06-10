@@ -715,3 +715,182 @@ def test_google_drive_download_returns_none_for_none_mime() -> None:
         )
     )
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Re-ingest update path (pure unit, fully patched)
+# ---------------------------------------------------------------------------
+
+import hashlib as _hashlib
+from types import SimpleNamespace as _NS
+
+
+def _mock_src_doc(*, ext_item_id: UUID, doc_id: UUID, checksum: str) -> _NS:
+    return _NS(
+        id=uuid4(),
+        external_item_id=ext_item_id,
+        document_id=doc_id,
+        content_hash=checksum,
+        sync_version=1,
+        sync_run_id=None,
+        collection_id=None,
+        organization_id=uuid4(),
+    )
+
+
+def _mock_doc(*, doc_id: UUID, checksum: str) -> _NS:
+    return _NS(
+        id=doc_id,
+        storage_bucket="documents",
+        storage_object_key="old/key.txt",
+        checksum=checksum,
+        file_type="txt",
+        status="indexed",
+        security_scan_result=None,
+        dlp_scan_result=None,
+    )
+
+
+@pytest.mark.asyncio
+async def test_reingest_routes_to_update_when_source_doc_exists() -> None:
+    """ingest_item delegates to _reingest_existing_item when a SourceDocument exists."""
+    ext_item_id = uuid4()
+    doc_id = uuid4()
+    content = b"Page text."
+    checksum = _hashlib.sha256(content).hexdigest()
+    src_doc = _mock_src_doc(ext_item_id=ext_item_id, doc_id=doc_id, checksum=checksum)
+    expected = IngestionResult(
+        document_id=doc_id,
+        source_document_id=src_doc.id,
+        status=DocumentStatus.skipped,
+        checksum=checksum,
+        is_duplicate=True,
+        duplicate_of_document_id=doc_id,
+        error=None,
+    )
+
+    bridge = _bridge()
+    with (
+        patch.object(bridge, "_find_existing_source_document", new=AsyncMock(return_value=src_doc)),
+        patch.object(bridge, "_reingest_existing_item", new=AsyncMock(return_value=expected)) as mock_reingest,
+    ):
+        result = await bridge.ingest_item(
+            AsyncMock(spec=AsyncSession),
+            external_item_id=ext_item_id,
+            organization_id=uuid4(),
+            collection_id=None,
+            sync_run_id=None,
+            uploader_user_id=uuid4(),
+            content=content,
+            filename="page.txt",
+            mime_type="text/plain",
+            source_url="https://example.com/p",
+            title="Page",
+            metadata={},
+            sync_version=2,
+        )
+
+    mock_reingest.assert_awaited_once()
+    assert result.is_duplicate is True
+    assert result.status == DocumentStatus.skipped
+
+
+@pytest.mark.asyncio
+async def test_reingest_unchanged_bytes_skips_reprocessing() -> None:
+    """Same file bytes → update lineage only, no upload, no re-queue."""
+    org_id = uuid4()
+    ext_item_id = uuid4()
+    doc_id = uuid4()
+    content = b"Hello connector world!"
+    checksum = _hashlib.sha256(content).hexdigest()
+    src_doc = _mock_src_doc(ext_item_id=ext_item_id, doc_id=doc_id, checksum=checksum)
+
+    session = AsyncMock(spec=AsyncSession)
+    session.flush = AsyncMock()
+
+    bridge = _bridge()
+    with (
+        patch.object(bridge, "_upsert_source_reference", new=AsyncMock()),
+        patch(
+            "app.domains.connectors.services.ingestion_bridge._upload_to_storage",
+            new=AsyncMock(),
+        ) as mock_upload,
+    ):
+        result = await bridge._reingest_existing_item(
+            session,
+            existing_src=src_doc,
+            external_item_id=ext_item_id,
+            organization_id=org_id,
+            collection_id=None,
+            sync_run_id=None,
+            uploader_user_id=uuid4(),
+            content=content,
+            filename="notes.txt",
+            mime_type="text/plain",
+            source_url="https://example.com/page",
+            title="Notes",
+            metadata={},
+            sync_version=3,
+        )
+
+    assert result.is_duplicate is True
+    assert result.status == DocumentStatus.skipped
+    assert result.document_id == doc_id
+    assert result.source_document_id == src_doc.id
+    mock_upload.assert_not_called()
+    assert src_doc.sync_version == 3
+
+
+@pytest.mark.asyncio
+async def test_reingest_changed_bytes_updates_document_in_place() -> None:
+    """Changed file bytes → upload new content, update doc, return pending_scan."""
+    org_id = uuid4()
+    ext_item_id = uuid4()
+    doc_id = uuid4()
+    old_checksum = "a" * 64
+    new_content = b"Updated page text with new information."
+    src_doc = _mock_src_doc(ext_item_id=ext_item_id, doc_id=doc_id, checksum=old_checksum)
+    doc = _mock_doc(doc_id=doc_id, checksum=old_checksum)
+
+    result_holder = MagicMock()
+    result_holder.scalar_one_or_none = MagicMock(return_value=doc)
+    session = AsyncMock(spec=AsyncSession)
+    session.execute = AsyncMock(return_value=result_holder)
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+
+    bridge = _bridge()
+    with (
+        patch.object(bridge, "_upsert_source_reference", new=AsyncMock()),
+        patch(
+            "app.domains.connectors.services.ingestion_bridge._upload_to_storage",
+            new=AsyncMock(),
+        ) as mock_upload,
+    ):
+        result = await bridge._reingest_existing_item(
+            session,
+            existing_src=src_doc,
+            external_item_id=ext_item_id,
+            organization_id=org_id,
+            collection_id=None,
+            sync_run_id=uuid4(),
+            uploader_user_id=uuid4(),
+            content=new_content,
+            filename="page.txt",
+            mime_type="text/plain",
+            source_url="https://example.com/page",
+            title="Updated Page",
+            metadata={},
+            sync_version=5,
+        )
+
+    new_checksum = _hashlib.sha256(new_content).hexdigest()
+    assert result.is_duplicate is False
+    assert result.status == DocumentStatus.pending_scan
+    assert result.document_id == doc_id
+    assert result.source_document_id == src_doc.id
+    mock_upload.assert_called_once()
+    assert doc.checksum == new_checksum
+    assert doc.status == DocumentStatus.pending_scan.value
+    assert src_doc.content_hash == new_checksum
+    assert src_doc.sync_version == 5
