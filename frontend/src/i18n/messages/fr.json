@@ -1147,6 +1147,11 @@
     "commandCenter": "Centre de commande RAG d’entreprise",
     "commandCenterDescription": "Suivez le débit d’ingestion, la qualité de récupération et l’activité du chat dans une vue contextualisée par espace de travail.",
     "usageRange": "Plage d’utilisation",
+    "rangePresets": {
+      "7d": "7 derniers jours",
+      "30d": "30 derniers jours",
+      "90d": "90 derniers jours"
+    },
     "uploadDocument": "Téléverser un document",
     "newChat": "Nouveau chat",
     "viewDocument": "Voir le document",

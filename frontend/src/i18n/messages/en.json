@@ -1147,6 +1147,11 @@
     "commandCenter": "Enterprise RAG Command Center",
     "commandCenterDescription": "Track ingestion throughput, retrieval quality, and chat activity in one workspace-aware view.",
     "usageRange": "Usage range",
+    "rangePresets": {
+      "7d": "Last 7 days",
+      "30d": "Last 30 days",
+      "90d": "Last 90 days"
+    },
     "uploadDocument": "Upload document",
     "newChat": "New chat",
     "viewDocument": "View document",

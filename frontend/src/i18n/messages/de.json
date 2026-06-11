@@ -1147,6 +1147,11 @@
     "commandCenter": "Enterprise-RAG-Kommandozentrale",
     "commandCenterDescription": "Verfolgen Sie Aufnahmedurchsatz, Abrufqualität und Chat-Aktivität in einer workspace-bewussten Ansicht.",
     "usageRange": "Nutzungszeitraum",
+    "rangePresets": {
+      "7d": "Letzte 7 Tage",
+      "30d": "Letzte 30 Tage",
+      "90d": "Letzte 90 Tage"
+    },
     "uploadDocument": "Dokument hochladen",
     "newChat": "Neuer Chat",
     "viewDocument": "Dokument anzeigen",

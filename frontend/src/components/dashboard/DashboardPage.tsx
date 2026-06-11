@@ -1004,7 +1004,7 @@ export function DashboardPage() {
               >
                 {DASHBOARD_RANGE_PRESETS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t(`rangePresets.${option.value}`)}
                   </option>
                 ))}
               </select>
