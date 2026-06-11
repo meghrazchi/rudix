@@ -260,7 +260,18 @@ class ConnectorSyncEngine:
             )
             job = result.scalar_one_or_none()
             if job is None:
-                raise SyncEngineError("no active sync job found for connection; create one first")
+                connection = await self.repository.get_connection(
+                    session, organization_id=organization_id, connection_id=connection_id
+                )
+                if connection is None:
+                    raise SyncEngineError("connector connection not found")
+                job = await self.repository.create_sync_job(
+                    session,
+                    organization_id=organization_id,
+                    connection_id=connection_id,
+                    name=f"{connection.display_name} — default sync",
+                    schedule={"type": "interval", "interval_minutes": 60},
+                )
 
         await self._assert_no_active_run(session, job_id=job.id)
         run = await self._create_queued_run(session, job=job, trigger_type="manual")
@@ -628,6 +639,9 @@ class ConnectorSyncEngine:
                     if pending is not None:
                         pending_document_ids.append(pending)
 
+            await self._flush_run_progress(
+                session, run, items_seen=items_seen, items_upserted=items_upserted
+            )
             if not page.has_more or page.next_cursor is None:
                 break
             cursor = page.next_cursor
@@ -735,6 +749,13 @@ class ConnectorSyncEngine:
                             reason="content_error",
                         )
 
+            await self._flush_run_progress(
+                session,
+                run,
+                items_seen=items_seen,
+                items_upserted=items_upserted,
+                items_deleted=items_deleted,
+            )
             if not page.has_more or page.next_cursor is None:
                 cursor = page.next_cursor or cursor
                 break
@@ -1123,6 +1144,20 @@ class ConnectorSyncEngine:
                 error=str(exc)[:300],
             )
         return None
+
+    async def _flush_run_progress(
+        self,
+        session: AsyncSession,
+        run: ConnectorSyncRun,
+        *,
+        items_seen: int,
+        items_upserted: int,
+        items_deleted: int = 0,
+    ) -> None:
+        run.items_seen = items_seen
+        run.items_upserted = items_upserted
+        run.items_deleted = items_deleted
+        await session.flush()
 
     async def _complete_run(
         self,

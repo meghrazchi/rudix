@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { listProviders } from "@/lib/api/connector-providers";
 import {
-  disconnectConnector,
+  deleteConnectorConnection,
   listConnectorConnections,
 } from "@/lib/api/connectors";
 import type { ConnectorConnectionsListResponse } from "@/lib/api/connectors";
@@ -301,7 +301,7 @@ export function ConnectorsPage() {
   };
 
   const deleteConnectionMutation = useMutation({
-    mutationFn: (connectionId: string) => disconnectConnector(connectionId),
+    mutationFn: (connectionId: string) => deleteConnectorConnection(connectionId),
     onMutate: async (connectionId) => {
       await queryClient.cancelQueries({
         queryKey: queryKeys.connectorConnections,
@@ -528,37 +528,13 @@ export function ConnectorsPage() {
                           <button
                             title={t("table.titleViewDetails")}
                             aria-label={t("table.ariaViewDetails", { name: conn.name })}
-                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
+                            className="cursor-pointer rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
                             onClick={() =>
                               router.push(`/connectors/${conn.id}`)
                             }
                           >
                             <span className="material-symbols-outlined text-[20px]">
-                              visibility
-                            </span>
-                          </button>
-                          <button
-                            title={t("table.titleSyncNow")}
-                            aria-label={t("table.ariaSyncNow", { name: conn.name })}
-                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
-                            onClick={() =>
-                              router.push(`/connectors/${conn.id}`)
-                            }
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              sync
-                            </span>
-                          </button>
-                          <button
-                            title={t("table.titleSettings")}
-                            aria-label={t("table.ariaSettings", { name: conn.name })}
-                            className="rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
-                            onClick={() =>
-                              router.push(`/connectors/${conn.id}`)
-                            }
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              settings
+                              open_in_new
                             </span>
                           </button>
                           <button
@@ -568,7 +544,7 @@ export function ConnectorsPage() {
                             onClick={() =>
                               handleDeleteConnection(conn.id, conn.name)
                             }
-                            className="rounded-lg p-2 text-[#b42318] transition-colors hover:bg-[#fce8e6] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="cursor-pointer rounded-lg p-2 text-[#b42318] transition-colors hover:bg-[#fce8e6] disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             <span className="material-symbols-outlined text-[20px]">
                               delete

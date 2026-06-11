@@ -59,13 +59,36 @@ _DEFAULT_TIMEOUT = 30.0
 _MAX_COMMENTS_PER_PAGE = 25
 
 
-def _require_cloud_id(credential: dict[str, Any]) -> str:
+async def _discover_cloud_id(access_token: str) -> str:
+    """Fetch the primary cloud_id from Atlassian's accessible-resources endpoint."""
+    url = "https://api.atlassian.com/oauth/token/accessible-resources"
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.get(url, headers=_bearer_headers(access_token))
+    if response.status_code == 401:
+        raise ConnectorAuthError(
+            "Confluence credential is invalid or expired. Re-authorize the connection."
+        )
+    response.raise_for_status()
+    resources: list[dict] = response.json()
+    if not resources:
+        raise ConnectorAuthError(
+            "No Confluence sites found for this account. "
+            "Ensure the token has the required scopes and the account has at least one site."
+        )
+    return resources[0]["id"]
+
+
+async def _require_cloud_id(credential: dict[str, Any]) -> str:
     cloud_id = (credential.get("cloud_id") or "").strip()
     if not cloud_id:
-        raise ConnectorAuthError(
-            "Confluence credential is missing 'cloud_id'. "
-            "Re-authorize the connection to allow Rudix to discover your Confluence site."
-        )
+        access_token = credential.get("access_token", "")
+        if not access_token:
+            raise ConnectorAuthError(
+                "Confluence credential is missing 'cloud_id' and has no access token. "
+                "Re-authorize the connection."
+            )
+        cloud_id = await _discover_cloud_id(access_token)
+        credential["cloud_id"] = cloud_id
     return cloud_id
 
 
@@ -170,7 +193,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         page_size: int,
     ) -> ItemPage:
         """Full sync: fetch all pages matching the configured CQL."""
-        cloud_id = _require_cloud_id(decrypted_credential)
+        cloud_id = await _require_cloud_id(decrypted_credential)
         site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
         space_keys = _resolve_space_keys(provider_source_id, decrypted_credential)
@@ -236,7 +259,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         page_size: int,
     ) -> DeltaPage:
         """Incremental sync: fetch pages modified since cursor['since']."""
-        cloud_id = _require_cloud_id(decrypted_credential)
+        cloud_id = await _require_cloud_id(decrypted_credential)
         site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
         space_keys = _resolve_space_keys(provider_source_id, decrypted_credential)
@@ -330,7 +353,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         *provider_item_id* is the page ID (numeric string, e.g. "123456").
         Returns NormalizedExternalItem records for each attachment.
         """
-        cloud_id = _require_cloud_id(decrypted_credential)
+        cloud_id = await _require_cloud_id(decrypted_credential)
         site_url = _site_url_for_display(decrypted_credential, cloud_id)
         access_token = decrypted_credential.get("access_token", "")
 
@@ -388,7 +411,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
             return body_text.encode("utf-8"), filename, "text/plain"
 
         # Cache miss: fetch the page body directly.
-        cloud_id = _require_cloud_id(decrypted_credential)
+        cloud_id = await _require_cloud_id(decrypted_credential)
         access_token = decrypted_credential.get("access_token", "")
         url = f"{_api_base(cloud_id)}/content/{provider_item_id}"
         params = {"expand": "body.storage,title,version,space"}

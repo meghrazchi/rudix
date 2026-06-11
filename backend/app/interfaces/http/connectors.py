@@ -33,6 +33,7 @@ from app.domains.connectors.services.provider_registry import (
     ProviderRegistryError,
     default_provider_registry,
 )
+from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
 from app.models.connector import ConnectorConnection
 from app.models.enums import ConnectorAuthType, OrganizationRole
 
@@ -40,6 +41,28 @@ router = APIRouter(prefix="/connectors", tags=["connectors"])
 public_router = APIRouter(prefix="/connectors", tags=["connectors"])
 
 _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
+
+
+async def _ensure_default_sync_job(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    connection_id: UUID,
+    display_name: str,
+    user_id: UUID | None = None,
+) -> None:
+    engine = ConnectorSyncEngine()
+    jobs = await engine.list_sync_jobs(
+        db_session, organization_id=organization_id, connection_id=connection_id
+    )
+    if not jobs:
+        await engine.create_sync_job(
+            db_session,
+            organization_id=organization_id,
+            connection_id=connection_id,
+            name=f"{display_name} — default sync",
+            user_id=user_id,
+        )
 
 
 class OAuthConnectRequest(BaseModel):
@@ -459,6 +482,13 @@ async def create_connection(
         external_account_id=payload.external_account_id,
         auth_config={"provider_key": payload.provider_key, **payload.config},
     )
+    await _ensure_default_sync_job(
+        db_session,
+        organization_id=organization_id,
+        connection_id=connection.id,
+        display_name=payload.display_name,
+        user_id=_user_id(principal),
+    )
     await db_session.commit()
     await db_session.refresh(connection)
     loaded = await _load_connections(db_session, organization_id=organization_id)
@@ -573,6 +603,13 @@ async def complete_oauth_callback(
         await db_session.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    await _ensure_default_sync_job(
+        db_session,
+        organization_id=_org_id(principal),
+        connection_id=connection.id,
+        display_name=connection.display_name,
+        user_id=_user_id(principal),
+    )
     await db_session.commit()
     return _connection_response(connection)
 
