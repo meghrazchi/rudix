@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
@@ -86,6 +87,7 @@ type DashboardAuditActivityBundle = {
 };
 
 function BillingStatusBanner() {
+  const t = useTranslations("dashboard.billing");
   const { hasPermission } = usePermissions();
   const canViewBilling =
     hasPermission("billing:view") || hasPermission("billing:manage");
@@ -108,40 +110,44 @@ function BillingStatusBanner() {
   > = {
     active: {
       tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      title: "Billing is active",
-      body: "Your subscription is up to date.",
+      title: t("active"),
+      body: t("activeDescription"),
     },
     trialing: {
       tone: "border-sky-200 bg-sky-50 text-sky-900",
-      title: "Trial ending soon",
+      title: t("trialing"),
       body: planQuery.data.trial_end_date
-        ? `Your trial ends on ${new Date(planQuery.data.trial_end_date).toLocaleDateString()}.`
-        : "Your workspace is currently in a trial period.",
+        ? t("trialingDescription", {
+            date: new Date(
+              planQuery.data.trial_end_date,
+            ).toLocaleDateString(),
+          })
+        : t("trialingDescriptionAlt"),
     },
     past_due: {
       tone: "border-amber-200 bg-amber-50 text-amber-900",
-      title: "Payment attention required",
-      body: "Review billing settings to prevent service interruption.",
+      title: t("pastDue"),
+      body: t("pastDueDescription"),
     },
     cancelled: {
       tone: "border-rose-200 bg-rose-50 text-rose-900",
-      title: "Subscription cancelled",
-      body: "Plan access may change at the next renewal point.",
+      title: t("cancelled"),
+      body: t("cancelledDescription"),
     },
     free: {
       tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Free plan",
-      body: "You are on the free tier. Upgrade in billing settings when ready.",
+      title: t("free"),
+      body: t("freeDescription"),
     },
     self_hosted: {
       tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Self-hosted deployment",
-      body: "Billing is managed outside Rudix for this deployment.",
+      title: t("selfHosted"),
+      body: t("selfHostedDescription"),
     },
     unknown: {
       tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Billing state unknown",
-      body: "The current billing state could not be determined.",
+      title: t("unknown"),
+      body: t("unknownDescription"),
     },
   };
 
@@ -161,7 +167,7 @@ function BillingStatusBanner() {
           href="/settings?tab=billing"
           className="shrink-0 rounded-lg border border-current/20 px-3 py-1.5 text-xs font-semibold hover:bg-white/40"
         >
-          Open billing
+          {t("openBilling")}
         </Link>
       </div>
     </aside>
@@ -338,15 +344,23 @@ function resolveAuditActivityLink(
   return null;
 }
 
+type DocumentActivityLabels = {
+  uploaded: string;
+  processing: string;
+  failed: string;
+  updated: string;
+};
+
 function buildDocumentActivityItems(
   documents: DocumentListItemResponse[],
+  labels: DocumentActivityLabels,
 ): DashboardRecentActivityItem[] {
   return documents.map((document) => {
     if (document.status === "uploaded") {
       return {
         id: `doc-upload:${document.document_id}`,
         category: "upload" as const,
-        title: "Document uploaded",
+        title: labels.uploaded,
         description: document.filename,
         timestamp: document.updated_at,
         href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
@@ -356,7 +370,7 @@ function buildDocumentActivityItems(
       return {
         id: `doc-processing:${document.document_id}`,
         category: "processing" as const,
-        title: "Document processing",
+        title: labels.processing,
         description: document.filename,
         timestamp: document.updated_at,
         href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
@@ -366,7 +380,7 @@ function buildDocumentActivityItems(
       return {
         id: `doc-failure:${document.document_id}`,
         category: "failure" as const,
-        title: "Document failed",
+        title: labels.failed,
         description: `${document.filename}${document.error_message ? ` — ${document.error_message}` : ""}`,
         timestamp: document.updated_at,
         href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
@@ -375,7 +389,7 @@ function buildDocumentActivityItems(
     return {
       id: `doc-updated:${document.document_id}`,
       category: "document" as const,
-      title: "Document updated",
+      title: labels.updated,
       description: document.filename,
       timestamp: document.updated_at,
       href: `/documents?document_id=${encodeURIComponent(document.document_id)}`,
@@ -383,16 +397,23 @@ function buildDocumentActivityItems(
   });
 }
 
+type ChatActivityLabels = {
+  title: string;
+  messages: string;
+  untitledSession: string;
+};
+
 function buildChatActivityItems(
   sessions: ChatSessionResponse[],
+  labels: ChatActivityLabels,
 ): DashboardRecentActivityItem[] {
   return sessions
     .filter((session) => session.message_count > 0)
     .map((session) => ({
       id: `chat:${session.session_id}`,
       category: "chat" as const,
-      title: "Chat questions",
-      description: `${session.message_count} messages in ${session.title ?? "Untitled session"}`,
+      title: labels.title,
+      description: `${session.message_count} ${labels.messages} in ${session.title ?? labels.untitledSession}`,
       timestamp: session.updated_at,
       href: `/chat?session_id=${encodeURIComponent(session.session_id)}`,
     }));
@@ -539,6 +560,8 @@ function DashboardKpiCard({
   error = null,
   onRetry,
 }: DashboardKpiCardProps) {
+  const tCommon = useTranslations("common");
+  const tKpi = useTranslations("dashboard.kpi");
   return (
     <article className="flex h-full flex-col justify-between rounded-xl border border-[#d8d5e8] bg-white p-4 shadow-sm">
       <div>
@@ -549,11 +572,13 @@ function DashboardKpiCard({
           <MaterialIcon name={icon} className="text-[20px] text-[#5b4bcb]" />
         </div>
         {loading ? (
-          <p className="text-3xl font-black text-[#2d2a44]">Loading...</p>
+          <p className="text-3xl font-black text-[#2d2a44]">
+            {tCommon("loading")}
+          </p>
         ) : error ? (
           <div className="space-y-2">
             <p className="text-sm font-semibold text-rose-700">
-              Unable to load
+              {tKpi("unableToLoad")}
             </p>
             <p className="text-xs text-rose-700">{error}</p>
             {onRetry ? (
@@ -562,7 +587,7 @@ function DashboardKpiCard({
                 onClick={onRetry}
                 className="rounded border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-800 hover:bg-rose-50"
               >
-                Retry
+                {tCommon("retry")}
               </button>
             ) : null}
           </div>
@@ -594,6 +619,9 @@ function DashboardPagination({
   onPrevious,
   onNext,
 }: DashboardPaginationProps) {
+  const tCommon = useTranslations("common");
+  const tPagination = useTranslations("dashboard.pagination");
+
   if (total <= pageSize) {
     return null;
   }
@@ -612,14 +640,19 @@ function DashboardPagination({
         className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#5e5a77] transition hover:bg-[#ece8fb] hover:text-[#3d3770] disabled:cursor-not-allowed disabled:opacity-50"
       >
         <MaterialIcon name="chevron_left" className="text-[18px]" />
-        Previous
+        {tCommon("previous")}
       </button>
       <div className="text-center">
         <p className="text-[10px] font-semibold tracking-wide text-[#6f6a86] uppercase">
-          Page {currentPage} of {totalPages}
+          {tPagination("page", { current: currentPage, total: totalPages })}
         </p>
         <p className="text-[11px] text-[#6f6a86]">
-          Showing {offset + 1}-{offset + visibleCount} of {total} {itemLabel}.
+          {tPagination("showing", {
+            from: offset + 1,
+            to: offset + visibleCount,
+            count: total,
+            label: itemLabel,
+          })}
         </p>
       </div>
       <button
@@ -628,7 +661,7 @@ function DashboardPagination({
         onClick={onNext}
         className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-[#5e5a77] transition hover:bg-[#ece8fb] hover:text-[#3d3770] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Next
+        {tCommon("next")}
         <MaterialIcon name="chevron_right" className="text-[18px]" />
       </button>
     </div>
@@ -694,6 +727,8 @@ function DisabledQuickAction({ icon, label }: { icon: string; label: string }) {
 }
 
 export function DashboardPage() {
+  const t = useTranslations("dashboard");
+  const tAppShell = useTranslations("appShell");
   const { state } = useAuthSession();
   const role = state.session?.role;
   const adminUsageEnabled = isTruthyEnv(
@@ -849,8 +884,7 @@ export function DashboardPage() {
     if (!showAdminUsage) {
       return {
         items: [],
-        unavailableReason:
-          "Admin activity is only available for owner/admin roles.",
+        unavailableReason: t("activity.adminOnly"),
       };
     }
     if (auditActivityQuery.isError) {
@@ -868,10 +902,20 @@ export function DashboardPage() {
   const recentActivityItems = useMemo(
     () =>
       sortActivities([
-        ...buildDocumentActivityItems(activityDocuments),
-        ...buildChatActivityItems(recentSessions),
+        ...buildDocumentActivityItems(activityDocuments, {
+          uploaded: t("activity.documentUploaded"),
+          processing: t("activity.documentProcessing"),
+          failed: t("activity.documentFailed"),
+          updated: t("activity.documentUpdated"),
+        }),
+        ...buildChatActivityItems(recentSessions, {
+          title: t("activity.chatQuestions"),
+          messages: tAppShell("messages"),
+          untitledSession: tAppShell("untitledSession"),
+        }),
         ...buildAuditActivityItems(auditActivityBundle.items),
       ]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [activityDocuments, recentSessions, auditActivityBundle.items],
   );
 
@@ -915,22 +959,22 @@ export function DashboardPage() {
     return Math.round((inputTokens / totalTokens) * 100);
   }, [usageSummary]);
 
-  const apiInstanceStatus =
+  type InstanceStatusKey = "healthy" | "checking" | "degraded";
+  const apiInstanceStatusKey: InstanceStatusKey =
     documentsQuery.isError || chatSummaryQuery.isError
-      ? "Degraded"
+      ? "degraded"
       : documentsQuery.isLoading || chatSummaryQuery.isLoading
-        ? "Checking"
-        : "Healthy";
+        ? "checking"
+        : "healthy";
+  const apiInstanceStatus = t(`instances.${apiInstanceStatusKey}`);
 
-  const ingestionStatus = (() => {
-    const processingCount = activityDocuments.filter(
-      (item) => item.status === "processing",
-    ).length;
-    if (processingCount > 0) {
-      return `${processingCount} running`;
-    }
-    return "Idle";
-  })();
+  const processingDocumentCount = activityDocuments.filter(
+    (item) => item.status === "processing",
+  ).length;
+  const isIngestionIdle = processingDocumentCount === 0;
+  const ingestionStatus = isIngestionIdle
+    ? t("instances.idle")
+    : `${processingDocumentCount} ${t("instances.running")}`;
 
   return (
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
@@ -938,20 +982,19 @@ export function DashboardPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="mb-1 text-xs font-semibold tracking-[0.14em] text-[#5e57ad] uppercase">
-              Rudix Dashboard
+              {t("enterpriseRag")}
             </p>
             <h2 className="text-2xl font-black text-[#2d2a44]">
-              Enterprise RAG Command Center
+              {t("commandCenter")}
             </h2>
             <p className="mt-1 max-w-3xl text-sm text-[#67637d]">
-              Track ingestion throughput, retrieval quality, and chat activity
-              in one workspace-aware view.
+              {t("commandCenterDescription")}
             </p>
           </div>
 
           {showAdminUsage ? (
             <label className="grid gap-1 text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase">
-              Usage range
+              {t("usageRange")}
               <select
                 value={rangePreset}
                 onChange={(event) =>
@@ -978,40 +1021,43 @@ export function DashboardPage() {
             <QuickActionLink
               href="/documents"
               icon="upload_file"
-              label="Upload document"
+              label={t("uploadDocument")}
               primary
             />
           ) : (
-            <DisabledQuickAction icon="upload_file" label="Upload document" />
+            <DisabledQuickAction
+              icon="upload_file"
+              label={t("uploadDocument")}
+            />
           )}
-          <QuickActionLink href="/chat" icon="chat" label="New chat" />
+          <QuickActionLink href="/chat" icon="chat" label={t("newChat")} />
           {viewDocumentHref ? (
             <QuickActionLink
               href={viewDocumentHref}
               icon="visibility"
-              label="View document"
+              label={t("viewDocument")}
             />
           ) : (
-            <DisabledQuickAction icon="visibility" label="View document" />
+            <DisabledQuickAction icon="visibility" label={t("viewDocument")} />
           )}
           <QuickActionLink
             href="/evaluations"
             icon="play_circle"
-            label="Evaluation run"
+            label={t("evaluationRun")}
           />
           <QuickActionLink
             href="/rag-pipeline"
             icon="account_tree"
-            label="Pipeline explorer"
+            label={t("pipelineExplorer")}
           />
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DashboardKpiCard
-          title="Total documents"
+          title={t("kpi.totalDocuments")}
           value={formatInteger(documentsSummary?.totalDocuments)}
-          caption="Documents currently scoped to your organization."
+          caption={t("kpi.totalDocumentsDescription")}
           icon="description"
           loading={documentsQuery.isLoading}
           error={
@@ -1024,9 +1070,9 @@ export function DashboardPage() {
           }}
         />
         <DashboardKpiCard
-          title="Indexed documents"
+          title={t("kpi.indexedDocuments")}
           value={formatInteger(documentsSummary?.indexedDocuments)}
-          caption="Documents available for retrieval and chat."
+          caption={t("kpi.indexedDocumentsDescription")}
           icon="task_alt"
           loading={documentsQuery.isLoading}
           error={
@@ -1039,7 +1085,7 @@ export function DashboardPage() {
           }}
         />
         <DashboardKpiCard
-          title="Total chunks"
+          title={t("kpi.totalChunks")}
           value={
             documentsSummary
               ? `${formatInteger(documentsSummary.totalChunks)}${documentsSummary.chunksEstimated ? "+" : ""}`
@@ -1047,8 +1093,8 @@ export function DashboardPage() {
           }
           caption={
             documentsSummary?.chunksEstimated
-              ? "Chunk count is estimated from sampled documents."
-              : "Indexed chunks across fetched organization documents."
+              ? t("kpi.totalChunksNote")
+              : t("kpi.totalChunksDescription")
           }
           icon="layers"
           loading={documentsQuery.isLoading}
@@ -1062,9 +1108,9 @@ export function DashboardPage() {
           }}
         />
         <DashboardKpiCard
-          title="Questions asked"
+          title={t("kpi.questionsAsked")}
           value={formatInteger(questionsAsked)}
-          caption="Estimated from chat activity and usage events."
+          caption={t("kpi.questionsAskedNote")}
           icon="quiz"
           loading={
             chatSummaryQuery.isLoading ||
@@ -1092,21 +1138,20 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#ebe8f7] px-5 py-4">
             <div>
               <h3 className="text-xl font-bold text-[#2d2a44]">
-                System performance
+                {t("performance.title")}
               </h3>
               <p className="text-sm text-[#69657f]">
-                Retrieval quality and response efficiency across the selected
-                window.
+                {t("performance.description")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1 rounded-full bg-[#f2effe] px-2 py-1 text-[10px] font-semibold tracking-wide text-[#5649bf] uppercase">
                 <span className="h-2 w-2 rounded-full bg-[#4f46e5]" />
-                Quality
+                {t("performance.quality")}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-[#f4f3fb] px-2 py-1 text-[10px] font-semibold tracking-wide text-[#5f5b74] uppercase">
                 <span className="h-2 w-2 rounded-full bg-[#6e687f]" />
-                Efficiency
+                {t("performance.efficiency")}
               </span>
             </div>
           </div>
@@ -1117,7 +1162,7 @@ export function DashboardPage() {
                 <LoadingState
                   compact
                   className="rounded-lg border border-[#e3dff1] bg-white px-3 py-2 text-sm text-[#64617a]"
-                  title="Loading performance metrics..."
+                  title={t("performance.loading")}
                 />
               ) : null}
               {showAdminUsage && usageQuery.isError ? (
@@ -1132,18 +1177,21 @@ export function DashboardPage() {
               {!showAdminUsage || usageQuery.isSuccess ? (
                 <div className="space-y-4">
                   <TrendBar
-                    label="Average confidence"
+                    label={t("performance.averageConfidence")}
                     value={
                       averageConfidence == null ? null : averageConfidence * 100
                     }
                   />
                   <TrendBar
-                    label="Indexing success"
+                    label={t("performance.indexingSuccess")}
                     value={
                       indexingSuccess == null ? null : indexingSuccess * 100
                     }
                   />
-                  <TrendBar label="Latency score" value={latencyScore} />
+                  <TrendBar
+                    label={t("performance.latencyScore")}
+                    value={latencyScore}
+                  />
                 </div>
               ) : null}
             </div>
@@ -1151,7 +1199,7 @@ export function DashboardPage() {
             <div className="space-y-4 border-t border-[#ebe8f7] pt-4 md:border-t-0 md:border-l md:border-[#ebe8f7] md:pt-0 md:pl-4">
               <div>
                 <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
-                  Average confidence
+                  {t("performance.averageConfidence")}
                 </p>
                 <p className="mt-1 text-3xl font-black text-[#4d44e3]">
                   {formatPercentage(averageConfidence)}
@@ -1159,7 +1207,7 @@ export function DashboardPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
-                  Average latency
+                  {t("performance.averageLatency")}
                 </p>
                 <p className="mt-1 text-3xl font-black text-[#2f2b47]">
                   {formatLatencyMs(averageLatencyMs)}
@@ -1167,7 +1215,7 @@ export function DashboardPage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold tracking-[0.1em] text-[#6d6986] uppercase">
-                  Indexing success
+                  {t("performance.indexingSuccess")}
                 </p>
                 <p className="mt-1 text-3xl font-black text-[#2f2b47]">
                   {formatPercentage(indexingSuccess)}
@@ -1180,11 +1228,11 @@ export function DashboardPage() {
         <div className="space-y-4 lg:col-span-3">
           <article className="relative overflow-hidden rounded-2xl bg-[#3525cd] p-5 text-white shadow-lg shadow-[#4d44e3]/25">
             <p className="text-[11px] font-semibold tracking-[0.12em] text-[#dad7ff] uppercase">
-              Token usage cost
+              {t("tokenCost.title")}
             </p>
             {showAdminUsage ? (
               <p className="mt-1 text-[10px] font-semibold tracking-[0.12em] text-[#c7c2ff] uppercase">
-                Estimated cost
+                {t("tokenCost.estimatedCost")}
               </p>
             ) : null}
             <p className="mt-2 text-4xl font-black">
@@ -1192,13 +1240,16 @@ export function DashboardPage() {
             </p>
             <p className="mt-1 text-sm text-[#dad7ff]">
               {showAdminUsage
-                ? `Window: ${usageRange.from} to ${usageRange.to}`
-                : "Enable admin usage metrics to see cost analytics."}
+                ? t("tokenCost.window", {
+                    from: usageRange.from,
+                    to: usageRange.to,
+                  })
+                : t("tokenCost.enableMetrics")}
             </p>
 
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between gap-2 text-[11px] font-semibold tracking-wide uppercase">
-                <span>Input token share</span>
+                <span>{t("tokenCost.inputTokenShare")}</span>
                 <span>
                   {tokenUsageRatio == null ? "N/A" : `${tokenUsageRatio}%`}
                 </span>
@@ -1219,21 +1270,23 @@ export function DashboardPage() {
 
           <article className="rounded-2xl border border-[#d8d5e8] bg-white p-4 shadow-sm">
             <h4 className="text-sm font-bold text-[#2f2b47]">
-              Active instances
+              {t("instances.title")}
             </h4>
             <div className="mt-3 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      apiInstanceStatus === "Healthy"
+                      apiInstanceStatusKey === "healthy"
                         ? "bg-emerald-500"
-                        : apiInstanceStatus === "Checking"
+                        : apiInstanceStatusKey === "checking"
                           ? "bg-amber-500"
                           : "bg-rose-500"
                     }`}
                   />
-                  <span className="text-sm text-[#3b3760]">Rudix API</span>
+                  <span className="text-sm text-[#3b3760]">
+                    {t("instances.rudixApi")}
+                  </span>
                 </div>
                 <span className="font-mono text-xs text-[#68647d]">
                   {apiInstanceStatus}
@@ -1243,12 +1296,12 @@ export function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      ingestionStatus === "Idle"
-                        ? "bg-emerald-500"
-                        : "bg-sky-500"
+                      isIngestionIdle ? "bg-emerald-500" : "bg-sky-500"
                     }`}
                   />
-                  <span className="text-sm text-[#3b3760]">Ingestion jobs</span>
+                  <span className="text-sm text-[#3b3760]">
+                    {t("instances.ingestionJobs")}
+                  </span>
                 </div>
                 <span className="font-mono text-xs text-[#68647d]">
                   {ingestionStatus}
@@ -1263,10 +1316,10 @@ export function DashboardPage() {
         <article className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#d8d5e8] bg-white shadow-sm lg:col-span-6">
           <div className="flex items-center justify-between gap-2 border-b border-[#ebe8f7] px-5 py-4">
             <h3 className="text-xl font-bold text-[#2d2a44]">
-              Recent activity
+              {t("recentActivity")}
             </h3>
             <span className="text-[11px] font-semibold tracking-[0.12em] text-[#6d6986] uppercase">
-              Timeline
+              {t("activity.timeline")}
             </span>
           </div>
 
@@ -1275,7 +1328,7 @@ export function DashboardPage() {
               <LoadingState
                 compact
                 className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-                title="Loading recent activity..."
+                title={t("activity.loading")}
               />
             ) : null}
             {recentActivityError ? (
@@ -1297,7 +1350,7 @@ export function DashboardPage() {
               <EmptyState
                 compact
                 className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-                title="No recent activity available yet."
+                title={t("activity.noActivity")}
               />
             ) : null}
             {!recentActivityLoading &&
@@ -1337,7 +1390,7 @@ export function DashboardPage() {
                             href={item.href}
                             className="mt-2 inline-block text-xs font-semibold text-[#3525cd] hover:underline"
                           >
-                            Open
+                            {t("activity.open")}
                           </Link>
                         ) : null}
                       </div>
@@ -1363,7 +1416,7 @@ export function DashboardPage() {
               pageSize={RECENT_ACTIVITY_PAGE_SIZE}
               total={recentActivityItems.length}
               visibleCount={paginatedRecentActivityItems.length}
-              itemLabel="events"
+              itemLabel={t("activity.events")}
               onPrevious={() =>
                 setRecentActivityOffset((current) =>
                   Math.max(0, current - RECENT_ACTIVITY_PAGE_SIZE),
@@ -1381,12 +1434,12 @@ export function DashboardPage() {
         <article className="flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-[#d8d5e8] bg-white shadow-sm lg:col-span-4">
           <div className="flex items-center justify-between gap-2 border-b border-[#ebe8f7] px-5 py-4">
             <h3 className="text-xl font-bold text-[#2d2a44]">
-              Latest documents
+              {t("latestDocuments.title")}
             </h3>
             <Link
               href="/documents"
               className="rounded p-1 text-[#6d6986] transition hover:bg-[#f1eefc] hover:text-[#3525cd]"
-              aria-label="Manage documents"
+              aria-label={t("latestDocuments.title")}
             >
               <MaterialIcon name="filter_list" className="text-[20px]" />
             </Link>
@@ -1397,7 +1450,7 @@ export function DashboardPage() {
               <LoadingState
                 compact
                 className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#5f5b72]"
-                title="Loading latest documents..."
+                title={t("latestDocuments.loading")}
               />
             </div>
           ) : null}
@@ -1420,7 +1473,7 @@ export function DashboardPage() {
               <EmptyState
                 compact
                 className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2"
-                title="No documents have been uploaded yet."
+                title={t("latestDocuments.noDocuments")}
               />
             </div>
           ) : null}
@@ -1431,10 +1484,14 @@ export function DashboardPage() {
                 <table className="min-w-full divide-y divide-[#ebe8f7]">
                   <thead className="bg-[#f7f5ff]">
                     <tr className="text-left text-[11px] font-semibold tracking-wide text-[#6d6986] uppercase">
-                      <th className="px-4 py-2">Filename</th>
-                      <th className="px-4 py-2">Status</th>
+                      <th className="px-4 py-2">
+                        {t("latestDocuments.filename")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("latestDocuments.status")}
+                      </th>
                       <th className="w-[1%] px-4 py-2 whitespace-nowrap">
-                        Action
+                        {t("latestDocuments.action")}
                       </th>
                     </tr>
                   </thead>
@@ -1473,7 +1530,7 @@ export function DashboardPage() {
                             href={`/documents?document_id=${encodeURIComponent(document.document_id)}`}
                             className="inline-flex rounded border border-[#cbc5e6] px-2 py-1 text-xs font-semibold whitespace-nowrap text-[#3e376f] hover:bg-[#f5f3ff]"
                           >
-                            View document
+                            {t("latestDocuments.viewDocument")}
                           </Link>
                         </td>
                       </tr>
@@ -1489,7 +1546,7 @@ export function DashboardPage() {
                   latestDocumentsQuery.data?.total ?? latestDocuments.length
                 }
                 visibleCount={latestDocuments.length}
-                itemLabel="documents"
+                itemLabel={t("latestDocuments.paginatorLabel")}
                 onPrevious={() =>
                   setLatestDocumentsOffset((current) =>
                     Math.max(0, current - LATEST_DOCUMENTS_PAGE_SIZE),
@@ -1507,9 +1564,11 @@ export function DashboardPage() {
                   href="/documents"
                   className="block text-center text-sm font-semibold text-[#615b7a] transition hover:text-[#3525cd]"
                 >
-                  Manage all{" "}
-                  {formatInteger(latestDocumentsQuery.data?.total ?? 0)}{" "}
-                  documents
+                  {t("manageAll", {
+                    count: formatInteger(
+                      latestDocumentsQuery.data?.total ?? 0,
+                    ),
+                  })}
                 </Link>
               </div>
             </div>
@@ -1520,21 +1579,21 @@ export function DashboardPage() {
       {showEmptyState ? (
         <EmptyState
           className="rounded-2xl border border-[#d8d5e8] bg-white p-6 shadow-sm"
-          title="No activity yet"
-          description="No documents or chat questions were found for this workspace. Upload documents or start a chat to populate dashboard metrics."
+          title={t("emptyState.title")}
+          description={t("emptyState.description")}
           action={
             <div className="flex flex-wrap justify-center gap-3">
               <Link
                 href="/documents"
                 className="rounded-lg bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#2d1fb1]"
               >
-                Upload documents
+                {t("emptyState.uploadDocuments")}
               </Link>
               <Link
                 href="/chat"
                 className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                Open chat
+                {t("emptyState.openChat")}
               </Link>
             </div>
           }
@@ -1543,28 +1602,31 @@ export function DashboardPage() {
 
       {showAdminUsage ? (
         <section className="rounded-2xl border border-[#d8d5e8] bg-white p-5 shadow-sm">
-          <h3 className="text-lg font-bold text-[#2d2a44]">Usage window</h3>
+          <h3 className="text-lg font-bold text-[#2d2a44]">
+            {t("usageWindow.title")}
+          </h3>
           <p className="mt-2 text-sm text-[#67637d]">
-            Showing usage from{" "}
-            <span className="font-semibold">{usageRange.from}</span> to{" "}
-            <span className="font-semibold">{usageRange.to}</span>.
+            {t("usageWindow.description", {
+              from: usageRange.from,
+              to: usageRange.to,
+            })}
           </p>
           {usageQuery.isSuccess ? (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MetricRow
-                label="Input tokens"
+                label={t("usageWindow.inputTokens")}
                 value={formatInteger(usageSummary?.totals.input_tokens)}
               />
               <MetricRow
-                label="Output tokens"
+                label={t("usageWindow.outputTokens")}
                 value={formatInteger(usageSummary?.totals.output_tokens)}
               />
               <MetricRow
-                label="Usage events"
+                label={t("usageWindow.usageEvents")}
                 value={formatInteger(usageSummary?.totals.event_count)}
               />
               <MetricRow
-                label="Series points"
+                label={t("usageWindow.seriesPoints")}
                 value={formatInteger(usageSummary?.series.length ?? 0)}
               />
             </div>

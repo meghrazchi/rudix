@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 
+import { useTranslations } from "next-intl";
+
 export type DeleteConfirmModalProps = {
   open: boolean;
   filenames: string[];
@@ -15,6 +17,7 @@ export function DeleteConfirmModal({
   onConfirm,
   onCancel,
 }: DeleteConfirmModalProps) {
+  const t = useTranslations("documents.deleteModal");
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -38,8 +41,8 @@ export function DeleteConfirmModal({
 
   const isBulk = filenames.length > 1;
   const title = isBulk
-    ? `Delete ${filenames.length} documents?`
-    : "Delete document?";
+    ? t("titlePlural", { count: filenames.length })
+    : t("titleSingle");
 
   return (
     <div
@@ -67,25 +70,15 @@ export function DeleteConfirmModal({
         <div className="px-6 py-4">
           {isBulk ? (
             <p className="text-sm text-[#505f76]">
-              You are about to permanently delete{" "}
-              <span className="font-semibold text-[#1b1b24]">
-                {filenames.length} documents
-              </span>
-              . This will remove all associated chunks, vectors, stored files,
-              and previews. Documents under a legal hold will be skipped.
+              {t("bodyPlural", { count: filenames.length })}
             </p>
           ) : (
             <p className="text-sm text-[#505f76]">
-              You are about to permanently delete{" "}
-              <span className="font-semibold text-[#1b1b24]">
-                {filenames[0]}
-              </span>
-              . This will remove all associated chunks, vectors, stored files,
-              and previews.
+              {t("bodySingle", { filename: filenames[0] })}
             </p>
           )}
           <p className="mt-3 text-sm font-semibold text-rose-700">
-            This action cannot be undone.
+            {t("warning")}
           </p>
         </div>
 
@@ -96,14 +89,14 @@ export function DeleteConfirmModal({
             onClick={onCancel}
             className="rounded-lg border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9]"
           >
-            Cancel
+            {t("cancel")}
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
           >
-            Delete permanently
+            {t("confirm")}
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -653,6 +654,7 @@ function isPreviewableFile(filename: string | null | undefined): boolean {
 }
 
 export function ChatPage() {
+  const tc = useTranslations("chat.page");
   const chatFeedbackEnabled = getFrontendRuntimeConfig().features.feedback;
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -1287,37 +1289,35 @@ export function ChatPage() {
     isScopeInvalid;
 
   function buildScopeLabel(): string {
-    if (scopeMode === "none") return "No retrieval";
+    if (scopeMode === "none") return tc("scopeNoRetrieval");
     const parts: string[] = [];
     if (scopeMode === "collection") {
       const col = (collectionsListQuery.data?.items ?? []).find(
         (c) => c.collection_id === selectedCollectionId,
       );
-      parts.push(col ? `Collection: ${col.name}` : "Collection scope");
+      parts.push(col ? tc("scopeCollection", { name: col.name }) : tc("scopeCollectionDefault"));
     }
     if (scopeMode === "documents") {
       const n = filteredSelectedDocumentIds.length;
-      parts.push(`${n} document${n !== 1 ? "s" : ""} selected`);
+      parts.push(tc("scopeDocumentsSelected", { n }));
     }
     if (scopeMode === "connectors") {
       const connectionCount = selectedConnectorConnectionIds.length;
       const sourceCount = selectedProviderSourceIds.length;
       if (connectionCount > 0) {
-        parts.push(
-          `${connectionCount} connection${connectionCount !== 1 ? "s" : ""}`,
-        );
+        parts.push(tc("scopeConnections", { n: connectionCount }));
       }
       if (sourceCount > 0) {
-        parts.push(`${sourceCount} source root${sourceCount !== 1 ? "s" : ""}`);
+        parts.push(tc("scopeSourceRoots", { n: sourceCount }));
       }
       if (parts.length === 0) {
-        parts.push("Connector scope");
+        parts.push(tc("scopeConnectorDefault"));
       }
     }
     if (parts.length > 0) {
       return parts.join(" · ");
     }
-    return `All files (${totalIndexedDocuments})`;
+    return tc("scopeAllFiles", { count: totalIndexedDocuments });
   }
 
   function buildSourceScopePayload(): ChatQueryRequest["source_scope"] | null {
@@ -1352,12 +1352,12 @@ export function ChatPage() {
     createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
   const composerSubmitButtonLabel = createSessionMutation.isPending
-    ? "Starting session…"
+    ? tc("composerStarting")
     : agentRunMutation.isPending
-      ? "Running agent…"
+      ? tc("composerAgentRunning")
       : queryMutation.isPending
-        ? "Generating answer…"
-        : "Send message";
+        ? tc("composerGenerating")
+        : tc("composerSend");
   const canDecideApprovals = isAdminLikeRole(state.session?.role ?? null);
   const showDebugDetails =
     isAdminLikeRole(state.session?.role ?? null) ||
@@ -1614,8 +1614,8 @@ export function ChatPage() {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
         <ForbiddenState
-          title="Chat access is restricted"
-          description="Your role does not have permission to query documents in this organization."
+          title={tc("accessRestrictedTitle")}
+          description={tc("accessRestrictedDesc")}
           requestId={extractRequestIdFromError(
             indexedDocumentsQuery.error ?? sessionsQuery.error,
           )}
@@ -1632,10 +1632,10 @@ export function ChatPage() {
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="min-w-0">
               <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-                Rudix Chat
+                {tc("eyebrow")}
               </p>
               <h1 className="truncate text-xl font-semibold text-[#2a2640] lg:text-2xl">
-                Chat Session
+                {tc("title")}
               </h1>
               <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-[#ece8ff] px-2.5 py-1">
                 <span className="font-mono text-xs text-[#463f7b]">
@@ -1655,8 +1655,8 @@ export function ChatPage() {
                   type="text"
                   value={sessionSearchQuery}
                   onChange={(e) => setSessionSearchQuery(e.target.value)}
-                  placeholder="Search sessions..."
-                  aria-label="Search sessions"
+                  placeholder={tc("searchPlaceholder")}
+                  aria-label={tc("searchPlaceholder")}
                   className="h-9 w-60 rounded-full border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
                 />
               </div>
@@ -1664,14 +1664,14 @@ export function ChatPage() {
                 href="/documents"
                 className="rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
               >
-                Upload documents
+                {tc("uploadDocuments")}
               </Link>
               <button
                 type="button"
                 onClick={resetForNewChat}
                 className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
               >
-                New chat
+                {tc("newChat")}
               </button>
             </div>
           </div>
@@ -1683,10 +1683,10 @@ export function ChatPage() {
           <aside className="hide-scrollbar min-h-0 space-y-4 overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
               <h2 className="mb-2 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                Sessions
+                {tc("sessionsTitle")}
               </h2>
               {sessionsQuery.isLoading ? (
-                <LoadingState compact title="Loading sessions..." />
+                <LoadingState compact title={tc("loadingSessions")} />
               ) : sessionsQuery.isError ? (
                 <ErrorState
                   compact
@@ -1707,14 +1707,14 @@ export function ChatPage() {
                         confirmDeleteSessionId === session.session_id;
                       const displayTitle =
                         sessionDisplayTitleById.get(session.session_id) ??
-                        "Untitled session";
+                        tc("untitledSession");
 
                       return (
                         <li key={session.session_id}>
                           {isConfirmingDelete ? (
                             <div className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm">
                               <p className="mb-2 font-semibold text-rose-800">
-                                Delete this session?
+                                {tc("deleteConfirmTitle")}
                               </p>
                               <p className="mb-3 truncate text-xs text-rose-700">
                                 {displayTitle}
@@ -1728,14 +1728,14 @@ export function ChatPage() {
                                   disabled={deleteSessionMutation.isPending}
                                   className="flex-1 rounded bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
                                 >
-                                  Delete
+                                  {tc("delete")}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={handleDeleteCancel}
                                   className="flex-1 rounded border border-rose-300 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                 >
-                                  Cancel
+                                  {tc("cancel")}
                                 </button>
                               </div>
                             </div>
@@ -1757,8 +1757,8 @@ export function ChatPage() {
                                 }}
                                 onBlur={() => handleRenameCancel()}
                                 maxLength={SESSION_TITLE_MAX_LENGTH}
-                                placeholder="Session title"
-                                aria-label="Session title"
+                                placeholder={tc("sessionTitlePlaceholder")}
+                                aria-label={tc("sessionTitlePlaceholder")}
                                 className="w-full bg-transparent text-sm font-semibold text-[#2f2a46] outline-none placeholder:text-[#9d98b5]"
                               />
                               <div className="mt-1 flex gap-2">
@@ -1768,7 +1768,7 @@ export function ChatPage() {
                                   disabled={renameSessionMutation.isPending}
                                   className="text-xs font-semibold text-[#3525cd] hover:underline disabled:opacity-60"
                                 >
-                                  Save
+                                  {tc("save")}
                                 </button>
                                 <button
                                   type="button"
@@ -1776,7 +1776,7 @@ export function ChatPage() {
                                   onClick={handleRenameCancel}
                                   className="text-xs font-semibold text-[#6a6780] hover:underline"
                                 >
-                                  Cancel
+                                  {tc("cancel")}
                                 </button>
                               </div>
                             </form>
@@ -1804,8 +1804,7 @@ export function ChatPage() {
                                   {displayTitle}
                                 </p>
                                 <p className="mt-1 text-xs text-[#7a758f]">
-                                  {session.message_count} messages • updated{" "}
-                                  {formatDate(session.updated_at)}
+                                  {tc("sessionMeta", { count: session.message_count, date: formatDate(session.updated_at) })}
                                 </p>
                               </button>
                               <div
@@ -1860,7 +1859,7 @@ export function ChatPage() {
                                       >
                                         edit
                                       </span>
-                                      Rename
+                                      {tc("rename")}
                                     </button>
                                     <button
                                       type="button"
@@ -1878,7 +1877,7 @@ export function ChatPage() {
                                       >
                                         delete
                                       </span>
-                                      Delete
+                                      {tc("delete")}
                                     </button>
                                   </div>
                                 )}
@@ -1899,8 +1898,8 @@ export function ChatPage() {
                       className="mt-3 w-full rounded-lg border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {sessionsQuery.isFetchingNextPage
-                        ? "Loading more sessions..."
-                        : `Load more sessions (${sessions.length}/${totalSessions})`}
+                        ? tc("loadingMore")
+                        : tc("loadMore", { loaded: sessions.length, total: totalSessions })}
                     </button>
                   ) : null}
                 </>
@@ -1909,8 +1908,8 @@ export function ChatPage() {
                   compact
                   title={
                     debouncedSearchQuery
-                      ? `No sessions match "${debouncedSearchQuery}".`
-                      : "No sessions yet. Ask your first question to start one."
+                      ? tc("noSessionsSearch", { query: debouncedSearchQuery })
+                      : tc("noSessionsYet")
                   }
                 />
               )}
@@ -1922,22 +1921,22 @@ export function ChatPage() {
               <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
                 <div className="min-w-0">
                   <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-                    Conversation
+                    {tc("conversationTitle")}
                   </h2>
                   <p className="mt-1 text-xs text-[#5f5a74]">
                     {activeSession ? (
                       <>
-                        Session:{" "}
+                        {tc("sessionLabel")}{" "}
                         <span className="font-semibold text-[#2f2a46]">
                           {activeSessionDisplayTitle}
                         </span>
                         {" • "}
-                        {activeSession.message_count} messages
+                        {tc("messagesCount", { count: activeSession.message_count })}
                         {" • "}
-                        updated {formatDate(activeSession.updated_at)}
+                        {tc("updatedLabel", { date: formatDate(activeSession.updated_at) })}
                       </>
                     ) : (
-                      "New chat draft. Start with a question to create a session."
+                      tc("newChatDraft")
                     )}
                   </p>
                 </div>
@@ -1945,8 +1944,8 @@ export function ChatPage() {
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
-                      aria-label="Copy full transcript"
-                      title="Copy transcript as Markdown"
+                      aria-label={tc("copyTranscriptTitle")}
+                      title={tc("copyTranscriptTitle")}
                       onClick={() => {
                         const md = formatTranscriptAsMarkdown(
                           toExportTurns(thread),
@@ -1962,12 +1961,12 @@ export function ChatPage() {
                       >
                         content_copy
                       </span>
-                      Copy
+                      {tc("copyTranscript")}
                     </button>
                     <button
                       type="button"
-                      aria-label="Download transcript as Markdown"
-                      title="Download as .md file"
+                      aria-label={tc("exportTranscriptTitle")}
+                      title={tc("exportTranscriptTitle")}
                       onClick={() => {
                         const md = formatTranscriptAsMarkdown(
                           toExportTurns(thread),
@@ -1986,12 +1985,12 @@ export function ChatPage() {
                       >
                         download
                       </span>
-                      Export
+                      {tc("exportTranscript")}
                     </button>
                     <button
                       type="button"
-                      aria-label="Share session"
-                      title="Share session with org members"
+                      aria-label={tc("shareSessionTitle")}
+                      title={tc("shareSessionTitle")}
                       onClick={() => setIsShareModalOpen(true)}
                       className="inline-flex items-center gap-1 rounded border border-[#d2cee6] px-2 py-1 text-xs text-[#3e376f] hover:bg-[#f5f3ff]"
                     >
@@ -2001,7 +2000,7 @@ export function ChatPage() {
                       >
                         share
                       </span>
-                      Share
+                      {tc("shareSession")}
                     </button>
                   </div>
                 ) : null}
@@ -2012,7 +2011,7 @@ export function ChatPage() {
                 activeSession &&
                 thread.length === 0 &&
                 activeSession.message_count > 0 ? (
-                  <LoadingState compact title="Loading session history..." />
+                  <LoadingState compact title={tc("loadingHistory")} />
                 ) : null}
 
                 {sessionMessagesQuery.isError &&
@@ -2021,7 +2020,7 @@ export function ChatPage() {
                 activeSession.message_count > 0 ? (
                   <ErrorState
                     compact
-                    title="Unable to load prior messages"
+                    title={tc("loadHistoryError")}
                     error={sessionMessagesQuery.error}
                     description={getApiErrorMessage(sessionMessagesQuery.error)}
                     onRetry={() => {
@@ -2035,7 +2034,7 @@ export function ChatPage() {
                 !sessionMessagesQuery.isLoading ? (
                   <EmptyState
                     compact
-                    title="No messages yet. Submit a question to start the conversation."
+                    title={tc("noMessages")}
                   />
                 ) : (
                   <ul className="space-y-6">
@@ -2049,7 +2048,7 @@ export function ChatPage() {
                         >
                           <div className="flex justify-end">
                             <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
-                              <p className="sr-only">Question</p>
+                              <p className="sr-only">{tc("questionLabel")}</p>
                               <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                                 {turn.question}
                               </p>
@@ -2104,7 +2103,7 @@ export function ChatPage() {
                                           turn.response.agent_run_status,
                                         )}
                                       >
-                                        Agent {turn.response.agent_run_status}
+                                        {tc("agentStatus", { status: turn.response.agent_run_status })}
                                       </span>
                                     ) : null}
                                     <span className="font-mono text-xs text-[#6a6780]">
@@ -2116,30 +2115,24 @@ export function ChatPage() {
                                 {turn.response.confidence_category === "low" &&
                                 !turn.response.not_found ? (
                                   <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
-                                    Low confidence warning: validate this answer
-                                    against the cited source text.
+                                    {tc("lowConfidenceWarning")}
                                   </p>
                                 ) : null}
 
                                 {turn.response.citation_validation_failed &&
                                 !turn.response.not_found ? (
                                   <p className="mb-3 rounded-lg border border-[#f5c6b0] bg-[#fff8f5] px-3 py-2 text-xs text-[#7a3a20]">
-                                    Some citations could not be verified against
-                                    the retrieved sources and were replaced with
-                                    the best available evidence.
+                                    {tc("citationValidationFailed")}
                                   </p>
                                 ) : null}
 
                                 {turn.response.not_found ? (
                                   <div className="space-y-2">
                                     <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
-                                      No grounded answer was found in the
-                                      selected documents.
+                                      {tc("notFoundAnswer")}
                                     </p>
                                     <p className="text-xs text-[#6a6780]">
-                                      Try refining your question, changing
-                                      document scope, or adjusting retrieval
-                                      settings.
+                                      {tc("notFoundHint")}
                                     </p>
                                   </div>
                                 ) : (
@@ -2204,12 +2197,12 @@ export function ChatPage() {
                                                     title={
                                                       citation.source_title ??
                                                       citation.filename ??
-                                                      "Document"
+                                                      tc("documentFallback")
                                                     }
                                                   >
                                                     {citation.source_title ??
                                                       citation.filename ??
-                                                      "Document"}
+                                                      tc("documentFallback")}
                                                   </p>
                                                   {citation.source_key ? (
                                                     <p
@@ -2294,8 +2287,7 @@ export function ChatPage() {
                                 )}
                                 {turn.response.agent_run_error ? (
                                   <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                                    Agent stop reason:{" "}
-                                    {turn.response.agent_run_error.message}
+                                    {tc("agentStopReason", { reason: turn.response.agent_run_error.message })}
                                   </p>
                                 ) : null}
                               </article>
@@ -2337,8 +2329,8 @@ export function ChatPage() {
                                     <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/copy:opacity-100">
                                       {copiedMessageId ===
                                       turn.response.message_id
-                                        ? "Copied!"
-                                        : "Copy"}
+                                        ? tc("copiedTooltip")
+                                        : tc("copyTooltip")}
                                     </span>
                                   </div>
                                 ) : null}
@@ -2375,7 +2367,7 @@ export function ChatPage() {
                                         </span>
                                       </button>
                                       <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/up:opacity-100">
-                                        Helpful
+                                        {tc("helpfulTooltip")}
                                       </span>
                                     </div>
                                     <div className="group/down relative">
@@ -2397,7 +2389,7 @@ export function ChatPage() {
                                         </span>
                                       </button>
                                       <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/down:opacity-100">
-                                        Not helpful
+                                        {tc("notHelpfulTooltip")}
                                       </span>
                                     </div>
                                   </>
@@ -2430,7 +2422,7 @@ export function ChatPage() {
                                       </span>
                                     </button>
                                     <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/regen:opacity-100">
-                                      Regenerate
+                                      {tc("regenerateTooltip")}
                                     </span>
                                   </div>
                                 ) : null}
@@ -2444,7 +2436,7 @@ export function ChatPage() {
                       <li className="space-y-3">
                         <div className="flex justify-end">
                           <article className="max-w-[80%] rounded-xl rounded-tr-none bg-[#f0ecf9] px-4 py-3 shadow-sm">
-                            <p className="sr-only">Question</p>
+                            <p className="sr-only">{tc("questionLabel")}</p>
                             <p className="hide-scrollbar max-h-72 overflow-y-auto pr-1 text-sm break-words whitespace-pre-wrap text-[#1b1b24]">
                               {pendingQuestion}
                             </p>
@@ -2453,8 +2445,8 @@ export function ChatPage() {
                         <ChatResponseLoadingState
                           label={
                             STREAMING_PLACEHOLDER_ENABLED
-                              ? "Streaming response..."
-                              : "Generating answer..."
+                              ? tc("streamingLabel")
+                              : tc("generatingLabel")
                           }
                         />
                       </li>
@@ -2467,8 +2459,8 @@ export function ChatPage() {
                 <div className="border-t border-[#e2dff1] px-4 py-3">
                   <ForbiddenState
                     compact
-                    title="Query is not allowed"
-                    description="You do not have permission to query the selected documents in this organization."
+                    title={tc("queryForbiddenTitle")}
+                    description={tc("queryForbiddenDesc")}
                     requestId={extractRequestIdFromError(composerError)}
                   />
                 </div>
@@ -2477,7 +2469,7 @@ export function ChatPage() {
               {composerError && !composerForbidden ? (
                 <div className="border-t border-[#e2dff1] px-4 py-3">
                   <ErrorState
-                    title="Unable to complete the query."
+                    title={tc("queryErrorTitle")}
                     error={composerError}
                     description={getApiErrorMessage(composerError)}
                     requestId={submitRequestId}
@@ -2530,10 +2522,10 @@ export function ChatPage() {
             <div className="flex items-center justify-between border-b border-[#e4e1ee] p-4">
               <div>
                 <h2 className="text-lg font-semibold text-[#1b1b24]">
-                  Knowledge Hub
+                  {tc("knowledgeHubTitle")}
                 </h2>
                 <p className="text-xs text-[#464555]">
-                  Live insights from current context
+                  {tc("knowledgeHubSubtitle")}
                 </p>
               </div>
               <button
@@ -2557,13 +2549,13 @@ export function ChatPage() {
               <div className="p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                    Context Map
+                    {tc("contextMapTitle")}
                   </span>
                   <button
                     type="button"
                     className="text-[10px] font-bold text-[#3525cd]"
                   >
-                    EXPAND
+                    {tc("contextMapExpand")}
                   </button>
                 </div>
                 <div className="group relative h-40 overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9]">
@@ -2607,9 +2599,7 @@ export function ChatPage() {
                   <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
                   <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
                   <div className="absolute right-2 bottom-2 left-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
-                    CONNECTED:{" "}
-                    {selectedCitationTurn?.response.citations.length ?? 0}{" "}
-                    SOURCES
+                    {tc("contextMapConnected", { count: selectedCitationTurn?.response.citations.length ?? 0 })}
                   </div>
                 </div>
               </div>
@@ -2618,7 +2608,7 @@ export function ChatPage() {
               <div className="border-t border-[#e4e1ee] bg-[#f5f2ff] p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                    Source Documents
+                    {tc("sourceDocsTitle")}
                   </span>
                   <span
                     className="material-symbols-outlined text-sm text-[#464555]"
@@ -2630,16 +2620,15 @@ export function ChatPage() {
 
                 {!selectedCitationTurn ? (
                   <p className="text-xs text-[#777587]">
-                    Ask a question to see source documents.
+                    {tc("sourceDocsAsk")}
                   </p>
                 ) : selectedCitationTurn.response.not_found ? (
                   <p className="text-xs text-[#777587]">
-                    No citations are shown because the assistant did not find
-                    grounded evidence for this response.
+                    {tc("sourceDocsNotFound")}
                   </p>
                 ) : selectedCitationTurn.response.citations.length === 0 ? (
                   <p className="text-xs text-[#777587]">
-                    No citations for this response.
+                    {tc("sourceDocsNone")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -2669,9 +2658,9 @@ export function ChatPage() {
                           </div>
                           <h4
                             className="mb-1 truncate text-sm font-bold text-[#1b1b24]"
-                            title={citation.filename ?? "Unknown document"}
+                            title={citation.filename ?? tc("unknownDocument")}
                           >
-                            {citation.filename ?? "Unknown document"}
+                            {citation.filename ?? tc("unknownDocument")}
                           </h4>
                           <div className="flex items-center gap-2">
                             {citation.page_number ? (
@@ -2691,7 +2680,7 @@ export function ChatPage() {
                         href={selectedCitationPipelineHref}
                         className="mt-1 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-[#777587] py-2 text-xs font-bold text-[#464555] transition-all hover:border-[#3525cd] hover:bg-white hover:text-[#3525cd]"
                       >
-                        View pipeline run
+                        {tc("viewPipelineRun")}
                       </Link>
                     ) : null}
                   </div>
@@ -2701,10 +2690,10 @@ export function ChatPage() {
                 {selectedAgentRunId ? (
                   <div className="mt-4">
                     <p className="mb-2 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      Agent timeline
+                      {tc("agentTimeline")}
                     </p>
                     {selectedAgentRunQuery.isLoading ? (
-                      <LoadingState compact title="Loading timeline..." />
+                      <LoadingState compact title={tc("loadingTimeline")} />
                     ) : selectedAgentRunQuery.isError ? (
                       <ErrorState
                         compact
@@ -2732,7 +2721,7 @@ export function ChatPage() {
                         </div>
                         {selectedAgentRunQuery.data.approvals.length > 0 && (
                           <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                            Approvals
+                            {tc("approvalsTitle")}
                           </p>
                         )}
                         {selectedAgentRunQuery.data.approvals
@@ -2743,7 +2732,7 @@ export function ChatPage() {
                               className="rounded border border-amber-200 bg-amber-50 px-2 py-2"
                             >
                               <p className="mb-1 text-xs text-amber-800">
-                                {approval.request_summary ?? "Approval needed"}
+                                {approval.request_summary ?? tc("approvalNeeded")}
                               </p>
                               {canDecideApprovals && (
                                 <div className="flex gap-2">
@@ -2760,7 +2749,7 @@ export function ChatPage() {
                                     }}
                                     className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 disabled:opacity-60"
                                   >
-                                    Approve
+                                    {tc("approve")}
                                   </button>
                                   <button
                                     type="button"
@@ -2775,7 +2764,7 @@ export function ChatPage() {
                                     }}
                                     className="rounded border border-rose-300 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-800 disabled:opacity-60"
                                   >
-                                    Reject
+                                    {tc("reject")}
                                   </button>
                                 </div>
                               )}
@@ -2814,11 +2803,9 @@ export function ChatPage() {
                   <div className="mt-3 flex items-start gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     <span className="mt-0.5 shrink-0">⚠</span>
                     <span>
-                      Answer generated via fallback provider
                       {selectedCitationTurn.response.debug.fallback_to
-                        ? ` (${selectedCitationTurn.response.debug.fallback_to})`
-                        : ""}
-                      . Your local model was temporarily unavailable.
+                        ? tc("fallbackWarningWithProvider", { provider: selectedCitationTurn.response.debug.fallback_to })
+                        : tc("fallbackWarning")}
                     </span>
                   </div>
                 ) : null}
@@ -2827,7 +2814,7 @@ export function ChatPage() {
                 {showDebugDetails && selectedCitationTurn?.response.debug ? (
                   <details className="mt-4">
                     <summary className="cursor-pointer text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      Retrieval debug
+                      {tc("retrievalDebug")}
                     </summary>
                     <div className="mt-2 space-y-1 text-xs text-[#4f4b63]">
                       <dl className="grid grid-cols-2 gap-1 rounded border border-[#ebe8f7] px-2 py-2">
@@ -2879,23 +2866,23 @@ export function ChatPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
                   <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
-                    Confidence
+                    {tc("confidenceMetric")}
                   </p>
                   <p className="text-lg font-semibold text-[#3525cd]">
                     {selectedCitationTurn
                       ? selectedCitationTurn.response.confidence_category ===
                         "high"
-                        ? "High"
+                        ? tc("confidenceHigh")
                         : selectedCitationTurn.response.confidence_category ===
                             "medium"
-                          ? "Medium"
-                          : "Low"
+                          ? tc("confidenceMedium")
+                          : tc("confidenceLow")
                       : "—"}
                   </p>
                 </div>
                 <div className="rounded-lg border border-[#c7c4d8] bg-[#f0ecf9] p-2">
                   <p className="mb-1 text-[9px] font-bold tracking-wider text-[#464555] uppercase">
-                    Sources
+                    {tc("sourcesMetric")}
                   </p>
                   <p className="text-lg font-semibold text-[#3525cd]">
                     {selectedCitationDocumentCount > 0
@@ -2912,18 +2899,18 @@ export function ChatPage() {
                 <div className="flex items-center gap-2 border-b border-[#e4e1ee] p-4">
                   <div className="min-w-0 flex-1">
                     <h2 className="text-base font-semibold text-[#1b1b24]">
-                      Citation Details
+                      {tc("citationDetailsTitle")}
                     </h2>
                     <p className="flex items-center gap-1 font-mono text-xs text-[#464555]">
                       <span
                         className="truncate"
-                        title={activeCitation.filename ?? "Document"}
+                        title={activeCitation.filename ?? tc("documentFallback")}
                       >
-                        {activeCitation.filename ?? "Document"}
+                        {activeCitation.filename ?? tc("documentFallback")}
                       </span>
                       {activeCitation.page_number ? (
                         <span className="shrink-0">
-                          • Page {activeCitation.page_number}
+                          {tc("citationPage", { page: activeCitation.page_number })}
                         </span>
                       ) : null}
                     </p>
@@ -2975,14 +2962,13 @@ export function ChatPage() {
                       </span>
                     </div>
                     <p className="mb-3 text-xs leading-relaxed opacity-40">
-                      The passage below was retrieved from the indexed knowledge
-                      base as a high-relevance match for your query.
+                      {tc("citationPassage")}
                     </p>
                     {activeCitation.source_section ||
                     activeCitation.source_last_synced_at ? (
                       <p className="mb-2 text-[11px] text-[#6a6780]">
                         {activeCitation.source_section ? (
-                          <span>Section: {activeCitation.source_section}</span>
+                          <span>{tc("citationSection", { section: activeCitation.source_section })}</span>
                         ) : null}
                         {activeCitation.source_section &&
                         activeCitation.source_last_synced_at ? (
@@ -2990,8 +2976,7 @@ export function ChatPage() {
                         ) : null}
                         {activeCitation.source_last_synced_at ? (
                           <span>
-                            Synced{" "}
-                            {formatDate(activeCitation.source_last_synced_at)}
+                            {tc("citationSynced", { date: formatDate(activeCitation.source_last_synced_at) })}
                           </span>
                         ) : null}
                       </p>
@@ -3007,17 +2992,11 @@ export function ChatPage() {
                       </div>
                     ) : (
                       <p className="text-xs text-[#464555] italic">
-                        Snippet not available for this citation.
+                        {tc("snippetUnavailable")}
                       </p>
                     )}
                     <p className="mt-3 text-xs leading-relaxed opacity-40">
-                      Retrieval score:{" "}
-                      {formatScore(
-                        activeCitation.rerank_score ??
-                          activeCitation.similarity_score ??
-                          activeCitation.score,
-                      )}
-                      .
+                      {tc("retrievalScore", { score: formatScore(activeCitation.rerank_score ?? activeCitation.similarity_score ?? activeCitation.score) })}
                     </p>
                   </div>
                 </div>
@@ -3036,7 +3015,7 @@ export function ChatPage() {
                       >
                         open_in_new
                       </span>
-                      Open connected source
+                      {tc("openConnectedSource")}
                     </a>
                   ) : null}
                   {activeCitation.document_id ? (
@@ -3060,11 +3039,11 @@ export function ChatPage() {
                       >
                         open_in_new
                       </span>
-                      Jump to Source
+                      {tc("jumpToSource")}
                     </Link>
                   ) : (
                     <p className="text-center text-xs text-[#777587]">
-                      Document link unavailable.
+                      {tc("documentLinkUnavailable")}
                     </p>
                   )}
                 </div>
@@ -3089,11 +3068,10 @@ export function ChatPage() {
                   id="chat-context-modal-title"
                   className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase"
                 >
-                  Select context
+                  {tc("contextModalTitle")}
                 </h2>
                 <p className="mt-1 text-xs text-[#6a6780]">
-                  Choose indexed documents and connector sources to scope
-                  retrieval.
+                  {tc("contextModalSubtitle")}
                 </p>
               </div>
               <button
@@ -3105,7 +3083,7 @@ export function ChatPage() {
                 }}
                 className="rounded-lg border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
               >
-                Close
+                {tc("close")}
               </button>
             </div>
             <div className="border-b border-[#ece8f7] px-4 py-3">
@@ -3123,7 +3101,7 @@ export function ChatPage() {
                     setContextSearchQuery(event.target.value);
                     setContextPage(1);
                   }}
-                  placeholder="Search indexed documents..."
+                  placeholder={tc("contextSearchPlaceholder")}
                   className="h-10 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-sm text-[#2f2a46] ring-[#3525cd]/20 outline-none focus:ring"
                 />
               </div>
@@ -3133,21 +3111,18 @@ export function ChatPage() {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      Connector sources
+                      {tc("connectorSourcesTitle")}
                     </p>
                     <p className="text-xs text-[#6a6780]">
-                      Select Confluence or Google Drive connections and their
-                      synced source roots.
+                      {tc("connectorSourcesSubtitle")}
                     </p>
                   </div>
                   <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-[10px] font-semibold text-[#3525cd]">
-                    {selectedConnectorConnectionIds.length +
-                      selectedProviderSourceIds.length}{" "}
-                    selected
+                    {tc("numSelected", { n: selectedConnectorConnectionIds.length + selectedProviderSourceIds.length })}
                   </span>
                 </div>
                 {connectorConnectionsQuery.isLoading ? (
-                  <LoadingState compact title="Loading connectors..." />
+                  <LoadingState compact title={tc("loadingConnectors")} />
                 ) : connectorConnectionsQuery.isError ? (
                   <ErrorState
                     compact
@@ -3161,7 +3136,7 @@ export function ChatPage() {
                   />
                 ) : connectorConnections.length === 0 ? (
                   <p className="text-xs text-[#777587]">
-                    No connector connections are available yet.
+                    {tc("noConnectors")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -3213,7 +3188,7 @@ export function ChatPage() {
                                   : "bg-[#f1f0f5] text-[#6a6780]"
                               }`}
                             >
-                              {connectionSelected ? "Selected" : "Select"}
+                              {connectionSelected ? tc("connectionSelected") : tc("connectionSelect")}
                             </span>
                           </div>
                           {rootChips.length > 0 ? (
@@ -3248,7 +3223,7 @@ export function ChatPage() {
                             </div>
                           ) : (
                             <p className="mt-2 text-xs text-[#777587]">
-                              Use the connection to search all synced items.
+                              {tc("useConnectionForAll")}
                             </p>
                           )}
                         </div>
@@ -3259,7 +3234,7 @@ export function ChatPage() {
               </div>
 
               {contextModalQuery.isLoading ? (
-                <LoadingState compact title="Loading documents..." />
+                <LoadingState compact title={tc("loadingDocuments")} />
               ) : contextModalQuery.isError ? (
                 <ErrorState
                   compact
@@ -3273,21 +3248,21 @@ export function ChatPage() {
                 !contextSearchQuery.trim() ? (
                 <EmptyState
                   compact
-                  title="No indexed documents available. Upload and index documents first."
+                  title={tc("noDocumentsAvailable")}
                   action={
                     <Link
                       href="/documents"
                       className="text-sm font-semibold text-[#3525cd] hover:underline"
                     >
-                      Go to documents upload
+                      {tc("goToDocuments")}
                     </Link>
                   }
                 />
               ) : contextModalQuery.data?.items.length === 0 ? (
                 <EmptyState
                   compact
-                  title="No documents match your search."
-                  description="Try a different filename or file type."
+                  title={tc("noDocumentsMatch")}
+                  description={tc("noDocumentsMatchHint")}
                 />
               ) : (
                 <ul className="space-y-2">
@@ -3299,6 +3274,7 @@ export function ChatPage() {
                         document.document_id,
                       )}
                       onToggle={() => toggleDocument(document.document_id)}
+                      chunksMeta={tc("documentChunks", { count: document.chunk_count, date: formatDate(document.updated_at) })}
                     />
                   ))}
                 </ul>
@@ -3307,8 +3283,7 @@ export function ChatPage() {
             {contextModalTotal > CONTEXT_MODAL_PAGE_SIZE ? (
               <div className="flex items-center justify-between border-t border-[#ece8f7] px-4 py-3 text-xs text-[#5f5a74]">
                 <p>
-                  Showing {contextPageStartIndex}-{contextPageEndIndex} of{" "}
-                  {contextModalTotal}
+                  {tc("contextShowingRange", { start: contextPageStartIndex, end: contextPageEndIndex, total: contextModalTotal })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -3321,10 +3296,10 @@ export function ChatPage() {
                     }
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Previous
+                    {tc("previous")}
                   </button>
                   <span className="font-mono text-[11px] text-[#4f4b63]">
-                    Page {boundedContextPage} of {contextPageCount}
+                    {tc("contextPageOf", { page: boundedContextPage, total: contextPageCount })}
                   </span>
                   <button
                     type="button"
@@ -3339,7 +3314,7 @@ export function ChatPage() {
                     }
                     className="rounded border border-[#d2cee6] px-2 py-1 font-semibold text-[#3525cd] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Next
+                    {tc("next")}
                   </button>
                 </div>
               </div>
@@ -3348,8 +3323,7 @@ export function ChatPage() {
               {scopeMode === "connectors" ? (
                 hasConnectorScopeSelection ? (
                   <p className="text-xs text-[#5f5a74]">
-                    {contextScopeItemCount} connector source
-                    {contextScopeItemCount !== 1 ? "s" : ""} selected
+                    {tc("connectorSourcesSelected", { count: contextScopeItemCount })}
                   </p>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
@@ -3359,13 +3333,12 @@ export function ChatPage() {
                     >
                       hub
                     </span>
-                    Select connector sources
+                    {tc("selectConnectorSources")}
                   </span>
                 )
               ) : filteredSelectedDocumentIds.length > 0 ? (
                 <p className="text-xs text-[#5f5a74]">
-                  {filteredSelectedDocumentIds.length} file
-                  {filteredSelectedDocumentIds.length !== 1 ? "s" : ""} selected
+                  {tc("filesSelected", { count: filteredSelectedDocumentIds.length })}
                 </p>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
@@ -3375,7 +3348,7 @@ export function ChatPage() {
                   >
                     check_circle
                   </span>
-                  All {contextScopeItemCount} indexed files included
+                  {tc("allFilesIncluded", { count: contextScopeItemCount })}
                 </span>
               )}
               <button
@@ -3387,7 +3360,7 @@ export function ChatPage() {
                 }}
                 className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
               >
-                Done
+                {tc("done")}
               </button>
             </div>
           </div>
@@ -3443,10 +3416,12 @@ function DocumentSelectorItem({
   document,
   checked,
   onToggle,
+  chunksMeta,
 }: {
   document: DocumentListItemResponse;
   checked: boolean;
   onToggle: () => void;
+  chunksMeta: string;
 }) {
   return (
     <li>
@@ -3462,8 +3437,7 @@ function DocumentSelectorItem({
             {document.filename}
           </span>
           <span className="mt-1 block text-xs text-[#6a6780]">
-            {document.chunk_count} chunks • updated{" "}
-            {formatDate(document.updated_at)}
+            {chunksMeta}
           </span>
         </span>
       </label>

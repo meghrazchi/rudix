@@ -8,6 +8,8 @@ import {
   type DragEvent,
 } from "react";
 
+import { useTranslations } from "next-intl";
+
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import type { CollectionListItemResponse } from "@/lib/api/collections";
 import type { UploadDocumentMetadata } from "@/lib/api/documents";
@@ -149,6 +151,7 @@ export function DocumentsUploadModal({
   progress,
   uploadHistory,
 }: DocumentsUploadModalProps) {
+  const t = useTranslations("documents.uploadModal");
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -265,13 +268,13 @@ export function DocumentsUploadModal({
               id="documents-upload-modal-title"
               className="text-xl font-bold text-[#1b1b24]"
             >
-              Upload Center
+              {t("title")}
             </h3>
             <p
               id="documents-upload-modal-description"
               className="text-sm text-[#68647b]"
             >
-              Drop files or click to select. Supported: {acceptedTypesLabel}.
+              {t("subtitle", { types: acceptedTypesLabel })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -279,8 +282,8 @@ export function DocumentsUploadModal({
               <button
                 type="button"
                 onClick={() => setHistoryOpen((v) => !v)}
-                aria-label="Upload history"
-                title="Upload history"
+                aria-label={t("historyAriaLabel")}
+                title={t("historyAriaLabel")}
                 className={`rounded-full p-1.5 text-[#6f6b86] transition-colors hover:bg-[#f1eff9] hover:text-[#1b1b24] ${historyOpen ? "bg-[#f1eff9] text-[#1b1b24]" : ""}`}
               >
                 <span
@@ -295,7 +298,7 @@ export function DocumentsUploadModal({
               type="button"
               data-overlay-autofocus="true"
               onClick={handleClose}
-              aria-label="Close upload center"
+              aria-label={t("closeAriaLabel")}
               className="rounded-full p-1 text-[#6f6b86] transition-colors hover:bg-[#f1eff9] hover:text-[#1b1b24]"
             >
               <span className="material-symbols-outlined">close</span>
@@ -308,7 +311,7 @@ export function DocumentsUploadModal({
           {historyOpen && hasHistory && (
             <div className="border-b border-[#e5e3f1] bg-[#fcfbff] px-6 py-4">
               <h4 className="mb-3 text-xs font-bold tracking-[0.08em] text-[#6a6780] uppercase">
-                Upload History (this session)
+                {t("historyTitle")}
               </h4>
               <ul className="space-y-2">
                 {uploadHistory.map((batch) => (
@@ -324,17 +327,17 @@ export function DocumentsUploadModal({
                       <div className="flex gap-2">
                         {batch.succeeded > 0 && (
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">
-                            {batch.succeeded} ok
+                            {batch.succeeded} {t("historyOk")}
                           </span>
                         )}
                         {batch.failed > 0 && (
                           <span className="rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-800">
-                            {batch.failed} failed
+                            {batch.failed} {t("historyFailed")}
                           </span>
                         )}
                         {batch.canceled > 0 && (
                           <span className="rounded-full bg-slate-200 px-2 py-0.5 font-semibold text-slate-700">
-                            {batch.canceled} canceled
+                            {batch.canceled} {t("historyCanceled")}
                           </span>
                         )}
                       </div>
@@ -363,7 +366,7 @@ export function DocumentsUploadModal({
               } ${canUpload && !isUploading ? "cursor-pointer" : "opacity-75"}`}
               role="button"
               tabIndex={canUpload && !isUploading ? 0 : -1}
-              aria-label="Upload a document file"
+              aria-label={t("dropzoneBrowse")}
               onClick={() => {
                 if (!canUpload || isUploading) {
                   return;
@@ -397,18 +400,14 @@ export function DocumentsUploadModal({
                 </span>
               </div>
               <p className="text-base font-semibold text-[#1b1b24]">
-                {dragActive
-                  ? "Release to upload your files"
-                  : "Drop files here or click to browse"}
+                {dragActive ? t("dropzoneRelease") : t("dropzoneBrowse")}
               </p>
               <p className="mt-1 text-sm text-[#68647b]">
-                {isUploading
-                  ? "Uploads are running. You can cancel individual files below."
-                  : "PDF, DOCX, TXT · max 25 MB per file"}
+                {isUploading ? t("uploadsRunning") : t("supportedTypes")}
               </p>
               {!canUpload ? (
                 <p className="mt-2 text-xs text-[#6e6a86]">
-                  Your role can view documents but cannot upload files.
+                  {t("readOnly")}
                 </p>
               ) : null}
             </div>
@@ -419,7 +418,7 @@ export function DocumentsUploadModal({
                 type="button"
                 onClick={() => setMetaOpen((v) => !v)}
                 aria-expanded={metaOpen}
-                aria-label="Upload details (optional)"
+                aria-label={t("detailsToggle")}
                 className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-[#3525cd] hover:bg-[#faf9ff]"
               >
                 <span className="flex items-center gap-1.5">
@@ -429,7 +428,7 @@ export function DocumentsUploadModal({
                   >
                     tune
                   </span>
-                  Upload details (optional)
+                  {t("detailsToggle")}
                 </span>
                 <span
                   className="material-symbols-outlined text-[18px] text-[#9993b8]"
@@ -445,7 +444,7 @@ export function DocumentsUploadModal({
                   {collections.length > 0 && (
                     <div className="sm:col-span-2">
                       <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                        Collection
+                        {t("collectionLabel")}
                       </label>
                       <select
                         value={collectionId}
@@ -453,7 +452,7 @@ export function DocumentsUploadModal({
                         className="w-full rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                         disabled={isUploading}
                       >
-                        <option value="">— No collection —</option>
+                        <option value="">{t("collectionNone")}</option>
                         {collections.map((c) => (
                           <option key={c.collection_id} value={c.collection_id}>
                             {c.name}
@@ -469,9 +468,9 @@ export function DocumentsUploadModal({
                       htmlFor="upload-tags"
                       className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase"
                     >
-                      Tags
+                      {t("tagsLabel")}
                       <span className="ml-1 font-normal text-[#9993b8] normal-case">
-                        (comma-separated)
+                        {t("tagsHint")}
                       </span>
                     </label>
                     <input
@@ -488,7 +487,7 @@ export function DocumentsUploadModal({
                   {/* Source */}
                   <div>
                     <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Source
+                      {t("sourceLabel")}
                     </label>
                     <input
                       type="text"
@@ -504,7 +503,7 @@ export function DocumentsUploadModal({
                   {/* Language */}
                   <div>
                     <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Language
+                      {t("languageLabel")}
                     </label>
                     <select
                       value={language}
@@ -512,7 +511,7 @@ export function DocumentsUploadModal({
                       className="w-full rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                       disabled={isUploading}
                     >
-                      <option value="">— Detect automatically —</option>
+                      <option value="">{t("languageAuto")}</option>
                       {UPLOAD_LANGUAGES.map((l) => (
                         <option key={l.code} value={l.code}>
                           {l.label}
@@ -524,7 +523,7 @@ export function DocumentsUploadModal({
                   {/* Retention class */}
                   <div>
                     <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Retention class
+                      {t("retentionLabel")}
                     </label>
                     <select
                       value={retentionClass}
@@ -532,7 +531,7 @@ export function DocumentsUploadModal({
                       className="w-full rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
                       disabled={isUploading}
                     >
-                      <option value="">— Default —</option>
+                      <option value="">{t("retentionDefault")}</option>
                       {UPLOAD_RETENTION_CLASSES.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
@@ -544,7 +543,7 @@ export function DocumentsUploadModal({
                   {/* Notes */}
                   <div className="sm:col-span-2">
                     <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Notes
+                      {t("notesLabel")}
                     </label>
                     <textarea
                       value={notes}
@@ -581,11 +580,11 @@ export function DocumentsUploadModal({
             <div className="space-y-3 border-t border-[#e5e3f1] px-6 py-5">
               <div className="flex items-center justify-between gap-2">
                 <h4 className="text-xs font-bold tracking-[0.08em] text-[#6a6780] uppercase">
-                  Queue ({activeUploads} active)
+                  {t("queueTitle", { active: activeUploads })}
                 </h4>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-semibold text-[#4d4870]">
-                    {progress.completed}/{progress.total} done
+                    {t("queueProgress", { done: progress.completed, total: progress.total })}
                   </span>
                   {activeUploads > 0 && canUpload && (
                     <button
@@ -593,7 +592,7 @@ export function DocumentsUploadModal({
                       onClick={onCancelAll}
                       className="text-xs font-semibold text-rose-600 hover:text-rose-800"
                     >
-                      Cancel all
+                      {t("cancelAll")}
                     </button>
                   )}
                 </div>
@@ -630,15 +629,15 @@ export function DocumentsUploadModal({
                             className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${progressStateClass(item.state)}`}
                           >
                             {item.state === "queued"
-                              ? "queued for indexing"
+                              ? t("queuedForIndexing")
                               : item.state === "queued_duplicate"
-                                ? "duplicate — queued"
+                                ? t("duplicateQueued")
                                 : item.state}
                           </span>
                         </div>
                         {item.state === "uploading" ? (
                           <p className="text-[11px] text-[#4b39db]">
-                            Uploading…
+                            {t("uploading")}
                           </p>
                         ) : null}
                         {item.message ? (

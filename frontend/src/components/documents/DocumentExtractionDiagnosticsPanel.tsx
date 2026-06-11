@@ -1,21 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import type { DocumentProfile, ExtractionSnapshot } from "@/lib/api/documents";
 
 type DocumentExtractionDiagnosticsPanelProps = {
   snapshot: ExtractionSnapshot;
-};
-
-const PROFILE_LABELS: Record<DocumentProfile, string> = {
-  text_based: "Text-based",
-  scanned: "Scanned",
-  mixed: "Mixed (text + scanned)",
-  table_heavy: "Table-heavy",
-  figure_heavy: "Figure-heavy",
-  form_like: "Form-like",
-  encrypted: "Encrypted",
-  corrupted: "Corrupted",
-  unsupported: "Unsupported",
 };
 
 const PROFILE_BADGE_CLASSES: Record<DocumentProfile, string> = {
@@ -65,8 +55,20 @@ function ConfidenceBar({ value }: { value: number }) {
 export function DocumentExtractionDiagnosticsPanel({
   snapshot,
 }: DocumentExtractionDiagnosticsPanelProps) {
+  const t = useTranslations("documents.extractionDiagnostics");
+  const profileLabels: Record<DocumentProfile, string> = {
+    text_based: t("profiles.text_based"),
+    scanned: t("profiles.scanned"),
+    mixed: t("profiles.mixed"),
+    table_heavy: t("profiles.table_heavy"),
+    figure_heavy: t("profiles.figure_heavy"),
+    form_like: t("profiles.form_like"),
+    encrypted: t("profiles.encrypted"),
+    corrupted: t("profiles.corrupted"),
+    unsupported: t("profiles.unsupported"),
+  };
   const profile = snapshot.document_profile;
-  const profileLabel = PROFILE_LABELS[profile] ?? profile;
+  const profileLabel = profileLabels[profile] ?? profile;
   const profileBadgeClass =
     PROFILE_BADGE_CLASSES[profile] ?? "bg-gray-100 text-gray-600";
 
@@ -88,48 +90,48 @@ export function DocumentExtractionDiagnosticsPanel({
         </span>
         {snapshot.is_encrypted && (
           <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-            Encrypted
+            {t("encryptedBadge")}
           </span>
         )}
       </div>
 
       <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
         <div className="px-4 py-3">
-          <MetricRow label="Pages" value={snapshot.page_count} />
-          <MetricRow label="Text blocks" value={snapshot.total_text_blocks} />
-          <MetricRow label="Tables found" value={snapshot.total_table_blocks} />
+          <MetricRow label={t("pages")} value={snapshot.page_count} />
+          <MetricRow label={t("textBlocks")} value={snapshot.total_text_blocks} />
+          <MetricRow label={t("tablesFound")} value={snapshot.total_table_blocks} />
           <MetricRow
-            label="Images / figures"
+            label={t("imagesFigures")}
             value={snapshot.total_image_blocks}
           />
           <MetricRow
-            label="Pages requiring OCR"
-            value={pagesWithOcr > 0 ? pagesWithOcr : "None"}
+            label={t("pagesRequiringOcr")}
+            value={pagesWithOcr > 0 ? pagesWithOcr : t("none")}
           />
           <MetricRow
-            label="Pages with tables"
-            value={pagesWithTables > 0 ? pagesWithTables : "None"}
+            label={t("pagesWithTables")}
+            value={pagesWithTables > 0 ? pagesWithTables : t("none")}
           />
           <MetricRow
-            label="Pages with images"
-            value={pagesWithImages > 0 ? pagesWithImages : "None"}
+            label={t("pagesWithImages")}
+            value={pagesWithImages > 0 ? pagesWithImages : t("none")}
           />
           <MetricRow
-            label="Extraction engine"
+            label={t("extractionEngine")}
             value={snapshot.extraction_engine}
           />
           <MetricRow
-            label="Extraction confidence"
+            label={t("extractionConfidence")}
             value={<ConfidenceBar value={snapshot.extraction_confidence} />}
           />
-          <MetricRow label="Duration" value={`${snapshot.duration_ms} ms`} />
+          <MetricRow label={t("duration")} value={`${snapshot.duration_ms} ms`} />
         </div>
       </div>
 
       {snapshot.warnings.length > 0 && (
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
           <p className="mb-1 text-xs font-semibold text-yellow-800">
-            Extraction warnings ({snapshot.warnings.length})
+            {t("warningsTitle", { count: snapshot.warnings.length })}
           </p>
           <ul className="space-y-1">
             {snapshot.warnings.slice(0, 5).map((w, i) => (
@@ -139,7 +141,7 @@ export function DocumentExtractionDiagnosticsPanel({
             ))}
             {snapshot.warnings.length > 5 && (
               <li className="text-xs text-yellow-600 italic">
-                +{snapshot.warnings.length - 5} more warnings
+                {t("moreWarnings", { count: snapshot.warnings.length - 5 })}
               </li>
             )}
           </ul>
@@ -149,7 +151,7 @@ export function DocumentExtractionDiagnosticsPanel({
       {snapshot.pages.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
-            Page breakdown
+            {t("pageBreakdown")}
           </p>
           <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
             {snapshot.pages.map((page) => (
@@ -158,10 +160,10 @@ export function DocumentExtractionDiagnosticsPanel({
                 className="flex items-center gap-2 rounded bg-gray-50 px-2 py-1 text-xs text-gray-600"
               >
                 <span className="w-14 shrink-0 font-medium">
-                  Page {page.page_number}
+                  {t("pageLabel", { n: page.page_number })}
                 </span>
                 <span className="w-20 text-gray-500">
-                  {page.char_count.toLocaleString()} chars
+                  {t("charCount", { n: page.char_count.toLocaleString() })}
                 </span>
                 {page.table_block_count > 0 && (
                   <span className="text-purple-600">

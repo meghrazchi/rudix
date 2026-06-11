@@ -50,6 +50,8 @@ import {
 } from "@/lib/documents-ui";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
 import { useDocumentStatusPolling } from "@/lib/use-document-status-polling";
+import { useTranslations } from "next-intl";
+
 import { useAuthSession } from "@/lib/use-auth-session";
 import {
   ACCEPTED_UPLOAD_TYPES_LABEL,
@@ -79,33 +81,6 @@ type IndexingStatusSummary = {
   failed: number;
 };
 
-const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
-  { value: "all", label: "All statuses" },
-  { value: "uploaded", label: "Uploaded" },
-  { value: "processing", label: "Processing" },
-  { value: "indexed", label: "Indexed" },
-  { value: "failed", label: "Failed" },
-  { value: "quarantined", label: "Quarantined" },
-  { value: "blocked", label: "Blocked" },
-  { value: "delete_requested", label: "Delete Requested" },
-  { value: "deleting", label: "Deleting" },
-  { value: "deleted", label: "Deleted" },
-  { value: "retained_by_policy", label: "Retained by Policy" },
-];
-
-const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
-  { value: "created_at", label: "Created" },
-  { value: "updated_at", label: "Updated" },
-  { value: "filename", label: "Filename" },
-  { value: "status", label: "Status" },
-];
-
-const fileTypeFilterOptions: Array<{ value: FileTypeFilter; label: string }> = [
-  { value: "all", label: "All types" },
-  { value: "pdf", label: "PDF" },
-  { value: "docx", label: "DOCX" },
-  { value: "txt", label: "TXT" },
-];
 
 function parseStatusFilter(value: string | null): StatusFilter {
   if (!value) {
@@ -276,6 +251,36 @@ function isAbortError(error: unknown): boolean {
 }
 
 export function DocumentsPage() {
+  const tp = useTranslations("documents.page");
+
+  const statusFilterOptions: Array<{ value: StatusFilter; label: string }> = [
+    { value: "all", label: tp("statusAll") },
+    { value: "uploaded", label: tp("statusUploaded") },
+    { value: "processing", label: tp("statusProcessing") },
+    { value: "indexed", label: tp("statusIndexed") },
+    { value: "failed", label: tp("statusFailed") },
+    { value: "quarantined", label: tp("statusQuarantined") },
+    { value: "blocked", label: tp("statusBlocked") },
+    { value: "delete_requested", label: tp("statusDeleteRequested") },
+    { value: "deleting", label: tp("statusDeleting") },
+    { value: "deleted", label: tp("statusDeleted") },
+    { value: "retained_by_policy", label: tp("statusRetainedByPolicy") },
+  ];
+
+  const sortByOptions: Array<{ value: DocumentSortBy; label: string }> = [
+    { value: "created_at", label: tp("sortCreated") },
+    { value: "updated_at", label: tp("sortUpdated") },
+    { value: "filename", label: tp("sortFilename") },
+    { value: "status", label: tp("sortStatus") },
+  ];
+
+  const fileTypeFilterOptions: Array<{ value: FileTypeFilter; label: string }> = [
+    { value: "all", label: tp("typeAll") },
+    { value: "pdf", label: tp("typePdf") },
+    { value: "docx", label: tp("typeDocx") },
+    { value: "txt", label: tp("typeTxt") },
+  ];
+
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { state } = useAuthSession();
@@ -519,7 +524,7 @@ export function DocumentsPage() {
       setAssignDocumentId(null);
       setAssignDocumentName("");
       setAssignSaveError(null);
-      setActionFeedback("Collection assignments saved.");
+      setActionFeedback(tp("feedbackCollectionSaved"));
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "collection.document.add");
     },
@@ -616,7 +621,7 @@ export function DocumentsPage() {
     }
 
     setIsReindexAllPending(true);
-    setActionFeedback("Collecting non-indexed documents for re-index...");
+    setActionFeedback(tp("feedbackReindexCollecting"));
     setActionRequestId(null);
 
     try {
@@ -630,9 +635,7 @@ export function DocumentsPage() {
 
       const orderedTargetIds = Array.from(targetIds);
       if (orderedTargetIds.length === 0) {
-        setActionFeedback(
-          "No non-indexed documents are eligible for re-index.",
-        );
+        setActionFeedback(tp("feedbackReindexNoEligible"));
         setActionRequestId(null);
         return;
       }
@@ -644,7 +647,7 @@ export function DocumentsPage() {
 
       for (const [index, documentId] of orderedTargetIds.entries()) {
         setActionFeedback(
-          `Queueing re-index (${index + 1}/${orderedTargetIds.length})...`,
+          tp("feedbackReindexProgress", { current: index + 1, total: orderedTargetIds.length }),
         );
         try {
           await reindexDocument(documentId);
@@ -662,19 +665,15 @@ export function DocumentsPage() {
       }
 
       if (queuedCount > 0 && failedCount === 0) {
-        setActionFeedback(
-          `Re-index queued for ${queuedCount} non-indexed document(s).`,
-        );
+        setActionFeedback(tp("feedbackReindexQueued", { count: queuedCount }));
         setActionRequestId(null);
       } else if (queuedCount > 0) {
         setActionFeedback(
-          `Re-index queued for ${queuedCount} non-indexed document(s); ${failedCount} failed.`,
+          tp("feedbackReindexQueuedWithFailed", { queued: queuedCount, failed: failedCount }),
         );
         setActionRequestId(lastErrorRequestId);
       } else {
-        setActionFeedback(
-          "No re-index jobs were queued. Check document lifecycle state and retry.",
-        );
+        setActionFeedback(tp("feedbackReindexNoneQueued"));
         setActionRequestId(lastErrorRequestId);
       }
 
@@ -734,11 +733,12 @@ export function DocumentsPage() {
         return previous;
       }
 
+      const cancelMsg = tp("feedbackUploadCanceled");
       const nextItems = updateUploadProgressItem(
         previous.items,
         index,
         "canceled",
-        "Upload canceled by user.",
+        cancelMsg,
       );
 
       return {
@@ -749,7 +749,7 @@ export function DocumentsPage() {
 
     setUploadFeedback({
       state: "canceled",
-      message: "Upload canceled by user.",
+      message: tp("feedbackUploadCanceled"),
     });
   }
 
@@ -760,6 +760,7 @@ export function DocumentsPage() {
     }
     uploadControllersRef.current.clear();
 
+    const cancelMsg = tp("feedbackUploadCanceled");
     setUploadProgress((previous) => {
       if (!previous) {
         return previous;
@@ -771,7 +772,7 @@ export function DocumentsPage() {
           return {
             ...item,
             state: "canceled" as const,
-            message: "Upload canceled by user.",
+            message: cancelMsg,
           };
         }
         return item;
@@ -785,7 +786,7 @@ export function DocumentsPage() {
 
     setUploadFeedback({
       state: "canceled",
-      message: "Upload queue canceled by user.",
+      message: tp("feedbackUploadQueueCanceled"),
     });
   }
 
@@ -853,7 +854,7 @@ export function DocumentsPage() {
           progressItems,
           index,
           "canceled",
-          "Upload canceled by user.",
+          tp("feedbackUploadCanceled"),
         );
         setUploadProgress({
           total: files.length,
@@ -921,7 +922,7 @@ export function DocumentsPage() {
             progressItems,
             index,
             "canceled",
-            "Upload canceled by user.",
+            tp("feedbackUploadCanceled"),
           );
           setUploadProgress({
             total: files.length,
@@ -968,7 +969,7 @@ export function DocumentsPage() {
             progressItems,
             index,
             "canceled",
-            "Upload canceled by user.",
+            tp("feedbackUploadCanceled"),
           );
           setUploadProgress({
             total: files.length,
@@ -1195,7 +1196,7 @@ export function DocumentsPage() {
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!capabilities.canUpload ? (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold tracking-wide text-slate-600 uppercase">
-            Read-only role
+            {tp("readOnlyRole")}
           </span>
         ) : null}
         <button
@@ -1204,7 +1205,7 @@ export function DocumentsPage() {
           disabled={isUploading}
           className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Open upload modal
+          {tp("openUploadModal")}
         </button>
       </div>
 
@@ -1230,12 +1231,10 @@ export function DocumentsPage() {
             </span>
           </div>
           <h2 className="text-xl font-semibold text-[#1b1b24]">
-            Upload Documents
+            {tp("uploadTitle")}
           </h2>
           <p className="mx-auto mt-1 max-w-xl text-sm text-[#68647b]">
-            Drag and drop your files here, or click to browse. We support{" "}
-            {ACCEPTED_UPLOAD_TYPES_LABEL} with a max size of{" "}
-            {MAX_UPLOAD_SIZE_MB} MB per file.
+            {tp("uploadDescription", { types: ACCEPTED_UPLOAD_TYPES_LABEL, maxMb: MAX_UPLOAD_SIZE_MB })}
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <span className="rounded-full border border-[#e5e3f1] bg-[#f8f7ff] px-3 py-1 text-[10px] font-semibold tracking-wide text-[#5f5b75] uppercase">
@@ -1252,11 +1251,11 @@ export function DocumentsPage() {
 
         <aside className="relative overflow-hidden rounded-xl border border-[#e5e3f1] bg-white p-4 shadow-sm">
           <p className="mb-3 text-xs font-bold tracking-[0.08em] text-[#3525cd] uppercase">
-            Indexing Status
+            {tp("indexingStatus")}
           </p>
           <div className="space-y-3">
             <div className="flex items-end justify-between">
-              <span className="text-sm text-[#68647b]">Total Files</span>
+              <span className="text-sm text-[#68647b]">{tp("totalFiles")}</span>
               <span className="text-2xl font-bold text-[#1b1b24]">
                 {allDocumentsStatusCount.toLocaleString()}
               </span>
@@ -1268,8 +1267,9 @@ export function DocumentsPage() {
               />
             </div>
             <p className="text-xs text-[#68647b]">
-              Indexed: {indexedStatusCount} • Processing:{" "}
-              {processingStatusCount} • Failed: {failedStatusCount}
+              {tp("indexedCount", { count: indexedStatusCount })} •{" "}
+              {tp("processingCount", { count: processingStatusCount })} •{" "}
+              {tp("failedCount", { count: failedStatusCount })}
             </p>
             <button
               type="button"
@@ -1284,7 +1284,7 @@ export function DocumentsPage() {
               }
               className="w-full rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isReindexAllPending ? "Queueing all..." : "Re-index All"}
+              {isReindexAllPending ? tp("reindexAllQueuing") : tp("reindexAll")}
             </button>
           </div>
         </aside>
@@ -1295,7 +1295,7 @@ export function DocumentsPage() {
           role="status"
           className="rounded-lg border border-[#ddd7f6] bg-[#f3f1ff] px-3 py-2 text-sm text-[#3f3778]"
         >
-          Last upload state:{" "}
+          {tp("lastUploadState")}{" "}
           <span className="font-semibold uppercase">
             {uploadFeedback.state}
           </span>{" "}
@@ -1310,7 +1310,7 @@ export function DocumentsPage() {
         <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-[#e5e3f1] bg-[#fcfbff] p-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Search
+              {tp("searchLabel")}
               <div className="relative">
                 <span className="material-symbols-outlined pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-base text-[#9993b8]">
                   search
@@ -1319,13 +1319,13 @@ export function DocumentsPage() {
                   type="search"
                   value={filenameSearch}
                   onChange={(event) => setFilenameSearch(event.target.value)}
-                  placeholder="Search filenames…"
+                  placeholder={tp("searchPlaceholder")}
                   className="h-9 w-44 rounded-lg border border-[#d2cee6] bg-white pr-3 pl-8 text-sm font-medium text-[#2a2640] transition-[width] duration-200 outline-none placeholder:font-normal placeholder:text-[#b0abc8] focus:w-64 focus:ring-2 focus:ring-[#3525cd]/20"
                 />
               </div>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Type
+              {tp("typeLabel")}
               <select
                 value={fileTypeFilter}
                 onChange={(event) => {
@@ -1342,7 +1342,7 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Status
+              {tp("statusLabel")}
               <select
                 value={statusFilter}
                 onChange={(event) => {
@@ -1359,7 +1359,7 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Sort
+              {tp("sortLabel")}
               <select
                 value={sortBy}
                 onChange={(event) => {
@@ -1376,7 +1376,7 @@ export function DocumentsPage() {
               </select>
             </label>
             <label className="grid gap-1 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Order
+              {tp("orderLabel")}
               <select
                 value={sortOrder}
                 onChange={(event) => {
@@ -1385,21 +1385,13 @@ export function DocumentsPage() {
                 }}
                 className="h-9 rounded-lg border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
               >
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
+                <option value="desc">{tp("orderDesc")}</option>
+                <option value="asc">{tp("orderAsc")}</option>
               </select>
             </label>
           </div>
           <p className="text-sm text-[#68647b]">
-            Showing{" "}
-            <span className="font-semibold text-[#1b1b24]">
-              {documents.length}
-            </span>{" "}
-            of{" "}
-            <span className="font-semibold text-[#1b1b24]">
-              {totalDocumentsCount}
-            </span>{" "}
-            documents
+            {tp("showing", { shown: documents.length, total: totalDocumentsCount })}
           </p>
         </div>
 
@@ -1414,14 +1406,14 @@ export function DocumentsPage() {
         ) : null}
 
         {documentsQuery.isLoading ? (
-          <LoadingState title="Loading documents..." />
+          <LoadingState title={tp("loading")} />
         ) : null}
 
         {documentsQuery.isError && listForbidden ? (
           <ForbiddenState
             compact
-            title="Documents access denied"
-            description="You do not have permission to list documents in this organization."
+            title={tp("accessDenied")}
+            description={tp("accessDeniedDesc")}
             requestId={extractRequestIdFromError(documentsQuery.error)}
           />
         ) : null}
@@ -1440,11 +1432,11 @@ export function DocumentsPage() {
         !documentsQuery.isError &&
         documents.length === 0 ? (
           <EmptyState
-            title="No documents found"
+            title={tp("noDocumentsFound")}
             description={
               debouncedFilenameSearch
-                ? `No documents match "${debouncedFilenameSearch}".`
-                : `Upload your first ${ACCEPTED_UPLOAD_TYPES_LABEL} file to start indexing and retrieval.`
+                ? tp("noDocumentsMatch", { query: debouncedFilenameSearch })
+                : tp("uploadFirst", { types: ACCEPTED_UPLOAD_TYPES_LABEL })
             }
             action={
               debouncedFilenameSearch ? (
@@ -1453,7 +1445,7 @@ export function DocumentsPage() {
                   onClick={() => setFilenameSearch("")}
                   className="rounded-lg border border-[#d2cee6] bg-white px-3 py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff]"
                 >
-                  Clear search
+                  {tp("clearSearch")}
                 </button>
               ) : capabilities.canUpload ? (
                 <button
@@ -1461,11 +1453,11 @@ export function DocumentsPage() {
                   onClick={() => setIsUploadModalOpen(true)}
                   className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
                 >
-                  Upload document
+                  {tp("uploadDocument")}
                 </button>
               ) : (
                 <p className="text-xs text-[#6a6780]">
-                  Your role cannot upload new documents.
+                  {tp("roleCannotUpload")}
                 </p>
               )
             }
@@ -1498,14 +1490,14 @@ export function DocumentsPage() {
                         />
                       </th>
                     ) : null}
-                    <th className="px-4 py-3">Filename</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-center">Pages</th>
-                    <th className="px-4 py-3 text-center">Chunks</th>
-                    <th className="px-4 py-3">Created</th>
-                    <th className="px-4 py-3">Updated</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-4 py-3">{tp("tableFilename")}</th>
+                    <th className="px-4 py-3">{tp("tableType")}</th>
+                    <th className="px-4 py-3">{tp("tableStatus")}</th>
+                    <th className="px-4 py-3 text-center">{tp("tablePages")}</th>
+                    <th className="px-4 py-3 text-center">{tp("tableChunks")}</th>
+                    <th className="px-4 py-3">{tp("tableCreated")}</th>
+                    <th className="px-4 py-3">{tp("tableUpdated")}</th>
+                    <th className="px-4 py-3 text-right">{tp("tableActions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ece9f6]">
@@ -1719,8 +1711,9 @@ export function DocumentsPage() {
             {someSelected && capabilities.canDelete ? (
               <div className="flex items-center justify-between gap-3 border-t border-rose-100 bg-rose-50 px-4 py-2">
                 <p className="text-sm font-semibold text-rose-800">
-                  {selectedIds.size} document
-                  {selectedIds.size === 1 ? "" : "s"} selected
+                  {selectedIds.size === 1
+                    ? tp("bulkSelectedSingle", { count: selectedIds.size })
+                    : tp("bulkSelectedPlural", { count: selectedIds.size })}
                 </p>
                 <button
                   type="button"
@@ -1740,7 +1733,7 @@ export function DocumentsPage() {
                   <span className="material-symbols-outlined text-[16px]">
                     delete
                   </span>
-                  Delete selected ({selectedIds.size})
+                  {tp("deleteSelected", { count: selectedIds.size })}
                 </button>
               </div>
             ) : null}
@@ -1763,7 +1756,7 @@ export function DocumentsPage() {
                 >
                   chevron_left
                 </span>
-                Previous
+                {tp("previous")}
               </button>
               <div className="flex items-center gap-1 text-sm">
                 {paginationItems.map((item, index) =>
@@ -1799,7 +1792,7 @@ export function DocumentsPage() {
                 }
                 className="flex items-center gap-1 rounded-lg border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Next
+                {tp("next")}
                 <span
                   aria-hidden="true"
                   className="material-symbols-outlined text-[18px]"
@@ -1817,19 +1810,17 @@ export function DocumentsPage() {
           <div className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div className="max-w-2xl">
               <h2 className="text-2xl font-bold">
-                Maximize Retrieval Accuracy
+                {tp("maximize")}
               </h2>
               <p className="mt-1 text-sm text-white/90">
-                Break large files into optimized chunks and keep overlap at
-                10-15% for high-fidelity retrieval quality across support and
-                engineering workflows.
+                {tp("maximizeDesc")}
               </p>
             </div>
             <button
               type="button"
               className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-[#3525cd] shadow-md transition-transform hover:scale-105"
             >
-              Optimize Settings
+              {tp("optimizeSettings")}
             </button>
           </div>
           <span className="material-symbols-outlined pointer-events-none absolute -top-8 -right-8 text-[180px] text-white/15">
@@ -1843,17 +1834,17 @@ export function DocumentsPage() {
             </span>
           </div>
           <p className="text-[10px] font-semibold tracking-[0.08em] text-[#6a6780] uppercase">
-            Last Activity
+            {tp("lastActivity")}
           </p>
           <p className="mt-1 text-sm font-semibold text-[#1b1b24]">
             {totalDocumentsCount > 0
-              ? "Recent upload available"
-              : "No recent uploads"}
+              ? tp("recentUpload")
+              : tp("noRecentUploads")}
           </p>
           <p className="text-xs text-[#68647b]">
             {documents[0]
-              ? `Updated ${formatDate(documents[0].updated_at)}`
-              : "Upload a document to start"}
+              ? tp("updatedDate", { date: formatDate(documents[0].updated_at) })
+              : tp("uploadStart")}
           </p>
         </aside>
       </section>
@@ -1862,26 +1853,26 @@ export function DocumentsPage() {
         <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-[#2a2640]">
-              Document detail
+              {tp("detailTitle")}
             </h2>
             <button
               type="button"
               onClick={() => setSelectedDocumentId(null)}
               className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f]"
             >
-              Close
+              {tp("close")}
             </button>
           </div>
 
           {detailQuery.isLoading ? (
-            <LoadingState title="Loading document details..." />
+            <LoadingState title={tp("loadingDetails")} />
           ) : null}
 
           {(detailQuery.isError || statusQuery.isError) && detailForbidden ? (
             <ForbiddenState
               compact
-              title="Document detail access denied"
-              description="You do not have permission to inspect this document."
+              title={tp("detailAccessDenied")}
+              description={tp("detailAccessDeniedDesc")}
               requestId={extractRequestIdFromError(
                 detailQuery.error ?? statusQuery.error,
               )}
@@ -1898,13 +1889,13 @@ export function DocumentsPage() {
           {selectedDetail ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <MetricCard label="Filename" value={selectedDetail.filename} />
+                <MetricCard label={tp("tableFilename")} value={selectedDetail.filename} />
                 <MetricCard
-                  label="Type"
+                  label={tp("tableType")}
                   value={selectedDetail.file_type.toUpperCase()}
                 />
                 <MetricCard
-                  label="Status"
+                  label={tp("tableStatus")}
                   value={deriveDetailStatus(selectedDetail, selectedStatus)}
                   valueClass={statusBadge(
                     deriveDetailStatus(selectedDetail, selectedStatus),
@@ -1912,18 +1903,18 @@ export function DocumentsPage() {
                   plain={false}
                 />
                 <MetricCard
-                  label="Updated"
+                  label={tp("tableUpdated")}
                   value={formatDate(selectedDetail.updated_at)}
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <MetricCard
-                  label="Pages"
+                  label={tp("tablePages")}
                   value={selectedDetail.page_count ?? "-"}
                 />
-                <MetricCard label="Chunks" value={selectedDetail.chunk_count} />
+                <MetricCard label={tp("tableChunks")} value={selectedDetail.chunk_count} />
                 <MetricCard
-                  label="Checksum"
+                  label={tp("metricChecksum")}
                   value={selectedDetail.checksum ?? "-"}
                   mono
                 />
@@ -1938,17 +1929,17 @@ export function DocumentsPage() {
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <h3 className="text-base font-bold text-[#2a2640]">
-                    Chunk previews
+                    {tp("chunkPreviews")}
                   </h3>
                   {chunksQuery.isFetching ? (
                     <span className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                      Refreshing...
+                      {tp("refreshing")}
                     </span>
                   ) : null}
                 </div>
 
                 {chunksQuery.isLoading ? (
-                  <LoadingState compact title="Loading chunks..." />
+                  <LoadingState compact title={tp("loadingChunks")} />
                 ) : null}
 
                 {chunksQuery.isError ? (
@@ -1962,7 +1953,7 @@ export function DocumentsPage() {
                 {selectedChunks && selectedChunks.items.length === 0 ? (
                   <EmptyState
                     compact
-                    title="No chunks available yet for this document."
+                    title={tp("noChunksYet")}
                   />
                 ) : null}
 
@@ -1974,9 +1965,9 @@ export function DocumentsPage() {
                         className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
                       >
                         <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          <span>Chunk #{chunk.chunk_index}</span>
-                          <span>Page {chunk.page_number ?? "-"}</span>
-                          <span>{chunk.token_count} tokens</span>
+                          <span>{tp("chunkIndex", { index: chunk.chunk_index })}</span>
+                          <span>{tp("chunkPage", { n: chunk.page_number ?? "-" })}</span>
+                          <span>{tp("chunkTokens", { n: chunk.token_count })}</span>
                         </div>
                         <p className="text-sm text-[#2a2640]">
                           {chunk.text_preview}
@@ -1985,8 +1976,7 @@ export function DocumentsPage() {
                     ))}
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <p className="text-xs text-[#6e6a86]">
-                        Showing {selectedChunks.items.length} of{" "}
-                        {selectedChunks.total} chunks.
+                        {tp("showingChunks", { shown: selectedChunks.items.length, total: selectedChunks.total })}
                       </p>
                       <div className="flex items-center gap-2">
                         <button
@@ -1999,7 +1989,7 @@ export function DocumentsPage() {
                           }
                           className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Previous
+                          {tp("previous")}
                         </button>
                         <button
                           type="button"
@@ -2011,7 +2001,7 @@ export function DocumentsPage() {
                           }
                           className="rounded border border-[#cbc5e6] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          Next
+                          {tp("next")}
                         </button>
                       </div>
                     </div>

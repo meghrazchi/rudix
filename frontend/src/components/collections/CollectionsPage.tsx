@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
@@ -88,30 +89,36 @@ function resolveCollectionCapabilities(
   };
 }
 
-function formatRelativeDate(value: string): string {
+function formatRelativeDate(
+  value: string,
+  tc: ReturnType<typeof useTranslations>,
+): string {
   try {
     const diff = Date.now() - new Date(value).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 2) return "just now";
-    if (mins < 60) return `${mins}m ago`;
+    if (mins < 2) return tc("relativeJustNow");
+    if (mins < 60) return tc("relativeMinutesAgo", { n: mins });
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    if (hrs < 24) return tc("relativeHoursAgo", { n: hrs });
+    return tc("relativeDaysAgo", { n: Math.floor(hrs / 24) });
   } catch {
     return "";
   }
 }
 
-function accessPolicyLabel(policy: CollectionAccessPolicy): string {
+function accessPolicyLabel(
+  policy: CollectionAccessPolicy,
+  tc: ReturnType<typeof useTranslations>,
+): string {
   switch (policy) {
     case "org_wide":
-      return "Org-wide";
+      return tc("policyLabelOrgWide");
     case "admin_only":
-      return "Admin-only";
+      return tc("policyLabelAdminOnly");
     case "selected_roles":
-      return "Selected roles";
+      return tc("policyLabelSelectedRoles");
     case "selected_members":
-      return "Selected members";
+      return tc("policyLabelSelectedMembers");
     default:
       return policy;
   }
@@ -132,16 +139,19 @@ function accessPolicyBadgeClass(policy: CollectionAccessPolicy): string {
   }
 }
 
-function accessPolicyDescription(policy: CollectionAccessPolicy): string {
+function accessPolicyDescription(
+  policy: CollectionAccessPolicy,
+  tc: ReturnType<typeof useTranslations>,
+): string {
   switch (policy) {
     case "org_wide":
-      return "All organization members can view and query this collection.";
+      return tc("policyDescOrgWide");
     case "admin_only":
-      return "Only organization owners and admins can access this collection.";
+      return tc("policyDescAdminOnly");
     case "selected_roles":
-      return "Only members with the specified roles can access this collection.";
+      return tc("policyDescSelectedRoles");
     case "selected_members":
-      return "Only explicitly listed members can access this collection.";
+      return tc("policyDescSelectedMembers");
     default:
       return "";
   }
@@ -162,11 +172,6 @@ function accessPolicyIcon(policy: CollectionAccessPolicy): string {
   }
 }
 
-const GRANTABLE_ROLES: Array<{ value: string; label: string }> = [
-  { value: "member", label: "Member" },
-  { value: "viewer", label: "Viewer" },
-];
-
 // ── Summary metrics ─────────────────────────────────────────────────────────
 
 function SummaryMetrics({
@@ -180,31 +185,32 @@ function SummaryMetrics({
   indexedDocs: number;
   restrictedCount: number;
 }) {
+  const tc = useTranslations("collections.page");
   return (
     <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {[
         {
           icon: "folder",
           color: "bg-[#3525cd]/10 text-[#3525cd]",
-          label: "Total Collections",
+          label: tc("metricTotalCollections"),
           value: total,
         },
         {
           icon: "description",
           color: "bg-slate-100 text-slate-600",
-          label: "Visible Docs",
+          label: tc("metricVisibleDocs"),
           value: totalDocs.toLocaleString(),
         },
         {
           icon: "check_circle",
           color: "bg-green-50 text-green-700",
-          label: "Indexed Docs",
+          label: tc("metricIndexedDocs"),
           value: indexedDocs.toLocaleString(),
         },
         {
           icon: "lock",
           color: "bg-amber-50 text-amber-700",
-          label: "Restricted",
+          label: tc("metricRestricted"),
           value: restrictedCount,
         },
       ].map(({ icon, color, label, value }) => (
@@ -248,6 +254,7 @@ function CollectionCard({
   onDelete: (col: CollectionListItemResponse) => void;
   isDeleting: boolean;
 }) {
+  const tc = useTranslations("collections.page");
   const icon = pickIcon(col.collection_id);
   const progress =
     col.document_count > 0
@@ -287,21 +294,21 @@ function CollectionCard({
         <span
           className={`rounded-full border px-2 py-0.5 text-[11px] font-bold tracking-tight uppercase ${accessPolicyBadgeClass(col.access_policy)}`}
         >
-          {accessPolicyLabel(col.access_policy)}
+          {accessPolicyLabel(col.access_policy, tc)}
         </span>
       </div>
 
       <h4 className="mb-1 text-lg font-semibold text-[#1b1b24]">{col.name}</h4>
       <p className="mb-5 line-clamp-2 min-h-[2.5rem] flex-1 text-sm text-[#464555]">
         {col.description ?? (
-          <span className="text-[#b0abc8] italic">No description</span>
+          <span className="text-[#b0abc8] italic">{tc("noDescription")}</span>
         )}
       </p>
 
       <div className="space-y-3">
         <div>
           <div className="mb-1.5 flex justify-between text-[12px]">
-            <span className="text-[#6a6780]">Indexing Progress</span>
+            <span className="text-[#6a6780]">{tc("indexingProgress")}</span>
             <span className="font-bold text-[#1b1b24]">
               {progress}% ({col.indexed_count}/{col.document_count})
             </span>
@@ -327,12 +334,12 @@ function CollectionCard({
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <span className="text-[11px] text-[#b0abc8]">
-              {formatRelativeDate(col.updated_at)}
+              {formatRelativeDate(col.updated_at, tc)}
             </span>
             {capabilities.canEdit ? (
               <button
                 type="button"
-                aria-label="Edit"
+                aria-label={tc("editAriaLabel")}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(col);
@@ -347,7 +354,7 @@ function CollectionCard({
             {capabilities.canDelete ? (
               <button
                 type="button"
-                aria-label="Delete"
+                aria-label={tc("deleteAriaLabel")}
                 disabled={isDeleting}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -368,6 +375,7 @@ function CollectionCard({
 }
 
 function NewCollectionCard({ onCreate }: { onCreate: () => void }) {
+  const tc = useTranslations("collections.page");
   return (
     <div
       className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#e4e1ee] bg-white p-6 text-center transition-all hover:border-[#3525cd]/30 hover:bg-[#f5f3ff]/50"
@@ -377,11 +385,10 @@ function NewCollectionCard({ onCreate }: { onCreate: () => void }) {
         <span className="material-symbols-outlined text-[32px]">add</span>
       </div>
       <h4 className="mb-1 text-base font-bold text-[#1b1b24]">
-        Create New Collection
+        {tc("createNewTitle")}
       </h4>
       <p className="px-4 text-[12px] text-[#6a6780]">
-        Connect new data sources and start building your custom RAG knowledge
-        base.
+        {tc("createNewDesc")}
       </p>
     </div>
   );
@@ -395,6 +402,7 @@ type PolicyEditorProps = {
 };
 
 function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
+  const tc = useTranslations("collections.page");
   const queryClient = useQueryClient();
   const teamCapabilities = getTeamCapabilities();
 
@@ -505,14 +513,14 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
   }
 
   if (policyQuery.isLoading)
-    return <LoadingState compact title="Loading access policy…" />;
+    return <LoadingState compact title={tc("loadingPolicy")} />;
   if (policyQuery.isError) {
     if (isForbiddenError(policyQuery.error))
       return (
         <ForbiddenState
           compact
-          title="Policy access denied"
-          description="You do not have permission to manage this collection's access policy."
+          title={tc("policyDeniedTitle")}
+          description={tc("policyDeniedDesc")}
           requestId={extractRequestIdFromError(policyQuery.error)}
         />
       );
@@ -541,15 +549,14 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
             warning
           </span>
           <p className="text-xs text-amber-800">
-            Restricting <strong>{collectionName}</strong> will remove access for
-            members who currently have it.
+            {tc("restrictWarning", { name: collectionName })}
           </p>
         </div>
       ) : null}
 
       <div>
         <label className="mb-1.5 block text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-          Mode
+          {tc("policyModeLabel")}
         </label>
         <select
           value={effectivePolicy}
@@ -558,25 +565,28 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
           }
           className="h-9 w-full rounded-xl border border-[#d2cee6] bg-white px-3 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
         >
-          <option value="org_wide">Org-wide — all members</option>
-          <option value="admin_only">Admin-only — owners and admins</option>
-          <option value="selected_roles">Selected roles</option>
-          <option value="selected_members">Selected members</option>
+          <option value="org_wide">{tc("policyOptOrgWide")}</option>
+          <option value="admin_only">{tc("policyOptAdminOnlyFull")}</option>
+          <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
+          <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
         </select>
         <p className="mt-1 text-[11px] text-[#7a768f]">
-          {accessPolicyDescription(effectivePolicy)}
+          {accessPolicyDescription(effectivePolicy, tc)}
         </p>
       </div>
 
       {effectivePolicy === "selected_roles" ? (
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-            Roles with access
+            {tc("rolesWithAccess")}
           </p>
           <p className="text-[11px] text-[#7a768f]">
-            Owners and admins always have access.
+            {tc("adminsAlwaysHaveAccess")}
           </p>
-          {GRANTABLE_ROLES.map(({ value, label }) => (
+          {[
+            { value: "member", label: tc("roleMember") },
+            { value: "viewer", label: tc("roleViewer") },
+          ].map(({ value, label }) => (
             <label
               key={value}
               className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#e4e1ee] bg-white px-3 py-2 hover:bg-[#f5f3ff]"
@@ -601,7 +611,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
           ))}
           {roleGrants.size === 0 ? (
             <p className="text-[11px] text-amber-700">
-              No roles selected — only admins will have access.
+              {tc("noRolesSelected")}
             </p>
           ) : null}
         </div>
@@ -610,10 +620,10 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
       {effectivePolicy === "selected_members" ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-            Members with access
+            {tc("membersWithAccess")}
           </p>
           <p className="text-[11px] text-[#7a768f]">
-            Owners and admins always have access.
+            {tc("adminsAlwaysHaveAccess")}
           </p>
           {!teamCapabilities.listMembersEnabled ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
@@ -621,12 +631,12 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
               the member picker.
             </p>
           ) : membersQuery.isLoading ? (
-            <LoadingState compact title="Loading members…" />
+            <LoadingState compact title={tc("loadingMembers")} />
           ) : eligibleMembers.length === 0 ? (
             <EmptyState
               compact
-              title="No eligible members."
-              description="All members are admins who already have access."
+              title={tc("noEligibleMembersTitle")}
+              description={tc("noEligibleMembersDesc")}
             />
           ) : (
             <ul className="max-h-44 space-y-0.5 overflow-auto rounded-xl border border-[#e4e1ee] bg-white p-2">
@@ -663,7 +673,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
           )}
           {memberGrants.size === 0 && teamCapabilities.listMembersEnabled ? (
             <p className="text-[11px] text-amber-700">
-              No members selected — only admins will have access.
+              {tc("noMembersSelected")}
             </p>
           ) : null}
         </div>
@@ -671,18 +681,16 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
 
       {!isDirty && policyQuery.data ? (
         <p className="text-[11px] text-[#68647b]">
-          {effectivePolicy === "org_wide" &&
-            "All organization members currently have access."}
-          {effectivePolicy === "admin_only" &&
-            "Only owners and admins have access."}
+          {effectivePolicy === "org_wide" && tc("statusOrgWide")}
+          {effectivePolicy === "admin_only" && tc("statusAdminOnly")}
           {effectivePolicy === "selected_roles" &&
             (() => {
               const roles = policyQuery.data.grants
                 .filter((g) => g.grantee_type === "role")
                 .map((g) => g.grantee_value);
               return roles.length > 0
-                ? `Granted to: admins, ${roles.join(", ")}s.`
-                : "Only admins have access.";
+                ? tc("statusGrantedToRoles", { roles: roles.join(", ") + "s" })
+                : tc("statusOnlyAdmins");
             })()}
           {effectivePolicy === "selected_members" &&
             (() => {
@@ -690,8 +698,8 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
                 (g) => g.grantee_type === "member",
               ).length;
               return count === 0
-                ? "No members explicitly granted — only admins have access."
-                : `${count} member${count === 1 ? "" : "s"} explicitly granted access.`;
+                ? tc("statusNoMembersGranted")
+                : tc("statusMembersGranted", { count });
             })()}
         </p>
       ) : null}
@@ -710,7 +718,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
             disabled={saveMutation.isPending}
             className="flex-1 rounded-xl border border-[#d2cee6] py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff] disabled:opacity-60"
           >
-            Discard
+            {tc("discard")}
           </button>
           <button
             type="button"
@@ -724,7 +732,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
             disabled={saveMutation.isPending}
             className="flex-1 rounded-xl bg-[#3525cd] py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:opacity-60"
           >
-            {saveMutation.isPending ? "Saving…" : "Save policy"}
+            {saveMutation.isPending ? tc("saving") : tc("savePolicy")}
           </button>
         </div>
       ) : null}
@@ -745,6 +753,7 @@ function CollectionDetailDrawer({
   onClose: () => void;
   onEdit: (collection: CollectionDetailResponse) => void;
 }) {
+  const tc = useTranslations("collections.page");
   const queryClient = useQueryClient();
   const [docsOffset, setDocsOffset] = useState(0);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -764,7 +773,7 @@ function CollectionDetailDrawer({
     mutationFn: (documentId: string) =>
       removeDocumentFromCollection(collectionId, documentId),
     onSuccess: async () => {
-      setActionFeedback("Document removed from collection.");
+      setActionFeedback(tc("docRemovedFeedback"));
       await invalidateAfterMutation(queryClient, "collection.document.remove");
     },
     onError: (error) => {
@@ -803,7 +812,7 @@ function CollectionDetailDrawer({
             <span className="material-symbols-outlined">close</span>
           </button>
           <h3 className="truncate text-base font-semibold text-[#1b1b24]">
-            {detail?.name ?? "Collection Details"}
+            {detail?.name ?? tc("drawerFallbackTitle")}
           </h3>
         </div>
         {detail && capabilities.canEdit ? (
@@ -812,7 +821,7 @@ function CollectionDetailDrawer({
             onClick={() => onEdit(detail)}
             className="ml-2 shrink-0 rounded-lg border border-[#e4e1ee] px-4 py-1.5 text-sm font-semibold text-[#2a2640] transition-colors hover:bg-[#f0ecf9]"
           >
-            Edit
+            {tc("drawerEdit")}
           </button>
         ) : null}
       </div>
@@ -823,13 +832,13 @@ function CollectionDetailDrawer({
         style={{ scrollbarWidth: "thin" }}
       >
         {detailQuery.isLoading ? (
-          <LoadingState title="Loading collection…" />
+          <LoadingState title={tc("loadingCollection")} />
         ) : detailQuery.isError ? (
           isForbiddenError(detailQuery.error) ? (
             <ForbiddenState
               compact
-              title="Access denied"
-              description="You do not have permission to view this collection."
+              title={tc("drawerDeniedTitle")}
+              description={tc("drawerDeniedDesc")}
               requestId={extractRequestIdFromError(detailQuery.error)}
             />
           ) : (
@@ -855,7 +864,7 @@ function CollectionDetailDrawer({
                 </div>
                 <div className="min-w-0">
                   <p className="mb-1 text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-                    Collection Metadata
+                    {tc("collectionMetadata")}
                   </p>
                   <h4 className="text-xl leading-tight font-bold text-[#1b1b24]">
                     {detail.name}
@@ -870,13 +879,13 @@ function CollectionDetailDrawer({
                       <span className="material-symbols-outlined text-[16px]">
                         database
                       </span>
-                      {detail.document_count} Docs
+                      {tc("drawerDocsCount", { n: detail.document_count })}
                     </div>
                     <div className="flex items-center gap-1 text-[12px] text-[#6a6780]">
                       <span className="material-symbols-outlined text-[16px]">
                         check_circle
                       </span>
-                      {detail.indexed_count} Indexed
+                      {tc("drawerIndexedCount", { n: detail.indexed_count })}
                     </div>
                   </div>
                 </div>
@@ -886,11 +895,11 @@ function CollectionDetailDrawer({
             {/* Indexing health */}
             <section className="space-y-3">
               <h5 className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-                Indexing Health
+                {tc("indexingHealthTitle")}
               </h5>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-[#e4e1ee] bg-white p-4">
-                  <p className="mb-1 text-[11px] text-[#6a6780]">Completion</p>
+                  <p className="mb-1 text-[11px] text-[#6a6780]">{tc("completionLabel")}</p>
                   <p
                     className={`text-xl font-bold ${progress === 100 ? "text-green-600" : progress >= 80 ? "text-[#3525cd]" : "text-amber-600"}`}
                   >
@@ -898,7 +907,7 @@ function CollectionDetailDrawer({
                   </p>
                 </div>
                 <div className="rounded-xl border border-[#e4e1ee] bg-white p-4">
-                  <p className="mb-1 text-[11px] text-[#6a6780]">Owner</p>
+                  <p className="mb-1 text-[11px] text-[#6a6780]">{tc("ownerLabel")}</p>
                   <p className="truncate text-sm font-bold text-[#1b1b24]">
                     {detail.owner_email ?? "—"}
                   </p>
@@ -915,7 +924,7 @@ function CollectionDetailDrawer({
             {/* Access policy */}
             <section className="space-y-3">
               <h5 className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-                Access Policy
+                {tc("accessPolicySectionTitle")}
               </h5>
               {capabilities.canManagePolicy ? (
                 <PolicyEditor
@@ -931,10 +940,10 @@ function CollectionDetailDrawer({
                   </div>
                   <div>
                     <p className="text-sm font-bold text-[#1b1b24]">
-                      {accessPolicyLabel(detail.access_policy)}
+                      {accessPolicyLabel(detail.access_policy, tc)}
                     </p>
                     <p className="text-[11px] text-[#6a6780]">
-                      {accessPolicyDescription(detail.access_policy)}
+                      {accessPolicyDescription(detail.access_policy, tc)}
                     </p>
                   </div>
                 </div>
@@ -945,10 +954,10 @@ function CollectionDetailDrawer({
             <section className="space-y-3">
               <div className="flex items-center justify-between">
                 <h5 className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
-                  Indexed Documents
+                  {tc("indexedDocumentsTitle")}
                 </h5>
                 <span className="text-[12px] text-[#6a6780]">
-                  {docs?.total ?? 0} total
+                  {tc("docsTotal", { n: docs?.total ?? 0 })}
                 </span>
               </div>
 
@@ -962,7 +971,7 @@ function CollectionDetailDrawer({
               ) : null}
 
               {docsQuery.isLoading ? (
-                <LoadingState compact title="Loading documents…" />
+                <LoadingState compact title={tc("loadingDocuments")} />
               ) : docsQuery.isError ? (
                 <ErrorState
                   compact
@@ -973,8 +982,8 @@ function CollectionDetailDrawer({
               ) : docs && docs.items.length === 0 ? (
                 <EmptyState
                   compact
-                  title="No documents yet."
-                  description="Add documents from the Documents page."
+                  title={tc("noDocumentsTitle")}
+                  description={tc("noDocumentsDesc")}
                 />
               ) : docs && docs.items.length > 0 ? (
                 <div className="space-y-0.5">
@@ -1000,20 +1009,20 @@ function CollectionDetailDrawer({
                           className={`text-[11px] font-bold ${doc.status === "indexed" ? "text-green-600" : doc.status === "processing" ? "animate-pulse text-[#3525cd]" : "text-[#6a6780]"}`}
                         >
                           {doc.status === "indexed"
-                            ? "Ready"
+                            ? tc("docStatusReady")
                             : doc.status === "processing"
-                              ? "Indexing…"
+                              ? tc("docStatusIndexing")
                               : doc.status}
                         </span>
                         {capabilities.canManageDocuments ? (
                           <button
                             type="button"
-                            aria-label="Remove"
+                            aria-label={tc("removeAriaLabel")}
                             disabled={removeDocMutation.isPending}
                             onClick={() => {
                               if (
                                 window.confirm(
-                                  `Remove "${doc.filename}" from this collection?`,
+                                  tc("removeDocConfirm", { filename: doc.filename }),
                                 )
                               ) {
                                 removeDocMutation.mutate(doc.document_id);
@@ -1042,10 +1051,10 @@ function CollectionDetailDrawer({
                         }
                         className="rounded-lg border border-[#e4e1ee] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:opacity-40"
                       >
-                        Previous
+                        {tc("previousDocs")}
                       </button>
                       <span className="text-xs text-[#6a6780]">
-                        {docs.items.length} of {docs.total}
+                        {tc("docsShowing", { shown: docs.items.length, total: docs.total })}
                       </span>
                       <button
                         type="button"
@@ -1055,7 +1064,7 @@ function CollectionDetailDrawer({
                         }
                         className="rounded-lg border border-[#e4e1ee] px-3 py-1 text-xs font-semibold text-[#3e376f] disabled:opacity-40"
                       >
-                        Next
+                        {tc("nextDocs")}
                       </button>
                     </div>
                   ) : null}
@@ -1074,7 +1083,7 @@ function CollectionDetailDrawer({
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] py-3 font-bold text-white transition-all hover:bg-[#2b1fa8]"
           >
             <span className="material-symbols-outlined">chat_bubble</span>
-            Open Chat for this Collection
+            {tc("openChatForCollection")}
           </Link>
         </div>
       ) : null}
@@ -1100,11 +1109,11 @@ type CollectionFormErrors = { name?: string };
 
 function validateCollectionForm(
   form: CollectionFormState,
+  msgs: { nameRequired: string; nameTooLong: string },
 ): CollectionFormErrors {
   const errors: CollectionFormErrors = {};
-  if (!form.name.trim()) errors.name = "Name is required.";
-  else if (form.name.trim().length > 120)
-    errors.name = "Name must be 120 characters or fewer.";
+  if (!form.name.trim()) errors.name = msgs.nameRequired;
+  else if (form.name.trim().length > 120) errors.name = msgs.nameTooLong;
   return errors;
 }
 
@@ -1123,6 +1132,7 @@ function CollectionDialog({
   onSave: (form: CollectionFormState) => void;
   onClose: () => void;
 }) {
+  const tc = useTranslations("collections.page");
   const [form, setForm] = useState<CollectionFormState>(initial);
   const [fieldErrors, setFieldErrors] = useState<CollectionFormErrors>({});
   const nameRef = useRef<HTMLInputElement | null>(null);
@@ -1133,7 +1143,10 @@ function CollectionDialog({
 
   function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
-    const errors = validateCollectionForm(form);
+    const errors = validateCollectionForm(form, {
+      nameRequired: tc("errorNameRequired"),
+      nameTooLong: tc("errorNameTooLong"),
+    });
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
@@ -1158,14 +1171,14 @@ function CollectionDialog({
             onClick={onClose}
             className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
           >
-            Cancel
+            {tc("cancel")}
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Name <span className="text-rose-600">*</span>
+              {tc("fieldNameLabel")} <span className="text-rose-600">*</span>
             </label>
             <input
               ref={nameRef}
@@ -1173,7 +1186,7 @@ function CollectionDialog({
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               maxLength={120}
-              placeholder="e.g. Engineering Handbook"
+              placeholder={tc("fieldNamePlaceholder")}
               className="h-9 w-full rounded-xl border border-[#d2cee6] bg-white px-3 text-sm font-medium text-[#2a2640] outline-none placeholder:font-normal placeholder:text-[#b0abc8] focus:ring-2 focus:ring-[#3525cd]/20"
             />
             {fieldErrors.name ? (
@@ -1183,7 +1196,7 @@ function CollectionDialog({
 
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Description
+              {tc("fieldDescLabel")}
             </label>
             <textarea
               value={form.description}
@@ -1192,14 +1205,14 @@ function CollectionDialog({
               }
               rows={3}
               maxLength={500}
-              placeholder="Optional: describe this collection's purpose or contents."
+              placeholder={tc("fieldDescPlaceholder")}
               className="w-full rounded-xl border border-[#d2cee6] bg-white px-3 py-2 text-sm font-medium text-[#2a2640] outline-none placeholder:font-normal placeholder:text-[#b0abc8] focus:ring-2 focus:ring-[#3525cd]/20"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Access Policy
+              {tc("fieldAccessPolicyLabel")}
             </label>
             <select
               value={form.access_policy}
@@ -1211,13 +1224,13 @@ function CollectionDialog({
               }
               className="h-9 w-full rounded-xl border border-[#d2cee6] bg-white px-2 text-sm font-medium text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
             >
-              <option value="org_wide">Org-wide — all members</option>
-              <option value="admin_only">Admin-only</option>
-              <option value="selected_roles">Selected roles</option>
-              <option value="selected_members">Selected members</option>
+              <option value="org_wide">{tc("policyOptOrgWide")}</option>
+              <option value="admin_only">{tc("policyLabelAdminOnly")}</option>
+              <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
+              <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
             </select>
             <p className="mt-1 text-xs text-[#7a768f]">
-              {accessPolicyDescription(form.access_policy)}
+              {accessPolicyDescription(form.access_policy, tc)}
             </p>
           </div>
 
@@ -1233,14 +1246,14 @@ function CollectionDialog({
               onClick={onClose}
               className="rounded-xl border border-[#d2cee6] bg-white px-4 py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff]"
             >
-              Cancel
+              {tc("cancel")}
             </button>
             <button
               type="submit"
               disabled={saving}
               className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? tc("saving") : tc("save")}
             </button>
           </div>
         </form>
@@ -1270,6 +1283,7 @@ export function AssignCollectionsDialog({
   onSave: (collectionIds: string[]) => void;
   onClose: () => void;
 }) {
+  const tc = useTranslations("collections.page");
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(currentCollectionIds),
   );
@@ -1302,7 +1316,7 @@ export function AssignCollectionsDialog({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-[#2a2640]">
-              Assign to Collections
+              {tc("assignTitle")}
             </h2>
             <p className="text-xs text-[#68647b]">{documentName}</p>
           </div>
@@ -1311,17 +1325,17 @@ export function AssignCollectionsDialog({
             onClick={onClose}
             className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
           >
-            Cancel
+            {tc("cancel")}
           </button>
         </div>
 
         {loadingCollections ? (
-          <LoadingState compact title="Loading collections…" />
+          <LoadingState compact title={tc("loadingCollections")} />
         ) : collectionList.length === 0 ? (
           <EmptyState
             compact
-            title="No collections found."
-            description="Create a collection first from the Collections page."
+            title={tc("noCollectionsTitle")}
+            description={tc("noCollectionsDesc")}
           />
         ) : (
           <ul className="max-h-64 space-y-1 overflow-auto">
@@ -1339,12 +1353,11 @@ export function AssignCollectionsDialog({
                       {col.name}
                     </span>
                     <span className="block text-xs text-[#68647b]">
-                      {col.document_count} doc
-                      {col.document_count !== 1 ? "s" : ""} ·{" "}
+                      {tc("docCountLabel", { n: col.document_count })} ·{" "}
                       <span
                         className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold uppercase ${accessPolicyBadgeClass(col.access_policy)}`}
                       >
-                        {accessPolicyLabel(col.access_policy)}
+                        {accessPolicyLabel(col.access_policy, tc)}
                       </span>
                     </span>
                   </span>
@@ -1366,7 +1379,7 @@ export function AssignCollectionsDialog({
             onClick={onClose}
             className="rounded-xl border border-[#d2cee6] bg-white px-4 py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff]"
           >
-            Cancel
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -1374,7 +1387,7 @@ export function AssignCollectionsDialog({
             onClick={() => onSave(Array.from(selected))}
             className="rounded-xl bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? tc("saving") : tc("save")}
           </button>
         </div>
       </div>
@@ -1385,6 +1398,7 @@ export function AssignCollectionsDialog({
 // ── Collections page ─────────────────────────────────────────────────────────
 
 export function CollectionsPage() {
+  const tc = useTranslations("collections.page");
   const queryClient = useQueryClient();
   const { state } = useAuthSession();
   const capabilities = resolveCollectionCapabilities(state.session?.role);
@@ -1473,7 +1487,7 @@ export function CollectionsPage() {
     onSuccess: async (result) => {
       setDialogMode(null);
       setDialogSaveError(null);
-      setActionFeedback(`Collection "${result.name}" created.`);
+      setActionFeedback(tc("feedbackCreated", { name: result.name }));
       setActionRequestId(null);
       setSelectedCollectionId(result.collection_id);
       await invalidateAfterMutation(queryClient, "collection.create");
@@ -1499,7 +1513,7 @@ export function CollectionsPage() {
     onSuccess: async (result) => {
       setDialogMode(null);
       setDialogSaveError(null);
-      setActionFeedback(`Collection "${result.name}" updated.`);
+      setActionFeedback(tc("feedbackUpdated", { name: result.name }));
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "collection.update");
     },
@@ -1512,7 +1526,7 @@ export function CollectionsPage() {
     mutationFn: (collectionId: string) => deleteCollection(collectionId),
     onSuccess: async (_, collectionId) => {
       if (selectedCollectionId === collectionId) setSelectedCollectionId(null);
-      setActionFeedback("Collection deleted.");
+      setActionFeedback(tc("feedbackDeleted"));
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "collection.delete");
     },
@@ -1537,7 +1551,7 @@ export function CollectionsPage() {
   function handleDeleteCollection(col: CollectionListItemResponse) {
     if (
       !window.confirm(
-        `Delete collection "${col.name}"? Documents will not be deleted.`,
+        tc("deleteConfirm", { name: col.name }),
       )
     )
       return;
@@ -1554,13 +1568,11 @@ export function CollectionsPage() {
         {/* Page header */}
         <section>
           <span className="mb-1 block text-[11px] font-semibold tracking-widest text-[#3525cd] uppercase">
-            Knowledge base
+            {tc("eyebrow")}
           </span>
-          <h2 className="text-3xl font-bold text-[#1b1b24]">Collections</h2>
+          <h2 className="text-3xl font-bold text-[#1b1b24]">{tc("pageTitle")}</h2>
           <p className="mt-1 max-w-2xl text-sm text-[#464555]">
-            Organize documents into governed knowledge bases for scoped
-            retrieval and chat. Apply granular access policies to ensure
-            security across your RAG operations.
+            {tc("pageDescription")}
           </p>
         </section>
 
@@ -1584,14 +1596,14 @@ export function CollectionsPage() {
               type="search"
               value={nameSearch}
               onChange={(e) => setNameSearch(e.target.value)}
-              placeholder="Filter by name…"
+              placeholder={tc("filterPlaceholder")}
               className="w-full border-none bg-transparent py-2 pl-10 text-sm text-[#1b1b24] outline-none focus:ring-0"
             />
           </div>
           <div className="hidden h-6 w-px bg-[#e4e1ee] sm:block" />
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-semibold whitespace-nowrap text-[#6a6780]">
-              Access:
+              {tc("accessFilterLabel")}
             </span>
             <select
               value={accessFilter}
@@ -1602,16 +1614,16 @@ export function CollectionsPage() {
               }
               className="rounded-lg border-none bg-[#f5f3ff] py-1.5 pr-6 pl-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
             >
-              <option value="all">All Policies</option>
-              <option value="org_wide">Org-wide</option>
-              <option value="admin_only">Admin-only</option>
-              <option value="selected_roles">Selected roles</option>
-              <option value="selected_members">Selected members</option>
+              <option value="all">{tc("filterAllPolicies")}</option>
+              <option value="org_wide">{tc("policyLabelOrgWide")}</option>
+              <option value="admin_only">{tc("policyLabelAdminOnly")}</option>
+              <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
+              <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
             </select>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[12px] font-semibold text-[#6a6780]">
-              Sort:
+              {tc("sortLabel")}
             </span>
             <select
               value={sortBy}
@@ -1620,9 +1632,9 @@ export function CollectionsPage() {
               }
               className="rounded-lg border-none bg-[#f5f3ff] py-1.5 pr-6 pl-2 text-sm text-[#2a2640] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
             >
-              <option value="updated">Last Updated</option>
-              <option value="name">Name A-Z</option>
-              <option value="docs">Doc Count</option>
+              <option value="updated">{tc("sortLastUpdated")}</option>
+              <option value="name">{tc("sortNameAZ")}</option>
+              <option value="docs">{tc("sortDocCount")}</option>
             </select>
           </div>
           {capabilities.canCreate ? (
@@ -1635,7 +1647,7 @@ export function CollectionsPage() {
               className="flex items-center gap-1 rounded-full bg-[#3525cd] px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-[#3525cd]/20 active:scale-95"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              New Collection
+              {tc("newCollectionButton")}
             </button>
           ) : null}
         </section>
@@ -1647,22 +1659,22 @@ export function CollectionsPage() {
             className="rounded-xl border border-[#ddd7f6] bg-[#f3f1ff] px-4 py-2.5 text-sm text-[#3f3778]"
           >
             {actionFeedback}
-            {actionRequestId ? ` (Trace ID: ${actionRequestId})` : ""}
+            {actionRequestId ? ` ${tc("traceIdSuffix", { id: actionRequestId })}` : ""}
           </p>
         ) : null}
 
         {/* Error / empty states */}
         {!collectionsEnabled ? (
           <EmptyState
-            title="Collections not available"
-            description="Set NEXT_PUBLIC_FEATURE_COLLECTIONS_ENABLED=true to enable."
+            title={tc("collectionsNotAvailableTitle")}
+            description={tc("collectionsNotAvailableDesc")}
           />
         ) : null}
-        {isLoading ? <LoadingState title="Loading collections…" /> : null}
+        {isLoading ? <LoadingState title={tc("loadingCollectionsTitle")} /> : null}
         {isError && isEndpointNotFoundError(collectionsQuery.error) ? (
           <EmptyState
-            title="Collections not yet available"
-            description="The collections API is not deployed in this environment."
+            title={tc("apiNotDeployedTitle")}
+            description={tc("apiNotDeployedDesc")}
           />
         ) : null}
         {isError &&
@@ -1670,8 +1682,8 @@ export function CollectionsPage() {
         listForbidden ? (
           <ForbiddenState
             compact
-            title="Collections access denied"
-            description="You do not have permission to view collections in this organization."
+            title={tc("listForbiddenTitle")}
+            description={tc("listForbiddenDesc")}
             requestId={extractRequestIdFromError(collectionsQuery.error)}
           />
         ) : null}
@@ -1721,13 +1733,13 @@ export function CollectionsPage() {
                 <EmptyState
                   title={
                     nameSearch || accessFilter !== "all"
-                      ? "No collections match your filters."
-                      : "No collections yet."
+                      ? tc("noMatchTitle")
+                      : tc("noCollectionsYetTitle")
                   }
                   description={
                     nameSearch || accessFilter !== "all"
                       ? undefined
-                      : "Create your first collection to group documents for scoped retrieval and chat."
+                      : tc("noCollectionsYetDesc")
                   }
                   action={
                     nameSearch || accessFilter !== "all" ? (
@@ -1739,7 +1751,7 @@ export function CollectionsPage() {
                         }}
                         className="rounded-xl border border-[#d2cee6] bg-white px-3 py-2 text-sm font-semibold text-[#2a2640] hover:bg-[#f3f1ff]"
                       >
-                        Clear filters
+                        {tc("clearFilters")}
                       </button>
                     ) : capabilities.canCreate ? (
                       <button
@@ -1750,7 +1762,7 @@ export function CollectionsPage() {
                         }}
                         className="rounded-xl bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white hover:bg-[#2b1fa8]"
                       >
-                        New Collection
+                        {tc("newCollectionEmpty")}
                       </button>
                     ) : undefined
                   }
@@ -1783,10 +1795,10 @@ export function CollectionsPage() {
               <span className="material-symbols-outlined text-[18px]">
                 chevron_left
               </span>
-              Previous
+              {tc("previousPage")}
             </button>
             <p className="text-sm text-[#68647b]">
-              Page {currentPage} of {totalPages}
+              {tc("pageOf", { page: currentPage, total: totalPages })}
             </p>
             <button
               type="button"
@@ -1794,7 +1806,7 @@ export function CollectionsPage() {
               onClick={() => setOffset((p) => p + COLLECTIONS_PAGE_SIZE)}
               className="flex items-center gap-1 rounded-xl border border-[#d2cee6] px-3 py-1.5 text-sm font-semibold text-[#2f2c45] hover:bg-[#f1eff9] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Next
+              {tc("nextPage")}
               <span className="material-symbols-outlined text-[18px]">
                 chevron_right
               </span>
@@ -1826,7 +1838,7 @@ export function CollectionsPage() {
       {/* Dialogs */}
       {dialogMode === "create" ? (
         <CollectionDialog
-          title="New Collection"
+          title={tc("dialogTitleNew")}
           initial={DEFAULT_FORM}
           saving={createMutation.isPending}
           saveError={dialogSaveError}
@@ -1838,7 +1850,7 @@ export function CollectionsPage() {
         />
       ) : dialogMode !== null ? (
         <CollectionDialog
-          title="Edit Collection"
+          title={tc("dialogTitleEdit")}
           initial={{
             name: dialogMode.collection.name,
             description: dialogMode.collection.description ?? "",
