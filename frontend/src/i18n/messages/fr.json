@@ -1383,8 +1383,8 @@
     "uploadModal": {
       "title": "Centre de téléversement",
       "subtitle": "Déposez des fichiers ou cliquez pour sélectionner. Pris en charge : {types}.",
-      "historyAriaLabel": "Téléverser history",
-      "closeAriaLabel": "Fermer téléverser center",
+      "historyAriaLabel": "Historique des téléversements",
+      "closeAriaLabel": "Fermer le centre de téléversement",
       "historyTitle": "Historique des téléversements (cette session)",
       "historyOk": "OK",
       "historyFailed": "échoué",
@@ -1394,7 +1394,7 @@
       "uploadsRunning": "Des téléversements sont en cours. Vous pouvez annuler des fichiers individuels ci-dessous.",
       "supportedTypes": "PDF, DOCX, TXT · max 25 MB par fichier",
       "readOnly": "Votre rôle peut voir les documents, mais ne peut pas téléverser de fichiers.",
-      "detailsToggle": "Téléverser details (optional)",
+      "detailsToggle": "Détails du téléversement (optionnel)",
       "collectionLabel": "Collection",
       "collectionNone": "— Aucune collection —",
       "tagsLabel": "Tags",
@@ -1410,7 +1410,14 @@
       "cancelAll": "Tout annuler",
       "queuedForIndexing": "mis en file pour indexation",
       "duplicateQueued": "duplicate — mis en fichier",
-      "uploading": "Téléversement…"
+      "uploading": "Téléversement…",
+      "retentionClass": {
+        "standard": "Standard",
+        "confidential": "Confidentiel",
+        "legal_hold": "Rétention légale",
+        "archive": "Archive",
+        "gdpr_restricted": "Restreint RGPD"
+      }
     },
     "chunkingDiagnostics": {
       "title": "Diagnostics de découpage",

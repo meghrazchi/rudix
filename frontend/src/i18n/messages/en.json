@@ -1410,7 +1410,14 @@
       "cancelAll": "Cancel all",
       "queuedForIndexing": "queued for indexing",
       "duplicateQueued": "duplicate — queued",
-      "uploading": "Uploading…"
+      "uploading": "Uploading…",
+      "retentionClass": {
+        "standard": "Standard",
+        "confidential": "Confidential",
+        "legal_hold": "Legal Hold",
+        "archive": "Archive",
+        "gdpr_restricted": "GDPR Restricted"
+      }
     },
     "chunkingDiagnostics": {
       "title": "Chunking diagnostics",

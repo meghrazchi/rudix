@@ -2,13 +2,14 @@
 
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type DragEvent,
 } from "react";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { useOverlayFocus } from "@/lib/use-overlay-focus";
 import type { CollectionListItemResponse } from "@/lib/api/collections";
@@ -152,6 +153,11 @@ export function DocumentsUploadModal({
   uploadHistory,
 }: DocumentsUploadModalProps) {
   const t = useTranslations("documents.uploadModal");
+  const locale = useLocale();
+  const langDisplayNames = useMemo(
+    () => new Intl.DisplayNames([locale], { type: "language" }),
+    [locale],
+  );
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -514,7 +520,7 @@ export function DocumentsUploadModal({
                       <option value="">{t("languageAuto")}</option>
                       {UPLOAD_LANGUAGES.map((l) => (
                         <option key={l.code} value={l.code}>
-                          {l.label}
+                          {langDisplayNames.of(l.code) ?? l.label}
                         </option>
                       ))}
                     </select>
@@ -534,7 +540,7 @@ export function DocumentsUploadModal({
                       <option value="">{t("retentionDefault")}</option>
                       {UPLOAD_RETENTION_CLASSES.map((r) => (
                         <option key={r.value} value={r.value}>
-                          {r.label}
+                          {t(`retentionClass.${r.value}`)}
                         </option>
                       ))}
                     </select>

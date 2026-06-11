@@ -1410,7 +1410,14 @@
       "cancelAll": "Alle abbrechen",
       "queuedForIndexing": "zur Indizierung eingereiht",
       "duplicateQueued": "Duplikat — eingereiht",
-      "uploading": "Wird hochgeladen…"
+      "uploading": "Wird hochgeladen…",
+      "retentionClass": {
+        "standard": "Standard",
+        "confidential": "Vertraulich",
+        "legal_hold": "Juristische Aufbewahrung",
+        "archive": "Archiv",
+        "gdpr_restricted": "DSGVO-eingeschränkt"
+      }
     },
     "chunkingDiagnostics": {
       "title": "Block-Diagnose",

@@ -1410,7 +1410,14 @@
       "cancelAll": "Cancelar todo",
       "queuedForIndexing": "en cola para indexación",
       "duplicateQueued": "duplicado — en cola",
-      "uploading": "Subiendo…"
+      "uploading": "Subiendo…",
+      "retentionClass": {
+        "standard": "Estándar",
+        "confidential": "Confidencial",
+        "legal_hold": "Retención legal",
+        "archive": "Archivo",
+        "gdpr_restricted": "Restringido por RGPD"
+      }
     },
     "chunkingDiagnostics": {
       "title": "Diagnósticos de fragmentación",
