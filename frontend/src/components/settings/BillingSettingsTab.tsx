@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
@@ -100,144 +101,127 @@ function SectionHeader({
   );
 }
 
-function DeploymentControlledBadge() {
+function DeploymentControlledBadge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-      Deployment-controlled
-    </span>
-  );
-}
-
-function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
-  const map: Record<BillingPlanStatus, { label: string; cls: string }> = {
-    active: {
-      label: "Active",
-      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    },
-    trialing: {
-      label: "Trial",
-      cls: "bg-sky-100 text-sky-800 border-sky-200",
-    },
-    past_due: {
-      label: "Past due",
-      cls: "bg-amber-100 text-amber-800 border-amber-200",
-    },
-    cancelled: {
-      label: "Cancelled",
-      cls: "bg-rose-100 text-rose-800 border-rose-200",
-    },
-    free: {
-      label: "Free",
-      cls: "bg-slate-100 text-slate-700 border-slate-200",
-    },
-    self_hosted: {
-      label: "Self-hosted",
-      cls: "bg-slate-100 text-slate-700 border-slate-200",
-    },
-    unknown: {
-      label: "Unknown",
-      cls: "bg-slate-100 text-slate-700 border-slate-200",
-    },
-  };
-  const { label, cls } = map[status];
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${cls}`}
-    >
       {label}
     </span>
   );
 }
 
-function PlanStatusCallout({ plan }: { plan: BillingPlanInfo }) {
-  const messages: Record<
-    BillingPlanStatus,
-    { tone: string; title: string; body: string }
-  > = {
+function PlanStatusBadge({ status }: { status: BillingPlanStatus }) {
+  const t = useTranslations("settings.billing.plan");
+
+  const map: Record<BillingPlanStatus, { labelKey: string; cls: string }> = {
     active: {
-      tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
-      title: "Subscription active",
-      body: "Your workspace is on a managed plan and billing is up to date.",
+      labelKey: "statusActive",
+      cls: "bg-emerald-100 text-emerald-800 border-emerald-200",
     },
     trialing: {
-      tone: "border-sky-200 bg-sky-50 text-sky-900",
-      title: "Trial in progress",
-      body: plan.trial_end_date
-        ? `Your trial ends on ${formatDate(plan.trial_end_date)}.`
-        : "Your workspace is currently in a trial period.",
+      labelKey: "statusTrialing",
+      cls: "bg-sky-100 text-sky-800 border-sky-200",
     },
     past_due: {
-      tone: "border-amber-200 bg-amber-50 text-amber-900",
-      title: "Payment attention required",
-      body: "A payment issue is blocking normal subscription processing. Review the billing portal.",
+      labelKey: "statusPastDue",
+      cls: "bg-amber-100 text-amber-800 border-amber-200",
     },
     cancelled: {
-      tone: "border-rose-200 bg-rose-50 text-rose-900",
-      title: "Subscription cancelled",
-      body: "The current billing plan has been cancelled. Plan access may change at renewal.",
+      labelKey: "statusCancelled",
+      cls: "bg-rose-100 text-rose-800 border-rose-200",
     },
     free: {
-      tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Free plan",
-      body: "This workspace is using the free tier and can upgrade when ready.",
+      labelKey: "statusFree",
+      cls: "bg-slate-100 text-slate-700 border-slate-200",
     },
     self_hosted: {
-      tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Self-hosted deployment",
-      body: "Billing is managed outside Rudix for this deployment.",
+      labelKey: "statusSelfHosted",
+      cls: "bg-slate-100 text-slate-700 border-slate-200",
     },
     unknown: {
-      tone: "border-slate-200 bg-slate-50 text-slate-900",
-      title: "Billing state unknown",
-      body: "The current subscription state could not be determined.",
+      labelKey: "statusUnknown",
+      cls: "bg-slate-100 text-slate-700 border-slate-200",
     },
   };
-
-  const message = messages[plan.status];
+  const { labelKey, cls } = map[status];
   return (
-    <div className={`rounded-xl border px-4 py-3 ${message.tone}`}>
-      <p className="text-sm font-semibold">{message.title}</p>
-      <p className="mt-0.5 text-xs opacity-90">{message.body}</p>
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${cls}`}
+    >
+      {t(labelKey)}
+    </span>
+  );
+}
+
+function PlanStatusCallout({ plan }: { plan: BillingPlanInfo }) {
+  const t = useTranslations("settings.billing.plan");
+
+  const tones: Record<BillingPlanStatus, string> = {
+    active: "border-emerald-200 bg-emerald-50 text-emerald-900",
+    trialing: "border-sky-200 bg-sky-50 text-sky-900",
+    past_due: "border-amber-200 bg-amber-50 text-amber-900",
+    cancelled: "border-rose-200 bg-rose-50 text-rose-900",
+    free: "border-slate-200 bg-slate-50 text-slate-900",
+    self_hosted: "border-slate-200 bg-slate-50 text-slate-900",
+    unknown: "border-slate-200 bg-slate-50 text-slate-900",
+  };
+
+  const titleKeys: Record<BillingPlanStatus, string> = {
+    active: "calloutActiveTitle",
+    trialing: "calloutTrialingTitle",
+    past_due: "calloutPastDueTitle",
+    cancelled: "calloutCancelledTitle",
+    free: "calloutFreeTitle",
+    self_hosted: "calloutSelfHostedTitle",
+    unknown: "calloutUnknownTitle",
+  };
+
+  const bodyKeys: Record<BillingPlanStatus, string> = {
+    active: "calloutActiveBody",
+    trialing: plan.trial_end_date ? "calloutTrialingBodyDate" : "calloutTrialingBody",
+    past_due: "calloutPastDueBody",
+    cancelled: "calloutCancelledBody",
+    free: "calloutFreeBody",
+    self_hosted: "calloutSelfHostedBody",
+    unknown: "calloutUnknownBody",
+  };
+
+  const bodyParams =
+    plan.status === "trialing" && plan.trial_end_date
+      ? { date: formatDate(plan.trial_end_date) }
+      : {};
+
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${tones[plan.status]}`}>
+      <p className="text-sm font-semibold">{t(titleKeys[plan.status])}</p>
+      <p className="mt-0.5 text-xs opacity-90">
+        {t(bodyKeys[plan.status], bodyParams as Record<string, string>)}
+      </p>
     </div>
   );
 }
 
 function InvoiceStatusBadge({ status }: { status: InvoiceStatus }) {
-  const map: Record<InvoiceStatus, { label: string; cls: string }> = {
-    paid: {
-      label: "Paid",
-      cls: "bg-emerald-100 text-emerald-800",
-    },
-    open: {
-      label: "Open",
-      cls: "bg-sky-100 text-sky-800",
-    },
-    void: {
-      label: "Void",
-      cls: "bg-slate-100 text-slate-600",
-    },
+  const t = useTranslations("settings.billing.invoices");
+
+  const map: Record<InvoiceStatus, { labelKey: string; cls: string }> = {
+    paid: { labelKey: "statusPaid", cls: "bg-emerald-100 text-emerald-800" },
+    open: { labelKey: "statusOpen", cls: "bg-sky-100 text-sky-800" },
+    void: { labelKey: "statusVoid", cls: "bg-slate-100 text-slate-600" },
     uncollectible: {
-      label: "Uncollectible",
+      labelKey: "statusUncollectible",
       cls: "bg-rose-100 text-rose-800",
     },
   };
-  const { label, cls } = map[status];
+  const { labelKey, cls } = map[status];
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {label.toUpperCase()}
+      {t(labelKey).toUpperCase()}
     </span>
   );
 }
-
-const DATE_RANGE_OPTIONS: { id: BillingDateRange; label: string }[] = [
-  { id: "7d", label: "7 days" },
-  { id: "30d", label: "30 days" },
-  { id: "90d", label: "90 days" },
-  { id: "billing_period", label: "Billing period" },
-];
 
 // ── Plan Card ─────────────────────────────────────────────────────────────────
 
@@ -245,11 +229,15 @@ function PlanCard({
   plan,
   canManageBilling,
   billingPortalUrl,
+  deploymentControlledLabel,
 }: {
   plan: BillingPlanInfo;
   canManageBilling: boolean;
   billingPortalUrl: string | null;
+  deploymentControlledLabel: string;
 }) {
+  const t = useTranslations("settings.billing.plan");
+
   const manageUrl =
     billingPortalUrl ??
     trimToNull(process.env.NEXT_PUBLIC_SETTINGS_BILLING_URL);
@@ -267,7 +255,7 @@ function PlanCard({
       <div className="mb-4 flex items-start justify-between">
         <div>
           <p className="mb-1 text-[10px] font-bold tracking-widest text-[#5d58a8] uppercase">
-            Current Plan
+            {t("title")}
           </p>
           <h3 className="text-2xl font-extrabold text-[#3525cd]">
             {plan.plan_name}
@@ -276,12 +264,14 @@ function PlanCard({
         <PlanStatusBadge status={plan.status} />
       </div>
 
-      <PlanStatusCallout plan={plan} />
+      <div className="mb-5">
+        <PlanStatusCallout plan={plan} />
+      </div>
 
       <dl className="mb-5 space-y-3">
         {plan.billing_cycle && (
           <div className="flex items-center justify-between">
-            <dt className="text-sm text-[#5c5871]">Billing cycle</dt>
+            <dt className="text-sm text-[#5c5871]">{t("billingCycle")}</dt>
             <dd className="text-sm font-semibold text-[#1b1b24] capitalize">
               {plan.billing_cycle}
             </dd>
@@ -289,7 +279,7 @@ function PlanCard({
         )}
         {plan.renewal_date && (
           <div className="flex items-center justify-between">
-            <dt className="text-sm text-[#5c5871]">Renews on</dt>
+            <dt className="text-sm text-[#5c5871]">{t("renewsOn")}</dt>
             <dd className="text-sm font-semibold text-[#1b1b24]">
               {formatDate(plan.renewal_date)}
             </dd>
@@ -297,7 +287,7 @@ function PlanCard({
         )}
         {plan.status === "trialing" && plan.trial_end_date && (
           <div className="flex items-center justify-between">
-            <dt className="text-sm text-[#5c5871]">Trial ends</dt>
+            <dt className="text-sm text-[#5c5871]">{t("trialEnds")}</dt>
             <dd className="text-sm font-semibold text-sky-700">
               {formatDate(plan.trial_end_date)}
             </dd>
@@ -307,19 +297,19 @@ function PlanCard({
 
       <div className="mb-6 space-y-4">
         <QuotaProgress
-          label="Seats"
+          label={t("seats")}
           used={seatsUsed}
           total={seatsTotal}
           unit="seats"
         />
         <QuotaProgress
-          label="Monthly questions"
+          label={t("monthlyQuestions")}
           used={plan.monthly_questions_used ?? 0}
           total={plan.monthly_questions_included}
           unit="questions"
         />
         <QuotaProgress
-          label="Storage"
+          label={t("storage")}
           used={storageUsedGb}
           total={storageTotalGb}
           unit="GB"
@@ -333,15 +323,14 @@ function PlanCard({
             target="_blank"
             rel="noopener noreferrer"
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3525cd] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8]"
-            aria-label="Manage subscription — opens billing portal"
+            aria-label={t("manageAriaLabel")}
           >
-            Manage Subscription
+            {t("manageSubscription")}
             <ExternalLink size={14} aria-hidden="true" />
           </a>
         ) : (
           <p className="text-center text-xs text-[#777587]">
-            No billing portal URL is configured for this deployment. Contact
-            your administrator if you need to change plans.
+            {t("noPortalUrl")}
           </p>
         )}
         {canManageBilling && manageUrl && (
@@ -352,7 +341,7 @@ function PlanCard({
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-3 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
             >
-              Upgrade plan
+              {t("upgradePlan")}
             </a>
             <a
               href={manageUrl}
@@ -360,7 +349,7 @@ function PlanCard({
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-3 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
             >
-              Downgrade plan
+              {t("downgradePlan")}
             </a>
           </div>
         )}
@@ -368,11 +357,11 @@ function PlanCard({
 
       {canManageBilling && plan.can_cancel_plan && (
         <p className="mt-3 text-center text-xs text-[#777587]">
-          To cancel your plan, use the billing portal above.
+          {t("cancelHint")}
         </p>
       )}
       <p className="mt-2 text-center text-[10px] text-[#aaa6b8]">
-        Handled securely by your billing provider
+        {t("secureNote")}
       </p>
     </section>
   );
@@ -385,7 +374,15 @@ function UsageSummarySection({
 }: {
   capabilities: ReturnType<typeof getBillingCapabilities>;
 }) {
+  const t = useTranslations("settings.billing");
   const [dateRange, setDateRange] = useState<BillingDateRange>("30d");
+
+  const dateRangeOptions: { id: BillingDateRange; labelKey: string }[] = [
+    { id: "7d", labelKey: "usage.dateRange7d" },
+    { id: "30d", labelKey: "usage.dateRange30d" },
+    { id: "90d", labelKey: "usage.dateRange90d" },
+    { id: "billing_period", labelKey: "usage.dateRangeBilling" },
+  ];
 
   const usageQuery = useQuery({
     queryKey: ["billing", "usage", dateRange],
@@ -400,13 +397,13 @@ function UsageSummarySection({
       aria-label="Usage summary section"
     >
       <div className="mb-6 flex items-center justify-between">
-        <SectionHeader icon={TrendingUp} title="Usage Summary" />
+        <SectionHeader icon={TrendingUp} title={t("usage.title")} />
         <div
           className="ml-4 flex gap-1"
           role="group"
-          aria-label="Date range selector"
+          aria-label={t("usage.dateRangeAriaLabel")}
         >
-          {DATE_RANGE_OPTIONS.map((opt) => (
+          {dateRangeOptions.map((opt) => (
             <button
               key={opt.id}
               type="button"
@@ -419,18 +416,16 @@ function UsageSummarySection({
                   : "border-[#d7d4e8] text-[#5c5871] hover:bg-[#f5f2ff]",
               ].join(" ")}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
       {!capabilities.usageEnabled ? (
-        <p className="text-sm text-[#777587]">
-          Usage data is not available — deployment-controlled.
-        </p>
+        <p className="text-sm text-[#777587]">{t("usage.unavailable")}</p>
       ) : usageQuery.isLoading ? (
-        <LoadingState compact title="Loading usage data..." />
+        <LoadingState compact title={t("usage.loading")} />
       ) : usageQuery.isError ? (
         isApiClientError(usageQuery.error) &&
         usageQuery.error.status === 429 ? (
@@ -444,10 +439,10 @@ function UsageSummarySection({
           usageQuery.error.status === 403 ? (
           <ForbiddenState
             compact
-            title="Usage data restricted"
-            description="You do not have permission to view usage data."
+            title={t("usage.restrictedTitle")}
+            description={t("usage.restrictedDesc")}
             backHref="/dashboard"
-            backLabel="Back to dashboard"
+            backLabel={t("backToDashboard")}
           />
         ) : (
           <ErrorState
@@ -464,51 +459,51 @@ function UsageSummarySection({
           <div className="mb-6 grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-3">
             {[
               {
-                label: "Questions asked",
+                labelKey: "usage.questionsAsked",
                 value: formatNumber(usageQuery.data?.questions_asked ?? null),
               },
               {
-                label: "Input tokens",
+                labelKey: "usage.inputTokens",
                 value: formatNumber(usageQuery.data?.input_tokens ?? null),
               },
               {
-                label: "Output tokens",
+                labelKey: "usage.outputTokens",
                 value: formatNumber(usageQuery.data?.output_tokens ?? null),
               },
               {
-                label: "Documents uploaded",
+                labelKey: "usage.documentsUploaded",
                 value: formatNumber(
                   usageQuery.data?.documents_uploaded ?? null,
                 ),
               },
               {
-                label: "Indexed documents",
+                labelKey: "usage.indexedDocuments",
                 value: formatNumber(usageQuery.data?.indexed_documents ?? null),
               },
               {
-                label: "Storage used",
+                labelKey: "usage.storageUsed",
                 value: formatStorageGb(
                   usageQuery.data?.storage_used_gb ?? null,
                 ),
               },
               {
-                label: "Evaluation runs",
+                labelKey: "usage.evaluationRuns",
                 value: formatNumber(usageQuery.data?.evaluation_runs ?? null),
               },
               {
-                label: "Agent runs",
+                labelKey: "usage.agentRuns",
                 value: formatNumber(usageQuery.data?.agent_runs ?? null),
               },
               {
-                label: "Connector syncs",
+                labelKey: "usage.connectorSyncs",
                 value: formatNumber(
                   usageQuery.data?.connector_sync_jobs ?? null,
                 ),
               },
-            ].map(({ label, value }) => (
-              <div key={label}>
+            ].map(({ labelKey, value }) => (
+              <div key={labelKey}>
                 <p className="mb-0.5 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                  {label}
+                  {t(labelKey)}
                 </p>
                 <p className="font-mono text-base font-semibold text-[#1b1b24]">
                   {value}
@@ -520,7 +515,7 @@ function UsageSummarySection({
           <div className="grid grid-cols-3 gap-4 border-t border-[#e4e1ee] pt-5">
             <div className="text-center">
               <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                Avg Latency
+                {t("usage.avgLatency")}
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
                 {usageQuery.data?.avg_latency_ms != null
@@ -530,7 +525,7 @@ function UsageSummarySection({
             </div>
             <div className="border-x border-[#e4e1ee] text-center">
               <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                Avg Confidence
+                {t("usage.avgConfidence")}
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
                 {usageQuery.data?.avg_confidence != null
@@ -540,7 +535,7 @@ function UsageSummarySection({
             </div>
             <div className="text-center">
               <p className="mb-1 text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                Est. LLM Cost
+                {t("usage.estLlmCost")}
               </p>
               <p className="text-xl font-bold text-[#3525cd]">
                 {usageQuery.data?.estimated_llm_cost_usd != null
@@ -551,7 +546,7 @@ function UsageSummarySection({
           </div>
           {usageQuery.data?.estimated_llm_cost_usd != null && (
             <p className="mt-2 text-right text-[10px] text-[#aaa6b8]">
-              * LLM cost values are estimates only
+              {t("usage.llmCostNote")}
             </p>
           )}
         </>
@@ -567,6 +562,8 @@ function QuotaSection({
 }: {
   capabilities: ReturnType<typeof getBillingCapabilities>;
 }) {
+  const t = useTranslations("settings.billing");
+
   const quotasQuery = useQuery({
     queryKey: ["billing", "quotas"],
     queryFn: getBillingQuotas,
@@ -579,14 +576,12 @@ function QuotaSection({
       className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Quota and limits section"
     >
-      <SectionHeader icon={Gauge} title="Quota & Limits" />
+      <SectionHeader icon={Gauge} title={t("quotas.title")} />
 
       {!capabilities.quotasEnabled ? (
-        <p className="text-sm text-[#777587]">
-          Quota data is not available — deployment-controlled.
-        </p>
+        <p className="text-sm text-[#777587]">{t("quotas.unavailable")}</p>
       ) : quotasQuery.isLoading ? (
-        <LoadingState compact title="Loading quota data..." />
+        <LoadingState compact title={t("quotas.loading")} />
       ) : quotasQuery.isError ? (
         isApiClientError(quotasQuery.error) &&
         quotasQuery.error.status === 429 ? (
@@ -607,7 +602,7 @@ function QuotaSection({
           />
         )
       ) : (quotasQuery.data ?? []).length === 0 ? (
-        <p className="text-sm text-[#777587]">No quota data available.</p>
+        <p className="text-sm text-[#777587]">{t("quotas.noData")}</p>
       ) : (
         <div className="space-y-5">
           {(quotasQuery.data ?? []).map((quota) => (
@@ -632,6 +627,8 @@ function InvoiceSection({
 }: {
   capabilities: ReturnType<typeof getBillingCapabilities>;
 }) {
+  const t = useTranslations("settings.billing");
+
   const invoicesQuery = useQuery({
     queryKey: ["billing", "invoices"],
     queryFn: getInvoices,
@@ -652,20 +649,18 @@ function InvoiceSection({
             aria-hidden="true"
           />
           <h2 className="text-lg font-semibold text-[#1b1b24]">
-            Invoice History
+            {t("invoices.title")}
           </h2>
         </div>
       </div>
 
       {!capabilities.invoicesEnabled ? (
         <div className="p-6">
-          <p className="text-sm text-[#777587]">
-            Invoice history is not available — deployment-controlled.
-          </p>
+          <p className="text-sm text-[#777587]">{t("invoices.unavailable")}</p>
         </div>
       ) : invoicesQuery.isLoading ? (
         <div className="p-6">
-          <LoadingState compact title="Loading invoices..." />
+          <LoadingState compact title={t("invoices.loading")} />
         </div>
       ) : invoicesQuery.isError ? (
         <div className="p-6">
@@ -690,18 +685,18 @@ function InvoiceSection({
         </div>
       ) : (invoicesQuery.data ?? []).length === 0 ? (
         <div className="p-6">
-          <p className="text-sm text-[#777587]">No invoices found.</p>
+          <p className="text-sm text-[#777587]">{t("invoices.noInvoices")}</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-[#f5f2ff] text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
               <tr>
-                <th className="px-6 py-3">Invoice ID</th>
-                <th className="px-6 py-3">Date</th>
-                <th className="px-6 py-3">Amount</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3 text-right">Action</th>
+                <th className="px-6 py-3">{t("invoices.invoiceId")}</th>
+                <th className="px-6 py-3">{t("invoices.date")}</th>
+                <th className="px-6 py-3">{t("invoices.amount")}</th>
+                <th className="px-6 py-3">{t("invoices.status")}</th>
+                <th className="px-6 py-3 text-right">{t("invoices.action")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e4e1ee]">
@@ -728,11 +723,11 @@ function InvoiceSection({
                         href={inv.download_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`Download invoice ${inv.id}`}
+                        aria-label={t("invoices.downloadAriaLabel", { id: inv.id })}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#3525cd] hover:underline"
                       >
                         <Download size={14} aria-hidden="true" />
-                        Download
+                        {t("invoices.download")}
                       </a>
                     ) : (
                       <span className="text-xs text-[#aaa6b8]">—</span>
@@ -750,7 +745,15 @@ function InvoiceSection({
 
 // ── Portal Fallback ───────────────────────────────────────────────────────────
 
-function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
+function BillingPortalFallback({
+  portalUrl,
+  deploymentControlledLabel,
+}: {
+  portalUrl: string | null;
+  deploymentControlledLabel: string;
+}) {
+  const t = useTranslations("settings.billing.portal");
+
   return (
     <section
       className="rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-sm"
@@ -759,15 +762,11 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
       <div className="mb-3 flex items-center gap-3">
         <CreditCard size={20} className="text-[#3525cd]" aria-hidden="true" />
         <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-          Billing
+          {t("title")}
         </h2>
-        <DeploymentControlledBadge />
+        <DeploymentControlledBadge label={deploymentControlledLabel} />
       </div>
-      <p className="mb-4 text-sm text-[#4d4963]">
-        Detailed billing information is managed through your billing portal.
-        Plan, usage, and invoice data are not directly available in this
-        deployment.
-      </p>
+      <p className="mb-4 text-sm text-[#4d4963]">{t("desc")}</p>
       {portalUrl ? (
         <a
           href={portalUrl}
@@ -775,14 +774,11 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
         >
-          Open billing portal
+          {t("openPortal")}
           <ExternalLink size={14} aria-hidden="true" />
         </a>
       ) : (
-        <p className="text-sm text-[#777587]">
-          No billing portal URL is configured for this deployment. Contact your
-          administrator.
-        </p>
+        <p className="text-sm text-[#777587]">{t("noPortalUrl")}</p>
       )}
     </section>
   );
@@ -791,38 +787,26 @@ function BillingPortalFallback({ portalUrl }: { portalUrl: string | null }) {
 // ── Billing Notifications Info ────────────────────────────────────────────────
 
 function BillingNotificationsInfo() {
+  const t = useTranslations("settings.billing.alerts");
+
+  const alerts = [
+    { labelKey: "quota80", descKey: "quota80Desc" },
+    { labelKey: "quota90", descKey: "quota90Desc" },
+    { labelKey: "quotaExceeded", descKey: "quotaExceededDesc" },
+    { labelKey: "failedPayments", descKey: "failedPaymentsDesc" },
+    { labelKey: "invoiceAvailable", descKey: "invoiceAvailableDesc" },
+  ];
+
   return (
     <section
       className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Billing notifications section"
     >
-      <SectionHeader icon={AlertTriangle} title="Billing Alerts" />
+      <SectionHeader icon={AlertTriangle} title={t("title")} />
       <div className="space-y-3">
-        {[
-          {
-            label: "80% quota threshold",
-            description: "Email alert when any quota reaches 80%.",
-          },
-          {
-            label: "90% quota threshold",
-            description: "Email alert when any quota reaches 90%.",
-          },
-          {
-            label: "Quota exceeded",
-            description: "Immediate alert when quota is reached.",
-          },
-          {
-            label: "Failed payments",
-            description:
-              "Alert for payment failures (billing admins and owners).",
-          },
-          {
-            label: "Invoice available",
-            description: "Notification when a new invoice is generated.",
-          },
-        ].map(({ label, description }) => (
+        {alerts.map(({ labelKey, descKey }) => (
           <div
-            key={label}
+            key={labelKey}
             className="flex items-start gap-3 rounded-lg border border-[#ebe8f7] bg-[#f5f2ff]/40 px-4 py-3"
           >
             <Zap
@@ -831,16 +815,15 @@ function BillingNotificationsInfo() {
               aria-hidden="true"
             />
             <div>
-              <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
-              <p className="text-xs text-[#464555]">{description}</p>
+              <p className="text-sm font-semibold text-[#1b1b24]">
+                {t(labelKey)}
+              </p>
+              <p className="text-xs text-[#464555]">{t(descKey)}</p>
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-4 text-xs text-[#777587]">
-        Alert delivery depends on your deployment&apos;s notification
-        configuration.
-      </p>
+      <p className="mt-4 text-xs text-[#777587]">{t("deliveryNote")}</p>
     </section>
   );
 }
@@ -852,6 +835,8 @@ function BillingContactSection({
   capabilities: ReturnType<typeof getBillingCapabilities>;
   canViewBilling: boolean;
 }) {
+  const t = useTranslations("settings.billing");
+
   const contactQuery = useQuery({
     queryKey: ["billing", "contact"],
     queryFn: getBillingContact,
@@ -864,14 +849,12 @@ function BillingContactSection({
       className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm"
       aria-label="Billing contact section"
     >
-      <SectionHeader icon={CreditCard} title="Payment Method" />
+      <SectionHeader icon={CreditCard} title={t("contact.title")} />
 
       {!capabilities.billingContactEnabled ? (
-        <p className="text-sm text-[#777587]">
-          Billing contact details are not available — deployment-controlled.
-        </p>
+        <p className="text-sm text-[#777587]">{t("contact.unavailable")}</p>
       ) : contactQuery.isLoading ? (
-        <LoadingState compact title="Loading billing contact..." />
+        <LoadingState compact title={t("contact.loading")} />
       ) : contactQuery.isError ? (
         isApiClientError(contactQuery.error) &&
         contactQuery.error.status === 429 ? (
@@ -896,34 +879,34 @@ function BillingContactSection({
           <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               {
-                label: "Billing contact",
+                labelKey: "contact.billingContact",
                 value:
                   contactQuery.data?.name ?? contactQuery.data?.email ?? "—",
               },
               {
-                label: "Email",
+                labelKey: "contact.email",
                 value: contactQuery.data?.email ?? "—",
               },
               {
-                label: "Address",
+                labelKey: "contact.address",
                 value:
                   contactQuery.data?.address_line1 ??
                   contactQuery.data?.address_line2 ??
-                  "Not provided",
+                  t("contact.addressDefault"),
               },
               {
-                label: "Payment method",
+                labelKey: "contact.paymentMethod",
                 value:
                   contactQuery.data?.payment_method_summary ??
-                  "Managed securely in the billing portal",
+                  t("contact.paymentMethodDefault"),
               },
-            ].map(({ label, value }) => (
+            ].map(({ labelKey, value }) => (
               <div
-                key={label}
+                key={labelKey}
                 className="rounded-xl border border-[#ebe8f7] bg-[#f8f7ff] px-4 py-3"
               >
                 <dt className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                  {label}
+                  {t(labelKey)}
                 </dt>
                 <dd className="mt-1 text-sm font-medium text-[#1b1b24]">
                   {value}
@@ -931,10 +914,7 @@ function BillingContactSection({
               </div>
             ))}
           </dl>
-          <p className="text-xs text-[#777587]">
-            Payment details are managed in the billing portal. No raw payment
-            data is displayed in Rudix.
-          </p>
+          <p className="text-xs text-[#777587]">{t("contact.note")}</p>
         </div>
       )}
     </section>
@@ -944,6 +924,7 @@ function BillingContactSection({
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export function BillingSettingsTab() {
+  const t = useTranslations("settings.billing");
   const { hasPermission } = usePermissions();
   const canViewBilling =
     hasPermission("billing:view") || hasPermission("billing:manage");
@@ -966,10 +947,10 @@ export function BillingSettingsTab() {
     return (
       <ForbiddenState
         compact
-        title="Billing restricted"
-        description="Billing settings are available to billing admins and owners only."
+        title={t("restricted")}
+        description={t("restrictedDesc")}
         backHref="/dashboard"
-        backLabel="Back to dashboard"
+        backLabel={t("backToDashboard")}
       />
     );
   }
@@ -977,12 +958,12 @@ export function BillingSettingsTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Left column: Plan + LLM cost */}
+        {/* Left column: Plan + Alerts + Contact */}
         <div className="space-y-6 lg:col-span-4">
           {capabilities.planEnabled ? (
             planQuery.isLoading ? (
               <section className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm">
-                <LoadingState compact title="Loading plan info..." />
+                <LoadingState compact title={t("plan.loading")} />
               </section>
             ) : planQuery.isError ? (
               <section className="rounded-2xl border border-[#c7c4d8] bg-white p-6 shadow-sm">
@@ -995,7 +976,10 @@ export function BillingSettingsTab() {
                     }}
                   />
                 ) : isBillingEndpointUnavailableError(planQuery.error) ? (
-                  <BillingPortalFallback portalUrl={billingPortalUrl} />
+                  <BillingPortalFallback
+                    portalUrl={billingPortalUrl}
+                    deploymentControlledLabel={t("deploymentControlled")}
+                  />
                 ) : (
                   <ErrorState
                     compact
@@ -1012,6 +996,7 @@ export function BillingSettingsTab() {
                 plan={planQuery.data}
                 canManageBilling={canManageBilling}
                 billingPortalUrl={billingPortalUrl}
+                deploymentControlledLabel={t("deploymentControlled")}
               />
             ) : null
           ) : (
@@ -1023,13 +1008,11 @@ export function BillingSettingsTab() {
                   aria-hidden="true"
                 />
                 <h2 className="text-lg font-semibold text-[#1b1b24]">
-                  Current Plan
+                  {t("plan.title")}
                 </h2>
-                <DeploymentControlledBadge />
+                <DeploymentControlledBadge label={t("deploymentControlled")} />
               </div>
-              <p className="text-sm text-[#777587]">
-                Plan details are not available — deployment-controlled.
-              </p>
+              <p className="text-sm text-[#777587]">{t("plan.unavailable")}</p>
               {billingPortalUrl && (
                 <a
                   href={billingPortalUrl}
@@ -1037,7 +1020,7 @@ export function BillingSettingsTab() {
                   rel="noopener noreferrer"
                   className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#d2cee6] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                 >
-                  Open billing portal
+                  {t("plan.openBillingPortal")}
                   <ExternalLink size={14} aria-hidden="true" />
                 </a>
               )}

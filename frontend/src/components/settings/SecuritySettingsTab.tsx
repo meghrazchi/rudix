@@ -15,6 +15,7 @@ import {
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
@@ -120,13 +121,13 @@ function SectionHeader({
   );
 }
 
-function DeploymentControlledBadge() {
+function DeploymentControlledBadge({ label }: { label: string }) {
   return (
     <span
       className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"
       aria-label="Deployment-controlled"
     >
-      Deployment-controlled
+      {label}
     </span>
   );
 }
@@ -134,9 +135,13 @@ function DeploymentControlledBadge() {
 function UnavailableRow({
   label,
   description,
+  notAvailableMsg,
+  unavailableLabel,
 }: {
   label: string;
   description?: string;
+  notAvailableMsg: string;
+  unavailableLabel: string;
 }) {
   return (
     <div
@@ -146,12 +151,10 @@ function UnavailableRow({
       <div>
         <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
         {description && <p className="text-xs text-[#464555]">{description}</p>}
-        <p className="mt-1 text-xs text-[#777587]">
-          Not available — deployment-controlled.
-        </p>
+        <p className="mt-1 text-xs text-[#777587]">{notAvailableMsg}</p>
       </div>
       <span className="shrink-0 rounded-xl border border-dashed border-[#c7c4d8] px-3 py-1.5 text-sm text-[#777587]">
-        Unavailable
+        {unavailableLabel}
       </span>
     </div>
   );
@@ -220,7 +223,7 @@ function FieldLabel({
   );
 }
 
-function BoolBadge({ value }: { value: boolean }) {
+function BoolBadge({ value, yesLabel, noLabel }: { value: boolean; yesLabel: string; noLabel: string }) {
   return (
     <span
       className={
@@ -229,7 +232,7 @@ function BoolBadge({ value }: { value: boolean }) {
           : "inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700"
       }
     >
-      {value ? "Yes" : "No"}
+      {value ? yesLabel : noLabel}
     </span>
   );
 }
@@ -241,6 +244,9 @@ type PostureCardProps = {
   label: string;
   status: boolean | null;
   detail: string;
+  activeLabel: string;
+  inactiveLabel: string;
+  unknownLabel: string;
 };
 
 function SecurityPostureCard({
@@ -248,6 +254,9 @@ function SecurityPostureCard({
   label,
   status,
   detail,
+  activeLabel,
+  inactiveLabel,
+  unknownLabel,
 }: PostureCardProps) {
   const borderColor =
     status === true
@@ -277,12 +286,12 @@ function SecurityPostureCard({
                 : "ml-auto text-[10px] font-bold tracking-wider text-rose-600 uppercase"
             }
           >
-            {status ? "Active" : "Inactive"}
+            {status ? activeLabel : inactiveLabel}
           </span>
         )}
         {status === null && (
           <span className="ml-auto text-[10px] font-bold tracking-wider text-[#777587] uppercase">
-            Unknown
+            {unknownLabel}
           </span>
         )}
       </div>
@@ -329,49 +338,69 @@ const loginPolicySchema = z.object({
 
 type LoginPolicyFormValues = z.infer<typeof loginPolicySchema>;
 
-// ── Role/access summary ───────────────────────────────────────────────────────
+// ── Role capability key maps ──────────────────────────────────────────────────
 
-const ROLE_CAPABILITIES: Record<
-  AppRole,
-  { label: string; description: string }[]
-> = {
-  owner: [
-    { label: "Document access", description: "Full read/write" },
-    { label: "Collection access", description: "Full read/write" },
-    { label: "Evaluation access", description: "Enabled" },
-    { label: "Agentic access", description: "Enabled" },
-    { label: "MCP access", description: "Enabled" },
-    { label: "Admin controls", description: "Full access" },
-  ],
-  admin: [
-    { label: "Document access", description: "Full read/write" },
-    { label: "Collection access", description: "Full read/write" },
-    { label: "Evaluation access", description: "Enabled" },
-    { label: "Agentic access", description: "Enabled" },
-    { label: "MCP access", description: "Enabled" },
-    { label: "Admin controls", description: "Org settings only" },
-  ],
-  member: [
-    { label: "Document access", description: "Read/write per collection" },
-    { label: "Collection access", description: "Assigned collections" },
-    { label: "Evaluation access", description: "If org-enabled" },
-    { label: "Agentic access", description: "If org-enabled" },
-    { label: "MCP access", description: "If org-enabled" },
-    { label: "Admin controls", description: "None" },
-  ],
-  viewer: [
-    { label: "Document access", description: "Read-only" },
-    { label: "Collection access", description: "Assigned collections" },
-    { label: "Evaluation access", description: "Read-only" },
-    { label: "Agentic access", description: "None" },
-    { label: "MCP access", description: "None" },
-    { label: "Admin controls", description: "None" },
-  ],
+type RoleCapKey = "documentAccess" | "collectionAccess" | "evaluationAccess" | "agenticAccess" | "mcpAccess" | "adminControls";
+
+const ROLE_CAP_KEYS: RoleCapKey[] = [
+  "documentAccess",
+  "collectionAccess",
+  "evaluationAccess",
+  "agenticAccess",
+  "mcpAccess",
+  "adminControls",
+];
+
+const ROLE_CAP_LABEL_KEYS: Record<RoleCapKey, string> = {
+  documentAccess: "capDocumentAccess",
+  collectionAccess: "capCollectionAccess",
+  evaluationAccess: "capEvaluationAccess",
+  agenticAccess: "capAgenticAccess",
+  mcpAccess: "capMcpAccess",
+  adminControls: "capAdminControls",
+};
+
+type RoleDescKey = `${AppRole}${Capitalize<string>}`;
+
+const ROLE_CAP_DESC_KEYS: Record<AppRole, Record<RoleCapKey, string>> = {
+  owner: {
+    documentAccess: "ownerDocument",
+    collectionAccess: "ownerCollection",
+    evaluationAccess: "ownerEvaluation",
+    agenticAccess: "ownerAgentic",
+    mcpAccess: "ownerMcp",
+    adminControls: "ownerAdmin",
+  },
+  admin: {
+    documentAccess: "adminDocument",
+    collectionAccess: "adminCollection",
+    evaluationAccess: "adminEvaluation",
+    agenticAccess: "adminAgentic",
+    mcpAccess: "adminMcp",
+    adminControls: "adminAdminControls",
+  },
+  member: {
+    documentAccess: "memberDocument",
+    collectionAccess: "memberCollection",
+    evaluationAccess: "memberEvaluation",
+    agenticAccess: "memberAgentic",
+    mcpAccess: "memberMcp",
+    adminControls: "memberAdmin",
+  },
+  viewer: {
+    documentAccess: "viewerDocument",
+    collectionAccess: "viewerCollection",
+    evaluationAccess: "viewerEvaluation",
+    agenticAccess: "viewerAgentic",
+    mcpAccess: "viewerMcp",
+    adminControls: "viewerAdmin",
+  },
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SecuritySettingsTab() {
+  const t = useTranslations("settings.security");
   const { state } = useAuthSession();
   const session = state.session;
   const role = session?.role ?? null;
@@ -395,42 +424,43 @@ export function SecuritySettingsTab() {
   const authFacts = useMemo(
     () => [
       {
-        label: "Auth provider",
+        label: t("auth.authProvider"),
         value: formatAuthProvider(config.authProviderRaw),
         isBoolean: false,
       },
       {
-        label: "Email",
-        value: session?.email ?? "Unknown",
+        label: t("auth.email"),
+        value: session?.email ?? t("auth.unknown"),
         isBoolean: false,
       },
       {
-        label: "Role",
-        value: session?.role ?? "Unknown",
+        label: t("auth.role"),
+        value: session?.role ?? t("auth.unknown"),
         isBoolean: false,
       },
       {
-        label: "Access token attached",
-        value: session?.accessToken ? "Yes" : "No",
+        label: t("auth.accessTokenAttached"),
+        value: session?.accessToken ? t("auth.yes") : t("auth.no"),
         isBoolean: true,
       },
       {
-        label: "Refresh cookie",
-        value: "Managed by backend",
+        label: t("auth.refreshCookie"),
+        value: t("auth.refreshCookieValue"),
         isBoolean: false,
       },
       {
-        label: "Session expiry",
+        label: t("auth.sessionExpiry"),
         value: formatExpiryMs(sessionExpiryMs),
         isBoolean: false,
       },
       {
-        label: "Organization ID",
-        value: session?.organizationId ?? "Not assigned",
+        label: t("auth.organizationId"),
+        value: session?.organizationId ?? t("auth.notAssigned"),
         isBoolean: false,
       },
     ],
     [
+      t,
       config.authProviderRaw,
       session?.email,
       session?.role,
@@ -456,7 +486,7 @@ export function SecuritySettingsTab() {
     mutationFn: (sessionId: string) => revokeSession(sessionId),
     onSuccess: () => {
       void sessionsQuery.refetch();
-      setRevokeState({ tone: "success", message: "Session revoked." });
+      setRevokeState({ tone: "success", message: t("sessions.revoked") });
       setRevokingId(null);
     },
     onError: (error) => {
@@ -471,7 +501,7 @@ export function SecuritySettingsTab() {
       void sessionsQuery.refetch();
       setRevokeState({
         tone: "success",
-        message: "All other sessions revoked.",
+        message: t("sessions.allRevoked"),
       });
     },
     onError: (error) => {
@@ -550,7 +580,7 @@ export function SecuritySettingsTab() {
     onSuccess: () => {
       setLoginPolicySaveState({
         tone: "success",
-        message: "Login policy saved.",
+        message: t("loginPolicy.saved"),
       });
     },
     onError: (error) => {
@@ -586,36 +616,51 @@ export function SecuritySettingsTab() {
     return [
       {
         icon: ShieldAlert,
-        label: "Prompt Injection Protection",
+        label: t("posture.promptInjection"),
         status: p?.prompt_injection_protection ?? null,
-        detail: "Monitors and filters adversarial prompt inputs.",
+        detail: t("posture.promptInjectionDetail"),
+        activeLabel: t("active"),
+        inactiveLabel: t("inactive"),
+        unknownLabel: t("unknown"),
       },
       {
         icon: BadgeCheck,
-        label: "Citation Validation",
+        label: t("posture.citationValidation"),
         status: p?.citation_validation ?? null,
-        detail: "Verifies source veracity for all retrieval pipelines.",
+        detail: t("posture.citationValidationDetail"),
+        activeLabel: t("active"),
+        inactiveLabel: t("inactive"),
+        unknownLabel: t("unknown"),
       },
       {
         icon: Lock,
-        label: "Tenant Isolation",
+        label: t("posture.tenantIsolation"),
         status: p?.tenant_isolation ?? null,
-        detail: "Encryption at rest with per-tenant managed keys.",
+        detail: t("posture.tenantIsolationDetail"),
+        activeLabel: t("active"),
+        inactiveLabel: t("inactive"),
+        unknownLabel: t("unknown"),
       },
       {
         icon: FileSearch,
-        label: "Output Validation",
+        label: t("posture.outputValidation"),
         status: p?.output_validation ?? null,
-        detail: "Validates LLM outputs before returning to clients.",
+        detail: t("posture.outputValidationDetail"),
+        activeLabel: t("active"),
+        inactiveLabel: t("inactive"),
+        unknownLabel: t("unknown"),
       },
       {
         icon: Bot,
-        label: "Tool/MCP Policy",
+        label: t("posture.toolPolicy"),
         status: p?.tool_policy_enforced ?? null,
-        detail: "Enforces allow-list for agentic tool and MCP calls.",
+        detail: t("posture.toolPolicyDetail"),
+        activeLabel: t("active"),
+        inactiveLabel: t("inactive"),
+        unknownLabel: t("unknown"),
       },
     ];
-  }, [postureQuery.data]);
+  }, [postureQuery.data, t]);
 
   // ── Recent audit events ─────────────────────────────────────────────────────
 
@@ -637,7 +682,7 @@ export function SecuritySettingsTab() {
           className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Authentication diagnostics section"
         >
-          <SectionHeader icon={ShieldCheck} title="Authentication & Session" />
+          <SectionHeader icon={ShieldCheck} title={t("auth.title")} />
           <dl className="space-y-3">
             {authFacts.map((fact) => (
               <div
@@ -649,7 +694,11 @@ export function SecuritySettingsTab() {
                 </dt>
                 <dd>
                   {fact.isBoolean ? (
-                    <BoolBadge value={fact.value === "Yes"} />
+                    <BoolBadge
+                      value={fact.value === t("auth.yes")}
+                      yesLabel={t("auth.yes")}
+                      noLabel={t("auth.no")}
+                    />
                   ) : (
                     <span className="text-sm text-[#1b1b24]">{fact.value}</span>
                   )}
@@ -658,7 +707,7 @@ export function SecuritySettingsTab() {
             ))}
           </dl>
           <p className="mt-3 text-xs text-[#777587]">
-            Token values are never displayed. Only safe metadata is shown.
+            {t("auth.tokenNote")}
           </p>
         </section>
 
@@ -669,18 +718,20 @@ export function SecuritySettingsTab() {
         >
           <SectionHeader
             icon={Users}
-            title="Active Sessions"
+            title={t("sessions.title")}
             badge={
-              !capabilities.sessionsEnabled && <DeploymentControlledBadge />
+              !capabilities.sessionsEnabled && (
+                <DeploymentControlledBadge label={t("deploymentControlled")} />
+              )
             }
           />
 
           {!capabilities.sessionsEnabled ? (
             <p className="text-sm text-[#777587]">
-              Session management is not available — deployment-controlled.
+              {t("sessions.unavailable")}
             </p>
           ) : sessionsQuery.isLoading ? (
-            <LoadingState compact title="Loading sessions..." />
+            <LoadingState compact title={t("sessions.loading")} />
           ) : sessionsQuery.isError ? (
             isApiClientError(sessionsQuery.error) &&
             sessionsQuery.error.status === 429 ? (
@@ -694,10 +745,10 @@ export function SecuritySettingsTab() {
               sessionsQuery.error.status === 403 ? (
               <ForbiddenState
                 compact
-                title="Sessions restricted"
-                description="You do not have permission to view active sessions."
+                title={t("sessions.restrictedTitle")}
+                description={t("sessions.restrictedDesc")}
                 backHref="/dashboard"
-                backLabel="Back to dashboard"
+                backLabel={t("backToDashboard")}
               />
             ) : (
               <ErrorState
@@ -715,10 +766,10 @@ export function SecuritySettingsTab() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-[#f5f2ff] text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
                     <tr>
-                      <th className="px-4 py-3">Device</th>
-                      <th className="px-4 py-3">Location</th>
-                      <th className="px-4 py-3">Last active</th>
-                      <th className="px-4 py-3 text-right">Action</th>
+                      <th className="px-4 py-3">{t("sessions.device")}</th>
+                      <th className="px-4 py-3">{t("sessions.location")}</th>
+                      <th className="px-4 py-3">{t("sessions.lastActive")}</th>
+                      <th className="px-4 py-3 text-right">{t("sessions.action")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e4e1ee]">
@@ -728,7 +779,7 @@ export function SecuritySettingsTab() {
                           colSpan={4}
                           className="px-4 py-4 text-center text-sm text-[#777587]"
                         >
-                          No active sessions found.
+                          {t("sessions.noSessions")}
                         </td>
                       </tr>
                     )}
@@ -743,12 +794,12 @@ export function SecuritySettingsTab() {
                           </span>
                           {s.is_current && (
                             <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                              Current
+                              {t("sessions.current")}
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-[#464555]">
-                          {s.location ?? "Unknown"}
+                          {s.location ?? t("sessions.unknown")}
                         </td>
                         <td className="px-4 py-3 text-[#464555]">
                           {formatTimestamp(s.last_active_at)}
@@ -756,7 +807,7 @@ export function SecuritySettingsTab() {
                         <td className="px-4 py-3 text-right">
                           {s.is_current ? (
                             <span className="text-xs text-[#777587]">
-                              This device
+                              {t("sessions.thisDevice")}
                             </span>
                           ) : capabilities.revokeSessionEnabled ? (
                             <button
@@ -770,7 +821,9 @@ export function SecuritySettingsTab() {
                               }
                               className="text-sm font-semibold text-[#777587] transition-colors hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {revokingId === s.id ? "Revoking…" : "Revoke"}
+                              {revokingId === s.id
+                                ? t("sessions.revoking")
+                                : t("sessions.revoke")}
                             </button>
                           ) : (
                             <span className="text-xs text-[#777587]">—</span>
@@ -796,8 +849,8 @@ export function SecuritySettingsTab() {
                       className="ml-auto rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {revokeAllMutation.isPending
-                        ? "Revoking all…"
-                        : "Revoke all other sessions"}
+                        ? t("sessions.revokingAll")
+                        : t("sessions.revokeAll")}
                     </button>
                   </div>
                 )}
@@ -818,9 +871,11 @@ export function SecuritySettingsTab() {
         >
           <SectionHeader
             icon={SlidersHorizontal}
-            title="Login & Authentication Policy"
+            title={t("loginPolicy.title")}
             badge={
-              !capabilities.loginPolicyEnabled && <DeploymentControlledBadge />
+              !capabilities.loginPolicyEnabled && (
+                <DeploymentControlledBadge label={t("deploymentControlled")} />
+              )
             }
           />
 
@@ -831,30 +886,32 @@ export function SecuritySettingsTab() {
                 href={changePasswordUrl}
                 className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
               >
-                Change password
+                {t("loginPolicy.changePassword")}
               </a>
             ) : (
               <UnavailableRow
-                label="Change password"
-                description="Password change is managed by your identity provider."
+                label={t("loginPolicy.changePasswordUnavailableLabel")}
+                description={t("loginPolicy.changePasswordUnavailableDesc")}
+                notAvailableMsg={t("notAvailableMsg")}
+                unavailableLabel={t("unavailable")}
               />
             )}
           </div>
 
           {!capabilities.loginPolicyEnabled ? (
             <p className="text-sm text-[#777587]">
-              Login policy settings are not available — deployment-controlled.
+              {t("loginPolicy.unavailable")}
             </p>
           ) : !isAdmin ? (
             <ForbiddenState
               compact
-              title="Login policy restricted"
-              description="Login policy can only be viewed and edited by owner/admin roles."
+              title={t("loginPolicy.restrictedTitle")}
+              description={t("loginPolicy.restrictedDesc")}
               backHref="/dashboard"
-              backLabel="Back to dashboard"
+              backLabel={t("backToDashboard")}
             />
           ) : loginPolicyQuery.isLoading ? (
-            <LoadingState compact title="Loading login policy..." />
+            <LoadingState compact title={t("loginPolicy.loading")} />
           ) : loginPolicyQuery.isError ? (
             isApiClientError(loginPolicyQuery.error) &&
             loginPolicyQuery.error.status === 429 ? (
@@ -879,7 +936,7 @@ export function SecuritySettingsTab() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
                   <FieldLabel htmlFor="sec-domain-allowlist">
-                    Domain Allowlist
+                    {t("loginPolicy.domainAllowlist")}
                   </FieldLabel>
                   <input
                     id="sec-domain-allowlist"
@@ -888,26 +945,26 @@ export function SecuritySettingsTab() {
                     className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   />
                   <p className="text-xs text-[#777587]">
-                    Comma-separated allowed email domains.
+                    {t("loginPolicy.domainAllowlistHint")}
                   </p>
                 </div>
 
                 <div className="space-y-1">
                   <FieldLabel htmlFor="sec-session-timeout">
-                    Session Timeout
+                    {t("loginPolicy.sessionTimeout")}
                   </FieldLabel>
                   <select
                     id="sec-session-timeout"
                     {...loginPolicyForm.register("sessionTimeoutHours")}
                     className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                   >
-                    <option value="8">8 hours</option>
-                    <option value="24">24 hours</option>
-                    <option value="168">7 days</option>
-                    <option value="720">30 days</option>
+                    <option value="8">{t("loginPolicy.hours8")}</option>
+                    <option value="24">{t("loginPolicy.hours24")}</option>
+                    <option value="168">{t("loginPolicy.days7")}</option>
+                    <option value="720">{t("loginPolicy.days30")}</option>
                   </select>
                   <p className="text-xs text-[#777587]">
-                    Users are signed out after this period of inactivity.
+                    {t("loginPolicy.sessionTimeoutHint")}
                   </p>
                 </div>
               </div>
@@ -919,10 +976,10 @@ export function SecuritySettingsTab() {
                       htmlFor="sec-sso-required"
                       className="text-sm font-semibold text-[#1b1b24]"
                     >
-                      Enforce SSO
+                      {t("loginPolicy.enforceSSO")}
                     </label>
                     <p className="text-xs text-[#464555]">
-                      Disable password logins for the organization.
+                      {t("loginPolicy.enforceSSODesc")}
                     </p>
                   </div>
                   <ToggleSwitch
@@ -942,10 +999,10 @@ export function SecuritySettingsTab() {
                       htmlFor="sec-invite-only"
                       className="text-sm font-semibold text-[#1b1b24]"
                     >
-                      Invite-only access
+                      {t("loginPolicy.inviteOnly")}
                     </label>
                     <p className="text-xs text-[#464555]">
-                      Restrict new members to invited users only.
+                      {t("loginPolicy.inviteOnlyDesc")}
                     </p>
                   </div>
                   <ToggleSwitch
@@ -965,10 +1022,10 @@ export function SecuritySettingsTab() {
                       htmlFor="sec-mfa-required"
                       className="text-sm font-semibold text-[#1b1b24]"
                     >
-                      Require MFA
+                      {t("loginPolicy.requireMFA")}
                     </label>
                     <p className="text-xs text-[#464555]">
-                      Enforce TOTP or hardware key for all members.
+                      {t("loginPolicy.requireMFADesc")}
                     </p>
                   </div>
                   <ToggleSwitch
@@ -994,8 +1051,8 @@ export function SecuritySettingsTab() {
                   className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loginPolicySaveMutation.isPending
-                    ? "Saving…"
-                    : "Save policy"}
+                    ? t("saving")
+                    : t("loginPolicy.savePolicy")}
                 </button>
               </div>
             </div>
@@ -1007,34 +1064,34 @@ export function SecuritySettingsTab() {
           className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
           aria-label="Role and access policy section"
         >
-          <SectionHeader icon={ShieldCheck} title="Role & Access Policy" />
+          <SectionHeader icon={ShieldCheck} title={t("rolePolicy.title")} />
 
           <div className="mb-4 flex items-center gap-3">
-            <span className="text-sm text-[#464555]">Current role:</span>
+            <span className="text-sm text-[#464555]">{t("rolePolicy.currentRole")}</span>
             <span className="rounded-full bg-[#e2dfff] px-3 py-1 text-sm font-bold text-[#3525cd] capitalize">
-              {role ?? "Unknown"}
+              {role ?? t("unknown")}
             </span>
           </div>
 
           {role ? (
             <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {ROLE_CAPABILITIES[role].map((cap) => (
+              {ROLE_CAP_KEYS.map((capKey) => (
                 <div
-                  key={cap.label}
+                  key={capKey}
                   className="flex flex-col rounded-lg border border-[#ebe8f7] bg-[#f5f2ff]/40 px-4 py-3"
                 >
                   <dt className="text-xs font-semibold tracking-widest text-[#464555] uppercase">
-                    {cap.label}
+                    {t(`rolePolicy.${ROLE_CAP_LABEL_KEYS[capKey]}`)}
                   </dt>
                   <dd className="mt-1 text-sm text-[#1b1b24]">
-                    {cap.description}
+                    {t(`rolePolicy.${ROLE_CAP_DESC_KEYS[role][capKey]}`)}
                   </dd>
                 </div>
               ))}
             </dl>
           ) : (
             <p className="text-sm text-[#777587]">
-              Role information unavailable.
+              {t("rolePolicy.unavailable")}
             </p>
           )}
         </section>
@@ -1046,38 +1103,37 @@ export function SecuritySettingsTab() {
         >
           <SectionHeader
             icon={AlertTriangle}
-            title="Rate Limits & Abuse Protection"
-            badge={<DeploymentControlledBadge />}
+            title={t("rateLimits.title")}
+            badge={<DeploymentControlledBadge label={t("deploymentControlled")} />}
           />
           <p className="mb-4 text-sm text-[#777587]">
-            Rate limits are deployment-controlled and enforced server-side. The
-            values below reflect the deployment defaults.
+            {t("rateLimits.desc")}
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               {
-                label: "Upload rate limit",
-                description: "Deployment-controlled",
+                label: t("rateLimits.uploadRateLimit"),
+                description: t("rateLimits.deploymentControlledValue"),
               },
               {
-                label: "Chat rate limit",
-                description: "Deployment-controlled",
+                label: t("rateLimits.chatRateLimit"),
+                description: t("rateLimits.deploymentControlledValue"),
               },
               {
-                label: "Delete rate limit",
-                description: "Deployment-controlled",
+                label: t("rateLimits.deleteRateLimit"),
+                description: t("rateLimits.deploymentControlledValue"),
               },
               {
-                label: "Evaluation rate limit",
-                description: "Deployment-controlled",
+                label: t("rateLimits.evalRateLimit"),
+                description: t("rateLimits.deploymentControlledValue"),
               },
               {
-                label: "API key rate limit",
-                description: "Not yet available",
+                label: t("rateLimits.apiKeyRateLimit"),
+                description: t("rateLimits.notYetAvailable"),
               },
               {
-                label: "Agent rate limit",
-                description: "Not yet available",
+                label: t("rateLimits.agentRateLimit"),
+                description: t("rateLimits.notYetAvailable"),
               },
             ].map((row) => (
               <div
@@ -1105,9 +1161,11 @@ export function SecuritySettingsTab() {
         >
           <SectionHeader
             icon={Bot}
-            title="AI Safety Posture"
+            title={t("posture.title")}
             badge={
-              !capabilities.postureEnabled && <DeploymentControlledBadge />
+              !capabilities.postureEnabled && (
+                <DeploymentControlledBadge label={t("deploymentControlled")} />
+              )
             }
           />
 
@@ -1117,12 +1175,11 @@ export function SecuritySettingsTab() {
                 <SecurityPostureCard key={card.label} {...card} />
               ))}
               <p className="pt-1 text-xs text-[#777587]">
-                Live posture data is not available — deployment-controlled.
-                Showing default configuration.
+                {t("posture.defaultNote")}
               </p>
             </div>
           ) : postureQuery.isLoading ? (
-            <LoadingState compact title="Loading posture..." />
+            <LoadingState compact title={t("posture.loading")} />
           ) : postureQuery.isError ? (
             <ErrorState
               compact
@@ -1139,7 +1196,7 @@ export function SecuritySettingsTab() {
               ))}
               {postureQuery.data?.last_audit_at && (
                 <p className="pt-1 text-xs text-[#777587]">
-                  Last audit: {formatTimestamp(postureQuery.data.last_audit_at)}
+                  {t("posture.lastAudit", { time: formatTimestamp(postureQuery.data.last_audit_at) })}
                 </p>
               )}
             </div>
@@ -1153,20 +1210,22 @@ export function SecuritySettingsTab() {
         >
           <SectionHeader
             icon={ClipboardList}
-            title="Audit Log"
-            badge={!capabilities.auditEnabled && <DeploymentControlledBadge />}
+            title={t("audit.title")}
+            badge={!capabilities.auditEnabled && (
+              <DeploymentControlledBadge label={t("deploymentControlled")} />
+            )}
           />
 
           {!isAdmin ? (
             <p className="text-sm text-[#777587]">
-              Audit log access is restricted to owner/admin roles.
+              {t("audit.restricted")}
             </p>
           ) : !capabilities.auditEnabled ? (
             <p className="text-sm text-[#777587]">
-              Audit log is not available — deployment-controlled.
+              {t("audit.unavailable")}
             </p>
           ) : auditQuery.isLoading ? (
-            <LoadingState compact title="Loading audit events..." />
+            <LoadingState compact title={t("audit.loading")} />
           ) : auditQuery.isError ? (
             <ErrorState
               compact
@@ -1180,7 +1239,7 @@ export function SecuritySettingsTab() {
             <div className="space-y-2">
               {(auditQuery.data ?? []).length === 0 ? (
                 <p className="text-sm text-[#777587]">
-                  No recent security events.
+                  {t("audit.noEvents")}
                 </p>
               ) : (
                 (auditQuery.data ?? []).map((event) => (
@@ -1196,7 +1255,7 @@ export function SecuritySettingsTab() {
                 href={auditPageUrl}
                 className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
               >
-                Open audit logs
+                {t("audit.openAuditLogs")}
               </a>
             )}
             {auditExportUrl && isAdmin && (
@@ -1204,19 +1263,17 @@ export function SecuritySettingsTab() {
                 href={auditExportUrl}
                 className="inline-flex rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#f5f3ff]"
               >
-                Export log
+                {t("audit.exportLog")}
               </a>
             )}
             {!auditPageUrl && !auditExportUrl && (
               <span className="text-xs text-[#777587]">
-                No audit log links configured.
+                {t("audit.noLinks")}
               </span>
             )}
           </div>
           <p className="mt-3 text-xs text-[#777587]">
-            Audit retention follows your workspace retention settings. Exports
-            should include sanitized metadata only, never secrets or raw private
-            document text.
+            {t("audit.retention")}
           </p>
         </section>
       </div>

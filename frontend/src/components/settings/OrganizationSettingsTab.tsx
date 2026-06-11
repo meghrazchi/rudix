@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useForm, useWatch } from "react-hook-form";
+import { useTranslations } from "next-intl";
 import { z } from "zod";
 
 import { ErrorState } from "@/components/states/ErrorState";
@@ -205,13 +206,13 @@ function ingestionToForm(d: IngestionDefaults): IngestionDefaultsFormValues {
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
-function DeploymentControlledBadge() {
+function DeploymentControlledBadge({ label }: { label: string }) {
   return (
     <span
       className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600"
       aria-label="Deployment-controlled"
     >
-      Deployment-controlled
+      {label}
     </span>
   );
 }
@@ -236,9 +237,11 @@ function FieldLabel({
 function ReadOnlyField({
   label,
   value,
+  notAvailableLabel,
 }: {
   label: string;
   value: string | null | undefined;
+  notAvailableLabel: string;
 }) {
   return (
     <div className="space-y-1">
@@ -246,7 +249,7 @@ function ReadOnlyField({
         {label}
       </p>
       <div className="rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2 text-sm text-[#464555]">
-        {value || "Not available"}
+        {value || notAvailableLabel}
       </div>
     </div>
   );
@@ -299,9 +302,13 @@ function ToggleSwitch({
 function UnavailableRow({
   label,
   description,
+  notAvailableMsg,
+  unavailableLabel,
 }: {
   label: string;
   description?: string;
+  notAvailableMsg: string;
+  unavailableLabel: string;
 }) {
   return (
     <div
@@ -311,12 +318,10 @@ function UnavailableRow({
       <div>
         <p className="text-sm font-semibold text-[#1b1b24]">{label}</p>
         {description && <p className="text-xs text-[#464555]">{description}</p>}
-        <p className="mt-1 text-xs text-[#777587]">
-          Not available — deployment-controlled.
-        </p>
+        <p className="mt-1 text-xs text-[#777587]">{notAvailableMsg}</p>
       </div>
       <span className="shrink-0 rounded-xl border border-dashed border-[#c7c4d8] px-3 py-1.5 text-sm text-[#777587]">
-        Unavailable
+        {unavailableLabel}
       </span>
     </div>
   );
@@ -325,6 +330,7 @@ function UnavailableRow({
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function OrganizationSettingsTab() {
+  const t = useTranslations("settings.organization");
   const { state } = useAuthSession();
   const session = state.session;
   const role = session?.role ?? null;
@@ -403,7 +409,7 @@ export function OrganizationSettingsTab() {
       profileForm.reset(values);
       setProfileSaveState({
         tone: "success",
-        message: "Organization profile saved.",
+        message: t("profile.saved"),
       });
     },
     onError: (error) => {
@@ -486,7 +492,7 @@ export function OrganizationSettingsTab() {
       workspaceForm.reset(values);
       setWorkspaceSaveState({
         tone: "success",
-        message: "Workspace defaults saved.",
+        message: t("workspace.saved"),
       });
     },
     onError: (error) => {
@@ -565,7 +571,7 @@ export function OrganizationSettingsTab() {
       ingestionForm.reset(values);
       setIngestionSaveState({
         tone: "success",
-        message: "Ingestion defaults saved.",
+        message: t("ingestion.saved"),
       });
     },
     onError: (error) => {
@@ -599,7 +605,7 @@ export function OrganizationSettingsTab() {
       setTransferTarget("");
       setDangerState({
         tone: "success",
-        message: "Ownership transfer initiated.",
+        message: t("danger.transferInitiated"),
       });
     },
     onError: (error) => {
@@ -612,7 +618,7 @@ export function OrganizationSettingsTab() {
     onSuccess: () => {
       setDangerState({
         tone: "success",
-        message: "Workspace archived successfully.",
+        message: t("danger.archiveSuccess"),
       });
     },
     onError: (error) => {
@@ -625,7 +631,7 @@ export function OrganizationSettingsTab() {
     onSuccess: (result) => {
       const msg = result.download_url
         ? `Export ready. Download URL: ${result.download_url}`
-        : "Export request submitted. You will be notified when it is ready.";
+        : t("danger.exportSubmitted");
       setDangerState({ tone: "success", message: msg });
     },
     onError: (error) => {
@@ -638,8 +644,7 @@ export function OrganizationSettingsTab() {
     onSuccess: () => {
       setDangerState({
         tone: "success",
-        message:
-          "Organization deletion initiated. All documents, chunks, vectors, chats, evaluations, and audit logs will be permanently removed.",
+        message: t("danger.deletionInitiated"),
       });
     },
     onError: (error) => {
@@ -677,17 +682,19 @@ export function OrganizationSettingsTab() {
               aria-hidden="true"
             />
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Organization Profile
+              {t("profile.title")}
             </h2>
           </div>
-          {!capabilities.profileEnabled && <DeploymentControlledBadge />}
+          {!capabilities.profileEnabled && (
+            <DeploymentControlledBadge label={t("deploymentControlled")} />
+          )}
         </div>
 
         {/* Always-visible: org ID + basic session info */}
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-              Organization ID
+              {t("profile.orgId")}
             </p>
             {session?.organizationId ? (
               <div className="flex items-center justify-between gap-2 rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2">
@@ -697,7 +704,7 @@ export function OrganizationSettingsTab() {
                 <button
                   type="button"
                   onClick={handleCopyOrgId}
-                  aria-label="Copy organization ID"
+                  aria-label={t("profile.copyOrgIdAriaLabel")}
                   className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                 >
                   {orgIdCopied ? (
@@ -706,31 +713,31 @@ export function OrganizationSettingsTab() {
                     <Copy size={12} aria-hidden="true" />
                   )}
                   <span className="sr-only">
-                    {orgIdCopied ? "Copied!" : "Copy"}
+                    {orgIdCopied ? t("profile.copied") : t("profile.copy")}
                   </span>
                 </button>
               </div>
             ) : (
               <div className="rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2 text-sm text-[#464555]">
-                Not assigned
+                {t("profile.notAssigned")}
               </div>
             )}
           </div>
 
           <ReadOnlyField
-            label="Organization Name"
-            value={session?.organizationName ?? "Not assigned"}
+            label={t("profile.name")}
+            value={session?.organizationName}
+            notAvailableLabel={t("profile.notAssigned")}
           />
         </div>
 
         {/* Profile API content */}
         {!capabilities.profileEnabled ? (
           <p className="text-sm text-[#777587]">
-            Extended profile settings (slug, domains, support email) are not
-            available — deployment-controlled.
+            {t("profile.unavailable")}
           </p>
         ) : profileQuery.isLoading ? (
-          <LoadingState compact title="Loading organization profile..." />
+          <LoadingState compact title={t("profile.loading")} />
         ) : profileQuery.isError ? (
           <ErrorState
             compact
@@ -760,18 +767,17 @@ export function OrganizationSettingsTab() {
               })()}
               <div>
                 <p className="text-sm font-semibold text-[#2a2640]">
-                  {watchedOrgName.trim() || "Workspace name"}
+                  {watchedOrgName.trim() || t("profile.workspaceName")}
                 </p>
                 <p className="text-xs text-[#7a7693]">
-                  Initials and color are derived from the workspace name and
-                  shown throughout the app.
+                  {t("profile.avatarHint")}
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
-                <FieldLabel htmlFor="org-name">Name</FieldLabel>
+                <FieldLabel htmlFor="org-name">{t("profile.name")}</FieldLabel>
                 <input
                   id="org-name"
                   {...profileForm.register("name")}
@@ -785,7 +791,7 @@ export function OrganizationSettingsTab() {
               </div>
 
               <div className="space-y-1">
-                <FieldLabel htmlFor="org-slug">Slug</FieldLabel>
+                <FieldLabel htmlFor="org-slug">{t("profile.slug")}</FieldLabel>
                 <input
                   id="org-slug"
                   {...profileForm.register("slug")}
@@ -798,13 +804,13 @@ export function OrganizationSettingsTab() {
                   </p>
                 )}
                 <p className="text-xs text-[#777587]">
-                  Lowercase letters, digits, and hyphens only.
+                  {t("profile.slugHint")}
                 </p>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="org-primary-domain">
-                  Primary Domain
+                  {t("profile.primaryDomain")}
                 </FieldLabel>
                 <input
                   id="org-primary-domain"
@@ -821,7 +827,7 @@ export function OrganizationSettingsTab() {
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="org-support-email">
-                  Support Email
+                  {t("profile.supportEmail")}
                 </FieldLabel>
                 <input
                   id="org-support-email"
@@ -840,7 +846,7 @@ export function OrganizationSettingsTab() {
 
             <div className="space-y-1">
               <FieldLabel htmlFor="org-domain-allowlist">
-                Domain Allowlist
+                {t("profile.domainAllowlist")}
               </FieldLabel>
               <input
                 id="org-domain-allowlist"
@@ -849,17 +855,14 @@ export function OrganizationSettingsTab() {
                 className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
               <p className="text-xs text-[#777587]">
-                Comma-separated list of domains (e.g.{" "}
-                <code className="rounded bg-[#f0eeff] px-1 font-mono text-[#3525cd]">
-                  acme.com, partner.org
-                </code>
-                ). Users with matching email addresses can join this workspace
-                without an invitation.
+                {t("profile.domainAllowlistHint", { example: "acme.com, partner.org" })}
               </p>
             </div>
 
             <div className="space-y-1">
-              <FieldLabel htmlFor="org-description">Description</FieldLabel>
+              <FieldLabel htmlFor="org-description">
+                {t("profile.description")}
+              </FieldLabel>
               <textarea
                 id="org-description"
                 {...profileForm.register("description")}
@@ -873,7 +876,7 @@ export function OrganizationSettingsTab() {
               <div className="grid grid-cols-1 gap-3 rounded-xl border border-[#e4e1ee] bg-[#f5f2ff]/50 p-4 sm:grid-cols-2">
                 <div>
                   <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                    Created
+                    {t("profile.created")}
                   </p>
                   <p className="mt-0.5 text-sm text-[#2f2a46]">
                     {formatDate(profileQuery.data.created_at)}
@@ -881,15 +884,15 @@ export function OrganizationSettingsTab() {
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                    Current Plan
+                    {t("profile.currentPlan")}
                   </p>
                   <p className="mt-0.5 text-sm text-[#2f2a46]">
-                    {profileQuery.data.plan ?? "Not available"}{" "}
+                    {profileQuery.data.plan ?? t("notAvailable")}{" "}
                     <Link
                       href={billingHref}
                       className="text-xs text-[#3525cd] underline-offset-2 hover:underline"
                     >
-                      View billing
+                      {t("profile.viewBilling")}
                     </Link>
                   </p>
                 </div>
@@ -904,7 +907,7 @@ export function OrganizationSettingsTab() {
                 disabled={profileSaveMutation.isPending}
                 className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Discard
+                {t("discard")}
               </button>
               <button
                 type="button"
@@ -912,36 +915,41 @@ export function OrganizationSettingsTab() {
                   void handleSaveProfile();
                 }}
                 disabled={profileSaveMutation.isPending}
-                aria-label="Save organization profile"
+                aria-label={t("profile.saveAriaLabel")}
                 className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {profileSaveMutation.isPending ? "Saving…" : "Save profile"}
+                {profileSaveMutation.isPending ? t("saving") : t("profile.save")}
               </button>
             </div>
           </div>
         ) : (
           /* Read-only profile for member/viewer */
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ReadOnlyField label="Slug" value={profileQuery.data?.slug} />
+            <ReadOnlyField label={t("profile.slug")} value={profileQuery.data?.slug} notAvailableLabel={t("notAvailable")} />
             <ReadOnlyField
-              label="Primary Domain"
+              label={t("profile.primaryDomain")}
               value={profileQuery.data?.primary_domain}
+              notAvailableLabel={t("notAvailable")}
             />
             <ReadOnlyField
-              label="Support Email"
+              label={t("profile.supportEmail")}
               value={profileQuery.data?.support_email}
+              notAvailableLabel={t("notAvailable")}
             />
             <ReadOnlyField
-              label="Description"
+              label={t("profile.description")}
               value={profileQuery.data?.description}
+              notAvailableLabel={t("notAvailable")}
             />
             <ReadOnlyField
-              label="Created"
+              label={t("profile.created")}
               value={formatDate(profileQuery.data?.created_at ?? null)}
+              notAvailableLabel={t("notAvailable")}
             />
             <ReadOnlyField
-              label="Current Plan"
+              label={t("profile.currentPlan")}
               value={profileQuery.data?.plan}
+              notAvailableLabel={t("notAvailable")}
             />
           </div>
         )}
@@ -960,26 +968,28 @@ export function OrganizationSettingsTab() {
               aria-hidden="true"
             />
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Workspace Defaults
+              {t("workspace.title")}
             </h2>
           </div>
-          {!capabilities.settingsEnabled && <DeploymentControlledBadge />}
+          {!capabilities.settingsEnabled && (
+            <DeploymentControlledBadge label={t("deploymentControlled")} />
+          )}
         </div>
 
         {!capabilities.settingsEnabled ? (
           <p className="text-sm text-[#777587]">
-            Workspace defaults are not available — deployment-controlled.
+            {t("workspace.unavailable")}
           </p>
         ) : !isAdmin ? (
           <ForbiddenState
             compact
-            title="Workspace defaults restricted"
-            description="Workspace defaults can only be viewed and edited by owner/admin roles."
+            title={t("workspace.restrictedTitle")}
+            description={t("workspace.restrictedDesc")}
             backHref="/dashboard"
-            backLabel="Back to dashboard"
+            backLabel={t("backToDashboard")}
           />
         ) : settingsQuery.isLoading ? (
-          <LoadingState compact title="Loading workspace defaults..." />
+          <LoadingState compact title={t("workspace.loading")} />
         ) : settingsQuery.isError ? (
           <ErrorState
             compact
@@ -994,57 +1004,57 @@ export function OrganizationSettingsTab() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-default-role">
-                  Default Member Role
+                  {t("workspace.defaultMemberRole")}
                 </FieldLabel>
                 <select
                   id="ws-default-role"
                   {...workspaceForm.register("defaultMemberRole")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="member">member</option>
-                  <option value="viewer">viewer</option>
+                  <option value="member">{t("workspace.roleMember")}</option>
+                  <option value="viewer">{t("workspace.roleViewer")}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-visibility">
-                  Default Document Visibility
+                  {t("workspace.defaultDocumentVisibility")}
                 </FieldLabel>
                 <select
                   id="ws-visibility"
                   {...workspaceForm.register("defaultDocumentVisibility")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="private">private</option>
-                  <option value="public">public</option>
+                  <option value="private">{t("workspace.visibilityPrivate")}</option>
+                  <option value="public">{t("workspace.visibilityPublic")}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-source-download">
-                  Source Download
+                  {t("workspace.sourceDownload")}
                 </FieldLabel>
                 <select
                   id="ws-source-download"
                   {...workspaceForm.register("sourceDownload")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="all">all members</option>
-                  <option value="admins">admins only</option>
-                  <option value="none">disabled</option>
+                  <option value="all">{t("workspace.sourceAll")}</option>
+                  <option value="admins">{t("workspace.sourceAdmins")}</option>
+                  <option value="none">{t("workspace.sourceNone")}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-retention">
-                  Retention Policy (days)
+                  {t("workspace.retentionPolicy")}
                 </FieldLabel>
                 <select
                   id="ws-retention"
                   {...workspaceForm.register("retentionDays")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="">No retention limit</option>
+                  <option value="">{t("workspace.noRetentionLimit")}</option>
                   <option value="30">30 days</option>
                   <option value="60">60 days</option>
                   <option value="90">90 days</option>
@@ -1055,7 +1065,7 @@ export function OrganizationSettingsTab() {
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-allowed-domains">
-                  Allowed Email Domains
+                  {t("workspace.allowedEmailDomains")}
                 </FieldLabel>
                 <input
                   id="ws-allowed-domains"
@@ -1067,7 +1077,7 @@ export function OrganizationSettingsTab() {
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ws-collection">
-                  Default Collection
+                  {t("workspace.defaultCollection")}
                 </FieldLabel>
                 <input
                   id="ws-collection"
@@ -1086,10 +1096,10 @@ export function OrganizationSettingsTab() {
                     htmlFor="ws-invite-only"
                     className="text-sm font-semibold text-[#1b1b24]"
                   >
-                    Invite-only mode
+                    {t("workspace.inviteOnly")}
                   </label>
                   <p className="text-xs text-[#464555]">
-                    Restrict new members to invited users only
+                    {t("workspace.inviteOnlyDesc")}
                   </p>
                 </div>
                 <ToggleSwitch
@@ -1109,10 +1119,10 @@ export function OrganizationSettingsTab() {
                     htmlFor="ws-eval-access"
                     className="text-sm font-semibold text-[#1b1b24]"
                   >
-                    Evaluation access
+                    {t("workspace.evaluationAccess")}
                   </label>
                   <p className="text-xs text-[#464555]">
-                    Allow members to run RAG pipeline evaluations
+                    {t("workspace.evaluationAccessDesc")}
                   </p>
                 </div>
                 <ToggleSwitch
@@ -1132,10 +1142,10 @@ export function OrganizationSettingsTab() {
                     htmlFor="ws-agentic-access"
                     className="text-sm font-semibold text-[#1b1b24]"
                   >
-                    Agentic access
+                    {t("workspace.agenticAccess")}
                   </label>
                   <p className="text-xs text-[#464555]">
-                    Allow members to use agentic query modes
+                    {t("workspace.agenticAccessDesc")}
                   </p>
                 </div>
                 <ToggleSwitch
@@ -1155,10 +1165,10 @@ export function OrganizationSettingsTab() {
                     htmlFor="ws-mcp-access"
                     className="text-sm font-semibold text-[#1b1b24]"
                   >
-                    MCP access
+                    {t("workspace.mcpAccess")}
                   </label>
                   <p className="text-xs text-[#464555]">
-                    Allow members to use MCP integrations when enabled
+                    {t("workspace.mcpAccessDesc")}
                   </p>
                 </div>
                 <ToggleSwitch
@@ -1181,7 +1191,7 @@ export function OrganizationSettingsTab() {
                 disabled={workspaceSaveMutation.isPending}
                 className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Discard
+                {t("discard")}
               </button>
               <button
                 type="button"
@@ -1189,12 +1199,12 @@ export function OrganizationSettingsTab() {
                   void handleSaveWorkspace();
                 }}
                 disabled={workspaceSaveMutation.isPending}
-                aria-label="Save workspace defaults"
+                aria-label={t("workspace.saveAriaLabel")}
                 className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {workspaceSaveMutation.isPending
-                  ? "Saving…"
-                  : "Save workspace defaults"}
+                  ? t("saving")
+                  : t("workspace.save")}
               </button>
             </div>
           </div>
@@ -1217,26 +1227,28 @@ export function OrganizationSettingsTab() {
               aria-hidden="true"
             />
             <h2 className="text-lg font-semibold text-[#1b1b24]">
-              Document &amp; Ingestion Defaults
+              {t("ingestion.title")}
             </h2>
           </div>
-          {!capabilities.ingestionEnabled && <DeploymentControlledBadge />}
+          {!capabilities.ingestionEnabled && (
+            <DeploymentControlledBadge label={t("deploymentControlled")} />
+          )}
         </div>
 
         {!capabilities.ingestionEnabled ? (
           <p className="text-sm text-[#777587]">
-            Ingestion defaults are not available — deployment-controlled.
+            {t("ingestion.unavailable")}
           </p>
         ) : !isAdmin ? (
           <ForbiddenState
             compact
-            title="Ingestion defaults restricted"
-            description="Ingestion defaults can only be edited by owner/admin roles."
+            title={t("ingestion.restrictedTitle")}
+            description={t("ingestion.restrictedDesc")}
             backHref="/dashboard"
-            backLabel="Back to dashboard"
+            backLabel={t("backToDashboard")}
           />
         ) : ingestionQuery.isLoading ? (
-          <LoadingState compact title="Loading ingestion defaults..." />
+          <LoadingState compact title={t("ingestion.loading")} />
         ) : ingestionQuery.isError ? (
           <ErrorState
             compact
@@ -1251,7 +1263,7 @@ export function OrganizationSettingsTab() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <FieldLabel htmlFor="ing-file-types">
-                  Allowed File Types
+                  {t("ingestion.allowedFileTypes")}
                 </FieldLabel>
                 <input
                   id="ing-file-types"
@@ -1259,12 +1271,12 @@ export function OrganizationSettingsTab() {
                   placeholder="pdf, docx, txt"
                   className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 />
-                <p className="text-xs text-[#777587]">Comma-separated.</p>
+                <p className="text-xs text-[#777587]">{t("commaSeparated")}</p>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ing-max-size">
-                  Max Upload Size (MB)
+                  {t("ingestion.maxUploadSizeMb")}
                 </FieldLabel>
                 <input
                   id="ing-max-size"
@@ -1277,7 +1289,9 @@ export function OrganizationSettingsTab() {
               </div>
 
               <div className="space-y-1">
-                <FieldLabel htmlFor="ing-max-pages">Max Page Count</FieldLabel>
+                <FieldLabel htmlFor="ing-max-pages">
+                  {t("ingestion.maxPageCount")}
+                </FieldLabel>
                 <input
                   id="ing-max-pages"
                   type="number"
@@ -1290,50 +1304,52 @@ export function OrganizationSettingsTab() {
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ing-duplicate">
-                  Duplicate Handling
+                  {t("ingestion.duplicateHandling")}
                 </FieldLabel>
                 <select
                   id="ing-duplicate"
                   {...ingestionForm.register("duplicateHandling")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="skip">skip (ignore duplicate)</option>
-                  <option value="replace">replace (overwrite existing)</option>
-                  <option value="allow">allow (create new version)</option>
+                  <option value="skip">{t("ingestion.dupSkip")}</option>
+                  <option value="replace">{t("ingestion.dupReplace")}</option>
+                  <option value="allow">{t("ingestion.dupAllow")}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <FieldLabel htmlFor="ing-reindex">Re-index Policy</FieldLabel>
+                <FieldLabel htmlFor="ing-reindex">
+                  {t("ingestion.reindexPolicy")}
+                </FieldLabel>
                 <select
                   id="ing-reindex"
                   {...ingestionForm.register("reindexPolicy")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="on_update">on update</option>
-                  <option value="manual">manual only</option>
+                  <option value="on_update">{t("ingestion.reindexOnUpdate")}</option>
+                  <option value="manual">{t("ingestion.reindexManual")}</option>
                 </select>
               </div>
 
               <div className="space-y-1">
                 <FieldLabel htmlFor="ing-retry">
-                  Failed-indexing Retry Policy
+                  {t("ingestion.retryPolicy")}
                 </FieldLabel>
                 <select
                   id="ing-retry"
                   {...ingestionForm.register("retryPolicy")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="never">never</option>
-                  <option value="once">retry once</option>
-                  <option value="three_times">retry 3 times</option>
+                  <option value="never">{t("ingestion.retryNever")}</option>
+                  <option value="once">{t("ingestion.retryOnce")}</option>
+                  <option value="three_times">{t("ingestion.retryThree")}</option>
                 </select>
               </div>
             </div>
 
             <div className="space-y-1">
               <FieldLabel htmlFor="ing-metadata-tags">
-                Default Metadata Tags
+                {t("ingestion.defaultMetadataTags")}
               </FieldLabel>
               <input
                 id="ing-metadata-tags"
@@ -1341,7 +1357,7 @@ export function OrganizationSettingsTab() {
                 placeholder="internal, knowledge-base"
                 className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
-              <p className="text-xs text-[#777587]">Comma-separated.</p>
+              <p className="text-xs text-[#777587]">{t("commaSeparated")}</p>
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] p-4">
@@ -1350,10 +1366,10 @@ export function OrganizationSettingsTab() {
                   htmlFor="ing-auto-index"
                   className="text-sm font-semibold text-[#1b1b24]"
                 >
-                  Auto-index on upload
+                  {t("ingestion.autoIndex")}
                 </label>
                 <p className="text-xs text-[#464555]">
-                  Automatically start indexing when a document is uploaded
+                  {t("ingestion.autoIndexDesc")}
                 </p>
               </div>
               <ToggleSwitch
@@ -1375,7 +1391,7 @@ export function OrganizationSettingsTab() {
                 disabled={ingestionSaveMutation.isPending}
                 className="rounded-xl border border-[#c7c4d8] px-4 py-2 text-sm font-semibold text-[#464555] transition-colors hover:bg-[#eae6f4] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Discard
+                {t("discard")}
               </button>
               <button
                 type="button"
@@ -1383,12 +1399,12 @@ export function OrganizationSettingsTab() {
                   void handleSaveIngestion();
                 }}
                 disabled={ingestionSaveMutation.isPending}
-                aria-label="Save ingestion defaults"
+                aria-label={t("ingestion.saveAriaLabel")}
                 className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {ingestionSaveMutation.isPending
-                  ? "Saving…"
-                  : "Save ingestion defaults"}
+                  ? t("saving")
+                  : t("ingestion.save")}
               </button>
             </div>
           </div>
@@ -1407,33 +1423,32 @@ export function OrganizationSettingsTab() {
         aria-label="Admin controls section"
       >
         <h2 className="mb-3 text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
-          Admin-only controls
+          {t("admin.title")}
         </h2>
         {isAdmin ? (
           <div className="space-y-3">
             <p className="text-sm text-[#4d4963]">
-              Administrative security and organization controls are available to
-              owner/admin roles.
+              {t("admin.desc")}
             </p>
             <Link
               href="/admin"
               className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
             >
-              Open admin surface
+              {t("admin.openAdmin")}
             </Link>
           </div>
         ) : (
           <ForbiddenState
             compact
-            title="Admin controls restricted"
-            description="Your current role does not permit viewing or modifying organization security controls."
+            title={t("admin.restrictedTitle")}
+            description={t("admin.restrictedDesc")}
             backHref="/dashboard"
-            backLabel="Back to dashboard"
+            backLabel={t("backToDashboard")}
           />
         )}
       </section>
 
-      {/* ── 7. Danger Zone (owner only) ── */}
+      {/* ── 8. Danger Zone (owner only) ── */}
       {isOwner && (
         <section
           className="rounded-2xl border border-rose-200 bg-white p-6"
@@ -1445,12 +1460,12 @@ export function OrganizationSettingsTab() {
               className="text-rose-600"
               aria-hidden="true"
             />
-            <h2 className="text-lg font-semibold text-rose-700">Danger Zone</h2>
+            <h2 className="text-lg font-semibold text-rose-700">
+              {t("danger.title")}
+            </h2>
           </div>
           <p className="mb-6 text-sm text-[#464555]">
-            These actions are irreversible and affect all documents, chunks,
-            vectors, object files, chats, evaluations, and audit logs associated
-            with this organization.
+            {t("danger.desc")}
           </p>
 
           <div className="space-y-4">
@@ -1458,20 +1473,19 @@ export function OrganizationSettingsTab() {
             {capabilities.transferOwnershipEnabled ? (
               <div className="rounded-xl border border-rose-200 bg-rose-50/30 p-4">
                 <p className="mb-2 text-sm font-semibold text-rose-700">
-                  Transfer ownership
+                  {t("danger.transferTitle")}
                 </p>
                 <p className="mb-3 text-xs text-[#464555]">
-                  Transfer organization ownership to another user. You will be
-                  downgraded to admin.
+                  {t("danger.transferDesc")}
                 </p>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="text"
                     value={transferTarget}
                     onChange={(e) => setTransferTarget(e.target.value)}
-                    placeholder="Target user ID"
+                    placeholder={t("danger.transferTarget")}
                     disabled={isDangerBusy}
-                    aria-label="Transfer ownership target user ID"
+                    aria-label={t("danger.transferTarget")}
                     className="flex-1 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 disabled:opacity-60"
                   />
                   <button
@@ -1490,15 +1504,17 @@ export function OrganizationSettingsTab() {
                     className="shrink-0 rounded-xl border border-rose-300 px-4 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {transferMutation.isPending
-                      ? "Transferring…"
-                      : "Transfer ownership"}
+                      ? t("danger.transferring")
+                      : t("danger.transferBtn")}
                   </button>
                 </div>
               </div>
             ) : (
               <UnavailableRow
-                label="Transfer ownership"
-                description="Transfer organization ownership to another user."
+                label={t("danger.transferTitle")}
+                description={t("danger.transferUnavailableDesc")}
+                notAvailableMsg={t("notAvailableMsg")}
+                unavailableLabel={t("unavailable")}
               />
             )}
 
@@ -1507,11 +1523,10 @@ export function OrganizationSettingsTab() {
               <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50/30 px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold text-rose-700">
-                    Archive workspace
+                    {t("danger.archiveTitle")}
                   </p>
                   <p className="text-xs text-[#464555]">
-                    Make this workspace read-only. Members retain access but
-                    cannot make changes.
+                    {t("danger.archiveDesc")}
                   </p>
                 </div>
                 <button
@@ -1527,13 +1542,17 @@ export function OrganizationSettingsTab() {
                   }}
                   className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {archiveMutation.isPending ? "Archiving…" : "Archive"}
+                  {archiveMutation.isPending
+                    ? t("danger.archiving")
+                    : t("danger.archiveBtn")}
                 </button>
               </div>
             ) : (
               <UnavailableRow
-                label="Archive workspace"
-                description="Make this workspace read-only."
+                label={t("danger.archiveTitle")}
+                description={t("danger.archiveUnavailableDesc")}
+                notAvailableMsg={t("notAvailableMsg")}
+                unavailableLabel={t("unavailable")}
               />
             )}
 
@@ -1542,11 +1561,10 @@ export function OrganizationSettingsTab() {
               <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50/30 px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold text-rose-700">
-                    Export workspace data
+                    {t("danger.exportTitle")}
                   </p>
                   <p className="text-xs text-[#464555]">
-                    Export all documents, metadata, and settings. You will
-                    receive a download link.
+                    {t("danger.exportDesc")}
                   </p>
                 </div>
                 <button
@@ -1562,13 +1580,17 @@ export function OrganizationSettingsTab() {
                   }}
                   className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {exportMutation.isPending ? "Requesting…" : "Export data"}
+                  {exportMutation.isPending
+                    ? t("danger.requesting")
+                    : t("danger.exportBtn")}
                 </button>
               </div>
             ) : (
               <UnavailableRow
-                label="Export workspace data"
-                description="Export all documents, metadata, and settings."
+                label={t("danger.exportTitle")}
+                description={t("danger.exportUnavailableDesc")}
+                notAvailableMsg={t("notAvailableMsg")}
+                unavailableLabel={t("unavailable")}
               />
             )}
 
@@ -1577,12 +1599,10 @@ export function OrganizationSettingsTab() {
               <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold text-rose-700">
-                    Delete organization
+                    {t("danger.deleteTitle")}
                   </p>
                   <p className="text-xs text-[#464555]">
-                    Permanently delete this organization and all associated
-                    documents, chunks, vectors, object files, chats,
-                    evaluations, and audit logs. This cannot be undone.
+                    {t("danger.deleteDesc")}
                   </p>
                 </div>
                 <button
@@ -1600,13 +1620,17 @@ export function OrganizationSettingsTab() {
                   }}
                   className="shrink-0 rounded-xl bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                  {deleteMutation.isPending
+                    ? t("danger.deleting")
+                    : t("danger.deleteBtn")}
                 </button>
               </div>
             ) : (
               <UnavailableRow
-                label="Delete organization"
-                description="Permanently delete this organization and all associated data."
+                label={t("danger.deleteTitle")}
+                description={t("danger.deleteUnavailableDesc")}
+                notAvailableMsg={t("notAvailableMsg")}
+                unavailableLabel={t("unavailable")}
               />
             )}
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { BillingSettingsTab } from "@/components/settings/BillingSettingsTab";
 import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
@@ -13,6 +14,7 @@ import {
 } from "@/components/settings/SettingsTabs";
 
 export function SettingsPage() {
+  const t = useTranslations("settings");
   const router = useRouter();
 
   const activeTab = useSettingsTab();
@@ -25,13 +27,13 @@ export function SettingsPage() {
     <section className="space-y-6 px-4 py-5 lg:px-8 lg:py-8">
       <header className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
-          Rudix Settings
+          {t("rudixSettings")}
         </p>
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
-          Settings
+          {t("title")}
         </h1>
         <p className="max-w-3xl text-sm text-[#68647b]">
-          Manage your account, organization, security, and billing settings.
+          {t("description")}
         </p>
       </header>
 
