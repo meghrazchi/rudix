@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { AppShell } from "@/components/layout/AppShell";
 import {
@@ -51,6 +52,7 @@ function FullScreenStatus({
 }
 
 export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
+  const t = useTranslations("appShell");
   const router = useRouter();
   const pathname = usePathname();
   const { state, signOut, boundaryEvent } = useAuthSession();
@@ -93,8 +95,8 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   if (state.status === "loading") {
     return (
       <FullScreenStatus
-        title="Loading session"
-        subtitle="Checking your account and organization access for this workspace."
+        title={t("loadingSession")}
+        subtitle={t("loadingSessionDescription")}
       />
     );
   }
@@ -102,8 +104,8 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   if (redirectTarget) {
     return (
       <FullScreenStatus
-        title="Redirecting"
-        subtitle="Applying your authentication and authorization rules."
+        title={t("redirecting")}
+        subtitle={t("redirectingDescription")}
       />
     );
   }
@@ -111,8 +113,8 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   if (!state.session) {
     return (
       <FullScreenStatus
-        title="Session required"
-        subtitle="You need to sign in before viewing authenticated pages."
+        title={t("sessionRequired")}
+        subtitle={t("sessionRequiredDescription")}
       />
     );
   }

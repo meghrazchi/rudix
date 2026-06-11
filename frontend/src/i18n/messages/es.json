@@ -50,7 +50,24 @@
     "adminUsage": "Uso de administración",
     "insufficientRole": "Rol insuficiente",
     "authRequired": "Autenticación requerida",
-    "sectionUnavailable": "No disponible"
+    "sectionUnavailable": "No disponible",
+    "descriptions": {
+      "dashboard": "Resumen y rendimiento del sistema",
+      "documents": "Gestionar y supervisar documentos subidos",
+      "collections": "Organizar documentos en bases de conocimiento por tema o equipo",
+      "chat": "Hacer preguntas sobre documentos indexados",
+      "evaluations": "Seguir y comparar ejecuciones de evaluación",
+      "pipeline": "Inspeccionar los internos del pipeline de procesamiento y consulta",
+      "connectors": "Conectar fuentes externas como Confluence y Google Drive",
+      "settings": "Configuración de organización y cuenta",
+      "admin": "Análisis y controles administrativos"
+    },
+    "helpItems": {
+      "docs": "Documentación",
+      "support": "Soporte",
+      "shortcuts": "Atajos de teclado",
+      "readme": "README del proyecto"
+    }
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -1744,6 +1761,35 @@
       "scopeSourceRoots": "{n, plural, one {# raíz de fuente} other {# raíces de fuente}}",
       "scopeConnectorDefault": "Alcance de conector",
       "scopeAllFiles": "Todos los archivos ({count})"
+    },
+    "composer": {
+      "scopeLabel": "Alcance",
+      "scopeAll": "Todos los archivos",
+      "scopeCollection": "Colección",
+      "scopeDocuments": "Archivos",
+      "scopeConnectors": "Conectores",
+      "scopeNone": "Sin RAG",
+      "chooseCollection": "— elegir colección —",
+      "selectFiles": "Seleccionar archivos",
+      "filesSelected": "{count, plural, one {# archivo seleccionado} other {# archivos seleccionados}}",
+      "selectSources": "Seleccionar fuentes",
+      "sourcesSelected": "{count, plural, one {# fuente seleccionada} other {# fuentes seleccionadas}}",
+      "topKLabel": "Top-k",
+      "answerLabel": "Respuesta",
+      "answerAuto": "Automático",
+      "answerMatchQuestion": "Como la pregunta",
+      "rerankLabel": "Reordenar",
+      "agenticLabel": "Agéntico",
+      "contextButton": "Contexto ({count})",
+      "contextAriaLabel": "Contexto ({label}) — clic para ver o cambiar",
+      "placeholder": "Escribe un mensaje o usa '/' para comandos…",
+      "agenticDisabled": "El modo agéntico está deshabilitado para este despliegue.",
+      "agenticConnectorWarning": "El modo agéntico cambia a recuperación estándar cuando se seleccionan fuentes de conectores.",
+      "chatDisabled": "El chat está deshabilitado hasta que al menos un documento esté indexado.",
+      "chatDisabledHint": "Cambia al modo Sin RAG para chatear sin documentos.",
+      "scopeAriaLabel": "Tipo de alcance",
+      "collectionAriaLabel": "Seleccionar colección",
+      "answerLanguageAriaLabel": "Idioma de respuesta"
     }
   },
   "evaluations": {
@@ -1885,7 +1931,71 @@
     "title": "Conectores",
     "description": "Conectan external datos fuentes",
     "addConnector": "Add conector",
-    "noConnectors": "No connectors configurado"
+    "noConnectors": "No connectors configurado",
+    "page": {
+      "pageDescription": "Conecte fuentes de conocimiento externas y mantenga Rudix sincronizado.",
+      "stats": {
+        "connectedSources": "Fuentes conectadas",
+        "noneYet": "Ninguna todavía",
+        "total": "{count} en total",
+        "syncsActive": "Sincronizaciones activas",
+        "active": "Activo",
+        "noneActive": "Ninguna activa",
+        "failedSyncs": "Sincronizaciones fallidas",
+        "needsAttention": "Requiere atención",
+        "allClear": "Todo en orden",
+        "reauthRequired": "Reautenticación requerida",
+        "actionRequired": "Acción requerida",
+        "allHealthy": "Todo saludable"
+      },
+      "table": {
+        "sectionTitle": "Fuentes conectadas",
+        "addNewSource": "Añadir nueva fuente",
+        "headerSource": "Fuente",
+        "headerStatus": "Estado",
+        "headerLastSync": "Última sincronización",
+        "headerItemsIndexed": "Elementos indexados",
+        "headerActions": "Acciones",
+        "noSourcesYet": "Aún no hay fuentes conectadas.",
+        "browseCatalog": "Explorar el catálogo a continuación",
+        "accountLabel": "Cuenta: {id}",
+        "providerLabel": "Proveedor: {key}",
+        "lastSyncNever": "Nunca",
+        "syncStatusSuccess": "Exitoso",
+        "syncStatusPaused": "Pausado",
+        "syncStatusNeedsAttention": "Requiere atención",
+        "syncStatusUnknown": "Desconocido",
+        "ariaViewDetails": "Ver detalles de {name}",
+        "ariaSyncNow": "Sincronizar ahora para {name}",
+        "ariaSettings": "Configuración para {name}",
+        "ariaDelete": "Eliminar fuente conectada {name}",
+        "titleViewDetails": "Ver detalles",
+        "titleSyncNow": "Sincronizar ahora",
+        "titleSettings": "Configuración",
+        "deleteConfirm": "¿Eliminar la fuente conectada \"{name}\"? Esto la desconectará de Rudix."
+      },
+      "status": {
+        "active": "ACTIVO",
+        "error": "ERROR",
+        "paused": "PAUSADO"
+      },
+      "catalog": {
+        "sectionTitle": "Catálogo de conectores",
+        "sectionDescription": "Elija de nuestra creciente biblioteca de integraciones nativas.",
+        "confluenceDesc": "Importar páginas wiki, espacios de equipo y documentos técnicos.",
+        "googleDriveDesc": "Indexar Docs, Sheets y carpetas de Drive corporativas compartidas.",
+        "sharepointDesc": "Conectar sitios de Microsoft 365, bibliotecas de documentos y archivos de OneDrive.",
+        "notionDesc": "Acceder a bases de datos, documentos de proyecto y notas del espacio de trabajo.",
+        "slackDesc": "Recuperar historial de conversaciones de canales públicos/privados.",
+        "githubDesc": "Indexar código fuente, discusiones de PR y wikis de repositorio.",
+        "gitlabDesc": "Sincronizar datos de repositorios auto-alojados o en la nube.",
+        "connected": "CONECTADO",
+        "addAnother": "Añadir otro",
+        "connect": "Conectar",
+        "soon": "Próximamente",
+        "notifyMe": "Notificarme"
+      }
+    }
   },
   "pipeline": {
     "title": "Canalización RAG",
@@ -1929,7 +2039,48 @@
       "signOutEverywhere": "Cerrar sesión en todas partes",
       "unavailable": "No disponible",
       "expertMode": "Modo experto",
-      "languageChanging": "Aplicando preferencia de idioma…"
+      "languageChanging": "Aplicando preferencia de idioma…",
+      "themes": {
+        "light": "Claro",
+        "dark": "Oscuro",
+        "system": "Sistema"
+      },
+      "topK": {
+        "label": "Recuperación Top-K",
+        "precision": "Precisión",
+        "diversity": "Diversidad"
+      },
+      "rerank": {
+        "title": "Reordenamiento Cross-Encoder",
+        "description": "Activar reordenamiento secundario para mayor precisión"
+      },
+      "confidence": {
+        "label": "Umbral de confianza",
+        "highTrust": "Alta confianza"
+      },
+      "notificationPreferences": "Preferencias de notificación",
+      "processingAlerts": {
+        "title": "Alertas de procesamiento",
+        "description": "Recibir notificaciones cuando finalice la indexación por lotes"
+      },
+      "securityWarnings": {
+        "title": "Advertencias de seguridad",
+        "description": "Alertas por intentos de API no autorizados o cambios de credenciales"
+      },
+      "evalReports": {
+        "title": "Informes de evaluación diarios",
+        "description": "Resumen de las métricas de rendimiento del pipeline RAG"
+      },
+      "loadingPreferences": "Cargando preferencias…",
+      "deleteAccountBtn": "Eliminar cuenta",
+      "aria": {
+        "accountIdentitySection": "Sección identidad de cuenta",
+        "personalPreferencesSection": "Sección preferencias personales",
+        "aiDefaultsSection": "Sección valores predeterminados de IA y recuperación",
+        "notificationsSection": "Sección notificaciones",
+        "accountActionsSection": "Sección acciones de cuenta",
+        "userAvatar": "Avatar con iniciales de usuario"
+      }
     },
     "organization": {
       "title": "Organización"
@@ -1944,6 +2095,7 @@
   "appShell": {
     "searchKnowledgeBase": "Buscar en la base de conocimiento...",
     "searchAriaLabel": "Buscar en páginas, documentos y chats",
+    "commandMenuAriaLabel": "Búsqueda global y navegación rápida",
     "quickNavHint": "Navegación rápida y búsqueda con alcance de organización. Usa {shortcut} en cualquier momento.",
     "recentDocuments": "Documentos recientes",
     "recentChats": "Chats recientes",
@@ -1980,7 +2132,11 @@
     "loadingSession": "Cargando sesión",
     "loadingSessionDescription": "Comprobando el acceso de tu cuenta y organización para este espacio de trabajo.",
     "unassigned": "Sin asignar",
-    "userId": "ID de usuario"
+    "userId": "ID de usuario",
+    "redirecting": "Redirigiendo",
+    "redirectingDescription": "Aplicando sus reglas de autenticación y autorización.",
+    "sessionRequired": "Sesión requerida",
+    "sessionRequiredDescription": "Debe iniciar sesión antes de ver las páginas autenticadas."
   },
   "errors": {
     "pageNotFound": "Página no encontrada",

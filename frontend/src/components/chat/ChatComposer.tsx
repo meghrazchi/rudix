@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 
 import type { CollectionListItemResponse } from "@/lib/api/collections";
 
@@ -53,18 +54,6 @@ const COMPOSER_TEXTAREA_LINE_HEIGHT_PX = 24;
 const COMPOSER_TEXTAREA_VERTICAL_PADDING_PX = 24;
 const COMPOSER_TEXTAREA_MAX_LINES = 10;
 
-const ANSWER_LANGUAGE_OPTIONS: ReadonlyArray<{
-  value: AnswerLanguageMode;
-  label: string;
-}> = [
-  { value: "auto", label: "Auto" },
-  { value: "same_as_question", label: "Match question" },
-  { value: "en", label: "English" },
-  { value: "de", label: "German" },
-  { value: "es", label: "Spanish" },
-  { value: "fr", label: "French" },
-];
-
 function getComposerTextareaHeight(value: string): number {
   const lineCount = Math.max(
     1,
@@ -111,6 +100,21 @@ export function ChatComposer({
   topK,
   onSubmit,
 }: ChatComposerProps) {
+  const t = useTranslations("chat.composer");
+  const tLang = useTranslations("languageSwitcher");
+
+  const answerLanguageOptions: ReadonlyArray<{
+    value: AnswerLanguageMode;
+    label: string;
+  }> = [
+    { value: "auto", label: t("answerAuto") },
+    { value: "same_as_question", label: t("answerMatchQuestion") },
+    { value: "en", label: tLang("en") },
+    { value: "de", label: tLang("de") },
+    { value: "es", label: tLang("es") },
+    { value: "fr", label: tLang("fr") },
+  ];
+
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composerHasText = question.trim().length > 0;
   const composerLineCount = Math.max(
@@ -134,6 +138,9 @@ export function ChatComposer({
         : "hidden";
   }, [question]);
 
+  const connectorSelectionCount =
+    selectedConnectorConnectionIds.length + selectedProviderSourceIds.length;
+
   return (
     <div className="border-t border-[#e2dff1] p-4">
       <div className="overflow-hidden rounded-2xl border border-[#c7c4d8] bg-[#f0ecf9] shadow-sm">
@@ -153,20 +160,20 @@ export function ChatComposer({
                 >
                   travel_explore
                 </span>
-                <span className="tracking-wider uppercase">Scope</span>
+                <span className="tracking-wider uppercase">{t("scopeLabel")}</span>
                 <select
                   value={scopeMode}
                   onChange={(event) =>
                     setScopeMode(event.target.value as ChatScopeMode)
                   }
-                  aria-label="Scope type"
+                  aria-label={t("scopeAriaLabel")}
                   className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                 >
-                  <option value="all">All files</option>
-                  <option value="collection">Collection</option>
-                  <option value="documents">Files</option>
-                  <option value="connectors">Connectors</option>
-                  <option value="none">No RAG</option>
+                  <option value="all">{t("scopeAll")}</option>
+                  <option value="collection">{t("scopeCollection")}</option>
+                  <option value="documents">{t("scopeDocuments")}</option>
+                  <option value="connectors">{t("scopeConnectors")}</option>
+                  <option value="none">{t("scopeNone")}</option>
                 </select>
               </div>
 
@@ -178,10 +185,10 @@ export function ChatComposer({
                     onChange={(event) =>
                       setSelectedCollectionId(event.target.value || null)
                     }
-                    aria-label="Select collection"
+                    aria-label={t("collectionAriaLabel")}
                     className="max-w-[160px] cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-medium text-[#2a2640] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                   >
-                    <option value="">— choose collection —</option>
+                    <option value="">{t("chooseCollection")}</option>
                     {collections.map((collection) => (
                       <option
                         key={collection.collection_id}
@@ -212,13 +219,11 @@ export function ChatComposer({
                     >
                       upload_file
                     </span>
-                    Select Files
+                    {t("selectFiles")}
                   </button>
                   {filteredSelectedDocumentIds.length > 0 && (
                     <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                      {filteredSelectedDocumentIds.length} file
-                      {filteredSelectedDocumentIds.length !== 1 ? "s" : ""}{" "}
-                      selected
+                      {t("filesSelected", { count: filteredSelectedDocumentIds.length })}
                     </span>
                   )}
                 </>
@@ -242,19 +247,11 @@ export function ChatComposer({
                     >
                       hub
                     </span>
-                    Select Sources
+                    {t("selectSources")}
                   </button>
                   {hasConnectorScopeSelection && (
                     <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                      {selectedConnectorConnectionIds.length +
-                        selectedProviderSourceIds.length}{" "}
-                      source
-                      {selectedConnectorConnectionIds.length +
-                        selectedProviderSourceIds.length !==
-                      1
-                        ? "s"
-                        : ""}{" "}
-                      selected
+                      {t("sourcesSelected", { count: connectorSelectionCount })}
                     </span>
                   )}
                 </>
@@ -267,7 +264,7 @@ export function ChatComposer({
                   htmlFor="top-k-slider"
                   className="tracking-wider uppercase"
                 >
-                  Top-k
+                  {t("topKLabel")}
                 </label>
                 <input
                   id="top-k-slider"
@@ -310,16 +307,16 @@ export function ChatComposer({
                 >
                   translate
                 </span>
-                <span className="tracking-wider uppercase">Answer</span>
+                <span className="tracking-wider uppercase">{t("answerLabel")}</span>
                 <select
                   value={answerLanguage}
                   onChange={(event) =>
                     setAnswerLanguage(event.target.value as AnswerLanguageMode)
                   }
-                  aria-label="Answer language"
+                  aria-label={t("answerLanguageAriaLabel")}
                   className="cursor-pointer rounded border border-[#c7c4d8] bg-[#f0ecf9] px-1.5 py-0.5 text-[11px] font-semibold text-[#3525cd] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                 >
-                  {ANSWER_LANGUAGE_OPTIONS.map((option) => (
+                  {answerLanguageOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -330,7 +327,7 @@ export function ChatComposer({
               <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
 
               <label className="flex cursor-pointer items-center gap-1.5">
-                <span>Rerank</span>
+                <span>{t("rerankLabel")}</span>
                 <span className="relative inline-flex items-center">
                   <input
                     type="checkbox"
@@ -346,7 +343,7 @@ export function ChatComposer({
               <span className="h-3 w-px bg-[#c7c4d8]" aria-hidden="true" />
 
               <label className="flex cursor-pointer items-center gap-1.5">
-                <span>Agentic</span>
+                <span>{t("agenticLabel")}</span>
                 <span className="relative inline-flex items-center">
                   <input
                     type="checkbox"
@@ -368,7 +365,7 @@ export function ChatComposer({
                   setContextPage(1);
                 }}
                 className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[#3525cd] transition-colors hover:bg-[#ece8ff]/60"
-                aria-label={`Context (${contextScopeLabel}) — click to view or change`}
+                aria-label={t("contextAriaLabel", { label: contextScopeLabel })}
               >
                 <span
                   className="material-symbols-outlined text-[13px]"
@@ -376,7 +373,7 @@ export function ChatComposer({
                 >
                   history
                 </span>
-                Context ({contextScopeItemCount})
+                {t("contextButton", { count: contextScopeItemCount })}
               </button>
             </div>
 
@@ -407,7 +404,7 @@ export function ChatComposer({
                   }
                 }}
                 rows={1}
-                placeholder="Type a message or use '/' for commands..."
+                placeholder={t("placeholder")}
                 disabled={requiresUploadedDocuments && !hasIndexedDocuments}
                 className="w-full resize-none overflow-hidden border-none bg-transparent py-3 pr-14 pl-3 text-sm text-[#2f2a46] outline-none focus:ring-0"
               />
@@ -437,19 +434,18 @@ export function ChatComposer({
 
       {!agenticChatEnabled && (
         <p className="mt-2 text-xs text-[#8a4762]">
-          Agentic Mode is disabled for this deployment.
+          {t("agenticDisabled")}
         </p>
       )}
       {agenticChatEnabled && hasConnectorScopeSelection && (
         <p className="mt-2 text-xs text-[#8a4762]">
-          Agentic Mode switches to standard retrieval when connector sources are
-          selected.
+          {t("agenticConnectorWarning")}
         </p>
       )}
       {!hasIndexedDocuments && requiresUploadedDocuments && (
         <p className="mt-2 text-center text-xs text-[#777587]">
-          <span>Chat is disabled until at least one document is indexed.</span>{" "}
-          <span>Switch to No RAG mode to chat without documents.</span>
+          <span>{t("chatDisabled")}</span>{" "}
+          <span>{t("chatDisabledHint")}</span>
         </p>
       )}
     </div>

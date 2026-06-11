@@ -39,9 +39,14 @@ import { listChatSessions } from "@/lib/api/chat";
 import { listDocuments, type DocumentStatus } from "@/lib/api/documents";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query";
-import type { AppNavigationItem, AppRouteMeta } from "@/lib/app-routes";
+import type {
+  AppNavigationItem,
+  AppRouteMeta,
+  AppRouteKey,
+} from "@/lib/app-routes";
 import type { AuthenticatedSession } from "@/lib/auth-session";
 import {
+  type HelpMenuItem,
   isAdminLikeRole,
   isExternalHref,
   resolveHelpMenuItems,
@@ -197,6 +202,55 @@ function documentStatusBadgeClass(status: DocumentStatus): string {
   return "bg-amber-100 text-amber-800";
 }
 
+function useNavLabelMap(): Record<AppRouteKey, string> {
+  const tNav = useTranslations("navigation");
+  return useMemo(
+    () => ({
+      dashboard: tNav("dashboard"),
+      documents: tNav("documents"),
+      collections: tNav("collections"),
+      chat: tNav("chat"),
+      evaluations: tNav("evaluations"),
+      pipeline: tNav("pipeline"),
+      connectors: tNav("connectors"),
+      settings: tNav("settings"),
+      admin: tNav("admin"),
+    }),
+    [tNav],
+  );
+}
+
+function useNavDescriptionMap(): Record<AppRouteKey, string> {
+  const tNav = useTranslations("navigation");
+  return useMemo(
+    () => ({
+      dashboard: tNav("descriptions.dashboard"),
+      documents: tNav("descriptions.documents"),
+      collections: tNav("descriptions.collections"),
+      chat: tNav("descriptions.chat"),
+      evaluations: tNav("descriptions.evaluations"),
+      pipeline: tNav("descriptions.pipeline"),
+      connectors: tNav("descriptions.connectors"),
+      settings: tNav("descriptions.settings"),
+      admin: tNav("descriptions.admin"),
+    }),
+    [tNav],
+  );
+}
+
+function useHelpItemLabelMap(): Record<HelpMenuItem["id"], string> {
+  const tNav = useTranslations("navigation");
+  return useMemo(
+    () => ({
+      docs: tNav("helpItems.docs"),
+      support: tNav("helpItems.support"),
+      shortcuts: tNav("helpItems.shortcuts"),
+      readme: tNav("helpItems.readme"),
+    }),
+    [tNav],
+  );
+}
+
 function NavList({
   navItems,
   onNavigate,
@@ -205,11 +259,13 @@ function NavList({
   onNavigate?: () => void;
 }) {
   const getDisabledReason = useRouteDisabledReason();
+  const navLabel = useNavLabelMap();
   return (
     <nav className="grid gap-1">
       {navItems
         .filter((item) => !item.hidden)
         .map((item) => {
+          const label = navLabel[item.key] ?? item.label;
           if (item.disabled) {
             return (
               <div
@@ -220,7 +276,7 @@ function NavList({
               >
                 <span className="flex items-center gap-2">
                   <NavigationIcon routeKey={item.key} />
-                  <span>{item.label}</span>
+                  <span>{label}</span>
                 </span>
               </div>
             );
@@ -240,7 +296,7 @@ function NavList({
             >
               <span className="flex items-center gap-2">
                 <NavigationIcon routeKey={item.key} />
-                <span>{item.label}</span>
+                <span>{label}</span>
               </span>
             </Link>
           );
@@ -292,6 +348,9 @@ export function AppShell({
   const tAuth = useTranslations("auth");
   const getRoleLabel = useRoleLabel();
   const getCommandSectionLabel = useCommandSectionLabel();
+  const navLabel = useNavLabelMap();
+  const navDescription = useNavDescriptionMap();
+  const helpItemLabel = useHelpItemLabelMap();
   const helpItems = useMemo(() => resolveHelpMenuItems(), []);
   const unreadNotificationCount = useNotificationUnreadCount();
   const searchTokens = useMemo(
@@ -346,10 +405,13 @@ export function AppShell({
     () =>
       accessibleNavigationItems
         .filter((item) =>
-          matchesAllTokens(searchTokens, [item.label, item.description]),
+          matchesAllTokens(searchTokens, [
+            navLabel[item.key] ?? item.label,
+            navDescription[item.key] ?? item.description,
+          ]),
         )
         .slice(0, COMMAND_MAX_RESULTS_PER_SECTION),
-    [accessibleNavigationItems, searchTokens],
+    [accessibleNavigationItems, navDescription, navLabel, searchTokens],
   );
 
   const documentResults = useMemo(
@@ -587,7 +649,7 @@ export function AppShell({
               ref={commandMenuRef}
               role="dialog"
               aria-modal="true"
-              aria-label="Global search and quick navigation"
+              aria-label={t("commandMenuAriaLabel")}
               className="mx-auto max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
@@ -651,10 +713,10 @@ export function AppShell({
                               >
                                 <span>
                                   <span className="block text-sm font-semibold text-[#2f2a46]">
-                                    {item.label}
+                                    {navLabel[item.key] ?? item.label}
                                   </span>
                                   <span className="block text-xs text-[#67637d]">
-                                    {item.description}
+                                    {navDescription[item.key] ?? item.description}
                                   </span>
                                 </span>
                                 <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
@@ -737,7 +799,7 @@ export function AppShell({
                                   </span>
                                 </span>
                                 <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
-                                  Chat
+                                  {tNav("chat")}
                                 </span>
                               </Link>
                             </li>
@@ -770,7 +832,7 @@ export function AppShell({
                   {t("menu")}
                 </button>
                 <h1 className="truncate text-xl font-semibold text-[#3525cd] lg:text-2xl">
-                  {activeRoute.label}
+                  {navLabel[activeRoute.key] ?? activeRoute.label}
                 </h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
@@ -846,7 +908,7 @@ export function AppShell({
                   {openMenu === "help" ? (
                     <div
                       role="menu"
-                      aria-label="Help menu"
+                      aria-label={t("help")}
                       className="absolute right-0 z-50 mt-2 w-[260px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
                     >
                       <p className="mb-2 text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
@@ -900,7 +962,7 @@ export function AppShell({
                                 }
                                 className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
                               >
-                                {item.label}
+                                {helpItemLabel[item.id] ?? item.label}
                               </Link>
                             </li>
                           );

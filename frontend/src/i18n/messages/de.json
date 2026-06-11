@@ -50,7 +50,24 @@
     "adminUsage": "Admin-Nutzung",
     "insufficientRole": "Unzureichende Rolle",
     "authRequired": "Authentifizierung erforderlich",
-    "sectionUnavailable": "Nicht verfügbar"
+    "sectionUnavailable": "Nicht verfügbar",
+    "descriptions": {
+      "dashboard": "Überblick und Systemleistung",
+      "documents": "Hochgeladene Dokumente verwalten und überwachen",
+      "collections": "Dokumente nach Thema oder Team in Wissensdatenbanken organisieren",
+      "chat": "Fragen zu indizierten Dokumenten stellen",
+      "evaluations": "Auswertungsläufe verfolgen und vergleichen",
+      "pipeline": "Verarbeitungs- und Abfragepipeline intern inspizieren",
+      "connectors": "Externe Quellen wie Confluence und Google Drive verbinden",
+      "settings": "Organisations- und Kontoeinstellungen",
+      "admin": "Administrative Analysen und Steuerungen"
+    },
+    "helpItems": {
+      "docs": "Dokumentation",
+      "support": "Support",
+      "shortcuts": "Tastenkürzel",
+      "readme": "Projekt-README"
+    }
   },
   "auth": {
     "signIn": "Anmelden",
@@ -1744,6 +1761,35 @@
       "scopeSourceRoots": "{n, plural, one {# Quellwurzel} other {# Quellwurzeln}}",
       "scopeConnectorDefault": "Connector-Umfang",
       "scopeAllFiles": "Alle Dateien ({count})"
+    },
+    "composer": {
+      "scopeLabel": "Bereich",
+      "scopeAll": "Alle Dateien",
+      "scopeCollection": "Sammlung",
+      "scopeDocuments": "Dateien",
+      "scopeConnectors": "Konnektoren",
+      "scopeNone": "Kein RAG",
+      "chooseCollection": "— Sammlung wählen —",
+      "selectFiles": "Dateien auswählen",
+      "filesSelected": "{count, plural, one {# Datei ausgewählt} other {# Dateien ausgewählt}}",
+      "selectSources": "Quellen auswählen",
+      "sourcesSelected": "{count, plural, one {# Quelle ausgewählt} other {# Quellen ausgewählt}}",
+      "topKLabel": "Top-k",
+      "answerLabel": "Antwort",
+      "answerAuto": "Automatisch",
+      "answerMatchQuestion": "Wie Frage",
+      "rerankLabel": "Neuordnung",
+      "agenticLabel": "Agentisch",
+      "contextButton": "Kontext ({count})",
+      "contextAriaLabel": "Kontext ({label}) — zum Anzeigen oder Ändern klicken",
+      "placeholder": "Nachricht eingeben oder '/' für Befehle verwenden…",
+      "agenticDisabled": "Agentischer Modus ist für dieses Deployment deaktiviert.",
+      "agenticConnectorWarning": "Der agentische Modus wechselt zur Standardabrufmethode, wenn Konnektor-Quellen ausgewählt sind.",
+      "chatDisabled": "Chat ist deaktiviert, bis mindestens ein Dokument indiziert wurde.",
+      "chatDisabledHint": "Zum Kein-RAG-Modus wechseln, um ohne Dokumente zu chatten.",
+      "scopeAriaLabel": "Bereichstyp",
+      "collectionAriaLabel": "Sammlung auswählen",
+      "answerLanguageAriaLabel": "Antwortsprache"
     }
   },
   "evaluations": {
@@ -1885,7 +1931,71 @@
     "title": "Konnektoren",
     "description": "Externe Datenquellen verbinden",
     "addConnector": "Konnektor hinzufügen",
-    "noConnectors": "Keine Konnektoren konfiguriert"
+    "noConnectors": "Keine Konnektoren konfiguriert",
+    "page": {
+      "pageDescription": "Externe Wissensquellen verbinden und Rudix synchron halten.",
+      "stats": {
+        "connectedSources": "Verbundene Quellen",
+        "noneYet": "Noch keine",
+        "total": "{count} gesamt",
+        "syncsActive": "Aktive Synchronisierungen",
+        "active": "Aktiv",
+        "noneActive": "Keine aktiv",
+        "failedSyncs": "Fehlgeschlagene Synchronisierungen",
+        "needsAttention": "Aufmerksamkeit erforderlich",
+        "allClear": "Alles in Ordnung",
+        "reauthRequired": "Erneute Authentifizierung nötig",
+        "actionRequired": "Aktion erforderlich",
+        "allHealthy": "Alles gesund"
+      },
+      "table": {
+        "sectionTitle": "Verbundene Quellen",
+        "addNewSource": "Neue Quelle hinzufügen",
+        "headerSource": "Quelle",
+        "headerStatus": "Status",
+        "headerLastSync": "Letzte Synchronisierung",
+        "headerItemsIndexed": "Indizierte Elemente",
+        "headerActions": "Aktionen",
+        "noSourcesYet": "Noch keine Quellen verbunden.",
+        "browseCatalog": "Katalog unten durchsuchen",
+        "accountLabel": "Konto: {id}",
+        "providerLabel": "Anbieter: {key}",
+        "lastSyncNever": "Nie",
+        "syncStatusSuccess": "Erfolgreich",
+        "syncStatusPaused": "Pausiert",
+        "syncStatusNeedsAttention": "Aufmerksamkeit erforderlich",
+        "syncStatusUnknown": "Unbekannt",
+        "ariaViewDetails": "Details für {name} anzeigen",
+        "ariaSyncNow": "Jetzt synchronisieren für {name}",
+        "ariaSettings": "Einstellungen für {name}",
+        "ariaDelete": "Verbundene Quelle {name} löschen",
+        "titleViewDetails": "Details anzeigen",
+        "titleSyncNow": "Jetzt synchronisieren",
+        "titleSettings": "Einstellungen",
+        "deleteConfirm": "Verbundene Quelle \"{name}\" löschen? Damit wird die Verbindung zu Rudix getrennt."
+      },
+      "status": {
+        "active": "AKTIV",
+        "error": "FEHLER",
+        "paused": "PAUSIERT"
+      },
+      "catalog": {
+        "sectionTitle": "Konnektor-Katalog",
+        "sectionDescription": "Wählen Sie aus unserer wachsenden Bibliothek nativer Integrationen.",
+        "confluenceDesc": "Wiki-Seiten, Team-Bereiche und technische Dokumente importieren.",
+        "googleDriveDesc": "Docs, Sheets und gemeinsame Unternehmens-Drive-Ordner indizieren.",
+        "sharepointDesc": "Microsoft 365-Websites, Dokumentbibliotheken und OneDrive-Dateien verbinden.",
+        "notionDesc": "Auf Workspace-Datenbanken, Projektdokumente und Notizen zugreifen.",
+        "slackDesc": "Gesprächsverlauf aus öffentlichen/privaten Kanälen abrufen.",
+        "githubDesc": "Quellcode, PR-Diskussionen und Repository-Wikis indizieren.",
+        "gitlabDesc": "Self-hosted oder cloud-basierte Repository-Daten synchronisieren.",
+        "connected": "VERBUNDEN",
+        "addAnother": "Weitere hinzufügen",
+        "connect": "Verbinden",
+        "soon": "Bald",
+        "notifyMe": "Benachrichtigen"
+      }
+    }
   },
   "pipeline": {
     "title": "RAG-Pipeline",
@@ -1929,7 +2039,48 @@
       "signOutEverywhere": "Überall abmelden",
       "unavailable": "Nicht verfügbar",
       "expertMode": "Expertenmodus",
-      "languageChanging": "Spracheinstellung wird übernommen…"
+      "languageChanging": "Spracheinstellung wird übernommen…",
+      "themes": {
+        "light": "Hell",
+        "dark": "Dunkel",
+        "system": "System"
+      },
+      "topK": {
+        "label": "Top-K-Abruf",
+        "precision": "Präzision",
+        "diversity": "Vielfalt"
+      },
+      "rerank": {
+        "title": "Cross-Encoder-Neuordnung",
+        "description": "Sekundäre Neuordnung für höhere Genauigkeit aktivieren"
+      },
+      "confidence": {
+        "label": "Konfidenz-Schwellenwert",
+        "highTrust": "Hohes Vertrauen"
+      },
+      "notificationPreferences": "Benachrichtigungseinstellungen",
+      "processingAlerts": {
+        "title": "Verarbeitungswarnungen",
+        "description": "Benachrichtigung wenn die Stapelindizierung abgeschlossen ist"
+      },
+      "securityWarnings": {
+        "title": "Sicherheitswarnungen",
+        "description": "Warnungen bei nicht autorisierten API-Versuchen oder Zugangsdatenänderungen"
+      },
+      "evalReports": {
+        "title": "Tägliche Auswertungsberichte",
+        "description": "Zusammenfassung der RAG-Pipeline-Leistungskennzahlen"
+      },
+      "loadingPreferences": "Einstellungen werden geladen…",
+      "deleteAccountBtn": "Konto löschen",
+      "aria": {
+        "accountIdentitySection": "Bereich Kontoidentität",
+        "personalPreferencesSection": "Bereich persönliche Einstellungen",
+        "aiDefaultsSection": "Bereich KI- und Abrufstandards",
+        "notificationsSection": "Bereich Benachrichtigungen",
+        "accountActionsSection": "Bereich Kontoaktionen",
+        "userAvatar": "Benutzer-Initialen-Avatar"
+      }
     },
     "organization": {
       "title": "Organisation"
@@ -1944,6 +2095,7 @@
   "appShell": {
     "searchKnowledgeBase": "Wissensbasis durchsuchen...",
     "searchAriaLabel": "Seiten, Dokumente und Chats durchsuchen",
+    "commandMenuAriaLabel": "Globale Suche und schnelle Navigation",
     "quickNavHint": "Schnellnavigation und organisationsweite Suche. Jederzeit {shortcut} verwenden.",
     "recentDocuments": "Zuletzt genutzte Dokumente",
     "recentChats": "Letzte Chats",
@@ -1980,7 +2132,11 @@
     "loadingSession": "Sitzung wird geladen",
     "loadingSessionDescription": "Ihr Konto und der Organisationszugang für diesen Arbeitsbereich werden überprüft.",
     "unassigned": "Nicht zugewiesen",
-    "userId": "Benutzer-ID"
+    "userId": "Benutzer-ID",
+    "redirecting": "Weiterleitung",
+    "redirectingDescription": "Ihre Authentifizierungs- und Autorisierungsregeln werden angewendet.",
+    "sessionRequired": "Sitzung erforderlich",
+    "sessionRequiredDescription": "Bitte melden Sie sich an, um authentifizierte Seiten anzuzeigen."
   },
   "errors": {
     "pageNotFound": "Seite nicht gefunden",

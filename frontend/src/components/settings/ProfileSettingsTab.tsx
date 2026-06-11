@@ -69,9 +69,13 @@ const THEME_ICONS = {
   system: Monitor,
 } as const;
 
+const VALID_ROLES = ["owner", "admin", "member", "viewer"] as const;
+type ValidRole = (typeof VALID_ROLES)[number];
+
 export function ProfileSettingsTab() {
   const t = useTranslations("settings.profile");
   const tAuth = useTranslations("auth");
+  const tRoles = useTranslations("appShell.roles");
   const router = useRouter();
   const { state, signOut } = useAuthSession();
   const session = state.session;
@@ -81,9 +85,7 @@ export function ProfileSettingsTab() {
   const [userIdCopied, setUserIdCopied] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState(
-    "Profile settings saved successfully.",
-  );
+  const [toastMessage, setToastMessage] = useState("");
   const [isSavingAll, setIsSavingAll] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -198,12 +200,25 @@ export function ProfileSettingsTab() {
     });
   }
 
+  function translateRole(role: string | undefined | null): string {
+    if (!role) return tRoles("member");
+    return VALID_ROLES.includes(role as ValidRole)
+      ? tRoles(role as ValidRole)
+      : role;
+  }
+
   const watchedTheme = personalForm.watch("theme");
   const watchedTopK = ragForm.watch("defaultTopK");
   const watchedRerank = ragForm.watch("rerankEnabled");
 
   const initials = getInitials(session?.email ?? null);
   const displayName = deriveDisplayName(session?.email ?? null);
+
+  const themeLabel: Record<(typeof THEME_OPTIONS)[number], string> = {
+    light: t("themes.light"),
+    dark: t("themes.dark"),
+    system: t("themes.system"),
+  };
 
   return (
     <>
@@ -213,12 +228,12 @@ export function ProfileSettingsTab() {
           {/* 1) Account Identity */}
           <section
             className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
-            aria-label="Account identity section"
+            aria-label={t("aria.accountIdentitySection")}
           >
             <div className="mb-6 flex items-center gap-3">
               <ShieldCheck size={20} className="text-[#3525cd]" />
               <h3 className="text-lg font-semibold text-[#1b1b24]">
-                Account Identity
+                {t("accountIdentity")}
               </h3>
             </div>
 
@@ -227,7 +242,7 @@ export function ProfileSettingsTab() {
               <div className="relative shrink-0">
                 <div
                   className="flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#eae6f4] bg-[#e2dfff] text-3xl font-bold text-[#3525cd]"
-                  aria-label="User initials avatar"
+                  aria-label={t("aria.userAvatar")}
                 >
                   {initials}
                 </div>
@@ -237,7 +252,7 @@ export function ProfileSettingsTab() {
               <div className="grid w-full flex-1 grid-cols-1 gap-4">
                 <div className="space-y-1">
                   <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                    Full Name
+                    {t("fullName")}
                   </label>
                   <input
                     readOnly
@@ -248,7 +263,7 @@ export function ProfileSettingsTab() {
 
                 <div className="space-y-1">
                   <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                    Email Address
+                    {t("emailAddress")}
                   </label>
                   <input
                     readOnly
@@ -259,7 +274,7 @@ export function ProfileSettingsTab() {
 
                 <div className="space-y-1">
                   <label className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                    Role
+                    {t("role")}
                   </label>
                   <div className="flex items-center gap-2 rounded-xl border border-[#c7c4d8] bg-[#f5f2ff] px-4 py-2 text-[#464555]">
                     <ShieldCheck
@@ -267,8 +282,8 @@ export function ProfileSettingsTab() {
                       className="shrink-0 text-[#3525cd]"
                       aria-hidden="true"
                     />
-                    <span className="text-sm font-semibold text-[#1b1b24] capitalize">
-                      {session?.role ?? "Member"}
+                    <span className="text-sm font-semibold text-[#1b1b24]">
+                      {translateRole(session?.role)}
                     </span>
                   </div>
                 </div>
@@ -283,7 +298,7 @@ export function ProfileSettingsTab() {
                       onClick={handleCopyUserId}
                       className="shrink-0 rounded-lg border border-[#c7c4d8] px-2 py-0.5 text-xs font-semibold text-[#3525cd] transition-colors hover:bg-[#f5f3ff]"
                     >
-                      {userIdCopied ? "Copied!" : "Copy ID"}
+                      {userIdCopied ? t("copied") : t("copyId")}
                     </button>
                   </div>
                 ) : null}
@@ -294,12 +309,12 @@ export function ProfileSettingsTab() {
           {/* 2) Personal Preferences */}
           <section
             className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
-            aria-label="Personal preferences section"
+            aria-label={t("aria.personalPreferencesSection")}
           >
             <div className="mb-6 flex items-center gap-3">
               <SlidersHorizontal size={20} className="text-[#3525cd]" />
               <h3 className="text-lg font-semibold text-[#1b1b24]">
-                Personal Preferences
+                {t("personalPreferences")}
               </h3>
             </div>
 
@@ -309,7 +324,7 @@ export function ProfileSettingsTab() {
                   htmlFor="language"
                   className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
                 >
-                  Display Language
+                  {t("displayLanguage")}
                 </label>
                 <select
                   id="language"
@@ -329,7 +344,7 @@ export function ProfileSettingsTab() {
                   htmlFor="timezone"
                   className="block text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
                 >
-                  Timezone
+                  {t("timezone")}
                 </label>
                 <select
                   id="timezone"
@@ -348,7 +363,7 @@ export function ProfileSettingsTab() {
             {/* Theme picker */}
             <div className="mt-6">
               <p className="mb-3 block text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                Interface Theme
+                {t("interfaceTheme")}
               </p>
               <div className="grid grid-cols-3 gap-4">
                 {THEME_OPTIONS.map((opt) => {
@@ -384,7 +399,7 @@ export function ProfileSettingsTab() {
                             : "text-[#464555]",
                         ].join(" ")}
                       >
-                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        {themeLabel[opt]}
                       </span>
                     </label>
                   );
@@ -399,7 +414,7 @@ export function ProfileSettingsTab() {
           {/* 3) AI/RAG Defaults */}
           {preferencesQuery.isLoading ? (
             <div className="rounded-2xl border border-[#c7c4d8] bg-white p-6">
-              <LoadingState compact title="Loading preferences..." />
+              <LoadingState compact title={t("loadingPreferences")} />
             </div>
           ) : preferencesQuery.isError ? (
             <div className="rounded-2xl border border-[#c7c4d8] bg-white p-6">
@@ -416,17 +431,17 @@ export function ProfileSettingsTab() {
             <>
               <section
                 className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
-                aria-label="AI and retrieval defaults section"
+                aria-label={t("aria.aiDefaultsSection")}
               >
                 <div className="mb-6 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Brain size={20} className="text-[#3525cd]" />
                     <h3 className="text-lg font-semibold text-[#1b1b24]">
-                      AI/RAG Defaults
+                      {t("aiRagDefaults")}
                     </h3>
                   </div>
                   <span className="rounded bg-[#d0e1fb] px-2 py-1 text-[10px] font-semibold tracking-wider text-[#54647a] uppercase">
-                    Expert Mode
+                    {t("expertMode")}
                   </span>
                 </div>
 
@@ -438,7 +453,7 @@ export function ProfileSettingsTab() {
                         htmlFor="topKSlider"
                         className="text-sm font-semibold text-[#1b1b24]"
                       >
-                        Top-K Retrieval
+                        {t("topK.label")}
                       </label>
                       <span className="rounded bg-[#f0ecf9] px-2 py-0.5 font-mono text-sm text-[#3525cd]">
                         {watchedTopK ?? settingsTopKBounds.defaultValue}
@@ -456,8 +471,8 @@ export function ProfileSettingsTab() {
                       className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-[#c7c4d8] accent-[#3525cd]"
                     />
                     <div className="flex justify-between text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-                      <span>Precision</span>
-                      <span>Diversity</span>
+                      <span>{t("topK.precision")}</span>
+                      <span>{t("topK.diversity")}</span>
                     </div>
                   </div>
 
@@ -465,10 +480,10 @@ export function ProfileSettingsTab() {
                   <div className="flex items-center justify-between rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] p-4">
                     <div>
                       <p className="text-sm font-semibold text-[#1b1b24]">
-                        Cross-Encoder Rerank
+                        {t("rerank.title")}
                       </p>
                       <p className="text-xs text-[#464555]">
-                        Enable secondary reranking for accuracy
+                        {t("rerank.description")}
                       </p>
                     </div>
                     <button
@@ -497,7 +512,7 @@ export function ProfileSettingsTab() {
                   {/* Confidence threshold (display only) */}
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-[#1b1b24]">
-                      Confidence Threshold
+                      {t("confidence.label")}
                     </p>
                     <div className="relative flex h-12 items-center overflow-hidden rounded-xl border border-[#c7c4d8] bg-[#f0ecf9] px-4">
                       <div className="absolute top-0 bottom-0 left-0 w-[82%] border-r-2 border-[#3525cd] bg-[#3525cd]/10" />
@@ -508,7 +523,7 @@ export function ProfileSettingsTab() {
                         </span>
                       </span>
                       <span className="relative z-10 ml-auto rounded-lg bg-[#3525cd] px-2 py-1 text-[10px] font-semibold tracking-wider text-white uppercase">
-                        High Trust
+                        {t("confidence.highTrust")}
                       </span>
                     </div>
                   </div>
@@ -518,7 +533,7 @@ export function ProfileSettingsTab() {
               {/* 4) Notifications */}
               <section
                 className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
-                aria-label="Notifications section"
+                aria-label={t("aria.notificationsSection")}
               >
                 <div className="mb-6 flex items-center gap-3">
                   <svg
@@ -540,12 +555,12 @@ export function ProfileSettingsTab() {
                     <path d="M22 8c0-2.3-.8-4.3-2-6" />
                   </svg>
                   <h3 className="text-lg font-semibold text-[#1b1b24]">
-                    Notifications
+                    {t("notifications")}
                   </h3>
                 </div>
 
                 <fieldset className="space-y-4">
-                  <legend className="sr-only">Notification preferences</legend>
+                  <legend className="sr-only">{t("notificationPreferences")}</legend>
 
                   <label className="group flex cursor-pointer items-start gap-4">
                     <input
@@ -555,10 +570,10 @@ export function ProfileSettingsTab() {
                     />
                     <div>
                       <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
-                        Processing Alerts
+                        {t("processingAlerts.title")}
                       </span>
                       <span className="block text-xs text-[#464555]">
-                        Get notified when batch indexing completes
+                        {t("processingAlerts.description")}
                       </span>
                     </div>
                   </label>
@@ -571,11 +586,10 @@ export function ProfileSettingsTab() {
                     />
                     <div>
                       <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
-                        Security Warnings
+                        {t("securityWarnings.title")}
                       </span>
                       <span className="block text-xs text-[#464555]">
-                        Alerts for unauthorized API attempts or credential
-                        changes
+                        {t("securityWarnings.description")}
                       </span>
                     </div>
                   </label>
@@ -590,10 +604,10 @@ export function ProfileSettingsTab() {
                     />
                     <div>
                       <span className="block text-sm font-semibold text-[#1b1b24] transition-colors group-hover:text-[#3525cd]">
-                        Daily Evaluation Reports
+                        {t("evalReports.title")}
                       </span>
                       <span className="block text-xs text-[#464555]">
-                        Summary of RAG pipeline performance metrics
+                        {t("evalReports.description")}
                       </span>
                     </div>
                   </label>
@@ -629,18 +643,18 @@ export function ProfileSettingsTab() {
       {/* ── Account Actions ── */}
       <section
         className="mt-8 rounded-2xl border border-[#c7c4d8] bg-white p-6"
-        aria-label="Account actions section"
+        aria-label={t("aria.accountActionsSection")}
       >
         <h3 className="mb-4 text-[10px] font-semibold tracking-widest text-[#464555] uppercase">
-          Account Actions
+          {t("accountActions")}
         </h3>
 
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-4 rounded-xl border border-[#eae6f4] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-[#1b1b24]">Sign out</p>
+              <p className="text-sm font-semibold text-[#1b1b24]">{tAuth("signOut")}</p>
               <p className="text-xs text-[#464555]">
-                End your current session on this device.
+                {t("signOutDescription")}
               </p>
             </div>
             <button
@@ -664,14 +678,14 @@ export function ProfileSettingsTab() {
           >
             <div>
               <p className="text-sm font-semibold text-[#1b1b24]">
-                Sign out from all devices
+                {tAuth("signOutAllDevices")}
               </p>
               <p className="text-xs text-[#464555]">
-                Revoke all active sessions and sign out everywhere.
+                {t("signOutAllDevicesDescription")}
               </p>
               {!profileCapabilities.signOutAllDevicesEnabled && (
                 <p className="mt-1 text-xs text-[#777587]">
-                  Not available — deployment-controlled.
+                  {t("notAvailable")}
                 </p>
               )}
             </div>
@@ -680,11 +694,11 @@ export function ProfileSettingsTab() {
                 type="button"
                 className="shrink-0 rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
               >
-                Sign out everywhere
+                {tAuth("signOutEverywhere")}
               </button>
             ) : (
               <span className="shrink-0 rounded-xl border border-dashed border-[#c7c4d8] px-3 py-1.5 text-sm text-[#777587]">
-                Unavailable
+                {t("unavailable")}
               </span>
             )}
           </div>
@@ -698,14 +712,14 @@ export function ProfileSettingsTab() {
           >
             <div>
               <p className="text-sm font-semibold text-rose-700">
-                Delete personal account
+                {t("deleteAccount")}
               </p>
               <p className="text-xs text-[#464555]">
-                Permanently remove your account and associated data.
+                {t("deleteAccountDescription")}
               </p>
               {!profileCapabilities.deleteAccountEnabled && (
                 <p className="mt-1 text-xs text-[#777587]">
-                  Not available — deployment-controlled.
+                  {t("notAvailable")}
                 </p>
               )}
             </div>
@@ -714,11 +728,11 @@ export function ProfileSettingsTab() {
                 type="button"
                 className="shrink-0 rounded-xl border border-rose-300 px-3 py-1.5 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-100"
               >
-                Delete account
+                {t("deleteAccountBtn")}
               </button>
             ) : (
               <span className="shrink-0 rounded-xl border border-dashed border-[#c7c4d8] px-3 py-1.5 text-sm text-[#777587]">
-                Unavailable
+                {t("unavailable")}
               </span>
             )}
           </div>

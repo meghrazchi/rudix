@@ -50,7 +50,24 @@
     "adminUsage": "Admin usage",
     "insufficientRole": "Insufficient role",
     "authRequired": "Authentication required",
-    "sectionUnavailable": "Unavailable"
+    "sectionUnavailable": "Unavailable",
+    "descriptions": {
+      "dashboard": "Overview and system performance",
+      "documents": "Manage and monitor uploaded documents",
+      "collections": "Organize documents into knowledge bases by topic or team",
+      "chat": "Ask questions against indexed documents",
+      "evaluations": "Track and compare evaluation runs",
+      "pipeline": "Inspect processing and query pipeline internals",
+      "connectors": "Connect external sources like Confluence and Google Drive",
+      "settings": "Organization and account settings",
+      "admin": "Administrative analytics and controls"
+    },
+    "helpItems": {
+      "docs": "Documentation",
+      "support": "Support",
+      "shortcuts": "Keyboard shortcuts",
+      "readme": "Project README"
+    }
   },
   "auth": {
     "signIn": "Sign in",
@@ -1744,6 +1761,35 @@
       "scopeSourceRoots": "{n, plural, one {# source root} other {# source roots}}",
       "scopeConnectorDefault": "Connector scope",
       "scopeAllFiles": "All files ({count})"
+    },
+    "composer": {
+      "scopeLabel": "Scope",
+      "scopeAll": "All files",
+      "scopeCollection": "Collection",
+      "scopeDocuments": "Files",
+      "scopeConnectors": "Connectors",
+      "scopeNone": "No RAG",
+      "chooseCollection": "— choose collection —",
+      "selectFiles": "Select Files",
+      "filesSelected": "{count, plural, one {# file selected} other {# files selected}}",
+      "selectSources": "Select Sources",
+      "sourcesSelected": "{count, plural, one {# source selected} other {# sources selected}}",
+      "topKLabel": "Top-k",
+      "answerLabel": "Answer",
+      "answerAuto": "Auto",
+      "answerMatchQuestion": "Match question",
+      "rerankLabel": "Rerank",
+      "agenticLabel": "Agentic",
+      "contextButton": "Context ({count})",
+      "contextAriaLabel": "Context ({label}) — click to view or change",
+      "placeholder": "Type a message or use '/' for commands...",
+      "agenticDisabled": "Agentic Mode is disabled for this deployment.",
+      "agenticConnectorWarning": "Agentic Mode switches to standard retrieval when connector sources are selected.",
+      "chatDisabled": "Chat is disabled until at least one document is indexed.",
+      "chatDisabledHint": "Switch to No RAG mode to chat without documents.",
+      "scopeAriaLabel": "Scope type",
+      "collectionAriaLabel": "Select collection",
+      "answerLanguageAriaLabel": "Answer language"
     }
   },
   "evaluations": {
@@ -1885,7 +1931,71 @@
     "title": "Connectors",
     "description": "Connect external data sources",
     "addConnector": "Add connector",
-    "noConnectors": "No connectors configured"
+    "noConnectors": "No connectors configured",
+    "page": {
+      "pageDescription": "Connect external knowledge sources and keep Rudix in sync.",
+      "stats": {
+        "connectedSources": "Connected sources",
+        "noneYet": "None yet",
+        "total": "{count} total",
+        "syncsActive": "Syncs active",
+        "active": "Active",
+        "noneActive": "None active",
+        "failedSyncs": "Failed syncs",
+        "needsAttention": "Needs attention",
+        "allClear": "All clear",
+        "reauthRequired": "Reauth required",
+        "actionRequired": "Action required",
+        "allHealthy": "All healthy"
+      },
+      "table": {
+        "sectionTitle": "Connected sources",
+        "addNewSource": "Add new source",
+        "headerSource": "Source",
+        "headerStatus": "Status",
+        "headerLastSync": "Last Sync",
+        "headerItemsIndexed": "Items Indexed",
+        "headerActions": "Actions",
+        "noSourcesYet": "No sources connected yet.",
+        "browseCatalog": "Browse the catalog below",
+        "accountLabel": "Account: {id}",
+        "providerLabel": "Provider: {key}",
+        "lastSyncNever": "Never",
+        "syncStatusSuccess": "Success",
+        "syncStatusPaused": "Paused",
+        "syncStatusNeedsAttention": "Needs attention",
+        "syncStatusUnknown": "Unknown",
+        "ariaViewDetails": "View details for {name}",
+        "ariaSyncNow": "Sync now for {name}",
+        "ariaSettings": "Settings for {name}",
+        "ariaDelete": "Delete connected source {name}",
+        "titleViewDetails": "View details",
+        "titleSyncNow": "Sync now",
+        "titleSettings": "Settings",
+        "deleteConfirm": "Delete connected source \"{name}\"? This will disconnect it from Rudix."
+      },
+      "status": {
+        "active": "ACTIVE",
+        "error": "ERROR",
+        "paused": "PAUSED"
+      },
+      "catalog": {
+        "sectionTitle": "Connector catalog",
+        "sectionDescription": "Choose from our growing library of native integrations.",
+        "confluenceDesc": "Import wiki pages, team spaces, and technical documents.",
+        "googleDriveDesc": "Index Docs, Sheets, and shared corporate drive folders.",
+        "sharepointDesc": "Connect Microsoft 365 sites, document libraries, and OneDrive files.",
+        "notionDesc": "Access workspace databases, project docs, and notes.",
+        "slackDesc": "Retrieve conversational history from public/private channels.",
+        "githubDesc": "Index source code, PR discussions, and repository wikis.",
+        "gitlabDesc": "Synchronize self-hosted or cloud-based repo data.",
+        "connected": "CONNECTED",
+        "addAnother": "Add another",
+        "connect": "Connect",
+        "soon": "Soon",
+        "notifyMe": "Notify me"
+      }
+    }
   },
   "pipeline": {
     "title": "RAG Pipeline",
@@ -1929,7 +2039,48 @@
       "signOutEverywhere": "Sign out everywhere",
       "unavailable": "Unavailable",
       "expertMode": "Expert Mode",
-      "languageChanging": "Applying language preference…"
+      "languageChanging": "Applying language preference…",
+      "themes": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      },
+      "topK": {
+        "label": "Top-K Retrieval",
+        "precision": "Precision",
+        "diversity": "Diversity"
+      },
+      "rerank": {
+        "title": "Cross-Encoder Rerank",
+        "description": "Enable secondary reranking for accuracy"
+      },
+      "confidence": {
+        "label": "Confidence Threshold",
+        "highTrust": "High Trust"
+      },
+      "notificationPreferences": "Notification preferences",
+      "processingAlerts": {
+        "title": "Processing Alerts",
+        "description": "Get notified when batch indexing completes"
+      },
+      "securityWarnings": {
+        "title": "Security Warnings",
+        "description": "Alerts for unauthorized API attempts or credential changes"
+      },
+      "evalReports": {
+        "title": "Daily Evaluation Reports",
+        "description": "Summary of RAG pipeline performance metrics"
+      },
+      "loadingPreferences": "Loading preferences...",
+      "deleteAccountBtn": "Delete account",
+      "aria": {
+        "accountIdentitySection": "Account identity section",
+        "personalPreferencesSection": "Personal preferences section",
+        "aiDefaultsSection": "AI and retrieval defaults section",
+        "notificationsSection": "Notifications section",
+        "accountActionsSection": "Account actions section",
+        "userAvatar": "User initials avatar"
+      }
     },
     "organization": {
       "title": "Organization"
@@ -1944,6 +2095,7 @@
   "appShell": {
     "searchKnowledgeBase": "Search knowledge base...",
     "searchAriaLabel": "Search across pages, documents, and chats",
+    "commandMenuAriaLabel": "Global search and quick navigation",
     "quickNavHint": "Quick navigation and organization-scoped search. Use {shortcut} anytime.",
     "recentDocuments": "Recent documents",
     "recentChats": "Recent chats",
@@ -1980,7 +2132,11 @@
     "loadingSession": "Loading session",
     "loadingSessionDescription": "Checking your account and organization access for this workspace.",
     "unassigned": "Unassigned",
-    "userId": "User ID"
+    "userId": "User ID",
+    "redirecting": "Redirecting",
+    "redirectingDescription": "Applying your authentication and authorization rules.",
+    "sessionRequired": "Session required",
+    "sessionRequiredDescription": "You need to sign in before viewing authenticated pages."
   },
   "errors": {
     "pageNotFound": "Page not found",
