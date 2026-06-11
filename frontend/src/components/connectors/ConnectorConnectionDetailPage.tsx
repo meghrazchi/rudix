@@ -734,6 +734,12 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   const failedRunsCount = runs.filter((r) => r.status === "failed").length;
   const hasActiveRun = Boolean(activeRun);
 
+  const itemsIndexed =
+    connection?.source_count && connection.source_count > 0
+      ? connection.source_count
+      : (runs.find((r) => r.status === "completed")?.items_seen ?? 0);
+  const syncRunsTotal = runsQuery.data?.total ?? runs.length;
+
   const prevHasActiveRunRef = useRef(false);
   useEffect(() => {
     if (prevHasActiveRunRef.current && !hasActiveRun) {
@@ -816,15 +822,15 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             <button
               type="button"
               onClick={() => syncMutation.mutate(activeJob?.id)}
-              disabled={syncMutation.isPending}
+              disabled={syncMutation.isPending || hasActiveRun}
               className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-[#3525cd] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span
-                className={`material-symbols-outlined text-[20px] ${syncMutation.isPending ? "animate-spin" : ""}`}
+                className={`material-symbols-outlined text-[20px] ${syncMutation.isPending || hasActiveRun ? "animate-spin" : ""}`}
               >
                 sync
               </span>
-              {syncMutation.isPending ? "Syncing…" : "Sync now"}
+              {hasActiveRun ? "Syncing…" : syncMutation.isPending ? "Starting…" : "Sync now"}
             </button>
             <HeaderActionsMenu
               onReconnect={() => refreshMutation.mutate()}
@@ -846,13 +852,13 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
           label="Items Indexed"
-          value={connection.source_count.toLocaleString()}
-          icon="folder_open"
+          value={itemsIndexed.toLocaleString()}
+          icon="article"
         />
         <StatCard
           label="Sync Jobs"
-          value={connection.sync_job_count}
-          icon="auto_stories"
+          value={syncRunsTotal}
+          icon="repeat"
         />
         <StatCard
           label="Failed Runs"
@@ -874,6 +880,101 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           {activeRun && <CurrentJobPanel run={activeRun} />}
 
           <LiveExtractionLog run={liveRun} />
+
+          {/* ── Recent sync runs table ── */}
+          <div className="overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#e8e5f3] px-6 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-[#2a2640]">
+                  Recent sync runs
+                </h3>
+                <p className="text-sm text-[#68647b]">
+                  History of sync executions with item counts and error details.
+                </p>
+              </div>
+            </div>
+
+            {runsQuery.isLoading ? (
+              <p className="px-6 py-5 text-sm text-[#68647b]">Loading runs…</p>
+            ) : runs.length === 0 ? (
+              <div className="px-6 py-10 text-center text-sm text-[#68647b]">
+                No sync runs yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="bg-[#f5f2ff] text-[11px]">
+                    <tr>
+                      <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Trigger
+                      </th>
+                      <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Seen
+                      </th>
+                      <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Upserted
+                      </th>
+                      <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Deleted
+                      </th>
+                      <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Duration
+                      </th>
+                      <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
+                        Started
+                      </th>
+                      <th className="w-16 px-6 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e8e5f3]">
+                    {runs.map((run) => (
+                      <tr
+                        key={run.id}
+                        className="transition-colors hover:bg-[#faf9fe]"
+                      >
+                        <td className="px-6 py-3">
+                          <RunStatusBadge status={run.status} />
+                        </td>
+                        <td className="px-6 py-3 text-[#4b4860]">
+                          {run.trigger_type}
+                        </td>
+                        <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
+                          {run.items_seen}
+                        </td>
+                        <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
+                          {run.items_upserted}
+                        </td>
+                        <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
+                          {run.items_deleted}
+                        </td>
+                        <td className="px-6 py-3 text-[#4b4860]">
+                          {formatDuration(run.started_at, run.completed_at)}
+                        </td>
+                        <td className="px-6 py-3 text-[#68647b]">
+                          {run.started_at
+                            ? new Date(run.started_at).toLocaleString()
+                            : "—"}
+                        </td>
+                        <td className="px-6 py-3 text-right">
+                          {run.error_message && (
+                            <span
+                              title={run.error_message}
+                              className="cursor-help text-xs text-[#68647b]"
+                            >
+                              ⚠
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right column */}
@@ -898,101 +999,6 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
           <RecentErrorsPanel runs={runs} />
         </div>
-      </div>
-
-      {/* ── Recent sync runs table ── */}
-      <div className="overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#e8e5f3] px-6 py-4">
-          <div>
-            <h3 className="text-lg font-bold text-[#2a2640]">
-              Recent sync runs
-            </h3>
-            <p className="text-sm text-[#68647b]">
-              History of sync executions with item counts and error details.
-            </p>
-          </div>
-        </div>
-
-        {runsQuery.isLoading ? (
-          <p className="px-6 py-5 text-sm text-[#68647b]">Loading runs…</p>
-        ) : runs.length === 0 ? (
-          <div className="px-6 py-10 text-center text-sm text-[#68647b]">
-            No sync runs yet.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead className="bg-[#f5f2ff] text-[11px]">
-                <tr>
-                  <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Trigger
-                  </th>
-                  <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Seen
-                  </th>
-                  <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Upserted
-                  </th>
-                  <th className="px-6 py-3 text-right font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Deleted
-                  </th>
-                  <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Duration
-                  </th>
-                  <th className="px-6 py-3 text-left font-bold tracking-[0.14em] text-[#777587] uppercase">
-                    Started
-                  </th>
-                  <th className="w-16 px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#e8e5f3]">
-                {runs.map((run) => (
-                  <tr
-                    key={run.id}
-                    className="transition-colors hover:bg-[#faf9fe]"
-                  >
-                    <td className="px-6 py-3">
-                      <RunStatusBadge status={run.status} />
-                    </td>
-                    <td className="px-6 py-3 text-[#4b4860]">
-                      {run.trigger_type}
-                    </td>
-                    <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
-                      {run.items_seen}
-                    </td>
-                    <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
-                      {run.items_upserted}
-                    </td>
-                    <td className="px-6 py-3 text-right font-mono text-[13px] text-[#2a2640] tabular-nums">
-                      {run.items_deleted}
-                    </td>
-                    <td className="px-6 py-3 text-[#4b4860]">
-                      {formatDuration(run.started_at, run.completed_at)}
-                    </td>
-                    <td className="px-6 py-3 text-[#68647b]">
-                      {run.started_at
-                        ? new Date(run.started_at).toLocaleString()
-                        : "—"}
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      {run.error_message && (
-                        <span
-                          title={run.error_message}
-                          className="cursor-help text-xs text-[#68647b]"
-                        >
-                          ⚠
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );
