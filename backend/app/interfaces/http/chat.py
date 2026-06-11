@@ -32,6 +32,7 @@ from app.domains.chat.schemas.chat import (
     ChatSessionMessageListResponse,
     ChatSessionMessageResponse,
     ChatSessionResponse,
+    ChatStatsResponse,
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
@@ -409,6 +410,38 @@ async def list_chat_sessions(
         total=total,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/stats", response_model=ChatStatsResponse)
+async def get_chat_stats(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ChatStatsResponse:
+    user_id, organization_id = _principal_user_and_org(principal)
+    total_sessions = await chat_repository.count_chat_sessions(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    questions_asked = await chat_repository.count_user_questions(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+    )
+    return ChatStatsResponse(
+        questions_asked=questions_asked,
+        total_sessions=total_sessions,
     )
 
 

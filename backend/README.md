@@ -85,13 +85,13 @@ Generate a local app token:
 cd backend
 .venv/bin/python - <<'PY'
 from app.auth.token_codec import create_app_access_token
-print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
+print(create_app_access_token(subject="admin", expires_in_seconds=3600))
 PY
 ```
 
 Seeded local dev login:
 
-- email: `seed-user@example.com`
+- email: `admin@example.com`
 - password: `123123123`
 
 Optional: fetch seeded organization UUID (`make seed-dev`):
@@ -367,7 +367,7 @@ Auth/authorization guard checks:
 # Build an app token for manual API checks
 TOKEN=$(.venv/bin/python - <<'PY'
 from app.auth.token_codec import create_app_access_token
-print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
+print(create_app_access_token(subject="admin", expires_in_seconds=3600))
 PY
 )
 

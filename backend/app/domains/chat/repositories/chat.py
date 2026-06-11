@@ -169,6 +169,29 @@ class ChatRepository:
         )
         return int(result.scalar_one())
 
+    async def count_user_questions(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        user_id: UUID,
+    ) -> int:
+        session_ids_subquery = (
+            select(ChatSession.id)
+            .where(
+                ChatSession.organization_id == organization_id,
+                ChatSession.user_id == user_id,
+            )
+            .scalar_subquery()
+        )
+        result = await session.execute(
+            select(func.count(ChatMessage.id)).where(
+                ChatMessage.chat_session_id.in_(session_ids_subquery),
+                ChatMessage.role == ChatRole.user.value,
+            )
+        )
+        return int(result.scalar_one())
+
     async def create_chat_message(
         self,
         session: AsyncSession,

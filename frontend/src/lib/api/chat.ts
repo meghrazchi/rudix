@@ -74,6 +74,15 @@ export type UpdateChatSessionRequest = {
   title: string | null;
 };
 
+export type ChatStatsResponse = {
+  questions_asked: number;
+  total_sessions: number;
+};
+
+export async function getChatStats(): Promise<ChatStatsResponse> {
+  return apiRequest<ChatStatsResponse>("/chat/stats");
+}
+
 export async function createChatSession(
   payload: CreateChatSessionRequest = {},
 ): Promise<ChatSessionResponse> {

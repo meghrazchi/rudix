@@ -26,6 +26,7 @@ export type UsageSummaryResponse = {
     output_tokens: number;
     cost_usd: number;
     event_count: number;
+    questions_asked: number;
     avg_confidence?: number | null;
     avg_latency_ms?: number | null;
     latency_score?: number | null;

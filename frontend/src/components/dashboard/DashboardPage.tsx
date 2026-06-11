@@ -19,7 +19,11 @@ import {
   getBillingPlanInfo,
   type BillingPlanStatus,
 } from "@/lib/api/billing";
-import { listChatSessions, type ChatSessionResponse } from "@/lib/api/chat";
+import {
+  getChatStats,
+  listChatSessions,
+  type ChatSessionResponse,
+} from "@/lib/api/chat";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   listDocuments,
@@ -31,7 +35,6 @@ import {
   canViewAdminUsage,
   computeIndexingSuccess,
   DASHBOARD_RANGE_PRESETS,
-  estimateQuestionsAsked,
   extractAverageConfidence,
   extractAverageLatencyMs,
   extractLatencyScore,
@@ -47,7 +50,6 @@ import { usePermissions } from "@/lib/use-permissions";
 import { useAuthSession } from "@/lib/use-auth-session";
 
 const DOCUMENT_PAGE_SIZE = 200;
-const CHAT_SESSION_PAGE_SIZE = 200;
 const LATEST_DOCUMENTS_PAGE_SIZE = 5;
 const RECENT_ACTIVITY_PAGE_SIZE = 5;
 const RECENT_ACTIVITY_FETCH_LIMIT = 50;
@@ -266,46 +268,10 @@ async function fetchDashboardDocumentsSummary(): Promise<DashboardDocumentSummar
 }
 
 async function fetchDashboardChatSummary(): Promise<DashboardChatSummary> {
-  const maxSessionRows = parsePositiveIntegerEnv(
-    process.env.NEXT_PUBLIC_DASHBOARD_MAX_CHAT_SESSION_ROWS,
-    1_000,
-  );
-
-  let offset = 0;
-  let fetchedRows = 0;
-  let totalSessions = 0;
-  const sessions: ChatSessionResponse[] = [];
-
-  while (fetchedRows < maxSessionRows) {
-    const pageLimit = Math.min(
-      CHAT_SESSION_PAGE_SIZE,
-      maxSessionRows - fetchedRows,
-    );
-    const page = await listChatSessions({
-      limit: pageLimit,
-      offset,
-    });
-
-    if (offset === 0) {
-      totalSessions = page.total;
-    }
-
-    if (page.items.length === 0) {
-      break;
-    }
-
-    sessions.push(...page.items);
-    fetchedRows += page.items.length;
-    offset += page.items.length;
-
-    if (fetchedRows >= totalSessions) {
-      break;
-    }
-  }
-
+  const stats = await getChatStats();
   return {
-    totalSessions,
-    questionsAsked: estimateQuestionsAsked(sessions),
+    totalSessions: stats.total_sessions,
+    questionsAsked: stats.questions_asked,
   };
 }
 
@@ -859,9 +825,7 @@ export function DashboardPage() {
       )
     : null;
 
-  const questionsAsked =
-    usageSummary?.totals.event_count ??
-    (chatSummary ? chatSummary.questionsAsked : null);
+  const questionsAsked = chatSummary?.questionsAsked ?? null;
   const averageConfidence = usageSummary
     ? extractAverageConfidence(usageSummary)
     : null;
@@ -1112,23 +1076,14 @@ export function DashboardPage() {
           value={formatInteger(questionsAsked)}
           caption={t("kpi.questionsAskedNote")}
           icon="quiz"
-          loading={
-            chatSummaryQuery.isLoading ||
-            (showAdminUsage && usageQuery.isLoading)
-          }
+          loading={chatSummaryQuery.isLoading}
           error={
             chatSummaryQuery.isError
               ? getApiErrorMessage(chatSummaryQuery.error)
-              : showAdminUsage && usageQuery.isError
-                ? getApiErrorMessage(usageQuery.error)
-                : null
+              : null
           }
           onRetry={() => {
-            if (showAdminUsage) {
-              void usageQuery.refetch();
-            } else {
-              void chatSummaryQuery.refetch();
-            }
+            void chatSummaryQuery.refetch();
           }}
         />
       </section>

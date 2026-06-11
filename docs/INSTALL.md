@@ -407,7 +407,7 @@ cd backend
 .venv/bin/python - <<'PY'
 from app.auth.token_codec import create_app_access_token
 token = create_app_access_token(
-    subject="seed-user-001",  # matches seed_dev.py external_auth_id
+    subject="admin",  # matches seed_dev.py external_auth_id
     expires_in_seconds=3600,
 )
 print(token)
@@ -456,12 +456,12 @@ cd backend
 # Generate app token from seeded user
 TOKEN=$(.venv/bin/python - <<'PY'
 from app.auth.token_codec import create_app_access_token
-print(create_app_access_token(subject="seed-user-001", expires_in_seconds=3600))
+print(create_app_access_token(subject="admin", expires_in_seconds=3600))
 PY
 )
 
 # Seeded local dev login
-# email: seed-user@example.com
+# email: admin@example.com
 # password: 123123123
 
 # Get seeded org id (after `make seed-dev`)

@@ -1167,7 +1167,7 @@
       "totalChunksNote": "Le nombre de fragments est estimé à partir de documents échantillonnés.",
       "totalChunksDescription": "Fragments indexés sur les documents récupérés de l’organisation.",
       "questionsAsked": "Questions posées",
-      "questionsAskedNote": "Estimation basée sur l’activité du chat et les événements d’utilisation.",
+      "questionsAskedNote": "Total des questions posées dans toutes les sessions de chat.",
       "unableToLoad": "Impossible de charger"
     },
     "performance": {

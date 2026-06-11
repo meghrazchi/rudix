@@ -1167,7 +1167,7 @@
       "totalChunksNote": "Die Chunk-Anzahl wird aus Stichprobendokumenten geschätzt.",
       "totalChunksDescription": "Indizierte Chunks aus abgerufenen Organisationsdokumenten.",
       "questionsAsked": "Gestellte Fragen",
-      "questionsAskedNote": "Geschätzt aus Chat-Aktivität und Nutzungsereignissen.",
+      "questionsAskedNote": "Gesamtzahl der Fragen in allen Chat-Sitzungen.",
       "unableToLoad": "Laden nicht möglich"
     },
     "performance": {

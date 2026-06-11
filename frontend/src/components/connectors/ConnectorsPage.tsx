@@ -438,14 +438,6 @@ export function ConnectorsPage() {
           <h2 className="text-2xl font-semibold text-[#1b1b24]">
             {t("table.sectionTitle")}
           </h2>
-          <button
-            type="button"
-            onClick={scrollToCatalog}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#3525cd] px-5 py-2 text-xs font-bold tracking-wide text-white uppercase transition-opacity hover:opacity-90"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            {t("table.addNewSource")}
-          </button>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-[#c7c4d8] bg-white shadow-sm">

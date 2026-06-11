@@ -1167,7 +1167,7 @@
       "totalChunksNote": "Chunk count is estimated from sampled documents.",
       "totalChunksDescription": "Indexed chunks across fetched organization documents.",
       "questionsAsked": "Questions asked",
-      "questionsAskedNote": "Estimated from chat activity and usage events.",
+      "questionsAskedNote": "Total questions asked across all chat sessions.",
       "unableToLoad": "Unable to load"
     },
     "performance": {

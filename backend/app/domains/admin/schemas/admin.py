@@ -23,6 +23,7 @@ class UsageSummaryTotalsResponse(BaseModel):
     output_tokens: int
     cost_usd: float
     event_count: int
+    questions_asked: int = 0
     avg_confidence: float | None = None
     avg_latency_ms: float | None = None
     latency_score: float | None = None

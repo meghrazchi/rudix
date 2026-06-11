@@ -169,7 +169,7 @@ export function ProfileSettingsTab() {
       ) {
         document.cookie = `${LOCALE_COOKIE_NAME}=${personalValues.language}; path=/; samesite=lax; max-age=${60 * 60 * 24 * 365}`;
         setTimeout(() => {
-          router.refresh();
+          window.location.reload();
         }, 800);
       }
     } finally {

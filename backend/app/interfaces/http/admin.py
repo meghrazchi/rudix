@@ -179,6 +179,7 @@ class _BucketAccumulator:
     output_tokens: int = 0
     cost_usd: Decimal = Decimal("0")
     event_count: int = 0
+    questions_asked: int = 0
     confidence_values: list[float] | None = None
     latency_values: list[float] | None = None
 
@@ -187,6 +188,8 @@ class _BucketAccumulator:
         self.output_tokens += max(0, int(event.output_tokens or 0))
         self.cost_usd += event.cost_usd or Decimal("0")
         self.event_count += 1
+        if (event.event_type or "").startswith("chat."):
+            self.questions_asked += 1
 
         metadata = event.metadata_json if isinstance(event.metadata_json, dict) else {}
         confidence = _extract_numeric(metadata, CONFIDENCE_KEYS)
@@ -258,6 +261,7 @@ def _aggregate_usage(
         output_tokens=total.output_tokens,
         cost_usd=float(total.cost_usd),
         event_count=total.event_count,
+        questions_asked=total.questions_asked,
         avg_confidence=total_avg_confidence,
         avg_latency_ms=total_avg_latency_ms,
         latency_score=_latency_score_from_average(total_avg_latency_ms),

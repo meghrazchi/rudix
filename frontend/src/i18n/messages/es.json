@@ -1167,7 +1167,7 @@
       "totalChunksNote": "El recuento de fragmentos se estima a partir de documentos muestreados.",
       "totalChunksDescription": "Fragmentos indexados en los documentos obtenidos de la organización.",
       "questionsAsked": "Preguntas realizadas",
-      "questionsAskedNote": "Estimado a partir de la actividad de chat y eventos de uso.",
+      "questionsAskedNote": "Total de preguntas formuladas en todas las sesiones de chat.",
       "unableToLoad": "No se pudo cargar"
     },
     "performance": {

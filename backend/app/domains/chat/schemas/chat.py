@@ -131,6 +131,11 @@ class ChatSessionListResponse(BaseModel):
     offset: int
 
 
+class ChatStatsResponse(BaseModel):
+    questions_asked: int
+    total_sessions: int
+
+
 class Citation(BaseModel):
     document_id: str
     chunk_id: str
