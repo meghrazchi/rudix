@@ -417,7 +417,15 @@ For contribution guidelines, see:
 
 ## License
 
-License information should be added here.
+This project is licensed under the **PolyForm Noncommercial License 1.0.0**.
+
+Copyright 2026 Behzad Meghrazchi
+
+You may use, copy, modify, and distribute this software for **noncommercial purposes only**. Commercial use — including use by companies, in paid products or services, SaaS/hosted deployments, or for consulting — requires a separate commercial license from the copyright holder.
+
+For commercial licensing inquiries, contact the project owner.
+
+See [`LICENSE.md`](LICENSE.md) for the full terms, or visit the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
 
 ---
 
