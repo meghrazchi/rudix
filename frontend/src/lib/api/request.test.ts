@@ -105,7 +105,7 @@ describe("apiRequest header attachment", () => {
   it("does not attach invalid organization slug header for app auth", async () => {
     process.env.NEXT_PUBLIC_AUTH_PROVIDER = "app";
     writeSessionToStorage({
-      userId: "seed-user-001",
+      userId: "admin",
       email: "user@example.com",
       role: "member",
       organizationId: "org-jupar",
@@ -135,7 +135,7 @@ describe("apiRequest header attachment", () => {
   it("attaches organization header for app auth when organization id is UUID", async () => {
     process.env.NEXT_PUBLIC_AUTH_PROVIDER = "app";
     writeSessionToStorage({
-      userId: "seed-user-001",
+      userId: "admin",
       email: "user@example.com",
       role: "member",
       organizationId: "0b350f69-22f0-47d9-bf6d-b3e1f7221f65",

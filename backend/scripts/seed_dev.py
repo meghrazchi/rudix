@@ -66,13 +66,13 @@ async def _get_or_create_organization() -> Organization:
 async def _get_or_create_user(organization: Organization) -> User:
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(User.external_auth_id == "seed-user-001")
+            select(User).where(User.external_auth_id == "admin")
         )
         user = result.scalar_one_or_none()
         if user is not None:
-            if user.email != "seed-user@example.com":
-                user.email = "seed-user@example.com"
-            user.display_name = "Seed User"
+            if user.email != "admin@example.com":
+                user.email = "admin@example.com"
+            user.display_name = "Admin"
             user.hashed_password = hash_password(_SEEDED_PASSWORD, _PASSWORD_HASHER)
             user.password_state = "active"
             user.password_changed_at = datetime.now(UTC)
@@ -83,9 +83,9 @@ async def _get_or_create_user(organization: Organization) -> User:
 
         user = User(
             organization_id=organization.id,
-            external_auth_id="seed-user-001",
-            email="seed-user@example.com",
-            display_name="Seed User",
+            external_auth_id="admin",
+            email="admin@example.com",
+            display_name="Admin",
             hashed_password=hash_password(_SEEDED_PASSWORD, _PASSWORD_HASHER),
             password_state="active",
         )
