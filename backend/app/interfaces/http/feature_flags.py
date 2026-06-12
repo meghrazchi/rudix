@@ -35,7 +35,7 @@ def _org_id(principal: AuthenticatedPrincipal) -> UUID:
 @router.get("", response_model=PublicFeatureFlagsResponse)
 async def get_public_feature_flags(
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-    _rate_limit: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.user))],
+    _rate_limit: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> PublicFeatureFlagsResponse:
     organization_id = _org_id(principal)
