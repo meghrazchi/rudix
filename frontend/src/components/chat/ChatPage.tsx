@@ -82,6 +82,7 @@ import {
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 import { loadSettingsPreferences } from "@/lib/settings-preferences";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { useChatWebSocket } from "@/lib/use-chat-websocket";
 
 const DRAFT_SESSION_KEY = "__draft__";
 
@@ -148,6 +149,8 @@ const DEFAULT_AGENTIC_MODE =
 const CHAT_SETTINGS_STORAGE_KEY = "rudix.chat.settings.v1";
 const STREAMING_PLACEHOLDER_ENABLED =
   process.env.NEXT_PUBLIC_CHAT_STREAMING_ENABLED === "true";
+const CHAT_WEBSOCKET_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_WEBSOCKET_ENABLED === "true";
 
 type PersistedChatSettings = {
   topK: number;
@@ -690,6 +693,7 @@ export function ChatPage() {
   >(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [submitRequestId, setSubmitRequestId] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [feedbackByMessageId, setFeedbackByMessageId] = useState<
     Record<string, MessageFeedbackResponse>
   >({});
@@ -1150,6 +1154,84 @@ export function ChatPage() {
     refetchIntervalInBackground: true,
   });
 
+  // ── WebSocket chat transport (F277) ────────────────────────────────────────
+  const wsChat = useChatWebSocket();
+
+  const scrollToBottom = (smooth = false) => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
+
+  // Jump to the bottom instantly when switching sessions or loading history.
+  useEffect(() => {
+    scrollToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionId, thread.length]);
+
+  // Smooth-scroll as new content arrives during streaming.
+  useEffect(() => {
+    if (!pendingQuestion && !wsChat.partialAnswer) return;
+    scrollToBottom(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingQuestion, wsChat.partialAnswer]);
+
+  // Track the WS-submitted question + scopeLabel so the completion effect can
+  // build the ChatTurn with the same data the REST path would have.
+  const wsPendingRef = useRef<{
+    question: string;
+    sessionId: string | null;
+    scopeLabel: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!CHAT_WEBSOCKET_ENABLED) return;
+    if (wsChat.phase !== "completed" || !wsChat.finalResponse) return;
+    const response = wsChat.finalResponse;
+    const pending = wsPendingRef.current;
+    if (!pending) return;
+
+    const resolvedSessionId =
+      response.chat_session_id ?? pending.sessionId ?? activeSessionId;
+    const nextSessionId = resolvedSessionId ?? DRAFT_SESSION_KEY;
+    const previousThreadKey = activeThreadKey(pending.sessionId ?? null);
+    const nextTurn: ChatTurn = {
+      question: pending.question,
+      response: toTurnResponseFromQuery(response, pending.scopeLabel),
+    };
+
+    setThreadsBySession((previous) => {
+      const sourceThread = previous[previousThreadKey] ?? [];
+      const merged = [...sourceThread, nextTurn];
+      const next = { ...previous, [nextSessionId]: merged };
+      if (previousThreadKey !== nextSessionId) {
+        delete next[previousThreadKey];
+      }
+      return next;
+    });
+
+    setActiveSessionId(resolvedSessionId ?? null);
+    setSelectedResponseMessageId(nextTurn.response.message_id);
+    replaceSessionParamInUrl(resolvedSessionId ?? null);
+    setSubmitRequestId(null);
+    setPendingQuestion(null);
+    wsPendingRef.current = null;
+    void invalidateAfterMutation(queryClient, "chat.query");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsChat.phase, wsChat.finalResponse]);
+
+  useEffect(() => {
+    if (!CHAT_WEBSOCKET_ENABLED) return;
+    if (wsChat.phase !== "error" && wsChat.phase !== "cancelled") return;
+    setPendingQuestion(null);
+    wsPendingRef.current = null;
+  }, [wsChat.phase]);
+  // ── End WebSocket ────────────────────────────────────────────────────────
+
   const queryMutation = useMutation({
     mutationFn: (payload: ChatQueryRequest & { _scopeLabel?: string }) =>
       queryChat(payload),
@@ -1261,7 +1343,7 @@ export function ChatPage() {
 
   const isScopeInvalid = scopeWarning !== null;
   const isComposerDisabled =
-    queryMutation.isPending ||
+    (CHAT_WEBSOCKET_ENABLED ? wsChat.isPending : queryMutation.isPending) ||
     agentRunMutation.isPending ||
     createSessionMutation.isPending ||
     question.trim().length === 0 ||
@@ -1329,16 +1411,32 @@ export function ChatPage() {
     isForbiddenError(indexedDocumentsQuery.error) ||
     isForbiddenError(sessionsQuery.error);
   const composerError =
-    queryMutation.error ??
+    (CHAT_WEBSOCKET_ENABLED && wsChat.error
+      ? new Error(wsChat.error)
+      : null) ??
+    (!CHAT_WEBSOCKET_ENABLED ? queryMutation.error : null) ??
     agentRunMutation.error ??
     createSessionMutation.error;
   const composerForbidden = isForbiddenError(composerError);
+  const wsPhaseLabel = CHAT_WEBSOCKET_ENABLED
+    ? wsChat.phase === "retrieving"
+      ? tc("wsRetrieving")
+      : wsChat.phase === "reranking"
+        ? tc("wsReranking")
+        : wsChat.phase === "generating"
+          ? tc("wsGenerating")
+          : wsChat.phase === "validating_citations"
+            ? tc("wsValidating")
+            : wsChat.isPending
+              ? tc("wsConnecting")
+              : null
+    : null;
   const composerSubmitButtonLabel = createSessionMutation.isPending
     ? tc("composerStarting")
     : agentRunMutation.isPending
       ? tc("composerAgentRunning")
-      : queryMutation.isPending
-        ? tc("composerGenerating")
+      : (CHAT_WEBSOCKET_ENABLED ? wsChat.isPending : queryMutation.isPending)
+        ? (wsPhaseLabel ?? tc("composerGenerating"))
         : tc("composerSend");
   const canDecideApprovals = isAdminLikeRole(state.session?.role ?? null);
   const showDebugDetails =
@@ -1536,22 +1634,30 @@ export function ChatPage() {
       }
     }
 
-    queryMutation.mutate(
-      {
+    const chatPayload = {
+      question: trimmedQuestion,
+      chat_session_id: targetSessionId,
+      document_ids:
+        requiresUploadedDocuments && effectiveDocumentIds.length > 0
+          ? effectiveDocumentIds
+          : undefined,
+      top_k: topK,
+      rerank,
+      scope_mode: scopeMode,
+      source_scope: buildSourceScopePayload() ?? undefined,
+      answer_language: answerLanguage !== "auto" ? answerLanguage : undefined,
+      _scopeLabel: currentScopeLabel,
+    };
+
+    if (CHAT_WEBSOCKET_ENABLED) {
+      wsPendingRef.current = {
         question: trimmedQuestion,
-        chat_session_id: targetSessionId,
-        document_ids:
-          requiresUploadedDocuments && effectiveDocumentIds.length > 0
-            ? effectiveDocumentIds
-            : undefined,
-        top_k: topK,
-        rerank,
-        scope_mode: scopeMode,
-        source_scope: buildSourceScopePayload() ?? undefined,
-        answer_language: answerLanguage !== "auto" ? answerLanguage : undefined,
-        _scopeLabel: currentScopeLabel,
-      },
-      {
+        sessionId: targetSessionId,
+        scopeLabel: currentScopeLabel,
+      };
+      wsChat.sendQuery(chatPayload);
+    } else {
+      queryMutation.mutate(chatPayload, {
         onError: (error) => {
           setSubmitRequestId(extractRequestIdFromError(error));
           if (clearComposerOnSubmit) {
@@ -1559,8 +1665,8 @@ export function ChatPage() {
           }
           setPendingQuestion(null);
         },
-      },
-    );
+      });
+    }
   }
 
   if (listForbidden) {
@@ -1631,7 +1737,7 @@ export function ChatPage() {
         </header>
 
         <div
-          className={`grid min-h-0 flex-1 gap-4 overflow-hidden ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
+          className={`grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-rows-[1fr] ${isKnowledgeHubOpen || activeCitation !== null ? "xl:grid-cols-[280px_minmax(0,1fr)_320px]" : "xl:grid-cols-[280px_minmax(0,1fr)]"}`}
         >
           <aside className="hide-scrollbar min-h-0 space-y-4 overflow-y-auto xl:pr-1">
             <section className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
@@ -1772,8 +1878,8 @@ export function ChatPage() {
             </section>
           </aside>
 
-          <section className="min-h-0 overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
-            <div className="flex h-full min-h-0 flex-col">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex items-start justify-between gap-2 border-b border-[#e2dff1] px-4 py-3">
                 <div className="min-w-0">
                   <h2 className="text-sm font-bold tracking-wide text-[#5f5a74] uppercase">
@@ -1862,7 +1968,7 @@ export function ChatPage() {
                 ) : null}
               </div>
 
-              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4">
+              <div ref={messagesContainerRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4">
                 {sessionMessagesQuery.isLoading &&
                 activeSession &&
                 thread.length === 0 &&
@@ -2298,13 +2404,29 @@ export function ChatPage() {
                             </p>
                           </article>
                         </div>
-                        <ChatResponseLoadingState
-                          label={
-                            STREAMING_PLACEHOLDER_ENABLED
-                              ? tc("streamingLabel")
-                              : tc("generatingLabel")
-                          }
-                        />
+                        {CHAT_WEBSOCKET_ENABLED && wsChat.partialAnswer ? (
+                          <div className="flex justify-start">
+                            <article className="max-w-[90%] rounded-xl rounded-tl-none border border-[#e2dff1] bg-white px-4 py-3 shadow-sm">
+                              <p className="text-sm break-words whitespace-pre-wrap text-[#2f2a46]">
+                                {wsChat.partialAnswer}
+                                <span
+                                  className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-[#3525cd] align-middle"
+                                  aria-hidden="true"
+                                />
+                              </p>
+                            </article>
+                          </div>
+                        ) : (
+                          <ChatResponseLoadingState
+                            label={
+                              CHAT_WEBSOCKET_ENABLED && wsPhaseLabel
+                                ? wsPhaseLabel
+                                : STREAMING_PLACEHOLDER_ENABLED
+                                  ? tc("streamingLabel")
+                                  : tc("generatingLabel")
+                            }
+                          />
+                        )}
                       </li>
                     ) : null}
                   </ul>
@@ -2344,8 +2466,10 @@ export function ChatPage() {
                 filteredSelectedDocumentIds={filteredSelectedDocumentIds}
                 hasConnectorScopeSelection={hasConnectorScopeSelection}
                 hasIndexedDocuments={hasIndexedDocuments}
+                isGenerating={CHAT_WEBSOCKET_ENABLED && wsChat.isPending}
                 maxTopK={MAX_TOP_K}
                 minTopK={MIN_TOP_K}
+                onStop={() => wsChat.cancel()}
                 onSubmit={submitQuestion}
                 question={question}
                 requiresUploadedDocuments={requiresUploadedDocuments}

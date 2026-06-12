@@ -1693,6 +1693,12 @@
       "regenerateTooltip": "Régénérer",
       "streamingLabel": "Réponse en streaming...",
       "generatingLabel": "Génération de la réponse...",
+      "wsConnecting": "Connexion en cours...",
+      "wsRetrieving": "Récupération des sources...",
+      "wsReranking": "Classement des sources...",
+      "wsGenerating": "Génération de la réponse...",
+      "wsValidating": "Validation des citations...",
+      "wsStopGenerating": "Arrêter la génération",
       "accessRestrictedTitle": "L’accès au chat est restreint",
       "accessRestrictedDesc": "Votre rôle n’a pas l’autorisation d’interroger des documents dans cette organisation.",
       "queryForbiddenTitle": "La requête n’est pas autorisée",
@@ -1801,7 +1807,8 @@
       "chatDisabledHint": "Passez en mode Sans RAG pour chatter sans documents.",
       "scopeAriaLabel": "Type de portée",
       "collectionAriaLabel": "Sélectionner une collection",
-      "answerLanguageAriaLabel": "Langue de réponse"
+      "answerLanguageAriaLabel": "Langue de réponse",
+      "stopGenerating": "Arrêter la génération"
     }
   },
   "evaluations": {

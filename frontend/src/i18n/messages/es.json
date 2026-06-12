@@ -1693,6 +1693,12 @@
       "regenerateTooltip": "Regenerar",
       "streamingLabel": "Transmitiendo respuesta...",
       "generatingLabel": "Generando respuesta...",
+      "wsConnecting": "Conectando...",
+      "wsRetrieving": "Recuperando fuentes...",
+      "wsReranking": "Clasificando fuentes...",
+      "wsGenerating": "Generando respuesta...",
+      "wsValidating": "Validando citas...",
+      "wsStopGenerating": "Detener generación",
       "accessRestrictedTitle": "El acceso al chat está restringido",
       "accessRestrictedDesc": "Tu rol no tiene permiso para consultar documentos en esta organización.",
       "queryForbiddenTitle": "La consulta no está permitida",
@@ -1801,7 +1807,8 @@
       "chatDisabledHint": "Cambia al modo Sin RAG para chatear sin documentos.",
       "scopeAriaLabel": "Tipo de alcance",
       "collectionAriaLabel": "Seleccionar colección",
-      "answerLanguageAriaLabel": "Idioma de respuesta"
+      "answerLanguageAriaLabel": "Idioma de respuesta",
+      "stopGenerating": "Detener generación"
     }
   },
   "evaluations": {

@@ -53,7 +53,7 @@ export default async function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
         />
       </head>
-      <body className="flex min-h-full flex-col">
+      <body className="flex h-full flex-col overflow-hidden">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {runtimeConfigErrors.length > 0 ? (
             <ConfigErrorBanner errors={runtimeConfigErrors} />

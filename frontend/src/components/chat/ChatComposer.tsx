@@ -47,6 +47,8 @@ type ChatComposerProps = {
   setTopK: (value: number) => void;
   submitButtonLabel: string;
   topK: number;
+  isGenerating?: boolean;
+  onStop?: () => void;
   onSubmit: () => void;
 };
 
@@ -98,6 +100,8 @@ export function ChatComposer({
   setTopK,
   submitButtonLabel,
   topK,
+  isGenerating = false,
+  onStop,
   onSubmit,
 }: ChatComposerProps) {
   const t = useTranslations("chat.composer");
@@ -411,21 +415,37 @@ export function ChatComposer({
               <div
                 className={`absolute right-3 ${composerSendButtonPositionClass} transition-all`}
               >
-                <button
-                  type="submit"
-                  disabled={disabled}
-                  aria-label={submitButtonLabel}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white transition-all hover:shadow-lg active:scale-90 disabled:cursor-not-allowed disabled:opacity-60 ${
-                    composerHasText ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  <span
-                    className="material-symbols-outlined text-[20px]"
-                    aria-hidden="true"
+                {isGenerating ? (
+                  <button
+                    type="button"
+                    onClick={onStop}
+                    aria-label={t("stopGenerating")}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white transition-all hover:bg-[#2b1fa8] hover:shadow-lg active:scale-90"
                   >
-                    arrow_upward
-                  </span>
-                </button>
+                    <span
+                      className="material-symbols-outlined text-[20px]"
+                      aria-hidden="true"
+                    >
+                      stop
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={disabled}
+                    aria-label={submitButtonLabel}
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl bg-[#3525cd] text-white transition-all hover:shadow-lg active:scale-90 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      composerHasText ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    <span
+                      className="material-symbols-outlined text-[20px]"
+                      aria-hidden="true"
+                    >
+                      arrow_upward
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

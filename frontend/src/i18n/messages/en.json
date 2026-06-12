@@ -1693,6 +1693,12 @@
       "regenerateTooltip": "Regenerate",
       "streamingLabel": "Streaming response...",
       "generatingLabel": "Generating answer...",
+      "wsConnecting": "Connecting...",
+      "wsRetrieving": "Retrieving sources...",
+      "wsReranking": "Ranking sources...",
+      "wsGenerating": "Generating answer...",
+      "wsValidating": "Validating citations...",
+      "wsStopGenerating": "Stop generating",
       "accessRestrictedTitle": "Chat access is restricted",
       "accessRestrictedDesc": "Your role does not have permission to query documents in this organization.",
       "queryForbiddenTitle": "Query is not allowed",
@@ -1801,7 +1807,8 @@
       "chatDisabledHint": "Switch to No RAG mode to chat without documents.",
       "scopeAriaLabel": "Scope type",
       "collectionAriaLabel": "Select collection",
-      "answerLanguageAriaLabel": "Answer language"
+      "answerLanguageAriaLabel": "Answer language",
+      "stopGenerating": "Stop generating"
     }
   },
   "evaluations": {

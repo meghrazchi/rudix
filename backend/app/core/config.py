@@ -508,6 +508,11 @@ class Settings(BaseSettings):
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
     feature_enable_language_aware_rag: bool = True
+    # WebSocket chat transport (F277).
+    feature_chat_websocket_enabled: bool = True
+    ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
+    ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
+    ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

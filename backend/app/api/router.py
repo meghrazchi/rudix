@@ -50,6 +50,10 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(scim.router)
+# WebSocket chat endpoint must be registered outside protected_router so that
+# FastAPI does not try to inject get_current_principal as an HTTP dependency
+# during the WebSocket upgrade (browsers cannot send Authorization headers).
+api_router.include_router(chat.ws_router)
 
 protected_router = APIRouter(dependencies=[Depends(get_current_principal)])
 protected_router.include_router(documents.router)

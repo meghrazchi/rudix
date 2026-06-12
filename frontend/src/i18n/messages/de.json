@@ -1693,6 +1693,12 @@
       "regenerateTooltip": "Neu generieren",
       "streamingLabel": "Antwort wird gestreamt...",
       "generatingLabel": "Antwort wird generiert...",
+      "wsConnecting": "Verbindung wird hergestellt...",
+      "wsRetrieving": "Quellen werden abgerufen...",
+      "wsReranking": "Quellen werden sortiert...",
+      "wsGenerating": "Antwort wird generiert...",
+      "wsValidating": "Zitate werden validiert...",
+      "wsStopGenerating": "Generierung stoppen",
       "accessRestrictedTitle": "Chat-Zugriff eingeschränkt",
       "accessRestrictedDesc": "Ihre Rolle hat keine Berechtigung, Dokumente in dieser Organisation abzufragen.",
       "queryForbiddenTitle": "Abfrage nicht erlaubt",
@@ -1801,7 +1807,8 @@
       "chatDisabledHint": "Zum Kein-RAG-Modus wechseln, um ohne Dokumente zu chatten.",
       "scopeAriaLabel": "Bereichstyp",
       "collectionAriaLabel": "Sammlung auswählen",
-      "answerLanguageAriaLabel": "Antwortsprache"
+      "answerLanguageAriaLabel": "Antwortsprache",
+      "stopGenerating": "Generierung stoppen"
     }
   },
   "evaluations": {

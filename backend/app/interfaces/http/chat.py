@@ -1,3 +1,5 @@
+import asyncio
+import json
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -5,7 +7,7 @@ from time import perf_counter
 from typing import Annotated, Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
@@ -36,6 +38,7 @@ from app.domains.chat.schemas.chat import (
     CreateChatSessionRequest,
     UpdateChatSessionRequest,
 )
+from app.domains.chat.schemas.chat_ws import ChatWSInboundMessage, ChatWSOutboundEvent
 from app.domains.chat.schemas.feedback import (
     MessageFeedbackResponse,
     SessionFeedbackListResponse,
@@ -71,8 +74,15 @@ from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
 from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+from app.rate_limit.dependencies import _build_key, _rate_limit_disabled, _scope_limit
+from app.clients import redis_client as redis_module
+from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+# Separate router for WebSocket — must NOT be under protected_router because
+# the browser WebSocket API cannot send an Authorization header during the HTTP
+# upgrade, so FastAPI's router-level get_current_principal dependency would fail.
+ws_router = APIRouter(prefix="/chat", tags=["chat"])
 chat_repository = ChatRepository()
 share_repository = ChatShareRepository()
 feedback_repository = FeedbackRepository()
@@ -1982,3 +1992,842 @@ async def list_session_feedback(
         items=[_to_feedback_response(fb) for fb in items],
         total=len(items),
     )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# WebSocket chat transport (F277)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Per-user active connection counter (in-process; replace with Redis for multi-instance).
+_ws_connection_counts: dict[str, int] = {}
+_ws_connection_lock = asyncio.Lock()
+
+
+async def _ws_send(websocket: WebSocket, event: ChatWSOutboundEvent) -> None:
+    try:
+        await websocket.send_text(event.to_json())
+    except Exception:
+        pass
+
+
+async def _ws_rate_limit_chat(principal: AuthenticatedPrincipal) -> bool:
+    """Returns True if the request is allowed, False if rate-limited."""
+    if _rate_limit_disabled():
+        return True
+    from math import floor
+    from time import time
+
+    limit = _scope_limit(RateLimitScope.chat)
+    window_seconds = settings.rate_limit_window_seconds
+    window_bucket = floor(time() / window_seconds)
+    organization_id = principal.organization_id or "none"
+    key = _build_key(
+        scope=RateLimitScope.chat,
+        endpoint="/chat/ws",
+        user_id=principal.user_id,
+        organization_id=organization_id,
+        window=window_bucket,
+    )
+    redis = redis_module.redis_client
+    if redis is None:
+        return True
+    try:
+        count = await redis.incr(key)
+        if count == 1:
+            await redis.expire(key, window_seconds)
+        return int(count) <= limit
+    except Exception:
+        return True
+
+
+async def _authenticate_ws_token(
+    token: str,
+    db_session: AsyncSession,
+) -> AuthenticatedPrincipal | None:
+    """Authenticate a WebSocket connection from a bearer token string."""
+    from app.auth.factory import get_auth_provider
+
+    token = token.strip()
+    if not token:
+        return None
+
+    if token.startswith("rudix_"):
+        # API key path.
+        from fastapi import Request as _Request
+        scope: dict[str, Any] = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [(b"authorization", f"Bearer {token}".encode())],
+            "asgi": {"version": "3.0"},
+        }
+        try:
+            from app.auth.dependencies import _authenticate_api_key as _api_key_auth
+            fake_req = _Request(scope)
+            return await _api_key_auth(fake_req, token, db_session)
+        except Exception:
+            return None
+
+    # JWT path – construct a minimal Request with the Authorization header.
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "query_string": b"",
+        "headers": [(b"authorization", f"Bearer {token}".encode())],
+        "asgi": {"version": "3.0"},
+    }
+    try:
+        from fastapi import Request as _Request
+        from app.auth.errors import AuthenticationError, AuthorizationError
+
+        fake_req = _Request(scope)
+        provider = get_auth_provider()
+        return await provider.authenticate(fake_req, db_session)
+    except Exception:
+        return None
+
+
+async def _run_ws_chat_pipeline(
+    websocket: WebSocket,
+    payload: dict[str, Any],
+    principal: AuthenticatedPrincipal,
+    request_id: str,
+    sequence_start: int,
+) -> None:
+    """Run the full RAG pipeline and stream events over the WebSocket."""
+    seq = sequence_start
+    conversation_id: str | None = None
+
+    async def send(
+        event_type: str,
+        extra_payload: dict[str, Any] | None = None,
+        message_id: str | None = None,
+        safe_error_code: str | None = None,
+    ) -> None:
+        nonlocal seq
+        seq += 1
+        evt = ChatWSOutboundEvent(
+            event=event_type,  # type: ignore[arg-type]
+            request_id=request_id,
+            conversation_id=conversation_id,
+            message_id=message_id,
+            sequence=seq,
+            payload=extra_payload,
+            safe_error_code=safe_error_code,
+        )
+        await _ws_send(websocket, evt)
+
+    # Parse and validate the chat query request.
+    try:
+        query_request = ChatQueryRequest.model_validate(payload)
+    except Exception as exc:
+        await send("chat.error", safe_error_code="invalid_request")
+        log_query_event(
+            event="query.failed.ws_parse",
+            organization_id=principal.organization_id,
+            user_id=principal.user_id,
+            error=str(exc),
+        )
+        return
+
+    await send("chat.request.received")
+
+    user_id, organization_id = _principal_user_and_org(principal)
+    user_roles = list(principal.roles or [])
+
+    async with SessionLocal() as db_session:
+        try:
+            # ── Scope validation ──────────────────────────────────────────────
+            try:
+                explicit_document_ids = await ensure_document_ids_access(
+                    document_ids=query_request.document_ids,
+                    principal=principal,
+                    db_session=db_session,
+                )
+            except HTTPException:
+                await send("chat.error", safe_error_code="document_not_found")
+                return
+
+            source_scope_result = await _source_scope_service.resolve_document_ids(
+                db_session,
+                organization_id=organization_id,
+                user_id=user_id,
+                user_roles=user_roles,
+                source_scope=query_request.source_scope,
+                explicit_document_ids=explicit_document_ids,
+            )
+            document_ids = source_scope_result.document_ids
+            await send("chat.scope.validated", {"scope_label": source_scope_result.label})
+
+            # ── Session management ────────────────────────────────────────────
+            if query_request.chat_session_id is not None:
+                try:
+                    chat_session_id = UUID(query_request.chat_session_id)
+                except ValueError:
+                    await send("chat.error", safe_error_code="chat_session_not_found")
+                    return
+                chat_session = await chat_repository.get_chat_session(
+                    db_session,
+                    chat_session_id=chat_session_id,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                )
+                if chat_session is None:
+                    await send("chat.error", safe_error_code="chat_session_not_found")
+                    return
+            else:
+                chat_session = await chat_repository.create_chat_session(
+                    db_session,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    title=query_request.question[:120],
+                )
+
+            conversation_id = str(chat_session.id)
+
+            # ── Prompt template + injection check ─────────────────────────────
+            answer_prompt_version: PromptTemplateVersion | None = None
+            answer_prompt_template: str | None = None
+            if query_request.scope_mode != "none":
+                answer_prompt_version = await _resolve_answer_prompt_version(
+                    db_session, organization_id=organization_id
+                )
+                answer_prompt_template = answer_prompt_version.content
+
+            injection_check = _injection_guard.evaluate_request(
+                objective="", question=query_request.question, document_query=None
+            )
+
+            # ── Language detection ────────────────────────────────────────────
+            latencies_ms: dict[str, int] = {}
+            total_started = perf_counter()
+            embedding_model = _query_retrieval_service.embedding_model
+            retrieved_chunks: list[RetrievedChunk] = []
+            selected_chunks: list[RetrievedChunk] = []
+            embedding_prompt_tokens = 0
+            llm_prompt_tokens = 0
+            llm_completion_tokens = 0
+            llm_model: str | None = None
+            llm_provider: str | None = None
+            llm_fallback_used = False
+            llm_fallback_from: str | None = None
+            llm_fallback_to: str | None = None
+            llm_fallback_reason: str | None = None
+            llm_cost_usd = None
+            llm_latency_ms = 0
+            answer = _NOT_FOUND_ANSWER
+            citations: list[ChatCitationResponse] = []
+            not_found = injection_check.blocked
+            citation_validation_failed = False
+
+            chat_profile = await resolve_task_profile(
+                db_session, organization_id=organization_id, task_type=TaskType.chat
+            )
+            detected_language: str | None = None
+            answer_language_used: str | None = None
+            if settings.feature_enable_language_aware_rag and not injection_check.blocked:
+                detected_language = detect_language(query_request.question)
+                answer_language_used = resolve_answer_language(
+                    mode=query_request.answer_language,
+                    detected_language=detected_language,
+                    workspace_default=settings.answer_language_workspace_default,
+                )
+
+            if injection_check.blocked:
+                embedding_model = None
+                confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=0,
+                    citation_validation_score=1.0,
+                    not_found_signal=True,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+
+            elif query_request.scope_mode == "none":
+                # ── General chat (no retrieval) ───────────────────────────────
+                embedding_model = None
+                prompt = _prompt_service.build_general_prompt(
+                    question=query_request.question, answer_language=answer_language_used
+                )
+                await send("generation.started")
+                try:
+                    llm_result = await _llm_service.generate_answer(
+                        prompt=prompt, resolved_profile=chat_profile
+                    )
+                except (TransientLLMServiceError, PermanentLLMServiceError):
+                    await send("chat.error", safe_error_code="generation_failed")
+                    return
+                llm_latency_ms = llm_result.latency_ms
+                llm_model = llm_result.model_name
+                llm_provider = llm_result.provider_key
+                llm_fallback_used = llm_result.fallback_used
+                llm_fallback_from = llm_result.fallback_from
+                llm_fallback_to = llm_result.fallback_to
+                llm_fallback_reason = llm_result.fallback_reason
+                llm_prompt_tokens = llm_result.prompt_tokens
+                llm_completion_tokens = llm_result.completion_tokens
+                llm_cost_usd = llm_result.approximate_cost_usd
+                answer = llm_result.answer if llm_result.answer.strip() else _NOT_FOUND_ANSWER
+                not_found = llm_result.not_found or not answer.strip()
+                await send("generation.delta", {"text": answer})
+                confidence_signals = _to_confidence_signals(chunks=[], rerank_applied=False)
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=0,
+                    citation_validation_score=1.0,
+                    not_found_signal=not_found,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+
+            else:
+                # ── Full RAG pipeline ─────────────────────────────────────────
+                final_top_k = query_request.top_k or settings.retrieval_final_top_k
+                retrieval_top_k = max(
+                    final_top_k,
+                    _rerank_service.candidate_count if query_request.rerank else final_top_k,
+                )
+
+                # Embedding
+                embed_started = perf_counter()
+                try:
+                    query_vector, embedding_prompt_tokens = (
+                        await _query_retrieval_service.embed_query(question=query_request.question)
+                    )
+                except Exception:
+                    await send("chat.error", safe_error_code="query_embedding_failed")
+                    return
+                latencies_ms["embed"] = int((perf_counter() - embed_started) * 1000)
+
+                # Retrieval
+                await send("retrieval.started")
+                retrieve_started = perf_counter()
+                try:
+                    retrieved_candidates = _query_retrieval_service.retrieve_candidates(
+                        query_vector=query_vector,
+                        organization_id=organization_id,
+                        document_ids=document_ids,
+                        initial_top_k=retrieval_top_k,
+                        qdrant_client=_get_qdrant_client(),
+                    )
+                    retrieved_chunks = [
+                        _to_retrieved_chunk(c) for c in retrieved_candidates
+                    ]
+                    retrieved_chunks = await _source_provenance_service.filter_active_chunks(
+                        db_session, organization_id=organization_id, chunks=retrieved_chunks
+                    )
+                except Exception:
+                    await send("chat.error", safe_error_code="retrieval_failed")
+                    return
+                latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
+                await send(
+                    "retrieval.completed",
+                    {"chunk_count": len(retrieved_chunks)},
+                )
+
+                # Reranking
+                rerank_started = perf_counter()
+                if query_request.rerank:
+                    await send("rerank.started")
+                selected_chunks = _rerank_chunks(
+                    chunks=retrieved_chunks,
+                    enabled=query_request.rerank,
+                    final_top_k=final_top_k,
+                )
+                latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
+                if query_request.rerank:
+                    await send("rerank.completed", {"selected_count": len(selected_chunks)})
+
+                # Confidence pre-LLM
+                confidence_signals = _to_confidence_signals(
+                    chunks=selected_chunks, rerank_applied=query_request.rerank
+                )
+                confidence_result = _confidence_service.score(
+                    chunks=confidence_signals,
+                    citation_count=0,
+                    citation_validation_score=1.0,
+                    not_found_signal=False,
+                )
+                confidence_score = confidence_result.score
+                confidence_category = confidence_result.category
+                confidence_explanation = confidence_result.explanation
+                not_found = (
+                    len(selected_chunks) == 0
+                    or confidence_score < settings.confidence_not_found_threshold
+                )
+
+                if not_found:
+                    confidence_result = _confidence_service.score(
+                        chunks=confidence_signals,
+                        citation_count=0,
+                        citation_validation_score=1.0,
+                        not_found_signal=True,
+                    )
+                    confidence_score = confidence_result.score
+                    confidence_category = confidence_result.category
+                    confidence_explanation = confidence_result.explanation
+
+                prompt_started = perf_counter()
+                prompt = (
+                    _build_prompt(
+                        question=query_request.question,
+                        chunks=selected_chunks,
+                        answer_language=answer_language_used,
+                        template=answer_prompt_template,
+                    )
+                    if not not_found
+                    else ""
+                )
+                latencies_ms["prompt"] = int((perf_counter() - prompt_started) * 1000)
+
+                if not not_found:
+                    await send("generation.started")
+                    try:
+                        llm_result = await _llm_service.generate_answer(
+                            prompt=prompt, resolved_profile=chat_profile
+                        )
+                    except (TransientLLMServiceError, PermanentLLMServiceError):
+                        await send("chat.error", safe_error_code="generation_failed")
+                        return
+                    llm_latency_ms = llm_result.latency_ms
+                    llm_model = llm_result.model_name
+                    llm_provider = llm_result.provider_key
+                    llm_fallback_used = llm_result.fallback_used
+                    llm_fallback_from = llm_result.fallback_from
+                    llm_fallback_to = llm_result.fallback_to
+                    llm_fallback_reason = llm_result.fallback_reason
+                    llm_prompt_tokens = llm_result.prompt_tokens
+                    llm_completion_tokens = llm_result.completion_tokens
+                    llm_cost_usd = llm_result.approximate_cost_usd
+                    answer = llm_result.answer
+                    await send("generation.delta", {"text": answer})
+
+                    if llm_result.not_found or not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+                        answer = _NOT_FOUND_ANSWER
+                        not_found = True
+                    else:
+                        # Citation validation
+                        await send("citation.validation.started")
+                        citation_result = _citation_service.build_citations(
+                            not_found=False,
+                            answer=answer,
+                            retrieved_chunks=[
+                                CitationContextChunk(
+                                    document_id=chunk.document_id,
+                                    chunk_id=chunk.chunk_id,
+                                    filename=chunk.filename,
+                                    page_number=chunk.page_number,
+                                    text=chunk.text,
+                                    similarity_score=chunk.similarity_score,
+                                    rerank_score=chunk.rerank_score,
+                                    rerank_rank=chunk.rerank_rank,
+                                )
+                                for chunk in selected_chunks
+                            ],
+                            model_citations=llm_result.citations,
+                        )
+                        provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
+                            db_session,
+                            organization_id=organization_id,
+                            chunk_ids=[UUID(c.chunk_id) for c in citation_result.citations],
+                        )
+                        citations = [
+                            _with_provenance(c, provenance_by_chunk_id.get(UUID(c.chunk_id)))
+                            for c in citation_result.citations
+                        ]
+                        citation_validation_failed = citation_result.invalid_chunk_id_count > 0
+                        confidence_result = _confidence_service.score(
+                            chunks=confidence_signals,
+                            citation_count=len(citations),
+                            citation_validation_score=citation_result.validation_score,
+                            not_found_signal=False,
+                        )
+                        confidence_score = confidence_result.score
+                        confidence_category = confidence_result.category
+                        confidence_explanation = confidence_result.explanation
+                        await send(
+                            "citation.validation.completed",
+                            {"citation_count": len(citations)},
+                        )
+
+                    if not_found:
+                        confidence_result = _confidence_service.score(
+                            chunks=confidence_signals,
+                            citation_count=0,
+                            citation_validation_score=1.0,
+                            not_found_signal=True,
+                        )
+                        confidence_score = confidence_result.score
+                        confidence_category = confidence_result.category
+                        confidence_explanation = confidence_result.explanation
+
+            latencies_ms["llm"] = llm_latency_ms
+            answer_latency_ms = int((perf_counter() - total_started) * 1000)
+            latencies_ms["total"] = answer_latency_ms
+
+            # ── Persistence ───────────────────────────────────────────────────
+            try:
+                _ = await chat_repository.create_chat_message(
+                    db_session,
+                    chat_session_id=chat_session.id,
+                    role=ChatRole.user.value,
+                    content=query_request.question,
+                )
+                assistant_message = await chat_repository.create_chat_message(
+                    db_session,
+                    chat_session_id=chat_session.id,
+                    role=ChatRole.assistant.value,
+                    content=answer,
+                    confidence_score=confidence_score,
+                    latency_ms=answer_latency_ms,
+                    model_name=llm_model,
+                    token_input_count=embedding_prompt_tokens + llm_prompt_tokens,
+                    token_output_count=llm_completion_tokens,
+                    cost_usd=llm_cost_usd,
+                    prompt_template_version_id=answer_prompt_version.id
+                    if answer_prompt_version is not None
+                    else None,
+                )
+                for citation in citations:
+                    await chat_repository.create_citation(
+                        db_session,
+                        chat_message_id=assistant_message.id,
+                        document_id=UUID(citation.document_id),
+                        chunk_id=UUID(citation.chunk_id),
+                        text_snippet=citation.text_snippet or "",
+                        page_number=citation.page_number,
+                        start_offset=citation.start_offset,
+                        end_offset=citation.end_offset,
+                        similarity_score=citation.similarity_score,
+                        rerank_score=citation.rerank_score if query_request.rerank else None,
+                    )
+                persisted_document_ids = (
+                    [str(d) for d in document_ids] if document_ids is not None else []
+                )
+                await usage_repository.create_usage_event(
+                    db_session,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    event_type="chat.completion",
+                    model_name=llm_model,
+                    input_tokens=embedding_prompt_tokens + llm_prompt_tokens,
+                    output_tokens=llm_completion_tokens,
+                    cost_usd=llm_cost_usd,
+                    metadata={
+                        "chat_session_id": str(chat_session.id),
+                        "assistant_message_id": str(assistant_message.id),
+                        "document_ids": persisted_document_ids,
+                        "confidence_score": confidence_score,
+                        "confidence_category": confidence_category,
+                        "not_found": not_found,
+                        "citation_count": len(citations),
+                        "latencies_ms": latencies_ms,
+                        "answer_latency_ms": answer_latency_ms,
+                        "transport": "websocket",
+                    },
+                )
+                await audit_log_service.record(
+                    db_session,
+                    organization_id=organization_id,
+                    user_id=user_id,
+                    action="chat.query.completed",
+                    resource_type="chat_session",
+                    resource_id=chat_session.id,
+                    request_id=request_id,
+                    metadata={
+                        "assistant_message_id": str(assistant_message.id),
+                        "not_found": not_found,
+                        "confidence_category": confidence_category,
+                        "citation_count": len(citations),
+                        "transport": "websocket",
+                    },
+                )
+                await db_session.commit()
+            except Exception:
+                await db_session.rollback()
+                await send("chat.error", safe_error_code="chat_persistence_failed")
+                return
+
+            # ── Langfuse trace ────────────────────────────────────────────────
+            trace_chat_query(
+                ChatTraceMetadata(
+                    request_id=request_id,
+                    organization_id=str(organization_id),
+                    user_id=str(user_id) if user_id is not None else "",
+                    session_id=str(chat_session.id),
+                    message_id=str(assistant_message.id),
+                    question=query_request.question,
+                    answer=answer,
+                    scope_mode=query_request.scope_mode,
+                    source_scope_label=source_scope_result.label,
+                    feature_area="chat_ws",
+                    retrieved_count=len(retrieved_chunks),
+                    selected_count=len(selected_chunks),
+                    rerank_applied=query_request.rerank,
+                    cited_count=len(citations),
+                    not_found=not_found,
+                    citation_validation_failed=citation_validation_failed,
+                    confidence_score=confidence_score,
+                    confidence_category=confidence_category,
+                    llm_model=llm_model,
+                    llm_provider=llm_provider,
+                    embedding_model=embedding_model,
+                    fallback_used=llm_fallback_used,
+                    fallback_reason=llm_fallback_reason,
+                    embedding_prompt_tokens=embedding_prompt_tokens,
+                    llm_prompt_tokens=llm_prompt_tokens,
+                    llm_completion_tokens=llm_completion_tokens,
+                    llm_total_tokens=embedding_prompt_tokens + llm_prompt_tokens + llm_completion_tokens,
+                    estimated_cost_usd=llm_cost_usd,
+                    latencies_ms=dict(latencies_ms),
+                    answer_latency_ms=answer_latency_ms,
+                    detected_language=detected_language,
+                    answer_language_used=answer_language_used,
+                    prompt_template_key=PromptTemplateKey.answer_generation.value
+                    if answer_prompt_version is not None
+                    else None,
+                    prompt_template_version=answer_prompt_version.version_number
+                    if answer_prompt_version is not None
+                    else None,
+                )
+            )
+            log_query_event(
+                event="query.completed",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                job_id=str(chat_session.id),
+                status_code=200,
+                not_found=not_found,
+                confidence_score=confidence_score,
+                confidence_category=confidence_category,
+                transport="websocket",
+            )
+
+            # ── Final event ───────────────────────────────────────────────────
+            final_response = ChatQueryResponse(
+                chat_session_id=str(chat_session.id),
+                message_id=str(assistant_message.id),
+                answer=answer,
+                confidence_score=confidence_score,
+                confidence_category=confidence_category,
+                confidence_explanation=ChatConfidenceExplanationResponse(
+                    top_similarity=confidence_explanation.top_similarity,
+                    average_similarity=confidence_explanation.average_similarity,
+                    top_rerank_score=confidence_explanation.top_rerank_score,
+                    citation_support_score=confidence_explanation.citation_support_score,
+                    citation_validation_score=confidence_explanation.citation_validation_score,
+                    citation_coverage_score=confidence_explanation.citation_coverage_score,
+                    retrieval_agreement_score=confidence_explanation.retrieval_agreement_score,
+                    raw_score=confidence_explanation.raw_score,
+                    citation_validation_multiplier=confidence_explanation.citation_validation_multiplier,
+                    not_found_penalty_multiplier=confidence_explanation.not_found_penalty_multiplier,
+                    no_context=confidence_explanation.no_context,
+                    not_found_signal=confidence_explanation.not_found_signal,
+                    weights=confidence_explanation.weights,
+                    thresholds=confidence_explanation.thresholds,
+                ),
+                not_found=not_found,
+                citations=[] if not_found else citations,
+                citation_validation_failed=citation_validation_failed,
+                debug=ChatDebugResponse(
+                    latencies_ms=latencies_ms,
+                    retrieval_count=len(retrieved_chunks),
+                    selected_count=len(selected_chunks),
+                    rerank_applied=query_request.rerank,
+                    source_scope=source_scope_result.label,
+                    embedding_model=embedding_model,
+                    llm_model=llm_model,
+                    llm_provider=llm_provider,
+                    fallback_used=llm_fallback_used,
+                    fallback_from=llm_fallback_from,
+                    fallback_to=llm_fallback_to,
+                    fallback_reason=llm_fallback_reason,
+                    detected_language=detected_language,
+                    answer_language_used=answer_language_used,
+                    prompt_template_key=PromptTemplateKey.answer_generation.value
+                    if answer_prompt_version is not None
+                    else None,
+                    prompt_template_version=answer_prompt_version.version_number
+                    if answer_prompt_version is not None
+                    else None,
+                    prompt_template_version_id=str(answer_prompt_version.id)
+                    if answer_prompt_version is not None
+                    else None,
+                ),
+                created_at=assistant_message.created_at,
+            )
+            await send(
+                "chat.completed",
+                {"response": json.loads(final_response.model_dump_json())},
+                message_id=str(assistant_message.id),
+            )
+
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log_query_event(
+                event="query.failed.ws_unhandled",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                error=exc.__class__.__name__,
+            )
+            await send("chat.error", safe_error_code="internal_error")
+
+
+@ws_router.websocket("/ws")
+async def chat_websocket(
+    websocket: WebSocket,
+    token: str | None = Query(default=None),
+) -> None:
+    """WebSocket chat endpoint (F277). Feature-flagged via FEATURE_CHAT_WEBSOCKET_ENABLED."""
+    if not settings.feature_chat_websocket_enabled:
+        await websocket.close(code=4503, reason="WebSocket chat is not enabled")
+        return
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    async with SessionLocal() as auth_session:
+        if not token:
+            await websocket.close(code=4401, reason="Missing auth token")
+            return
+        principal = await _authenticate_ws_token(token, auth_session)
+
+    if principal is None:
+        await websocket.close(code=4401, reason="Unauthorized")
+        return
+
+    user_id = principal.user_id
+
+    # ── Role check ────────────────────────────────────────────────────────────
+    allowed_roles = {
+        OrganizationRole.owner.value,
+        OrganizationRole.admin.value,
+        OrganizationRole.member.value,
+        OrganizationRole.viewer.value,
+    }
+    principal_roles = {r.strip() for r in (principal.roles or [])}
+    if allowed_roles and not principal_roles.intersection(allowed_roles):
+        await websocket.close(code=4403, reason="Insufficient role")
+        return
+
+    # ── Connection count guard ────────────────────────────────────────────────
+    async with _ws_connection_lock:
+        current = _ws_connection_counts.get(user_id, 0)
+        if current >= settings.ws_chat_max_connections_per_user:
+            await websocket.close(code=4429, reason="Too many connections")
+            return
+        _ws_connection_counts[user_id] = current + 1
+
+    await websocket.accept()
+    log_query_event(
+        event="ws_chat.connection.opened",
+        organization_id=principal.organization_id,
+        user_id=user_id,
+    )
+
+    sequence = 0
+
+    async def send_event(
+        event_type: str,
+        payload: dict[str, Any] | None = None,
+        safe_error_code: str | None = None,
+    ) -> None:
+        nonlocal sequence
+        sequence += 1
+        evt = ChatWSOutboundEvent(
+            event=event_type,  # type: ignore[arg-type]
+            sequence=sequence,
+            payload=payload,
+            safe_error_code=safe_error_code,
+        )
+        await _ws_send(websocket, evt)
+
+    active_task: asyncio.Task[None] | None = None
+    heartbeat_task: asyncio.Task[None] | None = None
+
+    async def run_heartbeat() -> None:
+        interval = settings.ws_chat_heartbeat_interval_seconds
+        while True:
+            await asyncio.sleep(interval)
+            await send_event("heartbeat.ping")
+
+    try:
+        await send_event("connection.ready")
+        heartbeat_task = asyncio.create_task(run_heartbeat())
+        request_id = secrets.token_hex(16)
+
+        while True:
+            try:
+                raw = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=float(settings.ws_chat_idle_timeout_seconds),
+                )
+            except asyncio.TimeoutError:
+                break
+
+            try:
+                msg = ChatWSInboundMessage.model_validate_json(raw)
+            except Exception:
+                await send_event("chat.error", safe_error_code="invalid_message")
+                continue
+
+            if msg.command == "heartbeat.pong":
+                continue
+
+            if msg.command == "chat.cancel":
+                if active_task and not active_task.done():
+                    active_task.cancel()
+                    try:
+                        await active_task
+                    except asyncio.CancelledError:
+                        pass
+                    active_task = None
+                    await send_event("chat.cancelled")
+                continue
+
+            if msg.command == "chat.start":
+                if active_task and not active_task.done():
+                    await send_event("chat.error", safe_error_code="already_running")
+                    continue
+
+                # Rate limit per chat.start command.
+                allowed = await _ws_rate_limit_chat(principal)
+                if not allowed:
+                    await send_event("chat.error", safe_error_code="rate_limit_exceeded")
+                    continue
+
+                request_id = msg.request_id or secrets.token_hex(16)
+                payload_dict: dict[str, Any] = msg.payload or {}
+                active_task = asyncio.create_task(
+                    _run_ws_chat_pipeline(
+                        websocket=websocket,
+                        payload=payload_dict,
+                        principal=principal,
+                        request_id=request_id,
+                        sequence_start=sequence,
+                    )
+                )
+
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        if heartbeat_task:
+            heartbeat_task.cancel()
+        if active_task and not active_task.done():
+            active_task.cancel()
+        async with _ws_connection_lock:
+            _ws_connection_counts[user_id] = max(
+                0, _ws_connection_counts.get(user_id, 1) - 1
+            )
+        log_query_event(
+            event="ws_chat.connection.closed",
+            organization_id=principal.organization_id,
+            user_id=user_id,
+        )
