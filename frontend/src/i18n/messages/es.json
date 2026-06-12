@@ -1308,6 +1308,7 @@
       "uploadDocument": "Subir documento",
       "roleCannotUpload": "Tu rol no puede subir nuevos documentos.",
       "tableFilename": "Nombre de archivo",
+      "tableSource": "Fuente",
       "tableType": "Tipo",
       "tableStatus": "Estado",
       "tablePages": "Páginas",

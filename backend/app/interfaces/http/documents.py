@@ -70,6 +70,8 @@ from app.domains.pipeline.services.pipeline_graph_service import (
     pipeline_node_label,
 )
 from app.models.collection import Collection, CollectionDocument
+from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
+from app.models.connector_source import SourceDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus, OrganizationRole
 from app.models.pipeline import PipelineEvent, PipelineRun
@@ -678,6 +680,7 @@ async def list_documents(
     # Batch-fetch collection memberships for all documents in one query.
     doc_ids = [doc.id for doc in documents]
     collections_by_doc: dict[object, list[DocumentCollectionSummary]] = {}
+    source_provider_by_doc: dict[object, str] = {}
     if doc_ids:
         coll_result = await db_session.execute(
             select(CollectionDocument.document_id, Collection.id, Collection.name)
@@ -692,6 +695,18 @@ async def list_documents(
             collections_by_doc.setdefault(doc_id, []).append(
                 DocumentCollectionSummary(collection_id=str(coll_id), name=coll_name)
             )
+
+        # Batch-fetch connector source provider for all documents in one query.
+        src_result = await db_session.execute(
+            select(SourceDocument.document_id, ConnectorProvider.key)
+            .join(ExternalItem, ExternalItem.id == SourceDocument.external_item_id)
+            .join(ConnectorConnection, ConnectorConnection.id == ExternalItem.connection_id)
+            .join(ConnectorProvider, ConnectorProvider.id == ConnectorConnection.provider_id)
+            .where(SourceDocument.document_id.in_(doc_ids))
+            .distinct(SourceDocument.document_id)
+        )
+        for doc_id, provider_key in src_result:
+            source_provider_by_doc[doc_id] = provider_key
 
     items: list[DocumentListItemResponse] = []
     for document in documents:
@@ -712,6 +727,7 @@ async def list_documents(
                 error_message=safe_error_message,
                 error_details=safe_error_details,
                 source=document.source,
+                source_provider=source_provider_by_doc.get(document.id),
                 language=document.language,
                 retention_class=document.retention_class,
                 notes=document.notes,

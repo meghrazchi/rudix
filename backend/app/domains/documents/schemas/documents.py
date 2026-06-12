@@ -209,6 +209,7 @@ class DocumentListItemResponse(BaseModel):
     error_message: str | None = None
     error_details: DocumentErrorDetails | None = None
     source: str | None = None
+    source_provider: str | None = None
     language: str | None = None
     retention_class: str | None = None
     notes: str | None = None

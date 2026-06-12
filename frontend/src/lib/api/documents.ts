@@ -98,6 +98,8 @@ export type DocumentCollectionSummary = {
 
 export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
   source?: string | null;
+  source_provider?: string | null;
+  source_provider_label?: string | null;
   language?: string | null;
   retention_class?: string | null;
   notes?: string | null;

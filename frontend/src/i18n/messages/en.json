@@ -1308,6 +1308,7 @@
       "uploadDocument": "Upload document",
       "roleCannotUpload": "Your role cannot upload new documents.",
       "tableFilename": "Filename",
+      "tableSource": "Source",
       "tableType": "Type",
       "tableStatus": "Status",
       "tablePages": "Pages",

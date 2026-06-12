@@ -1308,6 +1308,7 @@
       "uploadDocument": "Téléverser un document",
       "roleCannotUpload": "Votre rôle ne peut pas téléverser de nouveaux documents.",
       "tableFilename": "Nom de fichier",
+      "tableSource": "Source",
       "tableType": "Type",
       "tableStatus": "Statut",
       "tablePages": "Pages",

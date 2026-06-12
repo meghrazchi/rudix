@@ -1308,6 +1308,7 @@
       "uploadDocument": "Dokument hochladen",
       "roleCannotUpload": "Ihre Rolle erlaubt keine neuen Uploads.",
       "tableFilename": "Dateiname",
+      "tableSource": "Quelle",
       "tableType": "Typ",
       "tableStatus": "Status",
       "tablePages": "Seiten",

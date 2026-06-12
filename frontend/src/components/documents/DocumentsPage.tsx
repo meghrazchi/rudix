@@ -187,6 +187,46 @@ function documentTypeIconClass(fileType: string): string {
   return "text-[#7e3000]";
 }
 
+function truncateFilename(name: string, maxLen = 28): string {
+  if (name.length <= maxLen) return name;
+  const extDot = name.lastIndexOf(".");
+  const ext = extDot > 0 ? name.slice(extDot) : "";
+  const base = extDot > 0 ? name.slice(0, extDot) : name;
+  const budget = maxLen - ext.length - 1;
+  const startLen = Math.ceil(budget * 0.6);
+  const endLen = Math.floor(budget * 0.4);
+  return base.slice(0, startLen) + "…" + base.slice(-endLen) + ext;
+}
+
+function documentSourceLabel(
+  sourceProvider: string | null | undefined,
+  sourceProviderLabel: string | null | undefined,
+): string | null {
+  if (sourceProviderLabel) return sourceProviderLabel;
+  if (!sourceProvider) return null;
+  const map: Record<string, string> = {
+    confluence: "Confluence",
+    google_drive: "Google Drive",
+    "microsoft-sharepoint-onedrive": "SharePoint / OneDrive",
+    notion: "Notion",
+    jira: "Jira",
+    upload: "Local Upload",
+  };
+  return map[sourceProvider] ?? sourceProvider.replace(/_/g, " ");
+}
+
+function documentSourceIcon(sourceProvider: string | null | undefined): string {
+  if (!sourceProvider || sourceProvider === "upload") return "upload_file";
+  const map: Record<string, string> = {
+    confluence: "integration_instructions",
+    google_drive: "add_to_drive",
+    "microsoft-sharepoint-onedrive": "cloud",
+    notion: "article",
+    jira: "bug_report",
+  };
+  return map[sourceProvider] ?? "cloud_sync";
+}
+
 function buildPaginationItems(
   currentPage: number,
   totalPages: number,
@@ -1483,6 +1523,7 @@ export function DocumentsPage() {
                       </th>
                     ) : null}
                     <th className="px-4 py-3">{tp("tableFilename")}</th>
+                    <th className="px-4 py-3">{tp("tableSource")}</th>
                     <th className="px-4 py-3">{tp("tableType")}</th>
                     <th className="px-4 py-3">{tp("tableStatus")}</th>
                     <th className="px-4 py-3 text-center">{tp("tablePages")}</th>
@@ -1545,8 +1586,11 @@ export function DocumentsPage() {
                               {documentTypeIcon(document.file_type)}
                             </span>
                             <div>
-                              <p className="font-semibold text-[#1b1b24]">
-                                {document.filename}
+                              <p
+                                className="font-semibold text-[#1b1b24]"
+                                title={document.filename}
+                              >
+                                {truncateFilename(document.filename)}
                               </p>
                               <p className="text-xs text-[#7a768f]">
                                 {document.document_id}
@@ -1583,6 +1627,22 @@ export function DocumentsPage() {
                               ) : null}
                             </div>
                           </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const providerKey = document.source_provider ?? document.source;
+                            const label = documentSourceLabel(providerKey, document.source_provider_label);
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[16px] text-[#6a6780]">
+                                  {documentSourceIcon(providerKey)}
+                                </span>
+                                <span className="whitespace-nowrap text-xs text-[#464555]">
+                                  {label ?? "Local Upload"}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium text-[#505f76] uppercase">
                           {document.file_type}
