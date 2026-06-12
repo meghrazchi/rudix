@@ -158,7 +158,13 @@ export const queryKeys = {
       ["admin", "failed-jobs", jobId] as const,
     chunkingStrategies: ["admin", "chunking-profiles", "strategies"] as const,
     chunkingProfiles: ["admin", "chunking-profiles", "profiles"] as const,
+    statusSnapshot: ["admin", "status-snapshot"] as const,
+    incidents: (params?: Record<string, unknown>) =>
+      ["admin", "incidents", params ?? {}] as const,
+    incidentDetail: (incidentId: string) =>
+      ["admin", "incidents", incidentId] as const,
   },
+  statusBanner: ["status", "banner"] as const,
   ragProfiles: {
     all: ["rag-profiles"] as const,
     list: (params?: Record<string, unknown>) =>

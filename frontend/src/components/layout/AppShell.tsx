@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { ServiceStatusBanner } from "@/components/admin/ServiceStatusBanner";
 import { WorkspaceSwitcherCard } from "@/components/workspace/WorkspaceSwitcherCard";
 import {
   type OnboardingState,
@@ -1059,6 +1060,7 @@ export function AppShell({
               </div>
             </div>
           </header>
+          <ServiceStatusBanner />
           <main className="min-h-0 flex-1 overflow-auto">{children}</main>
         </div>
       </div>

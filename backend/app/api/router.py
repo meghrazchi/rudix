@@ -11,6 +11,7 @@ from app.interfaces.http import (
     admin_roles,
     admin_scim,
     admin_sso,
+    admin_status,
     agent_runs,
     auth,
     billing,
@@ -84,6 +85,7 @@ protected_router.include_router(admin.router)
 protected_router.include_router(observability.router)
 protected_router.include_router(langfuse_diagnostics.router)
 protected_router.include_router(failed_jobs.router)
+protected_router.include_router(admin_status.router)
 protected_router.include_router(admin_sso.router)
 protected_router.include_router(admin_scim.router)
 protected_router.include_router(admin_documents.router)
