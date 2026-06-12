@@ -1193,21 +1193,13 @@ export function DocumentsPage() {
 
   return (
     <section className="space-y-6 bg-white px-4 py-5 lg:px-8 lg:py-8">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        {!capabilities.canUpload ? (
+      {!capabilities.canUpload ? (
+        <div className="flex justify-end">
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold tracking-wide text-slate-600 uppercase">
             {tp("readOnlyRole")}
           </span>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setIsUploadModalOpen(true)}
-          disabled={isUploading}
-          className="rounded-lg bg-[#3525cd] px-3 py-2 text-sm font-semibold text-white transition-all hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {tp("openUploadModal")}
-        </button>
-      </div>
+        </div>
+      ) : null}
 
       <section className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-3">
         <button
@@ -1219,7 +1211,7 @@ export function DocumentsPage() {
           onDrop={(event) => {
             void handlePageUploadDrop(event);
           }}
-          className={`group rounded-xl border-2 border-dashed p-6 text-center transition-all disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2 ${
+          className={`group rounded-xl border-2 border-dashed p-6 text-center transition-all disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2 cursor-pointer ${
             isPageDropActive
               ? "border-[#3525cd] bg-[#f1efff]"
               : "border-[#3525cd]/20 bg-white hover:border-[#3525cd] hover:bg-[#3525cd]/[0.02]"

@@ -305,7 +305,7 @@ export function DocumentsUploadModal({
               data-overlay-autofocus="true"
               onClick={handleClose}
               aria-label={t("closeAriaLabel")}
-              className="rounded-full p-1 text-[#6f6b86] transition-colors hover:bg-[#f1eff9] hover:text-[#1b1b24]"
+              className="cursor-pointer rounded-full p-1 text-[#6f6b86] transition-colors hover:bg-[#f1eff9] hover:text-[#1b1b24]"
             >
               <span className="material-symbols-outlined">close</span>
             </button>

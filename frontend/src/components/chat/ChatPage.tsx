@@ -1812,7 +1812,7 @@ export function ChatPage() {
                                   setPendingQuestion(null);
                                   replaceSessionParamInUrl(session.session_id);
                                 }}
-                                className="w-full px-3 py-2 pr-8 text-left text-sm"
+                                className="w-full cursor-pointer px-3 py-2 pr-8 text-left text-sm"
                               >
                                 <p
                                   className={`truncate font-semibold ${isActive ? "text-[#2f2a46]" : "text-[#4f4b63]"}`}
@@ -2512,7 +2512,7 @@ export function ChatPage() {
                 type="button"
                 onClick={() => setIsKnowledgeHubOpen(false)}
                 aria-label="Close Knowledge Hub"
-                className="rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+                className="cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
               >
                 <span
                   className="material-symbols-outlined text-[20px]"
@@ -2899,7 +2899,7 @@ export function ChatPage() {
                     type="button"
                     onClick={() => setActiveCitation(null)}
                     aria-label="Close citation detail"
-                    className="shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+                    className="cursor-pointer shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
                   >
                     <span
                       className="material-symbols-outlined text-[20px]"
