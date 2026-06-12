@@ -38,7 +38,6 @@ import {
   listChatSessionMessages,
   listChatSessions,
   queryChat,
-  updateChatSession,
   type ChatCitationResponse,
   type ChatDebugResponse,
   type ChatSessionMessageResponse,
@@ -716,10 +715,6 @@ export function ChatPage() {
   >(() => persistedSettings?.selectedProviderSourceIds ?? []);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
-    null,
-  );
-  const [renameValue, setRenameValue] = useState("");
   const [confirmDeleteSessionId, setConfirmDeleteSessionId] = useState<
     string | null
   >(null);
@@ -1218,19 +1213,6 @@ export function ChatPage() {
     mutationFn: (title: string | null) => createChatSession({ title }),
   });
 
-  const renameSessionMutation = useMutation({
-    mutationFn: ({
-      sessionId,
-      title,
-    }: {
-      sessionId: string;
-      title: string | null;
-    }) => updateChatSession(sessionId, { title }),
-    onSuccess: async () => {
-      await invalidateAfterMutation(queryClient, "chat.session.rename");
-    },
-  });
-
   const deleteSessionMutation = useMutation({
     mutationFn: (sessionId: string) => deleteChatSession(sessionId),
     onSuccess: async (_, deletedSessionId) => {
@@ -1412,35 +1394,6 @@ export function ChatPage() {
     setSubmitRequestId(null);
     replaceSessionParamInUrl(null);
   }
-
-  const handleRenameStart = useCallback(
-    (sessionId: string, currentTitle: string | null | undefined) => {
-      setRenamingSessionId(sessionId);
-      setRenameValue(currentTitle ?? "");
-    },
-    [],
-  );
-
-  const handleRenameCancel = useCallback(() => {
-    setRenamingSessionId(null);
-    setRenameValue("");
-  }, []);
-
-  const handleRenameSubmit = useCallback(
-    (sessionId: string) => {
-      const trimmed = renameValue.trim();
-      renameSessionMutation.mutate(
-        { sessionId, title: trimmed || null },
-        {
-          onSettled: () => {
-            setRenamingSessionId(null);
-            setRenameValue("");
-          },
-        },
-      );
-    },
-    [renameValue, renameSessionMutation],
-  );
 
   const handleDeleteRequest = useCallback((sessionId: string) => {
     setConfirmDeleteSessionId(sessionId);
@@ -1701,8 +1654,6 @@ export function ChatPage() {
                   <ul className="space-y-2">
                     {sessions.map((session) => {
                       const isActive = session.session_id === activeSessionId;
-                      const isRenaming =
-                        renamingSessionId === session.session_id;
                       const isConfirmingDelete =
                         confirmDeleteSessionId === session.session_id;
                       const displayTitle =
@@ -1739,47 +1690,6 @@ export function ChatPage() {
                                 </button>
                               </div>
                             </div>
-                          ) : isRenaming ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                handleRenameSubmit(session.session_id);
-                              }}
-                              className={`rounded-lg border px-3 py-2 ${isActive ? "border-[#3525cd] bg-[#ece8ff]" : "border-[#dfdbef] bg-white"}`}
-                            >
-                              <input
-                                autoFocus
-                                type="text"
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Escape") handleRenameCancel();
-                                }}
-                                onBlur={() => handleRenameCancel()}
-                                maxLength={SESSION_TITLE_MAX_LENGTH}
-                                placeholder={tc("sessionTitlePlaceholder")}
-                                aria-label={tc("sessionTitlePlaceholder")}
-                                className="w-full bg-transparent text-sm font-semibold text-[#2f2a46] outline-none placeholder:text-[#9d98b5]"
-                              />
-                              <div className="mt-1 flex gap-2">
-                                <button
-                                  type="submit"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  disabled={renameSessionMutation.isPending}
-                                  className="text-xs font-semibold text-[#3525cd] hover:underline disabled:opacity-60"
-                                >
-                                  {tc("save")}
-                                </button>
-                                <button
-                                  type="button"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={handleRenameCancel}
-                                  className="text-xs font-semibold text-[#6a6780] hover:underline"
-                                >
-                                  {tc("cancel")}
-                                </button>
-                              </div>
-                            </form>
                           ) : (
                             <div
                               className={`group relative cursor-pointer rounded-lg border transition ${
@@ -1808,79 +1718,25 @@ export function ChatPage() {
                                 </p>
                               </button>
                               <div
-                                className={`absolute top-1 right-1 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${openSessionMenuId === session.session_id ? "opacity-100" : "opacity-0"}`}
+                                className="absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
                                 <button
                                   type="button"
-                                  aria-label="Session actions"
-                                  aria-expanded={
-                                    openSessionMenuId === session.session_id
-                                  }
+                                  aria-label="Delete session"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setOpenSessionMenuId((prev) =>
-                                      prev === session.session_id
-                                        ? null
-                                        : session.session_id,
-                                    );
+                                    handleDeleteRequest(session.session_id);
                                   }}
-                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-[#6a6780] hover:text-[#2f2a46]"
+                                  className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-[#6a6780] hover:text-rose-600"
                                 >
                                   <span
                                     className="material-symbols-outlined text-[16px]"
                                     aria-hidden="true"
                                   >
-                                    more_vert
+                                    delete
                                   </span>
                                 </button>
-                                {openSessionMenuId === session.session_id && (
-                                  <div
-                                    role="menu"
-                                    className="absolute top-7 right-0 z-20 min-w-[130px] overflow-hidden rounded-lg border border-[#d7d4e8] bg-white py-1 shadow-lg"
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                  >
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenSessionMenuId(null);
-                                        handleRenameStart(
-                                          session.session_id,
-                                          session.title,
-                                        );
-                                      }}
-                                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-[#2f2a46] hover:bg-[#f5f2ff]"
-                                    >
-                                      <span
-                                        className="material-symbols-outlined text-[14px] text-[#6a6780]"
-                                        aria-hidden="true"
-                                      >
-                                        edit
-                                      </span>
-                                      {tc("rename")}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      role="menuitem"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setOpenSessionMenuId(null);
-                                        handleDeleteRequest(session.session_id);
-                                      }}
-                                      className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-rose-600 hover:bg-rose-50"
-                                    >
-                                      <span
-                                        className="material-symbols-outlined text-[14px]"
-                                        aria-hidden="true"
-                                      >
-                                        delete
-                                      </span>
-                                      {tc("delete")}
-                                    </button>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           )}
@@ -2069,20 +1925,27 @@ export function ChatPage() {
                               <article className="rounded-xl rounded-tl-none border border-[#c7c4d8] bg-white px-4 py-3 shadow-sm">
                                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <span className={confidenceBadgeClass()}>
-                                      <span
-                                        className="material-symbols-outlined text-xs"
-                                        aria-hidden="true"
-                                        style={{
-                                          fontVariationSettings: "'FILL' 1",
-                                        }}
-                                      >
-                                        check_circle
+                                    <span className="group/conf relative">
+                                      <span className={confidenceBadgeClass()}>
+                                        <span
+                                          className="material-symbols-outlined text-xs"
+                                          aria-hidden="true"
+                                          style={{
+                                            fontVariationSettings: "'FILL' 1",
+                                          }}
+                                        >
+                                          verified
+                                        </span>
+                                        Confidence{" "}
+                                        {formatPercent(
+                                          turn.response.confidence_score,
+                                        )}
                                       </span>
-                                      Confidence{" "}
-                                      {formatPercent(
-                                        turn.response.confidence_score,
-                                      )}
+                                      {turn.response.confidence_category === "low" && !turn.response.not_found ? (
+                                        <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1.5 w-56 rounded bg-[#2a2640] px-2 py-1.5 text-[10px] leading-snug whitespace-normal text-white opacity-0 transition-opacity group-hover/conf:opacity-100">
+                                          Low confidence warning: validate this answer against the cited source text.
+                                        </span>
+                                      ) : null}
                                     </span>
                                     {turn.response.scope_label ? (
                                       <span className="inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2 py-0.5 text-[10px] font-semibold text-[#3525cd]">
@@ -2111,13 +1974,6 @@ export function ChatPage() {
                                     </span>
                                   </div>
                                 </div>
-
-                                {turn.response.confidence_category === "low" &&
-                                !turn.response.not_found ? (
-                                  <p className="mb-3 rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-xs text-[#464555]">
-                                    {tc("lowConfidenceWarning")}
-                                  </p>
-                                ) : null}
 
                                 {turn.response.citation_validation_failed &&
                                 !turn.response.not_found ? (

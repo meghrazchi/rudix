@@ -258,7 +258,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={handleForgotPasswordPlaceholder}
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
               >
                 {t("forgotPassword")}
               </button>
@@ -266,13 +266,13 @@ function LoginPageContent() {
             <div className="flex items-center gap-3">
               <Link
                 href="/signup"
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
               >
                 {t("createAccount")}
               </Link>
               <Link
                 href="/"
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
+                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
               >
                 {t("backToHome")}
               </Link>
@@ -297,7 +297,7 @@ function LoginPageContent() {
           <button
             type="submit"
             disabled={form.formState.isSubmitting || state.status === "loading"}
-            className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
           >
             {form.formState.isSubmitting ? t("signingIn") : t("signIn")}
           </button>
