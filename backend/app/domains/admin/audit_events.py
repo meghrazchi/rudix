@@ -25,3 +25,7 @@ AGENT_RUN_EXPERIMENTAL_PROVIDER = "agent.run.experimental_provider"
 
 # Governance policy changes
 PROVIDER_GOVERNANCE_POLICY_UPDATED = "admin.governance.provider_policy.updated"
+
+# Feature flag overrides (F159)
+FEATURE_FLAG_OVERRIDE_SET = "admin.feature_flag.override.set"
+FEATURE_FLAG_OVERRIDE_CLEARED = "admin.feature_flag.override.cleared"

@@ -7,6 +7,7 @@ from app.interfaces.http import (
     admin_chunking_profiles,
     admin_documents,
     admin_email,
+    admin_feature_flags,
     admin_governance,
     admin_roles,
     admin_scim,
@@ -25,6 +26,7 @@ from app.interfaces.http import (
     evaluation_sets,
     evaluations,
     failed_jobs,
+    feature_flags,
     feedback_review,
     langfuse_diagnostics,
     model_profiles,
@@ -90,6 +92,7 @@ protected_router.include_router(admin_sso.router)
 protected_router.include_router(admin_scim.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
+protected_router.include_router(admin_feature_flags.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(admin_roles.router)
 protected_router.include_router(admin_api_keys.router)
@@ -99,5 +102,6 @@ protected_router.include_router(profile.router)
 protected_router.include_router(security_settings.router)
 protected_router.include_router(org_settings.router)
 protected_router.include_router(billing.router)
+protected_router.include_router(feature_flags.router)
 
 api_router.include_router(protected_router)

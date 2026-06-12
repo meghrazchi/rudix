@@ -155,6 +155,48 @@ def require_roles(
     return dependency
 
 
+def require_feature(
+    flag_name: str,
+) -> Callable[[AuthenticatedPrincipal, AsyncSession], Awaitable[None]]:
+    """FastAPI dependency that blocks a request when a feature flag is disabled for the org.
+
+    Resolves the org-level override from the DB; falls back to the env default.
+    Raises 403 when the resolved flag is False so callers cannot bypass a disabled flag.
+    """
+
+    async def dependency(
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+        db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    ) -> None:
+        from app.domains.admin.services.feature_flag_service import FeatureFlagService
+
+        org_id_str = principal.organization_id
+        if org_id_str is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No active organization context for principal",
+            )
+        try:
+            org_uuid = UUID(org_id_str)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Principal organization context is invalid",
+            ) from exc
+
+        service = FeatureFlagService()
+        enabled = await service.is_enabled(
+            db_session, organization_id=org_uuid, flag_name=flag_name
+        )
+        if not enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Feature '{flag_name}' is not enabled for this organization",
+            )
+
+    return dependency
+
+
 def require_permission(
     *required_permissions: str,
 ) -> Callable[[AuthenticatedPrincipal, AsyncSession], Awaitable[AuthenticatedPrincipal]]:

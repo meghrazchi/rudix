@@ -163,7 +163,9 @@ export const queryKeys = {
       ["admin", "incidents", params ?? {}] as const,
     incidentDetail: (incidentId: string) =>
       ["admin", "incidents", incidentId] as const,
+    featureFlags: ["admin", "feature-flags"] as const,
   },
+  featureFlags: ["feature-flags"] as const,
   statusBanner: ["status", "banner"] as const,
   ragProfiles: {
     all: ["rag-profiles"] as const,

@@ -17,7 +17,8 @@ type AdminSurfaceCard = {
     | "governance"
     | "feedback-review"
     | "deletion-status"
-    | "api-keys";
+    | "api-keys"
+    | "feature-flags";
   title: string;
   description: string;
   href: string;
@@ -127,6 +128,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       description:
         "Create and manage scoped API keys for programmatic and integration access.",
       href: "/admin/api-keys",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "feature-flags",
+      title: "Feature flags",
+      description:
+        "Override environment-level feature flags per organization and audit rollout changes.",
+      href: "/admin/feature-flags",
       available: true,
       availabilityNote: "Available",
     },
