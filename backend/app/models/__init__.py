@@ -1,4 +1,5 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
+from app.models.answer_share import AnswerShare
 from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.auth_session import AuthRefreshSession
 from app.models.chat import ChatMessage, ChatSession
@@ -51,6 +52,7 @@ from app.models.user import User
 
 __all__ = [
     "AgentApproval",
+    "AnswerShare",
     "CustomRole",
     "CustomRolePermission",
     "AgentRun",

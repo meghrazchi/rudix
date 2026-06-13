@@ -17,6 +17,7 @@ import { DocumentPreviewModal } from "@/components/chat/DocumentPreviewModal";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
+import { AnswerShareModal } from "@/components/chat/AnswerShareModal";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -704,6 +705,7 @@ export function ChatPage() {
     null,
   );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [answerShareMessageId, setAnswerShareMessageId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const activeOrgId = state.session?.organizationId ?? null;
@@ -2359,6 +2361,30 @@ export function ChatPage() {
                                     </span>
                                   </div>
                                 ) : null}
+                                {!turn.response.not_found ? (
+                                  <div className="group/answershare relative">
+                                    <button
+                                      type="button"
+                                      aria-label="Share answer"
+                                      onClick={() =>
+                                        setAnswerShareMessageId(
+                                          turn.response.message_id,
+                                        )
+                                      }
+                                      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780]"
+                                    >
+                                      <span
+                                        className="material-symbols-outlined text-[13px]"
+                                        aria-hidden="true"
+                                      >
+                                        ios_share
+                                      </span>
+                                    </button>
+                                    <span className="pointer-events-none absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 rounded bg-[#2a2640] px-2 py-0.5 text-[10px] whitespace-nowrap text-white opacity-0 transition-opacity group-hover/answershare:opacity-100">
+                                      Share answer
+                                    </span>
+                                  </div>
+                                ) : null}
                                 {chatFeedbackEnabled ? (
                                   <>
                                     <div className="group/up relative">
@@ -3564,6 +3590,13 @@ export function ChatPage() {
           sessionId={activeSessionId}
           sessionTitle={activeSessionDisplayTitle}
           onClose={() => setIsShareModalOpen(false)}
+        />
+      ) : null}
+
+      {answerShareMessageId ? (
+        <AnswerShareModal
+          messageId={answerShareMessageId}
+          onClose={() => setAnswerShareMessageId(null)}
         />
       ) : null}
 
