@@ -1,5 +1,4 @@
 import { apiRequest } from "@/lib/api/request";
-import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
 export type PermissionEntry = {
   permission: string;
@@ -52,30 +51,7 @@ export type UpdateCustomRoleRequest = {
   permissions?: string[] | null;
 };
 
-function trimToNull(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function getRolesBaseUrl(): string | null {
-  return trimToNull(process.env.NEXT_PUBLIC_ADMIN_ROLES_BASE_URL);
-}
-
-export class RolesEndpointUnavailableError extends Error {
-  constructor() {
-    super("Roles endpoint is not configured");
-    this.name = "RolesEndpointUnavailableError";
-  }
-}
-
-function resolveUrl(path: string): string {
-  const base = getRolesBaseUrl();
-  if (!base) {
-    throw new RolesEndpointUnavailableError();
-  }
-  return base.endsWith("/") ? `${base}${path}` : `${base}/${path}`;
-}
+const ROLES_BASE = "/admin/roles";
 
 function normalizePermissionEntry(value: unknown): PermissionEntry {
   const raw =
@@ -133,8 +109,7 @@ function normalizeCustomRole(value: unknown): CustomRole {
 }
 
 export async function listPermissions(): Promise<PermissionCatalogResponse> {
-  const url = resolveUrl("permissions");
-  const payload = await apiRequest<unknown>(url, {
+  const payload = await apiRequest<unknown>(`${ROLES_BASE}/permissions`, {
     method: "GET",
     retry: false,
   });
@@ -152,8 +127,7 @@ export async function listPermissions(): Promise<PermissionCatalogResponse> {
 }
 
 export async function listRoles(): Promise<RoleListResponse> {
-  const url = resolveUrl("");
-  const payload = await apiRequest<unknown>(url, {
+  const payload = await apiRequest<unknown>(ROLES_BASE, {
     method: "GET",
     retry: false,
   });
@@ -172,19 +146,17 @@ export async function listRoles(): Promise<RoleListResponse> {
 }
 
 export async function getCustomRole(roleId: string): Promise<CustomRole> {
-  const url = resolveUrl(encodeURIComponent(roleId));
-  const payload = await apiRequest<unknown>(url, {
-    method: "GET",
-    retry: false,
-  });
+  const payload = await apiRequest<unknown>(
+    `${ROLES_BASE}/${encodeURIComponent(roleId)}`,
+    { method: "GET", retry: false },
+  );
   return normalizeCustomRole(payload);
 }
 
 export async function createCustomRole(
   request: CreateCustomRoleRequest,
 ): Promise<CustomRole> {
-  const url = resolveUrl("");
-  const payload = await apiRequest<unknown>(url, {
+  const payload = await apiRequest<unknown>(ROLES_BASE, {
     method: "POST",
     json: {
       name: request.name,
@@ -201,16 +173,16 @@ export async function updateCustomRole(
   roleId: string,
   request: UpdateCustomRoleRequest,
 ): Promise<CustomRole> {
-  const url = resolveUrl(encodeURIComponent(roleId));
-  const payload = await apiRequest<unknown>(url, {
-    method: "PATCH",
-    json: request,
-    retry: false,
-  });
+  const payload = await apiRequest<unknown>(
+    `${ROLES_BASE}/${encodeURIComponent(roleId)}`,
+    { method: "PATCH", json: request, retry: false },
+  );
   return normalizeCustomRole(payload);
 }
 
 export async function deleteCustomRole(roleId: string): Promise<void> {
-  const url = resolveUrl(encodeURIComponent(roleId));
-  await apiRequest<unknown>(url, { method: "DELETE", retry: false });
+  await apiRequest<unknown>(
+    `${ROLES_BASE}/${encodeURIComponent(roleId)}`,
+    { method: "DELETE", retry: false },
+  );
 }

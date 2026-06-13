@@ -513,7 +513,7 @@ export function AdminRolesPage() {
         />
       );
     }
-    return <ErrorState message={getApiErrorMessage(loadError)} />;
+    return <ErrorState description={getApiErrorMessage(loadError)} />;
   }
 
   const roles = rolesQuery.data ?? { builtin_roles: [], custom_roles: [] };
