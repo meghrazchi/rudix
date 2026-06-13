@@ -23,6 +23,7 @@ _EVAL_THRESHOLD_MAP: list[tuple[str, str, str, bool]] = [
     ("not_found_rate_max", "not_found_rate", "Not-Found Rate", False),
     ("latency_ms_p95_max", "latency_ms_p95", "Latency p95 (ms)", False),
     ("cost_usd_per_question_max", "cost_usd_per_question", "Cost per Question (USD)", False),
+    ("language_adherence_score_min", "language_adherence_score", "Language Adherence", True),
 ]
 
 _SAFETY_THRESHOLD_KEY = "safety_pass_rate_min"

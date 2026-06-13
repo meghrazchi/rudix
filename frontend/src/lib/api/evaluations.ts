@@ -4,6 +4,8 @@ import type { ChunkingProfileConfigInput } from "@/lib/schemas/chunking-profiles
 
 type Schemas = components["schemas"];
 
+export type EvalLanguageCode = "en" | "de" | "es" | "fr";
+
 export type EvaluationSetResponse = Omit<
   Schemas["EvaluationSetResponse"],
   "status" | "version" | "owner_id" | "scope"
@@ -27,6 +29,10 @@ export type EvaluationQuestionResponse = Omit<
   tags: string[];
   difficulty?: string | null;
   owner_id?: string | null;
+  question_language?: string | null;
+  expected_answer_language?: string | null;
+  source_language?: string | null;
+  translation_notes?: string | null;
 };
 export type EvaluationQuestionListResponse = {
   evaluation_set_id: string;
@@ -35,13 +41,25 @@ export type EvaluationQuestionListResponse = {
   limit: number;
   offset: number;
 };
-export type CreateEvaluationQuestionRequest =
-  Schemas["CreateEvaluationQuestionRequest"];
+export type CreateEvaluationQuestionRequest = Omit<
+  Schemas["CreateEvaluationQuestionRequest"],
+  "question_language" | "expected_answer_language" | "source_language" | "translation_notes"
+> & {
+  question_language?: EvalLanguageCode | null;
+  expected_answer_language?: EvalLanguageCode | null;
+  source_language?: EvalLanguageCode | null;
+  translation_notes?: string | null;
+};
 type BaseEvaluationRunConfig = Schemas["EvaluationRunConfig"];
 type BaseRunEvaluationRequest = Schemas["RunEvaluationRequest"];
 export type RunEvaluationResponse = Schemas["RunEvaluationResponse"];
-export type EvaluationRunResultResponse =
-  Schemas["EvaluationRunResultResponse"];
+export type EvaluationRunResultResponse = Omit<
+  Schemas["EvaluationRunResultResponse"],
+  "detected_answer_language" | "language_match_score"
+> & {
+  detected_answer_language?: string | null;
+  language_match_score?: number | null;
+};
 export type EvaluationRunDetailResponse =
   Schemas["EvaluationRunDetailResponse"];
 
@@ -93,6 +111,10 @@ export type UpdateEvaluationQuestionRequest = {
   difficulty?: "easy" | "medium" | "hard" | null;
   tags?: string[] | null;
   metadata?: Record<string, unknown> | null;
+  question_language?: EvalLanguageCode | null;
+  expected_answer_language?: EvalLanguageCode | null;
+  source_language?: EvalLanguageCode | null;
+  translation_notes?: string | null;
 };
 
 export type ImportCasesRequest = {
@@ -553,5 +575,68 @@ export async function getModelProfileComparisonReport(
         ? { evaluation_set_id: evaluationSetId }
         : undefined,
     },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// F234 — Multilingual evaluation datasets and regression gates
+// ---------------------------------------------------------------------------
+
+export type LanguageBreakdownItem = {
+  language: string;
+  question_count: number;
+  success_count: number;
+  retrieval_hit_rate: number | null;
+  citation_accuracy_score: number | null;
+  faithfulness_score: number | null;
+  answer_relevance_score: number | null;
+  not_found_rate: number | null;
+  language_adherence_score: number | null;
+  latency_ms_average: number | null;
+  cost_usd_total: number | null;
+  has_insufficient_coverage: boolean;
+};
+
+export type LanguageBreakdownResponse = {
+  evaluation_run_id: string;
+  items: LanguageBreakdownItem[];
+  coverage_warning_languages: string[];
+};
+
+export type LanguageCoverageItem = {
+  language: string;
+  question_count: number;
+  has_expected_answer_count: number;
+  has_insufficient_coverage: boolean;
+};
+
+export type LanguageCoverageResponse = {
+  evaluation_set_id: string;
+  items: LanguageCoverageItem[];
+  total_question_count: number;
+  unlabelled_count: number;
+  coverage_warning_languages: string[];
+};
+
+export const EVAL_LANGUAGE_OPTIONS: { value: EvalLanguageCode; label: string }[] = [
+  { value: "en", label: "English" },
+  { value: "de", label: "German" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+];
+
+export async function getLanguageBreakdown(
+  evaluationRunId: string,
+): Promise<LanguageBreakdownResponse> {
+  return apiRequest<LanguageBreakdownResponse>(
+    `/evaluations/runs/${encodeURIComponent(evaluationRunId)}/language-breakdown`,
+  );
+}
+
+export async function getLanguageCoverage(
+  evaluationSetId: string,
+): Promise<LanguageCoverageResponse> {
+  return apiRequest<LanguageCoverageResponse>(
+    `/evaluation-sets/${encodeURIComponent(evaluationSetId)}/language-coverage`,
   );
 }

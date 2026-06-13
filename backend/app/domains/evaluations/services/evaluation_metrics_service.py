@@ -7,6 +7,62 @@ from statistics import mean
 from typing import Any
 from uuid import UUID
 
+_SUPPORTED_LANGUAGES = frozenset({"en", "de", "es", "fr"})
+
+# Character-frequency heuristics for short evaluation questions and answers.
+# ¿ and ¡ are unambiguous Spanish markers; a single hit is sufficient.
+# Umlaut characters (ä, ö, ü, ß) are unambiguous German markers.
+# French uses accents common in FR but absent in EN/ES/DE.
+_ES_UNAMBIGUOUS = frozenset("¿¡ñÑ")
+# Common Spanish accented vowels also count (á, é, í, ó, ú, ü in Spanish context)
+_ES_ACCENTED = frozenset("áéíóúü")
+_DE_CHARS = frozenset("äöüÄÖÜß")
+_FR_CHARS = frozenset("àâæçèêëîïôœùûÿÀÂÆÇÈÊËÎÏÔŒÙÛŸ")
+
+
+def detect_language_heuristic(text: str) -> str | None:
+    """Return ISO-639-1 code for *text* or None when ambiguous / too short."""
+    cleaned = text.strip()
+    if len(cleaned) < 20:
+        return None
+
+    # Unambiguous ES markers: even one is decisive.
+    if any(ch in _ES_UNAMBIGUOUS for ch in cleaned):
+        return "es"
+
+    de_hits = sum(1 for ch in cleaned if ch in _DE_CHARS)
+    if de_hits >= 1:
+        return "de"
+
+    fr_hits = sum(1 for ch in cleaned if ch in _FR_CHARS)
+    if fr_hits >= 1:
+        return "fr"
+
+    ascii_count = sum(1 for ch in cleaned if ord(ch) < 128)
+    ascii_ratio = ascii_count / max(1, len(cleaned))
+    if ascii_ratio >= 0.92:
+        return "en"
+    return None
+
+
+def score_language_adherence(
+    generated_answer: str | None,
+    expected_answer_language: str | None,
+) -> tuple[str | None, float | None]:
+    """Detect answer language and compute adherence score against expected.
+
+    Returns (detected_language, language_match_score).
+    Score is 1.0 on match, 0.0 on mismatch, None when detection is inconclusive
+    or expected_answer_language is not set.
+    """
+    if not generated_answer or not expected_answer_language:
+        return None, None
+    detected = detect_language_heuristic(generated_answer)
+    if detected is None:
+        return None, None
+    match_score = 1.0 if detected == expected_answer_language else 0.0
+    return detected, match_score
+
 
 @dataclass(frozen=True)
 class EvaluationMetricOptions:

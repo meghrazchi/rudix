@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
+import { LanguageCoverageTable } from "@/components/evaluations/multilingual-eval-panel";
 import {
   deleteEvaluationQuestion,
   deleteEvaluationSet,
@@ -945,6 +946,13 @@ export function DatasetBuilderPanel({
           </ul>
         )}
       </div>
+
+      <section aria-label="Language coverage">
+        <h3 className="mb-2 text-sm font-semibold text-[#2f2a48]">
+          Language coverage
+        </h3>
+        <LanguageCoverageTable evaluationSetId={evaluationSet.evaluation_set_id} />
+      </section>
 
       <ImportDialog
         containerRef={importDialogRef}

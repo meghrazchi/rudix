@@ -68,6 +68,9 @@ class EvaluationSetListResponse(BaseModel):
     offset: int
 
 
+_LANGUAGE_CODES = Literal["en", "de", "es", "fr"]
+
+
 class CreateEvaluationQuestionRequest(BaseModel):
     question: str = Field(min_length=1, max_length=8000)
     expected_answer: str | None = Field(default=None, max_length=8000)
@@ -76,6 +79,10 @@ class CreateEvaluationQuestionRequest(BaseModel):
     difficulty: Literal["easy", "medium", "hard"] | None = None
     tags: list[str] = Field(default_factory=list, max_length=50)
     metadata: dict[str, object] = Field(default_factory=dict)
+    question_language: _LANGUAGE_CODES | None = None
+    expected_answer_language: _LANGUAGE_CODES | None = None
+    source_language: _LANGUAGE_CODES | None = None
+    translation_notes: str | None = Field(default=None, max_length=4000)
 
     @field_validator("question")
     @classmethod
@@ -115,6 +122,10 @@ class UpdateEvaluationQuestionRequest(BaseModel):
     difficulty: Literal["easy", "medium", "hard"] | None = Field(default=None)
     tags: list[str] | None = Field(default=None, max_length=50)
     metadata: dict[str, object] | None = Field(default=None)
+    question_language: _LANGUAGE_CODES | None = Field(default=None)
+    expected_answer_language: _LANGUAGE_CODES | None = Field(default=None)
+    source_language: _LANGUAGE_CODES | None = Field(default=None)
+    translation_notes: str | None = Field(default=None, max_length=4000)
 
     @field_validator("question")
     @classmethod
@@ -151,6 +162,10 @@ class EvaluationQuestionResponse(BaseModel):
     owner_id: str | None = None
     tags: list[str] = Field(default_factory=list)
     metadata: dict[str, object] = Field(default_factory=dict)
+    question_language: str | None = None
+    expected_answer_language: str | None = None
+    source_language: str | None = None
+    translation_notes: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -169,6 +184,9 @@ class ImportCaseRow(BaseModel):
     expected_page_number: int | None = Field(default=None, ge=1)
     difficulty: Literal["easy", "medium", "hard"] | None = None
     tags: list[str] = Field(default_factory=list)
+    question_language: _LANGUAGE_CODES | None = None
+    expected_answer_language: _LANGUAGE_CODES | None = None
+    source_language: _LANGUAGE_CODES | None = None
 
     @field_validator("question")
     @classmethod
@@ -427,6 +445,8 @@ class EvaluationRunResultResponse(BaseModel):
     failure_reason: str | None = None
     failure_type: str | None = None
     details: dict[str, object] = Field(default_factory=dict)
+    detected_answer_language: str | None = None
+    language_match_score: float | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -715,3 +735,50 @@ class ModelProfileComparisonReport(BaseModel):
         default_factory=lambda: dict(_DEFAULT_GATE_THRESHOLDS)
     )
     generated_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# F234 — Multilingual evaluation datasets and regression gates
+# ---------------------------------------------------------------------------
+
+_MIN_COVERAGE_WARNING_THRESHOLD = 5
+
+
+class LanguageBreakdownItem(BaseModel):
+    """Per-language quality metrics aggregated from a single evaluation run."""
+
+    language: str
+    question_count: int
+    success_count: int
+    retrieval_hit_rate: float | None = None
+    citation_accuracy_score: float | None = None
+    faithfulness_score: float | None = None
+    answer_relevance_score: float | None = None
+    not_found_rate: float | None = None
+    language_adherence_score: float | None = None
+    latency_ms_average: float | None = None
+    cost_usd_total: float | None = None
+    has_insufficient_coverage: bool = False
+
+
+class LanguageBreakdownResponse(BaseModel):
+    evaluation_run_id: str
+    items: list[LanguageBreakdownItem]
+    coverage_warning_languages: list[str] = Field(default_factory=list)
+
+
+class LanguageCoverageItem(BaseModel):
+    """Question count per language for an evaluation dataset."""
+
+    language: str
+    question_count: int
+    has_expected_answer_count: int
+    has_insufficient_coverage: bool = False
+
+
+class LanguageCoverageResponse(BaseModel):
+    evaluation_set_id: str
+    items: list[LanguageCoverageItem]
+    total_question_count: int
+    unlabelled_count: int
+    coverage_warning_languages: list[str] = Field(default_factory=list)

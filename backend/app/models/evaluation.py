@@ -83,6 +83,10 @@ class EvaluationQuestion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    question_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    expected_answer_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    source_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    translation_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
     evaluation_set = relationship("EvaluationSet", back_populates="questions")
     expected_document = relationship("Document", back_populates="evaluation_questions")
@@ -183,6 +187,8 @@ class EvaluationResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     answer_relevance_score: Mapped[float | None] = mapped_column(nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    detected_answer_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    language_match_score: Mapped[float | None] = mapped_column(nullable=True)
 
     evaluation_run = relationship("EvaluationRun", back_populates="results")
     evaluation_question = relationship("EvaluationQuestion", back_populates="results")

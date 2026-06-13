@@ -130,6 +130,10 @@ export const queryKeys = {
       ["evaluations", "set-versions", evaluationSetId] as const,
     setValidation: (evaluationSetId: string) =>
       ["evaluations", "set-validation", evaluationSetId] as const,
+    languageBreakdown: (evaluationRunId: string) =>
+      ["evaluations", "language-breakdown", evaluationRunId] as const,
+    languageCoverage: (evaluationSetId: string) =>
+      ["evaluations", "language-coverage", evaluationSetId] as const,
   },
   pipeline: {
     all: ["pipeline"] as const,

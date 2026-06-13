@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.evaluations.workflows import trigger_evaluation_workflow
+from app.domains.evaluations.services.evaluation_metrics_service import score_language_adherence
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_evaluation_event
@@ -27,6 +28,8 @@ from app.domains.evaluations.schemas.evaluations import (
     EvaluationRunResultListResponse,
     EvaluationRunResultResponse,
     EvaluationRunSummaryResponse,
+    LanguageBreakdownItem,
+    LanguageBreakdownResponse,
     LocalModelMetrics,
     MetricDelta,
     ModelProfileComparisonReport,
@@ -36,6 +39,7 @@ from app.domains.evaluations.schemas.evaluations import (
     RunEvaluationResponse,
     TriggerBenchmarkRunRequest,
     TriggerBenchmarkRunResponse,
+    _MIN_COVERAGE_WARNING_THRESHOLD,
     _build_release_gate_recommendation,
 )
 from app.models.enums import EvaluationRunStatus, OrganizationRole
@@ -197,6 +201,8 @@ async def get_evaluation_run_detail(
                 metrics=metrics,
                 failure_reason=failure_reason,
                 failure_type=failure_type,
+                detected_answer_language=evaluation_result.detected_answer_language,
+                language_match_score=evaluation_result.language_match_score,
                 details=details,
                 created_at=evaluation_result.created_at,
                 updated_at=evaluation_result.updated_at,
@@ -932,6 +938,9 @@ async def trigger_benchmark_run(
                 expected_answer=case.expected_answer,
                 difficulty=case.difficulty,
                 metadata={"tags": case.tags},
+                question_language=case.question_language,
+                expected_answer_language=case.expected_answer_language,
+                source_language=case.source_language,
             )
         await db_session.flush()
 
@@ -1138,4 +1147,144 @@ async def get_model_profile_comparison_report(
         profiles=profiles,
         release_gate_recommendations=recommendations,
         generated_at=datetime.now(UTC),
+    )
+
+
+# ---------------------------------------------------------------------------
+# F234 — Language breakdown endpoint
+# ---------------------------------------------------------------------------
+
+
+def _mean_floats(values: list[float]) -> float | None:
+    return round(sum(values) / len(values), 4) if values else None
+
+
+@router.get("/runs/{evaluation_run_id}/language-breakdown", response_model=LanguageBreakdownResponse)
+async def get_language_breakdown(
+    evaluation_run_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> LanguageBreakdownResponse:
+    organization_id = _organization_id_from_principal(principal)
+    parsed_run_id = _parse_evaluation_run_id(evaluation_run_id)
+
+    evaluation_run = await evaluation_repository.get_evaluation_run_for_organization(
+        db_session,
+        evaluation_run_id=parsed_run_id,
+        organization_id=organization_id,
+    )
+    if evaluation_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Evaluation run not found"
+        )
+
+    pairs = await evaluation_repository.get_results_with_questions_for_run(
+        db_session,
+        evaluation_run_id=parsed_run_id,
+    )
+
+    # Group result-question pairs by question_language.
+    buckets: dict[str, list[tuple]] = {}
+    for result, question in pairs:
+        lang = question.question_language or "unlabelled"
+        buckets.setdefault(lang, []).append((result, question))
+
+    items: list[LanguageBreakdownItem] = []
+    coverage_warning_languages: list[str] = []
+
+    for lang, rows in sorted(buckets.items()):
+        total = len(rows)
+        successes = [
+            (r, q) for r, q in rows
+            if not (isinstance(r.details, dict) and r.details.get("error"))
+        ]
+        success_count = len(successes)
+
+        retrieval_vals: list[float] = []
+        citation_vals: list[float] = []
+        faithfulness_vals: list[float] = []
+        relevance_vals: list[float] = []
+        latency_vals: list[float] = []
+        cost_vals: list[float] = []
+        not_found_flags: list[float] = []
+        lang_match_vals: list[float] = []
+
+        for result, question in successes:
+            if result.retrieval_score is not None:
+                retrieval_vals.append(result.retrieval_score)
+            if result.citation_accuracy_score is not None:
+                citation_vals.append(result.citation_accuracy_score)
+            if result.faithfulness_score is not None:
+                faithfulness_vals.append(result.faithfulness_score)
+            if result.answer_relevance_score is not None:
+                relevance_vals.append(result.answer_relevance_score)
+            if result.latency_ms is not None:
+                latency_vals.append(float(result.latency_ms))
+            details = result.details if isinstance(result.details, dict) else {}
+            cost = details.get("cost_usd")
+            if cost is not None and isinstance(cost, (int, float)):
+                cost_vals.append(float(cost))
+            not_found = details.get("not_found")
+            not_found_flags.append(1.0 if not_found else 0.0)
+
+            # Language adherence: use stored column if available, else compute.
+            if result.language_match_score is not None:
+                lang_match_vals.append(result.language_match_score)
+            elif result.detected_answer_language is not None and question.expected_answer_language:
+                score = (
+                    1.0
+                    if result.detected_answer_language == question.expected_answer_language
+                    else 0.0
+                )
+                lang_match_vals.append(score)
+            elif question.expected_answer_language and result.generated_answer:
+                _, match_score = score_language_adherence(
+                    result.generated_answer, question.expected_answer_language
+                )
+                if match_score is not None:
+                    lang_match_vals.append(match_score)
+
+        insufficient = lang != "unlabelled" and total < _MIN_COVERAGE_WARNING_THRESHOLD
+        if insufficient:
+            coverage_warning_languages.append(lang)
+
+        items.append(
+            LanguageBreakdownItem(
+                language=lang,
+                question_count=total,
+                success_count=success_count,
+                retrieval_hit_rate=_mean_floats(retrieval_vals),
+                citation_accuracy_score=_mean_floats(citation_vals),
+                faithfulness_score=_mean_floats(faithfulness_vals),
+                answer_relevance_score=_mean_floats(relevance_vals),
+                not_found_rate=_mean_floats(not_found_flags),
+                language_adherence_score=_mean_floats(lang_match_vals),
+                latency_ms_average=_mean_floats(latency_vals),
+                cost_usd_total=round(sum(cost_vals), 6) if cost_vals else None,
+                has_insufficient_coverage=insufficient,
+            )
+        )
+
+    log_evaluation_event(
+        event="evaluation.language_breakdown.requested",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=evaluation_run_id,
+        status_code=status.HTTP_200_OK,
+        language_count=len(items),
+    )
+    return LanguageBreakdownResponse(
+        evaluation_run_id=evaluation_run_id,
+        items=items,
+        coverage_warning_languages=sorted(coverage_warning_languages),
     )

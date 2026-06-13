@@ -25,10 +25,13 @@ from app.domains.evaluations.schemas.evaluations import (
     EvaluationSetResponse,
     ImportCasesRequest,
     ImportCasesResponse,
+    LanguageCoverageItem,
+    LanguageCoverageResponse,
     PublishDatasetResponse,
     UpdateEvaluationQuestionRequest,
     UpdateEvaluationSetRequest,
     ValidateDatasetResponse,
+    _MIN_COVERAGE_WARNING_THRESHOLD,
 )
 from app.models.enums import OrganizationRole
 from app.models.evaluation import EvaluationDatasetVersion, EvaluationQuestion, EvaluationSet
@@ -134,6 +137,10 @@ def _to_question_response(question: EvaluationQuestion) -> EvaluationQuestionRes
         owner_id=str(question.owner_id) if question.owner_id else None,
         tags=tags,
         metadata=metadata,
+        question_language=question.question_language,
+        expected_answer_language=question.expected_answer_language,
+        source_language=question.source_language,
+        translation_notes=question.translation_notes,
         created_at=question.created_at,
         updated_at=question.updated_at,
     )
@@ -838,6 +845,10 @@ async def create_evaluation_question(
         difficulty=payload.difficulty,
         owner_id=user_id,
         metadata=metadata_payload,
+        question_language=payload.question_language,
+        expected_answer_language=payload.expected_answer_language,
+        source_language=payload.source_language,
+        translation_notes=payload.translation_notes,
     )
     await audit_log_service.record(
         db_session,
@@ -890,6 +901,7 @@ async def list_evaluation_questions(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    language: Annotated[str | None, Query(alias="question_language")] = None,
 ) -> EvaluationQuestionListResponse:
     organization_id = _organization_id_from_principal(principal)
     evaluation_set = await _get_evaluation_set_or_404(
@@ -903,10 +915,12 @@ async def list_evaluation_questions(
         evaluation_set_id=evaluation_set.id,
         limit=limit,
         offset=offset,
+        question_language=language,
     )
     total = await evaluation_repository.count_evaluation_questions(
         db_session,
         evaluation_set_id=evaluation_set.id,
+        question_language=language,
     )
 
     items = [_to_question_response(question) for question in questions]
@@ -1007,6 +1021,10 @@ async def update_evaluation_question(
         difficulty=payload.difficulty,
         clear_difficulty=False,
         metadata=metadata,
+        question_language=payload.question_language,
+        expected_answer_language=payload.expected_answer_language,
+        source_language=payload.source_language,
+        translation_notes=payload.translation_notes,
     )
     if question is None:
         raise HTTPException(
@@ -1090,4 +1108,80 @@ async def delete_evaluation_question(
         job_id=evaluation_question_id,
         status_code=status.HTTP_204_NO_CONTENT,
         evaluation_set_id=evaluation_set_id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# F234 — Language coverage endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{evaluation_set_id}/language-coverage", response_model=LanguageCoverageResponse)
+async def get_language_coverage(
+    evaluation_set_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> LanguageCoverageResponse:
+    organization_id = _organization_id_from_principal(principal)
+    evaluation_set = await _get_evaluation_set_or_404(
+        evaluation_set_id=evaluation_set_id,
+        organization_id=organization_id,
+        db_session=db_session,
+    )
+
+    rows = await evaluation_repository.get_language_coverage_for_set(
+        db_session,
+        evaluation_set_id=evaluation_set.id,
+    )
+
+    items: list[LanguageCoverageItem] = []
+    unlabelled_count = 0
+    total_question_count = 0
+    coverage_warning_languages: list[str] = []
+
+    for row in rows:
+        lang = row["language"]
+        count = row["question_count"]
+        total_question_count += count
+        if lang is None:
+            unlabelled_count += count
+            continue
+        insufficient = count < _MIN_COVERAGE_WARNING_THRESHOLD
+        if insufficient:
+            coverage_warning_languages.append(lang)
+        items.append(
+            LanguageCoverageItem(
+                language=lang,
+                question_count=count,
+                has_expected_answer_count=row["has_expected_answer_count"],
+                has_insufficient_coverage=insufficient,
+            )
+        )
+
+    items.sort(key=lambda x: x.language)
+
+    log_evaluation_event(
+        event="evaluation_set.language_coverage.requested",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        job_id=str(evaluation_set.id),
+        status_code=status.HTTP_200_OK,
+        language_count=len(items),
+    )
+    return LanguageCoverageResponse(
+        evaluation_set_id=str(evaluation_set.id),
+        items=items,
+        total_question_count=total_question_count,
+        unlabelled_count=unlabelled_count,
+        coverage_warning_languages=sorted(coverage_warning_languages),
     )

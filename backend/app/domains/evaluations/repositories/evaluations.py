@@ -258,6 +258,10 @@ class EvaluationRepository:
         difficulty: str | None = None,
         owner_id: UUID | None = None,
         metadata: dict | None = None,
+        question_language: str | None = None,
+        expected_answer_language: str | None = None,
+        source_language: str | None = None,
+        translation_notes: str | None = None,
     ) -> EvaluationQuestion:
         evaluation_question = EvaluationQuestion(
             evaluation_set_id=evaluation_set_id,
@@ -268,6 +272,10 @@ class EvaluationRepository:
             difficulty=difficulty,
             owner_id=owner_id,
             metadata_json=metadata or {},
+            question_language=question_language,
+            expected_answer_language=expected_answer_language,
+            source_language=source_language,
+            translation_notes=translation_notes,
         )
         session.add(evaluation_question)
         await session.flush()
@@ -305,6 +313,10 @@ class EvaluationRepository:
         difficulty: str | None = None,
         clear_difficulty: bool = False,
         metadata: dict | None = None,
+        question_language: str | None = None,
+        expected_answer_language: str | None = None,
+        source_language: str | None = None,
+        translation_notes: str | None = None,
     ) -> EvaluationQuestion | None:
         result = await session.execute(
             select(EvaluationQuestion).where(
@@ -335,6 +347,14 @@ class EvaluationRepository:
             evaluation_question.difficulty = difficulty
         if metadata is not None:
             evaluation_question.metadata_json = metadata
+        if question_language is not None:
+            evaluation_question.question_language = question_language
+        if expected_answer_language is not None:
+            evaluation_question.expected_answer_language = expected_answer_language
+        if source_language is not None:
+            evaluation_question.source_language = source_language
+        if translation_notes is not None:
+            evaluation_question.translation_notes = translation_notes
         await session.flush()
         await session.refresh(evaluation_question)
         return evaluation_question
@@ -366,14 +386,16 @@ class EvaluationRepository:
         evaluation_set_id: UUID,
         limit: int = 20,
         offset: int = 0,
+        question_language: str | None = None,
     ) -> list[EvaluationQuestion]:
-        result = await session.execute(
+        query = (
             select(EvaluationQuestion)
             .where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
-            .order_by(EvaluationQuestion.created_at.asc())
-            .offset(offset)
-            .limit(limit)
         )
+        if question_language is not None:
+            query = query.where(EvaluationQuestion.question_language == question_language)
+        query = query.order_by(EvaluationQuestion.created_at.asc()).offset(offset).limit(limit)
+        result = await session.execute(query)
         return list(result.scalars().all())
 
     async def list_all_evaluation_questions(
@@ -394,12 +416,14 @@ class EvaluationRepository:
         session: AsyncSession,
         *,
         evaluation_set_id: UUID,
+        question_language: str | None = None,
     ) -> int:
-        result = await session.execute(
-            select(func.count(EvaluationQuestion.id)).where(
-                EvaluationQuestion.evaluation_set_id == evaluation_set_id
-            )
+        query = select(func.count(EvaluationQuestion.id)).where(
+            EvaluationQuestion.evaluation_set_id == evaluation_set_id
         )
+        if question_language is not None:
+            query = query.where(EvaluationQuestion.question_language == question_language)
+        result = await session.execute(query)
         return int(result.scalar_one())
 
     async def get_existing_question_texts(
@@ -850,4 +874,57 @@ class EvaluationRepository:
             .where(EvaluationResult.evaluation_run_id == evaluation_run_id)
             .order_by(EvaluationResult.created_at.asc(), EvaluationResult.id.asc())
         )
+        return [(row[0], row[1]) for row in result.all()]
+
+    async def get_language_coverage_for_set(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_set_id: UUID,
+    ) -> list[dict]:
+        """Return per-language question counts for an evaluation set.
+
+        Rows have keys: language, question_count, has_expected_answer_count.
+        The caller receives a separate unlabelled_count for questions with
+        question_language IS NULL.
+        """
+        result = await session.execute(
+            select(
+                EvaluationQuestion.question_language,
+                func.count(EvaluationQuestion.id).label("question_count"),
+                func.count(EvaluationQuestion.expected_answer).label("has_expected_answer_count"),
+            )
+            .where(EvaluationQuestion.evaluation_set_id == evaluation_set_id)
+            .group_by(EvaluationQuestion.question_language)
+        )
+        rows = result.all()
+        return [
+            {
+                "language": row[0],
+                "question_count": int(row[1]),
+                "has_expected_answer_count": int(row[2]),
+            }
+            for row in rows
+        ]
+
+    async def get_results_with_questions_for_run(
+        self,
+        session: AsyncSession,
+        *,
+        evaluation_run_id: UUID,
+        question_language: str | None = None,
+    ) -> list[tuple[EvaluationResult, EvaluationQuestion]]:
+        """Fetch all results joined with questions for a run, with optional language filter."""
+        query = (
+            select(EvaluationResult, EvaluationQuestion)
+            .join(
+                EvaluationQuestion,
+                EvaluationQuestion.id == EvaluationResult.evaluation_question_id,
+            )
+            .where(EvaluationResult.evaluation_run_id == evaluation_run_id)
+        )
+        if question_language is not None:
+            query = query.where(EvaluationQuestion.question_language == question_language)
+        query = query.order_by(EvaluationResult.created_at.asc(), EvaluationResult.id.asc())
+        result = await session.execute(query)
         return [(row[0], row[1]) for row in result.all()]

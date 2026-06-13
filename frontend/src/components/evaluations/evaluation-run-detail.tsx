@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 import { ChunkingComparisonPanel } from "@/components/evaluations/chunking-comparison-panel";
+import { MultilingualEvalPanel } from "@/components/evaluations/multilingual-eval-panel";
 import { EmptyState } from "@/components/states/EmptyState";
 import type { EvaluationRunDetailResponse } from "@/lib/api/evaluations";
 import type {
@@ -596,6 +597,15 @@ export function EvaluationRunDetailSection({
 
       <ComparisonCard comparison={comparison} />
       <ChunkingComparisonPanel summaryValue={run.summary} />
+
+      {run.status === "completed" && (
+        <section aria-label="Multilingual quality breakdown">
+          <h3 className="mb-2 text-sm font-semibold text-[#2f2a48]">
+            Quality by language
+          </h3>
+          <MultilingualEvalPanel evaluationRunId={run.evaluation_run_id} />
+        </section>
+      )}
     </section>
   );
 }

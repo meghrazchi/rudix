@@ -21,6 +21,9 @@ class BenchmarkCase:
     expected_answer: str | None = None
     difficulty: str = "medium"
     tags: list[str] = field(default_factory=list)
+    question_language: str | None = None
+    expected_answer_language: str | None = None
+    source_language: str | None = None
 
 
 @dataclass(frozen=True)
@@ -148,37 +151,124 @@ _SUITES: list[BenchmarkSuite] = [
     ),
     BenchmarkSuite(
         suite_id="multilingual",
-        name="Multilingual OCR Documents",
+        name="Multilingual Documents",
         description=(
-            "Questions about content from documents in multiple languages. "
-            "Tests the model's ability to reason over translated or multilingual "
-            "OCR-extracted text and produce coherent answers."
+            "Golden regression cases for English, German, Spanish, and French. "
+            "Covers same-language questions, cross-language retrieval, and "
+            "answer-language adherence to confirm that quality metrics hold "
+            "across all four supported locales."
         ),
         quality_dimension="answer_relevance",
         cases=[
+            # --- English ---
             BenchmarkCase(
-                question="Summarise the key points from the German-language compliance document.",
+                question="What is the recommended data retention period according to the policy?",
                 expected_answer=None,
-                difficulty="hard",
-                tags=["multilingual", "german", "ocr"],
+                difficulty="medium",
+                tags=["multilingual", "en", "policy"],
+                question_language="en",
+                expected_answer_language="en",
+                source_language="en",
             ),
             BenchmarkCase(
-                question="What does the French contract say about the liability clause?",
+                question="List all configuration parameters described in the technical specification.",
                 expected_answer=None,
                 difficulty="hard",
-                tags=["multilingual", "french", "ocr"],
+                tags=["multilingual", "en", "technical"],
+                question_language="en",
+                expected_answer_language="en",
+                source_language="en",
+            ),
+            # --- German ---
+            BenchmarkCase(
+                question=(
+                    "Welche Hauptpunkte enthält das Compliance-Dokument zur Datenschutzgrundverordnung?"
+                ),
+                expected_answer=None,
+                difficulty="hard",
+                tags=["multilingual", "de", "compliance", "gdpr"],
+                question_language="de",
+                expected_answer_language="de",
+                source_language="de",
             ),
             BenchmarkCase(
-                question="Translate and summarise the Spanish-language product specification.",
+                question=(
+                    "Was besagt die Haftungsklausel im deutschen Servicevertrag?"
+                ),
                 expected_answer=None,
                 difficulty="hard",
-                tags=["multilingual", "spanish", "ocr"],
+                tags=["multilingual", "de", "contract"],
+                question_language="de",
+                expected_answer_language="de",
+                source_language="de",
             ),
+            # --- Spanish ---
+            BenchmarkCase(
+                question=(
+                    "¿Cuáles son los requisitos de seguridad descritos en la especificación del producto?"
+                ),
+                expected_answer=None,
+                difficulty="hard",
+                tags=["multilingual", "es", "security"],
+                question_language="es",
+                expected_answer_language="es",
+                source_language="es",
+            ),
+            BenchmarkCase(
+                question=(
+                    "¿Qué condiciones de entrega se mencionan en el contrato de servicio en español?"
+                ),
+                expected_answer=None,
+                difficulty="medium",
+                tags=["multilingual", "es", "delivery"],
+                question_language="es",
+                expected_answer_language="es",
+                source_language="es",
+            ),
+            # --- French ---
+            BenchmarkCase(
+                question=(
+                    "Quelles sont les obligations du prestataire selon le contrat de service en français?"
+                ),
+                expected_answer=None,
+                difficulty="hard",
+                tags=["multilingual", "fr", "contract"],
+                question_language="fr",
+                expected_answer_language="fr",
+                source_language="fr",
+            ),
+            BenchmarkCase(
+                question=(
+                    "Résumez les points clés du document de conformité rédigé en français."
+                ),
+                expected_answer=None,
+                difficulty="hard",
+                tags=["multilingual", "fr", "compliance"],
+                question_language="fr",
+                expected_answer_language="fr",
+                source_language="fr",
+            ),
+            # --- Cross-language (German question over English document) ---
+            BenchmarkCase(
+                question=(
+                    "Was ist der Liefertermin, der in der englischsprachigen Bestellbestätigung angegeben ist?"
+                ),
+                expected_answer=None,
+                difficulty="medium",
+                tags=["multilingual", "cross_language", "de", "en"],
+                question_language="de",
+                expected_answer_language="de",
+                source_language="en",
+            ),
+            # --- Multilingual OCR legacy cases ---
             BenchmarkCase(
                 question="What is the delivery schedule stated in the bilingual English/German purchase order?",
                 expected_answer=None,
                 difficulty="medium",
-                tags=["multilingual", "german", "english"],
+                tags=["multilingual", "de", "en", "ocr"],
+                question_language="en",
+                expected_answer_language="en",
+                source_language="de",
             ),
         ],
     ),

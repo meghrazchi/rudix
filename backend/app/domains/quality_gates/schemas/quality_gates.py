@@ -21,6 +21,16 @@ class QualityGateThresholds(BaseModel):
     safety_pass_rate_min: float | None = Field(default=None, ge=0.0, le=1.0)
     latency_ms_p95_max: float | None = Field(default=None, ge=0.0)
     cost_usd_per_question_max: float | None = Field(default=None, ge=0.0)
+    language_adherence_score_min: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum fraction of evaluated answers whose detected language matches "
+            "the expected_answer_language. Only enforced when the evaluation run "
+            "includes questions with expected_answer_language set."
+        ),
+    )
 
 
 class CreateQualityGateRequest(BaseModel):
