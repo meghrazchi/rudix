@@ -13,6 +13,7 @@ from app.interfaces.http import (
     admin_scim,
     admin_sso,
     admin_status,
+    admin_webhooks,
     agent_runs,
     auth,
     billing,
@@ -98,6 +99,7 @@ protected_router.include_router(admin_feature_flags.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(admin_roles.router)
 protected_router.include_router(admin_api_keys.router)
+protected_router.include_router(admin_webhooks.router)
 protected_router.include_router(admin_email.router)
 protected_router.include_router(team.router)
 protected_router.include_router(team_invitations.router)

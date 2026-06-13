@@ -164,6 +164,9 @@ export const queryKeys = {
     incidentDetail: (incidentId: string) =>
       ["admin", "incidents", incidentId] as const,
     featureFlags: ["admin", "feature-flags"] as const,
+    webhooks: ["admin", "webhooks"] as const,
+    webhookDeliveries: (webhookId: string) =>
+      ["admin", "webhooks", webhookId, "deliveries"] as const,
   },
   featureFlags: ["feature-flags"] as const,
   statusBanner: ["status", "banner"] as const,
@@ -340,7 +343,12 @@ export type FrontendMutationKind =
   | "quota-policy.update"
   | "quota-policy.reset"
   | "quota-override.create"
-  | "quota-override.delete";
+  | "quota-override.delete"
+  | "webhook.create"
+  | "webhook.update"
+  | "webhook.delete"
+  | "webhook.rotate-secret"
+  | "webhook.test";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -520,6 +528,17 @@ export async function invalidateAfterMutation(
 
   if (kind === "quota-override.create" || kind === "quota-override.delete") {
     await queryClient.invalidateQueries({ queryKey: queryKeys.quotas.all });
+    return;
+  }
+
+  if (
+    kind === "webhook.create" ||
+    kind === "webhook.update" ||
+    kind === "webhook.delete" ||
+    kind === "webhook.rotate-secret" ||
+    kind === "webhook.test"
+  ) {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.admin.webhooks });
     return;
   }
 

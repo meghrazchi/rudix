@@ -29,3 +29,9 @@ PROVIDER_GOVERNANCE_POLICY_UPDATED = "admin.governance.provider_policy.updated"
 # Feature flag overrides (F159)
 FEATURE_FLAG_OVERRIDE_SET = "admin.feature_flag.override.set"
 FEATURE_FLAG_OVERRIDE_CLEARED = "admin.feature_flag.override.cleared"
+
+# Webhook lifecycle (F166)
+WEBHOOK_CREATED = "webhooks.webhook.created"
+WEBHOOK_UPDATED = "webhooks.webhook.updated"
+WEBHOOK_DELETED = "webhooks.webhook.deleted"
+WEBHOOK_SECRET_ROTATED = "webhooks.webhook.secret_rotated"
