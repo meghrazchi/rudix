@@ -9,6 +9,7 @@ import type {
   CollectionListResponse,
   CollectionDetailResponse,
 } from "@/lib/api/collections";
+import { listDocuments } from "@/lib/api/documents";
 import { createTestQueryClient, renderWithProviders } from "@/test/render";
 
 // ── Mock: auth session ──────────────────────────────────────────────────────
@@ -43,6 +44,11 @@ const mockCollectionsApi = vi.hoisted(() => ({
   deleteCollection: vi.fn(),
   listCollectionDocuments: vi.fn(),
   removeDocumentFromCollection: vi.fn(),
+  addDocumentToCollection: vi.fn(),
+}));
+
+const mockDocumentsApi = vi.hoisted(() => ({
+  listDocuments: vi.fn(),
 }));
 
 vi.mock("@/lib/api/collections", () => ({
@@ -60,6 +66,13 @@ vi.mock("@/lib/api/collections", () => ({
     mockCollectionsApi.listCollectionDocuments(...args),
   removeDocumentFromCollection: (...args: unknown[]) =>
     mockCollectionsApi.removeDocumentFromCollection(...args),
+  addDocumentToCollection: (...args: unknown[]) =>
+    mockCollectionsApi.addDocumentToCollection(...args),
+}));
+
+vi.mock("@/lib/api/documents", () => ({
+  listDocuments: (...args: unknown[]) =>
+    mockDocumentsApi.listDocuments(...args),
 }));
 
 // ── Mock: forbidden helper ─────────────────────────────────────────────────
@@ -260,6 +273,72 @@ describe("CollectionsPage", () => {
 
   it("shows collection detail panel when row name is clicked", async () => {
     const col = makeCollection();
+    const collectionDocuments = Array.from({ length: 15 }, (_, index) => {
+      const page = index + 1;
+      return {
+        document_id: `doc-${page}`,
+        filename: `Collection Doc ${page}.pdf`,
+        file_type: "pdf" as const,
+        status: "indexed" as const,
+        page_count: 12,
+        chunk_count: 42,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-19T09:30:00Z",
+        updated_at: `2026-05-20T08:${String(page).padStart(2, "0")}:00Z`,
+      };
+    });
+    mockCollectionsApi.listCollections.mockResolvedValue({
+      items: [col],
+      total: 1,
+    });
+    mockCollectionsApi.getCollection.mockResolvedValue(col);
+    mockCollectionsApi.listCollectionDocuments.mockImplementation(
+      async (_collectionId, options?: { limit?: number; offset?: number }) => {
+        const limit = options?.limit ?? 10;
+        const offset = options?.offset ?? 0;
+        return {
+          items: collectionDocuments.slice(offset, offset + limit),
+          total: collectionDocuments.length,
+        };
+      },
+    );
+
+    renderWithProviders(<CollectionsPage />, { queryClient });
+
+    await waitFor(() =>
+      expect(screen.getByText("Engineering Handbook")).toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByText("Engineering Handbook"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Collection Metadata")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Collection Doc 1.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Collection Doc 10.pdf")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Collection Doc 11.pdf")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Load more" }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Load more" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Collection Doc 11.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Collection Doc 15.pdf")).toBeInTheDocument();
+    });
+  });
+
+  it("shows only the empty-state add button when a collection has no documents", async () => {
+    const col = makeCollection({
+      document_count: 0,
+      indexed_count: 0,
+    });
+
     mockCollectionsApi.listCollections.mockResolvedValue({
       items: [col],
       total: 1,
@@ -279,8 +358,145 @@ describe("CollectionsPage", () => {
     await userEvent.click(screen.getByText("Engineering Handbook"));
 
     await waitFor(() => {
-      expect(screen.getByText("Collection Metadata")).toBeInTheDocument();
+      expect(screen.getByText("No documents yet.")).toBeInTheDocument();
     });
+
+    expect(screen.queryByText("Manage documents")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add documents" }),
+    ).toBeInTheDocument();
+  });
+
+  it("lets managers search and multi-select documents in the collection picker", async () => {
+    const col = makeCollection({
+      document_count: 25,
+      indexed_count: 0,
+    });
+    const documents = Array.from({ length: 25 }, (_, index) => {
+      const page = index + 1;
+      return {
+        document_id: `doc-${page}`,
+        filename: `Document ${page}.pdf`,
+        file_type: "pdf" as const,
+        status: "indexed" as const,
+        page_count: 12,
+        chunk_count: 42,
+        error_message: null,
+        error_details: null,
+        created_at: "2026-05-19T09:30:00Z",
+        updated_at: `2026-05-20T08:${String(page).padStart(2, "0")}:00Z`,
+      };
+    });
+
+    mockCollectionsApi.listCollections.mockResolvedValue({
+      items: [col],
+      total: 1,
+    });
+    mockCollectionsApi.getCollection.mockResolvedValue(col);
+    mockCollectionsApi.listCollectionDocuments.mockResolvedValue({
+      items: [],
+      total: 0,
+    });
+    mockDocumentsApi.listDocuments.mockImplementation((options?: unknown) => {
+      const params = (options ?? {}) as {
+        limit?: number;
+        offset?: number;
+        filename_query?: string | undefined;
+      };
+      const limit = params.limit ?? 10;
+      const offset = params.offset ?? 0;
+      const filenameQuery = params.filename_query?.trim().toLowerCase();
+      const filtered = filenameQuery
+        ? documents.filter((document) =>
+            document.filename.toLowerCase().includes(filenameQuery),
+          )
+        : documents;
+      return Promise.resolve({
+        items: filtered.slice(offset, offset + limit),
+        total: filtered.length,
+        limit,
+        offset,
+        status: "indexed",
+        file_type: null,
+        sort_by: "updated_at",
+        sort_order: "desc",
+        filename_query: params.filename_query ?? null,
+      });
+    });
+    mockCollectionsApi.addDocumentToCollection.mockResolvedValue({
+      collection_id: col.collection_id,
+      document_id: "doc-1",
+    });
+
+    renderWithProviders(<CollectionsPage />, { queryClient });
+
+    await waitFor(() =>
+      expect(screen.getByText("Engineering Handbook")).toBeInTheDocument(),
+    );
+
+    await userEvent.click(screen.getByText("Engineering Handbook"));
+
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Add documents" })[0]!,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Manage documents" }),
+      ).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Document 1.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    });
+
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    );
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Next" })[0]!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Document 11.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+    });
+
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    );
+
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Previous" })[0]!,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Document 1.pdf")).toBeInTheDocument();
+      expect(screen.getByText("Page 1 of 3")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("checkbox", { name: "Select all on this page" }),
+    ).toBeChecked();
+    expect(screen.getByText("Document 1.pdf")).toHaveClass("text-[#2a2640]");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Update documents" }),
+    );
+
+    await waitFor(() => {
+      expect(mockCollectionsApi.addDocumentToCollection).toHaveBeenCalledTimes(
+        20,
+      );
+    });
+    expect(mockCollectionsApi.addDocumentToCollection).toHaveBeenCalledWith(
+      col.collection_id,
+      "doc-1",
+    );
+    expect(mockCollectionsApi.addDocumentToCollection).toHaveBeenCalledWith(
+      col.collection_id,
+      "doc-20",
+    );
   });
 
   it("hides create button and shows read-only badge for viewer role", async () => {
