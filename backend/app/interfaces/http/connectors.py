@@ -41,6 +41,7 @@ router = APIRouter(prefix="/connectors", tags=["connectors"])
 public_router = APIRouter(prefix="/connectors", tags=["connectors"])
 
 _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
+_ALL_MEMBER_ROLES = tuple(role.value for role in OrganizationRole)
 
 
 async def _ensure_default_sync_job(
@@ -420,6 +421,26 @@ async def list_connections(
     return ConnectorConnectionsListResponse(
         items=[_connection_summary_response(connection) for connection in connections],
         total=len(connections),
+    )
+
+
+@router.get("/available", response_model=ConnectorConnectionsListResponse)
+async def list_available_connections(
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ALL_MEMBER_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ConnectorConnectionsListResponse:
+    """Returns active connector connections for the chat scope picker.
+
+    Accessible to all org members, not just admins.
+    """
+    connections = await _load_connections(
+        db_session,
+        organization_id=_org_id(principal),
+    )
+    active = [c for c in connections if c.status == "active"]
+    return ConnectorConnectionsListResponse(
+        items=[_connection_summary_response(connection) for connection in active],
+        total=len(active),
     )
 
 

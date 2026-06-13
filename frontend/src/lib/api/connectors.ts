@@ -123,6 +123,12 @@ export async function listConnectorConnections(): Promise<ConnectorConnectionsLi
   );
 }
 
+export async function listAvailableConnectorConnections(): Promise<ConnectorConnectionsListResponse> {
+  return apiRequest<ConnectorConnectionsListResponse>(
+    "/connectors/available",
+  );
+}
+
 export async function getConnectorConnection(
   connectionId: string,
 ): Promise<ConnectorConnectionDetail> {

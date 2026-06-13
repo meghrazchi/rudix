@@ -93,7 +93,10 @@
     "signInFailed": "Échec de la connexion. Veuillez réessayer.",
     "passwordResetNotConfigured": "La réinitialisation du mot de passe n’est pas encore configurée. Contactez votre administrateur pour récupérer votre compte.",
     "ssoNotConfigured": "L’authentification unique est configurée, mais aucune URL de démarrage n’est disponible.",
+    "signedOut": "Vous avez été déconnecté avec succès.",
     "sessionExpired": "Votre session a expiré. Connectez-vous à nouveau.",
+    "sessionRevoked": "Votre session a été révoquée. Connectez-vous à nouveau.",
+    "sessionInvalid": "Votre session n'est pas valide. Connectez-vous à nouveau.",
     "insufficientRole": "Vous n’avez pas le rôle requis pour accéder à cette ressource.",
     "signUpTitle": "Créez votre compte",
     "alreadyHaveAccount": "Vous avez déjà un compte ?"
@@ -1771,6 +1774,8 @@
       "filesSelected": "{count, plural, one {# fichier sélectionné} other {# fichiers sélectionnés}}",
       "allFilesIncluded": "Tous les {count} fichiers indexés inclus",
       "done": "Terminé",
+      "apply": "Appliquer",
+      "applySelectionRequired": "Sélectionne au moins un élément pour appliquer",
       "documentChunks": "{count} fragments • mis à jour {date}",
       "scopeNoRetrieval": "Aucune récupération",
       "scopeCollection": "Collection : {name}",
@@ -1779,7 +1784,13 @@
       "scopeConnections": "{n, plural, one {# connexion} other {# connexions}}",
       "scopeSourceRoots": "{n, plural, one {# racine source} other {# racines sources}}",
       "scopeConnectorDefault": "Périmètre de connecteur",
-      "scopeAllFiles": "Tous les fichiers ({count})"
+      "scopeAllFiles": "Tous les fichiers ({count})",
+      "selectDocuments": "sélectionner des documents",
+      "documentsSelected": "{count} document(s) sélectionné(s)",
+      "documentSelect": "Sélectionner",
+      "documentSelected": "Sélectionné",
+      "scopeAllDocuments": "tous les documents ({count})",
+      "scopeCollectionsSelected": "{n} collection(s) sélectionnée(s)"
     },
     "composer": {
       "scopeLabel": "Portée",
@@ -1787,6 +1798,7 @@
       "scopeCollection": "Collection",
       "scopeDocuments": "Fichiers",
       "scopeConnectors": "Connecteurs",
+      "selectConnectors": "rechercher des connecteurs",
       "scopeNone": "Sans RAG",
       "chooseCollection": "— choisir une collection —",
       "selectFiles": "Sélectionner des fichiers",
@@ -1809,7 +1821,18 @@
       "scopeAriaLabel": "Type de portée",
       "collectionAriaLabel": "Sélectionner une collection",
       "answerLanguageAriaLabel": "Langue de réponse",
-      "stopGenerating": "Arrêter la génération"
+      "stopGenerating": "Arrêter la génération",
+      "close": "Fermer",
+      "loadingCollections": "Chargement des collections…",
+      "selectScope": "choisir la portée",
+      "scopeAllDocuments": "Tous les documents",
+      "scopeNoRag": "Sans RAG",
+      "selectCollections": "sélectionner des collections",
+      "additionalSettings": "Paramètres avancés",
+      "additionalSettingsTitle": "Paramètres avancés",
+      "additionalSettingsSubtitle": "Ajustez le comportement de récupération et de réponse pour ce chat.",
+      "agenticDescription": "Autoriser la planification agentique pour ce chat si disponible.",
+      "rerankDescription": "Effectuer un second classement pour améliorer la précision."
     }
   },
   "evaluations": {

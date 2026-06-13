@@ -186,9 +186,9 @@ async function openAdditionalSettings() {
 
 async function openScopeMenu() {
   await userEvent.click(
-    await screen.findByRole("button", { name: /Scope type/i }),
+    await screen.findByRole("button", { name: /Select scope/i }),
   );
-  return screen.findByRole("menu", { name: /Scope type/i });
+  return screen.findByRole("menu", { name: /Select scope/i });
 }
 
 beforeAll(() => {
@@ -280,6 +280,9 @@ describe("ChatPage sessions (MSW)", () => {
     const scopeMenu = await openScopeMenu();
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /All documents/i }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Select documents/i }),
     );
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /indexed\.pdf/i }),

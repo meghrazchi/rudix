@@ -176,21 +176,14 @@ export function buildLoginRedirectUrl(params: {
   return `/login?${query.toString()}`;
 }
 
-export function getAuthBoundaryMessage(
+export function getAuthBoundaryMessageKey(
   reason: string | null | undefined,
-): string | null {
-  if (reason === "signed_out") {
-    return "You signed out successfully.";
-  }
-  if (reason === "session_expired") {
-    return "Your session expired. Sign in again.";
-  }
-  if (reason === "session_revoked") {
-    return "Your session was revoked. Sign in again.";
-  }
-  if (reason === "session_invalid" || reason === "session_refresh_failed") {
-    return "Your session is not valid. Sign in again.";
-  }
+): "signedOut" | "sessionExpired" | "sessionRevoked" | "sessionInvalid" | null {
+  if (reason === "signed_out") return "signedOut";
+  if (reason === "session_expired") return "sessionExpired";
+  if (reason === "session_revoked") return "sessionRevoked";
+  if (reason === "session_invalid" || reason === "session_refresh_failed")
+    return "sessionInvalid";
   return null;
 }
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   defaultSessionState,
-  getAuthBoundaryMessage,
+  getAuthBoundaryMessageKey,
   readSessionFromStorage,
   SESSION_STORAGE_EVENT_NAME,
   SESSION_STORAGE_KEY,
@@ -23,7 +23,7 @@ import { writeSessionToStorage } from "@/lib/auth-session";
 type UseAuthSessionResult = {
   state: SessionState;
   boundaryEvent: AuthBoundaryEventDetail | null;
-  boundaryMessage: string | null;
+  boundaryMessageKey: "signedOut" | "sessionExpired" | "sessionRevoked" | "sessionInvalid" | null;
   setAuthenticatedSession: (session: AuthenticatedSession) => void;
   signOut: () => Promise<void>;
   clearBoundaryEvent: () => void;
@@ -170,7 +170,7 @@ export function useAuthSession(): UseAuthSessionResult {
   return {
     state,
     boundaryEvent,
-    boundaryMessage: getAuthBoundaryMessage(boundaryEvent?.reason),
+    boundaryMessageKey: getAuthBoundaryMessageKey(boundaryEvent?.reason),
     setAuthenticatedSession,
     signOut,
     clearBoundaryEvent,

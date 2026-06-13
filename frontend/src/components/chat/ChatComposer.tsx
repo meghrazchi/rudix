@@ -42,7 +42,6 @@ type ChatComposerProps = {
   agenticChatEnabled: boolean;
   agenticMode: boolean;
   answerLanguage: AnswerLanguageMode;
-  contextScopeItemCount: number;
   disabled: boolean;
   hasConnectorScopeSelection: boolean;
   hasAvailableDocuments: boolean;
@@ -50,6 +49,7 @@ type ChatComposerProps = {
   isConnectorsLoading: boolean;
   isDocumentsLoading: boolean;
   indexedDocuments: ScopeDocument[];
+  totalIndexedDocuments: number;
   maxTopK: number;
   minTopK: number;
   question: string;
@@ -67,12 +67,8 @@ type ChatComposerProps = {
   onToggleCollection: (collectionId: string) => void;
   onToggleConnectorConnection: (connectionId: string) => void;
   onToggleDocument: (documentId: string) => void;
-  onToggleProviderSource: (providerSourceId: string) => void;
   setAgenticMode: (value: boolean) => void;
   setAnswerLanguage: (value: AnswerLanguageMode) => void;
-  setContextPage: (value: number) => void;
-  setContextSearchQuery: (value: string) => void;
-  setIsContextModalOpen: (value: boolean) => void;
   setDocumentSearchQuery: (value: string) => void;
   setQuestion: (value: string) => void;
   setRerank: (value: boolean) => void;
@@ -84,6 +80,17 @@ type ChatComposerProps = {
   onStop?: () => void;
   onSubmit: () => void;
 };
+
+const COLLECTION_COLORS = [
+  "text-indigo-600",
+  "text-purple-600",
+  "text-blue-600",
+  "text-emerald-600",
+  "text-amber-500",
+  "text-rose-500",
+  "text-cyan-600",
+  "text-fuchsia-600",
+];
 
 const COMPOSER_TEXTAREA_LINE_HEIGHT_PX = 24;
 const COMPOSER_TEXTAREA_VERTICAL_PADDING_PX = 24;
@@ -104,7 +111,6 @@ export function ChatComposer({
   agenticChatEnabled,
   agenticMode,
   answerLanguage,
-  contextScopeItemCount,
   disabled,
   hasConnectorScopeSelection,
   hasAvailableDocuments,
@@ -125,9 +131,6 @@ export function ChatComposer({
   documentSearchQuery,
   setAgenticMode,
   setAnswerLanguage,
-  setContextPage,
-  setContextSearchQuery,
-  setIsContextModalOpen,
   setDocumentSearchQuery,
   setQuestion,
   setRerank,
@@ -137,10 +140,10 @@ export function ChatComposer({
   collections,
   connectorConnections,
   indexedDocuments,
+  totalIndexedDocuments,
   onToggleCollection,
   onToggleConnectorConnection,
   onToggleDocument,
-  onToggleProviderSource,
   topK,
   isGenerating = false,
   onStop,
@@ -154,9 +157,12 @@ export function ChatComposer({
   const [isAdditionalSettingsOpen, setIsAdditionalSettingsOpen] =
     useState(false);
   const [isScopeMenuOpen, setIsScopeMenuOpen] = useState(false);
+  const [draftScopeMode, setDraftScopeMode] = useState<ChatScopeMode>(scopeMode);
   const [activeScopeSubmenu, setActiveScopeSubmenu] = useState<
     "collections" | "connectors" | "documents" | null
   >(null);
+  const [collectionSearchQuery, setCollectionSearchQuery] = useState("");
+  const [connectorSearchQuery, setConnectorSearchQuery] = useState("");
 
   const answerLanguageOptions: ReadonlyArray<{
     value: AnswerLanguageMode;
@@ -196,37 +202,57 @@ export function ChatComposer({
     );
   }, [documentSearchQuery, indexedDocuments]);
 
-  const scopeSummaryLabel = useMemo(() => {
+  const filteredCollections = useMemo(() => {
+    const query = collectionSearchQuery.trim().toLowerCase();
+    if (!query) return collections;
+    return collections.filter((c) => c.name.toLowerCase().includes(query));
+  }, [collectionSearchQuery, collections]);
+
+  const filteredConnectors = useMemo(() => {
+    const query = connectorSearchQuery.trim().toLowerCase();
+    if (!query) return connectorConnections;
+    return connectorConnections.filter(
+      (c) =>
+        c.display_name.toLowerCase().includes(query) ||
+        c.provider_label.toLowerCase().includes(query),
+    );
+  }, [connectorSearchQuery, connectorConnections]);
+
+  const scopeSelectorLabel = useMemo(() => {
     if (scopeMode === "none") {
-      return t("scopeNoRag");
+      return `${t("selectScope")} - ${t("scopeNoRag")}`;
     }
     if (scopeMode === "collection") {
-      return collectionSelectionCount > 0
-        ? tPage("scopeCollectionsSelected", {
-            n: collectionSelectionCount,
-          })
-        : t("scopeCollection");
+      const label =
+        collectionSelectionCount > 0
+          ? tPage("scopeCollectionsSelected", {
+              n: collectionSelectionCount,
+            })
+          : t("scopeCollection");
+      return `${t("selectScope")} - ${label}`;
     }
     if (scopeMode === "connectors") {
-      return connectorSelectionCount > 0
-        ? tPage("connectorSourcesSelected", {
-            count: connectorSelectionCount,
-          })
-        : t("scopeConnectors");
+      const label =
+        connectorSelectionCount > 0
+          ? tPage("connectorSourcesSelected", {
+              count: connectorSelectionCount,
+            })
+          : t("scopeConnectors");
+      return `${t("selectScope")} - ${label}`;
     }
     if (scopeMode === "documents") {
-      return fileSelectionCount > 0
-        ? tPage("documentsSelected", { count: fileSelectionCount })
-        : tPage("selectDocuments");
+      const label =
+        fileSelectionCount > 0
+          ? tPage("documentsSelected", { count: fileSelectionCount })
+          : tPage("selectDocuments");
+      return `${t("selectScope")} - ${label}`;
     }
-    return fileSelectionCount > 0
-      ? tPage("scopeAllDocumentsSelected", { n: fileSelectionCount })
-      : tPage("scopeAllDocuments", { count: contextScopeItemCount });
+    return `${t("selectScope")} - ${tPage("scopeAllDocuments", { count: totalIndexedDocuments })}`;
   }, [
     collectionSelectionCount,
     connectorSelectionCount,
     fileSelectionCount,
-    contextScopeItemCount,
+    totalIndexedDocuments,
     scopeMode,
     t,
     tPage,
@@ -236,6 +262,8 @@ export function ChatComposer({
     setIsScopeMenuOpen(false);
     setActiveScopeSubmenu(null);
     setDocumentSearchQuery("");
+    setCollectionSearchQuery("");
+    setConnectorSearchQuery("");
   }
 
   useLayoutEffect(() => {
@@ -298,20 +326,12 @@ export function ChatComposer({
           <div className="relative flex min-h-0 flex-1 flex-col overflow-visible">
             <div className="flex flex-wrap items-center gap-2 border-b border-[#c7c4d8] bg-[#f5f2ff] px-3 py-2 text-[11px] font-semibold text-[#464555]">
               <div className="flex items-center gap-2">
-                <span
-                  className="material-symbols-outlined text-[14px] text-[#6a6780]"
-                  aria-hidden="true"
-                >
-                  travel_explore
-                </span>
-                <span className="tracking-wider uppercase">
-                  {t("scopeLabel")}
-                </span>
                 <button
                   type="button"
                   onClick={() => {
                     setIsScopeMenuOpen((previous) => !previous);
                     if (!isScopeMenuOpen) {
+                      setDraftScopeMode(scopeMode);
                       setActiveScopeSubmenu(
                         scopeMode === "collection"
                           ? "collections"
@@ -326,9 +346,15 @@ export function ChatComposer({
                   aria-expanded={isScopeMenuOpen}
                   aria-haspopup="menu"
                   aria-label={t("scopeAriaLabel")}
-                  className="inline-flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-2 py-0.5 text-[11px] font-semibold text-[#3525cd] transition-colors outline-none hover:bg-[#ece8ff] focus:ring-1 focus:ring-[#3525cd]/20"
+                  className="inline-flex cursor-pointer items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-2 py-0.5 text-[11px] font-semibold text-[#3525cd] transition-colors outline-none hover:bg-[#ece8ff] focus:ring-1 focus:ring-[#3525cd]/20"
                 >
-                  <span className="truncate">{scopeSummaryLabel}</span>
+                  <span
+                    className="material-symbols-outlined text-[14px]"
+                    aria-hidden="true"
+                  >
+                    filter_list
+</span>
+                  <span className="truncate">{scopeSelectorLabel}</span>
                   <span
                     className="material-symbols-outlined text-[14px]"
                     aria-hidden="true"
@@ -338,52 +364,14 @@ export function ChatComposer({
                 </button>
               </div>
 
-              {scopeMode === "collection" && collectionSelectionCount > 0 && (
-                <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                  {tPage("collectionsSelected", {
-                    n: collectionSelectionCount,
-                  })}
-                </span>
-              )}
 
-              {scopeMode === "connectors" && hasConnectorScopeSelection && (
-                <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                  {tPage("connectorSourcesSelected", {
-                    count: connectorSelectionCount,
-                  })}
-                </span>
-              )}
-
-              {scopeMode === "documents" && fileSelectionCount > 0 && (
-                <span className="rounded-full bg-[#ece8ff] px-1.5 py-0.5 text-[10px] font-bold text-[#3525cd]">
-                  {tPage("documentsSelected", { count: fileSelectionCount })}
-                </span>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsContextModalOpen(true);
-                  setContextSearchQuery("");
-                  setContextPage(1);
-                }}
-                className="flex items-center gap-1 rounded border border-[#c7c4d8] bg-[#f0ecf9] px-2 py-0.5 text-[11px] font-medium text-[#464555] transition-colors hover:bg-[#e8e4f8]"
-              >
-                <span
-                  className="material-symbols-outlined text-[13px]"
-                  aria-hidden="true"
-                >
-                  history
-                </span>
-                {t("contextButton", { count: contextScopeItemCount })}
-              </button>
 
               <button
                 type="button"
                 onClick={() =>
                   setIsAdditionalSettingsOpen((previous) => !previous)
                 }
-                className="ml-auto inline-flex items-center gap-1 rounded-full border border-[#c7c4d8] bg-white px-3 py-1 text-[11px] font-semibold text-[#2a2640] transition-colors hover:bg-[#faf9ff]"
+                className="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#c7c4d8] bg-white px-3 py-1 text-[11px] font-semibold text-[#2a2640] transition-colors hover:bg-[#faf9ff]"
                 aria-expanded={isAdditionalSettingsOpen}
                 aria-haspopup="dialog"
                 aria-label={t("additionalSettings")}
@@ -392,7 +380,7 @@ export function ChatComposer({
                   className="material-symbols-outlined text-[13px]"
                   aria-hidden="true"
                 >
-                  tune
+                  settings
                 </span>
                 {t("additionalSettings")}
               </button>
@@ -401,53 +389,311 @@ export function ChatComposer({
             {isScopeMenuOpen && (
               <div
                 ref={scopeMenuRef}
-                className="absolute bottom-full left-3 z-40 mb-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
+                className="absolute bottom-full left-3 z-40 mb-2 flex w-[min(40rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-[#d7d4e8] bg-white shadow-2xl"
                 role="menu"
                 aria-label={t("scopeAriaLabel")}
               >
-                <div className="p-2">
-                  <div className="relative">
+                <div className="flex min-h-[360px]">
+                  {/* Left category nav */}
+                  <div className="flex w-44 flex-shrink-0 flex-col border-r border-[#ece8f7] bg-[#f7f5ff] py-2">
                     <button
                       type="button"
                       onClick={() => {
-                        setScopeMode("all");
-                        setActiveScopeSubmenu("documents");
+                        setDraftScopeMode("all");
+                        setActiveScopeSubmenu(null);
                       }}
-                      onMouseEnter={() => setActiveScopeSubmenu("documents")}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                        scopeMode === "all"
-                          ? "bg-[#ece8ff] text-[#3525cd]"
-                          : "text-[#2f2a46] hover:bg-[#f7f5ff]"
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                        draftScopeMode === "all"
+                          ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
+                          : "text-[#464555] hover:bg-[#ece8ff]/50"
                       }`}
                     >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[18px]"
-                          aria-hidden="true"
-                        >
-                          folder_open
-                        </span>
-                        <span>{t("scopeAllDocuments")}</span>
+                      <span
+                        className="material-symbols-outlined text-[17px]"
+                        aria-hidden="true"
+                      >
+                        folder_open
                       </span>
-                      <span className="flex items-center gap-1">
-                        <span className="text-[10px] font-semibold text-[#6a6780]">
-                          {fileSelectionCount > 0
-                            ? tPage("documentsSelected", {
-                                count: fileSelectionCount,
-                              })
-                            : tPage("selectDocuments")}
-                        </span>
+                      <span className="flex-1">{t("scopeAllDocuments")}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftScopeMode("documents");
+                        setActiveScopeSubmenu("documents");
+                      }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                        draftScopeMode === "documents"
+                          ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
+                          : "text-[#464555] hover:bg-[#ece8ff]/50"
+                      }`}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[17px]"
+                        aria-hidden="true"
+                      >
+                        description
+                      </span>
+                      <span className="flex-1 truncate">{tPage("selectDocuments")}</span>
+                      <span
+                        className="material-symbols-outlined text-[15px] text-[#6a6780]"
+                        aria-hidden="true"
+                      >
+                        chevron_right
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!hasCollectionOptions}
+                      onClick={() => {
+                        if (!hasCollectionOptions) return;
+                        setDraftScopeMode("collection");
+                        setActiveScopeSubmenu("collections");
+                      }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                        draftScopeMode === "collection" && hasCollectionOptions
+                          ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
+                          : hasCollectionOptions
+                            ? "text-[#464555] hover:bg-[#ece8ff]/50"
+                            : "cursor-not-allowed text-[#9a96ad] opacity-50"
+                      }`}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[17px]"
+                        aria-hidden="true"
+                      >
+                        folder_special
+                      </span>
+                      <span className="flex-1">{t("scopeCollection")}</span>
+                      {hasCollectionOptions && (
                         <span
-                          className="material-symbols-outlined text-[16px] text-[#6a6780]"
+                          className="material-symbols-outlined text-[15px] text-[#6a6780]"
                           aria-hidden="true"
                         >
                           chevron_right
                         </span>
-                      </span>
+                      )}
                     </button>
+                    <button
+                      type="button"
+                      disabled={!hasConnectorOptions}
+                      onClick={() => {
+                        if (!hasConnectorOptions) return;
+                        setDraftScopeMode("connectors");
+                        setActiveScopeSubmenu("connectors");
+                      }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                        draftScopeMode === "connectors" && hasConnectorOptions
+                          ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
+                          : hasConnectorOptions
+                            ? "text-[#464555] hover:bg-[#ece8ff]/50"
+                            : "cursor-not-allowed text-[#9a96ad] opacity-50"
+                      }`}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[17px]"
+                        aria-hidden="true"
+                      >
+                        hub
+                      </span>
+                      <span className="flex-1">{t("scopeConnectors")}</span>
+                      {hasConnectorOptions && (
+                        <span
+                          className="material-symbols-outlined text-[15px] text-[#6a6780]"
+                          aria-hidden="true"
+                        >
+                          chevron_right
+                        </span>
+                      )}
+                    </button>
+                    <div className="mt-auto border-t border-[#ece8f7] pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftScopeMode("none");
+                          setActiveScopeSubmenu(null);
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors ${
+                          draftScopeMode === "none"
+                            ? "border-y border-[#d7d4e8] bg-white font-semibold text-[#3525cd] shadow-sm"
+                            : "text-[#464555] hover:bg-[#ece8ff]/50"
+                        }`}
+                      >
+                        <span
+                          className="material-symbols-outlined text-[17px]"
+                          aria-hidden="true"
+                        >
+                          do_not_disturb_on
+                        </span>
+                        <span className="flex-1">{t("scopeNoRag")}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right content panel */}
+                  <div className="flex-grow overflow-y-auto p-4">
+                    {activeScopeSubmenu === "collections" && (
+                      <>
+                        <div className="relative mb-3">
+                          <span
+                            className="material-symbols-outlined absolute top-1/2 left-2 -translate-y-1/2 text-[14px] text-[#6a6780]"
+                            aria-hidden="true"
+                          >
+                            search
+                          </span>
+                          <input
+                            type="text"
+                            value={collectionSearchQuery}
+                            onChange={(event) =>
+                              setCollectionSearchQuery(event.target.value)
+                            }
+                            placeholder={t("selectCollections")}
+                            className="h-9 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          {isCollectionsLoading ? (
+                            <p className="text-xs text-[#777587]">
+                              {t("loadingCollections")}
+                            </p>
+                          ) : filteredCollections.length === 0 ? (
+                            <p className="text-xs text-[#777587]">
+                              {tPage("noCollections")}
+                            </p>
+                          ) : (
+                            filteredCollections.map((collection, index) => {
+                              const isSelected = selectedCollectionIds.includes(
+                                collection.collection_id,
+                              );
+                              const colorClass =
+                                COLLECTION_COLORS[
+                                  index % COLLECTION_COLORS.length
+                                ];
+                              return (
+                                <label
+                                  key={collection.collection_id}
+                                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                                    isSelected
+                                      ? "border-[#c7c4d8] bg-[#ece8ff]/50"
+                                      : "border-[#e2dff1] hover:bg-[#f7f5ff]"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() =>
+                                      onToggleCollection(
+                                        collection.collection_id,
+                                      )
+                                    }
+                                    className="rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20"
+                                  />
+                                  <span
+                                    className={`material-symbols-outlined flex-shrink-0 text-[22px] ${colorClass}`}
+                                    aria-hidden="true"
+                                  >
+                                    folder_special
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-bold text-[#2f2a46]">
+                                      {collection.name}
+                                    </span>
+                                    {collection.description && (
+                                      <p className="truncate text-[10px] text-[#6a6780]">
+                                        {collection.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {activeScopeSubmenu === "connectors" && (
+                      <>
+                        <div className="relative mb-3">
+                          <span
+                            className="material-symbols-outlined absolute top-1/2 left-2 -translate-y-1/2 text-[14px] text-[#6a6780]"
+                            aria-hidden="true"
+                          >
+                            search
+                          </span>
+                          <input
+                            type="text"
+                            value={connectorSearchQuery}
+                            onChange={(event) =>
+                              setConnectorSearchQuery(event.target.value)
+                            }
+                            placeholder={t("selectConnectors")}
+                            className="h-9 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          {isConnectorsLoading ? (
+                            <p className="text-xs text-[#777587]">
+                              {tPage("loadingConnectors")}
+                            </p>
+                          ) : filteredConnectors.length === 0 ? (
+                            <p className="text-xs text-[#777587]">
+                              {tPage("noConnectors")}
+                            </p>
+                          ) : (
+                            filteredConnectors.map((connection, index) => {
+                              const isSelected =
+                                selectedConnectorConnectionIds.includes(
+                                  connection.id,
+                                );
+                              const colorClass =
+                                COLLECTION_COLORS[
+                                  index % COLLECTION_COLORS.length
+                                ];
+                              return (
+                                <label
+                                  key={connection.id}
+                                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                                    isSelected
+                                      ? "border-[#c7c4d8] bg-[#ece8ff]/50"
+                                      : "border-[#e2dff1] hover:bg-[#f7f5ff]"
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() =>
+                                      onToggleConnectorConnection(connection.id)
+                                    }
+                                    className="rounded border-[#c7c4d8] text-[#3525cd] focus:ring-[#3525cd]/20"
+                                  />
+                                  <span
+                                    className={`material-symbols-outlined flex-shrink-0 text-[22px] ${colorClass}`}
+                                    aria-hidden="true"
+                                  >
+                                    hub
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-bold text-[#2f2a46]">
+                                      {connection.display_name}
+                                    </span>
+                                    {connection.provider_label && (
+                                      <p className="truncate text-[10px] text-[#6a6780]">
+                                        {connection.provider_label}
+                                      </p>
+                                    )}
+                                  </div>
+                                </label>
+                              );
+                            })
+                          )}
+                        </div>
+                      </>
+                    )}
+
                     {activeScopeSubmenu === "documents" && (
-                      <div className="absolute top-0 left-full ml-2 w-72 rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
-                        <div className="relative mb-2">
+                      <>
+                        <div className="relative mb-3">
                           <span
                             className="material-symbols-outlined absolute top-1/2 left-2 -translate-y-1/2 text-xs text-[#6a6780]"
                             aria-hidden="true"
@@ -464,7 +710,7 @@ export function ChatComposer({
                             className="h-9 w-full rounded-lg border border-[#d6d1ea] bg-[#f7f5ff] pr-3 pl-8 text-xs text-[#2f2a46] outline-none focus:ring-1 focus:ring-[#3525cd]/20"
                           />
                         </div>
-                        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                           {isDocumentsLoading ? (
                             <p className="text-xs text-[#777587]">
                               {tPage("loadingDocuments")}
@@ -523,289 +769,68 @@ export function ChatComposer({
                             })
                           )}
                         </div>
+                      </>
+                    )}
+
+                    {activeScopeSubmenu === null && (
+                      <div className="flex h-full min-h-[200px] items-center justify-center">
+                        <p className="text-center text-sm text-[#9a96ad]">
+                          All documents are included in this search.
+                        </p>
                       </div>
                     )}
                   </div>
+                </div>
 
-                  <div className="relative">
-                    <button
-                      type="button"
-                      disabled={!hasCollectionOptions}
-                      onClick={() => {
-                        if (!hasCollectionOptions) {
-                          return;
+                {/* Bottom action bar */}
+                <div className="flex items-center justify-end gap-3 border-t border-[#ece8f7] bg-[#f7f5ff] px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={closeScopeMenu}
+                    className="px-4 py-1.5 text-xs font-semibold text-[#464555] hover:text-[#2f2a46]"
+                  >
+                    {tPage("cancel")}
+                  </button>
+                  {(() => {
+                    const isDisabled =
+                      (activeScopeSubmenu === "documents" &&
+                        fileSelectionCount === 0) ||
+                      (activeScopeSubmenu === "connectors" &&
+                        connectorSelectionCount === 0) ||
+                      (activeScopeSubmenu === "collections" &&
+                        collectionSelectionCount === 0);
+                    return (
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        title={
+                          isDisabled
+                            ? tPage("applySelectionRequired")
+                            : undefined
                         }
-                        setScopeMode("collection");
-                        setActiveScopeSubmenu("collections");
-                      }}
-                      onMouseEnter={() => {
-                        if (hasCollectionOptions) {
-                          setActiveScopeSubmenu("collections");
-                        }
-                      }}
-                      className={`mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                        scopeMode === "collection"
-                          ? "bg-[#ece8ff] text-[#3525cd]"
-                          : hasCollectionOptions
-                            ? "text-[#2f2a46] hover:bg-[#f7f5ff]"
-                            : "cursor-not-allowed text-[#9a96ad] opacity-60"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[18px]"
-                          aria-hidden="true"
-                        >
-                          folder
-                        </span>
-                        <span>{t("scopeCollection")}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="text-[10px] font-semibold text-[#6a6780]">
-                          {collectionSelectionCount > 0
-                            ? tPage("collectionsSelected", {
-                                n: collectionSelectionCount,
-                              })
-                            : tPage("collectionsTitle")}
-                        </span>
-                        <span
-                          className="material-symbols-outlined text-[16px] text-[#6a6780]"
-                          aria-hidden="true"
-                        >
-                          chevron_right
-                        </span>
-                      </span>
-                    </button>
-                    {activeScopeSubmenu === "collections" && (
-                      <div className="absolute top-0 left-full ml-2 w-64 rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
-                        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                          {isCollectionsLoading ? (
-                            <p className="text-xs text-[#777587]">
-                              {tPage("loadingCollections")}
-                            </p>
-                          ) : collections.length === 0 ? (
-                            <p className="text-xs text-[#777587]">
-                              {tPage("noCollections")}
-                            </p>
-                          ) : (
-                            collections.map((collection) => {
-                              const collectionSelected =
-                                selectedCollectionIds.includes(
-                                  collection.collection_id,
-                                );
-                              return (
-                                <button
-                                  key={collection.collection_id}
-                                  type="button"
-                                  onClick={() =>
-                                    onToggleCollection(collection.collection_id)
-                                  }
-                                  className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors ${
-                                    collectionSelected
-                                      ? "border-[#3525cd] bg-[#ece8ff]"
-                                      : "border-[#e2dff1] bg-[#faf9ff] hover:bg-white"
-                                  }`}
-                                >
-                                  <span className="min-w-0 truncate text-sm font-semibold text-[#2f2a46]">
-                                    {collection.name}
-                                  </span>
-                                </button>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      type="button"
-                      disabled={!hasConnectorOptions}
-                      onClick={() => {
-                        if (!hasConnectorOptions) {
-                          return;
-                        }
-                        setScopeMode("connectors");
-                        setActiveScopeSubmenu("connectors");
-                      }}
-                      onMouseEnter={() => {
-                        if (hasConnectorOptions) {
-                          setActiveScopeSubmenu("connectors");
-                        }
-                      }}
-                      className={`mt-1 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                        scopeMode === "connectors"
-                          ? "bg-[#ece8ff] text-[#3525cd]"
-                          : hasConnectorOptions
-                            ? "text-[#2f2a46] hover:bg-[#f7f5ff]"
-                            : "cursor-not-allowed text-[#9a96ad] opacity-60"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[18px]"
-                          aria-hidden="true"
-                        >
-                          hub
-                        </span>
-                        <span>{t("scopeConnectors")}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="text-[10px] font-semibold text-[#6a6780]">
-                          {connectorSelectionCount > 0
-                            ? tPage("connectorSourcesSelected", {
-                                count: connectorSelectionCount,
-                              })
-                            : tPage("connectorSourcesTitle")}
-                        </span>
-                        <span
-                          className="material-symbols-outlined text-[16px] text-[#6a6780]"
-                          aria-hidden="true"
-                        >
-                          chevron_right
-                        </span>
-                      </span>
-                    </button>
-                    {activeScopeSubmenu === "connectors" && (
-                      <div className="absolute top-0 left-full ml-2 w-[18rem] rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
-                        <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                          {isConnectorsLoading ? (
-                            <p className="text-xs text-[#777587]">
-                              {tPage("loadingConnectors")}
-                            </p>
-                          ) : connectorConnections.length === 0 ? (
-                            <p className="text-xs text-[#777587]">
-                              {tPage("noConnectors")}
-                            </p>
-                          ) : (
-                            connectorConnections.map((connection) => {
-                              const connectionSelected =
-                                selectedConnectorConnectionIds.includes(
-                                  connection.id,
-                                );
-                              return (
-                                <div
-                                  key={connection.id}
-                                  className="rounded-xl border border-[#e2dff1] bg-[#faf9ff] p-3"
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        onToggleConnectorConnection(
-                                          connection.id,
-                                        )
-                                      }
-                                      className={`flex min-w-0 flex-1 items-center gap-2 text-left transition-colors ${
-                                        connectionSelected
-                                          ? "text-[#3525cd]"
-                                          : "text-[#2f2a46]"
-                                      }`}
-                                    >
-                                      <span
-                                        className={`material-symbols-outlined text-[18px] ${connectionSelected ? "text-[#3525cd]" : "text-[#6a6780]"}`}
-                                        aria-hidden="true"
-                                      >
-                                        hub
-                                      </span>
-                                      <span className="min-w-0 truncate text-sm font-semibold">
-                                        {connection.display_name}
-                                      </span>
-                                    </button>
-                                  </div>
-                                  {connection.rootChips.length > 0 ? (
-                                    <div className="mt-2 flex flex-wrap gap-2">
-                                      {connection.rootChips.map((root) => {
-                                        const selected =
-                                          selectedProviderSourceIds.includes(
-                                            root.label,
-                                          );
-                                        return (
-                                          <button
-                                            key={root.id}
-                                            type="button"
-                                            onClick={() => {
-                                              if (!connectionSelected) {
-                                                onToggleConnectorConnection(
-                                                  connection.id,
-                                                );
-                                              }
-                                              onToggleProviderSource(
-                                                root.label,
-                                              );
-                                            }}
-                                            className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
-                                              selected
-                                                ? "border-[#3525cd] bg-[#ece8ff] text-[#3525cd]"
-                                                : "border-[#d2cee6] bg-[#faf9ff] text-[#5f5a74] hover:border-[#b9b2dd] hover:bg-white"
-                                            }`}
-                                          >
-                                            {root.label}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  ) : (
-                                    <p className="mt-2 text-xs text-[#777587]">
-                                      {tPage("useConnectionForAll")}
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-1 border-t border-[#ece8f7] pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setScopeMode("none");
-                        closeScopeMenu();
-                      }}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${
-                        scopeMode === "none"
-                          ? "bg-[#ece8ff] text-[#3525cd]"
-                          : "text-[#2f2a46] hover:bg-[#f7f5ff]"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="material-symbols-outlined text-[18px]"
-                          aria-hidden="true"
-                        >
-                          do_not_disturb_on
-                        </span>
-                        <span>{t("scopeNoRag")}</span>
-                      </span>
-                    </button>
-                  </div>
+                        onClick={() => {
+                          setScopeMode(draftScopeMode);
+                          closeScopeMenu();
+                        }}
+                        className="rounded-lg bg-[#3525cd] px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        {tPage("apply")}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             )}
 
             {isAdditionalSettingsOpen && (
               <div className="absolute right-3 bottom-full z-30 mb-3 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-[#d7d4e8] bg-white p-3 shadow-2xl">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
-                      {t("additionalSettingsTitle")}
-                    </p>
-                    <p className="text-xs text-[#6a6780]">
-                      {t("additionalSettingsSubtitle")}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsAdditionalSettingsOpen(false)}
-                    className="rounded-lg border border-[#d2cee6] px-2 py-1 text-xs font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
-                  >
-                    {t("close")}
-                  </button>
+                <div className="mb-3">
+                  <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                    {t("additionalSettingsTitle")}
+                  </p>
+                  <p className="text-xs text-[#6a6780]">
+                    {t("additionalSettingsSubtitle")}
+                  </p>
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="rounded-xl border border-[#ece8f7] bg-[#faf9ff] p-3">
@@ -914,18 +939,6 @@ export function ChatComposer({
                     {t("agenticConnectorWarning")}
                   </p>
                 ) : null}
-              </div>
-            )}
-
-            {scopeWarning && (
-              <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                <span
-                  className="material-symbols-outlined text-[14px]"
-                  aria-hidden="true"
-                >
-                  warning
-                </span>
-                {scopeWarning}
               </div>
             )}
 

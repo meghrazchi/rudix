@@ -19,7 +19,7 @@ import {
   type LoginFlowError,
   type SSODiscoveryState,
 } from "@/lib/auth-login";
-import { getAuthBoundaryMessage } from "@/lib/auth-session";
+import { getAuthBoundaryMessageKey } from "@/lib/auth-session";
 import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -70,7 +70,7 @@ function LoginPageContent() {
   const {
     state,
     setAuthenticatedSession,
-    boundaryMessage,
+    boundaryMessageKey,
     clearBoundaryEvent,
   } = useAuthSession();
 
@@ -91,8 +91,9 @@ function LoginPageContent() {
     mode: "onSubmit",
   });
 
-  const authNoticeMessage =
-    getAuthBoundaryMessage(authReason) ?? boundaryMessage;
+  const authBoundaryKey =
+    getAuthBoundaryMessageKey(authReason) ?? boundaryMessageKey;
+  const authNoticeMessage = authBoundaryKey ? t(authBoundaryKey) : null;
   const ssoStartHref = getSsoStartHref(nextPath);
   const hasSsoEntry = Boolean(ssoStartHref);
   const forgotPasswordHref = getForgotPasswordHref();
@@ -107,10 +108,10 @@ function LoginPageContent() {
   }, [nextPath, router, state]);
 
   useEffect(() => {
-    if (authReason || boundaryMessage) {
+    if (authReason || boundaryMessageKey) {
       clearBoundaryEvent();
     }
-  }, [authReason, boundaryMessage, clearBoundaryEvent]);
+  }, [authReason, boundaryMessageKey, clearBoundaryEvent]);
 
   async function handleEmailBlur() {
     const email = form.getValues("email");

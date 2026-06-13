@@ -53,7 +53,7 @@ import {
   listCollections,
 } from "@/lib/api/collections";
 import {
-  listConnectorConnections,
+  listAvailableConnectorConnections,
   type ConnectorConnectionSummary,
 } from "@/lib/api/connectors";
 import {
@@ -872,7 +872,7 @@ export function ChatPage() {
 
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "chat-picker"],
-    queryFn: () => listConnectorConnections(),
+    queryFn: () => listAvailableConnectorConnections(),
   });
   const connectorConnections = connectorConnectionsQuery.data?.items ?? [];
   const connectorDocumentCount = useMemo(
@@ -1532,6 +1532,16 @@ export function ChatPage() {
         ? previous.filter((value) => value !== providerSourceId)
         : [...previous, providerSourceId],
     );
+  }
+
+  function applyScopeMode(mode: ChatScopeMode) {
+    setScopeMode(mode);
+    if (mode !== "documents") setSelectedDocumentIds([]);
+    if (mode !== "collection") setSelectedCollectionIds([]);
+    if (mode !== "connectors") {
+      setSelectedConnectorConnectionIds([]);
+      setSelectedProviderSourceIds([]);
+    }
   }
 
   function resetForNewChat() {
@@ -2529,7 +2539,6 @@ export function ChatPage() {
                 agenticChatEnabled={AGENTIC_CHAT_ENABLED}
                 agenticMode={agenticMode}
                 answerLanguage={answerLanguage}
-                contextScopeItemCount={contextScopeItemCount}
                 collections={composerCollections}
                 disabled={isComposerDisabled}
                 hasConnectorScopeSelection={hasConnectorScopeSelection}
@@ -2539,6 +2548,7 @@ export function ChatPage() {
                 isDocumentsLoading={documentPickerQuery.isLoading}
                 connectorConnections={composerConnectorConnections}
                 indexedDocuments={composerIndexedDocuments}
+                totalIndexedDocuments={totalIndexedDocuments}
                 isGenerating={CHAT_WEBSOCKET_ENABLED && wsChat.isPending}
                 maxTopK={MAX_TOP_K}
                 minTopK={MIN_TOP_K}
@@ -2547,7 +2557,6 @@ export function ChatPage() {
                 onToggleCollection={toggleCollection}
                 onToggleConnectorConnection={toggleConnectorConnection}
                 onToggleDocument={toggleDocument}
-                onToggleProviderSource={toggleProviderSource}
                 question={question}
                 requiresUploadedDocuments={requiresUploadedDocuments}
                 rerank={rerank}
@@ -2560,12 +2569,9 @@ export function ChatPage() {
                 documentSearchQuery={documentSearchQuery}
                 setAgenticMode={setAgenticMode}
                 setAnswerLanguage={setAnswerLanguage}
-                setContextPage={setContextPage}
-                setContextSearchQuery={setContextSearchQuery}
-                setIsContextModalOpen={setIsContextModalOpen}
                 setQuestion={setQuestion}
                 setRerank={setRerank}
-                setScopeMode={setScopeMode}
+                setScopeMode={applyScopeMode}
                 setDocumentSearchQuery={setDocumentSearchQuery}
                 setTopK={setTopK}
                 submitButtonLabel={composerSubmitButtonLabel}

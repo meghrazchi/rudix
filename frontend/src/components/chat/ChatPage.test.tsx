@@ -111,9 +111,9 @@ async function openAdditionalSettings() {
 
 async function openScopeMenu() {
   await userEvent.click(
-    await screen.findByRole("button", { name: /Scope type/i }),
+    await screen.findByRole("button", { name: /Select scope/i }),
   );
-  return screen.findByRole("menu", { name: /Scope type/i });
+  return screen.findByRole("menu", { name: /Select scope/i });
 }
 
 describe("ChatPage", () => {
@@ -742,7 +742,7 @@ describe("ChatPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits selected document_ids with top_k and rerank payload", async () => {
+  it("submits selected document_ids with top_k payload", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -846,26 +846,28 @@ describe("ChatPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Scope type/i }),
-      ).toHaveTextContent("All documents (4)");
+        screen.getByRole("button", { name: /Select scope/i }),
+      ).toHaveTextContent("select scope (All documents)");
     });
     const scopeMenu = await openScopeMenu();
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /All documents/i }),
     );
     await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Select documents/i }),
+    );
+    await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /policy-a\.pdf/i }),
     );
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Scope type/i }),
-      ).toHaveTextContent("All documents · 1 selected");
+        screen.getByRole("button", { name: /Select scope/i }),
+      ).toHaveTextContent("select scope (1 document(s) selected)");
     });
 
     await openAdditionalSettings();
     const topKSlider = screen.getByRole("slider", { name: /Top-k/i });
     fireEvent.change(topKSlider, { target: { value: "9" } });
-    await userEvent.click(screen.getByRole("checkbox", { name: /Rerank/i }));
     await userEvent.type(
       screen.getByPlaceholderText("Type a message or use '/' for commands..."),
       "scope check",
@@ -879,9 +881,9 @@ describe("ChatPage", () => {
         expect.objectContaining({
           question: "scope check",
           document_ids: ["doc-indexed-a"],
-          scope_mode: "all",
+          scope_mode: "documents",
           top_k: 9,
-          rerank: false,
+          rerank: true,
         }),
       );
     });
@@ -1091,10 +1093,10 @@ describe("ChatPage", () => {
     renderPage();
 
     await userEvent.click(
-      await screen.findByRole("button", { name: /Scope type/i }),
+      await screen.findByRole("button", { name: /Select scope/i }),
     );
     const scopeMenu = await screen.findByRole("menu", {
-      name: /Scope type/i,
+      name: /Select scope/i,
     });
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /Connectors/i }),
@@ -2667,9 +2669,11 @@ describe("ChatPage", () => {
     renderPage();
 
     await userEvent.click(
-      await screen.findByRole("button", { name: /Scope type/i }),
+      await screen.findByRole("button", { name: /Select scope/i }),
     );
-    const scopeMenu = await screen.findByRole("menu", { name: /Scope type/i });
+    const scopeMenu = await screen.findByRole("menu", {
+      name: /Select scope/i,
+    });
     expect(
       within(scopeMenu).getByRole("button", { name: /^Collection/i }),
     ).toBeDisabled();
@@ -2713,6 +2717,9 @@ describe("ChatPage", () => {
     const scopeMenu = await openScopeMenu();
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /All documents/i }),
+    );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Select documents/i }),
     );
     expect(
       await screen.findByPlaceholderText("Search indexed documents..."),
@@ -2761,6 +2768,9 @@ describe("ChatPage", () => {
     await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /All documents/i }),
     );
+    await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Select documents/i }),
+    );
 
     await waitFor(() => {
       expect(listDocumentsMock).toHaveBeenCalledWith(
@@ -2793,7 +2803,7 @@ describe("ChatPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows warning when collection scope selected with no collection chosen", async () => {
+  it("does not show a collection warning when collection scope is empty", async () => {
     vi.mocked(listDocuments).mockResolvedValue({
       items: [
         {
@@ -2838,10 +2848,8 @@ describe("ChatPage", () => {
     );
 
     expect(
-      await screen.findByText(
-        "Select at least one collection to scope retrieval.",
-      ),
-    ).toBeInTheDocument();
+      screen.queryByText("Select at least one collection to scope retrieval."),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Send message/i }),
     ).toBeDisabled();
@@ -3001,7 +3009,7 @@ describe("ChatPage", () => {
     );
 
     expect(
-      await screen.findByText("All documents (1)", {
+      await screen.findByText("all documents (1)", {
         selector: ".inline-flex.items-center.gap-1.rounded-full",
       }),
     ).toBeInTheDocument();
@@ -3072,6 +3080,9 @@ describe("ChatPage", () => {
       within(scopeMenu).getByRole("button", { name: /All documents/i }),
     );
     await userEvent.click(
+      within(scopeMenu).getByRole("button", { name: /Select documents/i }),
+    );
+    await userEvent.click(
       within(scopeMenu).getByRole("button", { name: /scoped\.pdf/i }),
     );
 
@@ -3088,7 +3099,7 @@ describe("ChatPage", () => {
         expect.objectContaining({
           question: "Scoped query",
           document_ids: ["doc-scoped"],
-          scope_mode: "all",
+          scope_mode: "documents",
         }),
       );
     });

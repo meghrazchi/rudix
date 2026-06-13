@@ -93,7 +93,10 @@
     "signInFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "passwordResetNotConfigured": "Das Zurücksetzen des Passworts ist noch nicht konfiguriert. Wenden Sie sich für die Kontowiederherstellung an Ihren Administrator.",
     "ssoNotConfigured": "Single Sign-On ist konfiguriert, aber keine Start-URL ist verfügbar.",
+    "signedOut": "Sie haben sich erfolgreich abgemeldet.",
     "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an.",
+    "sessionRevoked": "Ihre Sitzung wurde widerrufen. Melden Sie sich erneut an.",
+    "sessionInvalid": "Ihre Sitzung ist ungültig. Melden Sie sich erneut an.",
     "insufficientRole": "Sie haben nicht die erforderliche Rolle für den Zugriff auf diese Ressource.",
     "signUpTitle": "Konto erstellen",
     "alreadyHaveAccount": "Haben Sie bereits ein Konto?"
@@ -1771,6 +1774,8 @@
       "filesSelected": "{count, plural, one {# Datei ausgewählt} other {# Dateien ausgewählt}}",
       "allFilesIncluded": "Alle {count} indizierten Dateien enthalten",
       "done": "Fertig",
+      "apply": "Übernehmen",
+      "applySelectionRequired": "Wähle mindestens ein Element aus",
       "documentChunks": "{count} Blöcke • aktualisiert {date}",
       "scopeNoRetrieval": "Kein Abruf",
       "scopeCollection": "Sammlung: {name}",
@@ -1779,7 +1784,13 @@
       "scopeConnections": "{n, plural, one {# Verbindung} other {# Verbindungen}}",
       "scopeSourceRoots": "{n, plural, one {# Quellwurzel} other {# Quellwurzeln}}",
       "scopeConnectorDefault": "Connector-Umfang",
-      "scopeAllFiles": "Alle Dateien ({count})"
+      "scopeAllFiles": "Alle Dateien ({count})",
+      "selectDocuments": "Dokumente auswählen",
+      "documentsSelected": "{count} Dokument(e) ausgewählt",
+      "documentSelect": "Auswählen",
+      "documentSelected": "Ausgewählt",
+      "scopeAllDocuments": "alle Dokumente ({count})",
+      "scopeCollectionsSelected": "{n} Sammlung(en) ausgewählt"
     },
     "composer": {
       "scopeLabel": "Bereich",
@@ -1787,6 +1798,7 @@
       "scopeCollection": "Sammlung",
       "scopeDocuments": "Dateien",
       "scopeConnectors": "Konnektoren",
+      "selectConnectors": "Konnektoren suchen",
       "scopeNone": "Kein RAG",
       "chooseCollection": "— Sammlung wählen —",
       "selectFiles": "Dateien auswählen",
@@ -1809,7 +1821,18 @@
       "scopeAriaLabel": "Bereichstyp",
       "collectionAriaLabel": "Sammlung auswählen",
       "answerLanguageAriaLabel": "Antwortsprache",
-      "stopGenerating": "Generierung stoppen"
+      "stopGenerating": "Generierung stoppen",
+      "close": "Schließen",
+      "loadingCollections": "Sammlungen werden geladen…",
+      "selectScope": "Bereich wählen",
+      "scopeAllDocuments": "Alle Dokumente",
+      "scopeNoRag": "Kein RAG",
+      "selectCollections": "Sammlungen auswählen",
+      "additionalSettings": "Erweiterte Einstellungen",
+      "additionalSettingsTitle": "Erweiterte Einstellungen",
+      "additionalSettingsSubtitle": "Abruf- und Antwortverhalten für diesen Chat anpassen.",
+      "agenticDescription": "Agentisches Planen für diesen Chat erlauben, wenn verfügbar.",
+      "rerankDescription": "Zweiten Ranking-Durchlauf für höhere Präzision ausführen."
     }
   },
   "evaluations": {
