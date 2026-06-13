@@ -36,6 +36,7 @@ from app.interfaces.http import (
     notifications,
     observability,
     org_settings,
+    provider_observability,
     pipeline,
     profile,
     prompt_templates,
@@ -88,6 +89,7 @@ protected_router.include_router(rag_profiles.router)
 protected_router.include_router(safety_evals.router)
 protected_router.include_router(admin.router)
 protected_router.include_router(observability.router)
+protected_router.include_router(provider_observability.router)
 protected_router.include_router(langfuse_diagnostics.router)
 protected_router.include_router(failed_jobs.router)
 protected_router.include_router(admin_status.router)

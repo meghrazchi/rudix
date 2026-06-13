@@ -181,6 +181,14 @@ class UsageRepository:
         output_tokens: int | None = None,
         cost_usd: Decimal | None = None,
         metadata: dict | None = None,
+        provider_key: str | None = None,
+        profile_name: str | None = None,
+        task_type: str | None = None,
+        retry_count: int | None = None,
+        timed_out: bool = False,
+        fallback_used: bool = False,
+        error_code: str | None = None,
+        request_id: str | None = None,
     ) -> UsageEvent:
         usage_event = UsageEvent(
             organization_id=organization_id,
@@ -191,6 +199,14 @@ class UsageRepository:
             output_tokens=output_tokens,
             cost_usd=cost_usd,
             metadata_json=metadata or {},
+            provider_key=provider_key,
+            profile_name=profile_name,
+            task_type=task_type,
+            retry_count=retry_count,
+            timed_out=timed_out,
+            fallback_used=fallback_used,
+            error_code=error_code,
+            request_id=request_id,
         )
         session.add(usage_event)
         await session.flush()
@@ -533,3 +549,70 @@ class UsageRepository:
                 prefix = "unknown"
             area_counts[prefix] = area_counts.get(prefix, 0) + int(count)
         return area_counts
+
+    @dataclass
+    class _ProviderAggRow:
+        provider_key: str
+        total_events: int
+        failed_events: int
+        timed_out_events: int
+        fallback_events: int
+        retry_events: int
+        total_retry_count: int
+        latency_values: list[float]
+
+    async def aggregate_by_provider(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        from_created_at: datetime | None = None,
+        to_created_at: datetime | None = None,
+    ) -> list["UsageRepository._ProviderAggRow"]:
+        """Aggregate usage events by provider_key for health monitoring.
+
+        Only returns rows where provider_key is set (F228 events).
+        """
+        statement = select(UsageEvent).where(
+            UsageEvent.organization_id == organization_id,
+            UsageEvent.provider_key.is_not(None),
+        )
+        if from_created_at is not None:
+            statement = statement.where(UsageEvent.created_at >= from_created_at)
+        if to_created_at is not None:
+            statement = statement.where(UsageEvent.created_at <= to_created_at)
+        rows = list((await session.execute(statement)).scalars().all())
+
+        buckets: dict[str, UsageRepository._ProviderAggRow] = {}
+        for row in rows:
+            key = row.provider_key or "unknown"
+            if key not in buckets:
+                buckets[key] = UsageRepository._ProviderAggRow(
+                    provider_key=key,
+                    total_events=0,
+                    failed_events=0,
+                    timed_out_events=0,
+                    fallback_events=0,
+                    retry_events=0,
+                    total_retry_count=0,
+                    latency_values=[],
+                )
+            b = buckets[key]
+            b.total_events += 1
+            if row.error_code is not None:
+                b.failed_events += 1
+            if row.timed_out:
+                b.timed_out_events += 1
+            if row.fallback_used:
+                b.fallback_events += 1
+            if row.retry_count is not None and row.retry_count > 0:
+                b.retry_events += 1
+                b.total_retry_count += row.retry_count
+            metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+            for lat_key in ("latency_ms", "answer_latency_ms", "duration_ms"):
+                lat = metadata.get(lat_key)
+                if isinstance(lat, (int, float)) and lat >= 0:
+                    b.latency_values.append(float(lat))
+                    break
+
+        return list(buckets.values())

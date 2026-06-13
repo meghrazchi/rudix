@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     ForeignKey,
     Index,
@@ -29,7 +30,12 @@ class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="usage_events_output_tokens_non_negative",
         ),
         CheckConstraint("cost_usd IS NULL OR cost_usd >= 0", name="usage_events_cost_non_negative"),
+        CheckConstraint(
+            "retry_count IS NULL OR retry_count >= 0",
+            name="usage_events_retry_count_non_negative",
+        ),
         Index("idx_usage_org_created", "organization_id", "created_at"),
+        Index("idx_usage_org_provider_created", "organization_id", "provider_key", "created_at"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -48,6 +54,15 @@ class UsageEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     metadata_json: Mapped[dict] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    # Provider observability fields (F228)
+    provider_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    profile_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    task_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    retry_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    timed_out: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    fallback_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     organization = relationship("Organization", back_populates="usage_events")
     user = relationship("User", back_populates="usage_events")

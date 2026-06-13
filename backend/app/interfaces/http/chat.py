@@ -755,6 +755,7 @@ async def query_chat(
     llm_fallback_from: str | None = None
     llm_fallback_to: str | None = None
     llm_fallback_reason: str | None = None
+    llm_retry_count: int | None = None
     llm_cost_usd = None
     llm_latency_ms = 0
     answer = _NOT_FOUND_ANSWER
@@ -834,6 +835,7 @@ async def query_chat(
         llm_fallback_from = llm_result.fallback_from
         llm_fallback_to = llm_result.fallback_to
         llm_fallback_reason = llm_result.fallback_reason
+        llm_retry_count = llm_result.retry_count
         llm_prompt_tokens = llm_result.prompt_tokens
         llm_completion_tokens = llm_result.completion_tokens
         llm_cost_usd = llm_result.approximate_cost_usd
@@ -988,6 +990,7 @@ async def query_chat(
             llm_fallback_from = llm_result.fallback_from
             llm_fallback_to = llm_result.fallback_to
             llm_fallback_reason = llm_result.fallback_reason
+            llm_retry_count = llm_result.retry_count
             llm_prompt_tokens = llm_result.prompt_tokens
             llm_completion_tokens = llm_result.completion_tokens
             llm_cost_usd = llm_result.approximate_cost_usd
@@ -1123,6 +1126,11 @@ async def query_chat(
             input_tokens=embedding_prompt_tokens + llm_prompt_tokens,
             output_tokens=llm_completion_tokens,
             cost_usd=llm_cost_usd,
+            provider_key=llm_provider,
+            task_type="chat",
+            retry_count=llm_retry_count,
+            fallback_used=llm_fallback_used,
+            request_id=request_id,
             metadata={
                 "chat_session_id": str(chat_session.id),
                 "assistant_message_id": str(assistant_message.id),
@@ -2215,6 +2223,7 @@ async def _run_ws_chat_pipeline(
             llm_fallback_from: str | None = None
             llm_fallback_to: str | None = None
             llm_fallback_reason: str | None = None
+            llm_retry_count: int | None = None
             llm_cost_usd = None
             llm_latency_ms = 0
             answer = _NOT_FOUND_ANSWER
@@ -2402,6 +2411,7 @@ async def _run_ws_chat_pipeline(
                     llm_fallback_from = llm_result.fallback_from
                     llm_fallback_to = llm_result.fallback_to
                     llm_fallback_reason = llm_result.fallback_reason
+                    llm_retry_count = llm_result.retry_count
                     llm_prompt_tokens = llm_result.prompt_tokens
                     llm_completion_tokens = llm_result.completion_tokens
                     llm_cost_usd = llm_result.approximate_cost_usd
@@ -2519,6 +2529,10 @@ async def _run_ws_chat_pipeline(
                     input_tokens=embedding_prompt_tokens + llm_prompt_tokens,
                     output_tokens=llm_completion_tokens,
                     cost_usd=llm_cost_usd,
+                    provider_key=llm_provider,
+                    task_type="chat",
+                    retry_count=llm_retry_count,
+                    fallback_used=llm_fallback_used,
                     metadata={
                         "chat_session_id": str(chat_session.id),
                         "assistant_message_id": str(assistant_message.id),

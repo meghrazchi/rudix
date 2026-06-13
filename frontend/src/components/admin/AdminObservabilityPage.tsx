@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
+import { ProviderHealthSection } from "@/components/admin/ProviderHealthSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getObservabilitySnapshot,
@@ -453,6 +454,8 @@ export function AdminObservabilityPage() {
               metrics={snapshotQuery.data.storage_metrics}
             />
           </div>
+
+          <ProviderHealthSection timeRange={queryDates} />
 
           <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-lg font-bold text-[#2a2640]">
