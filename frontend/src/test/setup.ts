@@ -71,11 +71,8 @@ vi.mock("next-intl", async (importOriginal) => {
       number: (n: number) => String(n),
       relativeTime: (date: Date) => date.toISOString(),
     }),
-    NextIntlClientProvider: ({
+    NextIntlClientProvider: ({ children }: { children: React.ReactNode }) =>
       children,
-    }: {
-      children: React.ReactNode;
-    }) => children,
     getTranslations: async (namespace: string) => makeTranslator(namespace),
     getLocale: async () => "en",
     getMessages: async () => messages,

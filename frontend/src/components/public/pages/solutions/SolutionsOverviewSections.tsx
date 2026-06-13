@@ -3,7 +3,10 @@
 import { useTranslations } from "next-intl";
 
 import { PublicActionLink } from "@/components/public/PublicActionLink";
-import { AudienceIcon, type AudienceIconType } from "@/components/public/pages/solutions/enterpriseUseCases";
+import {
+  AudienceIcon,
+  type AudienceIconType,
+} from "@/components/public/pages/solutions/enterpriseUseCases";
 import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 export function SolutionsHero() {
@@ -50,17 +53,71 @@ export function SolutionsHero() {
 export function SolutionCardsSection() {
   const t = useTranslations("public.solutions");
 
-  const cards: Array<{ title: string; description: string; icon: AudienceIconType; href?: string }> = [
-    { title: t("cards.items.knowledge.title"), description: t("cards.items.knowledge.description"), icon: "knowledge", href: "/solutions/internal-knowledge" },
-    { title: t("cards.items.hr.title"), description: t("cards.items.hr.description"), icon: "hr", href: "/solutions/hr" },
-    { title: t("cards.items.support.title"), description: t("cards.items.support.description"), icon: "support", href: "/solutions/support" },
-    { title: t("cards.items.legal.title"), description: t("cards.items.legal.description"), icon: "legal", href: "/solutions/legal" },
-    { title: t("cards.items.compliance.title"), description: t("cards.items.compliance.description"), icon: "compliance", href: "/solutions/compliance" },
-    { title: t("cards.items.operations.title"), description: t("cards.items.operations.description"), icon: "operations", href: "/solutions/operations" },
-    { title: t("cards.items.sales.title"), description: t("cards.items.sales.description"), icon: "sales", href: "/solutions/sales" },
-    { title: t("cards.items.procurement.title"), description: t("cards.items.procurement.description"), icon: "procurement", href: "/solutions/procurement" },
-    { title: t("cards.items.research.title"), description: t("cards.items.research.description"), icon: "research", href: "/solutions/research" },
-    { title: t("cards.items.portal.title"), description: t("cards.items.portal.description"), icon: "portal" },
+  const cards: Array<{
+    title: string;
+    description: string;
+    icon: AudienceIconType;
+    href?: string;
+  }> = [
+    {
+      title: t("cards.items.knowledge.title"),
+      description: t("cards.items.knowledge.description"),
+      icon: "knowledge",
+      href: "/solutions/internal-knowledge",
+    },
+    {
+      title: t("cards.items.hr.title"),
+      description: t("cards.items.hr.description"),
+      icon: "hr",
+      href: "/solutions/hr",
+    },
+    {
+      title: t("cards.items.support.title"),
+      description: t("cards.items.support.description"),
+      icon: "support",
+      href: "/solutions/support",
+    },
+    {
+      title: t("cards.items.legal.title"),
+      description: t("cards.items.legal.description"),
+      icon: "legal",
+      href: "/solutions/legal",
+    },
+    {
+      title: t("cards.items.compliance.title"),
+      description: t("cards.items.compliance.description"),
+      icon: "compliance",
+      href: "/solutions/compliance",
+    },
+    {
+      title: t("cards.items.operations.title"),
+      description: t("cards.items.operations.description"),
+      icon: "operations",
+      href: "/solutions/operations",
+    },
+    {
+      title: t("cards.items.sales.title"),
+      description: t("cards.items.sales.description"),
+      icon: "sales",
+      href: "/solutions/sales",
+    },
+    {
+      title: t("cards.items.procurement.title"),
+      description: t("cards.items.procurement.description"),
+      icon: "procurement",
+      href: "/solutions/procurement",
+    },
+    {
+      title: t("cards.items.research.title"),
+      description: t("cards.items.research.description"),
+      icon: "research",
+      href: "/solutions/research",
+    },
+    {
+      title: t("cards.items.portal.title"),
+      description: t("cards.items.portal.description"),
+      icon: "portal",
+    },
   ];
 
   return (
@@ -95,16 +152,24 @@ export function SolutionCardsSection() {
                 <div className="mb-4 inline-flex text-[#3525cd]">
                   <AudienceIcon icon={card.icon} />
                 </div>
-                <h3 className="text-lg font-semibold text-[#2c2f3a]">{card.title}</h3>
-                <p className="mt-3 text-sm leading-8 text-[#5a6071]">{card.description}</p>
+                <h3 className="text-lg font-semibold text-[#2c2f3a]">
+                  {card.title}
+                </h3>
+                <p className="mt-3 text-sm leading-8 text-[#5a6071]">
+                  {card.description}
+                </p>
               </PublicActionLink>
             ) : (
               <>
                 <div className="mb-4 inline-flex text-[#3525cd]">
                   <AudienceIcon icon={card.icon} />
                 </div>
-                <h3 className="text-lg font-semibold text-[#2c2f3a]">{card.title}</h3>
-                <p className="mt-3 text-sm leading-8 text-[#5a6071]">{card.description}</p>
+                <h3 className="text-lg font-semibold text-[#2c2f3a]">
+                  {card.title}
+                </h3>
+                <p className="mt-3 text-sm leading-8 text-[#5a6071]">
+                  {card.description}
+                </p>
               </>
             )}
           </article>

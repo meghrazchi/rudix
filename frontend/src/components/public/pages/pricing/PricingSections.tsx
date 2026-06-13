@@ -374,15 +374,21 @@ export function PlanComparisonSection() {
             </h3>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">{t("comparison.starter")}</dt>
+                <dt className="font-semibold text-[#50576f]">
+                  {t("comparison.starter")}
+                </dt>
                 <dd className="text-right text-[#2a3043]">{row.starter}</dd>
               </div>
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">{t("comparison.team")}</dt>
+                <dt className="font-semibold text-[#50576f]">
+                  {t("comparison.team")}
+                </dt>
                 <dd className="text-right text-[#2a3043]">{row.team}</dd>
               </div>
               <div className="flex items-start justify-between gap-3">
-                <dt className="font-semibold text-[#50576f]">{t("comparison.enterprise")}</dt>
+                <dt className="font-semibold text-[#50576f]">
+                  {t("comparison.enterprise")}
+                </dt>
                 <dd className="text-right text-[#2a3043]">{row.enterprise}</dd>
               </div>
             </dl>

@@ -39,10 +39,14 @@ vi.mock("@/lib/api/team", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/team")>();
   return {
     ...actual,
-    listTeamMembers: (...args: unknown[]) => mockTeamApi.listTeamMembers(...args),
-    inviteTeamMember: (...args: unknown[]) => mockTeamApi.inviteTeamMember(...args),
-    updateTeamMemberRole: (...args: unknown[]) => mockTeamApi.updateTeamMemberRole(...args),
-    removeTeamMember: (...args: unknown[]) => mockTeamApi.removeTeamMember(...args),
+    listTeamMembers: (...args: unknown[]) =>
+      mockTeamApi.listTeamMembers(...args),
+    inviteTeamMember: (...args: unknown[]) =>
+      mockTeamApi.inviteTeamMember(...args),
+    updateTeamMemberRole: (...args: unknown[]) =>
+      mockTeamApi.updateTeamMemberRole(...args),
+    removeTeamMember: (...args: unknown[]) =>
+      mockTeamApi.removeTeamMember(...args),
     getTeamCapabilities: () => mockTeamApi.getTeamCapabilities(),
   };
 });
@@ -57,13 +61,18 @@ const mockInvApi = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api/team-invitations", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api/team-invitations")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/api/team-invitations")>();
   return {
     ...actual,
-    listInvitations: (...args: unknown[]) => mockInvApi.listInvitations(...args),
-    resendInvitation: (...args: unknown[]) => mockInvApi.resendInvitation(...args),
-    revokeInvitation: (...args: unknown[]) => mockInvApi.revokeInvitation(...args),
-    deactivateTeamMember: (...args: unknown[]) => mockInvApi.deactivateTeamMember(...args),
+    listInvitations: (...args: unknown[]) =>
+      mockInvApi.listInvitations(...args),
+    resendInvitation: (...args: unknown[]) =>
+      mockInvApi.resendInvitation(...args),
+    revokeInvitation: (...args: unknown[]) =>
+      mockInvApi.revokeInvitation(...args),
+    deactivateTeamMember: (...args: unknown[]) =>
+      mockInvApi.deactivateTeamMember(...args),
   };
 });
 
@@ -88,7 +97,9 @@ function makeMember(overrides: Partial<TeamMember> = {}): TeamMember {
   };
 }
 
-function makeInvitation(overrides: Partial<OrganizationInvitation> = {}): OrganizationInvitation {
+function makeInvitation(
+  overrides: Partial<OrganizationInvitation> = {},
+): OrganizationInvitation {
   return {
     invitation_id: "inv-1",
     organization_id: "org-1",
@@ -146,8 +157,18 @@ describe("AdminTeamPage", () => {
   });
 
   it("renders the page title", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -155,9 +176,23 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows members in the table", async () => {
-    const alice = makeMember({ name: "Alice Liddell", email: "alice@example.com", role: "admin" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [alice], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    const alice = makeMember({
+      name: "Alice Liddell",
+      email: "alice@example.com",
+      role: "admin",
+    });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [alice],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -168,8 +203,18 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows empty state when no members match", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -179,9 +224,19 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows pending invitations", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
     const inv = makeInvitation({ email: "bob@example.com" });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [inv], total: 1, limit: 100, offset: 0 });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [inv],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -191,8 +246,18 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows empty state when no pending invitations", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -202,26 +267,52 @@ describe("AdminTeamPage", () => {
   });
 
   it("opens invite dialog on button click", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
 
-    const inviteBtn = await screen.findByRole("button", { name: /invite member/i });
+    const inviteBtn = await screen.findByRole("button", {
+      name: /invite member/i,
+    });
     await user.click(inviteBtn);
 
-    expect(screen.getByRole("dialog", { name: /invite team member/i })).toBeDefined();
+    expect(
+      screen.getByRole("dialog", { name: /invite team member/i }),
+    ).toBeDefined();
   });
 
   it("closes invite dialog on cancel", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
 
-    await user.click(await screen.findByRole("button", { name: /invite member/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /invite member/i }),
+    );
     await user.click(screen.getByRole("button", { name: /cancel/i }));
 
     await waitFor(() => {
@@ -230,8 +321,18 @@ describe("AdminTeamPage", () => {
   });
 
   it("submits invite form with email and role", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     mockTeamApi.inviteTeamMember.mockResolvedValue({
       member: makeMember({ email: "new@example.com", status: "invited" }),
       invited: true,
@@ -240,8 +341,13 @@ describe("AdminTeamPage", () => {
 
     renderPage();
 
-    await user.click(await screen.findByRole("button", { name: /invite member/i }));
-    await user.type(screen.getByPlaceholderText(/colleague@company.com/i), "new@example.com");
+    await user.click(
+      await screen.findByRole("button", { name: /invite member/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/colleague@company.com/i),
+      "new@example.com",
+    );
     await user.click(screen.getByRole("button", { name: /send invite/i }));
 
     await waitFor(() => {
@@ -252,14 +358,29 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows validation error for invalid email", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
 
-    await user.click(await screen.findByRole("button", { name: /invite member/i }));
-    await user.type(screen.getByPlaceholderText(/colleague@company.com/i), "not-an-email");
+    await user.click(
+      await screen.findByRole("button", { name: /invite member/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/colleague@company.com/i),
+      "not-an-email",
+    );
     await user.click(screen.getByRole("button", { name: /send invite/i }));
 
     await waitFor(() => {
@@ -270,8 +391,18 @@ describe("AdminTeamPage", () => {
 
   it("shows confirmation dialog before removing a member", async () => {
     const member = makeMember({ role: "member" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [member], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [member],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
@@ -285,8 +416,18 @@ describe("AdminTeamPage", () => {
 
   it("removes member after confirming", async () => {
     const member = makeMember({ role: "member" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [member], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [member],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     mockTeamApi.removeTeamMember.mockResolvedValue({ removed: true });
     const user = userEvent.setup();
 
@@ -297,14 +438,26 @@ describe("AdminTeamPage", () => {
     await user.click(within(dialog).getByRole("button", { name: /^remove$/i }));
 
     await waitFor(() => {
-      expect(mockTeamApi.removeTeamMember).toHaveBeenCalledWith(member.member_id);
+      expect(mockTeamApi.removeTeamMember).toHaveBeenCalledWith(
+        member.member_id,
+      );
     });
   });
 
   it("cancels remove confirmation dialog", async () => {
     const member = makeMember({ role: "member" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [member], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [member],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
@@ -320,8 +473,18 @@ describe("AdminTeamPage", () => {
 
   it("does not show remove/deactivate for owner role", async () => {
     const owner = makeMember({ role: "owner", name: "Owner" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [owner], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [owner],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -331,10 +494,23 @@ describe("AdminTeamPage", () => {
   });
 
   it("resends an invitation", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
     const inv = makeInvitation({ email: "pending@example.com" });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [inv], total: 1, limit: 100, offset: 0 });
-    mockInvApi.resendInvitation.mockResolvedValue({ invitation_id: "inv-1", resent: true });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [inv],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+    mockInvApi.resendInvitation.mockResolvedValue({
+      invitation_id: "inv-1",
+      resent: true,
+    });
     const user = userEvent.setup();
 
     renderPage();
@@ -348,9 +524,19 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows revoke confirmation before revoking an invitation", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
     const inv = makeInvitation({ email: "pending@example.com" });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [inv], total: 1, limit: 100, offset: 0 });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [inv],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
     const user = userEvent.setup();
 
     renderPage();
@@ -367,20 +553,44 @@ describe("AdminTeamPage", () => {
       status: "authenticated",
       session: { ...mockSession.state.session, role: "member" },
     };
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText(/team management is only available/i)).toBeDefined();
+      expect(
+        screen.getByText(/team management is only available/i),
+      ).toBeDefined();
     });
   });
 
   it("hides invite button when invite capability is disabled", async () => {
-    mockTeamApi.getTeamCapabilities.mockReturnValue(makeCapabilities({ inviteEnabled: false }));
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.getTeamCapabilities.mockReturnValue(
+      makeCapabilities({ inviteEnabled: false }),
+    );
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -390,8 +600,18 @@ describe("AdminTeamPage", () => {
 
   it("shows deactivate button for non-owner members", async () => {
     const member = makeMember({ role: "member" });
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [member], total: 1, limit: 20, offset: 0 });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [member],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -401,10 +621,26 @@ describe("AdminTeamPage", () => {
   });
 
   it("shows invitation count badge when invitations exist", async () => {
-    mockTeamApi.listTeamMembers.mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
-    const inv1 = makeInvitation({ invitation_id: "inv-1", email: "a@example.com" });
-    const inv2 = makeInvitation({ invitation_id: "inv-2", email: "b@example.com" });
-    mockInvApi.listInvitations.mockResolvedValue({ items: [inv1, inv2], total: 2, limit: 100, offset: 0 });
+    mockTeamApi.listTeamMembers.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 20,
+      offset: 0,
+    });
+    const inv1 = makeInvitation({
+      invitation_id: "inv-1",
+      email: "a@example.com",
+    });
+    const inv2 = makeInvitation({
+      invitation_id: "inv-2",
+      email: "b@example.com",
+    });
+    mockInvApi.listInvitations.mockResolvedValue({
+      items: [inv1, inv2],
+      total: 2,
+      limit: 100,
+      offset: 0,
+    });
 
     renderPage();
 
@@ -416,7 +652,8 @@ describe("AdminTeamPage", () => {
 
 describe("AdminTeamPage - invitation service unit tests", () => {
   it("generates unique tokens", async () => {
-    const { generate_invite_token } = await import("@/lib/api/team-invitations");
+    const { generate_invite_token } =
+      await import("@/lib/api/team-invitations");
     // These functions don't exist on the frontend module but token security tests are backend-only
     // Frontend validates input formats, not crypto primitives
     expect(true).toBe(true);

@@ -16,9 +16,8 @@ export default async function LocaleLayout({
     notFound();
   }
 
-  const messages = (
-    await import(`@/i18n/messages/${locale}.json`)
-  ).default as Record<string, unknown>;
+  const messages = (await import(`@/i18n/messages/${locale}.json`))
+    .default as Record<string, unknown>;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>

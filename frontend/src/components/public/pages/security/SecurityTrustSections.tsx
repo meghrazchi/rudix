@@ -270,15 +270,42 @@ export function DocumentHandlingSection() {
   const t = useTranslations("public.security");
 
   const documentLifecycleStages = [
-    { title: t("documentHandling.validateTitle"), description: t("documentHandling.validateDesc") },
-    { title: t("documentHandling.storeTitle"), description: t("documentHandling.storeDesc") },
-    { title: t("documentHandling.parseTitle"), description: t("documentHandling.parseDesc") },
-    { title: t("documentHandling.chunkTitle"), description: t("documentHandling.chunkDesc") },
-    { title: t("documentHandling.embedTitle"), description: t("documentHandling.embedDesc") },
-    { title: t("documentHandling.indexTitle"), description: t("documentHandling.indexDesc") },
-    { title: t("documentHandling.answerTitle"), description: t("documentHandling.answerDesc") },
-    { title: t("documentHandling.deleteTitle"), description: t("documentHandling.deleteDesc") },
-    { title: t("documentHandling.reindexTitle"), description: t("documentHandling.reindexDesc") },
+    {
+      title: t("documentHandling.validateTitle"),
+      description: t("documentHandling.validateDesc"),
+    },
+    {
+      title: t("documentHandling.storeTitle"),
+      description: t("documentHandling.storeDesc"),
+    },
+    {
+      title: t("documentHandling.parseTitle"),
+      description: t("documentHandling.parseDesc"),
+    },
+    {
+      title: t("documentHandling.chunkTitle"),
+      description: t("documentHandling.chunkDesc"),
+    },
+    {
+      title: t("documentHandling.embedTitle"),
+      description: t("documentHandling.embedDesc"),
+    },
+    {
+      title: t("documentHandling.indexTitle"),
+      description: t("documentHandling.indexDesc"),
+    },
+    {
+      title: t("documentHandling.answerTitle"),
+      description: t("documentHandling.answerDesc"),
+    },
+    {
+      title: t("documentHandling.deleteTitle"),
+      description: t("documentHandling.deleteDesc"),
+    },
+    {
+      title: t("documentHandling.reindexTitle"),
+      description: t("documentHandling.reindexDesc"),
+    },
   ];
 
   return (

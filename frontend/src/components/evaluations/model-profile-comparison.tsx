@@ -68,7 +68,12 @@ function MetricRow({
   });
 
   const defined = values.filter((v): v is number => v != null);
-  const best = defined.length > 1 ? (higherIsBetter ? Math.max(...defined) : Math.min(...defined)) : null;
+  const best =
+    defined.length > 1
+      ? higherIsBetter
+        ? Math.max(...defined)
+        : Math.min(...defined)
+      : null;
 
   return (
     <tr className="border-b border-gray-100 last:border-0">
@@ -131,7 +136,7 @@ function LocalMetricsRow({
               v == null
                 ? "text-gray-300"
                 : isBest
-                  ? "text-green-700 font-medium"
+                  ? "font-medium text-green-700"
                   : "text-gray-700"
             }`}
           >
@@ -143,8 +148,14 @@ function LocalMetricsRow({
   );
 }
 
-function GateBadge({ recommendation }: { recommendation: ReleaseGateRecommendation }) {
-  const label = PROFILE_LABELS[recommendation.provider_profile] ?? recommendation.provider_profile;
+function GateBadge({
+  recommendation,
+}: {
+  recommendation: ReleaseGateRecommendation;
+}) {
+  const label =
+    PROFILE_LABELS[recommendation.provider_profile] ??
+    recommendation.provider_profile;
   return (
     <div
       className={`rounded-lg border p-3 ${
@@ -172,11 +183,16 @@ function GateBadge({ recommendation }: { recommendation: ReleaseGateRecommendati
           {recommendation.is_ready ? "Ready" : "Not ready"}
         </span>
       </div>
-      <p className="mt-1.5 text-xs text-gray-600">{recommendation.recommendation}</p>
+      <p className="mt-1.5 text-xs text-gray-600">
+        {recommendation.recommendation}
+      </p>
       {recommendation.failing_checks.length > 0 && (
         <ul className="mt-2 space-y-0.5">
           {recommendation.failing_checks.map((check) => (
-            <li key={check} className="flex items-center gap-1.5 text-xs text-red-600">
+            <li
+              key={check}
+              className="flex items-center gap-1.5 text-xs text-red-600"
+            >
               <span>✗</span>
               <span>{check}</span>
             </li>
@@ -225,7 +241,9 @@ function BenchmarkTriggerSection({
     return <p className="text-sm text-gray-400">Loading benchmark suites…</p>;
   }
   if (suitesError) {
-    return <p className="text-sm text-red-500">{getApiErrorMessage(suitesError)}</p>;
+    return (
+      <p className="text-sm text-red-500">{getApiErrorMessage(suitesError)}</p>
+    );
   }
   if (suites.length === 0) {
     return null;
@@ -233,12 +251,14 @@ function BenchmarkTriggerSection({
 
   return (
     <div className="rounded-lg border border-[#ddd8ec] bg-[#f9f8fd] p-3">
-      <p className="mb-2 text-sm font-medium text-[#292442]">Run a benchmark suite</p>
+      <p className="mb-2 text-sm font-medium text-[#292442]">
+        Run a benchmark suite
+      </p>
       <div className="flex flex-wrap gap-2">
         <select
           value={selectedSuite}
           onChange={(e) => setSelectedSuite(e.target.value)}
-          className="rounded border border-[#cbc6dd] px-2 py-1 text-sm text-[#403b5f] focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+          className="rounded border border-[#cbc6dd] px-2 py-1 text-sm text-[#403b5f] focus:ring-1 focus:ring-[#8b5cf6] focus:outline-none"
         >
           {suites.map((s) => (
             <option key={s.suite_id} value={s.suite_id}>
@@ -250,10 +270,13 @@ function BenchmarkTriggerSection({
           value={selectedProfile}
           onChange={(e) =>
             setSelectedProfile(
-              e.target.value as "cloud_baseline" | "local_profile" | "fallback_profile",
+              e.target.value as
+                | "cloud_baseline"
+                | "local_profile"
+                | "fallback_profile",
             )
           }
-          className="rounded border border-[#cbc6dd] px-2 py-1 text-sm text-[#403b5f] focus:outline-none focus:ring-1 focus:ring-[#8b5cf6]"
+          className="rounded border border-[#cbc6dd] px-2 py-1 text-sm text-[#403b5f] focus:ring-1 focus:ring-[#8b5cf6] focus:outline-none"
         >
           <option value="cloud_baseline">Cloud Baseline</option>
           <option value="local_profile">Local Profile</option>
@@ -294,7 +317,12 @@ export function ModelProfileComparisonPanel({
   const [refreshKey, setRefreshKey] = useState(0);
 
   const reportQuery = useQuery({
-    queryKey: ["evaluations", "model-profile-report", evaluationSetId, refreshKey],
+    queryKey: [
+      "evaluations",
+      "model-profile-report",
+      evaluationSetId,
+      refreshKey,
+    ],
     queryFn: () => getModelProfileComparisonReport(evaluationSetId),
   });
 
@@ -351,8 +379,8 @@ export function ModelProfileComparisonPanel({
         />
       ) : report == null || report.profiles.length === 0 ? (
         <p className="rounded-lg border border-[#ddd8ec] bg-[#f9f8fd] p-4 text-sm text-[#67627f]">
-          No completed evaluation runs with provider profile labels found. Trigger
-          a benchmark run above to populate this report.
+          No completed evaluation runs with provider profile labels found.
+          Trigger a benchmark run above to populate this report.
         </p>
       ) : (
         <div className="space-y-4">
@@ -361,7 +389,7 @@ export function ModelProfileComparisonPanel({
             <table className="min-w-full text-left">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="pr-4 pb-2 text-xs font-semibold tracking-wide text-gray-500 uppercase">
                     Metric
                   </th>
                   {report.profiles.map((p) => {
@@ -378,7 +406,8 @@ export function ModelProfileComparisonPanel({
                         <span
                           className={`inline-block rounded px-2 py-0.5 ${colors.bg} ${colors.text} border ${colors.border}`}
                         >
-                          {PROFILE_LABELS[p.provider_profile] ?? p.provider_profile}
+                          {PROFILE_LABELS[p.provider_profile] ??
+                            p.provider_profile}
                         </span>
                         {p.run_count > 0 && (
                           <span className="ml-1 text-xs font-normal text-gray-400">
@@ -482,7 +511,9 @@ export function ModelProfileComparisonPanel({
                   {PROFILE_LABELS[p.provider_profile] ?? p.provider_profile}
                 </span>
                 {p.provider_type && (
-                  <span className="ml-1 text-gray-400">({p.provider_type})</span>
+                  <span className="ml-1 text-gray-400">
+                    ({p.provider_type})
+                  </span>
                 )}
               </div>
             ))}
@@ -502,7 +533,10 @@ export function ModelProfileComparisonPanel({
               <p className="text-xs text-gray-400">
                 Thresholds:{" "}
                 {Object.entries(report.default_thresholds)
-                  .map(([k, v]) => `${k}=${typeof v === "number" && v < 1 ? `${(v * 100).toFixed(0)}%` : v}`)
+                  .map(
+                    ([k, v]) =>
+                      `${k}=${typeof v === "number" && v < 1 ? `${(v * 100).toFixed(0)}%` : v}`,
+                  )
                   .join(" · ")}
               </p>
             </div>

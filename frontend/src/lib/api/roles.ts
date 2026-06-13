@@ -181,8 +181,8 @@ export async function updateCustomRole(
 }
 
 export async function deleteCustomRole(roleId: string): Promise<void> {
-  await apiRequest<unknown>(
-    `${ROLES_BASE}/${encodeURIComponent(roleId)}`,
-    { method: "DELETE", retry: false },
-  );
+  await apiRequest<unknown>(`${ROLES_BASE}/${encodeURIComponent(roleId)}`, {
+    method: "DELETE",
+    retry: false,
+  });
 }

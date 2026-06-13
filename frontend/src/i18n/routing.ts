@@ -36,9 +36,7 @@ export function resolveLocale(
   return DEFAULT_LOCALE;
 }
 
-function parseAcceptLanguage(
-  header: string,
-): SupportedLocale | undefined {
+function parseAcceptLanguage(header: string): SupportedLocale | undefined {
   const entries = header
     .split(",")
     .map((entry) => {

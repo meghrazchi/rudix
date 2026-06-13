@@ -69,7 +69,10 @@ function formatDuration(startedAt: string | null, completedAt: string | null) {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function ProviderAvatar({ providerKey }: { providerKey: string }) {
-  const brand = PROVIDER_BRAND[providerKey] ?? { color: "#3525cd", initial: "?" };
+  const brand = PROVIDER_BRAND[providerKey] ?? {
+    color: "#3525cd",
+    initial: "?",
+  };
   return (
     <div
       className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-[#d7d4e8]"
@@ -88,8 +91,11 @@ function ProviderAvatar({ providerKey }: { providerKey: string }) {
 function ConnectionStatusBadge({ status }: { status: string }) {
   if (status === "active") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800 border border-emerald-200">
-        <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800">
+        <span
+          className="material-symbols-outlined text-[14px]"
+          style={{ fontVariationSettings: "'FILL' 1" }}
+        >
           check_circle
         </span>
         Connected
@@ -98,13 +104,13 @@ function ConnectionStatusBadge({ status }: { status: string }) {
   }
   if (status === "paused") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800 border border-amber-200">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800">
         Paused
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-[11px] font-bold text-red-800 border border-red-200">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-100 px-3 py-1 text-[11px] font-bold text-red-800">
       {status.replace(/_/g, " ")}
     </span>
   );
@@ -113,7 +119,9 @@ function ConnectionStatusBadge({ status }: { status: string }) {
 function RunStatusBadge({ status }: { status: string }) {
   const cls = RUN_STATUS_BADGE[status] ?? "bg-[#e4e1ee] text-[#464555]";
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${cls}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${cls}`}
+    >
       {status}
     </span>
   );
@@ -132,11 +140,13 @@ function StatCard({
 }) {
   return (
     <div className="rounded-xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-bold tracking-[0.14em] text-[#777587] uppercase mb-3">
+      <p className="mb-3 text-[11px] font-bold tracking-[0.14em] text-[#777587] uppercase">
         {label}
       </p>
       <div className="flex items-end justify-between">
-        <p className={`text-2xl font-extrabold ${accent ? "text-rose-600" : "text-[#2a2640]"}`}>
+        <p
+          className={`text-2xl font-extrabold ${accent ? "text-rose-600" : "text-[#2a2640]"}`}
+        >
           {value}
         </p>
         <span className="material-symbols-outlined text-[24px] text-[#3525cd]/30">
@@ -159,7 +169,9 @@ function CurrentJobPanel({ run }: { run: SyncRun }) {
       <div className="p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h4 className="text-lg font-bold text-[#2a2640]">Current Sync Job</h4>
+            <h4 className="text-lg font-bold text-[#2a2640]">
+              Current Sync Job
+            </h4>
             <p className="text-sm text-[#68647b] capitalize">
               {run.trigger_type} sync in progress
             </p>
@@ -220,9 +232,11 @@ function CredentialPanel({
   connectionStatus: string;
 }) {
   const trustState =
-    diagnostics.credential_status === "revoked" || connectionStatus === "revoked"
+    diagnostics.credential_status === "revoked" ||
+    connectionStatus === "revoked"
       ? "Revoked"
-      : diagnostics.credential_status === "error" || connectionStatus === "error"
+      : diagnostics.credential_status === "error" ||
+          connectionStatus === "error"
         ? "Needs attention"
         : "Healthy";
   const isHealthy = trustState === "Healthy";
@@ -258,7 +272,7 @@ function CredentialPanel({
               {diagnostics.scopes.map((scope) => (
                 <p
                   key={scope}
-                  className="break-all rounded border border-[#d7d4e8] bg-[#f0ecf9] p-2 font-mono text-[11px] text-[#3525cd]"
+                  className="rounded border border-[#d7d4e8] bg-[#f0ecf9] p-2 font-mono text-[11px] break-all text-[#3525cd]"
                 >
                   {scope}
                 </p>
@@ -298,14 +312,13 @@ function SchedulePanel({
   onResume: () => void;
   isPending: boolean;
 }) {
-  const badgeCls =
-    !job
-      ? "bg-[#e4e1ee] text-[#464555]"
-      : job.status === "active"
-        ? "bg-emerald-100 text-emerald-800"
-        : job.status === "paused"
-          ? "bg-amber-100 text-amber-800"
-          : "bg-[#e4e1ee] text-[#464555]";
+  const badgeCls = !job
+    ? "bg-[#e4e1ee] text-[#464555]"
+    : job.status === "active"
+      ? "bg-emerald-100 text-emerald-800"
+      : job.status === "paused"
+        ? "bg-amber-100 text-amber-800"
+        : "bg-[#e4e1ee] text-[#464555]";
 
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
@@ -313,7 +326,7 @@ function SchedulePanel({
         <h4 className="text-lg font-bold text-[#2a2640]">Sync Schedule</h4>
         {job && (
           <span
-            className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeCls}`}
+            className={`rounded px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${badgeCls}`}
           >
             {job.status}
           </span>
@@ -324,7 +337,9 @@ function SchedulePanel({
         <>
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#d7d4e8] bg-[#f0ecf9]">
-              <span className="material-symbols-outlined text-[#464555]">timer</span>
+              <span className="material-symbols-outlined text-[#464555]">
+                timer
+              </span>
             </div>
             <div>
               <p className="text-2xl font-extrabold text-[#2a2640]">
@@ -364,7 +379,9 @@ function RecentErrorsPanel({ runs }: { runs: SyncRun[] }) {
       {errorRuns.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-emerald-600">
-            <span className="material-symbols-outlined text-[32px]">task_alt</span>
+            <span className="material-symbols-outlined text-[32px]">
+              task_alt
+            </span>
           </div>
           <p className="font-bold text-[#2a2640]">No recent errors</p>
           <p className="mt-1 px-4 text-sm text-[#777587]">
@@ -441,7 +458,11 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
       return;
     }
 
-    const mk = (level: LogEntry["level"], message: string, dateStr?: string | null): LogEntry => ({
+    const mk = (
+      level: LogEntry["level"],
+      message: string,
+      dateStr?: string | null,
+    ): LogEntry => ({
       id: idRef.current++,
       timestamp: fmtTime(dateStr ? new Date(dateStr) : undefined),
       level,
@@ -450,19 +471,42 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
 
     const isNewRun = run.id !== prevRunIdRef.current;
     const statusChanged = run.status !== prevStatusRef.current;
-    const seenChanged = run.items_seen !== prevSeenRef.current && run.items_seen > 0;
+    const seenChanged =
+      run.items_seen !== prevSeenRef.current && run.items_seen > 0;
     const newEntries: LogEntry[] = [];
 
     if (isNewRun) {
-      newEntries.push(mk("INFO", `Starting ${run.trigger_type} sync (v${run.sync_version})…`, run.started_at));
+      newEntries.push(
+        mk(
+          "INFO",
+          `Starting ${run.trigger_type} sync (v${run.sync_version})…`,
+          run.started_at,
+        ),
+      );
       if (run.items_seen > 0) {
-        newEntries.push(mk("INFO", `${run.items_seen.toLocaleString()} items discovered, indexing…`));
+        newEntries.push(
+          mk(
+            "INFO",
+            `${run.items_seen.toLocaleString()} items discovered, indexing…`,
+          ),
+        );
       }
     } else if (statusChanged) {
       if (run.status === "completed") {
-        newEntries.push(mk("INFO", `Sync complete — ${run.items_upserted.toLocaleString()} upserted, ${run.items_deleted.toLocaleString()} deleted.`, run.completed_at));
+        newEntries.push(
+          mk(
+            "INFO",
+            `Sync complete — ${run.items_upserted.toLocaleString()} upserted, ${run.items_deleted.toLocaleString()} deleted.`,
+            run.completed_at,
+          ),
+        );
       } else if (run.status === "failed") {
-        newEntries.push(mk("ERROR", run.error_message ?? "Sync failed with an unknown error."));
+        newEntries.push(
+          mk(
+            "ERROR",
+            run.error_message ?? "Sync failed with an unknown error.",
+          ),
+        );
         for (const [key, val] of Object.entries(run.error_details ?? {})
           .filter(([, v]) => typeof v === "string" || typeof v === "number")
           .slice(0, 5)) {
@@ -475,9 +519,11 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
       const prev = prevSeenRef.current > -1 ? prevSeenRef.current : 0;
       const delta = run.items_seen - prev;
       newEntries.push(
-        mk("INFO", delta > 0
-          ? `+${delta.toLocaleString()} items scanned — ${run.items_upserted.toLocaleString()} indexed so far…`
-          : `${run.items_seen.toLocaleString()} items seen — ${run.items_upserted.toLocaleString()} indexed…`,
+        mk(
+          "INFO",
+          delta > 0
+            ? `+${delta.toLocaleString()} items scanned — ${run.items_upserted.toLocaleString()} indexed so far…`
+            : `${run.items_seen.toLocaleString()} items seen — ${run.items_upserted.toLocaleString()} indexed…`,
         ),
       );
     }
@@ -499,7 +545,9 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
   }, [entries]);
 
   function handleDownload() {
-    const text = entries.map((e) => `[${e.timestamp}] ${e.level}: ${e.message}`).join("\n");
+    const text = entries
+      .map((e) => `[${e.timestamp}] ${e.level}: ${e.message}`)
+      .join("\n");
     const blob = new Blob([text], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -512,7 +560,9 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
   return (
     <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h4 className="text-lg font-bold text-[#2a2640]">Live Extraction Log</h4>
+        <h4 className="text-lg font-bold text-[#2a2640]">
+          Live Extraction Log
+        </h4>
         <div className="flex gap-1.5">
           <button
             type="button"
@@ -521,7 +571,9 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
             title="Download log"
             className="rounded border border-[#d7d4e8] p-1.5 text-[#464555] transition-colors hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <span className="material-symbols-outlined text-[18px]">download</span>
+            <span className="material-symbols-outlined text-[18px]">
+              download
+            </span>
           </button>
           <button
             type="button"
@@ -540,17 +592,30 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
         <div
           ref={logRef}
           className="h-64 overflow-y-auto rounded-lg bg-slate-900 p-4 font-mono text-[13px] leading-5 text-slate-300"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#777587 transparent" }}
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "#777587 transparent",
+          }}
         >
           {entries.length === 0 ? (
             <span className="text-slate-500">
-              {isActive ? "Initializing…" : "No sync activity yet. Start a sync to see logs here."}
+              {isActive
+                ? "Initializing…"
+                : "No sync activity yet. Start a sync to see logs here."}
             </span>
           ) : (
             entries.map((entry) => (
               <div key={entry.id} className="mb-1">
                 <span className="text-slate-500">[{entry.timestamp}]</span>{" "}
-                <span className={entry.level === "ERROR" ? "text-red-400" : entry.level === "WARN" ? "text-yellow-400" : "text-emerald-400"}>
+                <span
+                  className={
+                    entry.level === "ERROR"
+                      ? "text-red-400"
+                      : entry.level === "WARN"
+                        ? "text-yellow-400"
+                        : "text-emerald-400"
+                  }
+                >
                   {entry.level}:
                 </span>{" "}
                 {entry.message}
@@ -559,9 +624,10 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           )}
           {isActive && (
             <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-slate-500">[{fmtTime(nowRef.current)}]</span>{" "}
-              <span className="text-emerald-400">INFO:</span>{" "}
-              Processing…{" "}
+              <span className="text-slate-500">
+                [{fmtTime(nowRef.current)}]
+              </span>{" "}
+              <span className="text-emerald-400">INFO:</span> Processing…{" "}
               <span className="inline-block h-[14px] w-[7px] animate-pulse bg-slate-400 align-middle" />
             </div>
           )}
@@ -615,30 +681,40 @@ function HeaderActionsMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="cursor-pointer inline-flex items-center justify-center rounded-xl border border-[#d7d4e8] p-2.5 text-[#464555] transition-colors hover:bg-[#f5f2ff]"
+        className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-[#d7d4e8] p-2.5 text-[#464555] transition-colors hover:bg-[#f5f2ff]"
         aria-label="More actions"
       >
         <span className="material-symbols-outlined text-[20px]">more_vert</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[#d7d4e8] bg-white shadow-lg">
+        <div className="absolute top-full right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-[#d7d4e8] bg-white shadow-lg">
           <button
             type="button"
             disabled={reconnectPending}
-            onClick={() => { setOpen(false); onReconnect(); }}
+            onClick={() => {
+              setOpen(false);
+              onReconnect();
+            }}
             className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#2a2640] hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[18px]">refresh</span>
+            <span className="material-symbols-outlined text-[18px]">
+              refresh
+            </span>
             {reconnectPending ? "Reconnecting…" : "Reconnect"}
           </button>
           <div className="mx-3 border-t border-[#e8e5f3]" />
           <button
             type="button"
             disabled={disconnectPending}
-            onClick={() => { setOpen(false); onDisconnect(); }}
+            onClick={() => {
+              setOpen(false);
+              onDisconnect();
+            }}
             className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[18px]">link_off</span>
+            <span className="material-symbols-outlined text-[18px]">
+              link_off
+            </span>
             {disconnectPending ? "Disconnecting…" : "Disconnect"}
           </button>
         </div>
@@ -686,8 +762,13 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   });
 
   const pauseMutation = useMutation({
-    mutationFn: ({ jobId, status }: { jobId: string; status: "active" | "paused" }) =>
-      updateSyncJobStatus(connectionId, jobId, status),
+    mutationFn: ({
+      jobId,
+      status,
+    }: {
+      jobId: string;
+      status: "active" | "paused";
+    }) => updateSyncJobStatus(connectionId, jobId, status),
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorSyncJobs(connectionId),
@@ -768,7 +849,9 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           href="/connectors"
           className="inline-flex items-center gap-2 rounded-xl border border-[#d7d4e8] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span className="material-symbols-outlined text-[18px]">
+            arrow_back
+          </span>
           Back to connectors
         </Link>
       </div>
@@ -830,7 +913,11 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
               >
                 sync
               </span>
-              {hasActiveRun ? "Syncing…" : syncMutation.isPending ? "Starting…" : "Sync now"}
+              {hasActiveRun
+                ? "Syncing…"
+                : syncMutation.isPending
+                  ? "Starting…"
+                  : "Sync now"}
             </button>
             <HeaderActionsMenu
               onReconnect={() => refreshMutation.mutate()}
@@ -855,11 +942,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           value={itemsIndexed.toLocaleString()}
           icon="article"
         />
-        <StatCard
-          label="Sync Jobs"
-          value={syncRunsTotal}
-          icon="repeat"
-        />
+        <StatCard label="Sync Jobs" value={syncRunsTotal} icon="repeat" />
         <StatCard
           label="Failed Runs"
           value={failedRunsCount}

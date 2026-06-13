@@ -40,11 +40,7 @@ export function LanguageSwitcher({
 
   if (variant === "buttons") {
     return (
-      <div
-        role="group"
-        aria-label={t("ariaLabel")}
-        className={className}
-      >
+      <div role="group" aria-label={t("ariaLabel")} className={className}>
         {SUPPORTED_LOCALES.map((locale) => (
           <button
             key={locale}

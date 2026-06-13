@@ -46,9 +46,7 @@ export type UseChatWebSocketResult = {
   error: string | null;
   /** True while any non-terminal phase is active. */
   isPending: boolean;
-  sendQuery: (
-    payload: ChatQueryRequest & { _scopeLabel?: string },
-  ) => void;
+  sendQuery: (payload: ChatQueryRequest & { _scopeLabel?: string }) => void;
   cancel: () => void;
   reset: () => void;
 };
@@ -127,7 +125,9 @@ export function useChatWebSocket(): UseChatWebSocketResult {
         case "citation.validation.completed":
           break;
         case "chat.completed": {
-          const response = evt.payload?.response as ChatQueryResponse | undefined;
+          const response = evt.payload?.response as
+            | ChatQueryResponse
+            | undefined;
           if (response) {
             setFinalResponse(response);
           }
@@ -224,7 +224,10 @@ export function useChatWebSocket(): UseChatWebSocketResult {
   }, [updatePhase]);
 
   const isPending =
-    phase !== "idle" && phase !== "completed" && phase !== "cancelled" && phase !== "error";
+    phase !== "idle" &&
+    phase !== "completed" &&
+    phase !== "cancelled" &&
+    phase !== "error";
 
   return {
     phase,

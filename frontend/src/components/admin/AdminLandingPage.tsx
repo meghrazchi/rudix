@@ -23,16 +23,11 @@ const STATUS_LABEL: Record<CardStatus, string> = {
 };
 
 const STATUS_CLASS: Record<CardStatus, string> = {
-  available:
-    "text-emerald-600 bg-emerald-50 border border-emerald-100",
-  unavailable:
-    "text-amber-600 bg-amber-50 border border-amber-100",
-  online:
-    "text-emerald-600 bg-emerald-50 border border-emerald-100",
-  active:
-    "text-emerald-600 bg-emerald-50 border border-emerald-100",
-  configurable:
-    "text-indigo-600 bg-indigo-50 border border-indigo-100",
+  available: "text-emerald-600 bg-emerald-50 border border-emerald-100",
+  unavailable: "text-amber-600 bg-amber-50 border border-amber-100",
+  online: "text-emerald-600 bg-emerald-50 border border-emerald-100",
+  active: "text-emerald-600 bg-emerald-50 border border-emerald-100",
+  configurable: "text-indigo-600 bg-indigo-50 border border-indigo-100",
 };
 
 function trimToNull(value: string | undefined): string | null {
@@ -194,13 +189,7 @@ function HorizontalCard({
   );
 }
 
-function SectionHeader({
-  icon,
-  title,
-}: {
-  icon: ReactNode;
-  title: string;
-}) {
+function SectionHeader({ icon, title }: { icon: ReactNode; title: string }) {
   return (
     <div className="mb-6 flex items-center space-x-2">
       <div className="rounded-lg bg-indigo-100 p-1.5 text-indigo-600">
@@ -217,7 +206,9 @@ export function AdminLandingPage() {
   const { state } = useAuthSession();
   const role = state.session?.role;
 
-  const monitoringUrl = trimToNull(process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL);
+  const monitoringUrl = trimToNull(
+    process.env.NEXT_PUBLIC_ADMIN_MONITORING_URL,
+  );
 
   if (!canViewAdminUsage(role)) {
     return (
@@ -236,14 +227,14 @@ export function AdminLandingPage() {
       <div className="mx-auto max-w-7xl p-8">
         {/* Hero */}
         <section className="relative mb-10 overflow-hidden rounded-2xl border border-slate-200 bg-white p-10 shadow-sm">
-          <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-indigo-50 opacity-50 transition-transform duration-500 group-hover:scale-110" />
+          <div className="absolute -top-12 -right-12 h-64 w-64 rounded-full bg-indigo-50 opacity-50 transition-transform duration-500 group-hover:scale-110" />
           <div className="relative z-10">
             <div className="mb-4 flex items-center space-x-3">
-              <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+              <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-bold tracking-wider text-indigo-700 uppercase">
                 Administrator Hub
               </span>
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-xs font-medium italic text-slate-500">
+              <span className="text-xs font-medium text-slate-500 italic">
                 Active Deployment
               </span>
             </div>
@@ -253,8 +244,8 @@ export function AdminLandingPage() {
             <p className="max-w-2xl text-lg leading-relaxed text-slate-600">
               A centralized command center for usage analysis, security
               auditing, and system performance monitoring. Manage your
-              organization&apos;s RAG infrastructure with granular,
-              role-aware controls.
+              organization&apos;s RAG infrastructure with granular, role-aware
+              controls.
             </p>
           </div>
         </section>

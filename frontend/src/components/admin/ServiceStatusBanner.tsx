@@ -27,7 +27,8 @@ export function ServiceStatusBanner() {
 
   const banner = bannerQuery.data;
   if (!banner) return null;
-  if (!banner.has_active_incident && !banner.has_active_maintenance) return null;
+  if (!banner.has_active_incident && !banner.has_active_maintenance)
+    return null;
 
   const isMaintenance = banner.has_active_maintenance;
   const severity = banner.highest_severity ?? "medium";
@@ -48,7 +49,7 @@ export function ServiceStatusBanner() {
       aria-live="polite"
       className={`flex items-center justify-center gap-2 px-4 py-2 text-xs font-semibold ${colorClass}`}
     >
-      <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+      <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase">
         {label}
       </span>
       <span>{message}</span>

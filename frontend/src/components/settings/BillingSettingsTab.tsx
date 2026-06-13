@@ -177,7 +177,9 @@ function PlanStatusCallout({ plan }: { plan: BillingPlanInfo }) {
 
   const bodyKeys: Record<BillingPlanStatus, string> = {
     active: "calloutActiveBody",
-    trialing: plan.trial_end_date ? "calloutTrialingBodyDate" : "calloutTrialingBody",
+    trialing: plan.trial_end_date
+      ? "calloutTrialingBodyDate"
+      : "calloutTrialingBody",
     past_due: "calloutPastDueBody",
     cancelled: "calloutCancelledBody",
     free: "calloutFreeBody",
@@ -723,7 +725,9 @@ function InvoiceSection({
                         href={inv.download_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={t("invoices.downloadAriaLabel", { id: inv.id })}
+                        aria-label={t("invoices.downloadAriaLabel", {
+                          id: inv.id,
+                        })}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#3525cd] hover:underline"
                       >
                         <Download size={14} aria-hidden="true" />

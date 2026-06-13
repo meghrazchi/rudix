@@ -156,9 +156,7 @@ describe("AdminStatusPage", () => {
     it("shows empty state when no incidents", async () => {
       renderPage();
       await waitFor(() => {
-        expect(
-          screen.getByText(/no incidents match/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/no incidents match/i)).toBeInTheDocument();
       });
     });
 
@@ -207,7 +205,9 @@ describe("AdminStatusPage", () => {
       await userEvent.click(
         screen.getByRole("button", { name: /new incident/i }),
       );
-      expect(screen.getByText(/new incident/i, { selector: "h2" })).toBeInTheDocument();
+      expect(
+        screen.getByText(/new incident/i, { selector: "h2" }),
+      ).toBeInTheDocument();
     });
 
     it("closes modal when cancel is clicked", async () => {

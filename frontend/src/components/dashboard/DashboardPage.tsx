@@ -120,9 +120,7 @@ function BillingStatusBanner() {
       title: t("trialing"),
       body: planQuery.data.trial_end_date
         ? t("trialingDescription", {
-            date: new Date(
-              planQuery.data.trial_end_date,
-            ).toLocaleDateString(),
+            date: new Date(planQuery.data.trial_end_date).toLocaleDateString(),
           })
         : t("trialingDescriptionAlt"),
     },
@@ -1520,9 +1518,7 @@ export function DashboardPage() {
                   className="block text-center text-sm font-semibold text-[#615b7a] transition hover:text-[#3525cd]"
                 >
                   {t("manageAll", {
-                    count: formatInteger(
-                      latestDocumentsQuery.data?.total ?? 0,
-                    ),
+                    count: formatInteger(latestDocumentsQuery.data?.total ?? 0),
                   })}
                 </Link>
               </div>

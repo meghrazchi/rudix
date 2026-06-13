@@ -131,6 +131,7 @@ const MAX_TOP_K = parsePositiveIntegerEnv(
   process.env.NEXT_PUBLIC_CHAT_TOP_K_MAX,
   20,
 );
+const SCOPE_DOCUMENT_PICKER_LIMIT = 30;
 const DEFAULT_TOP_K = Math.min(
   Math.max(
     parsePositiveIntegerEnv(process.env.NEXT_PUBLIC_CHAT_TOP_K_DEFAULT, 5),
@@ -155,10 +156,10 @@ const CHAT_WEBSOCKET_ENABLED =
 type PersistedChatSettings = {
   topK: number;
   rerank: boolean;
-  selectedDocumentIds: string[];
+  selectedDocumentIds?: string[];
   agenticMode?: boolean;
   scopeMode?: ChatScopeMode;
-  selectedCollectionId?: string | null;
+  selectedCollectionIds?: string[];
   selectedConnectorConnectionIds?: string[];
   selectedProviderSourceIds?: string[];
   answerLanguage?: AnswerLanguageMode;
@@ -502,45 +503,6 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
         ? Math.min(MAX_TOP_K, Math.max(MIN_TOP_K, Math.trunc(parsed.topK)))
         : DEFAULT_TOP_K;
 
-    const selectedDocumentIds = Array.isArray(parsed.selectedDocumentIds)
-      ? parsed.selectedDocumentIds.filter(
-          (value): value is string => typeof value === "string",
-        )
-      : [];
-
-    const scopeMode: ChatScopeMode =
-      parsed.scopeMode === "all" ||
-      parsed.scopeMode === "collection" ||
-      parsed.scopeMode === "documents" ||
-      parsed.scopeMode === "connectors" ||
-      parsed.scopeMode === "none"
-        ? parsed.scopeMode
-        : "all";
-
-    const selectedCollectionId =
-      typeof parsed.selectedCollectionId === "string"
-        ? parsed.selectedCollectionId
-        : null;
-    const selectedConnectorConnectionIds = Array.isArray(
-      parsed.selectedConnectorConnectionIds,
-    )
-      ? parsed.selectedConnectorConnectionIds.filter(
-          (value): value is string => typeof value === "string",
-        )
-      : [];
-    const selectedProviderSourceIds = Array.isArray(
-      parsed.selectedProviderSourceIds,
-    )
-      ? parsed.selectedProviderSourceIds.filter(
-          (value): value is string => typeof value === "string",
-        )
-      : [];
-    const normalizedScopeMode: ChatScopeMode =
-      selectedConnectorConnectionIds.length > 0 ||
-      selectedProviderSourceIds.length > 0
-        ? "connectors"
-        : scopeMode;
-
     const validLanguageModes: AnswerLanguageMode[] = [
       "auto",
       "same_as_question",
@@ -558,12 +520,12 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
     return {
       topK: storedTopK,
       rerank: parsed.rerank !== false,
-      selectedDocumentIds,
+      selectedDocumentIds: [],
       agenticMode: parsed.agenticMode === true,
-      scopeMode: normalizedScopeMode,
-      selectedCollectionId,
-      selectedConnectorConnectionIds,
-      selectedProviderSourceIds,
+      scopeMode: "all",
+      selectedCollectionIds: [],
+      selectedConnectorConnectionIds: [],
+      selectedProviderSourceIds: [],
       answerLanguage,
     };
   } catch {
@@ -667,6 +629,7 @@ export function ChatPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [contextSearchQuery, setContextSearchQuery] = useState("");
+  const [documentSearchQuery, setDocumentSearchQuery] = useState("");
   const [contextPage, setContextPage] = useState(1);
   const [isContextModalOpen, setIsContextModalOpen] = useState(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>(
@@ -707,9 +670,9 @@ export function ChatPage() {
     initialIndex: number;
   } | null>(null);
   const [isKnowledgeHubOpen, setIsKnowledgeHubOpen] = useState(false);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<
-    string | null
-  >(() => persistedSettings?.selectedCollectionId ?? null);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>(
+    () => persistedSettings?.selectedCollectionIds ?? [],
+  );
   const [selectedConnectorConnectionIds, setSelectedConnectorConnectionIds] =
     useState<string[]>(
       () => persistedSettings?.selectedConnectorConnectionIds ?? [],
@@ -738,7 +701,7 @@ export function ChatPage() {
     if (activeOrgId !== prevOrgIdRef.current) {
       prevOrgIdRef.current = activeOrgId;
       setScopeMode("all");
-      setSelectedCollectionId(null);
+      setSelectedCollectionIds([]);
       setSelectedDocumentIds([]);
       setSelectedConnectorConnectionIds([]);
       setSelectedProviderSourceIds([]);
@@ -875,6 +838,27 @@ export function ChatPage() {
     [indexedDocumentsQuery.data?.items],
   );
 
+  const documentPickerQuery = useQuery({
+    queryKey: queryKeys.documents.list({
+      status: "indexed",
+      limit: SCOPE_DOCUMENT_PICKER_LIMIT,
+      offset: 0,
+      filename_query: documentSearchQuery.trim() || undefined,
+      sort_by: "updated_at",
+      sort_order: "desc",
+    }),
+    queryFn: () =>
+      listDocuments({
+        status: "indexed",
+        limit: SCOPE_DOCUMENT_PICKER_LIMIT,
+        offset: 0,
+        filename_query: documentSearchQuery.trim() || undefined,
+        sort_by: "updated_at",
+        sort_order: "desc",
+      }),
+    placeholderData: keepPreviousData,
+  });
+
   const indexedDocumentIdSet = useMemo(
     () => new Set(indexedDocuments.map((doc) => doc.document_id)),
     [indexedDocuments],
@@ -884,29 +868,90 @@ export function ChatPage() {
     queryKey: [...queryKeys.collections.all, "chat-picker"],
     queryFn: () => listCollections({ limit: 200 }),
   });
+  const collections = collectionsListQuery.data?.items ?? [];
 
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "chat-picker"],
     queryFn: () => listConnectorConnections(),
   });
   const connectorConnections = connectorConnectionsQuery.data?.items ?? [];
+  const connectorDocumentCount = useMemo(
+    () =>
+      connectorConnections.reduce(
+        (total, connection) => total + connection.source_count,
+        0,
+      ),
+    [connectorConnections],
+  );
 
-  const collectionDocsQuery = useQuery({
-    queryKey: queryKeys.collections.documents(selectedCollectionId ?? "", {
-      limit: 200,
-    }),
-    queryFn: () =>
-      listCollectionDocuments(selectedCollectionId ?? "", { limit: 200 }),
-    enabled: Boolean(selectedCollectionId),
+  const composerCollections = useMemo(
+    () =>
+      collections.map((collection) => ({
+        collection_id: collection.collection_id,
+        name: collection.name,
+        description: collection.description ?? null,
+      })),
+    [collections],
+  );
+
+  const composerConnectorConnections = useMemo(
+    () =>
+      connectorConnections.map((connection) => ({
+        id: connection.id,
+        display_name: connection.display_name,
+        provider_label: getConnectorProviderLabel(connection.provider_key),
+        external_account_id: connection.external_account_id ?? null,
+        rootChips: buildConnectorRootChips(connection),
+      })),
+    [connectorConnections],
+  );
+
+  const composerIndexedDocuments = useMemo(
+    () =>
+      (documentPickerQuery.data?.items ?? []).map((document) => ({
+        document_id: document.document_id,
+        filename: document.filename,
+        chunk_count: document.chunk_count,
+        updated_at: document.updated_at ?? null,
+      })),
+    [documentPickerQuery.data?.items],
+  );
+
+  const selectedCollectionDocsQuery = useQuery({
+    queryKey: [
+      ...queryKeys.collections.all,
+      "chat-picker-documents",
+      ...selectedCollectionIds.slice().sort(),
+    ],
+    queryFn: async () => {
+      const results = await Promise.all(
+        selectedCollectionIds.map((collectionId) =>
+          listCollectionDocuments(collectionId, { limit: 200 }),
+        ),
+      );
+      return results;
+    },
+    enabled: scopeMode === "collection" && selectedCollectionIds.length > 0,
   });
 
   const collectionDocumentIdSet = useMemo(() => {
-    if (!selectedCollectionId) return null;
-    const ids = (collectionDocsQuery.data?.items ?? [])
-      .filter((doc) => doc.status === "indexed")
-      .map((doc) => doc.document_id);
-    return new Set(ids);
-  }, [selectedCollectionId, collectionDocsQuery.data?.items]);
+    if (scopeMode !== "collection" || selectedCollectionIds.length === 0) {
+      return null;
+    }
+    const ids = new Set<string>();
+    for (const response of selectedCollectionDocsQuery.data ?? []) {
+      for (const doc of response.items ?? []) {
+        if (doc.status === "indexed") {
+          ids.add(doc.document_id);
+        }
+      }
+    }
+    return ids;
+  }, [
+    scopeMode,
+    selectedCollectionIds.length,
+    selectedCollectionDocsQuery.data,
+  ]);
 
   const documentIdFromQuery = searchParams.get("document_id");
   const filteredSelectedDocumentIds = useMemo(() => {
@@ -939,42 +984,41 @@ export function ChatPage() {
       }
       return [];
     }
-    if (scopeMode === "documents") {
-      return filteredSelectedDocumentIds;
-    }
     if (scopeMode === "connectors") {
       return [];
     }
-    // "all": pass empty list so backend searches all org docs.
-    return filteredSelectedDocumentIds;
+    if (scopeMode === "documents" || scopeMode === "all") {
+      return filteredSelectedDocumentIds;
+    }
+    return [];
   }, [scopeMode, collectionDocumentIdSet, filteredSelectedDocumentIds]);
 
   const scopeWarning = useMemo<string | null>(() => {
     if (scopeMode === "collection") {
-      if (!selectedCollectionId)
-        return "Select a collection to scope retrieval.";
-      if (collectionDocsQuery.isLoading) return null;
+      if (selectedCollectionIds.length === 0)
+        return "Select at least one collection to scope retrieval.";
+      if (selectedCollectionDocsQuery.isLoading) return null;
       if (
         collectionDocumentIdSet !== null &&
         collectionDocumentIdSet.size === 0
       ) {
-        return "The selected collection has no indexed documents.";
+        return "The selected collections have no indexed documents.";
       }
-    }
-    if (scopeMode === "documents" && filteredSelectedDocumentIds.length === 0) {
-      return "Select at least one document to use document scope.";
     }
     if (scopeMode === "connectors" && !hasConnectorScopeSelection) {
       return "Select at least one connector source to use connector scope.";
     }
+    if (scopeMode === "documents" && filteredSelectedDocumentIds.length === 0) {
+      return "Select at least one file to scope retrieval.";
+    }
     return null;
   }, [
     scopeMode,
-    selectedCollectionId,
-    collectionDocsQuery.isLoading,
+    selectedCollectionIds.length,
+    selectedCollectionDocsQuery.isLoading,
     collectionDocumentIdSet,
-    filteredSelectedDocumentIds,
     hasConnectorScopeSelection,
+    filteredSelectedDocumentIds.length,
   ]);
   const contextModalOffset = (contextPage - 1) * CONTEXT_MODAL_PAGE_SIZE;
   const contextModalQuery = useQuery({
@@ -1010,19 +1054,20 @@ export function ChatPage() {
     contextModalTotal,
   );
 
-  const hasIndexedDocuments = indexedDocuments.length > 0;
   const totalIndexedDocuments =
     indexedDocumentsQuery.data?.total ?? indexedDocuments.length;
+  const totalDocumentsInAllScope =
+    totalIndexedDocuments + connectorDocumentCount;
+  const hasAvailableDocuments = totalDocumentsInAllScope > 0;
   const contextScopeItemCount =
-    scopeMode === "connectors"
-      ? selectedConnectorConnectionIds.length + selectedProviderSourceIds.length
-      : effectiveDocumentIds.length > 0
-        ? effectiveDocumentIds.length
-        : totalIndexedDocuments;
-  const contextScopeLabel =
-    scopeMode === "connectors"
-      ? `${contextScopeItemCount} connector source${contextScopeItemCount !== 1 ? "s" : ""}`
-      : `${contextScopeItemCount} document${contextScopeItemCount !== 1 ? "s" : ""} in scope`;
+    scopeMode === "collection"
+      ? selectedCollectionIds.length
+      : scopeMode === "connectors"
+        ? selectedConnectorConnectionIds.length +
+          selectedProviderSourceIds.length
+        : effectiveDocumentIds.length > 0
+          ? effectiveDocumentIds.length
+          : totalDocumentsInAllScope;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1031,29 +1076,14 @@ export function ChatPage() {
     const payload: PersistedChatSettings = {
       topK,
       rerank,
-      selectedDocumentIds: filteredSelectedDocumentIds,
       agenticMode,
-      scopeMode,
-      selectedCollectionId,
-      selectedConnectorConnectionIds,
-      selectedProviderSourceIds,
       answerLanguage,
     };
     window.localStorage.setItem(
       CHAT_SETTINGS_STORAGE_KEY,
       JSON.stringify(payload),
     );
-  }, [
-    agenticMode,
-    answerLanguage,
-    filteredSelectedDocumentIds,
-    rerank,
-    topK,
-    scopeMode,
-    selectedCollectionId,
-    selectedConnectorConnectionIds,
-    selectedProviderSourceIds,
-  ]);
+  }, [agenticMode, answerLanguage, rerank, topK]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1347,23 +1377,37 @@ export function ChatPage() {
     agentRunMutation.isPending ||
     createSessionMutation.isPending ||
     question.trim().length === 0 ||
-    indexedDocumentsQuery.isLoading ||
     indexedDocumentsQuery.isError ||
-    (!hasIndexedDocuments && requiresUploadedDocuments) ||
+    (!hasAvailableDocuments && requiresUploadedDocuments) ||
     isScopeInvalid;
 
   function buildScopeLabel(): string {
     if (scopeMode === "none") return tc("scopeNoRetrieval");
     const parts: string[] = [];
+    if (scopeMode === "all") {
+      if (filteredSelectedDocumentIds.length > 0) {
+        parts.push(
+          tc("scopeAllDocumentsSelected", {
+            n: filteredSelectedDocumentIds.length,
+          }),
+        );
+      } else {
+        parts.push(
+          tc("scopeAllDocuments", { count: totalDocumentsInAllScope }),
+        );
+      }
+    }
     if (scopeMode === "collection") {
-      const col = (collectionsListQuery.data?.items ?? []).find(
-        (c) => c.collection_id === selectedCollectionId,
-      );
-      parts.push(col ? tc("scopeCollection", { name: col.name }) : tc("scopeCollectionDefault"));
+      const collectionCount = selectedCollectionIds.length;
+      parts.push(tc("scopeCollectionsSelected", { n: collectionCount }));
     }
     if (scopeMode === "documents") {
-      const n = filteredSelectedDocumentIds.length;
-      parts.push(tc("scopeDocumentsSelected", { n }));
+      const fileCount = filteredSelectedDocumentIds.length;
+      if (fileCount > 0) {
+        parts.push(tc("documentsSelected", { count: fileCount }));
+      } else {
+        parts.push(tc("selectDocuments"));
+      }
     }
     if (scopeMode === "connectors") {
       const connectionCount = selectedConnectorConnectionIds.length;
@@ -1381,7 +1425,7 @@ export function ChatPage() {
     if (parts.length > 0) {
       return parts.join(" · ");
     }
-    return tc("scopeAllFiles", { count: totalIndexedDocuments });
+    return tc("scopeAllDocuments", { count: totalDocumentsInAllScope });
   }
 
   function buildSourceScopePayload(): ChatQueryRequest["source_scope"] | null {
@@ -1398,10 +1442,10 @@ export function ChatPage() {
         provider_source_ids: selectedProviderSourceIds,
       };
     }
-    if (scopeMode === "collection" && selectedCollectionId) {
+    if (scopeMode === "collection" && selectedCollectionIds.length > 0) {
       return {
         mode: "collections",
-        collection_ids: [selectedCollectionId],
+        collection_ids: selectedCollectionIds,
       };
     }
     return null;
@@ -1411,9 +1455,7 @@ export function ChatPage() {
     isForbiddenError(indexedDocumentsQuery.error) ||
     isForbiddenError(sessionsQuery.error);
   const composerError =
-    (CHAT_WEBSOCKET_ENABLED && wsChat.error
-      ? new Error(wsChat.error)
-      : null) ??
+    (CHAT_WEBSOCKET_ENABLED && wsChat.error ? new Error(wsChat.error) : null) ??
     (!CHAT_WEBSOCKET_ENABLED ? queryMutation.error : null) ??
     agentRunMutation.error ??
     createSessionMutation.error;
@@ -1453,6 +1495,14 @@ export function ChatPage() {
     );
     return uniqueDocumentIds.size;
   }, [selectedCitationTurn]);
+
+  function toggleCollection(collectionId: string) {
+    setSelectedCollectionIds((previous) =>
+      previous.includes(collectionId)
+        ? previous.filter((value) => value !== collectionId)
+        : [...previous, collectionId],
+    );
+  }
 
   function toggleDocument(documentId: string) {
     setSelectedDocumentIds((previous) => {
@@ -1539,7 +1589,9 @@ export function ChatPage() {
       agentRunMutation.isPending ||
       createSessionMutation.isPending ||
       isScopeInvalid ||
-      (!hasIndexedDocuments && requiresUploadedDocuments)
+      (!hasAvailableDocuments &&
+        requiresUploadedDocuments &&
+        !indexedDocumentsQuery.isLoading)
     ) {
       return;
     }
@@ -1820,7 +1872,10 @@ export function ChatPage() {
                                   {displayTitle}
                                 </p>
                                 <p className="mt-1 text-xs text-[#7a758f]">
-                                  {tc("sessionMeta", { count: session.message_count, date: formatDate(session.updated_at) })}
+                                  {tc("sessionMeta", {
+                                    count: session.message_count,
+                                    date: formatDate(session.updated_at),
+                                  })}
                                 </p>
                               </button>
                               <div
@@ -1861,7 +1916,10 @@ export function ChatPage() {
                     >
                       {sessionsQuery.isFetchingNextPage
                         ? tc("loadingMore")
-                        : tc("loadMore", { loaded: sessions.length, total: totalSessions })}
+                        : tc("loadMore", {
+                            loaded: sessions.length,
+                            total: totalSessions,
+                          })}
                     </button>
                   ) : null}
                 </>
@@ -1893,9 +1951,13 @@ export function ChatPage() {
                           {activeSessionDisplayTitle}
                         </span>
                         {" • "}
-                        {tc("messagesCount", { count: activeSession.message_count })}
+                        {tc("messagesCount", {
+                          count: activeSession.message_count,
+                        })}
                         {" • "}
-                        {tc("updatedLabel", { date: formatDate(activeSession.updated_at) })}
+                        {tc("updatedLabel", {
+                          date: formatDate(activeSession.updated_at),
+                        })}
                       </>
                     ) : (
                       tc("newChatDraft")
@@ -1968,7 +2030,10 @@ export function ChatPage() {
                 ) : null}
               </div>
 
-              <div ref={messagesContainerRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4">
+              <div
+                ref={messagesContainerRef}
+                className="hide-scrollbar min-h-0 flex-1 overflow-y-auto bg-white p-4"
+              >
                 {sessionMessagesQuery.isLoading &&
                 activeSession &&
                 thread.length === 0 &&
@@ -1994,10 +2059,7 @@ export function ChatPage() {
                 {thread.length === 0 &&
                 !pendingQuestion &&
                 !sessionMessagesQuery.isLoading ? (
-                  <EmptyState
-                    compact
-                    title={tc("noMessages")}
-                  />
+                  <EmptyState compact title={tc("noMessages")} />
                 ) : (
                   <ul className="space-y-6">
                     {thread.map((turn, turnIndex) => {
@@ -2047,9 +2109,11 @@ export function ChatPage() {
                                           turn.response.confidence_score,
                                         )}
                                       </span>
-                                      {turn.response.confidence_category === "low" && !turn.response.not_found ? (
+                                      {turn.response.confidence_category ===
+                                        "low" && !turn.response.not_found ? (
                                         <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1.5 w-56 rounded bg-[#2a2640] px-2 py-1.5 text-[10px] leading-snug whitespace-normal text-white opacity-0 transition-opacity group-hover/conf:opacity-100">
-                                          Low confidence warning: validate this answer against the cited source text.
+                                          Low confidence warning: validate this
+                                          answer against the cited source text.
                                         </span>
                                       ) : null}
                                     </span>
@@ -2072,7 +2136,10 @@ export function ChatPage() {
                                           turn.response.agent_run_status,
                                         )}
                                       >
-                                        {tc("agentStatus", { status: turn.response.agent_run_status })}
+                                        {tc("agentStatus", {
+                                          status:
+                                            turn.response.agent_run_status,
+                                        })}
                                       </span>
                                     ) : null}
                                     <span className="font-mono text-xs text-[#6a6780]">
@@ -2249,7 +2316,10 @@ export function ChatPage() {
                                 )}
                                 {turn.response.agent_run_error ? (
                                   <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                                    {tc("agentStopReason", { reason: turn.response.agent_run_error.message })}
+                                    {tc("agentStopReason", {
+                                      reason:
+                                        turn.response.agent_run_error.message,
+                                    })}
                                   </p>
                                 ) : null}
                               </article>
@@ -2371,7 +2441,7 @@ export function ChatPage() {
                                         queryMutation.isPending ||
                                         agentRunMutation.isPending ||
                                         createSessionMutation.isPending ||
-                                        (!hasIndexedDocuments &&
+                                        (!hasAvailableDocuments &&
                                           scopeMode !== "none")
                                       }
                                       className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#9d98b5] transition-colors hover:bg-[#f1f0f5] hover:text-[#6a6780] disabled:cursor-not-allowed disabled:opacity-40"
@@ -2459,26 +2529,35 @@ export function ChatPage() {
                 agenticChatEnabled={AGENTIC_CHAT_ENABLED}
                 agenticMode={agenticMode}
                 answerLanguage={answerLanguage}
-                collections={collectionsListQuery.data?.items ?? []}
                 contextScopeItemCount={contextScopeItemCount}
-                contextScopeLabel={contextScopeLabel}
+                collections={composerCollections}
                 disabled={isComposerDisabled}
-                filteredSelectedDocumentIds={filteredSelectedDocumentIds}
                 hasConnectorScopeSelection={hasConnectorScopeSelection}
-                hasIndexedDocuments={hasIndexedDocuments}
+                hasAvailableDocuments={hasAvailableDocuments}
+                isCollectionsLoading={collectionsListQuery.isLoading}
+                isConnectorsLoading={connectorConnectionsQuery.isLoading}
+                isDocumentsLoading={documentPickerQuery.isLoading}
+                connectorConnections={composerConnectorConnections}
+                indexedDocuments={composerIndexedDocuments}
                 isGenerating={CHAT_WEBSOCKET_ENABLED && wsChat.isPending}
                 maxTopK={MAX_TOP_K}
                 minTopK={MIN_TOP_K}
                 onStop={() => wsChat.cancel()}
                 onSubmit={submitQuestion}
+                onToggleCollection={toggleCollection}
+                onToggleConnectorConnection={toggleConnectorConnection}
+                onToggleDocument={toggleDocument}
+                onToggleProviderSource={toggleProviderSource}
                 question={question}
                 requiresUploadedDocuments={requiresUploadedDocuments}
                 rerank={rerank}
                 scopeMode={scopeMode}
                 scopeWarning={scopeWarning}
-                selectedCollectionId={selectedCollectionId}
+                selectedCollectionIds={selectedCollectionIds}
                 selectedConnectorConnectionIds={selectedConnectorConnectionIds}
                 selectedProviderSourceIds={selectedProviderSourceIds}
+                selectedDocumentIds={selectedDocumentIds}
+                documentSearchQuery={documentSearchQuery}
                 setAgenticMode={setAgenticMode}
                 setAnswerLanguage={setAnswerLanguage}
                 setContextPage={setContextPage}
@@ -2487,7 +2566,7 @@ export function ChatPage() {
                 setQuestion={setQuestion}
                 setRerank={setRerank}
                 setScopeMode={setScopeMode}
-                setSelectedCollectionId={setSelectedCollectionId}
+                setDocumentSearchQuery={setDocumentSearchQuery}
                 setTopK={setTopK}
                 submitButtonLabel={composerSubmitButtonLabel}
                 topK={topK}
@@ -2579,7 +2658,10 @@ export function ChatPage() {
                   <div className="absolute top-[20%] left-[78%] h-2.5 w-2.5 rounded-full bg-[#505f76] shadow-lg" />
                   <div className="absolute top-[78%] left-[68%] h-4 w-4 rounded-full bg-[#a44100] shadow-lg" />
                   <div className="absolute right-2 bottom-2 left-2 rounded border border-[#c7c4d8] bg-white/80 px-2 py-0.5 text-center font-mono text-[9px] text-[#464555] backdrop-blur-sm">
-                    {tc("contextMapConnected", { count: selectedCitationTurn?.response.citations.length ?? 0 })}
+                    {tc("contextMapConnected", {
+                      count:
+                        selectedCitationTurn?.response.citations.length ?? 0,
+                    })}
                   </div>
                 </div>
               </div>
@@ -2712,7 +2794,8 @@ export function ChatPage() {
                               className="rounded border border-amber-200 bg-amber-50 px-2 py-2"
                             >
                               <p className="mb-1 text-xs text-amber-800">
-                                {approval.request_summary ?? tc("approvalNeeded")}
+                                {approval.request_summary ??
+                                  tc("approvalNeeded")}
                               </p>
                               {canDecideApprovals && (
                                 <div className="flex gap-2">
@@ -2784,7 +2867,10 @@ export function ChatPage() {
                     <span className="mt-0.5 shrink-0">⚠</span>
                     <span>
                       {selectedCitationTurn.response.debug.fallback_to
-                        ? tc("fallbackWarningWithProvider", { provider: selectedCitationTurn.response.debug.fallback_to })
+                        ? tc("fallbackWarningWithProvider", {
+                            provider:
+                              selectedCitationTurn.response.debug.fallback_to,
+                          })
                         : tc("fallbackWarning")}
                     </span>
                   </div>
@@ -2884,13 +2970,17 @@ export function ChatPage() {
                     <p className="flex items-center gap-1 font-mono text-xs text-[#464555]">
                       <span
                         className="truncate"
-                        title={activeCitation.filename ?? tc("documentFallback")}
+                        title={
+                          activeCitation.filename ?? tc("documentFallback")
+                        }
                       >
                         {activeCitation.filename ?? tc("documentFallback")}
                       </span>
                       {activeCitation.page_number ? (
                         <span className="shrink-0">
-                          {tc("citationPage", { page: activeCitation.page_number })}
+                          {tc("citationPage", {
+                            page: activeCitation.page_number,
+                          })}
                         </span>
                       ) : null}
                     </p>
@@ -2899,7 +2989,7 @@ export function ChatPage() {
                     type="button"
                     onClick={() => setActiveCitation(null)}
                     aria-label="Close citation detail"
-                    className="cursor-pointer shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+                    className="shrink-0 cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
                   >
                     <span
                       className="material-symbols-outlined text-[20px]"
@@ -2948,7 +3038,11 @@ export function ChatPage() {
                     activeCitation.source_last_synced_at ? (
                       <p className="mb-2 text-[11px] text-[#6a6780]">
                         {activeCitation.source_section ? (
-                          <span>{tc("citationSection", { section: activeCitation.source_section })}</span>
+                          <span>
+                            {tc("citationSection", {
+                              section: activeCitation.source_section,
+                            })}
+                          </span>
                         ) : null}
                         {activeCitation.source_section &&
                         activeCitation.source_last_synced_at ? (
@@ -2956,7 +3050,11 @@ export function ChatPage() {
                         ) : null}
                         {activeCitation.source_last_synced_at ? (
                           <span>
-                            {tc("citationSynced", { date: formatDate(activeCitation.source_last_synced_at) })}
+                            {tc("citationSynced", {
+                              date: formatDate(
+                                activeCitation.source_last_synced_at,
+                              ),
+                            })}
                           </span>
                         ) : null}
                       </p>
@@ -2976,7 +3074,13 @@ export function ChatPage() {
                       </p>
                     )}
                     <p className="mt-3 text-xs leading-relaxed opacity-40">
-                      {tc("retrievalScore", { score: formatScore(activeCitation.rerank_score ?? activeCitation.similarity_score ?? activeCitation.score) })}
+                      {tc("retrievalScore", {
+                        score: formatScore(
+                          activeCitation.rerank_score ??
+                            activeCitation.similarity_score ??
+                            activeCitation.score,
+                        ),
+                      })}
                     </p>
                   </div>
                 </div>
@@ -3091,6 +3195,81 @@ export function ChatPage() {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
+                      {tc("collectionsTitle")}
+                    </p>
+                    <p className="text-xs text-[#6a6780]">
+                      {tc("collectionsSubtitle")}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-[10px] font-semibold text-[#3525cd]">
+                    {tc("numSelected", { n: selectedCollectionIds.length })}
+                  </span>
+                </div>
+                {collectionsListQuery.isLoading ? (
+                  <LoadingState compact title={tc("loadingCollections")} />
+                ) : collectionsListQuery.isError ? (
+                  <ErrorState
+                    compact
+                    error={collectionsListQuery.error}
+                    description={getApiErrorMessage(collectionsListQuery.error)}
+                    onRetry={() => {
+                      void collectionsListQuery.refetch();
+                    }}
+                  />
+                ) : collections.length === 0 ? (
+                  <p className="text-xs text-[#777587]">
+                    {tc("noCollections")}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {collections.map((collection) => {
+                      const collectionSelected = selectedCollectionIds.includes(
+                        collection.collection_id,
+                      );
+                      return (
+                        <button
+                          key={collection.collection_id}
+                          type="button"
+                          onClick={() =>
+                            toggleCollection(collection.collection_id)
+                          }
+                          className={`flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+                            collectionSelected
+                              ? "border-[#3525cd] bg-[#ece8ff]"
+                              : "border-[#e2dff1] bg-white hover:bg-[#faf9ff]"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-[#2f2a46]">
+                              {collection.name}
+                            </span>
+                            <span className="block text-[11px] text-[#6a6780]">
+                              {collection.description ??
+                                tc("collectionScopeHint")}
+                            </span>
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                              collectionSelected
+                                ? "bg-[#ece8ff] text-[#3525cd]"
+                                : "bg-[#f1f0f5] text-[#6a6780]"
+                            }`}
+                          >
+                            {collectionSelected
+                              ? tc("collectionSelected")
+                              : tc("collectionSelect")}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4 rounded-xl border border-[#e8e5f3] bg-[#faf9ff] p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[10px] font-bold tracking-widest text-[#464555] uppercase">
                       {tc("connectorSourcesTitle")}
                     </p>
                     <p className="text-xs text-[#6a6780]">
@@ -3098,7 +3277,11 @@ export function ChatPage() {
                     </p>
                   </div>
                   <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-[10px] font-semibold text-[#3525cd]">
-                    {tc("numSelected", { n: selectedConnectorConnectionIds.length + selectedProviderSourceIds.length })}
+                    {tc("numSelected", {
+                      n:
+                        selectedConnectorConnectionIds.length +
+                        selectedProviderSourceIds.length,
+                    })}
                   </span>
                 </div>
                 {connectorConnectionsQuery.isLoading ? (
@@ -3115,9 +3298,7 @@ export function ChatPage() {
                     }}
                   />
                 ) : connectorConnections.length === 0 ? (
-                  <p className="text-xs text-[#777587]">
-                    {tc("noConnectors")}
-                  </p>
+                  <p className="text-xs text-[#777587]">{tc("noConnectors")}</p>
                 ) : (
                   <div className="space-y-2">
                     {connectorConnections.map((connection) => {
@@ -3168,7 +3349,9 @@ export function ChatPage() {
                                   : "bg-[#f1f0f5] text-[#6a6780]"
                               }`}
                             >
-                              {connectionSelected ? tc("connectionSelected") : tc("connectionSelect")}
+                              {connectionSelected
+                                ? tc("connectionSelected")
+                                : tc("connectionSelect")}
                             </span>
                           </div>
                           {rootChips.length > 0 ? (
@@ -3254,7 +3437,10 @@ export function ChatPage() {
                         document.document_id,
                       )}
                       onToggle={() => toggleDocument(document.document_id)}
-                      chunksMeta={tc("documentChunks", { count: document.chunk_count, date: formatDate(document.updated_at) })}
+                      chunksMeta={tc("documentChunks", {
+                        count: document.chunk_count,
+                        date: formatDate(document.updated_at),
+                      })}
                     />
                   ))}
                 </ul>
@@ -3263,7 +3449,11 @@ export function ChatPage() {
             {contextModalTotal > CONTEXT_MODAL_PAGE_SIZE ? (
               <div className="flex items-center justify-between border-t border-[#ece8f7] px-4 py-3 text-xs text-[#5f5a74]">
                 <p>
-                  {tc("contextShowingRange", { start: contextPageStartIndex, end: contextPageEndIndex, total: contextModalTotal })}
+                  {tc("contextShowingRange", {
+                    start: contextPageStartIndex,
+                    end: contextPageEndIndex,
+                    total: contextModalTotal,
+                  })}
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -3279,7 +3469,10 @@ export function ChatPage() {
                     {tc("previous")}
                   </button>
                   <span className="font-mono text-[11px] text-[#4f4b63]">
-                    {tc("contextPageOf", { page: boundedContextPage, total: contextPageCount })}
+                    {tc("contextPageOf", {
+                      page: boundedContextPage,
+                      total: contextPageCount,
+                    })}
                   </span>
                   <button
                     type="button"
@@ -3300,10 +3493,30 @@ export function ChatPage() {
               </div>
             ) : null}
             <div className="flex items-center justify-between border-t border-[#e2dff1] bg-[#faf9ff] px-4 py-3">
-              {scopeMode === "connectors" ? (
+              {scopeMode === "collection" ? (
+                selectedCollectionIds.length > 0 ? (
+                  <p className="text-xs text-[#5f5a74]">
+                    {tc("collectionsSelected", {
+                      n: selectedCollectionIds.length,
+                    })}
+                  </p>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
+                    <span
+                      className="material-symbols-outlined text-[14px]"
+                      aria-hidden="true"
+                    >
+                      folder_open
+                    </span>
+                    {tc("selectCollections")}
+                  </span>
+                )
+              ) : scopeMode === "connectors" ? (
                 hasConnectorScopeSelection ? (
                   <p className="text-xs text-[#5f5a74]">
-                    {tc("connectorSourcesSelected", { count: contextScopeItemCount })}
+                    {tc("connectorSourcesSelected", {
+                      count: contextScopeItemCount,
+                    })}
                   </p>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">
@@ -3318,7 +3531,9 @@ export function ChatPage() {
                 )
               ) : filteredSelectedDocumentIds.length > 0 ? (
                 <p className="text-xs text-[#5f5a74]">
-                  {tc("filesSelected", { count: filteredSelectedDocumentIds.length })}
+                  {tc("documentsSelected", {
+                    count: filteredSelectedDocumentIds.length,
+                  })}
                 </p>
               ) : (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7d4e8] bg-[#f0ecf9] px-2.5 py-1 text-xs font-semibold text-[#3525cd]">

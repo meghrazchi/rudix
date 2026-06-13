@@ -312,7 +312,7 @@ export function StartEvaluationRunDialog({
               <select
                 value={selectedModelProfileId}
                 onChange={(event) => onModelProfileChange(event.target.value)}
-                className="h-9 w-full rounded-lg border border-[#d1cce4] px-2 text-sm text-[#2a2640] bg-white"
+                className="h-9 w-full rounded-lg border border-[#d1cce4] bg-white px-2 text-sm text-[#2a2640]"
               >
                 <option value="">Org default (evaluations profile)</option>
                 {modelProfiles.map((profile) => (

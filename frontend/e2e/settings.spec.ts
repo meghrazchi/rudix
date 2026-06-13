@@ -199,15 +199,13 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (
-      path === "/admin/model-providers/test" &&
-      request.method() === "POST"
-    ) {
+    if (path === "/admin/model-providers/test" && request.method() === "POST") {
       const body = await request.postDataJSON();
       await fulfillJson(route, {
         provider_key: body.provider_key,
         provider_type: "openai",
-        model_name: body.provider_key === "chat" ? "gpt-4o" : "text-embedding-3-small",
+        model_name:
+          body.provider_key === "chat" ? "gpt-4o" : "text-embedding-3-small",
         status: "ok",
         latency_ms: 87,
         error_code: null,

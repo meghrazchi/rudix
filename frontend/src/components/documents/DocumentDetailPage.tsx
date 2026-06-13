@@ -588,7 +588,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const deleteMutation = useMutation({
     mutationFn: () => deleteDocument(documentId),
     onSuccess: async (result) => {
-      setActionFeedback(td("feedbackDeleteRequested", { status: result.status }));
+      setActionFeedback(
+        td("feedbackDeleteRequested", { status: result.status }),
+      );
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "document.delete");
       await detailQuery.refetch();
@@ -610,7 +612,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     onSuccess: async (result, variables) => {
       setActionFeedback(
         variables?.label
-          ? td("feedbackReindexWithProfile", { label: variables.label, queueStatus: result.queue_status })
+          ? td("feedbackReindexWithProfile", {
+              label: variables.label,
+              queueStatus: result.queue_status,
+            })
           : td("feedbackReindex", { queueStatus: result.queue_status }),
       );
       setActionRequestId(null);
@@ -693,12 +698,16 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const chunkStatus = currentStatus ?? detail?.status ?? null;
   const selectedChunks = chunksQuery.data;
   const lifecycle = useMemo(
-    () => (detail && currentStatus ? buildLifecycleTimeline(detail, lifecycleLabels) : []),
+    () =>
+      detail && currentStatus
+        ? buildLifecycleTimeline(detail, lifecycleLabels)
+        : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentStatus, detail],
   );
   const errorRows = useMemo(
-    () => (detail ? buildErrorRows(detail, lifecycle, td("documentProcessing")) : []),
+    () =>
+      detail ? buildErrorRows(detail, lifecycle, td("documentProcessing")) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [detail, lifecycle],
   );
@@ -772,9 +781,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
         <h1 className="mb-2 text-2xl font-extrabold text-[#2a2640] lg:text-3xl">
           {td("title")}
         </h1>
-        <p className="text-sm text-[#68647b]">
-          {td("description")}
-        </p>
+        <p className="text-sm text-[#68647b]">{td("description")}</p>
       </header>
 
       <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
@@ -994,7 +1001,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             disabled={!canDelete || deleteMutation.isPending}
                             onClick={(event) => {
                               const confirmed = window.confirm(
-                                td("deleteConfirm", { filename: detail.filename }),
+                                td("deleteConfirm", {
+                                  filename: detail.filename,
+                                }),
                               );
                               if (!confirmed) {
                                 return;
@@ -1072,7 +1081,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     label={td("pageCount")}
                     value={detail.page_count ?? "-"}
                   />
-                  <MetricCard label={td("chunkCount")} value={detail.chunk_count} />
+                  <MetricCard
+                    label={td("chunkCount")}
+                    value={detail.chunk_count}
+                  />
                   <MetricCard
                     label={td("fileType")}
                     value={detail.file_type.toUpperCase()}
@@ -1099,7 +1111,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               : "text-[#69637f] hover:text-[#2a2640]"
                           }`}
                         >
-                          {tabKey === "overview" ? td("tabOverview") : tabKey === "chunks" ? td("tabChunks") : td("tabErrors")}
+                          {tabKey === "overview"
+                            ? td("tabOverview")
+                            : tabKey === "chunks"
+                              ? td("tabChunks")
+                              : td("tabErrors")}
                           {tabKey === "errors" ? (
                             <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
                               {errorRows.length}
@@ -1115,16 +1131,22 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       <div className="space-y-4">
                         {detail.error_message ? (
                           <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-3 text-sm text-rose-800">
-                            <p className="font-semibold">{td("processingError")}</p>
+                            <p className="font-semibold">
+                              {td("processingError")}
+                            </p>
                             <p className="mt-1">{detail.error_message}</p>
                             {detail.error_details ? (
                               <ul className="mt-2 space-y-1 text-xs">
                                 <li>
-                                  <span className="font-semibold">{td("errorStage")}</span>{" "}
+                                  <span className="font-semibold">
+                                    {td("errorStage")}
+                                  </span>{" "}
                                   {detail.error_details.stage}
                                 </li>
                                 <li>
-                                  <span className="font-semibold">{td("errorCode")}</span>{" "}
+                                  <span className="font-semibold">
+                                    {td("errorCode")}
+                                  </span>{" "}
                                   {detail.error_details.code}
                                 </li>
                                 <li>
@@ -1159,7 +1181,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             </h4>
                             <div className="space-y-2 text-sm text-[#2a2640]">
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[#69637f]">{td("filenameLabel")}</span>
+                                <span className="text-[#69637f]">
+                                  {td("filenameLabel")}
+                                </span>
                                 <span className="font-semibold">
                                   {detail.filename}
                                 </span>
@@ -1173,13 +1197,17 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                 </span>
                               </div>
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[#69637f]">{td("createdLabel")}</span>
+                                <span className="text-[#69637f]">
+                                  {td("createdLabel")}
+                                </span>
                                 <span className="font-semibold">
                                   {formatDate(detail.created_at)}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[#69637f]">{td("updatedLabel")}</span>
+                                <span className="text-[#69637f]">
+                                  {td("updatedLabel")}
+                                </span>
                                 <span className="font-semibold">
                                   {formatDate(detail.updated_at)}
                                 </span>
@@ -1193,7 +1221,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             </h4>
                             <div className="space-y-2 text-sm text-[#2a2640]">
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[#69637f]">{td("statusLabel")}</span>
+                                <span className="text-[#69637f]">
+                                  {td("statusLabel")}
+                                </span>
                                 <span className={statusBadge(currentStatus)}>
                                   {currentStatus}
                                 </span>
@@ -1259,7 +1289,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                   {td("ocrRequired")}
                                 </span>
                                 <span className="font-semibold">
-                                  {ocrMetadata.required ? td("errorYes").charAt(0).toUpperCase() + td("errorYes").slice(1) : td("errorNo").charAt(0).toUpperCase() + td("errorNo").slice(1)}
+                                  {ocrMetadata.required
+                                    ? td("errorYes").charAt(0).toUpperCase() +
+                                      td("errorYes").slice(1)
+                                    : td("errorNo").charAt(0).toUpperCase() +
+                                      td("errorNo").slice(1)}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between gap-3">
@@ -1406,9 +1440,18 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                   0 ? (
                                     <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
                                       <p className="text-xs font-semibold text-amber-700">
-                                        {detail.ocr_quality_snapshot.pages_failed === 1
-                                          ? td("pagesFailed", { count: detail.ocr_quality_snapshot.pages_failed })
-                                          : td("pagesFailedPlural", { count: detail.ocr_quality_snapshot.pages_failed })}
+                                        {detail.ocr_quality_snapshot
+                                          .pages_failed === 1
+                                          ? td("pagesFailed", {
+                                              count:
+                                                detail.ocr_quality_snapshot
+                                                  .pages_failed,
+                                            })
+                                          : td("pagesFailedPlural", {
+                                              count:
+                                                detail.ocr_quality_snapshot
+                                                  .pages_failed,
+                                            })}
                                       </p>
                                     </div>
                                   ) : null}
@@ -1524,7 +1567,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             ) : null}
                             {detail.language_source ? (
                               <div className="flex items-center justify-between gap-3">
-                                <span className="text-[#69637f]">{td("source")}</span>
+                                <span className="text-[#69637f]">
+                                  {td("source")}
+                                </span>
                                 <span className="rounded-full bg-[#ece8ff] px-2 py-0.5 text-xs font-semibold text-[#3525cd]">
                                   {detail.language_source.replace(/_/g, " ")}
                                 </span>
@@ -1626,9 +1671,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             {td("aiSummaryBody", {
                               status: currentStatus,
                               chunks: detail.chunk_count,
-                              pages: detail.page_count !== null
-                                ? td("acrossPages", { pages: detail.page_count })
-                                : "",
+                              pages:
+                                detail.page_count !== null
+                                  ? td("acrossPages", {
+                                      pages: detail.page_count,
+                                    })
+                                  : "",
                             })}
                           </p>
                         </div>
@@ -1684,8 +1732,12 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             </p>
                             <p className="mt-1">
                               {(selectedChunks?.items.length ?? 0) === 1
-                                ? td("loadedChunkSample", { count: selectedChunks?.items.length ?? 0 })
-                                : td("loadedChunkSamples", { count: selectedChunks?.items.length ?? 0 })}
+                                ? td("loadedChunkSample", {
+                                    count: selectedChunks?.items.length ?? 0,
+                                  })
+                                : td("loadedChunkSamples", {
+                                    count: selectedChunks?.items.length ?? 0,
+                                  })}
                             </p>
                           </div>
                         </div>
@@ -1711,7 +1763,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                         chunkStatus ? (
                           <EmptyState
                             compact
-                            title={noChunksMessage(chunkStatus, noChunkMessages)}
+                            title={noChunksMessage(
+                              chunkStatus,
+                              noChunkMessages,
+                            )}
                           />
                         ) : null}
 
@@ -1752,31 +1807,66 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                                         {td("citedLabel")}
                                       </span>
                                     ) : null}
-                                    <span>{td("chunkIndex", { index: chunk.chunk_index })}</span>
-                                    <span>{td("chunkPage", { n: chunk.page_number ?? "-" })}</span>
-                                    <span>{td("chunkTokens", { n: chunk.token_count })}</span>
-                                    <span>{td("chunkModel", { name: chunk.embedding_model })}</span>
-                                    <span>{td("chunkIndexVersion", { version: chunk.index_version })}</span>
-                                    <span>{td("chunkCreated", { date: formatDate(chunk.created_at) })}</span>
+                                    <span>
+                                      {td("chunkIndex", {
+                                        index: chunk.chunk_index,
+                                      })}
+                                    </span>
+                                    <span>
+                                      {td("chunkPage", {
+                                        n: chunk.page_number ?? "-",
+                                      })}
+                                    </span>
+                                    <span>
+                                      {td("chunkTokens", {
+                                        n: chunk.token_count,
+                                      })}
+                                    </span>
+                                    <span>
+                                      {td("chunkModel", {
+                                        name: chunk.embedding_model,
+                                      })}
+                                    </span>
+                                    <span>
+                                      {td("chunkIndexVersion", {
+                                        version: chunk.index_version,
+                                      })}
+                                    </span>
+                                    <span>
+                                      {td("chunkCreated", {
+                                        date: formatDate(chunk.created_at),
+                                      })}
+                                    </span>
                                   </div>
                                   <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-[#5f5a74]">
                                     <span>
                                       {chunk.section_path
-                                        ? td("chunkSection", { path: chunk.section_path })
+                                        ? td("chunkSection", {
+                                            path: chunk.section_path,
+                                          })
                                         : td("chunkSectionNone")}
                                     </span>
                                     <span>·</span>
                                     <span>
-                                      {td("chunkLanguage", { lang: chunk.language ?? "-" })}
+                                      {td("chunkLanguage", {
+                                        lang: chunk.language ?? "-",
+                                      })}
                                     </span>
                                     <span>·</span>
-                                    <span>{td("chunkLevel", { n: chunk.chunk_level ?? 0 })}</span>
+                                    <span>
+                                      {td("chunkLevel", {
+                                        n: chunk.chunk_level ?? 0,
+                                      })}
+                                    </span>
                                     {chunk.source_start_offset != null &&
                                     chunk.source_end_offset != null ? (
                                       <>
                                         <span>·</span>
                                         <span>
-                                          {td("chunkOffsets", { start: chunk.source_start_offset, end: chunk.source_end_offset })}
+                                          {td("chunkOffsets", {
+                                            start: chunk.source_start_offset,
+                                            end: chunk.source_end_offset,
+                                          })}
                                         </span>
                                       </>
                                     ) : null}
@@ -1793,7 +1883,10 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             })}
                             <div className="mt-2 flex items-center justify-between gap-2">
                               <p className="text-xs text-[#6e6a86]">
-                                {td("showingChunks", { shown: filteredChunks.length, total: selectedChunks.total })}
+                                {td("showingChunks", {
+                                  shown: filteredChunks.length,
+                                  total: selectedChunks.total,
+                                })}
                               </p>
                               {!highlightedChunkId ? (
                                 <div className="flex items-center gap-2">
@@ -1983,7 +2076,9 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-[#2a2640]">
-                      {td("viewOriginal", { type: detail.file_type.toUpperCase() })}
+                      {td("viewOriginal", {
+                        type: detail.file_type.toUpperCase(),
+                      })}
                     </p>
                     <p className="font-mono text-xs break-all text-[#6e6a86]">
                       Source endpoint: /api/v1/documents/{detail.document_id}

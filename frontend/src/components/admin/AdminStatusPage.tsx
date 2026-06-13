@@ -58,13 +58,7 @@ const SEVERITY_OPTIONS: { value: IncidentSeverity | ""; label: string }[] = [
   { value: "low", label: "Low" },
 ];
 
-function Badge({
-  label,
-  className,
-}: {
-  label: string;
-  className: string;
-}) {
+function Badge({ label, className }: { label: string; className: string }) {
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${className}`}
@@ -114,7 +108,9 @@ function IncidentDrawer({
   const [noteText, setNoteText] = useState("");
   const [noteStatus, setNoteStatus] = useState<IncidentStatus | "">("");
   const [updateStatus, setUpdateStatus] = useState<IncidentStatus | "">("");
-  const [updateSeverity, setUpdateSeverity] = useState<IncidentSeverity | "">("");
+  const [updateSeverity, setUpdateSeverity] = useState<IncidentSeverity | "">(
+    "",
+  );
 
   const detailQuery = useQuery({
     queryKey: queryKeys.admin.incidentDetail(incidentId),
@@ -206,13 +202,19 @@ function IncidentDrawer({
                 <DrawerRow label="Status">
                   <Badge
                     label={incident.status}
-                    className={STATUS_BADGE[incident.status] ?? "bg-slate-100 text-slate-600"}
+                    className={
+                      STATUS_BADGE[incident.status] ??
+                      "bg-slate-100 text-slate-600"
+                    }
                   />
                 </DrawerRow>
                 <DrawerRow label="Severity">
                   <Badge
                     label={incident.severity}
-                    className={SEVERITY_BADGE[incident.severity] ?? "bg-slate-100 text-slate-600"}
+                    className={
+                      SEVERITY_BADGE[incident.severity] ??
+                      "bg-slate-100 text-slate-600"
+                    }
                   />
                 </DrawerRow>
                 <DrawerRow label="Public banner">
@@ -278,9 +280,7 @@ function IncidentDrawer({
                 </select>
                 <button
                   type="button"
-                  disabled={
-                    isBusy || (!updateStatus && !updateSeverity)
-                  }
+                  disabled={isBusy || (!updateStatus && !updateSeverity)}
                   onClick={() => {
                     const req: UpdateIncidentRequest = {};
                     if (updateStatus) req.status = updateStatus;
@@ -342,9 +342,7 @@ function IncidentDrawer({
                 </button>
               </div>
               {noteMutation.isError ? (
-                <ErrorNotice
-                  message={getApiErrorMessage(noteMutation.error)}
-                />
+                <ErrorNotice message={getApiErrorMessage(noteMutation.error)} />
               ) : null}
             </section>
 
@@ -419,9 +417,7 @@ function CreateIncidentModal({
       aria-label="Create incident"
     >
       <div className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-bold text-[#2a2640]">
-          New incident
-        </h2>
+        <h2 className="mb-4 text-lg font-bold text-[#2a2640]">New incident</h2>
         <div className="space-y-3">
           <label className="flex flex-col gap-1 text-xs font-semibold text-[#4f4b68]">
             Title *
@@ -581,9 +577,7 @@ function MetricCard({
   className: string;
 }) {
   return (
-    <div
-      className={`rounded-xl border px-4 py-3 text-center ${className}`}
-    >
+    <div className={`rounded-xl border px-4 py-3 text-center ${className}`}>
       <p className="text-xs font-semibold tracking-wide uppercase">{label}</p>
       <p className="mt-1 text-2xl font-extrabold">{value}</p>
     </div>
@@ -602,13 +596,17 @@ function IncidentRow({
       <td className="px-3 py-2">
         <Badge
           label={incident.status}
-          className={STATUS_BADGE[incident.status] ?? "bg-slate-100 text-slate-600"}
+          className={
+            STATUS_BADGE[incident.status] ?? "bg-slate-100 text-slate-600"
+          }
         />
       </td>
       <td className="px-3 py-2">
         <Badge
           label={incident.severity}
-          className={SEVERITY_BADGE[incident.severity] ?? "bg-slate-100 text-slate-600"}
+          className={
+            SEVERITY_BADGE[incident.severity] ?? "bg-slate-100 text-slate-600"
+          }
         />
       </td>
       <td className="px-3 py-2 text-sm font-medium text-[#2f2a46]">
@@ -623,7 +621,9 @@ function IncidentRow({
       <td className="px-3 py-2 text-center">
         <span
           className={`inline-block h-2 w-2 rounded-full ${incident.is_public ? "bg-emerald-500" : "bg-slate-300"}`}
-          title={incident.is_public ? "Public banner active" : "Not shown to users"}
+          title={
+            incident.is_public ? "Public banner active" : "Not shown to users"
+          }
         />
       </td>
       <td className="px-3 py-2 text-right">
@@ -646,7 +646,9 @@ export function AdminStatusPage() {
 
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | "">("");
-  const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | "">("");
+  const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | "">(
+    "",
+  );
   const [activeOnly, setActiveOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [openIncidentId, setOpenIncidentId] = useState<string | null>(null);
@@ -707,8 +709,8 @@ export function AdminStatusPage() {
               System status
             </h1>
             <p className="max-w-3xl text-sm text-[#68647b]">
-              Active incidents, service health, and maintenance windows.
-              Mark incidents as public to show in-app banners to users.
+              Active incidents, service health, and maintenance windows. Mark
+              incidents as public to show in-app banners to users.
             </p>
           </div>
           <div className="flex items-center gap-2">

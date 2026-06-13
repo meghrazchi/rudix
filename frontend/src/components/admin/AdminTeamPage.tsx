@@ -40,7 +40,15 @@ const inviteSchema = z.object({
     .min(1, "Email is required")
     .email("Enter a valid email address"),
   name: z.string().trim().max(255).optional(),
-  role: z.enum(["admin", "member", "viewer", "reviewer", "developer", "security_admin", "billing_admin"]),
+  role: z.enum([
+    "admin",
+    "member",
+    "viewer",
+    "reviewer",
+    "developer",
+    "security_admin",
+    "billing_admin",
+  ]),
 });
 type InviteValues = z.infer<typeof inviteSchema>;
 
@@ -50,23 +58,34 @@ type ConfirmAction =
   | { kind: "revoke"; invitation: OrganizationInvitation };
 
 function roleBadgeClass(role: string): string {
-  if (role === "owner") return "inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800";
-  if (role === "admin") return "inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800";
-  if (role === "member") return "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800";
-  if (role === "viewer") return "inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700";
+  if (role === "owner")
+    return "inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-800";
+  if (role === "admin")
+    return "inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800";
+  if (role === "member")
+    return "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800";
+  if (role === "viewer")
+    return "inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700";
   return "inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800";
 }
 
 function statusBadgeClass(s: string): string {
-  if (s === "active") return "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800";
-  if (s === "invited") return "inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800";
-  if (s === "disabled" || s === "suspended") return "inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-800";
+  if (s === "active")
+    return "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800";
+  if (s === "invited")
+    return "inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800";
+  if (s === "disabled" || s === "suspended")
+    return "inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-800";
   return "inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700";
 }
 
 function formatDate(v: string | null | undefined): string {
   if (!v) return "—";
-  try { return new Date(v).toLocaleDateString(); } catch { return v; }
+  try {
+    return new Date(v).toLocaleDateString();
+  } catch {
+    return v;
+  }
 }
 
 function InviteDialog({
@@ -111,17 +130,35 @@ function InviteDialog({
         aria-label="Invite team member"
       >
         <div className="flex items-center justify-between border-b border-[#ebe8f7] px-6 py-4">
-          <h2 className="text-base font-bold text-[#2a2640]">Invite team member</h2>
+          <h2 className="text-base font-bold text-[#2a2640]">
+            Invite team member
+          </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
             className="rounded p-1 text-[#777587] hover:bg-[#f0edf9] hover:text-[#2f2a46]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="p-6 space-y-4">
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-4 p-6"
+        >
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               Email address
@@ -133,12 +170,17 @@ function InviteDialog({
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
             />
             {form.formState.errors.email && (
-              <p role="alert" className="mt-1 text-xs text-rose-700">{form.formState.errors.email.message}</p>
+              <p role="alert" className="mt-1 text-xs text-rose-700">
+                {form.formState.errors.email.message}
+              </p>
             )}
           </div>
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-              Full name <span className="normal-case font-normal text-[#999]">(optional)</span>
+              Full name{" "}
+              <span className="font-normal text-[#999] normal-case">
+                (optional)
+              </span>
             </label>
             <input
               type="text"
@@ -166,7 +208,10 @@ function InviteDialog({
             </select>
           </div>
           {apiError && (
-            <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            <p
+              role="alert"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+            >
               {apiError}
             </p>
           )}
@@ -247,7 +292,13 @@ function ConfirmDialog({
                 : "bg-[#3525cd] hover:bg-[#2b1fa8]"
             }`}
           >
-            {isPending ? "Working…" : action.kind === "remove" ? "Remove" : action.kind === "deactivate" ? "Deactivate" : "Revoke"}
+            {isPending
+              ? "Working…"
+              : action.kind === "remove"
+                ? "Remove"
+                : action.kind === "deactivate"
+                  ? "Deactivate"
+                  : "Revoke"}
           </button>
         </div>
       </div>
@@ -255,13 +306,18 @@ function ConfirmDialog({
   );
 }
 
-const setPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters").max(128),
-  confirm: z.string(),
-}).refine((v) => v.password === v.confirm, {
-  message: "Passwords do not match",
-  path: ["confirm"],
-});
+const setPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
 type SetPasswordValues = z.infer<typeof setPasswordSchema>;
 
 function SetPasswordDialog({
@@ -281,15 +337,23 @@ function SetPasswordDialog({
   const [showPassword, setShowPassword] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: ({ memberId, password }: { memberId: string; password: string }) =>
-      setMemberPassword(memberId, password),
+    mutationFn: ({
+      memberId,
+      password,
+    }: {
+      memberId: string;
+      password: string;
+    }) => setMemberPassword(memberId, password),
     onSuccess: () => onSuccess(),
     onError: (err) => setApiError(getApiErrorMessage(err)),
   });
 
   async function handleSubmit(values: SetPasswordValues) {
     setApiError(null);
-    await mutation.mutateAsync({ memberId: member.member_id, password: values.password });
+    await mutation.mutateAsync({
+      memberId: member.member_id,
+      password: values.password,
+    });
   }
 
   return (
@@ -303,7 +367,9 @@ function SetPasswordDialog({
         <div className="flex items-center justify-between border-b border-[#ebe8f7] px-6 py-4">
           <div>
             <h2 className="text-base font-bold text-[#2a2640]">Set password</h2>
-            <p className="mt-0.5 text-xs text-[#777587]">{member.name || member.email}</p>
+            <p className="mt-0.5 text-xs text-[#777587]">
+              {member.name || member.email}
+            </p>
           </div>
           <button
             type="button"
@@ -311,10 +377,26 @@ function SetPasswordDialog({
             aria-label="Close dialog"
             className="rounded p-1 text-[#777587] hover:bg-[#f0edf9] hover:text-[#2f2a46]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="p-6 space-y-4">
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-4 p-6"
+        >
           <div>
             <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               New password
@@ -330,18 +412,45 @@ function SetPasswordDialog({
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#555]"
+                className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#999] hover:text-[#555]"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
                 ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
                 )}
               </button>
             </div>
             {form.formState.errors.password && (
-              <p role="alert" className="mt-1 text-xs text-rose-700">{form.formState.errors.password.message}</p>
+              <p role="alert" className="mt-1 text-xs text-rose-700">
+                {form.formState.errors.password.message}
+              </p>
             )}
           </div>
           <div>
@@ -356,11 +465,16 @@ function SetPasswordDialog({
               className="h-10 w-full rounded-lg border border-[#d2cee6] px-3 text-sm text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
             />
             {form.formState.errors.confirm && (
-              <p role="alert" className="mt-1 text-xs text-rose-700">{form.formState.errors.confirm.message}</p>
+              <p role="alert" className="mt-1 text-xs text-rose-700">
+                {form.formState.errors.confirm.message}
+              </p>
             )}
           </div>
           {apiError && (
-            <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+            <p
+              role="alert"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"
+            >
               {apiError}
             </p>
           )}
@@ -395,7 +509,9 @@ function RoleChangeRow({
   isDisabled: boolean;
   onRoleChange: (memberId: string, role: TeamInviteRole) => void;
 }) {
-  const [draft, setDraft] = useState<TeamInviteRole>(member.role as TeamInviteRole);
+  const [draft, setDraft] = useState<TeamInviteRole>(
+    member.role as TeamInviteRole,
+  );
   const changed = draft !== member.role;
 
   useEffect(() => {
@@ -447,9 +563,16 @@ export function AdminTeamPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [setPasswordMember, setSetPasswordMember] = useState<TeamMember | null>(null);
-  const [toast, setToast] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null,
+  );
+  const [setPasswordMember, setSetPasswordMember] = useState<TeamMember | null>(
+    null,
+  );
+  const [toast, setToast] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const capabilities = useMemo(() => getTeamCapabilities(), []);
 
@@ -473,7 +596,16 @@ export function AdminTeamPage() {
   const offset = pageIndex * PAGE_SIZE;
 
   const membersQuery = useQuery({
-    queryKey: ["admin", "team", "members", PAGE_SIZE, offset, searchQuery, roleFilter, statusFilter],
+    queryKey: [
+      "admin",
+      "team",
+      "members",
+      PAGE_SIZE,
+      offset,
+      searchQuery,
+      roleFilter,
+      statusFilter,
+    ],
     queryFn: () =>
       listTeamMembers({
         limit: PAGE_SIZE,
@@ -494,13 +626,21 @@ export function AdminTeamPage() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: ({ memberId, role }: { memberId: string; role: TeamInviteRole }) =>
-      updateTeamMemberRole(memberId, { role }),
+    mutationFn: ({
+      memberId,
+      role,
+    }: {
+      memberId: string;
+      role: TeamInviteRole;
+    }) => updateTeamMemberRole(memberId, { role }),
     onSuccess: async () => {
       setToast({ tone: "success", message: "Role updated." });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "team", "members"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "team", "members"],
+      });
     },
-    onError: (err) => setToast({ tone: "error", message: getApiErrorMessage(err) }),
+    onError: (err) =>
+      setToast({ tone: "error", message: getApiErrorMessage(err) }),
   });
 
   const removeMutation = useMutation({
@@ -533,9 +673,12 @@ export function AdminTeamPage() {
     mutationFn: (invitationId: string) => resendInvitation(invitationId),
     onSuccess: async () => {
       setToast({ tone: "success", message: "Invitation resent." });
-      await queryClient.invalidateQueries({ queryKey: ["admin", "team", "invitations"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "team", "invitations"],
+      });
     },
-    onError: (err) => setToast({ tone: "error", message: getApiErrorMessage(err) }),
+    onError: (err) =>
+      setToast({ tone: "error", message: getApiErrorMessage(err) }),
   });
 
   const revokeMutation = useMutation({
@@ -553,9 +696,12 @@ export function AdminTeamPage() {
 
   function handleConfirm() {
     if (!confirmAction) return;
-    if (confirmAction.kind === "remove") removeMutation.mutate(confirmAction.member.member_id);
-    else if (confirmAction.kind === "deactivate") deactivateMutation.mutate(confirmAction.member.member_id);
-    else if (confirmAction.kind === "revoke") revokeMutation.mutate(confirmAction.invitation.invitation_id);
+    if (confirmAction.kind === "remove")
+      removeMutation.mutate(confirmAction.member.member_id);
+    else if (confirmAction.kind === "deactivate")
+      deactivateMutation.mutate(confirmAction.member.member_id);
+    else if (confirmAction.kind === "revoke")
+      revokeMutation.mutate(confirmAction.invitation.invitation_id);
   }
 
   const isMutating =
@@ -646,14 +792,28 @@ export function AdminTeamPage() {
 
           {/* Search */}
           <div className="relative ml-auto">
-            <svg className="absolute top-1/2 left-2.5 -translate-y-1/2 text-[#999]" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <svg
+              className="absolute top-1/2 left-2.5 -translate-y-1/2 text-[#999]"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
             <input
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search name or email…"
               aria-label="Search members"
-              className="h-8 w-52 rounded-lg border border-[#d2cee6] bg-white pl-7 pr-3 text-xs text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              className="h-8 w-52 rounded-lg border border-[#d2cee6] bg-white pr-3 pl-7 text-xs text-[#2f2a46] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
             />
           </div>
 
@@ -661,7 +821,10 @@ export function AdminTeamPage() {
           <select
             aria-label="Filter by role"
             value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value); setPageIndex(0); }}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPageIndex(0);
+            }}
             className="h-8 rounded-lg border border-[#d2cee6] px-2 text-xs text-[#2f2a46] outline-none focus:border-[#3525cd]"
           >
             <option value="">All roles</option>
@@ -677,7 +840,10 @@ export function AdminTeamPage() {
           <select
             aria-label="Filter by status"
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPageIndex(0); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPageIndex(0);
+            }}
             className="h-8 rounded-lg border border-[#d2cee6] px-2 text-xs text-[#2f2a46] outline-none focus:border-[#3525cd]"
           >
             <option value="">All statuses</option>
@@ -715,34 +881,44 @@ export function AdminTeamPage() {
             <table className="min-w-full divide-y divide-[#f0edf9] text-sm">
               <thead className="bg-[#faf9ff]">
                 <tr>
-                  {["Name", "Email", "Role", "Status", "Joined", "Actions"].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-2.5 text-left text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  {["Name", "Email", "Role", "Status", "Joined", "Actions"].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-2.5 text-left text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase"
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f8f6ff] bg-white">
                 {members.map((member) => (
                   <tr key={member.member_id} className="hover:bg-[#fdfcff]">
-                    <td className="px-4 py-3 font-medium text-[#2f2a46]">{member.name}</td>
+                    <td className="px-4 py-3 font-medium text-[#2f2a46]">
+                      {member.name}
+                    </td>
                     <td className="px-4 py-3 text-[#4d4963]">{member.email}</td>
                     <td className="px-4 py-3">
                       <RoleChangeRow
                         member={member}
-                        isDisabled={isMutating || !capabilities.updateRoleEnabled}
+                        isDisabled={
+                          isMutating || !capabilities.updateRoleEnabled
+                        }
                         onRoleChange={(memberId, role) =>
                           updateRoleMutation.mutate({ memberId, role })
                         }
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <span className={statusBadgeClass(member.status)}>{member.status}</span>
+                      <span className={statusBadgeClass(member.status)}>
+                        {member.status}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-[#7a7690]">{formatDate(member.created_at)}</td>
+                    <td className="px-4 py-3 text-[#7a7690]">
+                      {formatDate(member.created_at)}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
                         <button
@@ -758,15 +934,21 @@ export function AdminTeamPage() {
                             <button
                               type="button"
                               disabled={isMutating}
-                              onClick={() => setConfirmAction({ kind: "deactivate", member })}
+                              onClick={() =>
+                                setConfirmAction({ kind: "deactivate", member })
+                              }
                               className="rounded border border-amber-300 px-2 py-0.5 text-[11px] font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
                             >
                               Deactivate
                             </button>
                             <button
                               type="button"
-                              disabled={isMutating || !capabilities.removeMemberEnabled}
-                              onClick={() => setConfirmAction({ kind: "remove", member })}
+                              disabled={
+                                isMutating || !capabilities.removeMemberEnabled
+                              }
+                              onClick={() =>
+                                setConfirmAction({ kind: "remove", member })
+                              }
                               className="rounded border border-rose-300 px-2 py-0.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                             >
                               Remove
@@ -786,7 +968,8 @@ export function AdminTeamPage() {
         {membersTotal > 0 && (
           <div className="flex items-center justify-between border-t border-[#ebe8f7] bg-[#fcfbff] px-5 py-2.5">
             <p className="text-xs text-[#6a6780]">
-              {offset + 1}–{Math.min(offset + members.length, membersTotal)} of {membersTotal}
+              {offset + 1}–{Math.min(offset + members.length, membersTotal)} of{" "}
+              {membersTotal}
             </p>
             <div className="flex gap-2">
               <button
@@ -845,7 +1028,14 @@ export function AdminTeamPage() {
             <table className="min-w-full divide-y divide-[#f0edf9] text-sm">
               <thead className="bg-[#faf9ff]">
                 <tr>
-                  {["Email", "Role", "Invited by", "Expires", "Sent", "Actions"].map((h) => (
+                  {[
+                    "Email",
+                    "Role",
+                    "Invited by",
+                    "Expires",
+                    "Sent",
+                    "Actions",
+                  ].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-2.5 text-left text-[11px] font-semibold tracking-wide text-[#6a6780] uppercase"
@@ -860,10 +1050,16 @@ export function AdminTeamPage() {
                   <tr key={inv.invitation_id} className="hover:bg-[#fdfcff]">
                     <td className="px-4 py-3 text-[#2f2a46]">{inv.email}</td>
                     <td className="px-4 py-3">
-                      <span className={roleBadgeClass(inv.role)}>{inv.role}</span>
+                      <span className={roleBadgeClass(inv.role)}>
+                        {inv.role}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-[#7a7690]">{inv.invited_by_name ?? "—"}</td>
-                    <td className="px-4 py-3 text-[#7a7690]">{formatDate(inv.expires_at)}</td>
+                    <td className="px-4 py-3 text-[#7a7690]">
+                      {inv.invited_by_name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[#7a7690]">
+                      {formatDate(inv.expires_at)}
+                    </td>
                     <td className="px-4 py-3 text-[#7a7690]">
                       {inv.resend_count > 0 ? `${inv.resend_count + 1}×` : "1×"}
                     </td>
@@ -872,7 +1068,9 @@ export function AdminTeamPage() {
                         <button
                           type="button"
                           disabled={resendMutation.isPending}
-                          onClick={() => resendMutation.mutate(inv.invitation_id)}
+                          onClick={() =>
+                            resendMutation.mutate(inv.invitation_id)
+                          }
                           className="rounded border border-[#d2cee6] px-2 py-0.5 text-[11px] font-semibold text-[#3f3b58] hover:bg-[#f8f6ff] disabled:opacity-60"
                         >
                           Resend
@@ -880,7 +1078,12 @@ export function AdminTeamPage() {
                         <button
                           type="button"
                           disabled={revokeMutation.isPending}
-                          onClick={() => setConfirmAction({ kind: "revoke", invitation: inv })}
+                          onClick={() =>
+                            setConfirmAction({
+                              kind: "revoke",
+                              invitation: inv,
+                            })
+                          }
                           className="rounded border border-rose-300 px-2 py-0.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
                         >
                           Revoke

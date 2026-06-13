@@ -14,8 +14,7 @@ function requiresCloudFallbackAck(
   next: Partial<ProviderSecurityPolicy>,
 ): boolean {
   const wasLocalOnly = current.local_only_mode;
-  const turningOffLocalOnly =
-    wasLocalOnly && next.local_only_mode === false;
+  const turningOffLocalOnly = wasLocalOnly && next.local_only_mode === false;
   const enablingCloudFallback =
     !current.cloud_fallback_allowed && next.cloud_fallback_allowed === true;
   return turningOffLocalOnly || enablingCloudFallback;
@@ -41,8 +40,7 @@ export function ProviderSecuritySection({
     requiresCloudFallbackAck(policy, {});
 
   const needsCloudAck =
-    policy.local_only_mode === false ||
-    policy.cloud_fallback_allowed === true;
+    policy.local_only_mode === false || policy.cloud_fallback_allowed === true;
 
   return (
     <article className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
@@ -128,7 +126,7 @@ export function ProviderSecuritySection({
           </p>
           <input
             type="text"
-            className="w-full rounded-lg border border-[#d7d4e8] bg-white px-3 py-2 text-sm text-[#2a2640] placeholder-[#a09dbb] focus:outline-none focus:ring-2 focus:ring-[#5d58a8]/40"
+            className="w-full rounded-lg border border-[#d7d4e8] bg-white px-3 py-2 text-sm text-[#2a2640] placeholder-[#a09dbb] focus:ring-2 focus:ring-[#5d58a8]/40 focus:outline-none"
             placeholder="e.g. local, openai"
             value={policy.allowed_provider_profiles.join(", ")}
             onChange={(e) => {
@@ -162,7 +160,8 @@ export function ProviderSecuritySection({
         ) : null}
 
         {/* Cloud fallback warning acknowledgment */}
-        {needsCloudAck && (policy.local_only_mode === false || policy.cloud_fallback_allowed) ? (
+        {needsCloudAck &&
+        (policy.local_only_mode === false || policy.cloud_fallback_allowed) ? (
           <label className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             <input
               type="checkbox"

@@ -14,7 +14,10 @@ import { writeSessionToStorage } from "@/lib/auth-session";
 
 const schema = z
   .object({
-    password: z.string().min(8, "Password must be at least 8 characters").max(128),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128),
     confirm: z.string(),
   })
   .refine((v) => v.password === v.confirm, {
@@ -91,14 +94,17 @@ function AcceptInviteContent() {
       if (httpStatus === 409) setPageState({ status: "already_accepted" });
       else if (httpStatus === 410) {
         setPageState({
-          status: message.toLowerCase().includes("revoked") ? "revoked" : "expired",
+          status: message.toLowerCase().includes("revoked")
+            ? "revoked"
+            : "expired",
         });
       } else if (httpStatus === 404) setPageState({ status: "invalid" });
       else {
         setPageState({
           status: "error",
           message:
-            message || "Something went wrong. Please try again or contact your administrator.",
+            message ||
+            "Something went wrong. Please try again or contact your administrator.",
         });
       }
     }
@@ -131,7 +137,10 @@ function AcceptInviteContent() {
             <p className="mb-6 text-sm text-[#68647b]">
               Set a password to activate your account and get started.
             </p>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="space-y-4"
+            >
               <div>
                 <label className="mb-1 block text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
                   Password
@@ -147,13 +156,40 @@ function AcceptInviteContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#999] hover:text-[#555]"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#999] hover:text-[#555]"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
                     ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
                     )}
                   </button>
                 </div>
@@ -203,7 +239,10 @@ function AcceptInviteContent() {
             <p className="mb-6 text-sm text-[#68647b]">
               Your invitation has been accepted. You&rsquo;ve joined
               {pageState.orgName ? (
-                <> <strong>{pageState.orgName}</strong></>
+                <>
+                  {" "}
+                  <strong>{pageState.orgName}</strong>
+                </>
               ) : (
                 " the organization"
               )}{" "}
@@ -224,7 +263,8 @@ function AcceptInviteContent() {
               Already accepted
             </h1>
             <p className="mb-6 text-sm text-[#68647b]">
-              This invitation has already been accepted. Sign in to access your workspace.
+              This invitation has already been accepted. Sign in to access your
+              workspace.
             </p>
             <Link
               href="/login"
@@ -241,8 +281,8 @@ function AcceptInviteContent() {
               Invitation expired
             </h1>
             <p className="text-sm text-[#68647b]">
-              This invitation link has expired (invitations are valid for 7 days). Ask your
-              administrator to send a new invite.
+              This invitation link has expired (invitations are valid for 7
+              days). Ask your administrator to send a new invite.
             </p>
           </>
         )}
@@ -253,7 +293,8 @@ function AcceptInviteContent() {
               Invitation revoked
             </h1>
             <p className="text-sm text-[#68647b]">
-              This invitation has been revoked. Contact your administrator for a new invite.
+              This invitation has been revoked. Contact your administrator for a
+              new invite.
             </p>
           </>
         )}
@@ -264,8 +305,8 @@ function AcceptInviteContent() {
               Invalid invitation
             </h1>
             <p className="text-sm text-[#68647b]">
-              This invitation link is invalid or has already been used. Contact your administrator
-              if you believe this is an error.
+              This invitation link is invalid or has already been used. Contact
+              your administrator if you believe this is an error.
             </p>
           </>
         )}

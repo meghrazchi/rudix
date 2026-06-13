@@ -1022,10 +1022,9 @@ function NotionSetupGuide() {
                 >
                   notion.so/my-integrations
                 </a>
-                , click <strong>+ New integration</strong>, give it a name
-                (e.g. <em>Rudix</em>), select your workspace, and set the{" "}
-                <strong>Integration type</strong> to{" "}
-                <strong>Public</strong>.
+                , click <strong>+ New integration</strong>, give it a name (e.g.{" "}
+                <em>Rudix</em>), select your workspace, and set the{" "}
+                <strong>Integration type</strong> to <strong>Public</strong>.
               </div>
             </li>
 

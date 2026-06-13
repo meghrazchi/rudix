@@ -81,7 +81,9 @@ function makeWebhook(overrides: Partial<Webhook> = {}): Webhook {
   };
 }
 
-function makeWebhookCreated(overrides: Partial<WebhookCreated> = {}): WebhookCreated {
+function makeWebhookCreated(
+  overrides: Partial<WebhookCreated> = {},
+): WebhookCreated {
   return {
     ...makeWebhook(),
     raw_secret: "whsec_supersecretvalue123",
@@ -89,7 +91,9 @@ function makeWebhookCreated(overrides: Partial<WebhookCreated> = {}): WebhookCre
   };
 }
 
-function makeDelivery(overrides: Partial<WebhookDelivery> = {}): WebhookDelivery {
+function makeDelivery(
+  overrides: Partial<WebhookDelivery> = {},
+): WebhookDelivery {
   return {
     id: "del-1",
     webhook_id: "wh-1",
@@ -160,7 +164,9 @@ describe("AdminWebhooksPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/No active webhooks/i)).toBeInTheDocument(),
     );
-    expect(screen.getAllByRole("button", { name: /Add webhook/i }).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole("button", { name: /Add webhook/i }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders webhook card when list has items", async () => {
@@ -172,7 +178,9 @@ describe("AdminWebhooksPage", () => {
     await waitFor(() =>
       expect(screen.getByText("Doc Events")).toBeInTheDocument(),
     );
-    expect(screen.getByText(/https:\/\/example\.com\/hook/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/https:\/\/example\.com\/hook/i),
+    ).toBeInTheDocument();
     expect(screen.getByText("document.indexed")).toBeInTheDocument();
   });
 
@@ -201,7 +209,9 @@ describe("AdminWebhooksPage", () => {
     const user = userEvent.setup();
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /\+ Add webhook/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /\+ Add webhook/i }),
+      ).toBeInTheDocument(),
     );
     await user.click(screen.getByRole("button", { name: /\+ Add webhook/i }));
     expect(screen.getByText("Create Webhook")).toBeInTheDocument();
@@ -215,11 +225,16 @@ describe("AdminWebhooksPage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /\+ Add webhook/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /\+ Add webhook/i }),
+      ).toBeInTheDocument(),
     );
     await user.click(screen.getByRole("button", { name: /\+ Add webhook/i }));
 
-    await user.type(screen.getByPlaceholderText(/e\.g\. Document events/i), "My hook");
+    await user.type(
+      screen.getByPlaceholderText(/e\.g\. Document events/i),
+      "My hook",
+    );
     await user.type(
       screen.getByPlaceholderText(/https:\/\/your-server/i),
       "https://recv.example.com/hook",
@@ -232,7 +247,9 @@ describe("AdminWebhooksPage", () => {
       ),
     );
     await waitFor(() =>
-      expect(screen.getByText(/Signing secret — copy it now/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Signing secret — copy it now/i),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByText(created.raw_secret)).toBeInTheDocument();
   });
@@ -243,7 +260,9 @@ describe("AdminWebhooksPage", () => {
     renderPage();
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /\+ Add webhook/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /\+ Add webhook/i }),
+      ).toBeInTheDocument(),
     );
     await user.click(screen.getByRole("button", { name: /\+ Add webhook/i }));
     expect(screen.getByText("Create Webhook")).toBeInTheDocument();
@@ -252,22 +271,32 @@ describe("AdminWebhooksPage", () => {
   });
 
   it("opens delete confirmation dialog", async () => {
-    mockApi.listWebhooks.mockResolvedValue({ items: [makeWebhook()], total: 1 });
+    mockApi.listWebhooks.mockResolvedValue({
+      items: [makeWebhook()],
+      total: 1,
+    });
     const user = userEvent.setup();
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Doc Events")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Doc Events")).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: /Delete/i }));
     expect(screen.getByText(/Delete "Doc Events"/i)).toBeInTheDocument();
   });
 
   it("calls deleteWebhook on confirmation", async () => {
-    mockApi.listWebhooks.mockResolvedValue({ items: [makeWebhook()], total: 1 });
+    mockApi.listWebhooks.mockResolvedValue({
+      items: [makeWebhook()],
+      total: 1,
+    });
     mockApi.deleteWebhook.mockResolvedValue(undefined);
     const user = userEvent.setup();
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Doc Events")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Doc Events")).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: /^Delete$/i }));
     await user.click(screen.getByRole("button", { name: /Delete webhook/i }));
 
@@ -277,13 +306,20 @@ describe("AdminWebhooksPage", () => {
   });
 
   it("calls rotateWebhookSecret and shows new secret banner", async () => {
-    const rotated = makeWebhookCreated({ raw_secret: "whsec_newrotatedsecret" });
-    mockApi.listWebhooks.mockResolvedValue({ items: [makeWebhook()], total: 1 });
+    const rotated = makeWebhookCreated({
+      raw_secret: "whsec_newrotatedsecret",
+    });
+    mockApi.listWebhooks.mockResolvedValue({
+      items: [makeWebhook()],
+      total: 1,
+    });
     mockApi.rotateWebhookSecret.mockResolvedValue(rotated);
     const user = userEvent.setup();
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Doc Events")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Doc Events")).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: /Rotate secret/i }));
 
     await waitFor(() =>
@@ -297,12 +333,17 @@ describe("AdminWebhooksPage", () => {
       items: [makeDelivery()],
       total: 1,
     };
-    mockApi.listWebhooks.mockResolvedValue({ items: [makeWebhook()], total: 1 });
+    mockApi.listWebhooks.mockResolvedValue({
+      items: [makeWebhook()],
+      total: 1,
+    });
     mockApi.testWebhook.mockResolvedValue(deliveryResult);
     const user = userEvent.setup();
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Doc Events")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Doc Events")).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: /Send test/i }));
 
     await waitFor(() =>
@@ -315,15 +356,23 @@ describe("AdminWebhooksPage", () => {
 
   it("shows delivery log drawer with deliveries", async () => {
     const deliveries: WebhookDeliveryListResponse = {
-      items: [makeDelivery(), makeDelivery({ id: "del-2", status: "failed", http_status_code: 500 })],
+      items: [
+        makeDelivery(),
+        makeDelivery({ id: "del-2", status: "failed", http_status_code: 500 }),
+      ],
       total: 2,
     };
-    mockApi.listWebhooks.mockResolvedValue({ items: [makeWebhook()], total: 1 });
+    mockApi.listWebhooks.mockResolvedValue({
+      items: [makeWebhook()],
+      total: 1,
+    });
     mockApi.listWebhookDeliveries.mockResolvedValue(deliveries);
     const user = userEvent.setup();
     renderPage();
 
-    await waitFor(() => expect(screen.getByText("Doc Events")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("Doc Events")).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: /Delivery log/i }));
 
     await waitFor(() =>
@@ -337,7 +386,9 @@ describe("AdminWebhooksPage", () => {
 
   it("renders disabled webhooks in separate section", async () => {
     mockApi.listWebhooks.mockResolvedValue({
-      items: [makeWebhook({ id: "wh-2", name: "Paused hook", status: "disabled" })],
+      items: [
+        makeWebhook({ id: "wh-2", name: "Paused hook", status: "disabled" }),
+      ],
       total: 1,
     });
     renderPage();

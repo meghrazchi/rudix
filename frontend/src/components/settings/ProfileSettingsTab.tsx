@@ -39,10 +39,7 @@ import {
   TIMEZONE_OPTIONS,
   type ProfileUiPreferences,
 } from "@/lib/schemas/settings";
-import {
-  isValidLocale,
-  LOCALE_COOKIE_NAME,
-} from "@/i18n/routing";
+import { isValidLocale, LOCALE_COOKIE_NAME } from "@/i18n/routing";
 
 function getInitials(email: string | null): string {
   if (!email) return "?";
@@ -560,7 +557,9 @@ export function ProfileSettingsTab() {
                 </div>
 
                 <fieldset className="space-y-4">
-                  <legend className="sr-only">{t("notificationPreferences")}</legend>
+                  <legend className="sr-only">
+                    {t("notificationPreferences")}
+                  </legend>
 
                   <label className="group flex cursor-pointer items-start gap-4">
                     <input
@@ -652,7 +651,9 @@ export function ProfileSettingsTab() {
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-4 rounded-xl border border-[#eae6f4] px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-[#1b1b24]">{tAuth("signOut")}</p>
+              <p className="text-sm font-semibold text-[#1b1b24]">
+                {tAuth("signOut")}
+              </p>
               <p className="text-xs text-[#464555]">
                 {t("signOutDescription")}
               </p>

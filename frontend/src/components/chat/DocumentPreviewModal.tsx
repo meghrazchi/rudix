@@ -262,7 +262,7 @@ export function DocumentPreviewModal({
             onClick={onClose}
             data-overlay-autofocus="true"
             aria-label="Close preview"
-            className="cursor-pointer ml-2 shrink-0 rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
+            className="ml-2 shrink-0 cursor-pointer rounded-full p-1.5 text-[#464555] transition-colors hover:bg-[#f0ecf9]"
           >
             <span
               className="material-symbols-outlined text-[20px]"
@@ -509,7 +509,7 @@ export function DocumentPreviewModal({
             type="button"
             disabled={!canDownload}
             onClick={() => downloadMutation.mutate()}
-            className="cursor-pointer inline-flex items-center gap-1.5 rounded border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded border border-[#cbc5e6] px-3 py-2 text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span
               className="material-symbols-outlined text-[16px]"

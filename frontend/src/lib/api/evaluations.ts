@@ -528,7 +528,9 @@ export type ModelProfileComparisonReport = {
 };
 
 export async function listBenchmarkSuites(): Promise<BenchmarkSuiteListResponse> {
-  return apiRequest<BenchmarkSuiteListResponse>("/evaluations/benchmark-suites");
+  return apiRequest<BenchmarkSuiteListResponse>(
+    "/evaluations/benchmark-suites",
+  );
 }
 
 export async function triggerBenchmarkRun(
@@ -544,7 +546,12 @@ export async function triggerBenchmarkRun(
 export async function getModelProfileComparisonReport(
   evaluationSetId?: string | null,
 ): Promise<ModelProfileComparisonReport> {
-  return apiRequest<ModelProfileComparisonReport>("/evaluations/model-profile-report", {
-    query: evaluationSetId ? { evaluation_set_id: evaluationSetId } : undefined,
-  });
+  return apiRequest<ModelProfileComparisonReport>(
+    "/evaluations/model-profile-report",
+    {
+      query: evaluationSetId
+        ? { evaluation_set_id: evaluationSetId }
+        : undefined,
+    },
+  );
 }

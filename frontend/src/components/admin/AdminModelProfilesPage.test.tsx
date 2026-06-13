@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminModelProfilesPage } from "@/components/admin/AdminModelProfilesPage";
 import type { SessionState } from "@/lib/auth-session";
-import type { EffectiveModelPolicyResponse, ModelProfileListResponse } from "@/lib/api/model-profiles";
+import type {
+  EffectiveModelPolicyResponse,
+  ModelProfileListResponse,
+} from "@/lib/api/model-profiles";
 
 const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
@@ -31,8 +34,10 @@ vi.mock("@/lib/api/model-profiles", () => ({
   getEffectiveModelPolicy: () => mockApi.getEffectiveModelPolicy(),
   upsertModelProfile: (taskType: unknown, payload: unknown) =>
     mockApi.upsertModelProfile(taskType, payload),
-  deleteModelProfile: (taskType: unknown) => mockApi.deleteModelProfile(taskType),
-  validateModelProfile: (payload: unknown) => mockApi.validateModelProfile(payload),
+  deleteModelProfile: (taskType: unknown) =>
+    mockApi.deleteModelProfile(taskType),
+  validateModelProfile: (payload: unknown) =>
+    mockApi.validateModelProfile(payload),
 }));
 
 const ADMIN_SESSION: SessionState = {
@@ -50,12 +55,78 @@ const EMPTY_LIST: ModelProfileListResponse = { items: [], total: 0 };
 const EFFECTIVE_ALL_DEFAULTS: EffectiveModelPolicyResponse = {
   organization_id: "org-1",
   profiles: [
-    { task_type: "chat", provider_type: "openai", base_model: "gpt-4o", max_tokens: null, temperature: null, json_mode: false, streaming: true, fallback_provider_key: null, source: "env_default", version: 0 },
-    { task_type: "summarization", provider_type: "openai", base_model: "gpt-4o", max_tokens: null, temperature: null, json_mode: false, streaming: true, fallback_provider_key: null, source: "env_default", version: 0 },
-    { task_type: "comparison", provider_type: "openai", base_model: "gpt-4o", max_tokens: null, temperature: null, json_mode: true, streaming: true, fallback_provider_key: null, source: "env_default", version: 0 },
-    { task_type: "embeddings", provider_type: "openai", base_model: "text-embedding-3-small", max_tokens: null, temperature: null, json_mode: false, streaming: false, fallback_provider_key: null, source: "env_default", version: 0 },
-    { task_type: "evaluations", provider_type: "openai", base_model: "gpt-4o", max_tokens: null, temperature: null, json_mode: true, streaming: false, fallback_provider_key: null, source: "env_default", version: 0 },
-    { task_type: "agentic", provider_type: "openai", base_model: "gpt-4o", max_tokens: null, temperature: null, json_mode: false, streaming: true, fallback_provider_key: null, source: "env_default", version: 0 },
+    {
+      task_type: "chat",
+      provider_type: "openai",
+      base_model: "gpt-4o",
+      max_tokens: null,
+      temperature: null,
+      json_mode: false,
+      streaming: true,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
+    {
+      task_type: "summarization",
+      provider_type: "openai",
+      base_model: "gpt-4o",
+      max_tokens: null,
+      temperature: null,
+      json_mode: false,
+      streaming: true,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
+    {
+      task_type: "comparison",
+      provider_type: "openai",
+      base_model: "gpt-4o",
+      max_tokens: null,
+      temperature: null,
+      json_mode: true,
+      streaming: true,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
+    {
+      task_type: "embeddings",
+      provider_type: "openai",
+      base_model: "text-embedding-3-small",
+      max_tokens: null,
+      temperature: null,
+      json_mode: false,
+      streaming: false,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
+    {
+      task_type: "evaluations",
+      provider_type: "openai",
+      base_model: "gpt-4o",
+      max_tokens: null,
+      temperature: null,
+      json_mode: true,
+      streaming: false,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
+    {
+      task_type: "agentic",
+      provider_type: "openai",
+      base_model: "gpt-4o",
+      max_tokens: null,
+      temperature: null,
+      json_mode: false,
+      streaming: true,
+      fallback_provider_key: null,
+      source: "env_default",
+      version: 0,
+    },
   ],
   feature_local_llm_enabled: false,
   feature_local_embeddings_enabled: false,
@@ -95,7 +166,12 @@ describe("AdminModelProfilesPage", () => {
   it("shows forbidden state for viewer role", () => {
     mockState.authState = {
       status: "authenticated",
-      session: { userId: "u2", organizationId: "org-1", role: "viewer", email: "v@test.com" },
+      session: {
+        userId: "u2",
+        organizationId: "org-1",
+        role: "viewer",
+        email: "v@test.com",
+      },
     };
     renderPage();
     expect(screen.getByText(/restricted/i)).toBeTruthy();
@@ -169,7 +245,9 @@ describe("AdminModelProfilesPage", () => {
   });
 
   it("shows error state when effective policy fails", async () => {
-    mockApi.getEffectiveModelPolicy.mockRejectedValue(new Error("network error"));
+    mockApi.getEffectiveModelPolicy.mockRejectedValue(
+      new Error("network error"),
+    );
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/unable to load model profiles/i)).toBeTruthy();
@@ -242,7 +320,13 @@ describe("AdminModelProfilesPage", () => {
   it("shows validation issues without calling upsert when validation fails", async () => {
     mockApi.validateModelProfile.mockResolvedValue({
       valid: false,
-      issues: [{ field: "json_mode", code: "json_mode_required", message: "JSON mode required." }],
+      issues: [
+        {
+          field: "json_mode",
+          code: "json_mode_required",
+          message: "JSON mode required.",
+        },
+      ],
     });
     renderPage();
     await waitFor(() => screen.getByText("Evaluations"));

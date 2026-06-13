@@ -70,7 +70,7 @@ function CreatedSecretBanner({
           webhook signatures on your receiver.
         </p>
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-3 py-2">
-          <code className="flex-1 break-all font-mono text-sm text-[#2a2640]">
+          <code className="flex-1 font-mono text-sm break-all text-[#2a2640]">
             {result.raw_secret}
           </code>
           <CopyButton value={result.raw_secret} />
@@ -130,7 +130,10 @@ function WebhookFormPanel({
         description: description.trim() || null,
         url: url.trim(),
         event_types: Array.from(selectedEvents),
-        retry_policy: { max_attempts: maxAttempts, backoff_seconds: backoffSeconds },
+        retry_policy: {
+          max_attempts: maxAttempts,
+          backoff_seconds: backoffSeconds,
+        },
       }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: QUERY_WEBHOOKS });
@@ -147,7 +150,10 @@ function WebhookFormPanel({
         url: url.trim(),
         event_types: Array.from(selectedEvents),
         status,
-        retry_policy: { max_attempts: maxAttempts, backoff_seconds: backoffSeconds },
+        retry_policy: {
+          max_attempts: maxAttempts,
+          backoff_seconds: backoffSeconds,
+        },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_WEBHOOKS });
@@ -245,7 +251,10 @@ function WebhookFormPanel({
             </p>
             <div className="space-y-2 rounded-lg bg-[#f9f8ff] p-3">
               {WEBHOOK_EVENT_TYPES.map((type) => (
-                <label key={type} className="flex cursor-pointer items-center gap-2">
+                <label
+                  key={type}
+                  className="flex cursor-pointer items-center gap-2"
+                >
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-[#3525cd]"
@@ -282,7 +291,7 @@ function WebhookFormPanel({
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-[#2a2640]">
               Retry policy
             </summary>
-            <div className="space-y-3 px-3 pb-3 pt-1">
+            <div className="space-y-3 px-3 pt-1 pb-3">
               <div>
                 <label className="mb-1 block text-xs text-[#68647b]">
                   Max attempts (1–10)
@@ -345,7 +354,11 @@ function WebhookFormPanel({
   );
 }
 
-function DeliveryStatusBadge({ status }: { status: WebhookDelivery["status"] }) {
+function DeliveryStatusBadge({
+  status,
+}: {
+  status: WebhookDelivery["status"];
+}) {
   if (status === "delivered") {
     return (
       <span className="rounded-full bg-[#e8f5e9] px-2 py-0.5 text-xs font-medium text-[#2e7d32]">
@@ -460,7 +473,10 @@ function DeliveryLogDrawer({
               <p className="mt-1 text-xs text-[#68647b]">
                 Attempts: {d.attempt_count}
                 {d.next_retry_at && (
-                  <> · Next retry: {new Date(d.next_retry_at).toLocaleString()}</>
+                  <>
+                    {" "}
+                    · Next retry: {new Date(d.next_retry_at).toLocaleString()}
+                  </>
                 )}
               </p>
             </div>
@@ -513,7 +529,9 @@ function WebhookCard({
             )}
           </div>
           {webhook.description && (
-            <p className="mt-0.5 text-sm text-[#68647b]">{webhook.description}</p>
+            <p className="mt-0.5 text-sm text-[#68647b]">
+              {webhook.description}
+            </p>
           )}
         </div>
       </div>
@@ -524,7 +542,9 @@ function WebhookCard({
         </span>
         <span>
           Secret prefix:{" "}
-          <code className="font-mono text-[#2a2640]">{webhook.secret_prefix}…</code>
+          <code className="font-mono text-[#2a2640]">
+            {webhook.secret_prefix}…
+          </code>
         </span>
         <span>
           Retries: {webhook.retry_policy.max_attempts} ×{" "}

@@ -157,7 +157,8 @@ export function AdminGovernancePage() {
       return updateGovernancePolicy({
         ...policy,
         side_effect_warning_acknowledged: sideEffectAck,
-        provider_security: policy.provider_security ?? DEFAULT_PROVIDER_SECURITY,
+        provider_security:
+          policy.provider_security ?? DEFAULT_PROVIDER_SECURITY,
         cloud_fallback_warning_acknowledged: cloudFallbackAck,
       });
     },

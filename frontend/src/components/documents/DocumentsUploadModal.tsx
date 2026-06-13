@@ -412,9 +412,7 @@ export function DocumentsUploadModal({
                 {isUploading ? t("uploadsRunning") : t("supportedTypes")}
               </p>
               {!canUpload ? (
-                <p className="mt-2 text-xs text-[#6e6a86]">
-                  {t("readOnly")}
-                </p>
+                <p className="mt-2 text-xs text-[#6e6a86]">{t("readOnly")}</p>
               ) : null}
             </div>
 
@@ -590,7 +588,10 @@ export function DocumentsUploadModal({
                 </h4>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-semibold text-[#4d4870]">
-                    {t("queueProgress", { done: progress.completed, total: progress.total })}
+                    {t("queueProgress", {
+                      done: progress.completed,
+                      total: progress.total,
+                    })}
                   </span>
                   {activeUploads > 0 && canUpload && (
                     <button

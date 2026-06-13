@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AdminFeatureFlagsPage } from "@/components/admin/AdminFeatureFlagsPage";
 import { ApiClientError } from "@/lib/api/errors";
 import type { SessionState } from "@/lib/auth-session";
-import type { FeatureFlagDetail, FeatureFlagsResponse } from "@/lib/api/feature-flags";
+import type {
+  FeatureFlagDetail,
+  FeatureFlagsResponse,
+} from "@/lib/api/feature-flags";
 
 const mockState = vi.hoisted(() => ({
   authState: { status: "unauthenticated", session: null } as SessionState,
@@ -27,7 +30,8 @@ vi.mock("@/lib/use-auth-session", () => ({
 }));
 
 vi.mock("@/lib/api/feature-flags", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/api/feature-flags")>();
+  const original =
+    await importOriginal<typeof import("@/lib/api/feature-flags")>();
   return {
     ...original,
     listAdminFeatureFlags: () => mockApi.listAdminFeatureFlags(),
@@ -187,11 +191,15 @@ describe("AdminFeatureFlagsPage", () => {
     );
 
     // connectors is enabled → should have "Disable" button
-    const disableButtons = screen.getAllByRole("button", { name: /^Disable$/i });
+    const disableButtons = screen.getAllByRole("button", {
+      name: /^Disable$/i,
+    });
     await user.click(disableButtons[0]);
 
     expect(screen.getByText(/Disable "Connectors"/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Confirm/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Confirm/i }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cancel/i })).toBeInTheDocument();
   });
 
@@ -208,10 +216,14 @@ describe("AdminFeatureFlagsPage", () => {
       expect(screen.getByText("Connectors")).toBeInTheDocument(),
     );
 
-    const disableButtons = screen.getAllByRole("button", { name: /^Disable$/i });
+    const disableButtons = screen.getAllByRole("button", {
+      name: /^Disable$/i,
+    });
     await user.click(disableButtons[0]);
 
-    const reasonInput = screen.getByPlaceholderText(/Why is this change needed/i);
+    const reasonInput = screen.getByPlaceholderText(
+      /Why is this change needed/i,
+    );
     await user.type(reasonInput, "Maintenance window");
 
     await user.click(screen.getByRole("button", { name: /Confirm/i }));
@@ -233,7 +245,9 @@ describe("AdminFeatureFlagsPage", () => {
       expect(screen.getByText("Connectors")).toBeInTheDocument(),
     );
 
-    const disableButtons = screen.getAllByRole("button", { name: /^Disable$/i });
+    const disableButtons = screen.getAllByRole("button", {
+      name: /^Disable$/i,
+    });
     await user.click(disableButtons[0]);
     await user.click(screen.getByRole("button", { name: /Cancel/i }));
 
@@ -255,9 +269,7 @@ describe("AdminFeatureFlagsPage", () => {
       expect(screen.getByText("Evaluations")).toBeInTheDocument(),
     );
 
-    await user.click(
-      screen.getByRole("button", { name: /Reset to default/i }),
-    );
+    await user.click(screen.getByRole("button", { name: /Reset to default/i }));
 
     await waitFor(() =>
       expect(mockApi.clearAdminFeatureFlag).toHaveBeenCalledWith("evaluations"),
@@ -275,7 +287,9 @@ describe("AdminFeatureFlagsPage", () => {
       expect(screen.getByText("Connectors")).toBeInTheDocument(),
     );
 
-    const disableButtons = screen.getAllByRole("button", { name: /^Disable$/i });
+    const disableButtons = screen.getAllByRole("button", {
+      name: /^Disable$/i,
+    });
     await user.click(disableButtons[0]);
     await user.click(screen.getByRole("button", { name: /Confirm/i }));
 

@@ -193,7 +193,8 @@ export const queryKeys = {
     all: ["model-profiles"] as const,
     list: ["model-profiles", "list"] as const,
     effective: ["model-profiles", "effective"] as const,
-    detail: (taskType: string) => ["model-profiles", "detail", taskType] as const,
+    detail: (taskType: string) =>
+      ["model-profiles", "detail", taskType] as const,
   },
   modelProviderDiagnostics: {
     all: ["model-provider-diagnostics"] as const,

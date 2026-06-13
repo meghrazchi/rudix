@@ -1,34 +1,27 @@
 import type { SupportedLocale } from "@/i18n/routing";
 
-const LOCALE_DATE_OPTIONS: Record<
-  SupportedLocale,
-  Intl.DateTimeFormatOptions
-> = {
-  en: { month: "short", day: "numeric", year: "numeric" },
-  de: { day: "numeric", month: "long", year: "numeric" },
-  es: { day: "numeric", month: "long", year: "numeric" },
-  fr: { day: "numeric", month: "long", year: "numeric" },
-};
+const LOCALE_DATE_OPTIONS: Record<SupportedLocale, Intl.DateTimeFormatOptions> =
+  {
+    en: { month: "short", day: "numeric", year: "numeric" },
+    de: { day: "numeric", month: "long", year: "numeric" },
+    es: { day: "numeric", month: "long", year: "numeric" },
+    fr: { day: "numeric", month: "long", year: "numeric" },
+  };
 
-const LOCALE_TIME_OPTIONS: Record<
-  SupportedLocale,
-  Intl.DateTimeFormatOptions
-> = {
-  en: { hour: "numeric", minute: "2-digit", hour12: true },
-  de: { hour: "2-digit", minute: "2-digit", hour12: false },
-  es: { hour: "2-digit", minute: "2-digit", hour12: false },
-  fr: { hour: "2-digit", minute: "2-digit", hour12: false },
-};
+const LOCALE_TIME_OPTIONS: Record<SupportedLocale, Intl.DateTimeFormatOptions> =
+  {
+    en: { hour: "numeric", minute: "2-digit", hour12: true },
+    de: { hour: "2-digit", minute: "2-digit", hour12: false },
+    es: { hour: "2-digit", minute: "2-digit", hour12: false },
+    fr: { hour: "2-digit", minute: "2-digit", hour12: false },
+  };
 
 export function formatDate(
   date: Date | string | number,
   locale: SupportedLocale,
 ): string {
   const d = typeof date === "object" ? date : new Date(date);
-  return new Intl.DateTimeFormat(
-    locale,
-    LOCALE_DATE_OPTIONS[locale],
-  ).format(d);
+  return new Intl.DateTimeFormat(locale, LOCALE_DATE_OPTIONS[locale]).format(d);
 }
 
 export function formatDateTime(
@@ -91,10 +84,7 @@ const FILE_SIZE_UNITS: Array<[string, number]> = [
   ["KB", 1024],
 ];
 
-export function formatFileSize(
-  bytes: number,
-  locale: SupportedLocale,
-): string {
+export function formatFileSize(bytes: number, locale: SupportedLocale): string {
   for (const [unit, threshold] of FILE_SIZE_UNITS) {
     if (bytes >= threshold) {
       return `${formatNumber(bytes / threshold, locale, { maximumFractionDigits: 1 })} ${unit}`;

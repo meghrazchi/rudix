@@ -106,7 +106,8 @@ export async function listIncidents(
   if (query?.severity) params.set("severity", query.severity);
   if (query?.active_only) params.set("active_only", "true");
   if (query?.page != null) params.set("page", String(query.page));
-  if (query?.page_size != null) params.set("page_size", String(query.page_size));
+  if (query?.page_size != null)
+    params.set("page_size", String(query.page_size));
   const qs = params.toString();
   return apiRequest<IncidentsListResponse>(
     `/admin/incidents${qs ? `?${qs}` : ""}`,

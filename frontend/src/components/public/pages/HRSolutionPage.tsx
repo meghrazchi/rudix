@@ -325,7 +325,9 @@ function HRFlowSection() {
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#c3c0ff] uppercase">
               {t("flow.step02")}
             </p>
-            <h3 className="mt-3 text-base font-semibold">{t("flow.indexTitle")}</h3>
+            <h3 className="mt-3 text-base font-semibold">
+              {t("flow.indexTitle")}
+            </h3>
             <p className="mt-2 grow text-sm leading-6 text-[#c7cede]">
               {t("flow.indexDesc")}
             </p>
@@ -384,7 +386,9 @@ function HRFlowSection() {
             <p className="text-[11px] font-bold tracking-[0.12em] text-[#c3c0ff] uppercase">
               {t("flow.step04")}
             </p>
-            <h3 className="mt-3 text-base font-semibold">{t("flow.answerTitle")}</h3>
+            <h3 className="mt-3 text-base font-semibold">
+              {t("flow.answerTitle")}
+            </h3>
             <p className="mt-2 grow text-sm leading-6 text-[#d8dcff]">
               {t("flow.answerDesc")}
             </p>
@@ -701,31 +705,34 @@ function HRBreadcrumb() {
   return (
     <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
       <nav
-      aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-8"
-    >
-      <ol className="flex items-center gap-2 text-xs text-[#61677a]">
-        <li>
-          <PublicActionLink href="/" className="hover:text-[#2a2f40]">
-            {t("home")}
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#9ca3b8]">
-          /
-        </li>
-        <li>
-          <PublicActionLink href="/solutions" className="hover:text-[#2a2f40]">
-            {t("breadcrumb.solutions")}
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#9ca3b8]">
-          /
-        </li>
-        <li aria-current="page" className="font-semibold text-[#252a3b]">
-          {t("hr.breadcrumb")}
-        </li>
-      </ol>
-    </nav>
+        aria-label="Breadcrumb"
+        className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-8"
+      >
+        <ol className="flex items-center gap-2 text-xs text-[#61677a]">
+          <li>
+            <PublicActionLink href="/" className="hover:text-[#2a2f40]">
+              {t("home")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#9ca3b8]">
+            /
+          </li>
+          <li>
+            <PublicActionLink
+              href="/solutions"
+              className="hover:text-[#2a2f40]"
+            >
+              {t("breadcrumb.solutions")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#9ca3b8]">
+            /
+          </li>
+          <li aria-current="page" className="font-semibold text-[#252a3b]">
+            {t("hr.breadcrumb")}
+          </li>
+        </ol>
+      </nav>
     </div>
   );
 }

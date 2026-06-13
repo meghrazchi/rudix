@@ -99,9 +99,7 @@ export function DocumentChunkingDiagnosticsPanel({
           <h4 className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             {t("title")}
           </h4>
-          <p className="mt-1 text-sm text-[#4d4963]">
-            {t("description")}
-          </p>
+          <p className="mt-1 text-sm text-[#4d4963]">{t("description")}</p>
         </div>
         {chunkingIssueCount > 0 ? (
           <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold tracking-wide text-amber-800 uppercase">
@@ -126,7 +124,11 @@ export function DocumentChunkingDiagnosticsPanel({
             />
             <Metric
               label={t("ocrApplied")}
-              value={booleanLabel(diagnostics.ocr_applied, t("boolYes"), t("boolNo"))}
+              value={booleanLabel(
+                diagnostics.ocr_applied,
+                t("boolYes"),
+                t("boolNo"),
+              )}
             />
             <Metric label={t("language")} value={detail.language ?? "-"} />
             <Metric
@@ -201,7 +203,11 @@ export function DocumentChunkingDiagnosticsPanel({
                 />
                 <Metric
                   label={t("ocr")}
-                  value={booleanLabel(diagnostics.adaptive_signals.ocr_applied, t("boolYes"), t("boolNo"))}
+                  value={booleanLabel(
+                    diagnostics.adaptive_signals.ocr_applied,
+                    t("boolYes"),
+                    t("boolNo"),
+                  )}
                   compact
                 />
               </div>
@@ -217,9 +223,7 @@ export function DocumentChunkingDiagnosticsPanel({
               <p className="text-sm font-semibold text-[#1b1b24]">
                 {t("reindexTitle")}
               </p>
-              <p className="text-xs text-[#5f5a74]">
-                {t("reindexDesc")}
-              </p>
+              <p className="text-xs text-[#5f5a74]">{t("reindexDesc")}</p>
             </div>
           </div>
 
@@ -265,7 +269,9 @@ export function DocumentChunkingDiagnosticsPanel({
                   {(profilesQuery.data?.profiles ?? []).map((profile) => (
                     <option key={profile.profile_id} value={profile.profile_id}>
                       {profile.name}
-                      {profile.is_default ? ` ${t("profileDefaultSuffix")}` : ""}
+                      {profile.is_default
+                        ? ` ${t("profileDefaultSuffix")}`
+                        : ""}
                     </option>
                   ))}
                 </select>
@@ -273,7 +279,10 @@ export function DocumentChunkingDiagnosticsPanel({
 
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#ece9f8] bg-[#faf9ff] px-3 py-3">
                 <p className="text-sm text-[#4d4963]">
-                  {t("queueingWith", { id: documentId, profile: selectedProfileLabel })}
+                  {t("queueingWith", {
+                    id: documentId,
+                    profile: selectedProfileLabel,
+                  })}
                 </p>
                 <button
                   type="button"

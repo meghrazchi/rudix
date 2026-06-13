@@ -376,14 +376,18 @@ function extractModelProfile(
   return mp as ModelProfileMeta;
 }
 
-function ModelProfileCard({ summary }: { summary: Record<string, unknown> | null | undefined }) {
+function ModelProfileCard({
+  summary,
+}: {
+  summary: Record<string, unknown> | null | undefined;
+}) {
   const mp = extractModelProfile(summary);
   if (!mp) return null;
 
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
       <h3 className="text-sm font-semibold text-[#2f2a48]">Model profile</h3>
-      <dl className="mt-2 grid gap-2 sm:grid-cols-3 text-sm">
+      <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
             Provider
@@ -420,11 +424,7 @@ const PROVIDER_PROFILE_LABEL: Record<string, string> = {
   fallback_profile: "Fallback Profile",
 };
 
-function ProviderProfileCard({
-  run,
-}: {
-  run: EvaluationRunDetailResponse;
-}) {
+function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
   const providerType = run.provider_type;
   const providerProfile = run.provider_profile;
   const modelProfileKey = run.model_profile_key;
@@ -435,7 +435,9 @@ function ProviderProfileCard({
       ? summary["invalid_json_rate"]
       : null;
   const timeoutRate =
-    typeof summary["timeout_rate"] === "number" ? summary["timeout_rate"] : null;
+    typeof summary["timeout_rate"] === "number"
+      ? summary["timeout_rate"]
+      : null;
   const fallbackFrequency =
     typeof summary["fallback_frequency"] === "number"
       ? summary["fallback_frequency"]
@@ -455,8 +457,10 @@ function ProviderProfileCard({
 
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
-      <h3 className="text-sm font-semibold text-[#2f2a48]">Provider &amp; profile</h3>
-      <dl className="mt-2 grid gap-2 sm:grid-cols-3 text-sm">
+      <h3 className="text-sm font-semibold text-[#2f2a48]">
+        Provider &amp; profile
+      </h3>
+      <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
         {providerType && (
           <div>
             <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
@@ -491,10 +495,10 @@ function ProviderProfileCard({
       </dl>
       {hasLocalMetrics && (
         <div className="mt-3 border-t border-[#ddd8ec] pt-2">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-[#6b6682]">
+          <p className="mb-1.5 text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
             Local model metrics
           </p>
-          <dl className="grid gap-2 sm:grid-cols-3 text-sm">
+          <dl className="grid gap-2 text-sm sm:grid-cols-3">
             {invalidJsonRate != null && (
               <div>
                 <dt className="text-xs text-[#6b6682]">Invalid JSON rate</dt>
@@ -524,7 +528,9 @@ function ProviderProfileCard({
                 <dt className="text-xs text-[#6b6682]">Fallback frequency</dt>
                 <dd
                   className={`font-medium tabular-nums ${
-                    fallbackFrequency > 0.15 ? "text-amber-700" : "text-[#312b4c]"
+                    fallbackFrequency > 0.15
+                      ? "text-amber-700"
+                      : "text-[#312b4c]"
                   }`}
                 >
                   {(fallbackFrequency * 100).toFixed(1)}%

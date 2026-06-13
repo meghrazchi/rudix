@@ -38,13 +38,62 @@ type CatalogEntry = {
 };
 
 const CATALOG: Omit<CatalogEntry, "description">[] = [
-  { key: "confluence",       name: "Confluence",           brandColor: "#0052CC", initial: "C",  connected: false, available: true  },
-  { key: "google_drive",     name: "Google Drive",         brandColor: "#4285F4", initial: "G",  connected: false, available: true  },
-  { key: "microsoft-sharepoint-onedrive", name: "SharePoint / OneDrive", brandColor: "#0078D4", initial: "M", connected: false, available: true  },
-  { key: "notion",           name: "Notion",               brandColor: "#000000", initial: "N",  connected: false, available: true  },
-  { key: "slack",            name: "Slack",                brandColor: "#4A154B", initial: "S",  connected: false, available: false },
-  { key: "github",           name: "GitHub",               brandColor: "#24292E", initial: "G",  connected: false, available: false },
-  { key: "gitlab",           name: "GitLab",               brandColor: "#FC6D26", initial: "GL", connected: false, available: false },
+  {
+    key: "confluence",
+    name: "Confluence",
+    brandColor: "#0052CC",
+    initial: "C",
+    connected: false,
+    available: true,
+  },
+  {
+    key: "google_drive",
+    name: "Google Drive",
+    brandColor: "#4285F4",
+    initial: "G",
+    connected: false,
+    available: true,
+  },
+  {
+    key: "microsoft-sharepoint-onedrive",
+    name: "SharePoint / OneDrive",
+    brandColor: "#0078D4",
+    initial: "M",
+    connected: false,
+    available: true,
+  },
+  {
+    key: "notion",
+    name: "Notion",
+    brandColor: "#000000",
+    initial: "N",
+    connected: false,
+    available: true,
+  },
+  {
+    key: "slack",
+    name: "Slack",
+    brandColor: "#4A154B",
+    initial: "S",
+    connected: false,
+    available: false,
+  },
+  {
+    key: "github",
+    name: "GitHub",
+    brandColor: "#24292E",
+    initial: "G",
+    connected: false,
+    available: false,
+  },
+  {
+    key: "gitlab",
+    name: "GitLab",
+    brandColor: "#FC6D26",
+    initial: "GL",
+    connected: false,
+    available: false,
+  },
 ];
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -301,7 +350,8 @@ export function ConnectorsPage() {
   };
 
   const deleteConnectionMutation = useMutation({
-    mutationFn: (connectionId: string) => deleteConnectorConnection(connectionId),
+    mutationFn: (connectionId: string) =>
+      deleteConnectorConnection(connectionId),
     onMutate: async (connectionId) => {
       await queryClient.cancelQueries({
         queryKey: queryKeys.connectorConnections,
@@ -383,9 +433,7 @@ export function ConnectorsPage() {
         <h1 className="mb-1 text-3xl font-semibold tracking-tight text-[#1b1b24]">
           {tNav("connectors")}
         </h1>
-        <p className="text-base text-[#464555]">
-          {t("pageDescription")}
-        </p>
+        <p className="text-base text-[#464555]">{t("pageDescription")}</p>
       </section>
 
       {/* Health bento grid */}
@@ -397,7 +445,11 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#3525cd]"
           label={t("stats.connectedSources")}
           value={connectedCount.toString().padStart(2, "0")}
-          badge={connectedCount > 0 ? t("stats.total", { count: connectedCount }) : t("stats.noneYet")}
+          badge={
+            connectedCount > 0
+              ? t("stats.total", { count: connectedCount })
+              : t("stats.noneYet")
+          }
           badgeColor="text-[#3525cd]"
         />
         <StatCard
@@ -417,7 +469,9 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#ba1a1a]"
           label={t("stats.failedSyncs")}
           value={failedCount.toString().padStart(2, "0")}
-          badge={failedCount > 0 ? t("stats.needsAttention") : t("stats.allClear")}
+          badge={
+            failedCount > 0 ? t("stats.needsAttention") : t("stats.allClear")
+          }
           badgeColor={failedCount > 0 ? "text-[#ba1a1a]" : "text-emerald-700"}
         />
         <StatCard
@@ -427,7 +481,9 @@ export function ConnectorsPage() {
           topBorderColor="border-t-[#505f76]"
           label={t("stats.reauthRequired")}
           value={reauthCount.toString().padStart(2, "0")}
-          badge={reauthCount > 0 ? t("stats.actionRequired") : t("stats.allHealthy")}
+          badge={
+            reauthCount > 0 ? t("stats.actionRequired") : t("stats.allHealthy")
+          }
           badgeColor={reauthCount > 0 ? "text-[#505f76]" : "text-emerald-700"}
         />
       </section>
@@ -527,7 +583,9 @@ export function ConnectorsPage() {
                         <div className="flex items-center justify-end gap-1 opacity-40 transition-opacity group-hover:opacity-100">
                           <button
                             title={t("table.titleViewDetails")}
-                            aria-label={t("table.ariaViewDetails", { name: conn.name })}
+                            aria-label={t("table.ariaViewDetails", {
+                              name: conn.name,
+                            })}
                             className="cursor-pointer rounded-lg p-2 text-[#464555] transition-colors hover:bg-[#e4e1ee]"
                             onClick={() =>
                               router.push(`/connectors/${conn.id}`)
@@ -539,7 +597,9 @@ export function ConnectorsPage() {
                           </button>
                           <button
                             title={t("table.titleViewDetails")}
-                            aria-label={t("table.ariaDelete", { name: conn.name })}
+                            aria-label={t("table.ariaDelete", {
+                              name: conn.name,
+                            })}
                             disabled={deleteConnectionMutation.isPending}
                             onClick={() =>
                               handleDeleteConnection(conn.id, conn.name)

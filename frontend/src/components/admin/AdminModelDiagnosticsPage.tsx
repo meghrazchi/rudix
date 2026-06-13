@@ -53,7 +53,7 @@ function CapabilityBadges({ cap }: { cap: CapabilitySummary }) {
   ];
 
   return (
-    <div className="flex flex-wrap gap-1.5 mt-2">
+    <div className="mt-2 flex flex-wrap gap-1.5">
       {badges.map(({ label, active }) => (
         <span
           key={label}
@@ -67,12 +67,12 @@ function CapabilityBadges({ cap }: { cap: CapabilitySummary }) {
         </span>
       ))}
       {cap.embedding_dimension != null && (
-        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700">
+        <span className="inline-flex items-center rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
           {cap.embedding_dimension}d
         </span>
       )}
       {cap.context_window != null && (
-        <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-700">
+        <span className="inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
           {(cap.context_window / 1000).toFixed(0)}k ctx
         </span>
       )}
@@ -85,13 +85,16 @@ type TestResultPanelProps = {
 };
 
 function TestResultPanel({ result }: TestResultPanelProps) {
-  const statusClass = STATUS_COLORS[result.status] ?? "bg-gray-100 text-gray-700";
+  const statusClass =
+    STATUS_COLORS[result.status] ?? "bg-gray-100 text-gray-700";
   const statusLabel = STATUS_LABELS[result.status] ?? result.status;
 
   return (
     <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
       <div className="flex items-center gap-2">
-        <span className={`rounded px-2 py-0.5 text-xs font-bold ${statusClass}`}>
+        <span
+          className={`rounded px-2 py-0.5 text-xs font-bold ${statusClass}`}
+        >
           {statusLabel}
         </span>
         {result.latency_ms != null && (
@@ -146,14 +149,14 @@ function ProviderCardPanel({
       </div>
 
       <div className="mt-3">
-        <p className="text-xs font-semibold text-[#6a6780] uppercase tracking-wide">
+        <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
           Task assignments
         </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {card.task_assignments.map((task) => (
             <span
               key={task}
-              className="rounded px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700"
+              className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
             >
               {task}
             </span>
@@ -163,7 +166,7 @@ function ProviderCardPanel({
 
       {card.capability != null && (
         <div className="mt-3">
-          <p className="text-xs font-semibold text-[#6a6780] uppercase tracking-wide">
+          <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
             Capabilities
           </p>
           <CapabilityBadges cap={card.capability} />
@@ -324,7 +327,9 @@ export function AdminModelDiagnosticsPage() {
 
       {providers.length === 0 ? (
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-8 text-center shadow-sm">
-          <p className="text-sm text-[#68647b]">No provider configuration found.</p>
+          <p className="text-sm text-[#68647b]">
+            No provider configuration found.
+          </p>
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">

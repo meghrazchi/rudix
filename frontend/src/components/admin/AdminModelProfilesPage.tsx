@@ -105,7 +105,9 @@ function SourceBadge({ source }: { source: ResolvedTaskProfile["source"] }) {
       : "bg-gray-100 text-gray-600";
   const label = source === "org_profile" ? "org override" : "env default";
   return (
-    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${classes}`}>
+    <span
+      className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium ${classes}`}
+    >
       {label}
     </span>
   );
@@ -142,10 +144,13 @@ function ProfileEditor({
   saveError,
 }: ProfileEditorProps) {
   const [draft, setDraft] = useState<DraftProfile | null>(null);
-  const [validationIssues, setValidationIssues] = useState<ProfileValidationIssue[]>([]);
+  const [validationIssues, setValidationIssues] = useState<
+    ProfileValidationIssue[]
+  >([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const activeDraft = draft ?? (existing ? profileToDraft(existing) : EMPTY_DRAFT);
+  const activeDraft =
+    draft ?? (existing ? profileToDraft(existing) : EMPTY_DRAFT);
 
   function update(field: keyof DraftProfile, value: string | boolean) {
     setDraft({ ...activeDraft, [field]: value });
@@ -211,7 +216,9 @@ function ProfileEditor({
           <input
             className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
             value={activeDraft.base_model}
-            placeholder={taskType === "embeddings" ? "text-embedding-3-small" : "gpt-4o"}
+            placeholder={
+              taskType === "embeddings" ? "text-embedding-3-small" : "gpt-4o"
+            }
             onChange={(e) => update("base_model", e.target.value)}
           />
         </div>
@@ -298,9 +305,7 @@ function ProfileEditor({
       {validationIssues.length > 0 && (
         <ValidationIssueList issues={validationIssues} />
       )}
-      {saveError && (
-        <p className="mt-2 text-sm text-red-600">{saveError}</p>
-      )}
+      {saveError && <p className="mt-2 text-sm text-red-600">{saveError}</p>}
 
       <div className="mt-3 flex items-center gap-2">
         <button
@@ -308,7 +313,11 @@ function ProfileEditor({
           onClick={handleSave}
           disabled={isSaving || !activeDraft.base_model.trim()}
         >
-          {isSaving ? "Saving…" : existing ? "Update profile" : "Create profile"}
+          {isSaving
+            ? "Saving…"
+            : existing
+              ? "Update profile"
+              : "Create profile"}
         </button>
         {existing && !showDeleteConfirm && (
           <button
@@ -321,7 +330,9 @@ function ProfileEditor({
         )}
         {showDeleteConfirm && (
           <>
-            <span className="text-sm text-gray-600">Revert to env default?</span>
+            <span className="text-sm text-gray-600">
+              Revert to env default?
+            </span>
             <button
               className="rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
               onClick={() => {
@@ -353,7 +364,9 @@ export function AdminModelProfilesPage() {
 
   const [savingTask, setSavingTask] = useState<TaskType | null>(null);
   const [deletingTask, setDeletingTask] = useState<TaskType | null>(null);
-  const [mutationErrors, setMutationErrors] = useState<Partial<Record<TaskType, string>>>({});
+  const [mutationErrors, setMutationErrors] = useState<
+    Partial<Record<TaskType, string>>
+  >({});
 
   const listQuery = useQuery({
     queryKey: queryKeys.modelProfiles.list,
@@ -387,7 +400,10 @@ export function AdminModelProfilesPage() {
     },
   });
 
-  async function handleSave(taskType: TaskType, payload: UpsertModelProfileRequest) {
+  async function handleSave(
+    taskType: TaskType,
+    payload: UpsertModelProfileRequest,
+  ) {
     setSavingTask(taskType);
     setMutationErrors((prev) => ({ ...prev, [taskType]: undefined }));
     try {
@@ -495,30 +511,40 @@ export function AdminModelProfilesPage() {
 
       {effectivePolicy && (
         <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-          <h2 className="mb-2 text-sm font-medium text-gray-700">Feature flags</h2>
+          <h2 className="mb-2 text-sm font-medium text-gray-700">
+            Feature flags
+          </h2>
           <div className="flex flex-wrap gap-3 text-xs text-gray-600">
             <span>
               Local LLM:{" "}
               <strong>
-                {effectivePolicy.feature_local_llm_enabled ? "enabled" : "disabled"}
+                {effectivePolicy.feature_local_llm_enabled
+                  ? "enabled"
+                  : "disabled"}
               </strong>
             </span>
             <span>
               Local embeddings:{" "}
               <strong>
-                {effectivePolicy.feature_local_embeddings_enabled ? "enabled" : "disabled"}
+                {effectivePolicy.feature_local_embeddings_enabled
+                  ? "enabled"
+                  : "disabled"}
               </strong>
             </span>
             <span>
               Provider fallback:{" "}
               <strong>
-                {effectivePolicy.feature_fallback_enabled ? "enabled" : "disabled"}
+                {effectivePolicy.feature_fallback_enabled
+                  ? "enabled"
+                  : "disabled"}
               </strong>
             </span>
             <span>
               Request override:{" "}
               <strong>
-                {effectivePolicy.feature_request_override_enabled ? "enabled" : "disabled"}
+                {effectivePolicy.feature_request_override_enabled
+                  ? "enabled"
+                  : "disabled"}
               </strong>
             </span>
           </div>

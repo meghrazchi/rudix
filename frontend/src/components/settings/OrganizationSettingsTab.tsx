@@ -732,10 +732,9 @@ export function OrganizationSettingsTab() {
         </div>
 
         {/* Profile API content */}
-        {!capabilities.profileEnabled || isOrganizationEndpointUnavailableError(profileQuery.error) ? (
-          <p className="text-sm text-[#777587]">
-            {t("profile.unavailable")}
-          </p>
+        {!capabilities.profileEnabled ||
+        isOrganizationEndpointUnavailableError(profileQuery.error) ? (
+          <p className="text-sm text-[#777587]">{t("profile.unavailable")}</p>
         ) : profileQuery.isLoading ? (
           <LoadingState compact title={t("profile.loading")} />
         ) : profileQuery.isError ? (
@@ -855,7 +854,9 @@ export function OrganizationSettingsTab() {
                 className="w-full rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
               />
               <p className="text-xs text-[#777587]">
-                {t("profile.domainAllowlistHint", { example: "acme.com, partner.org" })}
+                {t("profile.domainAllowlistHint", {
+                  example: "acme.com, partner.org",
+                })}
               </p>
             </div>
 
@@ -918,14 +919,20 @@ export function OrganizationSettingsTab() {
                 aria-label={t("profile.saveAriaLabel")}
                 className="rounded-xl bg-[#3525cd] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {profileSaveMutation.isPending ? t("saving") : t("profile.save")}
+                {profileSaveMutation.isPending
+                  ? t("saving")
+                  : t("profile.save")}
               </button>
             </div>
           </div>
         ) : (
           /* Read-only profile for member/viewer */
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ReadOnlyField label={t("profile.slug")} value={profileQuery.data?.slug} notAvailableLabel={t("notAvailable")} />
+            <ReadOnlyField
+              label={t("profile.slug")}
+              value={profileQuery.data?.slug}
+              notAvailableLabel={t("notAvailable")}
+            />
             <ReadOnlyField
               label={t("profile.primaryDomain")}
               value={profileQuery.data?.primary_domain}
@@ -976,10 +983,9 @@ export function OrganizationSettingsTab() {
           )}
         </div>
 
-        {!capabilities.settingsEnabled || isOrganizationEndpointUnavailableError(settingsQuery.error) ? (
-          <p className="text-sm text-[#777587]">
-            {t("workspace.unavailable")}
-          </p>
+        {!capabilities.settingsEnabled ||
+        isOrganizationEndpointUnavailableError(settingsQuery.error) ? (
+          <p className="text-sm text-[#777587]">{t("workspace.unavailable")}</p>
         ) : !isAdmin ? (
           <ForbiddenState
             compact
@@ -1025,8 +1031,12 @@ export function OrganizationSettingsTab() {
                   {...workspaceForm.register("defaultDocumentVisibility")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="private">{t("workspace.visibilityPrivate")}</option>
-                  <option value="public">{t("workspace.visibilityPublic")}</option>
+                  <option value="private">
+                    {t("workspace.visibilityPrivate")}
+                  </option>
+                  <option value="public">
+                    {t("workspace.visibilityPublic")}
+                  </option>
                 </select>
               </div>
 
@@ -1232,10 +1242,9 @@ export function OrganizationSettingsTab() {
           )}
         </div>
 
-        {!capabilities.ingestionEnabled || isOrganizationEndpointUnavailableError(ingestionQuery.error) ? (
-          <p className="text-sm text-[#777587]">
-            {t("ingestion.unavailable")}
-          </p>
+        {!capabilities.ingestionEnabled ||
+        isOrganizationEndpointUnavailableError(ingestionQuery.error) ? (
+          <p className="text-sm text-[#777587]">{t("ingestion.unavailable")}</p>
         ) : !isAdmin ? (
           <ForbiddenState
             compact
@@ -1323,7 +1332,9 @@ export function OrganizationSettingsTab() {
                   {...ingestionForm.register("reindexPolicy")}
                   className="w-full appearance-none rounded-xl border border-[#c7c4d8] bg-[#fcf8ff] px-4 py-2 text-sm text-[#1b1b24] transition-all outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
                 >
-                  <option value="on_update">{t("ingestion.reindexOnUpdate")}</option>
+                  <option value="on_update">
+                    {t("ingestion.reindexOnUpdate")}
+                  </option>
                   <option value="manual">{t("ingestion.reindexManual")}</option>
                 </select>
               </div>
@@ -1339,7 +1350,9 @@ export function OrganizationSettingsTab() {
                 >
                   <option value="never">{t("ingestion.retryNever")}</option>
                   <option value="once">{t("ingestion.retryOnce")}</option>
-                  <option value="three_times">{t("ingestion.retryThree")}</option>
+                  <option value="three_times">
+                    {t("ingestion.retryThree")}
+                  </option>
                 </select>
               </div>
             </div>
@@ -1424,9 +1437,7 @@ export function OrganizationSettingsTab() {
         </h2>
         {isAdmin ? (
           <div className="space-y-3">
-            <p className="text-sm text-[#4d4963]">
-              {t("admin.desc")}
-            </p>
+            <p className="text-sm text-[#4d4963]">{t("admin.desc")}</p>
             <Link
               href="/admin"
               className="inline-flex rounded-lg border border-[#d2cee6] px-3 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f3ff]"
@@ -1461,9 +1472,7 @@ export function OrganizationSettingsTab() {
               {t("danger.title")}
             </h2>
           </div>
-          <p className="mb-6 text-sm text-[#464555]">
-            {t("danger.desc")}
-          </p>
+          <p className="mb-6 text-sm text-[#464555]">{t("danger.desc")}</p>
 
           <div className="space-y-4">
             {/* Transfer ownership */}

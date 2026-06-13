@@ -61,7 +61,13 @@ const PROVIDERS_RESPONSE: ModelProviderDiagnosticsResponse = {
       provider_type: "openai",
       model_name: "gpt-4o",
       is_configured: true,
-      task_assignments: ["chat", "summarization", "comparison", "evaluations", "agentic"],
+      task_assignments: [
+        "chat",
+        "summarization",
+        "comparison",
+        "evaluations",
+        "agentic",
+      ],
       capability: {
         context_window: 128000,
         supports_json_mode: true,
@@ -138,10 +144,14 @@ describe("AdminModelDiagnosticsPage", () => {
   });
 
   it("shows error state when fetch fails", async () => {
-    mockApi.getModelProviderDiagnostics.mockRejectedValue(new Error("network error"));
+    mockApi.getModelProviderDiagnostics.mockRejectedValue(
+      new Error("network error"),
+    );
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/unable to load provider diagnostics/i)).toBeTruthy();
+      expect(
+        screen.getByText(/unable to load provider diagnostics/i),
+      ).toBeTruthy();
     });
   });
 

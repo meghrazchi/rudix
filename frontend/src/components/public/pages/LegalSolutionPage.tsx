@@ -24,31 +24,34 @@ function LegalBreadcrumb() {
   return (
     <div className="border-b border-[#e2e5ef] bg-[#f2f3f6]">
       <nav
-      aria-label="Breadcrumb"
-      className="mx-auto w-full max-w-[1440px] px-10 py-3"
-    >
-      <ol className="flex items-center gap-2 text-xs text-[#777587]">
-        <li>
-          <PublicActionLink href="/" className="hover:text-[#3525cd]">
-            {t("home")}
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">
-          /
-        </li>
-        <li>
-          <PublicActionLink href="/solutions" className="hover:text-[#3525cd]">
-            {t("breadcrumb.solutions")}
-          </PublicActionLink>
-        </li>
-        <li aria-hidden="true" className="text-[#c7c4d8]">
-          /
-        </li>
-        <li aria-current="page" className="font-semibold text-[#1a1b20]">
-          {t("legal.breadcrumb")}
-        </li>
-      </ol>
-    </nav>
+        aria-label="Breadcrumb"
+        className="mx-auto w-full max-w-[1440px] px-10 py-3"
+      >
+        <ol className="flex items-center gap-2 text-xs text-[#777587]">
+          <li>
+            <PublicActionLink href="/" className="hover:text-[#3525cd]">
+              {t("home")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#c7c4d8]">
+            /
+          </li>
+          <li>
+            <PublicActionLink
+              href="/solutions"
+              className="hover:text-[#3525cd]"
+            >
+              {t("breadcrumb.solutions")}
+            </PublicActionLink>
+          </li>
+          <li aria-hidden="true" className="text-[#c7c4d8]">
+            /
+          </li>
+          <li aria-current="page" className="font-semibold text-[#1a1b20]">
+            {t("legal.breadcrumb")}
+          </li>
+        </ol>
+      </nav>
     </div>
   );
 }
@@ -266,11 +269,7 @@ function LegalDocumentSourcesSection() {
 function LegalExampleQuestionsSection() {
   const t = useTranslations("public.legal");
 
-  const questions = [
-    t("questions.q1"),
-    t("questions.q2"),
-    t("questions.q3"),
-  ];
+  const questions = [t("questions.q1"), t("questions.q2"), t("questions.q3")];
 
   return (
     <section

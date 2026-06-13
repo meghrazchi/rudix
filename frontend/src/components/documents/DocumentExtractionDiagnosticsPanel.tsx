@@ -98,8 +98,14 @@ export function DocumentExtractionDiagnosticsPanel({
       <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
         <div className="px-4 py-3">
           <MetricRow label={t("pages")} value={snapshot.page_count} />
-          <MetricRow label={t("textBlocks")} value={snapshot.total_text_blocks} />
-          <MetricRow label={t("tablesFound")} value={snapshot.total_table_blocks} />
+          <MetricRow
+            label={t("textBlocks")}
+            value={snapshot.total_text_blocks}
+          />
+          <MetricRow
+            label={t("tablesFound")}
+            value={snapshot.total_table_blocks}
+          />
           <MetricRow
             label={t("imagesFigures")}
             value={snapshot.total_image_blocks}
@@ -124,7 +130,10 @@ export function DocumentExtractionDiagnosticsPanel({
             label={t("extractionConfidence")}
             value={<ConfidenceBar value={snapshot.extraction_confidence} />}
           />
-          <MetricRow label={t("duration")} value={`${snapshot.duration_ms} ms`} />
+          <MetricRow
+            label={t("duration")}
+            value={`${snapshot.duration_ms} ms`}
+          />
         </div>
       </div>
 

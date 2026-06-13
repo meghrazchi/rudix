@@ -83,7 +83,7 @@ function OverrideModal({
           Reason (optional)
         </label>
         <textarea
-          className="mb-4 w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm text-[#2a2640] focus:outline-none focus:ring-2 focus:ring-[#5d58a8]"
+          className="mb-4 w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm text-[#2a2640] focus:ring-2 focus:ring-[#5d58a8] focus:outline-none"
           rows={3}
           maxLength={500}
           placeholder="Why is this change needed?"
@@ -324,9 +324,7 @@ export function AdminFeatureFlagsPage() {
                           type="button"
                           className="rounded-lg border border-[#d7d4e8] px-3 py-1 text-xs font-semibold text-[#6b6895] hover:bg-[#f4f3fb] disabled:opacity-40"
                           disabled={isMutating}
-                          onClick={() =>
-                            clearMutation.mutate(name)
-                          }
+                          onClick={() => clearMutation.mutate(name)}
                         >
                           Reset to default
                         </button>

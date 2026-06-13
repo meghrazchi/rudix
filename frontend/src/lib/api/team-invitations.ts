@@ -80,14 +80,11 @@ function normalizeInvitation(
     expires_at: typeof raw.expires_at === "string" ? raw.expires_at : "",
     invited_by_name:
       typeof raw.invited_by_name === "string" ? raw.invited_by_name : null,
-    resend_count:
-      typeof raw.resend_count === "number" ? raw.resend_count : 0,
+    resend_count: typeof raw.resend_count === "number" ? raw.resend_count : 0,
     last_sent_at:
       typeof raw.last_sent_at === "string" ? raw.last_sent_at : null,
-    accepted_at:
-      typeof raw.accepted_at === "string" ? raw.accepted_at : null,
-    revoked_at:
-      typeof raw.revoked_at === "string" ? raw.revoked_at : null,
+    accepted_at: typeof raw.accepted_at === "string" ? raw.accepted_at : null,
+    revoked_at: typeof raw.revoked_at === "string" ? raw.revoked_at : null,
     created_at: typeof raw.created_at === "string" ? raw.created_at : "",
     updated_at: typeof raw.updated_at === "string" ? raw.updated_at : "",
   };
@@ -156,9 +153,7 @@ export async function resendInvitation(
       : {};
   return {
     invitation_id:
-      typeof raw.invitation_id === "string"
-        ? raw.invitation_id
-        : invitationId,
+      typeof raw.invitation_id === "string" ? raw.invitation_id : invitationId,
     resent: raw.resent !== false,
   };
 }
@@ -180,9 +175,7 @@ export async function revokeInvitation(
       : {};
   return {
     invitation_id:
-      typeof raw.invitation_id === "string"
-        ? raw.invitation_id
-        : invitationId,
+      typeof raw.invitation_id === "string" ? raw.invitation_id : invitationId,
     revoked: raw.revoked !== false,
   };
 }
@@ -211,9 +204,7 @@ export async function acceptInvitation(
     email: typeof raw.email === "string" ? raw.email : "",
     role: typeof raw.role === "string" ? raw.role : "member",
     organization_name:
-      typeof raw.organization_name === "string"
-        ? raw.organization_name
-        : null,
+      typeof raw.organization_name === "string" ? raw.organization_name : null,
   };
 }
 
@@ -234,8 +225,7 @@ export async function getTeamMemberDetail(
       ? (payload as Record<string, unknown>)
       : {};
   return {
-    member_id:
-      typeof raw.member_id === "string" ? raw.member_id : memberId,
+    member_id: typeof raw.member_id === "string" ? raw.member_id : memberId,
     user_id: typeof raw.user_id === "string" ? raw.user_id : null,
     name: typeof raw.name === "string" ? raw.name : "",
     email: typeof raw.email === "string" ? raw.email : "",
@@ -246,10 +236,8 @@ export async function getTeamMemberDetail(
     is_active: raw.is_active !== false,
     provisioned_by:
       typeof raw.provisioned_by === "string" ? raw.provisioned_by : "manual",
-    created_at:
-      typeof raw.created_at === "string" ? raw.created_at : null,
-    updated_at:
-      typeof raw.updated_at === "string" ? raw.updated_at : null,
+    created_at: typeof raw.created_at === "string" ? raw.created_at : null,
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
   };
 }
 
@@ -270,8 +258,7 @@ export async function deactivateTeamMember(
       ? (payload as Record<string, unknown>)
       : {};
   return {
-    member_id:
-      typeof raw.member_id === "string" ? raw.member_id : memberId,
+    member_id: typeof raw.member_id === "string" ? raw.member_id : memberId,
     user_id: typeof raw.user_id === "string" ? raw.user_id : null,
     name: typeof raw.name === "string" ? raw.name : "",
     email: typeof raw.email === "string" ? raw.email : "",
@@ -282,9 +269,7 @@ export async function deactivateTeamMember(
     is_active: raw.is_active !== false,
     provisioned_by:
       typeof raw.provisioned_by === "string" ? raw.provisioned_by : "manual",
-    created_at:
-      typeof raw.created_at === "string" ? raw.created_at : null,
-    updated_at:
-      typeof raw.updated_at === "string" ? raw.updated_at : null,
+    created_at: typeof raw.created_at === "string" ? raw.created_at : null,
+    updated_at: typeof raw.updated_at === "string" ? raw.updated_at : null,
   };
 }

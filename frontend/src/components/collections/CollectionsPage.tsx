@@ -387,9 +387,7 @@ function NewCollectionCard({ onCreate }: { onCreate: () => void }) {
       <h4 className="mb-1 text-base font-bold text-[#1b1b24]">
         {tc("createNewTitle")}
       </h4>
-      <p className="px-4 text-[12px] text-[#6a6780]">
-        {tc("createNewDesc")}
-      </p>
+      <p className="px-4 text-[12px] text-[#6a6780]">{tc("createNewDesc")}</p>
     </div>
   );
 }
@@ -567,8 +565,12 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
         >
           <option value="org_wide">{tc("policyOptOrgWide")}</option>
           <option value="admin_only">{tc("policyOptAdminOnlyFull")}</option>
-          <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
-          <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
+          <option value="selected_roles">
+            {tc("policyLabelSelectedRoles")}
+          </option>
+          <option value="selected_members">
+            {tc("policyLabelSelectedMembers")}
+          </option>
         </select>
         <p className="mt-1 text-[11px] text-[#7a768f]">
           {accessPolicyDescription(effectivePolicy, tc)}
@@ -899,7 +901,9 @@ function CollectionDetailDrawer({
               </h5>
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-[#e4e1ee] bg-white p-4">
-                  <p className="mb-1 text-[11px] text-[#6a6780]">{tc("completionLabel")}</p>
+                  <p className="mb-1 text-[11px] text-[#6a6780]">
+                    {tc("completionLabel")}
+                  </p>
                   <p
                     className={`text-xl font-bold ${progress === 100 ? "text-green-600" : progress >= 80 ? "text-[#3525cd]" : "text-amber-600"}`}
                   >
@@ -907,7 +911,9 @@ function CollectionDetailDrawer({
                   </p>
                 </div>
                 <div className="rounded-xl border border-[#e4e1ee] bg-white p-4">
-                  <p className="mb-1 text-[11px] text-[#6a6780]">{tc("ownerLabel")}</p>
+                  <p className="mb-1 text-[11px] text-[#6a6780]">
+                    {tc("ownerLabel")}
+                  </p>
                   <p className="truncate text-sm font-bold text-[#1b1b24]">
                     {detail.owner_email ?? "—"}
                   </p>
@@ -1022,7 +1028,9 @@ function CollectionDetailDrawer({
                             onClick={() => {
                               if (
                                 window.confirm(
-                                  tc("removeDocConfirm", { filename: doc.filename }),
+                                  tc("removeDocConfirm", {
+                                    filename: doc.filename,
+                                  }),
                                 )
                               ) {
                                 removeDocMutation.mutate(doc.document_id);
@@ -1054,7 +1062,10 @@ function CollectionDetailDrawer({
                         {tc("previousDocs")}
                       </button>
                       <span className="text-xs text-[#6a6780]">
-                        {tc("docsShowing", { shown: docs.items.length, total: docs.total })}
+                        {tc("docsShowing", {
+                          shown: docs.items.length,
+                          total: docs.total,
+                        })}
                       </span>
                       <button
                         type="button"
@@ -1226,8 +1237,12 @@ function CollectionDialog({
             >
               <option value="org_wide">{tc("policyOptOrgWide")}</option>
               <option value="admin_only">{tc("policyLabelAdminOnly")}</option>
-              <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
-              <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
+              <option value="selected_roles">
+                {tc("policyLabelSelectedRoles")}
+              </option>
+              <option value="selected_members">
+                {tc("policyLabelSelectedMembers")}
+              </option>
             </select>
             <p className="mt-1 text-xs text-[#7a768f]">
               {accessPolicyDescription(form.access_policy, tc)}
@@ -1549,12 +1564,7 @@ export function CollectionsPage() {
     });
   }
   function handleDeleteCollection(col: CollectionListItemResponse) {
-    if (
-      !window.confirm(
-        tc("deleteConfirm", { name: col.name }),
-      )
-    )
-      return;
+    if (!window.confirm(tc("deleteConfirm", { name: col.name }))) return;
     deleteMutation.mutate(col.collection_id);
   }
 
@@ -1570,7 +1580,9 @@ export function CollectionsPage() {
           <span className="mb-1 block text-[11px] font-semibold tracking-widest text-[#3525cd] uppercase">
             {tc("eyebrow")}
           </span>
-          <h2 className="text-3xl font-bold text-[#1b1b24]">{tc("pageTitle")}</h2>
+          <h2 className="text-3xl font-bold text-[#1b1b24]">
+            {tc("pageTitle")}
+          </h2>
           <p className="mt-1 max-w-2xl text-sm text-[#464555]">
             {tc("pageDescription")}
           </p>
@@ -1617,8 +1629,12 @@ export function CollectionsPage() {
               <option value="all">{tc("filterAllPolicies")}</option>
               <option value="org_wide">{tc("policyLabelOrgWide")}</option>
               <option value="admin_only">{tc("policyLabelAdminOnly")}</option>
-              <option value="selected_roles">{tc("policyLabelSelectedRoles")}</option>
-              <option value="selected_members">{tc("policyLabelSelectedMembers")}</option>
+              <option value="selected_roles">
+                {tc("policyLabelSelectedRoles")}
+              </option>
+              <option value="selected_members">
+                {tc("policyLabelSelectedMembers")}
+              </option>
             </select>
           </div>
           <div className="flex items-center gap-2">
@@ -1659,7 +1675,9 @@ export function CollectionsPage() {
             className="rounded-xl border border-[#ddd7f6] bg-[#f3f1ff] px-4 py-2.5 text-sm text-[#3f3778]"
           >
             {actionFeedback}
-            {actionRequestId ? ` ${tc("traceIdSuffix", { id: actionRequestId })}` : ""}
+            {actionRequestId
+              ? ` ${tc("traceIdSuffix", { id: actionRequestId })}`
+              : ""}
           </p>
         ) : null}
 
@@ -1670,7 +1688,9 @@ export function CollectionsPage() {
             description={tc("collectionsNotAvailableDesc")}
           />
         ) : null}
-        {isLoading ? <LoadingState title={tc("loadingCollectionsTitle")} /> : null}
+        {isLoading ? (
+          <LoadingState title={tc("loadingCollectionsTitle")} />
+        ) : null}
         {isError && isEndpointNotFoundError(collectionsQuery.error) ? (
           <EmptyState
             title={tc("apiNotDeployedTitle")}

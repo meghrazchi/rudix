@@ -162,9 +162,7 @@ function ProductHero() {
             className="h-auto w-full object-cover"
           />
         </div>
-        <figcaption className="sr-only">
-          {t("hero.imageCaption")}
-        </figcaption>
+        <figcaption className="sr-only">{t("hero.imageCaption")}</figcaption>
       </figure>
     </section>
   );
@@ -500,9 +498,7 @@ function AdminAndIntegrationSection() {
       </div>
 
       <div className="mt-10 rounded-[28px] bg-[linear-gradient(135deg,#2a2fe3_0%,#251bc0_52%,#3b1ed0_100%)] px-8 py-14 text-center text-white lg:px-12 lg:py-16">
-        <h2 className="text-4xl font-black lg:text-6xl">
-          {t("cta.heading")}
-        </h2>
+        <h2 className="text-4xl font-black lg:text-6xl">{t("cta.heading")}</h2>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <PublicActionLink
             href={links.requestDemo}

@@ -37,7 +37,10 @@ function SolutionBreadcrumb({ solution }: { solution: SolutionAudience }) {
             /
           </li>
           <li>
-            <PublicActionLink href="/solutions" className="hover:text-[#2a2f40]">
+            <PublicActionLink
+              href="/solutions"
+              className="hover:text-[#2a2f40]"
+            >
               {t("breadcrumb.solutions")}
             </PublicActionLink>
           </li>

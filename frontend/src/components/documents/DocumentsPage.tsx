@@ -81,7 +81,6 @@ type IndexingStatusSummary = {
   failed: number;
 };
 
-
 function parseStatusFilter(value: string | null): StatusFilter {
   if (!value) {
     return "all";
@@ -314,12 +313,13 @@ export function DocumentsPage() {
     { value: "status", label: tp("sortStatus") },
   ];
 
-  const fileTypeFilterOptions: Array<{ value: FileTypeFilter; label: string }> = [
-    { value: "all", label: tp("typeAll") },
-    { value: "pdf", label: tp("typePdf") },
-    { value: "docx", label: tp("typeDocx") },
-    { value: "txt", label: tp("typeTxt") },
-  ];
+  const fileTypeFilterOptions: Array<{ value: FileTypeFilter; label: string }> =
+    [
+      { value: "all", label: tp("typeAll") },
+      { value: "pdf", label: tp("typePdf") },
+      { value: "docx", label: tp("typeDocx") },
+      { value: "txt", label: tp("typeTxt") },
+    ];
 
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -687,7 +687,10 @@ export function DocumentsPage() {
 
       for (const [index, documentId] of orderedTargetIds.entries()) {
         setActionFeedback(
-          tp("feedbackReindexProgress", { current: index + 1, total: orderedTargetIds.length }),
+          tp("feedbackReindexProgress", {
+            current: index + 1,
+            total: orderedTargetIds.length,
+          }),
         );
         try {
           await reindexDocument(documentId);
@@ -709,7 +712,10 @@ export function DocumentsPage() {
         setActionRequestId(null);
       } else if (queuedCount > 0) {
         setActionFeedback(
-          tp("feedbackReindexQueuedWithFailed", { queued: queuedCount, failed: failedCount }),
+          tp("feedbackReindexQueuedWithFailed", {
+            queued: queuedCount,
+            failed: failedCount,
+          }),
         );
         setActionRequestId(lastErrorRequestId);
       } else {
@@ -1251,7 +1257,7 @@ export function DocumentsPage() {
           onDrop={(event) => {
             void handlePageUploadDrop(event);
           }}
-          className={`group rounded-xl border-2 border-dashed p-6 text-center transition-all disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2 cursor-pointer ${
+          className={`group cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-all disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2 ${
             isPageDropActive
               ? "border-[#3525cd] bg-[#f1efff]"
               : "border-[#3525cd]/20 bg-white hover:border-[#3525cd] hover:bg-[#3525cd]/[0.02]"
@@ -1266,7 +1272,10 @@ export function DocumentsPage() {
             {tp("uploadTitle")}
           </h2>
           <p className="mx-auto mt-1 max-w-xl text-sm text-[#68647b]">
-            {tp("uploadDescription", { types: ACCEPTED_UPLOAD_TYPES_LABEL, maxMb: MAX_UPLOAD_SIZE_MB })}
+            {tp("uploadDescription", {
+              types: ACCEPTED_UPLOAD_TYPES_LABEL,
+              maxMb: MAX_UPLOAD_SIZE_MB,
+            })}
           </p>
           <div className="mt-4 flex justify-center gap-2">
             <span className="rounded-full border border-[#e5e3f1] bg-[#f8f7ff] px-3 py-1 text-[10px] font-semibold tracking-wide text-[#5f5b75] uppercase">
@@ -1423,7 +1432,10 @@ export function DocumentsPage() {
             </label>
           </div>
           <p className="text-sm text-[#68647b]">
-            {tp("showing", { shown: documents.length, total: totalDocumentsCount })}
+            {tp("showing", {
+              shown: documents.length,
+              total: totalDocumentsCount,
+            })}
           </p>
         </div>
 
@@ -1526,11 +1538,17 @@ export function DocumentsPage() {
                     <th className="px-4 py-3">{tp("tableSource")}</th>
                     <th className="px-4 py-3">{tp("tableType")}</th>
                     <th className="px-4 py-3">{tp("tableStatus")}</th>
-                    <th className="px-4 py-3 text-center">{tp("tablePages")}</th>
-                    <th className="px-4 py-3 text-center">{tp("tableChunks")}</th>
+                    <th className="px-4 py-3 text-center">
+                      {tp("tablePages")}
+                    </th>
+                    <th className="px-4 py-3 text-center">
+                      {tp("tableChunks")}
+                    </th>
                     <th className="px-4 py-3">{tp("tableCreated")}</th>
                     <th className="px-4 py-3">{tp("tableUpdated")}</th>
-                    <th className="px-4 py-3 text-right">{tp("tableActions")}</th>
+                    <th className="px-4 py-3 text-right">
+                      {tp("tableActions")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#ece9f6]">
@@ -1630,14 +1648,18 @@ export function DocumentsPage() {
                         </td>
                         <td className="px-4 py-3">
                           {(() => {
-                            const providerKey = document.source_provider ?? document.source;
-                            const label = documentSourceLabel(providerKey, document.source_provider_label);
+                            const providerKey =
+                              document.source_provider ?? document.source;
+                            const label = documentSourceLabel(
+                              providerKey,
+                              document.source_provider_label,
+                            );
                             return (
                               <div className="flex items-center gap-1.5">
                                 <span className="material-symbols-outlined text-[16px] text-[#6a6780]">
                                   {documentSourceIcon(providerKey)}
                                 </span>
-                                <span className="whitespace-nowrap text-xs text-[#464555]">
+                                <span className="text-xs whitespace-nowrap text-[#464555]">
                                   {label ?? "Local Upload"}
                                 </span>
                               </div>
@@ -1861,12 +1883,8 @@ export function DocumentsPage() {
         <article className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#3525cd] to-[#4f46e5] p-6 text-white shadow-lg md:col-span-3">
           <div className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div className="max-w-2xl">
-              <h2 className="text-2xl font-bold">
-                {tp("maximize")}
-              </h2>
-              <p className="mt-1 text-sm text-white/90">
-                {tp("maximizeDesc")}
-              </p>
+              <h2 className="text-2xl font-bold">{tp("maximize")}</h2>
+              <p className="mt-1 text-sm text-white/90">{tp("maximizeDesc")}</p>
             </div>
             <button
               type="button"
@@ -1941,7 +1959,10 @@ export function DocumentsPage() {
           {selectedDetail ? (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <MetricCard label={tp("tableFilename")} value={selectedDetail.filename} />
+                <MetricCard
+                  label={tp("tableFilename")}
+                  value={selectedDetail.filename}
+                />
                 <MetricCard
                   label={tp("tableType")}
                   value={selectedDetail.file_type.toUpperCase()}
@@ -1964,7 +1985,10 @@ export function DocumentsPage() {
                   label={tp("tablePages")}
                   value={selectedDetail.page_count ?? "-"}
                 />
-                <MetricCard label={tp("tableChunks")} value={selectedDetail.chunk_count} />
+                <MetricCard
+                  label={tp("tableChunks")}
+                  value={selectedDetail.chunk_count}
+                />
                 <MetricCard
                   label={tp("metricChecksum")}
                   value={selectedDetail.checksum ?? "-"}
@@ -2003,10 +2027,7 @@ export function DocumentsPage() {
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length === 0 ? (
-                  <EmptyState
-                    compact
-                    title={tp("noChunksYet")}
-                  />
+                  <EmptyState compact title={tp("noChunksYet")} />
                 ) : null}
 
                 {selectedChunks && selectedChunks.items.length > 0 ? (
@@ -2017,9 +2038,15 @@ export function DocumentsPage() {
                         className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-3"
                       >
                         <div className="mb-1 flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
-                          <span>{tp("chunkIndex", { index: chunk.chunk_index })}</span>
-                          <span>{tp("chunkPage", { n: chunk.page_number ?? "-" })}</span>
-                          <span>{tp("chunkTokens", { n: chunk.token_count })}</span>
+                          <span>
+                            {tp("chunkIndex", { index: chunk.chunk_index })}
+                          </span>
+                          <span>
+                            {tp("chunkPage", { n: chunk.page_number ?? "-" })}
+                          </span>
+                          <span>
+                            {tp("chunkTokens", { n: chunk.token_count })}
+                          </span>
                         </div>
                         <p className="text-sm text-[#2a2640]">
                           {chunk.text_preview}
@@ -2028,7 +2055,10 @@ export function DocumentsPage() {
                     ))}
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <p className="text-xs text-[#6e6a86]">
-                        {tp("showingChunks", { shown: selectedChunks.items.length, total: selectedChunks.total })}
+                        {tp("showingChunks", {
+                          shown: selectedChunks.items.length,
+                          total: selectedChunks.total,
+                        })}
                       </p>
                       <div className="flex items-center gap-2">
                         <button

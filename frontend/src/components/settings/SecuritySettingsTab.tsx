@@ -223,7 +223,15 @@ function FieldLabel({
   );
 }
 
-function BoolBadge({ value, yesLabel, noLabel }: { value: boolean; yesLabel: string; noLabel: string }) {
+function BoolBadge({
+  value,
+  yesLabel,
+  noLabel,
+}: {
+  value: boolean;
+  yesLabel: string;
+  noLabel: string;
+}) {
   return (
     <span
       className={
@@ -340,7 +348,13 @@ type LoginPolicyFormValues = z.infer<typeof loginPolicySchema>;
 
 // ── Role capability key maps ──────────────────────────────────────────────────
 
-type RoleCapKey = "documentAccess" | "collectionAccess" | "evaluationAccess" | "agenticAccess" | "mcpAccess" | "adminControls";
+type RoleCapKey =
+  | "documentAccess"
+  | "collectionAccess"
+  | "evaluationAccess"
+  | "agenticAccess"
+  | "mcpAccess"
+  | "adminControls";
 
 const ROLE_CAP_KEYS: RoleCapKey[] = [
   "documentAccess",
@@ -706,9 +720,7 @@ export function SecuritySettingsTab() {
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-xs text-[#777587]">
-            {t("auth.tokenNote")}
-          </p>
+          <p className="mt-3 text-xs text-[#777587]">{t("auth.tokenNote")}</p>
         </section>
 
         {/* 2. Active Sessions */}
@@ -769,7 +781,9 @@ export function SecuritySettingsTab() {
                       <th className="px-4 py-3">{t("sessions.device")}</th>
                       <th className="px-4 py-3">{t("sessions.location")}</th>
                       <th className="px-4 py-3">{t("sessions.lastActive")}</th>
-                      <th className="px-4 py-3 text-right">{t("sessions.action")}</th>
+                      <th className="px-4 py-3 text-right">
+                        {t("sessions.action")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e4e1ee]">
@@ -1067,7 +1081,9 @@ export function SecuritySettingsTab() {
           <SectionHeader icon={ShieldCheck} title={t("rolePolicy.title")} />
 
           <div className="mb-4 flex items-center gap-3">
-            <span className="text-sm text-[#464555]">{t("rolePolicy.currentRole")}</span>
+            <span className="text-sm text-[#464555]">
+              {t("rolePolicy.currentRole")}
+            </span>
             <span className="rounded-full bg-[#e2dfff] px-3 py-1 text-sm font-bold text-[#3525cd] capitalize">
               {role ?? t("unknown")}
             </span>
@@ -1104,11 +1120,11 @@ export function SecuritySettingsTab() {
           <SectionHeader
             icon={AlertTriangle}
             title={t("rateLimits.title")}
-            badge={<DeploymentControlledBadge label={t("deploymentControlled")} />}
+            badge={
+              <DeploymentControlledBadge label={t("deploymentControlled")} />
+            }
           />
-          <p className="mb-4 text-sm text-[#777587]">
-            {t("rateLimits.desc")}
-          </p>
+          <p className="mb-4 text-sm text-[#777587]">{t("rateLimits.desc")}</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               {
@@ -1196,7 +1212,9 @@ export function SecuritySettingsTab() {
               ))}
               {postureQuery.data?.last_audit_at && (
                 <p className="pt-1 text-xs text-[#777587]">
-                  {t("posture.lastAudit", { time: formatTimestamp(postureQuery.data.last_audit_at) })}
+                  {t("posture.lastAudit", {
+                    time: formatTimestamp(postureQuery.data.last_audit_at),
+                  })}
                 </p>
               )}
             </div>
@@ -1211,19 +1229,17 @@ export function SecuritySettingsTab() {
           <SectionHeader
             icon={ClipboardList}
             title={t("audit.title")}
-            badge={!capabilities.auditEnabled && (
-              <DeploymentControlledBadge label={t("deploymentControlled")} />
-            )}
+            badge={
+              !capabilities.auditEnabled && (
+                <DeploymentControlledBadge label={t("deploymentControlled")} />
+              )
+            }
           />
 
           {!isAdmin ? (
-            <p className="text-sm text-[#777587]">
-              {t("audit.restricted")}
-            </p>
+            <p className="text-sm text-[#777587]">{t("audit.restricted")}</p>
           ) : !capabilities.auditEnabled ? (
-            <p className="text-sm text-[#777587]">
-              {t("audit.unavailable")}
-            </p>
+            <p className="text-sm text-[#777587]">{t("audit.unavailable")}</p>
           ) : auditQuery.isLoading ? (
             <LoadingState compact title={t("audit.loading")} />
           ) : auditQuery.isError ? (
@@ -1238,9 +1254,7 @@ export function SecuritySettingsTab() {
           ) : (
             <div className="space-y-2">
               {(auditQuery.data ?? []).length === 0 ? (
-                <p className="text-sm text-[#777587]">
-                  {t("audit.noEvents")}
-                </p>
+                <p className="text-sm text-[#777587]">{t("audit.noEvents")}</p>
               ) : (
                 (auditQuery.data ?? []).map((event) => (
                   <AuditEventPreview key={event.id} event={event} />
@@ -1272,9 +1286,7 @@ export function SecuritySettingsTab() {
               </span>
             )}
           </div>
-          <p className="mt-3 text-xs text-[#777587]">
-            {t("audit.retention")}
-          </p>
+          <p className="mt-3 text-xs text-[#777587]">{t("audit.retention")}</p>
         </section>
       </div>
     </div>

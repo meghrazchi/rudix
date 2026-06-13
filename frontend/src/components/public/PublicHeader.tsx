@@ -109,9 +109,7 @@ export function PublicHeader({ links }: PublicHeaderProps) {
           type="button"
           aria-expanded={isMobileMenuOpen}
           aria-controls={mobileMenuId}
-          aria-label={
-            isMobileMenuOpen ? t("closeMenu") : t("openMenu")
-          }
+          aria-label={isMobileMenuOpen ? t("closeMenu") : t("openMenu")}
           className="rounded-md border border-[#cfd3de] bg-white p-2 text-[#2e3346] md:hidden"
           onClick={() => {
             setIsMobileMenuOpen((previous) => !previous);

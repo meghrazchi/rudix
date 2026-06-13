@@ -23,10 +23,7 @@ import { getAuthBoundaryMessage } from "@/lib/auth-session";
 import { resolveAuthenticatedNavigationTarget } from "@/lib/app-routes";
 import { useAuthSession } from "@/lib/use-auth-session";
 
-function safeErrorMessage(
-  error: unknown,
-  fallback: string,
-): string {
+function safeErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === "object" && error !== null && "safeMessage" in error) {
     const candidate = error as Partial<LoginFlowError> & {
       safeMessage?: unknown;
@@ -175,10 +172,10 @@ function LoginPageContent() {
             {t("signInLabel")}
           </p>
         </div>
-        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">{t("signIn")}</h1>
-        <p className="mb-6 text-sm text-[#68647b]">
-          {t("signInDescription")}
-        </p>
+        <h1 className="mb-2 text-3xl font-extrabold text-[#2a2640]">
+          {t("signIn")}
+        </h1>
+        <p className="mb-6 text-sm text-[#68647b]">{t("signInDescription")}</p>
 
         {authNoticeMessage ? (
           <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -258,7 +255,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 onClick={handleForgotPasswordPlaceholder}
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
+                className="cursor-pointer text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
                 {t("forgotPassword")}
               </button>
@@ -266,13 +263,13 @@ function LoginPageContent() {
             <div className="flex items-center gap-3">
               <Link
                 href="/signup"
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
+                className="cursor-pointer text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
                 {t("createAccount")}
               </Link>
               <Link
                 href="/"
-                className="text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5] cursor-pointer"
+                className="cursor-pointer text-sm font-semibold text-[#4a438e] underline decoration-[#bdb7e5]"
               >
                 {t("backToHome")}
               </Link>
@@ -297,7 +294,7 @@ function LoginPageContent() {
           <button
             type="submit"
             disabled={form.formState.isSubmitting || state.status === "loading"}
-            className="h-10 w-full rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            className="h-10 w-full cursor-pointer rounded-lg bg-[#3525cd] px-5 text-sm font-semibold text-white transition hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {form.formState.isSubmitting ? t("signingIn") : t("signIn")}
           </button>

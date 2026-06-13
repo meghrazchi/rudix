@@ -717,7 +717,8 @@ export function AppShell({
                                     {navLabel[item.key] ?? item.label}
                                   </span>
                                   <span className="block text-xs text-[#67637d]">
-                                    {navDescription[item.key] ?? item.description}
+                                    {navDescription[item.key] ??
+                                      item.description}
                                   </span>
                                 </span>
                                 <span className="rounded bg-[#ece9ff] px-2 py-0.5 text-[10px] font-bold text-[#5042bc] uppercase">
@@ -791,9 +792,8 @@ export function AppShell({
                                       : t("untitledSession")}
                                   </span>
                                   <span className="block text-xs text-[#67637d]">
-                                    {sessionItem.message_count}{" "}
-                                    {t("messages")} •{" "}
-                                    {t("updated")}{" "}
+                                    {sessionItem.message_count} {t("messages")}{" "}
+                                    • {t("updated")}{" "}
                                     {new Date(
                                       sessionItem.updated_at,
                                     ).toLocaleString()}
@@ -811,9 +811,7 @@ export function AppShell({
                   </div>
                 ) : (
                   <p className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm text-[#68647b]">
-                    {hasCommandQuery
-                      ? t("noResults")
-                      : t("noDocumentsOrChats")}
+                    {hasCommandQuery ? t("noResults") : t("noDocumentsOrChats")}
                   </p>
                 )}
               </div>

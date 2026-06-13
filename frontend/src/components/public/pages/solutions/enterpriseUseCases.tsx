@@ -10,11 +10,7 @@ export type AudienceIconType =
   | "research"
   | "portal";
 
-export function AudienceIcon({
-  icon,
-}: {
-  icon: AudienceIconType;
-}) {
+export function AudienceIcon({ icon }: { icon: AudienceIconType }) {
   if (icon === "knowledge") {
     return (
       <svg

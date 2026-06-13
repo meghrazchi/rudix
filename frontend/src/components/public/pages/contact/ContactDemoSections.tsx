@@ -84,9 +84,7 @@ export function ContactMainSection({
 
         <div className="space-y-6 lg:col-span-5">
           <article className="rounded-xl bg-[#3525cd] p-7 text-white shadow-sm md:p-9">
-            <h2 className="text-2xl font-black">
-              {t("goodFit.heading")}
-            </h2>
+            <h2 className="text-2xl font-black">{t("goodFit.heading")}</h2>
             <ul className="mt-5 space-y-3">
               {fitHighlights.map((highlight) => (
                 <li key={highlight} className="flex items-start gap-2">
@@ -110,7 +108,9 @@ export function ContactMainSection({
                 <span className="h-2 w-2 rounded-full bg-[#108548]" />
                 {t("systemHealth.label")}
               </div>
-              <span className="text-xs text-[#9ca2bd]">{t("systemHealth.operational")}</span>
+              <span className="text-xs text-[#9ca2bd]">
+                {t("systemHealth.operational")}
+              </span>
             </div>
             <ul className="space-y-1.5 text-sm text-[#d6dbf0]">
               <li>{t("systemHealth.ingestion")}</li>
