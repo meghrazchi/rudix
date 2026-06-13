@@ -45,6 +45,7 @@ from app.interfaces.http import (
     scim,
     security_settings,
     team,
+    team_invitations,
 )
 
 from . import health
@@ -63,6 +64,7 @@ protected_router.include_router(documents.router)
 protected_router.include_router(collections.router)
 protected_router.include_router(collections.documents_router)
 api_router.include_router(connectors.public_router)
+api_router.include_router(team_invitations.public_router)
 protected_router.include_router(connector_platform.router)
 protected_router.include_router(connector_discovery.router)
 protected_router.include_router(connectors.router)
@@ -98,6 +100,7 @@ protected_router.include_router(admin_roles.router)
 protected_router.include_router(admin_api_keys.router)
 protected_router.include_router(admin_email.router)
 protected_router.include_router(team.router)
+protected_router.include_router(team_invitations.router)
 protected_router.include_router(profile.router)
 protected_router.include_router(security_settings.router)
 protected_router.include_router(org_settings.router)

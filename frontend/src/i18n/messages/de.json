@@ -2583,5 +2583,84 @@
     "de": "Deutsch",
     "es": "Spanisch",
     "fr": "Französisch"
+  },
+  "adminTeam": {
+    "title": "Teamverwaltung",
+    "description": "Mitglieder, Einladungen und Rollen für Ihre Organisation verwalten.",
+    "inviteMember": "Mitglied einladen",
+    "members": "Mitglieder",
+    "pendingInvitations": "Ausstehende Einladungen",
+    "searchPlaceholder": "Name oder E-Mail suchen…",
+    "filterByRole": "Nach Rolle filtern",
+    "filterByStatus": "Nach Status filtern",
+    "allRoles": "Alle Rollen",
+    "allStatuses": "Alle Status",
+    "columns": {
+      "name": "Name",
+      "email": "E-Mail",
+      "role": "Rolle",
+      "status": "Status",
+      "joined": "Beigetreten",
+      "expires": "Läuft ab",
+      "invitedBy": "Eingeladen von",
+      "sent": "Gesendet",
+      "actions": "Aktionen"
+    },
+    "statuses": {
+      "active": "Aktiv",
+      "invited": "Eingeladen",
+      "disabled": "Deaktiviert",
+      "suspended": "Gesperrt"
+    },
+    "actions": {
+      "deactivate": "Deaktivieren",
+      "remove": "Entfernen",
+      "resend": "Erneut senden",
+      "revoke": "Widerrufen",
+      "changeRole": "Speichern",
+      "sendInvite": "Einladung senden",
+      "sending": "Sendet…",
+      "cancel": "Abbrechen"
+    },
+    "inviteDialog": {
+      "title": "Teammitglied einladen",
+      "emailLabel": "E-Mail-Adresse",
+      "emailPlaceholder": "kollege@unternehmen.de",
+      "roleLabel": "Rolle"
+    },
+    "confirmRemove": {
+      "title": "{name} entfernen?",
+      "description": "Dies entfernt das Mitglied dauerhaft aus Ihrer Organisation und widerruft alle aktiven Sitzungen."
+    },
+    "confirmDeactivate": {
+      "title": "{name} deaktivieren?",
+      "description": "Dies deaktiviert das Konto des Mitglieds und widerruft alle aktiven Sitzungen."
+    },
+    "confirmRevoke": {
+      "title": "Einladung für {email} widerrufen?",
+      "description": "Der Einladungslink ist dann nicht mehr gültig."
+    },
+    "empty": {
+      "members": "Keine Mitglieder gefunden",
+      "membersFiltered": "Keine Mitglieder entsprechen \"{search}\"",
+      "invitations": "Keine ausstehenden Einladungen"
+    },
+    "toasts": {
+      "inviteSent": "Einladung gesendet.",
+      "roleUpdated": "Rolle aktualisiert.",
+      "memberRemoved": "Mitglied entfernt.",
+      "memberDeactivated": "Mitglied deaktiviert.",
+      "inviteResent": "Einladung erneut gesendet.",
+      "inviteRevoked": "Einladung widerrufen."
+    },
+    "errors": {
+      "forbidden": "Teamverwaltung ist nur für Organisationsinhaber und Administratoren verfügbar.",
+      "forbiddenTitle": "Teamverwaltung eingeschränkt"
+    },
+    "pagination": {
+      "of": "von",
+      "previous": "Zurück",
+      "next": "Weiter"
+    }
   }
 }

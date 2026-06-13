@@ -28,6 +28,7 @@ from app.models.failed_job import FailedJob, FailedJobAuditLog
 from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.feature_flags import OrgFeatureFlagOverride
 from app.models.governance import OrganizationGovernancePolicy
+from app.models.incident import Incident, IncidentNote
 from app.models.message_feedback import MessageFeedback
 from app.models.model_provider_settings import (
     OrgModelProviderChangeLog,
@@ -38,6 +39,7 @@ from app.models.org_domain_verification import OrgDomainVerification
 from app.models.org_scim_config import OrgSCIMConfig
 from app.models.org_sso_config import OrgSSOConfig
 from app.models.organization import Organization
+from app.models.organization_invitation import OrganizationInvitation
 from app.models.organization_member import OrganizationMember
 from app.models.pipeline import PipelineEvent, PipelineRun
 from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
@@ -84,6 +86,8 @@ __all__ = [
     "FailedJob",
     "FailedJobAuditLog",
     "FeedbackReviewItem",
+    "Incident",
+    "IncidentNote",
     "MessageFeedback",
     "Notification",
     "OrgDomainVerification",
@@ -92,6 +96,7 @@ __all__ = [
     "OrgSCIMConfig",
     "OrgSSOConfig",
     "Organization",
+    "OrganizationInvitation",
     "OrgFeatureFlagOverride",
     "OrganizationChunkingProfile",
     "OrganizationGovernancePolicy",

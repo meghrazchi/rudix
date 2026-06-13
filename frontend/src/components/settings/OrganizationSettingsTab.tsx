@@ -22,13 +22,13 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { ChunkingProfilesSection } from "@/components/settings/ChunkingProfilesSection";
 import { PromptTemplatesSection } from "@/components/settings/PromptTemplatesSection";
-import { TeamManagementSection } from "@/components/settings/TeamManagementSection";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getIngestionDefaults,
   getOrganizationCapabilities,
   getOrganizationProfile,
   getOrganizationSettings,
+  isOrganizationEndpointUnavailableError,
   transferOwnership,
   archiveOrganization,
   exportOrganizationData,
@@ -732,7 +732,7 @@ export function OrganizationSettingsTab() {
         </div>
 
         {/* Profile API content */}
-        {!capabilities.profileEnabled ? (
+        {!capabilities.profileEnabled || isOrganizationEndpointUnavailableError(profileQuery.error) ? (
           <p className="text-sm text-[#777587]">
             {t("profile.unavailable")}
           </p>
@@ -976,7 +976,7 @@ export function OrganizationSettingsTab() {
           )}
         </div>
 
-        {!capabilities.settingsEnabled ? (
+        {!capabilities.settingsEnabled || isOrganizationEndpointUnavailableError(settingsQuery.error) ? (
           <p className="text-sm text-[#777587]">
             {t("workspace.unavailable")}
           </p>
@@ -1211,10 +1211,7 @@ export function OrganizationSettingsTab() {
         )}
       </section>
 
-      {/* ── 3. Team Management ── */}
-      <TeamManagementSection role={role} />
-
-      {/* ── 4. Document & Ingestion Defaults ── */}
+      {/* ── 3. Document & Ingestion Defaults ── */}
       <section
         className="rounded-2xl border border-[#c7c4d8] bg-white p-6"
         aria-label="Document and ingestion defaults section"
@@ -1235,7 +1232,7 @@ export function OrganizationSettingsTab() {
           )}
         </div>
 
-        {!capabilities.ingestionEnabled ? (
+        {!capabilities.ingestionEnabled || isOrganizationEndpointUnavailableError(ingestionQuery.error) ? (
           <p className="text-sm text-[#777587]">
             {t("ingestion.unavailable")}
           </p>

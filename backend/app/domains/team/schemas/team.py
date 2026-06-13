@@ -31,6 +31,11 @@ class TeamMemberResponse(BaseModel):
     updated_at: datetime | None
 
 
+class TeamMemberDetailResponse(TeamMemberResponse):
+    is_active: bool
+    provisioned_by: str
+
+
 class TeamMemberListResponse(BaseModel):
     items: list[TeamMemberResponse]
     total: int
@@ -41,6 +46,7 @@ class TeamMemberListResponse(BaseModel):
 class InviteTeamMemberRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     role: TeamInviteRole = OrganizationRole.member.value
+    name: str | None = Field(default=None, max_length=255)
 
     @field_validator("email")
     @classmethod
@@ -49,6 +55,14 @@ class InviteTeamMemberRequest(BaseModel):
         if "@" not in normalized or normalized.startswith("@") or normalized.endswith("@"):
             raise ValueError("email must be a valid address")
         return normalized
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped if stripped else None
 
 
 class InviteTeamMemberResponse(BaseModel):
@@ -63,3 +77,12 @@ class UpdateTeamMemberRoleRequest(BaseModel):
 
 class TeamMemberRemoveResponse(BaseModel):
     removed: bool = True
+
+
+class SetMemberPasswordRequest(BaseModel):
+    password: str = Field(min_length=8, max_length=128)
+
+
+class SetMemberPasswordResponse(BaseModel):
+    member_id: str
+    password_set: bool = True

@@ -40,11 +40,14 @@ export type TeamMemberListParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  role?: string;
+  status?: string;
 };
 
 export type InviteTeamMemberRequest = {
   email: string;
   role: TeamInviteRole;
+  name?: string;
 };
 
 export type InviteTeamMemberResponse = {
@@ -224,6 +227,9 @@ function getTeamEndpoints() {
     removeMemberTemplate: trimToNull(
       process.env.NEXT_PUBLIC_TEAM_MEMBER_REMOVE_URL_TEMPLATE,
     ),
+    setPasswordTemplate: trimToNull(
+      process.env.NEXT_PUBLIC_TEAM_MEMBER_SET_PASSWORD_URL_TEMPLATE,
+    ),
   };
 }
 
@@ -286,12 +292,23 @@ export async function listTeamMembers(
       ? params.search.trim()
       : undefined;
 
+  const role =
+    typeof params.role === "string" && params.role.trim().length > 0
+      ? params.role.trim()
+      : undefined;
+  const member_status =
+    typeof params.status === "string" && params.status.trim().length > 0
+      ? params.status.trim()
+      : undefined;
+
   const payload = await apiRequest<unknown>(listMembersUrl, {
     method: "GET",
     query: {
       limit,
       offset,
       search,
+      role,
+      status: member_status,
     },
     retry: false,
   });
@@ -310,6 +327,7 @@ export async function inviteTeamMember(
     json: {
       email: request.email,
       role: request.role,
+      ...(request.name ? { name: request.name } : {}),
     },
     retry: false,
   });
@@ -351,4 +369,20 @@ export async function removeTeamMember(
     retry: false,
   });
   return { removed: true };
+}
+
+export async function setMemberPassword(
+  memberId: string,
+  password: string,
+): Promise<void> {
+  const { setPasswordTemplate } = getTeamEndpoints();
+  const url = resolveTemplateEndpoint(setPasswordTemplate, memberId);
+  if (!url) {
+    throw new Error("Set password endpoint not configured");
+  }
+  await apiRequest<unknown>(url, {
+    method: "POST",
+    json: { password },
+    retry: false,
+  });
 }

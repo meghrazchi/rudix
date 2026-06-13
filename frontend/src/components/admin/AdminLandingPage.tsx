@@ -18,7 +18,8 @@ type AdminSurfaceCard = {
     | "feedback-review"
     | "deletion-status"
     | "api-keys"
-    | "feature-flags";
+    | "feature-flags"
+    | "team";
   title: string;
   description: string;
   href: string;
@@ -137,6 +138,15 @@ function resolveAdminSurfaceCards(): AdminSurfaceCard[] {
       description:
         "Override environment-level feature flags per organization and audit rollout changes.",
       href: "/admin/feature-flags",
+      available: true,
+      availabilityNote: "Available",
+    },
+    {
+      id: "team",
+      title: "Team management",
+      description:
+        "Invite members, manage roles, track pending invitations, and control member lifecycle.",
+      href: "/admin/team",
       available: true,
       availabilityNote: "Available",
     },

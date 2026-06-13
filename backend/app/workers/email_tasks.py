@@ -46,9 +46,22 @@ async def _send_email_async(
             )
 
     if not success:
+        _logger.error(
+            "email.send.failed",
+            event_type=event_type,
+            recipient_email=recipient_email,
+            organization_id=organization_id,
+        )
         raise TransientTaskError(
             f"Email provider returned failure for {event_type} to {recipient_email}"
         )
+
+    _logger.info(
+        "email.send.success",
+        event_type=event_type,
+        recipient_email=recipient_email,
+        organization_id=organization_id,
+    )
 
 
 @celery_app.task(
@@ -76,6 +89,12 @@ def send_transactional_email(
     subject: str,
 ) -> None:
     """Dispatch a single transactional email. Retried on provider failure."""
+    _logger.info(
+        "email.task.started",
+        event_type=event_type,
+        recipient_email=recipient_email,
+        organization_id=organization_id,
+    )
     try:
         run_async(
             _send_email_async(
@@ -90,11 +109,14 @@ def send_transactional_email(
         )
     except TransientTaskError:
         raise
-    except Exception:
+    except Exception as exc:
         _logger.warning(
             "email.task.unexpected_error",
             event_type=event_type,
-            user_id=user_id,
+            recipient_email=recipient_email,
+            organization_id=organization_id,
+            error=str(exc),
+            exc_info=True,
         )
 
 
@@ -126,9 +148,16 @@ def dispatch_email(
                 "subject": subject,
             }
         )
+        _logger.info(
+            "email.task.queued",
+            event_type=event_type,
+            recipient_email=recipient_email,
+            organization_id=organization_id,
+        )
     except Exception:
         _logger.warning(
             "email.task.dispatch_failed",
             event_type=event_type,
+            recipient_email=recipient_email,
             user_id=user_id,
         )

@@ -2583,5 +2583,84 @@
     "de": "Alemán",
     "es": "Español",
     "fr": "Francés"
+  },
+  "adminTeam": {
+    "title": "Gestión del equipo",
+    "description": "Gestione miembros, invitaciones y roles de su organización.",
+    "inviteMember": "Invitar miembro",
+    "members": "Miembros",
+    "pendingInvitations": "Invitaciones pendientes",
+    "searchPlaceholder": "Buscar nombre o correo…",
+    "filterByRole": "Filtrar por rol",
+    "filterByStatus": "Filtrar por estado",
+    "allRoles": "Todos los roles",
+    "allStatuses": "Todos los estados",
+    "columns": {
+      "name": "Nombre",
+      "email": "Correo",
+      "role": "Rol",
+      "status": "Estado",
+      "joined": "Se unió",
+      "expires": "Vence",
+      "invitedBy": "Invitado por",
+      "sent": "Enviado",
+      "actions": "Acciones"
+    },
+    "statuses": {
+      "active": "Activo",
+      "invited": "Invitado",
+      "disabled": "Desactivado",
+      "suspended": "Suspendido"
+    },
+    "actions": {
+      "deactivate": "Desactivar",
+      "remove": "Eliminar",
+      "resend": "Reenviar",
+      "revoke": "Revocar",
+      "changeRole": "Guardar",
+      "sendInvite": "Enviar invitación",
+      "sending": "Enviando…",
+      "cancel": "Cancelar"
+    },
+    "inviteDialog": {
+      "title": "Invitar miembro al equipo",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "colega@empresa.com",
+      "roleLabel": "Rol"
+    },
+    "confirmRemove": {
+      "title": "¿Eliminar a {name}?",
+      "description": "Esto eliminará permanentemente al miembro de su organización y revocará todas las sesiones activas."
+    },
+    "confirmDeactivate": {
+      "title": "¿Desactivar a {name}?",
+      "description": "Esto desactivará la cuenta del miembro y revocará todas las sesiones activas."
+    },
+    "confirmRevoke": {
+      "title": "¿Revocar invitación de {email}?",
+      "description": "El enlace de invitación ya no será válido."
+    },
+    "empty": {
+      "members": "No se encontraron miembros",
+      "membersFiltered": "Ningún miembro coincide con \"{search}\"",
+      "invitations": "Sin invitaciones pendientes"
+    },
+    "toasts": {
+      "inviteSent": "Invitación enviada.",
+      "roleUpdated": "Rol actualizado.",
+      "memberRemoved": "Miembro eliminado.",
+      "memberDeactivated": "Miembro desactivado.",
+      "inviteResent": "Invitación reenviada.",
+      "inviteRevoked": "Invitación revocada."
+    },
+    "errors": {
+      "forbidden": "La gestión del equipo solo está disponible para propietarios y administradores de la organización.",
+      "forbiddenTitle": "Gestión del equipo restringida"
+    },
+    "pagination": {
+      "of": "de",
+      "previous": "Anterior",
+      "next": "Siguiente"
+    }
   }
 }

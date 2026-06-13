@@ -2583,5 +2583,84 @@
     "de": "German",
     "es": "Spanish",
     "fr": "French"
+  },
+  "adminTeam": {
+    "title": "Team Management",
+    "description": "Manage members, invitations, and roles for your organization.",
+    "inviteMember": "Invite member",
+    "members": "Members",
+    "pendingInvitations": "Pending Invitations",
+    "searchPlaceholder": "Search name or email…",
+    "filterByRole": "Filter by role",
+    "filterByStatus": "Filter by status",
+    "allRoles": "All roles",
+    "allStatuses": "All statuses",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "joined": "Joined",
+      "expires": "Expires",
+      "invitedBy": "Invited by",
+      "sent": "Sent",
+      "actions": "Actions"
+    },
+    "statuses": {
+      "active": "Active",
+      "invited": "Invited",
+      "disabled": "Disabled",
+      "suspended": "Suspended"
+    },
+    "actions": {
+      "deactivate": "Deactivate",
+      "remove": "Remove",
+      "resend": "Resend",
+      "revoke": "Revoke",
+      "changeRole": "Save",
+      "sendInvite": "Send invite",
+      "sending": "Sending…",
+      "cancel": "Cancel"
+    },
+    "inviteDialog": {
+      "title": "Invite team member",
+      "emailLabel": "Email address",
+      "emailPlaceholder": "colleague@company.com",
+      "roleLabel": "Role"
+    },
+    "confirmRemove": {
+      "title": "Remove {name}?",
+      "description": "This will permanently remove this member from your organization and revoke their active sessions."
+    },
+    "confirmDeactivate": {
+      "title": "Deactivate {name}?",
+      "description": "This will deactivate the member’s account and revoke all active sessions."
+    },
+    "confirmRevoke": {
+      "title": "Revoke invitation for {email}?",
+      "description": "The invitation link will no longer be valid."
+    },
+    "empty": {
+      "members": "No members found",
+      "membersFiltered": "No members match “{search}”",
+      "invitations": "No pending invitations"
+    },
+    "toasts": {
+      "inviteSent": "Invitation sent.",
+      "roleUpdated": "Role updated.",
+      "memberRemoved": "Member removed.",
+      "memberDeactivated": "Member deactivated.",
+      "inviteResent": "Invitation resent.",
+      "inviteRevoked": "Invitation revoked."
+    },
+    "errors": {
+      "forbidden": "Team management is only available to organization owners and admins.",
+      "forbiddenTitle": "Team management restricted"
+    },
+    "pagination": {
+      "of": "of",
+      "previous": "Previous",
+      "next": "Next"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { isApiClientError } from "@/lib/api/errors";
 import { apiRequest } from "@/lib/api/request";
 import { getFrontendRuntimeConfig } from "@/lib/runtime-config";
 
@@ -237,11 +238,17 @@ export async function getOrganizationProfile(): Promise<OrganizationProfile> {
   const { profileUrl } = getOrgEndpoints();
   if (!profileUrl)
     throw new OrganizationEndpointUnavailableError("profileEnabled");
-  const payload = await apiRequest<unknown>(profileUrl, {
-    method: "GET",
-    retry: false,
-  });
-  return normalizeProfile(payload);
+  try {
+    const payload = await apiRequest<unknown>(profileUrl, {
+      method: "GET",
+      retry: false,
+    });
+    return normalizeProfile(payload);
+  } catch (err) {
+    if (isApiClientError(err) && err.status === 501)
+      throw new OrganizationEndpointUnavailableError("profileEnabled");
+    throw err;
+  }
 }
 
 export async function updateOrganizationProfile(
@@ -272,11 +279,17 @@ export async function getOrganizationSettings(): Promise<OrganizationSettings> {
   const { settingsUrl } = getOrgEndpoints();
   if (!settingsUrl)
     throw new OrganizationEndpointUnavailableError("settingsEnabled");
-  const payload = await apiRequest<unknown>(settingsUrl, {
-    method: "GET",
-    retry: false,
-  });
-  return normalizeSettings(payload);
+  try {
+    const payload = await apiRequest<unknown>(settingsUrl, {
+      method: "GET",
+      retry: false,
+    });
+    return normalizeSettings(payload);
+  } catch (err) {
+    if (isApiClientError(err) && err.status === 501)
+      throw new OrganizationEndpointUnavailableError("settingsEnabled");
+    throw err;
+  }
 }
 
 export async function updateOrganizationSettings(
@@ -297,11 +310,17 @@ export async function getIngestionDefaults(): Promise<IngestionDefaults> {
   const { ingestionUrl } = getOrgEndpoints();
   if (!ingestionUrl)
     throw new OrganizationEndpointUnavailableError("ingestionEnabled");
-  const payload = await apiRequest<unknown>(ingestionUrl, {
-    method: "GET",
-    retry: false,
-  });
-  return normalizeIngestionDefaults(payload);
+  try {
+    const payload = await apiRequest<unknown>(ingestionUrl, {
+      method: "GET",
+      retry: false,
+    });
+    return normalizeIngestionDefaults(payload);
+  } catch (err) {
+    if (isApiClientError(err) && err.status === 501)
+      throw new OrganizationEndpointUnavailableError("ingestionEnabled");
+    throw err;
+  }
 }
 
 export async function updateIngestionDefaults(
