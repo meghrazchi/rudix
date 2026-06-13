@@ -2601,6 +2601,8 @@
     },
     "enterpriseRag": "RAG empresarial",
     "navigationMenu": "Menú de navegación",
+    "collapseSidebar": "Colapsar barra lateral",
+    "expandSidebar": "Expandir barra lateral",
     "loadingSession": "Cargando sesión",
     "loadingSessionDescription": "Comprobando el acceso de tu cuenta y organización para este espacio de trabajo.",
     "unassigned": "Sin asignar",

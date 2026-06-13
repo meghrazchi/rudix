@@ -2571,6 +2571,8 @@
     },
     "enterpriseRag": "RAG d’entreprise",
     "navigationMenu": "Menu de navigation",
+    "collapseSidebar": "Réduire la barre latérale",
+    "expandSidebar": "Développer la barre latérale",
     "loadingSession": "Chargement de la session",
     "loadingSessionDescription": "Vérification de l’accès à votre compte et à votre organisation pour cet espace de travail.",
     "unassigned": "Non attribué",

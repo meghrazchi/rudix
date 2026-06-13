@@ -255,9 +255,11 @@ function useHelpItemLabelMap(): Record<HelpMenuItem["id"], string> {
 function NavList({
   navItems,
   onNavigate,
+  collapsed = false,
 }: {
   navItems: AppNavigationItem[];
   onNavigate?: () => void;
+  collapsed?: boolean;
 }) {
   const getDisabledReason = useRouteDisabledReason();
   const navLabel = useNavLabelMap();
@@ -273,11 +275,15 @@ function NavList({
                 key={item.key}
                 aria-disabled="true"
                 title={getDisabledReason(item.disabledReason)}
-                className="rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-2 text-sm font-semibold text-slate-500"
+                className={
+                  collapsed
+                    ? "flex justify-center rounded-lg border border-dashed border-slate-300 bg-slate-100/70 py-2 text-slate-500"
+                    : "rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-2 text-sm font-semibold text-slate-500"
+                }
               >
-                <span className="flex items-center gap-2">
+                <span className={collapsed ? "" : "flex items-center gap-2"}>
                   <NavigationIcon routeKey={item.key} />
-                  <span>{label}</span>
+                  {!collapsed && <span>{label}</span>}
                 </span>
               </div>
             );
@@ -288,16 +294,21 @@ function NavList({
               key={item.key}
               href={item.href}
               onClick={onNavigate}
+              title={collapsed ? label : undefined}
               data-onboarding={`nav-${item.key}`}
               className={
-                item.isActive
-                  ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd]"
-                  : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8]"
+                collapsed
+                  ? item.isActive
+                    ? "flex justify-center rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] py-2 text-[#3525cd]"
+                    : "flex justify-center rounded-lg py-2 text-[#56536a] transition hover:bg-[#eceaf8]"
+                  : item.isActive
+                    ? "rounded-lg border-l-4 border-[#3525cd] bg-[#ece8ff] px-3 py-2 text-sm font-bold text-[#3525cd]"
+                    : "rounded-lg px-3 py-2 text-sm font-semibold text-[#56536a] transition hover:bg-[#eceaf8]"
               }
             >
-              <span className="flex items-center gap-2">
+              <span className={collapsed ? "" : "flex items-center gap-2"}>
                 <NavigationIcon routeKey={item.key} />
-                <span>{label}</span>
+                {!collapsed && <span>{label}</span>}
               </span>
             </Link>
           );
@@ -314,6 +325,10 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("sidebar_collapsed") === "true";
+  });
   const [openMenu, setOpenMenu] = useState<TopBarMenuKey | null>(null);
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
@@ -453,6 +468,14 @@ export function AppShell({
     setMobileSidebarOpen(false);
   }, [setMobileSidebarOpen]);
 
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar_collapsed", String(next));
+      return next;
+    });
+  }, []);
+
   const closeCommandMenu = useCallback(() => {
     setCommandMenuOpen(false);
     setCommandQuery("");
@@ -574,26 +597,56 @@ export function AppShell({
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
     >
       <div className="flex h-full w-full">
-        <aside className="hidden w-64 shrink-0 border-r border-[#d7d4e7] bg-[#f7f5ff] px-5 py-8 lg:block">
-          <div className="mb-6">
-            <div className="flex items-center gap-2">
+        <aside
+          className={`relative hidden shrink-0 flex-col border-r border-[#d7d4e7] bg-[#f7f5ff] py-6 transition-all duration-200 lg:flex ${sidebarCollapsed ? "w-14 px-2" : "w-64 px-5"}`}
+        >
+          {/* floating toggle button on the right edge */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
+            title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
+            className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd]"
+          >
+            <span className="material-symbols-outlined text-[16px]">
+              {sidebarCollapsed ? "chevron_right" : "chevron_left"}
+            </span>
+          </button>
+
+          <div className={`mb-6 ${sidebarCollapsed ? "flex justify-center" : ""}`}>
+            {sidebarCollapsed ? (
               <Image
                 src={BRAND_LOGO_SRC}
                 alt="Rudix logo"
                 width={26}
                 height={26}
                 className="h-6 w-6"
+                title="Rudix"
               />
-              <p className="text-2xl font-extrabold text-[#3525cd]">Rudix</p>
-            </div>
-            <p className="text-sm font-semibold text-[#5e5b72]">
-              {t("enterpriseRag")}
-            </p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={BRAND_LOGO_SRC}
+                    alt="Rudix logo"
+                    width={26}
+                    height={26}
+                    className="h-6 w-6"
+                  />
+                  <p className="text-2xl font-extrabold text-[#3525cd]">Rudix</p>
+                </div>
+                <p className="text-sm font-semibold text-[#5e5b72]">
+                  {t("enterpriseRag")}
+                </p>
+              </>
+            )}
           </div>
 
-          <NavList navItems={navItems} />
+          <div className="flex-1 overflow-hidden">
+            <NavList navItems={navItems} collapsed={sidebarCollapsed} />
+          </div>
 
-          <WorkspaceSwitcherCard session={session} />
+          {!sidebarCollapsed && <WorkspaceSwitcherCard session={session} />}
         </aside>
 
         {mobileSidebarOpen ? (

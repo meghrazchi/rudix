@@ -2601,6 +2601,8 @@
     },
     "enterpriseRag": "Enterprise RAG",
     "navigationMenu": "Navigation menu",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
     "loadingSession": "Loading session",
     "loadingSessionDescription": "Checking your account and organization access for this workspace.",
     "unassigned": "Unassigned",

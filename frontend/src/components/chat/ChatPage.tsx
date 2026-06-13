@@ -534,17 +534,32 @@ function readPersistedChatSettings(): PersistedChatSettings | null {
 }
 
 function getFileIcon(filename: string | null | undefined): string {
-  if (!filename) return "insert_drive_file";
+  if (!filename) return "draft";
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return "article";
-  if (["md", "txt", "doc", "docx"].includes(ext)) return "description";
-  if (["xlsx", "xls", "csv"].includes(ext)) return "table_chart";
-  return "insert_drive_file";
+  if (ext === "pdf") return "picture_as_pdf";
+  if (["doc", "docx"].includes(ext)) return "description";
+  if (["md", "txt"].includes(ext)) return "text_snippet";
+  if (["xlsx", "xls"].includes(ext)) return "table_chart";
+  if (["csv"].includes(ext)) return "dataset";
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(ext)) return "image";
+  if (["mp4", "mov", "avi", "webm"].includes(ext)) return "videocam";
+  if (["mp3", "wav", "ogg"].includes(ext)) return "audio_file";
+  if (["zip", "tar", "gz", "rar"].includes(ext)) return "folder_zip";
+  if (["json", "xml", "yaml", "yml"].includes(ext)) return "data_object";
+  if (["js", "ts", "py", "java", "go", "rs", "cpp", "c", "cs"].includes(ext)) return "code";
+  if (["pptx", "ppt"].includes(ext)) return "slideshow";
+  return "draft";
 }
 
 function getFileTypeLabel(filename: string | null | undefined): string {
   if (!filename) return "FILE";
   return filename.split(".").pop()?.toUpperCase() ?? "FILE";
+}
+
+function middleTruncate(str: string, maxLen = 28): string {
+  if (str.length <= maxLen) return str;
+  const keep = Math.floor((maxLen - 1) / 2);
+  return str.slice(0, keep) + "…" + str.slice(str.length - keep);
 }
 
 function getFileTypeColorClass(filename: string | null | undefined): string {
@@ -2180,126 +2195,94 @@ export function ChatPage() {
                                       {turn.response.answer}
                                     </p>
                                     {turn.response.citations.length > 0 && (
-                                      <div className="mt-3 grid grid-cols-2 gap-2">
+                                      <div className="mt-2 flex flex-wrap gap-1.5">
                                         {turn.response.citations.map(
-                                          (citation, ci) => (
-                                            <div
-                                              key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
-                                              className="relative flex items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
-                                            >
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  setSelectedResponseMessageId(
-                                                    turn.response.message_id,
-                                                  );
-                                                  setIsKnowledgeHubOpen(false);
-                                                  setActiveCitation(citation);
-                                                }}
-                                                className="flex flex-1 cursor-pointer items-start gap-2 overflow-hidden p-2 text-left"
+                                          (citation, ci) => {
+                                            const label =
+                                              citation.source_title ??
+                                              citation.filename ??
+                                              tc("documentFallback");
+                                            const ext =
+                                              citation.filename
+                                                ?.split(".")
+                                                .pop()
+                                                ?.toUpperCase() ?? "FILE";
+                                            return (
+                                              <div
+                                                key={`inline:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                                className="relative flex w-64 shrink-0 items-stretch rounded-lg border border-[#c7c4d8] bg-white transition-colors hover:bg-[#eae6f4]"
                                               >
-                                                <span
-                                                  className={`material-symbols-outlined shrink-0 text-base ${getFileTypeColorClass(citation.filename)}`}
-                                                  aria-hidden="true"
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    setSelectedResponseMessageId(
+                                                      turn.response.message_id,
+                                                    );
+                                                    setIsKnowledgeHubOpen(
+                                                      false,
+                                                    );
+                                                    setActiveCitation(citation);
+                                                  }}
+                                                  title={label}
+                                                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 overflow-hidden px-2.5 py-2 text-left"
                                                 >
-                                                  {getFileIcon(
-                                                    citation.filename,
-                                                  )}
-                                                </span>
-                                                <div className="min-w-0 overflow-hidden">
-                                                  <div className="mb-0.5 flex flex-wrap items-center gap-1">
-                                                    <p
-                                                      className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                                  <span
+                                                    className={`material-symbols-outlined shrink-0 text-[22px] ${getFileTypeColorClass(citation.filename)}`}
+                                                    aria-hidden="true"
+                                                  >
+                                                    {getFileIcon(
+                                                      citation.filename,
+                                                    )}
+                                                  </span>
+                                                  <span className="min-w-0 flex-1 overflow-hidden">
+                                                    <span
+                                                      className={`block text-[10px] font-bold uppercase ${getFileTypeColorClass(citation.filename)}`}
                                                     >
                                                       {citationProviderLabel(
                                                         citation,
-                                                      )
-                                                        ? citationProviderLabel(
-                                                            citation,
-                                                          )!.toUpperCase()
-                                                        : getFileTypeLabel(
-                                                            citation.filename,
-                                                          )}
-                                                    </p>
-                                                    {citationTrustLabel(
-                                                      citation,
-                                                    ) ? (
-                                                      <span className="rounded-full bg-[#f0ecf9] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
-                                                        {citationTrustLabel(
-                                                          citation,
-                                                        )}
-                                                      </span>
-                                                    ) : null}
-                                                  </div>
-                                                  <p
-                                                    className="truncate text-xs font-bold text-[#1b1b24]"
-                                                    title={
-                                                      citation.source_title ??
-                                                      citation.filename ??
-                                                      tc("documentFallback")
-                                                    }
-                                                  >
-                                                    {citation.source_title ??
-                                                      citation.filename ??
-                                                      tc("documentFallback")}
-                                                  </p>
-                                                  {citation.source_key ? (
-                                                    <p
-                                                      className="truncate font-mono text-[10px] text-[#6a6780]"
-                                                      title={
-                                                        citation.source_key
-                                                      }
-                                                    >
-                                                      {citation.source_key}
-                                                    </p>
-                                                  ) : null}
-                                                  {citation.source_section ? (
-                                                    <p className="truncate text-[10px] text-[#6a6780]">
-                                                      {citation.source_section}
-                                                    </p>
-                                                  ) : null}
-                                                  {citation.text_snippet && (
-                                                    <p className="mt-0.5 line-clamp-1 text-[10px] text-[#464555]">
-                                                      {citation.text_snippet}
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              </button>
-                                              {isPreviewableFile(
-                                                citation.filename,
-                                              ) && (
-                                                <button
-                                                  type="button"
-                                                  aria-label={`Preview ${citation.filename ?? "document"}`}
-                                                  onClick={() => {
-                                                    const siblings =
-                                                      turn.response.citations.filter(
-                                                        (c) =>
-                                                          c.document_id ===
-                                                          citation.document_id,
-                                                      );
-                                                    const idx =
-                                                      siblings.indexOf(
-                                                        citation,
-                                                      );
-                                                    setPreviewCitationSet({
-                                                      citations: siblings,
-                                                      initialIndex:
-                                                        idx >= 0 ? idx : 0,
-                                                    });
-                                                  }}
-                                                  className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
-                                                >
-                                                  <span
-                                                    className="material-symbols-outlined text-[16px]"
-                                                    aria-hidden="true"
-                                                  >
-                                                    visibility
+                                                      )?.toUpperCase() ?? ext}
+                                                    </span>
+                                                    <span className="block truncate text-xs font-medium text-[#1b1b24]">
+                                                      {label}
+                                                    </span>
                                                   </span>
                                                 </button>
-                                              )}
-                                            </div>
-                                          ),
+                                                {isPreviewableFile(
+                                                  citation.filename,
+                                                ) && (
+                                                  <button
+                                                    type="button"
+                                                    aria-label={`Preview ${citation.filename ?? "document"}`}
+                                                    onClick={() => {
+                                                      const siblings =
+                                                        turn.response.citations.filter(
+                                                          (c) =>
+                                                            c.document_id ===
+                                                            citation.document_id,
+                                                        );
+                                                      const idx =
+                                                        siblings.indexOf(
+                                                          citation,
+                                                        );
+                                                      setPreviewCitationSet({
+                                                        citations: siblings,
+                                                        initialIndex:
+                                                          idx >= 0 ? idx : 0,
+                                                      });
+                                                    }}
+                                                    className="shrink-0 self-center border-l border-[#e4e1ee] px-2 text-[#6a6780] transition-colors hover:bg-[#ede9f9] hover:text-[#3525cd]"
+                                                  >
+                                                    <span
+                                                      className="material-symbols-outlined text-[16px]"
+                                                      aria-hidden="true"
+                                                    >
+                                                      open_in_new
+                                                    </span>
+                                                  </button>
+                                                )}
+                                              </div>
+                                            );
+                                          },
                                         )}
                                       </div>
                                     )}

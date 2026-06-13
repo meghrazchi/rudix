@@ -2571,6 +2571,8 @@
     },
     "enterpriseRag": "Enterprise RAG",
     "navigationMenu": "Navigationsmenü",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "expandSidebar": "Seitenleiste ausklappen",
     "loadingSession": "Sitzung wird geladen",
     "loadingSessionDescription": "Ihr Konto und der Organisationszugang für diesen Arbeitsbereich werden überprüft.",
     "unassigned": "Nicht zugewiesen",
