@@ -515,7 +515,7 @@ const CONFLUENCE_SCOPES: OAuthScope[] = [
 ];
 
 function ConfluenceSetupGuide() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
     const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
@@ -525,36 +525,36 @@ function ConfluenceSetupGuide() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
+    <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-blue-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-amber-700">
+          <span className="material-symbols-outlined text-[20px] text-blue-700">
             build_circle
           </span>
           <div>
-            <div className="text-sm font-semibold text-amber-900">
+            <div className="text-sm font-semibold text-blue-900">
               Atlassian app setup required
             </div>
-            <div className="text-xs text-amber-700">
+            <div className="text-xs text-blue-700">
               One-time prerequisite — create an OAuth app before connecting
             </div>
           </div>
         </div>
         <span
-          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-blue-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
-          <p className="text-sm leading-relaxed text-amber-800">
+        <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-blue-800">
             Rudix connects to Confluence via an OAuth 2.0 (3LO) app you own on
             the Atlassian Developer Console. Follow these steps once, then come
             back here to connect.
@@ -563,16 +563,16 @@ function ConfluenceSetupGuide() {
           <ol className="space-y-4">
             {/* Step 1 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 1
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Create an app</span> — open{" "}
                 <a
                   href="https://developer.atlassian.com/console/myapps/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-amber-700"
+                  className="underline underline-offset-2 hover:text-blue-700"
                 >
                   developer.atlassian.com/console/myapps
                 </a>
@@ -584,10 +584,10 @@ function ConfluenceSetupGuide() {
 
             {/* Step 2 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 2
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Enable Confluence API</span> —
                 under <strong>APIs and features</strong>, click{" "}
                 <strong>Add</strong> next to <strong>Confluence API</strong>.
@@ -596,15 +596,15 @@ function ConfluenceSetupGuide() {
 
             {/* Step 3 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 3
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">Add the callback URL</span> —
                   under <strong>Authorization</strong>, paste this exact URL:
                 </div>
-                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
+                <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
@@ -612,7 +612,7 @@ function ConfluenceSetupGuide() {
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
+                    className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       content_copy
@@ -624,16 +624,16 @@ function ConfluenceSetupGuide() {
 
             {/* Step 4 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 4
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">Grant permissions</span> —
                   under <strong>Confluence API → Permissions</strong>, add these
                   OAuth scopes:
                 </div>
-                <div className="divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-300 bg-white">
+                <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
                   {CONFLUENCE_SCOPES.map(({ scope, required, description }) => (
                     <div
                       key={scope}
@@ -662,10 +662,10 @@ function ConfluenceSetupGuide() {
 
             {/* Step 5 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 5
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Add credentials to your deployment
@@ -674,7 +674,7 @@ function ConfluenceSetupGuide() {
                   <strong>Client Secret</strong> from the app settings page,
                   then set the backend environment variable:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
                   <div className="pl-2 text-[#464555]">
                     {'[{"provider_key":"confluence",'}
@@ -686,7 +686,7 @@ function ConfluenceSetupGuide() {
                     {'"client_secret":"<your-client-secret>"}]'}
                   </div>
                 </div>
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-blue-700">
                   The same Atlassian app credentials can be reused for other
                   compatible providers by adding another entry to the array.
                 </p>
@@ -694,8 +694,8 @@ function ConfluenceSetupGuide() {
             </li>
           </ol>
 
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-white p-3 text-xs text-blue-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
             <span>
@@ -746,7 +746,7 @@ const MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES: OAuthScope[] = [
 ];
 
 function GoogleDriveSetupGuide() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
     const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
@@ -756,36 +756,36 @@ function GoogleDriveSetupGuide() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
+    <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-blue-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-amber-700">
+          <span className="material-symbols-outlined text-[20px] text-blue-700">
             build_circle
           </span>
           <div>
-            <div className="text-sm font-semibold text-amber-900">
+            <div className="text-sm font-semibold text-blue-900">
               Google Cloud project setup required
             </div>
-            <div className="text-xs text-amber-700">
+            <div className="text-xs text-blue-700">
               One-time prerequisite — create an OAuth app before connecting
             </div>
           </div>
         </div>
         <span
-          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-blue-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
-          <p className="text-sm leading-relaxed text-amber-800">
+        <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-blue-800">
             Rudix connects to Google Drive via an OAuth 2.0 app you own in the
             Google Cloud Console. Follow these steps once, then come back here
             to connect.
@@ -793,16 +793,16 @@ function GoogleDriveSetupGuide() {
 
           <ol className="space-y-4">
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 1
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Create a project</span> — open{" "}
                 <a
                   href="https://console.cloud.google.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-amber-700"
+                  className="underline underline-offset-2 hover:text-blue-700"
                 >
                   console.cloud.google.com
                 </a>
@@ -812,10 +812,10 @@ function GoogleDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 2
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">
                   Enable the Google Drive API
                 </span>{" "}
@@ -826,10 +826,10 @@ function GoogleDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 3
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">
                   Configure the OAuth consent screen
                 </span>{" "}
@@ -842,10 +842,10 @@ function GoogleDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 4
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Create OAuth credentials
@@ -855,7 +855,7 @@ function GoogleDriveSetupGuide() {
                   Choose <strong>Web application</strong> and add this as an{" "}
                   <strong>Authorized redirect URI</strong>:
                 </div>
-                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
+                <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
@@ -863,7 +863,7 @@ function GoogleDriveSetupGuide() {
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
+                    className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       content_copy
@@ -874,10 +874,10 @@ function GoogleDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 5
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Add required OAuth scopes
@@ -885,7 +885,7 @@ function GoogleDriveSetupGuide() {
                   — on the OAuth consent screen, click{" "}
                   <strong>Add or remove scopes</strong> and add:
                 </div>
-                <div className="divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-300 bg-white">
+                <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
                   {GOOGLE_DRIVE_SCOPES.map(
                     ({ scope, required, description }) => (
                       <div
@@ -915,10 +915,10 @@ function GoogleDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 6
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Add credentials to your deployment
@@ -927,7 +927,7 @@ function GoogleDriveSetupGuide() {
                   <strong>Client Secret</strong> from the credentials page, then
                   set the backend environment variable:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
                   <div className="pl-2 text-[#464555]">
                     {'[{"provider_key":"google_drive",'}
@@ -943,8 +943,8 @@ function GoogleDriveSetupGuide() {
             </li>
           </ol>
 
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-white p-3 text-xs text-blue-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
             <span>
@@ -959,7 +959,7 @@ function GoogleDriveSetupGuide() {
 }
 
 function NotionSetupGuide() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
     const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
@@ -969,37 +969,37 @@ function NotionSetupGuide() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50">
+    <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-amber-100/60"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-blue-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-amber-700">
+          <span className="material-symbols-outlined text-[20px] text-blue-700">
             build_circle
           </span>
           <div>
-            <div className="text-sm font-semibold text-amber-900">
+            <div className="text-sm font-semibold text-blue-900">
               Notion integration setup required
             </div>
-            <div className="text-xs text-amber-700">
+            <div className="text-xs text-blue-700">
               One-time prerequisite — create a public OAuth integration before
               connecting
             </div>
           </div>
         </div>
         <span
-          className={`material-symbols-outlined shrink-0 text-[20px] text-amber-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-blue-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="space-y-5 border-t border-amber-200 px-5 pt-4 pb-5">
-          <p className="text-sm leading-relaxed text-amber-800">
+        <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-blue-800">
             Rudix connects to Notion via a public OAuth 2.0 integration you own
             on the Notion developer portal. Follow these steps once, then come
             back here to connect.
@@ -1008,17 +1008,17 @@ function NotionSetupGuide() {
           <ol className="space-y-4">
             {/* Step 1 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 1
               </span>
-              <div className="text-sm text-amber-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Create an integration</span> —
                 open{" "}
                 <a
                   href="https://www.notion.so/my-integrations"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-amber-700"
+                  className="underline underline-offset-2 hover:text-blue-700"
                 >
                   notion.so/my-integrations
                 </a>
@@ -1031,16 +1031,16 @@ function NotionSetupGuide() {
 
             {/* Step 2 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 2
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">Add the redirect URI</span> —
                   under <strong>OAuth Domain &amp; URIs</strong>, add this exact
                   URL to <strong>Redirect URIs</strong>:
                 </div>
-                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2">
+                <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
@@ -1048,7 +1048,7 @@ function NotionSetupGuide() {
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-amber-600 transition-colors hover:bg-amber-100"
+                    className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       content_copy
@@ -1060,10 +1060,10 @@ function NotionSetupGuide() {
 
             {/* Step 3 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 3
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Add credentials to your deployment
@@ -1072,7 +1072,7 @@ function NotionSetupGuide() {
                   <strong>OAuth client secret</strong> from the integration
                   settings, then set the backend environment variable:
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>CONNECTOR_OAUTH_CLIENTS=</div>
                   <div className="pl-2 text-[#464555]">
                     {'[{"provider_key":"notion",'}
@@ -1089,10 +1089,10 @@ function NotionSetupGuide() {
 
             {/* Step 4 */}
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 4
               </span>
-              <div className="flex-1 space-y-2 text-sm text-amber-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Choose scope in the wizard
@@ -1101,7 +1101,7 @@ function NotionSetupGuide() {
                   pages or databases. Leave blank to index all content the
                   integration can access.
                 </div>
-                <div className="rounded-xl border border-amber-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>page_ids, database_ids</div>
                   <div>include_comments, include_attachments</div>
                   <div>max_page_depth, import_property_metadata</div>
@@ -1110,8 +1110,8 @@ function NotionSetupGuide() {
             </li>
           </ol>
 
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-white p-3 text-xs text-amber-800">
-            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-white p-3 text-xs text-blue-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
             <span>
@@ -1126,7 +1126,7 @@ function NotionSetupGuide() {
 }
 
 function MicrosoftSharePointOneDriveSetupGuide() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   let callbackUrl = "{API_BASE_URL}/connectors/oauth/callback";
   try {
     const apiUrl = getFrontendRuntimeConfig().apiUrl.replace(/\/$/, "");
@@ -1136,37 +1136,37 @@ function MicrosoftSharePointOneDriveSetupGuide() {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
+    <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-blue-200 bg-blue-50">
       <button
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-sky-100/60"
+        className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-blue-100/60"
       >
         <div className="flex items-center gap-2.5">
-          <span className="material-symbols-outlined text-[20px] text-sky-700">
+          <span className="material-symbols-outlined text-[20px] text-blue-700">
             cloud_done
           </span>
           <div>
-            <div className="text-sm font-semibold text-sky-900">
+            <div className="text-sm font-semibold text-blue-900">
               Microsoft 365 tenant setup required
             </div>
-            <div className="text-xs text-sky-700">
+            <div className="text-xs text-blue-700">
               One-time prerequisite - create an Azure app registration before
               connecting
             </div>
           </div>
         </div>
         <span
-          className={`material-symbols-outlined shrink-0 text-[20px] text-sky-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`material-symbols-outlined shrink-0 text-[20px] text-blue-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           expand_more
         </span>
       </button>
 
       {open && (
-        <div className="space-y-5 border-t border-sky-200 px-5 pt-4 pb-5">
-          <p className="text-sm leading-relaxed text-sky-800">
+        <div className="space-y-5 border-t border-blue-200 px-5 pt-4 pb-5">
+          <p className="text-sm leading-relaxed text-blue-800">
             Rudix connects to SharePoint and OneDrive through Microsoft Graph.
             After the OAuth app is configured, choose the sites, libraries,
             drives, and folders you want to index, then scope file types and
@@ -1175,17 +1175,17 @@ function MicrosoftSharePointOneDriveSetupGuide() {
 
           <ol className="space-y-4">
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 1
               </span>
-              <div className="text-sm text-sky-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Register an app</span> - open
                 the{" "}
                 <a
                   href="https://portal.azure.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2 hover:text-sky-700"
+                  className="underline underline-offset-2 hover:text-blue-700"
                 >
                   Azure portal
                 </a>
@@ -1195,10 +1195,10 @@ function MicrosoftSharePointOneDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 2
               </span>
-              <div className="text-sm text-sky-900">
+              <div className="text-sm text-blue-900">
                 <span className="font-semibold">Add the redirect URI</span> -
                 under <strong>Authentication</strong>, add this exact callback
                 URL:
@@ -1206,10 +1206,10 @@ function MicrosoftSharePointOneDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 3
               </span>
-              <div className="flex-1 space-y-2 text-sm text-sky-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Grant Microsoft Graph permissions
@@ -1217,7 +1217,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                   - add the read-only scopes below so Rudix can validate the
                   tenant, discover sites and drives, and read document content.
                 </div>
-                <div className="flex items-center gap-2 rounded-xl border border-sky-300 bg-white px-3 py-2">
+                <div className="flex items-center gap-2 rounded-xl border border-blue-300 bg-white px-3 py-2">
                   <span className="flex-1 font-mono text-xs break-all text-[#2a2640]">
                     {callbackUrl}
                   </span>
@@ -1225,14 +1225,14 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                     type="button"
                     title="Copy callback URL"
                     onClick={() => navigator.clipboard.writeText(callbackUrl)}
-                    className="shrink-0 rounded-lg p-1.5 text-sky-600 transition-colors hover:bg-sky-100"
+                    className="shrink-0 rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-100"
                   >
                     <span className="material-symbols-outlined text-[16px]">
                       content_copy
                     </span>
                   </button>
                 </div>
-                <div className="divide-y divide-sky-100 overflow-hidden rounded-xl border border-sky-300 bg-white">
+                <div className="divide-y divide-blue-100 overflow-hidden rounded-xl border border-blue-300 bg-white">
                   {MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES.map(
                     ({ scope, required, description }) => (
                       <div
@@ -1262,10 +1262,10 @@ function MicrosoftSharePointOneDriveSetupGuide() {
             </li>
 
             <li className="flex gap-3">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-200 text-xs font-bold text-sky-900">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-200 text-xs font-bold text-blue-900">
                 4
               </span>
-              <div className="flex-1 space-y-2 text-sm text-sky-900">
+              <div className="flex-1 space-y-2 text-sm text-blue-900">
                 <div>
                   <span className="font-semibold">
                     Choose source scope in the wizard
@@ -1274,7 +1274,7 @@ function MicrosoftSharePointOneDriveSetupGuide() {
                   drives, and folders to index, then set allowed file types and
                   sync frequency.
                 </div>
-                <div className="rounded-xl border border-sky-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
+                <div className="rounded-xl border border-blue-300 bg-white px-3 py-2.5 font-mono text-xs leading-relaxed text-[#2a2640]">
                   <div>site_ids, drive_ids, folder_ids</div>
                   <div>allowed_file_types, include_folder_paths</div>
                   <div>exclude_folder_paths, sync_frequency_minutes</div>
@@ -1284,8 +1284,8 @@ function MicrosoftSharePointOneDriveSetupGuide() {
             </li>
           </ol>
 
-          <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-white p-3 text-xs text-sky-800">
-            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-sky-600">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-white p-3 text-xs text-blue-800">
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-blue-600">
               lock
             </span>
             <span>
