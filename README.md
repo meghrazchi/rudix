@@ -331,6 +331,27 @@ For required CI variables and environment rules, see:
 
 ---
 
+## Local Model Support
+
+Rudix can route generation and embedding through any OpenAI-compatible local server such as Ollama, vLLM, or LiteLLM — no cloud dependency required.
+
+```bash
+# Start Ollama and pull a model
+make up-ollama
+make pull-local-model
+
+# Set in .env
+LLM_DEFAULT_PROVIDER=local
+LOCAL_LLM_BASE_URL=http://ollama:11434/v1
+LOCAL_LLM_MODEL=llama3.2
+LOCAL_LLM_JSON_MODE_ENABLED=false
+FEATURE_ENABLE_LOCAL_LLM_PROFILES=true
+```
+
+See [`.env.local-llm.example`](.env.local-llm.example) for a ready-to-copy environment file and [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) for full setup instructions, security requirements, evaluation gates, and operational runbooks.
+
+---
+
 ## Agentic Mode Notes
 
 Chat agentic mode uses backend agent run APIs and is controlled by feature flags.
@@ -363,6 +384,8 @@ Start here:
 - [`docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md`](docs/13_AGENTIC_ARCHITECTURE_AND_CAPABILITY_MODEL.md) — Agentic architecture and capability model
 - [`docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md`](docs/14_GITLAB_CICD_DEPLOYMENT_PIPELINE.md) — GitLab CI/CD and release flow
 - [`docs/15_MCP_SERVER_DEPLOYMENT_MODE.md`](docs/15_MCP_SERVER_DEPLOYMENT_MODE.md) — MCP architecture (Mermaid), tools/resources/prompts, deployment
+- [`docs/18_LANGFUSE_OBSERVABILITY.md`](docs/18_LANGFUSE_OBSERVABILITY.md) — Langfuse LLM observability: traces, redaction, sampling, production setup
+- [`docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md`](docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md) — Local LLM providers: Ollama/vLLM/LiteLLM setup, security, evaluation, runbooks
 - `ci/security/security_gate_allowlist.json` — tracked temporary allowlist for CI severity gate exceptions
 
 Frontend-specific details are available in:

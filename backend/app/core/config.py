@@ -339,14 +339,24 @@ class Settings(BaseSettings):
     openai_llm_output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
 
     # Local LLM (OpenAI-compatible) provider settings — F218
+    # Active when LLM_DEFAULT_PROVIDER=local. Supports Ollama, vLLM, LiteLLM, and any
+    # server that implements the OpenAI chat completions API. See .env.local-llm.example
+    # and docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md for setup and security requirements.
+    # WARNING: local_llm_api_key is sensitive — never log or return it in API responses.
     local_llm_base_url: AnyHttpUrl | None = None
     local_llm_api_key: SecretStr | None = None
     local_llm_model: str = Field(default="", min_length=0, max_length=128)
+    # One of: ollama, vllm, litellm, generic — used for diagnostics and logging only.
     local_llm_provider_kind: str = Field(default="generic", min_length=1, max_length=64)
     local_llm_timeout_seconds: float = Field(default=30.0, ge=1.0, le=300.0)
+    # Set False for providers that do not support response_format=json_object (e.g. Ollama).
     local_llm_json_mode_enabled: bool = True
 
     # Local embedding (OpenAI-compatible /v1/embeddings) provider settings — F219
+    # Active when EMBEDDING_DEFAULT_PROVIDER=local. Changing the embedding model after
+    # documents are indexed requires a full reindex — existing Qdrant vectors become
+    # incompatible. See the "Embedding dimension mismatch" runbook in
+    # docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md before changing local_embedding_model.
     local_embedding_base_url: AnyHttpUrl | None = None
     local_embedding_api_key: SecretStr | None = None
     local_embedding_model: str = Field(default="", min_length=0, max_length=128)
@@ -495,6 +505,12 @@ class Settings(BaseSettings):
     feature_enable_llm: bool = True
     feature_enable_evaluations: bool = True
     # F220: Model profiles and provider policy
+    # feature_enable_local_llm_profiles — show local provider in admin model profile UI/API.
+    # feature_enable_local_embedding_profiles — same for embedding task profiles.
+    # feature_enable_provider_fallback — allow routing to a cloud fallback on local failure.
+    #   WARNING: when True, private document context may be sent to the cloud provider on
+    #   fallback. Requires explicit governance acknowledgment before enabling in production.
+    #   See docs/19_LOCAL_LLM_PROVIDER_INTEGRATION.md — Security and Privacy section.
     feature_enable_local_llm_profiles: bool = False
     feature_enable_local_embedding_profiles: bool = False
     feature_enable_provider_fallback: bool = False
