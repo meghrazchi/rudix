@@ -1,4 +1,4 @@
-"""Admin HTTP endpoints for Enterprise Graph entity management (F281).
+"""Admin HTTP endpoints for Enterprise Graph entity management (F281/F290).
 
 No Cypher appears in this module — all graph operations are delegated to
 GraphService which composes the repository layer.
@@ -16,25 +16,43 @@ Routes:
   POST /admin/graph/entity-resolution/split            — record split decision
   GET  /admin/graph/documents/{document_id}/extraction-runs — extraction run history
 
-Auth: owner/admin only.
+Auth:
+  Reads  — owner/admin role (require_roles).
+  Writes — graph:entities:manage permission (require_permission); admin/owner hold
+           this by default; custom roles can be granted it for RBAC extensibility.
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Any
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import require_roles
+from app.auth.dependencies import require_permission, require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
+from app.core.logging import get_logger
+from app.db.session import get_db_session
+from app.domains.admin.audit_events import (
+    GRAPH_ENTITY_CREATED,
+    GRAPH_ENTITY_DELETED,
+    GRAPH_ENTITY_MERGED,
+    GRAPH_ENTITY_SPLIT,
+)
+from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.graph.repositories.relation_repository import RELATIONSHIP_TYPES
 from app.domains.graph.services.graph_service import GraphService
 from app.models.enums import OrganizationRole
+from app.models.permissions import PermissionType
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/admin/graph", tags=["admin-graph"])
+
+_audit_log_service = AuditLogService()
+_logger = get_logger("events.graph_entities")
 
 
 def _require_graph_enabled() -> None:
@@ -44,6 +62,24 @@ def _require_graph_enabled() -> None:
 
 def _graph_service() -> GraphService:
     return GraphService()
+
+
+def _org_id(principal: AuthenticatedPrincipal) -> UUID:
+    try:
+        return UUID(principal.organization_id)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=403, detail="invalid_organization_context") from exc
+
+
+def _user_id(principal: AuthenticatedPrincipal) -> UUID | None:
+    try:
+        return UUID(principal.user_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _request_id(request: Request) -> str | None:
+    return getattr(request.state, "request_id", None)
 
 
 # ---------------------------------------------------------------------------
@@ -193,12 +229,18 @@ class DeleteResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Dependency alias
+# Dependency aliases
 # ---------------------------------------------------------------------------
 
-_AdminPrincipal = Annotated[
+# Read operations: owner/admin role required (admin panel access).
+_AdminReadPrincipal = Annotated[
     AuthenticatedPrincipal,
     Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+]
+# Write operations: permission-based so custom roles can be granted access.
+_AdminWritePrincipal = Annotated[
+    AuthenticatedPrincipal,
+    Depends(require_permission(PermissionType.graph_entities_manage)),
 ]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))]
 
@@ -210,7 +252,7 @@ _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))]
 
 @router.get("/entities", response_model=EntityListResponse)
 async def list_entities(
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     workspace_id: str | None = Query(default=None),
     entity_type: str | None = Query(default=None),
@@ -232,12 +274,17 @@ async def list_entities(
 
 @router.post("/entities", response_model=dict)
 async def upsert_entity(
+    request: Request,
     body: UpsertEntityRequest,
-    principal: _AdminPrincipal,
+    principal: _AdminWritePrincipal,
     _: _RateLimit,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> dict:
     """Create or update a graph entity in the caller's organization."""
     _require_graph_enabled()
+    organization_id = _org_id(principal)
+    actor_id = _user_id(principal)
+
     svc = _graph_service()
     await svc.upsert_entity(
         organization_id=principal.organization_id,
@@ -254,13 +301,34 @@ async def upsert_entity(
     )
     if entity is None:
         raise HTTPException(status_code=503, detail="graph_unavailable")
+
+    await _audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=actor_id,
+        action=GRAPH_ENTITY_CREATED,
+        resource_type="graph_entity",
+        resource_id=body.entity_id,
+        request_id=_request_id(request),
+        metadata={
+            "entity_type": body.entity_type,
+            "canonical_name": body.canonical_name,
+            "workspace_id": body.workspace_id,
+        },
+    )
+    _logger.info(
+        "graph.entity.upserted",
+        organization_id=str(organization_id),
+        user_id=str(actor_id) if actor_id else None,
+        entity_id=body.entity_id,
+    )
     return entity
 
 
 @router.get("/entities/{entity_id}", response_model=dict)
 async def get_entity(
     entity_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
 ) -> dict:
     """Fetch a single graph entity by entity_id (scoped to caller's org)."""
@@ -277,24 +345,46 @@ async def get_entity(
 
 @router.delete("/entities/{entity_id}", response_model=DeleteResponse)
 async def delete_entity(
+    request: Request,
     entity_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminWritePrincipal,
     _: _RateLimit,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DeleteResponse:
     """Delete a graph entity and its relationships (scoped to caller's org)."""
     _require_graph_enabled()
+    organization_id = _org_id(principal)
+    actor_id = _user_id(principal)
+
     svc = _graph_service()
     deleted = await svc.delete_entity(
         organization_id=principal.organization_id,
         entity_id=entity_id,
     )
+    if deleted:
+        await _audit_log_service.record(
+            db_session,
+            organization_id=organization_id,
+            user_id=actor_id,
+            action=GRAPH_ENTITY_DELETED,
+            resource_type="graph_entity",
+            resource_id=entity_id,
+            request_id=_request_id(request),
+            metadata={"entity_id": entity_id},
+        )
+        _logger.info(
+            "graph.entity.deleted",
+            organization_id=str(organization_id),
+            user_id=str(actor_id) if actor_id else None,
+            entity_id=entity_id,
+        )
     return DeleteResponse(deleted=deleted)
 
 
 @router.get("/entities/{entity_id}/aliases", response_model=EntityAliasListResponse)
 async def get_entity_aliases(
     entity_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     limit: int = Query(default=50, ge=1, le=200),
 ) -> EntityAliasListResponse:
@@ -318,7 +408,7 @@ async def get_entity_aliases(
 @router.get("/entities/{entity_id}/evidence", response_model=EvidenceListResponse)
 async def get_entity_evidence(
     entity_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     limit: int = Query(default=50, ge=1, le=200),
 ) -> EvidenceListResponse:
@@ -359,7 +449,7 @@ async def get_entity_evidence(
 @router.get("/entities/{entity_id}/relations", response_model=RelationListResponse)
 async def get_entity_relations(
     entity_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     rel_type: str | None = Query(default=None),
     direction: str = Query(default="out", pattern="^(out|in|both)$"),
@@ -404,7 +494,7 @@ async def get_entity_relations(
     response_model=EntityResolutionCandidateListResponse,
 )
 async def list_entity_resolution_candidates(
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     entity_type: str | None = Query(default=None),
     name_query: str | None = Query(default=None, min_length=1),
@@ -433,12 +523,17 @@ async def list_entity_resolution_candidates(
 
 @router.post("/entity-resolution/merge", response_model=EntityDecisionResponse)
 async def record_entity_merge_decision(
+    request: Request,
     body: EntityMergeDecisionRequest,
-    principal: _AdminPrincipal,
+    principal: _AdminWritePrincipal,
     _: _RateLimit,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> EntityDecisionResponse:
     """Record a manual merge decision for later replay and audit."""
     _require_graph_enabled()
+    organization_id = _org_id(principal)
+    actor_id = _user_id(principal)
+
     svc = _graph_service()
     await svc.record_entity_merge_decision(
         organization_id=principal.organization_id,
@@ -452,6 +547,28 @@ async def record_entity_merge_decision(
         target_entity_id=body.target_entity_id,
         source_entity_ids=body.source_entity_ids,
     )
+    await _audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=actor_id,
+        action=GRAPH_ENTITY_MERGED,
+        resource_type="graph_entity",
+        resource_id=body.target_entity_id,
+        request_id=_request_id(request),
+        metadata={
+            "target_entity_id": body.target_entity_id,
+            "source_entity_ids": body.source_entity_ids,
+            "reason": body.reason,
+            "reviewer_id": body.reviewer_id,
+        },
+    )
+    _logger.info(
+        "graph.entity.merged",
+        organization_id=str(organization_id),
+        user_id=str(actor_id) if actor_id else None,
+        target_entity_id=body.target_entity_id,
+        source_count=len(body.source_entity_ids),
+    )
     return EntityDecisionResponse(
         decision_id=str(decision_id),
         decision_kind="merge",
@@ -464,12 +581,17 @@ async def record_entity_merge_decision(
 
 @router.post("/entity-resolution/split", response_model=EntityDecisionResponse)
 async def record_entity_split_decision(
+    request: Request,
     body: EntitySplitDecisionRequest,
-    principal: _AdminPrincipal,
+    principal: _AdminWritePrincipal,
     _: _RateLimit,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> EntityDecisionResponse:
     """Record a manual split decision for later replay and audit."""
     _require_graph_enabled()
+    organization_id = _org_id(principal)
+    actor_id = _user_id(principal)
+
     svc = _graph_service()
     await svc.record_entity_split_decision(
         organization_id=principal.organization_id,
@@ -482,6 +604,28 @@ async def record_entity_split_decision(
         organization_id=principal.organization_id,
         target_entity_id=body.target_entity_id,
         source_entity_ids=body.source_entity_ids,
+    )
+    await _audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=actor_id,
+        action=GRAPH_ENTITY_SPLIT,
+        resource_type="graph_entity",
+        resource_id=body.target_entity_id,
+        request_id=_request_id(request),
+        metadata={
+            "target_entity_id": body.target_entity_id,
+            "source_entity_ids": body.source_entity_ids,
+            "reason": body.reason,
+            "reviewer_id": body.reviewer_id,
+        },
+    )
+    _logger.info(
+        "graph.entity.split",
+        organization_id=str(organization_id),
+        user_id=str(actor_id) if actor_id else None,
+        target_entity_id=body.target_entity_id,
+        source_count=len(body.source_entity_ids),
     )
     return EntityDecisionResponse(
         decision_id=str(decision_id),
@@ -504,7 +648,7 @@ async def record_entity_split_decision(
 )
 async def get_extraction_runs(
     document_id: str,
-    principal: _AdminPrincipal,
+    principal: _AdminReadPrincipal,
     _: _RateLimit,
     limit: int = Query(default=20, ge=1, le=100),
 ) -> ExtractionRunListResponse:

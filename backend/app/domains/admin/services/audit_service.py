@@ -31,6 +31,12 @@ _SENSITIVE_EXACT_KEYS = {
     "access_key",
     "secret_key",
     "service_account_key",
+    # Neo4j credentials (F290)
+    "neo4j_password",
+    "neo4j_auth",
+    "bolt_password",
+    "neo4j_uri",
+    "bolt_uri",
 }
 _SENSITIVE_SUFFIXES = (
     "_access_token",
@@ -50,6 +56,10 @@ _SENSITIVE_SUFFIXES = (
     "_access_key",
     "_secret_key",
     "_service_account_key",
+    # Neo4j credentials (F290)
+    "_neo4j_password",
+    "_bolt_password",
+    "_neo4j_auth",
 )
 _CONTENT_EXACT_KEYS = {
     "content",

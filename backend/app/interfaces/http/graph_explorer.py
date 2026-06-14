@@ -12,9 +12,10 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.auth.dependencies import get_current_principal
+from app.auth.dependencies import require_permission
 from app.auth.models import AuthenticatedPrincipal
 from app.domains.graph.services.graph_service import GraphService
+from app.models.permissions import PermissionType
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/graph", tags=["graph-explorer"])
@@ -174,7 +175,7 @@ class DocumentGraphInsightsResponse(BaseModel):
 
 
 RelationshipDirection = Literal["out", "in", "both"]
-_Principal = Annotated[AuthenticatedPrincipal, Depends(get_current_principal)]
+_Principal = Annotated[AuthenticatedPrincipal, Depends(require_permission(PermissionType.graph_view))]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))]
 
 

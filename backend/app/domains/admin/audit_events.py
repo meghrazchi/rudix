@@ -35,3 +35,21 @@ WEBHOOK_CREATED = "webhooks.webhook.created"
 WEBHOOK_UPDATED = "webhooks.webhook.updated"
 WEBHOOK_DELETED = "webhooks.webhook.deleted"
 WEBHOOK_SECRET_ROTATED = "webhooks.webhook.secret_rotated"
+
+# Graph entity lifecycle (F290)
+GRAPH_ENTITY_CREATED = "admin.graph.entity.created"
+GRAPH_ENTITY_DELETED = "admin.graph.entity.deleted"
+GRAPH_ENTITY_MERGED = "admin.graph.entity.merged"
+GRAPH_ENTITY_SPLIT = "admin.graph.entity.split"
+
+# Graph relation lifecycle (F290)
+GRAPH_RELATION_CREATED = "admin.graph.relation.created"
+GRAPH_RELATION_DELETED = "admin.graph.relation.deleted"
+GRAPH_RELATION_STATUS_CHANGED = "admin.graph.relation.status_changed"
+
+# Graph retrieval and access (F290)
+GRAPH_RETRIEVAL_USED = "graph.retrieval.used"
+GRAPH_ACCESS_DENIED = "graph.access.denied"
+
+# Graph extraction (F290)
+GRAPH_EXTRACTION_RUN_STARTED = "admin.graph.extraction_run.started"

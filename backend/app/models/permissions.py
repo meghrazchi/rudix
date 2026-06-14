@@ -64,6 +64,13 @@ class PermissionType(StrEnum):
     team_view = "team:view"
     team_manage = "team:manage"
 
+    # Graph (Enterprise)
+    graph_view = "graph:view"
+    graph_entities_manage = "graph:entities:manage"
+    graph_relations_manage = "graph:relations:manage"
+    graph_governance_configure = "graph:governance:configure"
+    graph_audit_logs_view = "graph:audit_logs:view"
+
 
 PERMISSION_CATALOG: list[dict[str, str]] = [
     # Documents
@@ -115,6 +122,12 @@ PERMISSION_CATALOG: list[dict[str, str]] = [
     # Team
     {"permission": PermissionType.team_view, "category": "team", "description": "View team members"},
     {"permission": PermissionType.team_manage, "category": "team", "description": "Invite, remove, and change team member roles"},
+    # Graph (Enterprise)
+    {"permission": PermissionType.graph_view, "category": "graph", "description": "Browse the Enterprise Graph explorer"},
+    {"permission": PermissionType.graph_entities_manage, "category": "graph", "description": "Create, update, delete, merge, and split graph entities"},
+    {"permission": PermissionType.graph_relations_manage, "category": "graph", "description": "Create, approve, reject, and delete graph relations"},
+    {"permission": PermissionType.graph_governance_configure, "category": "graph", "description": "Re-run extraction, configure graph schema and governance rules"},
+    {"permission": PermissionType.graph_audit_logs_view, "category": "graph", "description": "View graph operation audit logs"},
 ]
 
 
@@ -127,6 +140,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.evaluations_view,
         PermissionType.agents_use,
         PermissionType.mcp_use,
+        PermissionType.graph_view,
     }),
     "reviewer": frozenset({
         PermissionType.documents_view,
@@ -140,6 +154,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.audit_logs_view,
         PermissionType.agents_use,
         PermissionType.mcp_use,
+        PermissionType.graph_view,
     }),
     "developer": frozenset({
         PermissionType.documents_view,
@@ -162,6 +177,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.agents_create,
         PermissionType.mcp_use,
         PermissionType.audit_logs_view,
+        PermissionType.graph_view,
     }),
     "member": frozenset({
         PermissionType.documents_view,
@@ -173,6 +189,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.evaluations_view,
         PermissionType.agents_use,
         PermissionType.mcp_use,
+        PermissionType.graph_view,
     }),
     "billing_admin": frozenset({
         PermissionType.billing_view,
@@ -186,6 +203,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.audit_logs_view,
         PermissionType.audit_logs_export,
         PermissionType.team_view,
+        PermissionType.graph_audit_logs_view,
     }),
     "admin": frozenset({
         PermissionType.documents_view,
@@ -222,6 +240,11 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.roles_manage,
         PermissionType.team_view,
         PermissionType.team_manage,
+        PermissionType.graph_view,
+        PermissionType.graph_entities_manage,
+        PermissionType.graph_relations_manage,
+        PermissionType.graph_governance_configure,
+        PermissionType.graph_audit_logs_view,
     }),
     "owner": frozenset({
         PermissionType.documents_view,
@@ -260,5 +283,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.roles_manage,
         PermissionType.team_view,
         PermissionType.team_manage,
+        PermissionType.graph_view,
+        PermissionType.graph_entities_manage,
+        PermissionType.graph_relations_manage,
+        PermissionType.graph_governance_configure,
+        PermissionType.graph_audit_logs_view,
     }),
 }
