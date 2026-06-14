@@ -96,6 +96,10 @@ export function canReindexDocument(status: DocumentStatus): boolean {
   return status === "uploaded" || status === "indexed" || status === "failed";
 }
 
+export function canForceReindexDocument(status: DocumentStatus): boolean {
+  return status === "processing";
+}
+
 export function getDocumentLifecycleActionErrorMessage(
   action: "delete" | "reindex",
   error: unknown,

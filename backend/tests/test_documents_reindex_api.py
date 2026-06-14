@@ -223,6 +223,7 @@ async def test_reindex_queues_task_and_sets_processing_status(
     assert delay_call["organization_id"] == str(org.id)
     assert delay_call["user_id"] == str(user.id)
     assert delay_call["request_id"] == "req-reindex-1"
+    assert delay_call["force"] is False
 
     updated = await _get_document(db_session, document_id=document.id)
     assert updated is not None
@@ -258,6 +259,52 @@ async def test_reindex_blocks_concurrent_processing_requests(
     assert response.status_code == 409
     assert response.json()["detail"] == "Document is already being processed"
     assert fake_reindex_task.delay_calls == []
+
+
+@pytest.mark.asyncio
+async def test_force_reindex_allows_processing_documents(
+    reindex_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_reindex_task: FakeReindexTask,
+) -> None:
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="reindex-force"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, status=DocumentStatus.processing
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await reindex_client.post(
+        f"/api/v1/documents/{document.id}/reindex",
+        headers=_headers(token=token, organization_id=str(org.id)),
+        json={"force": True},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload == {
+        "document_id": str(document.id),
+        "status": DocumentStatus.processing.value,
+        "queue_status": "queued",
+    }
+    assert len(fake_reindex_task.delay_calls) == 1
+    delay_call = fake_reindex_task.delay_calls[0]
+    assert delay_call["document_id"] == str(document.id)
+    assert delay_call["force"] is True
+    assert delay_call["organization_id"] == str(org.id)
+    assert delay_call["user_id"] == str(user.id)
+
+    updated = await _get_document(db_session, document_id=document.id)
+    assert updated is not None
+    assert updated.status == DocumentStatus.processing.value
+    assert updated.error_message is None
+    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
+    assert len(audit_logs) == 2
+    actions = {row.action for row in audit_logs}
+    assert actions == {"document.reindex.requested", "document.reindex.queued"}
 
 
 @pytest.mark.asyncio

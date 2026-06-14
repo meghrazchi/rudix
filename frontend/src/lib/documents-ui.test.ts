@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canDeleteDocument,
+  canForceReindexDocument,
   canReindexDocument,
   getDocumentLifecycleActionErrorMessage,
   resolveDocumentCapabilities,
@@ -102,6 +103,8 @@ describe("documents UI polling and action helpers", () => {
     expect(canReindexDocument("indexed")).toBe(true);
     expect(canReindexDocument("failed")).toBe(true);
     expect(canReindexDocument("processing")).toBe(false);
+    expect(canForceReindexDocument("processing")).toBe(true);
+    expect(canForceReindexDocument("indexed")).toBe(false);
     expect(canReindexDocument("deleting")).toBe(false);
     expect(canReindexDocument("deleted")).toBe(false);
   });

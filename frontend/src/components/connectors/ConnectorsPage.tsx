@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { listProviders } from "@/lib/api/connector-providers";
 import {
-  deleteConnectorConnection,
+  disconnectConnector,
   listConnectorConnections,
 } from "@/lib/api/connectors";
 import type { ConnectorConnectionsListResponse } from "@/lib/api/connectors";
@@ -328,7 +328,7 @@ export function ConnectorsPage() {
           : c.status === "error"
             ? t("table.syncStatusNeedsAttention")
             : t("table.syncStatusUnknown"),
-    itemsIndexed: c.source_count,
+    itemsIndexed: c.indexed_document_count,
     errorMessage: c.error_message,
   }));
 
@@ -349,9 +349,8 @@ export function ConnectorsPage() {
     gitlab: t("catalog.gitlabDesc"),
   };
 
-  const deleteConnectionMutation = useMutation({
-    mutationFn: (connectionId: string) =>
-      deleteConnectorConnection(connectionId),
+  const disconnectConnectionMutation = useMutation({
+    mutationFn: (connectionId: string) => disconnectConnector(connectionId),
     onMutate: async (connectionId) => {
       await queryClient.cancelQueries({
         queryKey: queryKeys.connectorConnections,
@@ -401,7 +400,7 @@ export function ConnectorsPage() {
     router.push(`/connectors/new/${encodeURIComponent(providerKey)}`);
   }
 
-  function handleDeleteConnection(
+  function handleDisconnectConnection(
     connectionId: string,
     connectionName: string,
   ) {
@@ -411,7 +410,7 @@ export function ConnectorsPage() {
     if (!confirmed) {
       return;
     }
-    deleteConnectionMutation.mutate(connectionId);
+    disconnectConnectionMutation.mutate(connectionId);
   }
 
   function scrollToCatalog() {
@@ -600,9 +599,9 @@ export function ConnectorsPage() {
                             aria-label={t("table.ariaDelete", {
                               name: conn.name,
                             })}
-                            disabled={deleteConnectionMutation.isPending}
+                            disabled={disconnectConnectionMutation.isPending}
                             onClick={() =>
-                              handleDeleteConnection(conn.id, conn.name)
+                              handleDisconnectConnection(conn.id, conn.name)
                             }
                             className="cursor-pointer rounded-lg p-2 text-[#b42318] transition-colors hover:bg-[#fce8e6] disabled:cursor-not-allowed disabled:opacity-50"
                           >

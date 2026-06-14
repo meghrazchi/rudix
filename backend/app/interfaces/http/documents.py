@@ -1157,6 +1157,7 @@ async def reindex_document_endpoint(
         audit_log_service=audit_log_service,
         reindex_document_task=reindex_document_task,
         chunking_profile_config=chunking_profile_config,
+        force=body.force if body is not None else False,
     )
 
 

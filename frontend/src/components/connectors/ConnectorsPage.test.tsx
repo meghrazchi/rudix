@@ -85,6 +85,7 @@ function makeConnection(
     last_sync_at: new Date().toISOString(),
     error_message: null,
     source_count: 3,
+    indexed_document_count: 8,
     sync_job_count: 2,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

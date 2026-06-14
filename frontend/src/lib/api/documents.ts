@@ -322,6 +322,7 @@ export type DocumentChunksOptions = {
 export type ReindexDocumentRequest = {
   chunking_profile_id?: string | null;
   chunking_profile_config?: ChunkingProfileConfigInput | null;
+  force?: boolean;
 };
 
 export async function uploadDocument(

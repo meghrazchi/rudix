@@ -155,6 +155,7 @@ The default remains `token_recursive` until the evaluation gate described below 
    - `EMPTY_CHUNK_SET` — document extracted no chunks. Usually caused by an empty or non-parseable file. Ask the user to re-upload. No re-index needed.
    - `TEXT_EXTRACTION_FAILED` — extraction stage failed before chunking. Check the `extract` node logs.
 3. If the document should be re-processed, trigger a re-index from the admin panel or via the API: `POST /api/v1/admin/documents/{id}/reindex`.
+4. If the document is stuck in `processing`, retry with `force: true` to re-queue the job without changing delete/quarantine protections.
 
 ### Bad retrieval quality after profile change
 
@@ -210,3 +211,5 @@ Re-indexing is safe to run at any time. Each `documents.reindex` task:
 Documents remain searchable (with the old index) until step 3 completes, then switch atomically to the new index.
 
 Idempotency: re-running the same re-index task on an already-indexed document with the same profile produces the same chunk set (deterministic strategies guarantee this). Running it again is always safe.
+
+If a prior run is stuck in `processing`, the API can accept `force: true` to recover the job. That bypasses only the processing-state guard; it still respects deleted, deleting, quarantined, and blocked safety checks.

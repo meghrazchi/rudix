@@ -907,6 +907,7 @@ async def reindex_document_workflow(
     audit_log_service: AuditLogService,
     reindex_document_task: Any,
     chunking_profile_config: dict | None = None,
+    force: bool = False,
 ) -> ReindexDocumentResponse:
     if document.status == DocumentStatus.deleted.value:
         raise HTTPException(
@@ -926,7 +927,7 @@ async def reindex_document_workflow(
             status_code=status.HTTP_409_CONFLICT,
             detail="Blocked documents cannot be re-indexed",
         )
-    if document.status == DocumentStatus.processing.value:
+    if document.status == DocumentStatus.processing.value and not force:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Document is already being processed"
         )
@@ -956,6 +957,7 @@ async def reindex_document_workflow(
             "chunking_strategy": chunking_profile_config.get("strategy")
             if chunking_profile_config
             else None,
+            "force": force,
         },
     )
     await db_session.commit()
@@ -968,6 +970,7 @@ async def reindex_document_workflow(
         }
         if chunking_profile_config is not None:
             task_kwargs["chunking_profile_config"] = chunking_profile_config
+        task_kwargs["force"] = force
         task_result = reindex_document_task.delay(str(document.id), **task_kwargs)
     except Exception as exc:
         await audit_log_service.record(
@@ -982,6 +985,7 @@ async def reindex_document_workflow(
                 "status_code": status.HTTP_503_SERVICE_UNAVAILABLE,
                 "error_type": exc.__class__.__name__,
                 "restored_status": previous_status,
+                "force": force,
             },
         )
         log_document_event(
@@ -1023,6 +1027,7 @@ async def reindex_document_workflow(
             "chunking_strategy": chunking_profile_config.get("strategy")
             if chunking_profile_config
             else None,
+            "force": force,
         },
     )
     await _safe_commit_audit_only(db_session, wrote_audit=wrote_audit)

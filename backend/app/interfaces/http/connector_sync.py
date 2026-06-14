@@ -252,6 +252,40 @@ async def trigger_sync_now(
     )
 
 
+@router.post("/sync-runs/{run_id}/retry", response_model=TriggerSyncNowResponse)
+async def retry_sync_run(
+    run_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
+) -> TriggerSyncNowResponse:
+    org_id = _org_id(principal)
+    try:
+        run = await _engine().retry_failed_sync(
+            db_session,
+            organization_id=org_id,
+            run_id=run_id,
+            user_id=_user_id(principal),
+        )
+    except SyncEngineError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await db_session.commit()
+
+    celery_app.send_task(
+        "connectors.sync.run",
+        kwargs={
+            "sync_run_id": str(run.id),
+            "organization_id": str(org_id),
+        },
+    )
+    return TriggerSyncNowResponse(
+        sync_run_id=str(run.id),
+        status=run.status,
+        message="Sync retried",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Sync runs
 # ---------------------------------------------------------------------------

@@ -434,6 +434,42 @@ async def test_trigger_manual_sync_blocks_concurrent_run(
 
 
 @pytest.mark.asyncio
+async def test_retry_failed_sync_requeues_previous_cursor(
+    db_session: AsyncSession,
+) -> None:
+    ctx = await _create_sync_context(db_session)
+    engine = ConnectorSyncEngine()
+    job = await engine.create_sync_job(
+        db_session,
+        organization_id=ctx.org_id,
+        connection_id=ctx.connection.id,
+        name="job",
+    )
+    run = await engine.trigger_manual_sync(
+        db_session,
+        organization_id=ctx.org_id,
+        connection_id=ctx.connection.id,
+        job_id=job.id,
+    )
+    run.status = ConnectorSyncRunStatus.failed.value
+    run.cursor_before_json = {"page_token": "cursor-1"}
+    run.error_message = "Transient provider error"
+    await db_session.flush()
+
+    retry_run = await engine.retry_failed_sync(
+        db_session,
+        organization_id=ctx.org_id,
+        run_id=run.id,
+    )
+
+    assert retry_run.id != run.id
+    assert retry_run.status == ConnectorSyncRunStatus.queued.value
+    assert retry_run.sync_job_id == job.id
+    assert retry_run.cursor_before_json == {"page_token": "cursor-1"}
+    assert retry_run.trigger_type == "manual"
+
+
+@pytest.mark.asyncio
 async def test_cancel_run_marks_run_cancelled(db_session: AsyncSession) -> None:
     ctx = await _create_sync_context(db_session)
     engine = ConnectorSyncEngine()
@@ -623,9 +659,7 @@ async def test_run_sync_fails_when_adapter_not_registered(
     db_session.add(cred)
     await db_session.flush()
 
-    engine.credential_vault.decrypt = MagicMock(
-        return_value={"provider_key": "confluence"}
-    )
+    engine.credential_vault.decrypt = MagicMock(return_value={"provider_key": "confluence"})
 
     result = await engine.run_sync(db_session, sync_run_id=run.id, organization_id=ctx.org_id)
     assert result.status == "failed"

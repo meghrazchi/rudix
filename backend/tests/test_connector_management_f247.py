@@ -30,6 +30,23 @@ class DummySession:
     ) -> None:  # pragma: no cover - exercised through route calls
         return None
 
+    async def execute(self, _statement: object) -> object:  # pragma: no cover
+        class _Result:
+            def scalars(self) -> object:
+                class _Scalars:
+                    def all(self) -> list[object]:
+                        return []
+
+                return _Scalars()
+
+            def scalar_one(self) -> int:
+                return 0
+
+            def scalar_one_or_none(self) -> None:
+                return None
+
+        return _Result()
+
 
 @pytest.fixture()
 def provider_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
@@ -45,6 +62,16 @@ def provider_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
         connectors_http,
         "_load_connections",
         _fake_load_connections,
+    )
+    monkeypatch.setattr(
+        connectors_http,
+        "_connection_indexed_document_count",
+        _fake_indexed_document_count,
+    )
+    monkeypatch.setattr(
+        connectors_http,
+        "_ensure_default_sync_job",
+        _fake_ensure_default_sync_job,
     )
     monkeypatch.setattr(connectors_http, "_service", lambda: FakeConnectorService())
     monkeypatch.setattr(connectors_http, "_platform_service", lambda: FakeConnectorService())
@@ -126,6 +153,28 @@ async def _fake_load_connections(
 ) -> list[SimpleNamespace]:
     del organization_id
     return [_fake_connection(connection_id=TEST_CONNECTION_ID)]
+
+
+async def _fake_indexed_document_count(
+    _db_session: object,
+    *,
+    organization_id: UUID,
+    connection_id: UUID,
+) -> int:
+    del organization_id, connection_id
+    return 0
+
+
+async def _fake_ensure_default_sync_job(
+    _db_session: object,
+    *,
+    organization_id: UUID,
+    connection_id: UUID,
+    display_name: str,
+    user_id: UUID | None = None,
+) -> None:
+    del organization_id, connection_id, display_name, user_id
+    return None
 
 
 class FakeConnectorService:
@@ -235,6 +284,7 @@ def test_connector_list_and_detail_include_provider_metadata(
     assert item["provider_key"] == "confluence"
     assert item["provider"]["config_schema"]["properties"]["site_url"]["format"] == "uri"
     assert item["source_count"] == 0
+    assert item["indexed_document_count"] == 0
     assert item["sync_job_count"] == 1
 
     connection_id = item["id"]

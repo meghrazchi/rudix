@@ -292,6 +292,63 @@ class ConnectorSyncEngine:
         )
         return run
 
+    async def retry_failed_sync(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        run_id: UUID,
+        user_id: UUID | None = None,
+    ) -> ConnectorSyncRun:
+        run = await self._require_sync_run(session, organization_id, run_id)
+        if run.status != ConnectorSyncRunStatus.failed.value:
+            raise SyncEngineError(f"sync run {run_id} is not in failed state")
+
+        job = await self._require_sync_job(session, organization_id, run.sync_job_id)
+        connection = await self.repository.get_connection(
+            session,
+            organization_id=organization_id,
+            connection_id=run.connection_id,
+        )
+        if connection is None:
+            raise SyncEngineError("connector connection not found")
+        if connection.status != ConnectorConnectionStatus.active.value:
+            raise SyncEngineError(f"connection is not active (status={connection.status})")
+        if job.status == ConnectorSyncJobStatus.disabled.value:
+            raise SyncEngineError("sync job is disabled")
+
+        await self._assert_no_active_run(session, job_id=job.id)
+        retry_run = await self.repository.create_sync_run(
+            session,
+            organization_id=organization_id,
+            sync_job_id=job.id,
+            connection_id=connection.id,
+            sync_version=int(datetime.now(UTC).timestamp()),
+            external_source_id=job.external_source_id,
+            status=ConnectorSyncRunStatus.queued.value,
+            cursor_before=dict(run.cursor_before_json or {}),
+        )
+        retry_run.trigger_type = "manual"
+        await session.flush()
+        await self._audit(
+            session,
+            organization_id=organization_id,
+            user_id=user_id,
+            action=ConnectorAuditAction.sync_manual_queued.value,
+            resource_type="connector_sync_run",
+            resource_id=retry_run.id,
+            metadata={
+                "connection_id": str(connection.id),
+                "job_id": str(job.id),
+                "external_source_id": str(job.external_source_id)
+                if job.external_source_id
+                else None,
+                "retry_of_run_id": str(run.id),
+                "trigger_type": "retry",
+            },
+        )
+        return retry_run
+
     async def cancel_run(
         self,
         session: AsyncSession,
@@ -572,9 +629,7 @@ class ConnectorSyncEngine:
             sync_run_id=str(sync_run_id),
             provider_key=getattr(connection.provider, "key", None),
             connection_id=str(connection.id),
-            external_source_id=str(run.external_source_id)
-            if run.external_source_id
-            else None,
+            external_source_id=str(run.external_source_id) if run.external_source_id else None,
             organization_id=str(organization_id),
             items_seen=result.items_seen,
             items_upserted=result.items_upserted,

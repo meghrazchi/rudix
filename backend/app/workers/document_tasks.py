@@ -3165,6 +3165,7 @@ def reindex_document(
     organization_id: str | None = None,
     user_id: str | None = None,
     chunking_profile_config: dict | None = None,
+    force: bool = False,
 ) -> dict[str, str | int | float]:
     """Re-index a document idempotently for the active index/model version."""
     try:
@@ -3202,6 +3203,7 @@ def reindex_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.processing.value,
+        force=force,
     )
 
     try:
@@ -3228,6 +3230,7 @@ def reindex_document(
         organization_id=organization_id,
         user_id=user_id,
         status_code=DocumentStatus.indexed.value,
+        force=force,
         page_count=page_count,
         chunk_count=chunk_count,
         index_version=settings.document_index_version,
@@ -3251,6 +3254,7 @@ def reindex_document(
             "status": DocumentStatus.indexed.value,
             "page_count": page_count,
             "chunk_count": chunk_count,
+            "force": force,
         },
     )
     return {

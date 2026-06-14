@@ -38,6 +38,7 @@ import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
 import { invalidateAfterMutation, queryKeys } from "@/lib/api/query";
 import {
   canDeleteDocument,
+  canForceReindexDocument,
   canReindexDocument,
   getDocumentLifecycleActionErrorMessage,
   resolveDocumentCapabilities,
@@ -84,6 +85,7 @@ type ErrorRow = {
 type ReindexMutationInput = {
   payload?: ReindexDocumentRequest;
   label?: string;
+  force?: boolean;
 };
 
 const CHUNK_PAGE_SIZE = 8;
@@ -657,18 +659,30 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   });
 
   const reindexMutation = useMutation({
-    mutationFn: (input?: ReindexMutationInput) =>
-      input?.payload
-        ? reindexDocument(documentId, input.payload)
-        : reindexDocument(documentId),
+    mutationFn: (input?: ReindexMutationInput) => {
+      if (!input) {
+        return reindexDocument(documentId);
+      }
+      const payload: ReindexDocumentRequest = {
+        ...(input.payload ?? {}),
+      };
+      if (input.force) {
+        payload.force = true;
+      }
+      return Object.keys(payload).length > 0
+        ? reindexDocument(documentId, payload)
+        : reindexDocument(documentId);
+    },
     onSuccess: async (result, variables) => {
       setActionFeedback(
-        variables?.label
-          ? td("feedbackReindexWithProfile", {
-              label: variables.label,
-              queueStatus: result.queue_status,
-            })
-          : td("feedbackReindex", { queueStatus: result.queue_status }),
+        variables?.force
+          ? td("feedbackForceReindex", { queueStatus: result.queue_status })
+          : variables?.label
+            ? td("feedbackReindexWithProfile", {
+                label: variables.label,
+                queueStatus: result.queue_status,
+              })
+            : td("feedbackReindex", { queueStatus: result.queue_status }),
       );
       setActionRequestId(null);
       await invalidateAfterMutation(queryClient, "document.reindex");
@@ -834,6 +848,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     currentStatus &&
     capabilities.canReindex &&
     canReindexDocument(currentStatus),
+  );
+  const canForceReindex = Boolean(
+    currentStatus &&
+    capabilities.canReindex &&
+    canForceReindexDocument(currentStatus),
   );
   const canAskInChat = currentStatus === "indexed";
   const canShowMoreActions = capabilities.canDelete || capabilities.canReindex;
@@ -1045,6 +1064,33 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       <div className="absolute right-0 z-20 mt-1 flex min-w-[10.5rem] flex-col gap-1 rounded-lg border border-[#d8d3ea] bg-white p-1 shadow-lg">
                         {capabilities.canReindex ? (
                           <>
+                            {canForceReindex ? (
+                              <button
+                                type="button"
+                                disabled={reindexMutation.isPending}
+                                onClick={(event) => {
+                                  (
+                                    event.currentTarget.closest(
+                                      "details",
+                                    ) as HTMLDetailsElement | null
+                                  )?.removeAttribute("open");
+                                  setActionFeedback(null);
+                                  setActionRequestId(null);
+                                  reindexMutation.mutate({ force: true });
+                                }}
+                                className="inline-flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="material-symbols-outlined text-[15px]"
+                                >
+                                  restart_alt
+                                </span>
+                                {reindexMutation.isPending
+                                  ? td("reindexQueueing")
+                                  : td("forceReindex")}
+                              </button>
+                            ) : null}
                             <button
                               type="button"
                               disabled={

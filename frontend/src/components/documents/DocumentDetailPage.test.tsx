@@ -664,6 +664,55 @@ describe("DocumentDetailPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers force re-index for documents stuck in processing", async () => {
+    mockApi.getDocument.mockResolvedValue({
+      document_id: "doc-1",
+      filename: "stuck.pdf",
+      file_type: "pdf",
+      status: "processing",
+      page_count: 12,
+      chunk_count: 120,
+      checksum: "abc123",
+      error_message: "indexing stalled",
+      error_details: null,
+      language: "en",
+      chunking_diagnostics: null,
+      lifecycle_timeline: [],
+      created_at: "2026-05-14T10:00:00Z",
+      updated_at: "2026-05-15T10:00:00Z",
+    });
+    mockApi.getDocumentStatus.mockResolvedValue({
+      document_id: "doc-1",
+      status: "processing",
+      error_message: "indexing stalled",
+      error_details: null,
+      updated_at: "2026-05-15T10:00:00Z",
+    });
+
+    renderPage();
+
+    await screen.findByRole("heading", { name: "stuck.pdf" });
+    await userEvent.click(screen.getByText("More actions"));
+    expect(screen.getByRole("button", { name: "Re-index" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Force re-index" }),
+    ).toBeEnabled();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Force re-index" }),
+    );
+    await waitFor(() => {
+      expect(mockApi.reindexDocument).toHaveBeenCalledWith("doc-1", {
+        force: true,
+      });
+    });
+    expect(
+      await screen.findByText(
+        /Force re-index requested\. Queue status: queued\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("supports successful re-index mutation flow", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "policy.pdf" });

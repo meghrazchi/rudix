@@ -1631,11 +1631,13 @@
       "feedbackDeleteRequested": "Eliminación solicitada. Estado actual: {status}.",
       "feedbackReindexWithProfile": "Reindexación solicitada usando {label}. Estado de cola: {queueStatus}.",
       "feedbackReindex": "Reindexación solicitada. Estado de cola: {queueStatus}.",
+      "feedbackForceReindex": "Reindexación forzada solicitada. Estado de cola: {queueStatus}.",
       "feedbackLangSaved": "Sobrescritura de idioma guardada.",
       "feedbackOcrSaved": "Configuración de idioma OCR guardada.",
       "feedbackCopyFailed": "No se pudo copiar.",
       "retryChunkLoad": "Reintentar carga de fragmentos",
       "deleteConfirm": "¿Eliminar el documento \"{filename}\"? Esta acción no se puede deshacer.",
+      "forceReindex": "Forzar reindexación",
       "reindexDefaultProfile": "el perfil predeterminado del sistema"
     }
   },

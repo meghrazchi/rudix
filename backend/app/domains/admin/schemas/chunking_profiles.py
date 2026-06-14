@@ -135,6 +135,7 @@ class ReindexWithProfileRequest(BaseModel):
     chunking_profile_id: str | None = None
     chunking_profile_config: ChunkingProfileConfigInput | None = None
     ocr_languages: list[str] | None = None
+    force: bool = False
 
     @model_validator(mode="after")
     def _validate(self) -> ReindexWithProfileRequest:

@@ -1631,11 +1631,13 @@
       "feedbackDeleteRequested": "Delete requested. Actuel status: {status}.",
       "feedbackReindexWithProfile": "Re-indexer requested using {label}. Fichier status: {queueStatus}.",
       "feedbackReindex": "Re-indexer requested. Fichier status: {queueStatus}.",
+      "feedbackForceReindex": "Réindexation forcée demandée. État de file d'attente : {queueStatus}.",
       "feedbackLangSaved": "Remplacement de langue enregistré.",
       "feedbackOcrSaved": "Configuration de langue OCR enregistrée.",
       "feedbackCopyFailed": "Impossible de copier.",
       "retryChunkLoad": "Retry fragment load",
       "deleteConfirm": "Supprimer le document « {filename} » ? Cette action est irréversible.",
+      "forceReindex": "Forcer la réindexation",
       "reindexDefaultProfile": "le profil système par défaut"
     }
   },

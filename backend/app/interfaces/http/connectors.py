@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -34,7 +34,8 @@ from app.domains.connectors.services.provider_registry import (
     default_provider_registry,
 )
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine
-from app.models.connector import ConnectorConnection
+from app.models.connector import ConnectorConnection, ExternalItem
+from app.models.document import Document
 from app.models.enums import ConnectorAuthType, OrganizationRole
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
@@ -169,6 +170,7 @@ class ConnectorConnectionSummaryResponse(BaseModel):
     last_sync_at: str | None
     error_message: str | None
     source_count: int
+    indexed_document_count: int
     sync_job_count: int
     created_at: str
     updated_at: str
@@ -295,6 +297,8 @@ def _provider_summary_from_model(provider: Any) -> ProviderSummaryResponse:
 
 def _connection_summary_response(
     connection: ConnectorConnection,
+    *,
+    indexed_document_count: int,
 ) -> ConnectorConnectionSummaryResponse:
     provider = connection.provider
     if provider is None:
@@ -315,6 +319,7 @@ def _connection_summary_response(
         last_sync_at=connection.last_sync_at.isoformat() if connection.last_sync_at else None,
         error_message=connection.error_message,
         source_count=len(connection.sources or []),
+        indexed_document_count=indexed_document_count,
         sync_job_count=len(connection.sync_jobs or []),
         created_at=connection.created_at.isoformat(),
         updated_at=connection.updated_at.isoformat(),
@@ -355,6 +360,28 @@ async def _load_connections(
         .order_by(ConnectorConnection.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def _connection_indexed_document_count(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    connection_id: UUID,
+) -> int:
+    result = await db_session.execute(
+        select(func.count(Document.id))
+        .join(
+            ExternalItem,
+            ExternalItem.id == Document.connector_external_item_id,
+        )
+        .where(
+            Document.organization_id == organization_id,
+            ExternalItem.connection_id == connection_id,
+            Document.ingestion_source == "connector",
+            Document.status == "indexed",
+        )
+    )
+    return int(result.scalar_one())
 
 
 def _org_id(principal: AuthenticatedPrincipal) -> UUID:
@@ -418,8 +445,22 @@ async def list_connections(
         db_session,
         organization_id=_org_id(principal),
     )
+    organization_id = _org_id(principal)
+    items = []
+    for connection in connections:
+        indexed_document_count = await _connection_indexed_document_count(
+            db_session,
+            organization_id=organization_id,
+            connection_id=connection.id,
+        )
+        items.append(
+            _connection_summary_response(
+                connection,
+                indexed_document_count=indexed_document_count,
+            )
+        )
     return ConnectorConnectionsListResponse(
-        items=[_connection_summary_response(connection) for connection in connections],
+        items=items,
         total=len(connections),
     )
 
@@ -438,8 +479,22 @@ async def list_available_connections(
         organization_id=_org_id(principal),
     )
     active = [c for c in connections if c.status == "active"]
+    organization_id = _org_id(principal)
+    items = []
+    for connection in active:
+        indexed_document_count = await _connection_indexed_document_count(
+            db_session,
+            organization_id=organization_id,
+            connection_id=connection.id,
+        )
+        items.append(
+            _connection_summary_response(
+                connection,
+                indexed_document_count=indexed_document_count,
+            )
+        )
     return ConnectorConnectionsListResponse(
-        items=[_connection_summary_response(connection) for connection in active],
+        items=items,
         total=len(active),
     )
 
@@ -458,13 +513,21 @@ async def get_connection(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Connector connection not found",
         )
+    indexed_document_count = await _connection_indexed_document_count(
+        db_session,
+        organization_id=organization_id,
+        connection_id=connection_id,
+    )
     diagnostics = await _service().diagnostics(
         db_session,
         organization_id=organization_id,
         connection_id=connection_id,
     )
     return ConnectorConnectionDetailResponse(
-        **_connection_summary_response(connection).model_dump(),
+        **_connection_summary_response(
+            connection,
+            indexed_document_count=indexed_document_count,
+        ).model_dump(),
         diagnostics=ConnectorDiagnosticsResponse(**diagnostics),
         source_permission_snapshots=_source_permission_snapshots(connection),
     )
@@ -514,7 +577,15 @@ async def create_connection(
     await db_session.refresh(connection)
     loaded = await _load_connections(db_session, organization_id=organization_id)
     created = next((item for item in loaded if item.id == connection.id), connection)
-    return _connection_summary_response(created)
+    indexed_document_count = await _connection_indexed_document_count(
+        db_session,
+        organization_id=organization_id,
+        connection_id=connection.id,
+    )
+    return _connection_summary_response(
+        created,
+        indexed_document_count=indexed_document_count,
+    )
 
 
 @router.get("/providers/{provider_key}", response_model=ProviderSummaryResponse)

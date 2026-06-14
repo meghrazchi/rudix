@@ -14,6 +14,7 @@ export type ConnectorConnectionSummary = {
   last_sync_at: string | null;
   error_message: string | null;
   source_count: number;
+  indexed_document_count: number;
   sync_job_count: number;
   created_at: string;
   updated_at: string;

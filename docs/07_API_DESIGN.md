@@ -509,7 +509,8 @@ Optional request body:
 
 ```json
 {
-  "chunking_profile_id": "uuid"
+  "chunking_profile_id": "uuid",
+  "force": true
 }
 ```
 
@@ -542,14 +543,16 @@ Response:
 
 Conflict cases (`409 Conflict`):
 
-- Document is already `processing`.
+- Document is already `processing` unless `force: true` is set.
 - Document is `deleting`.
 - Document is `deleted`.
+- `force: true` only bypasses the `processing` guard for stuck jobs; it does not bypass delete/quarantine/blocked safety checks.
 
 Notes:
 
 - Access is restricted to `owner` and `admin` roles.
 - Supply at most one override: `chunking_profile_id` or `chunking_profile_config`.
+- Use `force: true` only to recover a document that is stuck in `processing`; normal re-index requests should omit it.
 - Enqueue failure returns `503` and restores the previous document status/error fields.
 - Re-index worker uses index-version scoped cleanup before upsert to keep retries idempotent:
   - Deletes prior Qdrant points for `{organization_id, document_id, index_version}`.
@@ -1842,6 +1845,9 @@ organization-scoped:
 - `GET /connectors/{connection_id}/diagnostics`: returns status, scopes,
   credential version, expiry, fingerprint, and sanitized metadata only.
 - `POST /connectors/{connection_id}/sync-jobs`, `PATCH /connectors/{connection_id}/sync-jobs/{job_id}`, `POST /connectors/{connection_id}/sync/now`, and `POST /connectors/sync-runs/{run_id}/cancel` are owner/admin-only and rate-limited with connector-specific throttles.
+- `POST /connectors/sync-runs/{run_id}/retry` re-queues a failed sync run using the
+  original cursor snapshot, respects connector rate limits and permission checks,
+  and returns the same safe sync-queue response shape as a manual trigger.
 - `GET /connectors/{connection_id}` includes source permission snapshots so the UI can surface access-review hooks without exposing raw credentials.
 - Connector sync completion and failure paths emit audit-safe lifecycle events for start, success, failure, source selection, and permission changes.
 

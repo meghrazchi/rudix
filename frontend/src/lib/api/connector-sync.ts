@@ -122,6 +122,15 @@ export async function triggerSyncNow(
   );
 }
 
+export async function retrySyncRun(
+  runId: string,
+): Promise<TriggerSyncNowResponse> {
+  return apiRequest<TriggerSyncNowResponse>(
+    `/connectors/sync-runs/${runId}/retry`,
+    { method: "POST" },
+  );
+}
+
 export async function listSyncRuns(
   connectionId: string,
   limit = 20,

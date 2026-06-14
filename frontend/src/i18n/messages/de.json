@@ -1631,11 +1631,13 @@
       "feedbackDeleteRequested": "Löschung angefordert. Aktueller Status: {status}.",
       "feedbackReindexWithProfile": "Neu-Indizierung mit {label} angefordert. Warteschlangenstatus: {queueStatus}.",
       "feedbackReindex": "Neu-Indizierung angefordert. Warteschlangenstatus: {queueStatus}.",
+      "feedbackForceReindex": "Erzwungene Neuindizierung angefordert. Warteschlangenstatus: {queueStatus}.",
       "feedbackLangSaved": "Sprachüberschreibung gespeichert.",
       "feedbackOcrSaved": "OCR-Sprachkonfiguration gespeichert.",
       "feedbackCopyFailed": "Kopieren nicht möglich.",
       "retryChunkLoad": "Blöcke neu laden",
       "deleteConfirm": "Dokument \"{filename}\" löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "forceReindex": "Neuindizierung erzwingen",
       "reindexDefaultProfile": "das Standard-Systemprofil"
     }
   },

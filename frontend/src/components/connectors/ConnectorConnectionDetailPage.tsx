@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { getApiErrorMessage, type ApiClientError } from "@/lib/api/errors";
 import {
-  deleteConnectorConnection,
+  disconnectConnector,
   getConnectorConnection,
   refreshConnectorCredential,
 } from "@/lib/api/connectors";
@@ -15,6 +15,7 @@ import {
   getSyncRun,
   listSyncJobs,
   listSyncRuns,
+  retrySyncRun,
   triggerSyncNow,
   updateSyncJobStatus,
   type SyncJob,
@@ -64,6 +65,82 @@ function formatDuration(startedAt: string | null, completedAt: string | null) {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${seconds % 60}s`;
+}
+
+function formatFutureRelative(date: string | null): string {
+  if (!date) {
+    return "Not scheduled";
+  }
+  const diff = new Date(date).getTime() - Date.now();
+  if (diff <= 0) {
+    return "Due now";
+  }
+  const mins = Math.round(diff / 60_000);
+  if (mins < 60) {
+    return `in ${mins} min${mins === 1 ? "" : "s"}`;
+  }
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) {
+    return `in ${hrs} hr${hrs === 1 ? "" : "s"}`;
+  }
+  return new Date(date).toLocaleString();
+}
+
+function getNextSyncAt(job: SyncJob | undefined): string {
+  if (!job) {
+    return "Not scheduled";
+  }
+  if (job.schedule.type === "manual_only") {
+    return "Manual only";
+  }
+  const intervalMinutes = job.schedule.interval_minutes ?? 60;
+  const base = job.last_run_at
+    ? new Date(job.last_run_at).getTime()
+    : Date.now();
+  return formatFutureRelative(
+    new Date(base + intervalMinutes * 60_000).toISOString(),
+  );
+}
+
+function getSyncStatusLabel({
+  connectionStatus,
+  diagnosticsStatus,
+  activeRun,
+  latestRun,
+  activeJob,
+}: {
+  connectionStatus: string;
+  diagnosticsStatus: string | null;
+  activeRun: SyncRun | undefined;
+  latestRun: SyncRun | undefined;
+  activeJob: SyncJob | undefined;
+}): string {
+  if (activeRun?.status === "running") {
+    return "Running";
+  }
+  if (activeRun?.status === "queued") {
+    return "Queued";
+  }
+  if (connectionStatus === "revoked" || connectionStatus === "disabled") {
+    return "Disconnected";
+  }
+  if (
+    diagnosticsStatus === "error" ||
+    diagnosticsStatus === "expired" ||
+    diagnosticsStatus === "revoked"
+  ) {
+    return "Needs attention";
+  }
+  if (latestRun?.status === "failed") {
+    return "Last sync failed";
+  }
+  if (activeJob?.status === "paused") {
+    return "Paused";
+  }
+  if (!activeJob) {
+    return "No schedule";
+  }
+  return "Healthy";
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -435,7 +512,6 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
   const prevRunIdRef = useRef<string | undefined>(undefined);
   const prevSeenRef = useRef(-1);
   const prevStatusRef = useRef<string | undefined>(undefined);
-  const nowRef = useRef(new Date());
   const [, setTick] = useState(0);
 
   // Tick the cursor clock while a run is active
@@ -443,7 +519,6 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
   useEffect(() => {
     if (!isActive) return;
     const id = setInterval(() => {
-      nowRef.current = new Date();
       setTick((n) => (n + 1) % 10_000);
     }, 1000);
     return () => clearInterval(id);
@@ -624,9 +699,7 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           )}
           {isActive && (
             <div className="flex items-center gap-2 text-slate-400">
-              <span className="text-slate-500">
-                [{fmtTime(nowRef.current)}]
-              </span>{" "}
+              <span className="text-slate-500">[{fmtTime(new Date())}]</span>{" "}
               <span className="text-emerald-400">INFO:</span> Processing…{" "}
               <span className="inline-block h-[14px] w-[7px] animate-pulse bg-slate-400 align-middle" />
             </div>
@@ -730,6 +803,7 @@ type Props = { connectionId: string };
 export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const connectionQuery = useQuery({
     queryKey: queryKeys.connectorConnection(connectionId),
@@ -755,10 +829,13 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
   const syncMutation = useMutation({
     mutationFn: (jobId?: string) => triggerSyncNow(connectionId, jobId),
-    onSuccess: () =>
+    onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorSyncRuns(connectionId),
-      }),
+      });
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
   const pauseMutation = useMutation({
@@ -769,28 +846,50 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
       jobId: string;
       status: "active" | "paused";
     }) => updateSyncJobStatus(connectionId, jobId, status),
-    onSuccess: () =>
+    onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorSyncJobs(connectionId),
-      }),
+      });
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
   const refreshMutation = useMutation({
     mutationFn: () => refreshConnectorCredential(connectionId),
-    onSuccess: () =>
+    onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorConnection(connectionId),
-      }),
+      });
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: (runId: string) => retrySyncRun(runId),
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.connectorSyncRuns(connectionId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.connectorConnection(connectionId),
+      });
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: () => deleteConnectorConnection(connectionId),
+    mutationFn: () => disconnectConnector(connectionId),
     onSuccess: async () => {
+      setActionError(null);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.connectorConnections,
       });
       router.push("/connectors");
     },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
   const connection = connectionQuery.data;
@@ -801,6 +900,25 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   const activeRun = runs.find(
     (r) => r.status === "running" || r.status === "queued",
   );
+  const latestRun = runs[0];
+  const latestSuccessfulRun = runs.find((run) => run.status === "completed");
+  const latestFailedRun = runs.find((run) => run.status === "failed");
+  const indexedItemCount = connection?.indexed_document_count ?? 0;
+  const syncStatusLabel = getSyncStatusLabel({
+    connectionStatus: connection?.status ?? "unknown",
+    diagnosticsStatus: connection?.diagnostics?.credential_status ?? null,
+    activeRun,
+    latestRun,
+    activeJob,
+  });
+  const nextSyncLabel = getNextSyncAt(activeJob);
+  const lastSyncLabel = connection?.last_sync_at
+    ? formatRelative(connection.last_sync_at)
+    : latestSuccessfulRun?.completed_at
+      ? formatRelative(latestSuccessfulRun.completed_at)
+      : "Never";
+  const lastError =
+    connection?.error_message ?? latestFailedRun?.error_message ?? null;
 
   // Poll the individual run at 2 s when active — gives finer-grained item-count updates
   // than the 4 s list poll, and is the source of truth for the live log.
@@ -812,14 +930,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   });
   const liveRun = activeRunDetailQuery.data ?? activeRun;
 
-  const failedRunsCount = runs.filter((r) => r.status === "failed").length;
   const hasActiveRun = Boolean(activeRun);
-
-  const itemsIndexed =
-    connection?.source_count && connection.source_count > 0
-      ? connection.source_count
-      : (runs.find((r) => r.status === "completed")?.items_seen ?? 0);
-  const syncRunsTotal = runsQuery.data?.total ?? runs.length;
 
   const prevHasActiveRunRef = useRef(false);
   useEffect(() => {
@@ -928,32 +1039,23 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
           </div>
         </div>
 
-        {connection.error_message && (
+        {(actionError || lastError) && (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {connection.error_message}
+            {actionError ?? lastError}
           </div>
         )}
       </div>
 
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Sync status" value={syncStatusLabel} icon="sync" />
         <StatCard
-          label="Items Indexed"
-          value={itemsIndexed.toLocaleString()}
-          icon="article"
+          label="Indexed items"
+          value={indexedItemCount.toLocaleString()}
+          icon="dataset"
         />
-        <StatCard label="Sync Jobs" value={syncRunsTotal} icon="repeat" />
-        <StatCard
-          label="Failed Runs"
-          value={failedRunsCount}
-          icon="error_outline"
-          accent={failedRunsCount > 0}
-        />
-        <StatCard
-          label="Last Successful Sync"
-          value={formatRelative(connection.last_sync_at)}
-          icon="update"
-        />
+        <StatCard label="Last sync" value={lastSyncLabel} icon="update" />
+        <StatCard label="Next sync" value={nextSyncLabel} icon="schedule" />
       </div>
 
       {/* ── Main 2-col layout ── */}
@@ -1042,14 +1144,26 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
                             : "—"}
                         </td>
                         <td className="px-6 py-3 text-right">
-                          {run.error_message && (
-                            <span
-                              title={run.error_message}
-                              className="cursor-help text-xs text-[#68647b]"
-                            >
-                              ⚠
-                            </span>
-                          )}
+                          <div className="flex items-center justify-end gap-3">
+                            {run.status === "failed" && (
+                              <button
+                                type="button"
+                                disabled={retryMutation.isPending}
+                                onClick={() => retryMutation.mutate(run.id)}
+                                className="text-xs font-semibold text-[#3525cd] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Retry
+                              </button>
+                            )}
+                            {run.error_message && (
+                              <span
+                                title={run.error_message}
+                                className="cursor-help text-xs text-[#68647b]"
+                              >
+                                ⚠
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

@@ -1631,11 +1631,13 @@
       "feedbackDeleteRequested": "Delete requested. Current status: {status}.",
       "feedbackReindexWithProfile": "Re-index requested using {label}. Queue status: {queueStatus}.",
       "feedbackReindex": "Re-index requested. Queue status: {queueStatus}.",
+      "feedbackForceReindex": "Force re-index requested. Queue status: {queueStatus}.",
       "feedbackLangSaved": "Language override saved.",
       "feedbackOcrSaved": "OCR language configuration saved.",
       "feedbackCopyFailed": "Unable to copy.",
       "retryChunkLoad": "Retry chunk load",
       "deleteConfirm": "Delete document \"{filename}\"? This action cannot be undone.",
+      "forceReindex": "Force re-index",
       "reindexDefaultProfile": "the system default profile"
     }
   },
