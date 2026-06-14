@@ -12,6 +12,7 @@ repository classes and enforces:
 
 from __future__ import annotations
 
+from collections import defaultdict
 from uuid import UUID
 
 from app.clients.neo4j_client import get_driver
@@ -292,6 +293,304 @@ class GraphService:
             target_entity_id=str(target_entity_id),
             source_entity_ids=[str(entity_id) for entity_id in source_entity_ids],
         )
+
+    # ------------------------------------------------------------------
+    # Graph explorer
+    # ------------------------------------------------------------------
+
+    async def search_entities(
+        self,
+        *,
+        organization_id: UUID | str,
+        query: str | None = None,
+        entity_type: str | None = None,
+        min_confidence: float | None = None,
+        source_document_id: UUID | str | None = None,
+        source_connector: str | None = None,
+        rel_type: str | None = None,
+        relationship_direction: RelationDirection = "both",
+        skip: int = 0,
+        limit: int = 25,
+    ) -> dict[str, object]:
+        """Search graph entities and apply evidence/relationship filters.
+
+        The implementation intentionally uses the existing read repositories so
+        the UI can query a member-scoped explorer without needing admin APIs.
+        """
+        search_limit = max(limit, skip + limit * 4)
+        search_limit = min(max(search_limit, 100), 500)
+        normalized_query = query.strip() if query else None
+        normalized_source_connector = source_connector.strip() if source_connector else None
+
+        if normalized_query:
+            candidates = await self._graphrag.find_entities_by_name(
+                organization_id=organization_id,
+                name_query=normalized_query,
+                entity_type=entity_type,
+                limit=search_limit,
+            )
+        else:
+            candidates = await self._entities.list_entities(
+                organization_id=organization_id,
+                entity_type=entity_type,
+                skip=0,
+                limit=search_limit,
+            )
+
+        if not candidates:
+            return {
+                "items": [],
+                "total": 0,
+                "skip": skip,
+                "limit": limit,
+                "query": normalized_query,
+                "entity_type": entity_type,
+                "min_confidence": min_confidence,
+                "source_document_id": str(source_document_id)
+                if source_document_id is not None
+                else None,
+                "source_connector": normalized_source_connector,
+                "rel_type": rel_type,
+                "relationship_direction": relationship_direction,
+            }
+
+        candidate_ids = [candidate.get("entity_id") for candidate in candidates]
+        evidence_rows = await self._graphrag.get_evidence_for_entities(
+            organization_id=organization_id,
+            entity_ids=[entity_id for entity_id in candidate_ids if entity_id],
+            limit=max(search_limit * 3, search_limit),
+            document_ids=[source_document_id] if source_document_id else None,
+            confidence_threshold=min_confidence,
+        )
+        evidence_by_entity: dict[str, list[dict]] = defaultdict(list)
+        for row in evidence_rows:
+            entity_key = str(row.get("entity_id"))
+            evidence_by_entity[entity_key].append(row)
+
+        relation_entity_ids: set[str] | None = None
+        if rel_type is not None or relationship_direction != "both":
+            relation_rows = await self._relations.list_relations(
+                organization_id=organization_id,
+                rel_type=rel_type,
+                min_confidence=min_confidence,
+                skip=0,
+                limit=search_limit * 4,
+            )
+            relation_entity_ids = set()
+            for row in relation_rows:
+                from_id = str(row.get("from_entity_id"))
+                to_id = str(row.get("to_entity_id"))
+                if relationship_direction == "out":
+                    relation_entity_ids.add(from_id)
+                elif relationship_direction == "in":
+                    relation_entity_ids.add(to_id)
+                else:
+                    relation_entity_ids.update({from_id, to_id})
+
+        filtered_items: list[dict[str, object]] = []
+        for candidate in candidates:
+            entity_id = str(candidate.get("entity_id") or "")
+            if not entity_id:
+                continue
+
+            candidate_evidence = evidence_by_entity.get(entity_id, [])
+            if source_document_id is not None and not candidate_evidence:
+                continue
+            if normalized_source_connector is not None and not any(
+                (row.get("source_connector") or "").strip() == normalized_source_connector
+                for row in candidate_evidence
+            ):
+                continue
+
+            relation_confidence = candidate.get("resolution_confidence")
+            evidence_confidence = max(
+                (float(row.get("confidence") or 0.0) for row in candidate_evidence),
+                default=0.0,
+            )
+            confidence = (
+                max(
+                    float(relation_confidence or 0.0),
+                    evidence_confidence,
+                )
+                if relation_confidence is not None or candidate_evidence
+                else None
+            )
+            if min_confidence is not None:
+                if confidence is None or confidence < min_confidence:
+                    continue
+
+            if relation_entity_ids is not None and entity_id not in relation_entity_ids:
+                continue
+
+            item = {
+                "entity_id": entity_id,
+                "entity_type": candidate.get("entity_type"),
+                "canonical_name": candidate.get("canonical_name"),
+                "normalized_name": candidate.get("normalized_name"),
+                "aliases": list(candidate.get("aliases") or []),
+                "alias_count": int(candidate.get("alias_count") or 0),
+                "workspace_id": candidate.get("workspace_id"),
+                "external_source_id": candidate.get("external_source_id"),
+                "resolution_status": candidate.get("resolution_status"),
+                "resolution_confidence": candidate.get("resolution_confidence"),
+                "confidence": confidence,
+                "last_updated_at": candidate.get("updated_at"),
+                "evidence_count": len(candidate_evidence),
+                "related_document_count": len(
+                    {
+                        str(row.get("source_document_id"))
+                        for row in candidate_evidence
+                        if row.get("source_document_id")
+                    }
+                ),
+            }
+            filtered_items.append(item)
+
+        total = len(filtered_items)
+        page_items = filtered_items[skip : skip + limit]
+        return {
+            "items": page_items,
+            "total": total,
+            "skip": skip,
+            "limit": limit,
+            "query": normalized_query,
+            "entity_type": entity_type,
+            "min_confidence": min_confidence,
+            "source_document_id": str(source_document_id)
+            if source_document_id is not None
+            else None,
+            "source_connector": normalized_source_connector,
+            "rel_type": rel_type,
+            "relationship_direction": relationship_direction,
+        }
+
+    async def get_entity_detail(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_id: UUID | str,
+        rel_type: str | None = None,
+        relationship_direction: RelationDirection = "both",
+        limit: int = 50,
+    ) -> dict[str, object] | None:
+        """Return entity summary plus aliases, evidence, documents, and relations."""
+        entity = await self.get_entity(
+            organization_id=organization_id,
+            entity_id=entity_id,
+        )
+        if entity is None:
+            return None
+
+        aliases = await self.list_entity_aliases(
+            organization_id=organization_id,
+            entity_id=entity_id,
+            limit=limit,
+        )
+        evidence = await self.get_entity_evidence(
+            organization_id=organization_id,
+            entity_id=entity_id,
+            limit=limit,
+        )
+        relations = await self.get_entity_relations(
+            organization_id=organization_id,
+            entity_id=entity_id,
+            rel_type=rel_type,
+            direction=relationship_direction,
+            limit=max(limit * 2, limit),
+        )
+
+        related_entity_ids: set[str] = set()
+        for relation in relations:
+            from_entity_id = str(relation.get("from_entity_id") or "")
+            to_entity_id = str(relation.get("to_entity_id") or "")
+            if from_entity_id and from_entity_id != str(entity_id):
+                related_entity_ids.add(from_entity_id)
+            if to_entity_id and to_entity_id != str(entity_id):
+                related_entity_ids.add(to_entity_id)
+
+        related_entity_rows: list[dict[str, object]] = []
+        for related_entity_id in sorted(related_entity_ids):
+            related_entity = await self.get_entity(
+                organization_id=organization_id,
+                entity_id=related_entity_id,
+            )
+            if related_entity is None:
+                continue
+            related_entity_rows.append(
+                {
+                    "entity_id": related_entity_id,
+                    "entity_type": related_entity.get("entity_type"),
+                    "canonical_name": related_entity.get("canonical_name"),
+                    "normalized_name": related_entity.get("normalized_name"),
+                    "relation_count": sum(
+                        1
+                        for relation in relations
+                        if str(relation.get("from_entity_id")) == related_entity_id
+                        or str(relation.get("to_entity_id")) == related_entity_id
+                    ),
+                }
+            )
+
+        documents_by_id: dict[str, dict[str, object]] = {}
+        for row in evidence:
+            document_id = str(row.get("source_document_id") or "")
+            if not document_id:
+                continue
+            document = documents_by_id.setdefault(
+                document_id,
+                {
+                    "document_id": document_id,
+                    "page_numbers": set(),
+                    "evidence_count": 0,
+                    "max_confidence": 0.0,
+                    "source_connectors": set(),
+                },
+            )
+            page_number = row.get("page_number")
+            if page_number is not None:
+                document["page_numbers"].add(int(page_number))
+            document["evidence_count"] = int(document["evidence_count"]) + 1
+            confidence = float(row.get("confidence") or 0.0)
+            document["max_confidence"] = max(
+                float(document["max_confidence"]),
+                confidence,
+            )
+            connector = row.get("source_connector")
+            if connector:
+                document["source_connectors"].add(str(connector))
+
+        connected_documents = [
+            {
+                "document_id": document_id,
+                "page_numbers": sorted(document["page_numbers"]),
+                "evidence_count": document["evidence_count"],
+                "max_confidence": document["max_confidence"],
+                "source_connectors": sorted(document["source_connectors"]),
+            }
+            for document_id, document in sorted(
+                documents_by_id.items(),
+                key=lambda item: (
+                    -int(item[1]["evidence_count"]),
+                    item[0],
+                ),
+            )
+        ]
+
+        return {
+            "entity": entity,
+            "aliases": aliases,
+            "evidence": evidence,
+            "relationships": relations,
+            "connected_documents": connected_documents,
+            "connected_entities": related_entity_rows,
+            "summary": {
+                "alias_count": len(aliases),
+                "evidence_count": len(evidence),
+                "relationship_count": len(relations),
+                "connected_document_count": len(connected_documents),
+                "connected_entity_count": len(related_entity_rows),
+            },
+        }
 
     # ------------------------------------------------------------------
     # Document graph node operations

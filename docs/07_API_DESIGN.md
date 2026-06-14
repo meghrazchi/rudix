@@ -224,6 +224,23 @@ Duplicate policy:
 When `enterprise_graph_enabled=true`, the backend exposes admin-only graph
 operations under `/admin/graph` for owners and admins.
 
+Member-facing graph explorer reads are exposed separately under `/graph`.
+These routes are organization-scoped, read-only, and return `503` with the
+safe detail `enterprise_graph_unavailable` when the graph layer is disabled or
+Neo4j is not reachable.
+
+### Graph explorer
+
+- `GET /graph/entities` searches evidence-backed entities with `query`,
+  `entity_type`, `min_confidence`, `source_document_id`, `source_connector`,
+  `rel_type`, `relationship_direction`, `skip`, and `limit` filters.
+- `GET /graph/entities/{entity_id}` returns entity detail with aliases,
+  evidence links, relationships, connected documents, connected entities, and
+  summary counts.
+
+Both endpoints require an authenticated principal, enforce organization scope,
+and only return graph records derived from evidence-backed sources.
+
 ### Relation provenance
 
 - `POST /admin/graph/evidence` creates evidence links for entity provenance.

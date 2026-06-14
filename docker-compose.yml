@@ -209,6 +209,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-admin123}
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit deprecated_features [{permit,[{management_metrics_collection,true}]}]"
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -303,9 +304,13 @@ services:
     # in a local docker-compose.override.yml. Never expose these ports publicly in production.
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-neo4j-dev-change-me}
+      # NEO4J_ACCEPT_LICENSE_AGREEMENT: ${NEO4J_ACCEPT_LICENSE_AGREEMENT:-eval}
       NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL:-256m}
       NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
       NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-256m}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
     volumes:
       - neo4j_data:/data
     deploy:

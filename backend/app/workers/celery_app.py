@@ -2,6 +2,7 @@ from celery import Celery  # type: ignore[import-untyped]
 from celery.signals import worker_process_init  # type: ignore[import-untyped]
 from kombu import Queue  # type: ignore[import-untyped]
 
+from app.clients.neo4j_client import init_neo4j
 from app.clients.rabbitmq_client import rabbitmq_broker_url, redis_result_backend_url
 from app.core.config import settings
 from app.core.logging import configure_logging
@@ -115,6 +116,9 @@ configure_logging(
 def _initialize_worker(*_: object, **__: object) -> None:
     import app.models  # noqa: F401 — ensure all SQLAlchemy mappers are registered
     init_sentry(runtime="worker")
+    from app.workers.async_runtime import run_async
+
+    run_async(init_neo4j())
 
 
 init_sentry(runtime="worker")

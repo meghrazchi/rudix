@@ -35,6 +35,7 @@ from app.interfaces.http import (
     admin_graph_relations,
     admin_graph_schema,
     graph_health,
+    graph_explorer,
     langfuse_diagnostics,
     model_profiles,
     model_provider_diagnostics,
@@ -99,6 +100,7 @@ protected_router.include_router(observability.router)
 protected_router.include_router(provider_observability.router)
 protected_router.include_router(langfuse_diagnostics.router)
 protected_router.include_router(graph_health.router)
+protected_router.include_router(graph_explorer.router)
 protected_router.include_router(admin_graph_schema.router)
 protected_router.include_router(admin_graph_entities.router)
 protected_router.include_router(admin_graph_provenance.router)

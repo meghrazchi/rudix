@@ -38,6 +38,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "documents": "Dokumente",
+    "graph": "Graph-Explorer",
     "chat": "Chat",
     "collections": "Sammlungen",
     "evaluations": "Auswertungen",
@@ -55,6 +56,7 @@
       "dashboard": "Überblick und Systemleistung",
       "documents": "Hochgeladene Dokumente verwalten und überwachen",
       "collections": "Dokumente nach Thema oder Team in Wissensdatenbanken organisieren",
+      "graph": "Entitäten, Beziehungen und evidenzgestützte Herkunft durchsuchen",
       "chat": "Fragen zu indizierten Dokumenten stellen",
       "evaluations": "Auswertungsläufe verfolgen und vergleichen",
       "pipeline": "Verarbeitungs- und Abfragepipeline intern inspizieren",
@@ -1617,7 +1619,8 @@
         "ocr": "OCR",
         "chunked": "In Blöcke unterteilt",
         "embedded": "Eingebettet",
-        "upserted": "In Qdrant hochgeladen"
+        "upserted": "In Qdrant hochgeladen",
+        "graphExtraction": "Graph-Extraktion"
       },
       "rec": {
         "retryIndexing": "Indizierung nach Überprüfung der Anbieterverfügbarkeit und Warteschlangengesundheit erneut versuchen.",

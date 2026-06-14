@@ -135,6 +135,13 @@ export const queryKeys = {
     languageCoverage: (evaluationSetId: string) =>
       ["evaluations", "language-coverage", evaluationSetId] as const,
   },
+  graph: {
+    all: ["graph"] as const,
+    entities: (params?: Record<string, unknown>) =>
+      ["graph", "entities", params ?? {}] as const,
+    entity: (entityId: string, params?: Record<string, unknown>) =>
+      ["graph", "entity", entityId, params ?? {}] as const,
+  },
   pipeline: {
     all: ["pipeline"] as const,
     steps: ["pipeline", "steps"] as const,

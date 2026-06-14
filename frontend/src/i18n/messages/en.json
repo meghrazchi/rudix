@@ -38,6 +38,7 @@
   "navigation": {
     "dashboard": "Dashboard",
     "documents": "Documents",
+    "graph": "Graph Explorer",
     "chat": "Chat",
     "collections": "Collections",
     "evaluations": "Evaluations",
@@ -55,6 +56,7 @@
       "dashboard": "Overview and system performance",
       "documents": "Manage and monitor uploaded documents",
       "collections": "Organize documents into knowledge bases by topic or team",
+      "graph": "Search entities, relationships, and evidence-backed provenance",
       "chat": "Ask questions against indexed documents",
       "evaluations": "Track and compare evaluation runs",
       "pipeline": "Inspect processing and query pipeline internals",
@@ -1617,7 +1619,8 @@
         "ocr": "OCR",
         "chunked": "Chunked",
         "embedded": "Embedded",
-        "upserted": "Upserted to Qdrant"
+        "upserted": "Upserted to Qdrant",
+        "graphExtraction": "Graph extraction"
       },
       "rec": {
         "retryIndexing": "Retry indexing after validating provider availability and queue health.",

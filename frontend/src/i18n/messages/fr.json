@@ -38,6 +38,7 @@
   "navigation": {
     "dashboard": "Tableau de bord",
     "documents": "Documents",
+    "graph": "Explorateur de graphe",
     "chat": "Chat",
     "collections": "Collections",
     "evaluations": "Évaluations",
@@ -55,6 +56,7 @@
       "dashboard": "Vue d'ensemble et performances du système",
       "documents": "Gérer et surveiller les documents téléchargés",
       "collections": "Organiser les documents en bases de connaissances par sujet ou équipe",
+      "graph": "Rechercher des entités, des relations et la provenance fondée sur des preuves",
       "chat": "Poser des questions sur les documents indexés",
       "evaluations": "Suivre et comparer les évaluations",
       "pipeline": "Inspecter les éléments internes du pipeline de traitement et de requête",
@@ -1617,7 +1619,8 @@
         "ocr": "OCR",
         "chunked": "Découpé",
         "embedded": "Vectorisé",
-        "upserted": "Upserté vers Qdrant"
+        "upserted": "Upserté vers Qdrant",
+        "graphExtraction": "Extraction de graphe"
       },
       "rec": {
         "retryIndexing": "Réessayez l’indexation après avoir validé la disponibilité du fournisseur et la santé de la file.",

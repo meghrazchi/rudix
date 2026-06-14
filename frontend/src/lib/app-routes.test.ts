@@ -107,13 +107,16 @@ describe("app route protection", () => {
       refreshToken: "refresh-token-123",
     });
 
-    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBeNull();
+    expect(resolveProtectedRouteRedirect("/dashboard", state)).toBe(
+      "/organization-onboarding",
+    );
   });
 
   it("matches metadata for all required product pages", () => {
     const expectedPaths = [
       "/dashboard",
       "/documents",
+      "/graph",
       "/chat",
       "/evaluations",
       "/rag-pipeline",

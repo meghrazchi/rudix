@@ -591,6 +591,10 @@ Notes:
 - Enterprise Graph uses Neo4j as a derived layer only. PostgreSQL remains the
   source of truth, Qdrant remains the vector store, and graph features stay
   gated behind `ENTERPRISE_GRAPH_ENABLED`.
+- Member-facing graph explorer reads are available under `/api/v1/graph` for
+  organization-scoped entity search and entity detail pages. These routes are
+  read-only and return a safe `503` when the graph layer is disabled or Neo4j
+  is unavailable.
 - Graph-backed chat retrieval is separately gated behind
   `FEATURE_ENABLE_GRAPH_RAG` and uses `GRAPH_RAG_*` settings for hop depth,
   related-entity limits, graph chunk limits, confidence thresholds, and

@@ -9,6 +9,7 @@ export type AppRouteKey =
   | "dashboard"
   | "documents"
   | "collections"
+  | "graph"
   | "chat"
   | "evaluations"
   | "pipeline"
@@ -69,6 +70,16 @@ export const APP_ROUTES: AppRouteMeta[] = [
     label: "Collections",
     description: "Organize documents into knowledge bases by topic or team",
     matchPrefixes: ["/collections"],
+    requiresOrganization: true,
+    allowedRoles: ["owner", "admin", "member", "viewer"],
+  },
+  {
+    key: "graph",
+    href: "/graph",
+    label: "Graph Explorer",
+    description:
+      "Search entities, relationships, and evidence-backed provenance",
+    matchPrefixes: ["/graph"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
   },

@@ -218,7 +218,34 @@ function buildLifecycleTimeline(
         fromBackendLifecycleTimelineStep(step, labels),
       )
     : [];
-  return backendTimeline.filter((step) => step.state !== "pending");
+  const steps = backendTimeline.filter((step) => step.state !== "pending");
+
+  const hasGraphStep = steps.some((s) => s.key === "extract_entities");
+  const graphExtractionStatus = detail.graph_extraction_status;
+  if (!hasGraphStep && graphExtractionStatus && graphExtractionStatus !== "skipped") {
+    let state: TimelineStepState = "pending";
+    if (graphExtractionStatus === "completed") state = "completed";
+    else if (graphExtractionStatus === "failed") state = "failed";
+    else if (graphExtractionStatus === "extracting") state = "active";
+    if (state !== "pending") {
+      steps.push({
+        key: "extract_entities",
+        label: labels.extract_entities,
+        description: "",
+        state,
+        timestamp: null,
+        documentId: detail.document_id,
+        logs: [],
+        pipelineRunId: null,
+        pipelineType: null,
+        durationMs: null,
+        status: graphExtractionStatus === "extracting" ? "running" : graphExtractionStatus,
+        outputs: null,
+      });
+    }
+  }
+
+  return steps;
 }
 
 function fromBackendLifecycleTimelineStep(
@@ -257,6 +284,7 @@ type LifecycleLabels = {
   chunk: string;
   embed: string;
   index: string;
+  extract_entities: string;
 };
 
 function normalizeLifecycleLabel(
@@ -270,6 +298,7 @@ function normalizeLifecycleLabel(
   if (stepKey === "chunk") return labels.chunk;
   if (stepKey === "embed") return labels.embed;
   if (stepKey === "index") return labels.index;
+  if (stepKey === "extract_entities") return labels.extract_entities;
   return label;
 }
 
@@ -436,6 +465,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     chunk: td("lifecycle.chunked"),
     embed: td("lifecycle.embedded"),
     index: td("lifecycle.upserted"),
+    extract_entities: td("lifecycle.graphExtraction"),
   };
 
   const noChunkMessages: NoChunksMessages = {

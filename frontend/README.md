@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, the Documents workspace at `/documents`, and the Pipeline Explorer at `/rag-pipeline`.
+Next.js frontend for Rudix. The current implementation includes an authenticated application shell, login/signup session flows, the Documents workspace at `/documents`, the Graph Explorer at `/graph`, and the Pipeline Explorer at `/rag-pipeline`.
 
 ## Stack
 
@@ -34,6 +34,8 @@ Next.js frontend for Rudix. The current implementation includes an authenticated
 - Protected product pages inside the shared shell:
   - `/dashboard`
   - `/documents`
+  - `/graph`
+  - `/graph/entities/[entityId]`
   - `/chat`
   - `/evaluations`
   - `/rag-pipeline` Pipeline Explorer

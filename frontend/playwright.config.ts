@@ -4,7 +4,7 @@ const FRONTEND_PORT = Number.parseInt(
   process.env.PLAYWRIGHT_FRONTEND_PORT ?? "3101",
   10,
 );
-const FRONTEND_BASE_URL = `http://localhost:${FRONTEND_PORT}`;
+const FRONTEND_BASE_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
 const useBundledBrowser =
   process.env.PLAYWRIGHT_USE_BUNDLED_BROWSER === "true" ||
   process.env.CI === "true";
@@ -34,7 +34,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run dev -- --hostname localhost --port ${FRONTEND_PORT}`,
+    command: `npm run dev -- --hostname 127.0.0.1 --port ${FRONTEND_PORT}`,
     // Use a route-level readiness URL to reduce accidental reuse of unrelated apps.
     url: `${FRONTEND_BASE_URL}/login`,
     reuseExistingServer: !process.env.CI,

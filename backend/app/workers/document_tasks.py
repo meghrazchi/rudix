@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.clients import minio_client as minio_module
 from app.core.config import settings
@@ -2281,14 +2281,25 @@ async def _update_document_graph_status_async(
     status: str,
     run_id: UUID | None = None,
 ) -> None:
-    async with SessionLocal() as session:
-        await _document_repository.update_document_graph_status(
-            session,
-            document_id=document_id,
-            graph_extraction_status=status,
-            graph_extraction_run_id=run_id,
+    # Use a short lock_timeout so this never blocks indefinitely when the outer
+    # pipeline session holds the documents row lock (e.g. during graph extraction).
+    # If the lock can't be acquired, skip the status update rather than deadlocking.
+    try:
+        async with SessionLocal() as session:
+            await session.execute(text("SET LOCAL lock_timeout = '3s'"))
+            await _document_repository.update_document_graph_status(
+                session,
+                document_id=document_id,
+                graph_extraction_status=status,
+                graph_extraction_run_id=run_id,
+            )
+            await session.commit()
+    except Exception:
+        log_document_event(
+            event="document.graph_status.lock_skipped",
+            document_id=str(document_id),
+            status_code=status,
         )
-        await session.commit()
 
 
 async def _run_document_graph_extraction_async(
