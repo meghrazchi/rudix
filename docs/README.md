@@ -25,6 +25,7 @@ This repository keeps `README.md` at the root and all other documentation under 
 19. [18_LANGFUSE_OBSERVABILITY.md](./18_LANGFUSE_OBSERVABILITY.md)
 20. [19_LOCAL_LLM_PROVIDER_INTEGRATION.md](./19_LOCAL_LLM_PROVIDER_INTEGRATION.md)
 21. [20_COLLABORATION_BOT_INTEGRATION.md](./20_COLLABORATION_BOT_INTEGRATION.md)
+22. [21_ENTERPRISE_GRAPH_EXTRACTION.md](./21_ENTERPRISE_GRAPH_EXTRACTION.md) — Entity/relation extraction, GraphRAG, Neo4j schema, configuration, troubleshooting
 
 ## Setup and Operations
 
