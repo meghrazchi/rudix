@@ -304,6 +304,7 @@ export type FrontendMutationKind =
   | "document.upload"
   | "document.delete"
   | "document.reindex"
+  | "document.graph.reindex"
   | "collection.create"
   | "collection.update"
   | "collection.delete"
@@ -393,7 +394,8 @@ export async function invalidateAfterMutation(
   if (
     kind === "document.upload" ||
     kind === "document.delete" ||
-    kind === "document.reindex"
+    kind === "document.reindex" ||
+    kind === "document.graph.reindex"
   ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.documents.all });
     await queryClient.invalidateQueries({ queryKey: queryKeys.pipeline.all });

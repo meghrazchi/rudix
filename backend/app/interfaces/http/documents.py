@@ -54,6 +54,7 @@ from app.domains.documents.schemas.documents import (
     DocumentListItemResponse,
     DocumentListResponse,
     DocumentSortBy,
+    ReindexDocumentGraphResponse,
     DocumentStatusResponse,
     ReindexDocumentResponse,
     SortOrder,
@@ -81,6 +82,9 @@ from app.workers.document_tasks import (
 )
 from app.workers.document_tasks import (
     process_document,
+)
+from app.workers.document_tasks import (
+    reindex_document_graph as reindex_document_graph_task,
 )
 from app.workers.document_tasks import (
     reindex_document as reindex_document_task,
@@ -722,6 +726,7 @@ async def list_documents(
                 filename=document.filename,
                 file_type=document.file_type,
                 status=document.status,
+                graph_extraction_status=document.graph_extraction_status,
                 page_count=document.page_count,
                 chunk_count=chunk_count,
                 error_message=safe_error_message,
@@ -929,6 +934,7 @@ async def get_document(
         filename=filename,
         file_type=file_type,
         status=document_status,
+        graph_extraction_status=document.graph_extraction_status,
         page_count=page_count,
         chunk_count=chunk_count,
         checksum=checksum,
@@ -1154,6 +1160,50 @@ async def reindex_document_endpoint(
     )
 
 
+@router.post(
+    "/{document_id}/graph/reindex",
+    response_model=ReindexDocumentGraphResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def reindex_document_graph_endpoint(
+    request: Request,
+    document_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    document: Annotated[Document, Depends(require_document_access)],
+) -> ReindexDocumentGraphResponse:
+    del document_id
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+    reindex_document_graph_task.delay(
+        str(document.id),
+        request_id=request_id,
+        organization_id=str(actor_organization_id),
+        user_id=str(actor_user_id),
+    )
+    log_document_event(
+        event="document.graph_reindex.requested",
+        document_id=str(document.id),
+        organization_id=str(actor_organization_id),
+        user_id=str(actor_user_id),
+        status_code=status.HTTP_202_ACCEPTED,
+        queue_status="queued",
+    )
+    return ReindexDocumentGraphResponse(
+        document_id=str(document.id),
+        status="pending",
+        queue_status="queued",
+    )
+
+
 @router.get("/{document_id}/status", response_model=DocumentStatusResponse)
 async def get_document_status(
     document_id: str,
@@ -1173,6 +1223,7 @@ async def get_document_status(
     return DocumentStatusResponse(
         document_id=str(document.id),
         status=document.status,
+        graph_extraction_status=document.graph_extraction_status,
         error_message=safe_error_message,
         error_details=safe_error_details,
         updated_at=document.updated_at,

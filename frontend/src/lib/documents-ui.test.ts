@@ -35,12 +35,14 @@ describe("documents UI permissions", () => {
       canDelete: true,
       canReindex: true,
       canViewChunkFullText: true,
+      canOverrideLanguage: true,
     });
     expect(resolveDocumentCapabilities("admin")).toEqual({
       canUpload: true,
       canDelete: true,
       canReindex: true,
       canViewChunkFullText: true,
+      canOverrideLanguage: true,
     });
   });
 
@@ -50,12 +52,14 @@ describe("documents UI permissions", () => {
       canDelete: true,
       canReindex: false,
       canViewChunkFullText: true,
+      canOverrideLanguage: false,
     });
     expect(resolveDocumentCapabilities("viewer")).toEqual({
       canUpload: false,
       canDelete: false,
       canReindex: false,
       canViewChunkFullText: false,
+      canOverrideLanguage: false,
     });
   });
 });
@@ -66,6 +70,7 @@ describe("documents UI polling and action helpers", () => {
     expect(shouldPollDocumentStatus("processing")).toBe(true);
     expect(shouldPollDocumentStatus("deleting")).toBe(true);
     expect(shouldPollDocumentStatus("indexed")).toBe(false);
+    expect(shouldPollDocumentStatus("indexed", "extracting")).toBe(true);
     expect(shouldPollDocumentStatus("failed")).toBe(false);
     expect(shouldPollDocumentStatus("deleted")).toBe(false);
   });

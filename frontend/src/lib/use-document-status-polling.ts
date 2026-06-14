@@ -21,12 +21,13 @@ type UseDocumentStatusPollingOptions = {
 
 export function getDocumentStatusRefetchInterval(
   status: DocumentStatus | null | undefined,
+  graphStatus: string | null | undefined = null,
   pollIntervalMs: number = DEFAULT_STATUS_POLL_INTERVAL_MS,
 ): number | false {
   if (!status) {
     return false;
   }
-  return shouldPollDocumentStatus(status) ? pollIntervalMs : false;
+  return shouldPollDocumentStatus(status, graphStatus) ? pollIntervalMs : false;
 }
 
 export function useDocumentStatusPolling(
@@ -46,8 +47,12 @@ export function useDocumentStatusPolling(
       const liveStatus = (
         query.state.data as DocumentStatusResponse | undefined
       )?.status;
+      const graphStatus = (
+        query.state.data as DocumentStatusResponse | undefined
+      )?.graph_extraction_status;
       return getDocumentStatusRefetchInterval(
         liveStatus ?? initialStatus,
+        graphStatus ?? null,
         pollIntervalMs,
       );
     },

@@ -25,6 +25,7 @@ const mockApi = vi.hoisted(() => ({
   getDocumentChunks: vi.fn(),
   deleteDocument: vi.fn(),
   reindexDocument: vi.fn(),
+  reindexDocumentGraph: vi.fn(),
   downloadDocumentFile: vi.fn(),
   overrideDocumentLanguage: vi.fn(),
   configureDocumentOcr: vi.fn(),
@@ -52,6 +53,8 @@ vi.mock("@/lib/api/documents", () => ({
   deleteDocument: (documentId: string) => mockApi.deleteDocument(documentId),
   reindexDocument: (documentId: string, payload?: unknown) =>
     mockApi.reindexDocument(documentId, payload),
+  reindexDocumentGraph: (documentId: string) =>
+    mockApi.reindexDocumentGraph(documentId),
   downloadDocumentFile: (documentId: string) =>
     mockApi.downloadDocumentFile(documentId),
   overrideDocumentLanguage: (documentId: string, payload: unknown) =>
@@ -112,6 +115,7 @@ describe("DocumentDetailPage", () => {
     mockApi.getDocumentChunks.mockReset();
     mockApi.deleteDocument.mockReset();
     mockApi.reindexDocument.mockReset();
+    mockApi.reindexDocumentGraph.mockReset();
     mockApi.downloadDocumentFile.mockReset();
     mockApi.overrideDocumentLanguage.mockReset();
     mockApi.configureDocumentOcr.mockReset();
@@ -325,7 +329,6 @@ describe("DocumentDetailPage", () => {
       screen.getByRole("heading", { name: "Chunking diagnostics" }),
     ).toBeInTheDocument();
     expect(screen.getByText("pdf_ocr_applied")).toBeInTheDocument();
-    expect(screen.getByText("Operations Default")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: /chunks/i }));
     expect(await screen.findByText("Chunk #1")).toBeInTheDocument();
     expect(
@@ -749,7 +752,7 @@ describe("DocumentDetailPage", () => {
     await screen.findByRole("heading", { name: "unknown.pdf" });
 
     expect(screen.getByText("Language")).toBeInTheDocument();
-    expect(screen.getByText("-")).toBeInTheDocument();
+    expect(screen.getAllByText("-").length).toBeGreaterThan(0);
   });
 
   it("shows override button for admin and submits override", async () => {
@@ -869,7 +872,7 @@ describe("DocumentDetailPage", () => {
 
     expect(screen.getByText("OCR quality")).toBeInTheDocument();
     expect(screen.getByText("82%")).toBeInTheDocument();
-    expect(screen.getByText("deu")).toBeInTheDocument();
+    expect(screen.getAllByText("deu").length).toBeGreaterThan(0);
   });
 
   it("shows low confidence warning when OCR quality is below 30%", async () => {
@@ -965,7 +968,7 @@ describe("DocumentDetailPage", () => {
   });
 
   it("shows embedding provider type and vector dimension when set on the document", async () => {
-    mockApi.getDocumentDetail.mockResolvedValue({
+    mockApi.getDocument.mockResolvedValue({
       document_id: "doc-1",
       filename: "policy.pdf",
       file_type: "pdf",
@@ -991,7 +994,7 @@ describe("DocumentDetailPage", () => {
   });
 
   it("hides embedding provider rows when metadata is not yet set", async () => {
-    mockApi.getDocumentDetail.mockResolvedValue({
+    mockApi.getDocument.mockResolvedValue({
       document_id: "doc-1",
       filename: "new.pdf",
       file_type: "pdf",

@@ -55,13 +55,7 @@ function statusBadgeLabel(s: CardStatus): string {
   return "No data";
 }
 
-function MetricRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e4e1f2] bg-[#faf9ff] px-3 py-2 text-sm">
       <dt className="text-[#4f4b68]">{label}</dt>
@@ -151,8 +145,14 @@ function ProviderCard({ card }: { card: ProviderHealthCard }) {
               value={card.avg_retry_count.toFixed(2)}
             />
           ) : null}
-          <MetricRow label="Avg latency" value={formatMs(card.avg_latency_ms)} />
-          <MetricRow label="P95 latency" value={formatMs(card.p95_latency_ms)} />
+          <MetricRow
+            label="Avg latency"
+            value={formatMs(card.avg_latency_ms)}
+          />
+          <MetricRow
+            label="P95 latency"
+            value={formatMs(card.p95_latency_ms)}
+          />
         </dl>
       )}
 
@@ -172,7 +172,11 @@ function ProviderCard({ card }: { card: ProviderHealthCard }) {
   );
 }
 
-function SnapshotMeta({ snapshot }: { snapshot: ProviderObservabilitySnapshot }) {
+function SnapshotMeta({
+  snapshot,
+}: {
+  snapshot: ProviderObservabilitySnapshot;
+}) {
   const dt = new Date(snapshot.generated_at);
   const label = Number.isNaN(dt.getTime())
     ? snapshot.generated_at
@@ -245,7 +249,7 @@ export function ProviderHealthSection({ timeRange }: { timeRange: TimeRange }) {
 
       {snapshot.telemetry_missing ? (
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <p className="text-sm text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             No provider-level telemetry in the selected range. Provider health
             signals appear once chat requests with provider metadata are
             recorded.

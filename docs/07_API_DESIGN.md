@@ -284,6 +284,7 @@ Response:
       "filename": "policy.pdf",
       "file_type": "pdf",
       "status": "indexed",
+      "graph_extraction_status": "completed",
       "page_count": 24,
       "chunk_count": 92,
       "error_message": null,
@@ -308,6 +309,7 @@ Response:
   "filename": "policy.pdf",
   "file_type": "pdf",
   "status": "processing",
+  "graph_extraction_status": "extracting",
   "language": "en",
   "page_count": 24,
   "chunk_count": 92,
@@ -355,6 +357,47 @@ Notes:
 - `chunking_diagnostics` is nullable for documents indexed before diagnostics were recorded.
 - The diagnostics payload is safe for UI display: it contains strategy metadata, heuristics, and aggregate counts only.
 
+### GET `/documents/{document_id}/status`
+
+Returns a compact status payload for polling-only clients, including the
+latest graph extraction state.
+
+Response:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "processing",
+  "graph_extraction_status": "extracting",
+  "error_message": null,
+  "error_details": null,
+  "updated_at": "2026-05-07T10:04:00Z"
+}
+```
+
+### POST `/documents/{document_id}/graph/reindex`
+
+Queue a graph-only re-extraction run for an existing document.
+
+Response status: `202 Accepted`
+
+Response:
+
+```json
+{
+  "document_id": "uuid",
+  "status": "pending",
+  "queue_status": "queued"
+}
+```
+
+Notes:
+
+- Access is restricted to `owner` and `admin` roles.
+- Re-run clears the previous graph facts for the document before rebuilding.
+- Graph extraction failures are tracked separately from the base document
+  lifecycle so non-graph ingestion still remains available if Neo4j is down.
+
 Failed response example:
 
 ```json
@@ -371,22 +414,6 @@ Failed response example:
   },
   "created_at": "2026-05-07T10:00:00Z",
   "updated_at": "2026-05-07T10:05:10Z"
-}
-```
-
-### GET `/documents/{document_id}/status`
-
-Returns a compact status payload for polling-only clients.
-
-Response:
-
-```json
-{
-  "document_id": "uuid",
-  "status": "processing",
-  "error_message": null,
-  "error_details": null,
-  "updated_at": "2026-05-07T10:04:00Z"
 }
 ```
 

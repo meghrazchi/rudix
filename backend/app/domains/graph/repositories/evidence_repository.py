@@ -333,3 +333,105 @@ class EvidenceRepository:
                 detail=str(exc),
             )
             return 0
+
+    async def delete_evidence_for_document(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        extraction_run_id: UUID | str | None = None,
+    ) -> int:
+        """Remove all EVIDENCE_FOR links for a document. Returns count removed."""
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        where_run = "AND ev.extraction_run_id = $extraction_run_id" if extraction_run_id else ""
+        cypher = f"""
+            MATCH (c:Chunk {{organization_id: $organization_id,
+                             source_document_id: $document_id}})
+                  -[ev:EVIDENCE_FOR]->()
+            WHERE 1 = 1 {where_run}
+            WITH ev, count(ev) AS cnt
+            DELETE ev
+            RETURN cnt
+        """
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                cypher,
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
+            logger.debug(
+                "graph.evidence.document_deleted",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                count=cnt,
+            )
+            return cnt
+        except Exception as exc:
+            logger.warning(
+                "graph.evidence.document_delete_error",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0
+
+    async def delete_orphan_chunks_for_document(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+    ) -> int:
+        """Delete Chunk nodes that no longer have any graph relationships."""
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                """
+                MATCH (c:Chunk {organization_id: $organization_id,
+                                source_document_id: $document_id})
+                WHERE NOT (c)--()
+                WITH c, count(c) AS cnt
+                DELETE c
+                RETURN cnt
+                """,
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
+            logger.debug(
+                "graph.evidence.orphan_chunks_deleted",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                count=cnt,
+            )
+            return cnt
+        except Exception as exc:
+            logger.warning(
+                "graph.evidence.orphan_chunks_delete_error",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0

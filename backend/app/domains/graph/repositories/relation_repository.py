@@ -513,6 +513,84 @@ class RelationRepository:
         try:
             async with driver.session(database=settings.neo4j_database) as session:
                 cnt = await session.execute_write(_tx)
+            return cnt > 0
+        except Exception as exc:
+            logger.warning(
+                "graph.relation.delete_error",
+                organization_id=str(organization_id),
+                relation_id=str(relation_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return False
+
+    async def delete_relations_for_document(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        extraction_run_id: UUID | str | None = None,
+    ) -> int:
+        """Delete relation edges derived from one document. Returns count removed."""
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        where_run = "AND r.extraction_run_id = $extraction_run_id" if extraction_run_id else ""
+        cypher = f"""
+            MATCH ()-[r]-()
+            WHERE r.organization_id = $org
+              AND r.source_document_id = $document_id
+              {where_run}
+            WITH r, count(r) AS cnt
+            DELETE r
+            RETURN cnt
+        """
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                cypher,
+                org=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
+            logger.debug(
+                "graph.relation.document_deleted",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                count=cnt,
+            )
+            return cnt
+        except Exception as exc:
+            logger.warning(
+                "graph.relation.document_delete_error",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                cypher,
+                org=str(organization_id),
+                relation_id=str(relation_id),
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
                 if asyncio.iscoroutine(cnt):
                     cnt = await cnt
             return cnt > 0

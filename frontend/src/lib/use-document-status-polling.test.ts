@@ -19,13 +19,18 @@ describe("useDocumentStatusPolling", () => {
   });
 
   it("computes refetch interval for terminal and non-terminal statuses", () => {
-    expect(getDocumentStatusRefetchInterval("uploaded", 1111)).toBe(1111);
-    expect(getDocumentStatusRefetchInterval("processing", 1111)).toBe(1111);
-    expect(getDocumentStatusRefetchInterval("deleting", 1111)).toBe(1111);
-    expect(getDocumentStatusRefetchInterval("indexed", 1111)).toBe(false);
-    expect(getDocumentStatusRefetchInterval("failed", 1111)).toBe(false);
-    expect(getDocumentStatusRefetchInterval("deleted", 1111)).toBe(false);
-    expect(getDocumentStatusRefetchInterval(null, 1111)).toBe(false);
+    expect(getDocumentStatusRefetchInterval("uploaded", null, 1111)).toBe(1111);
+    expect(getDocumentStatusRefetchInterval("processing", null, 1111)).toBe(
+      1111,
+    );
+    expect(getDocumentStatusRefetchInterval("deleting", null, 1111)).toBe(1111);
+    expect(getDocumentStatusRefetchInterval("indexed", null, 1111)).toBe(false);
+    expect(
+      getDocumentStatusRefetchInterval("indexed", "extracting", 1111),
+    ).toBe(1111);
+    expect(getDocumentStatusRefetchInterval("failed", null, 1111)).toBe(false);
+    expect(getDocumentStatusRefetchInterval("deleted", null, 1111)).toBe(false);
+    expect(getDocumentStatusRefetchInterval(null, null, 1111)).toBe(false);
   });
 
   it("builds query options with polling that stops on terminal status", () => {

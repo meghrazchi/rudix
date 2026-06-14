@@ -53,7 +53,8 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const [selectedExpiry, setSelectedExpiry] = useState<ExpiryOption>("never");
-  const [accessMode, setAccessMode] = useState<AnswerShareAccessMode>("org_only");
+  const [accessMode, setAccessMode] =
+    useState<AnswerShareAccessMode>("org_only");
   const [allowedUsersInput, setAllowedUsersInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [usePassword, setUsePassword] = useState(false);
@@ -266,8 +267,7 @@ export function AnswerShareModal({ messageId, onClose }: Props) {
                 disabled={
                   createMutation.isPending ||
                   (usePassword && passwordInput.length < 4) ||
-                  (accessMode === "specific_users" &&
-                    !allowedUsersInput.trim())
+                  (accessMode === "specific_users" && !allowedUsersInput.trim())
                 }
                 onClick={() => createMutation.mutate()}
                 className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2b1fa8] disabled:cursor-not-allowed disabled:opacity-60"

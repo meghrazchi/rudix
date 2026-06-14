@@ -11,6 +11,7 @@ const POLLING_STATUSES = new Set<DocumentStatus>([
   "delete_requested",
   "deleting",
 ]);
+const POLLING_GRAPH_STATUSES = new Set(["pending", "extracting"]);
 
 export type DocumentCapabilities = {
   canUpload: boolean;
@@ -59,8 +60,16 @@ export function resolveDocumentCapabilities(
   };
 }
 
-export function shouldPollDocumentStatus(status: DocumentStatus): boolean {
-  return POLLING_STATUSES.has(status);
+export function shouldPollDocumentStatus(
+  status: DocumentStatus,
+  graphStatus?: string | null,
+): boolean {
+  return (
+    POLLING_STATUSES.has(status) ||
+    (graphStatus !== null && graphStatus !== undefined
+      ? POLLING_GRAPH_STATUSES.has(graphStatus)
+      : false)
+  );
 }
 
 export function shouldPollDocumentList(
@@ -69,7 +78,9 @@ export function shouldPollDocumentList(
   if (!items || items.length === 0) {
     return false;
   }
-  return items.some((item) => shouldPollDocumentStatus(item.status));
+  return items.some((item) =>
+    shouldPollDocumentStatus(item.status, item.graph_extraction_status),
+  );
 }
 
 export function canDeleteDocument(status: DocumentStatus): boolean {

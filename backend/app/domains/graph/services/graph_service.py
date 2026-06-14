@@ -339,6 +339,52 @@ class GraphService:
             document_id=document_id,
         )
 
+    async def clear_document_graph_facts(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        extraction_run_id: UUID | str | None = None,
+        delete_document_node: bool = False,
+    ) -> dict[str, int | bool]:
+        """Remove graph facts derived from a document and prune orphaned graph nodes."""
+        evidence_deleted = await self._evidence.delete_evidence_for_document(
+            organization_id=organization_id,
+            document_id=document_id,
+            extraction_run_id=extraction_run_id,
+        )
+        relation_deleted = await self._relations.delete_relations_for_document(
+            organization_id=organization_id,
+            document_id=document_id,
+            extraction_run_id=extraction_run_id,
+        )
+        alias_deleted = await self._entities.delete_aliases_for_document(
+            organization_id=organization_id,
+            document_id=document_id,
+            extraction_run_id=extraction_run_id,
+        )
+        chunk_deleted = await self._evidence.delete_orphan_chunks_for_document(
+            organization_id=organization_id,
+            document_id=document_id,
+        )
+        orphan_entities_deleted = await self._entities.delete_orphan_entities(
+            organization_id=organization_id,
+        )
+        document_node_deleted = False
+        if delete_document_node:
+            document_node_deleted = await self._documents.delete_document_node(
+                organization_id=organization_id,
+                document_id=document_id,
+            )
+        return {
+            "evidence_deleted": evidence_deleted,
+            "relations_deleted": relation_deleted,
+            "aliases_deleted": alias_deleted,
+            "chunks_deleted": chunk_deleted,
+            "orphan_entities_deleted": orphan_entities_deleted,
+            "document_node_deleted": document_node_deleted,
+        }
+
     # ------------------------------------------------------------------
     # Relationship operations
     # ------------------------------------------------------------------

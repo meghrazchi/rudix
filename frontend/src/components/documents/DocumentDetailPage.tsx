@@ -28,6 +28,7 @@ import {
   getDocument,
   getDocumentChunks,
   overrideDocumentLanguage,
+  reindexDocumentGraph,
   reindexDocument,
   OCR_LANGUAGES,
   UPLOAD_LANGUAGES,
@@ -168,6 +169,19 @@ function statusBadge(status: DocumentStatus): string {
   }
   if (status === "deleted") {
     return "rounded-full bg-slate-300 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-800";
+  }
+  return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
+}
+
+function graphStatusBadge(status: string): string {
+  if (status === "completed") {
+    return "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+  }
+  if (status === "pending" || status === "extracting") {
+    return "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-blue-800";
+  }
+  if (status === "failed") {
+    return "rounded-full bg-rose-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-rose-800";
   }
   return "rounded-full bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-600";
 }
@@ -631,6 +645,25 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     },
   });
 
+  const graphReindexMutation = useMutation({
+    mutationFn: () => reindexDocumentGraph(documentId),
+    onSuccess: async (result) => {
+      setActionFeedback(
+        `Graph re-index queued. Queue status: ${result.queue_status}.`,
+      );
+      setActionRequestId(null);
+      await invalidateAfterMutation(queryClient, "document.graph.reindex");
+      await detailQuery.refetch();
+      await statusQuery.refetch();
+    },
+    onError: (error) => {
+      setActionFeedback(
+        getDocumentLifecycleActionErrorMessage("reindex", error),
+      );
+      setActionRequestId(extractRequestIdFromError(error));
+    },
+  });
+
   const downloadMutation = useMutation({
     mutationFn: async () => {
       const blob = await downloadDocumentFile(documentId);
@@ -695,6 +728,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
   const currentStatus = detail
     ? deriveDetailStatus(detail, statusQuery.data)
     : null;
+  const graphStatus = detail?.graph_extraction_status ?? null;
   const chunkStatus = currentStatus ?? detail?.status ?? null;
   const selectedChunks = chunksQuery.data;
   const lifecycle = useMemo(
@@ -835,6 +869,11 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                     <span className={statusBadge(currentStatus)}>
                       {currentStatus}
                     </span>
+                    {graphStatus ? (
+                      <span className={graphStatusBadge(graphStatus)}>
+                        graph {graphStatus}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-[#5c5874]">
                     <span className="break-all">
@@ -967,33 +1006,64 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                       </summary>
                       <div className="absolute right-0 z-20 mt-1 flex min-w-[10.5rem] flex-col gap-1 rounded-lg border border-[#d8d3ea] bg-white p-1 shadow-lg">
                         {capabilities.canReindex ? (
-                          <button
-                            type="button"
-                            disabled={!canReindex || reindexMutation.isPending}
-                            onClick={(event) => {
-                              (
-                                event.currentTarget.closest(
-                                  "details",
-                                ) as HTMLDetailsElement | null
-                              )?.removeAttribute("open");
-                              setActionFeedback(null);
-                              setActionRequestId(null);
-                              reindexMutation.mutate({
-                                label: td("reindexDefaultProfile"),
-                              });
-                            }}
-                            className="inline-flex w-full items-center gap-2 rounded-md border border-[#cbc5e6] bg-white px-2.5 py-2 text-left text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined text-[15px]"
+                          <>
+                            <button
+                              type="button"
+                              disabled={
+                                !canReindex || reindexMutation.isPending
+                              }
+                              onClick={(event) => {
+                                (
+                                  event.currentTarget.closest(
+                                    "details",
+                                  ) as HTMLDetailsElement | null
+                                )?.removeAttribute("open");
+                                setActionFeedback(null);
+                                setActionRequestId(null);
+                                reindexMutation.mutate({
+                                  label: td("reindexDefaultProfile"),
+                                });
+                              }}
+                              className="inline-flex w-full items-center gap-2 rounded-md border border-[#cbc5e6] bg-white px-2.5 py-2 text-left text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              refresh
-                            </span>
-                            {reindexMutation.isPending
-                              ? td("reindexQueueing")
-                              : td("reindex")}
-                          </button>
+                              <span
+                                aria-hidden="true"
+                                className="material-symbols-outlined text-[15px]"
+                              >
+                                refresh
+                              </span>
+                              {reindexMutation.isPending
+                                ? td("reindexQueueing")
+                                : td("reindex")}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={
+                                !canReindex || graphReindexMutation.isPending
+                              }
+                              onClick={(event) => {
+                                (
+                                  event.currentTarget.closest(
+                                    "details",
+                                  ) as HTMLDetailsElement | null
+                                )?.removeAttribute("open");
+                                setActionFeedback(null);
+                                setActionRequestId(null);
+                                graphReindexMutation.mutate();
+                              }}
+                              className="inline-flex w-full items-center gap-2 rounded-md border border-[#cbc5e6] bg-white px-2.5 py-2 text-left text-xs font-semibold text-[#3e376f] hover:bg-[#f5f3ff] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="material-symbols-outlined text-[15px]"
+                              >
+                                schema
+                              </span>
+                              {graphReindexMutation.isPending
+                                ? td("reindexQueueing")
+                                : "Graph re-index"}
+                            </button>
+                          </>
                         ) : null}
                         {capabilities.canDelete ? (
                           <button

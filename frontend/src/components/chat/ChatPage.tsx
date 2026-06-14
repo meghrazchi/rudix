@@ -542,12 +542,14 @@ function getFileIcon(filename: string | null | undefined): string {
   if (["md", "txt"].includes(ext)) return "text_snippet";
   if (["xlsx", "xls"].includes(ext)) return "table_chart";
   if (["csv"].includes(ext)) return "dataset";
-  if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(ext)) return "image";
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp"].includes(ext))
+    return "image";
   if (["mp4", "mov", "avi", "webm"].includes(ext)) return "videocam";
   if (["mp3", "wav", "ogg"].includes(ext)) return "audio_file";
   if (["zip", "tar", "gz", "rar"].includes(ext)) return "folder_zip";
   if (["json", "xml", "yaml", "yml"].includes(ext)) return "data_object";
-  if (["js", "ts", "py", "java", "go", "rs", "cpp", "c", "cs"].includes(ext)) return "code";
+  if (["js", "ts", "py", "java", "go", "rs", "cpp", "c", "cs"].includes(ext))
+    return "code";
   if (["pptx", "ppt"].includes(ext)) return "slideshow";
   return "draft";
 }
@@ -705,7 +707,9 @@ export function ChatPage() {
     null,
   );
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [answerShareMessageId, setAnswerShareMessageId] = useState<string | null>(null);
+  const [answerShareMessageId, setAnswerShareMessageId] = useState<
+    string | null
+  >(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   const activeOrgId = state.session?.organizationId ?? null;

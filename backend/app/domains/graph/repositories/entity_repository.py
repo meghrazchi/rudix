@@ -259,6 +259,103 @@ class EntityRepository:
             )
             return False
 
+    async def delete_aliases_for_document(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        extraction_run_id: UUID | str | None = None,
+    ) -> int:
+        """Delete alias/source-mention nodes tied to one document. Returns count removed."""
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        where_run = "AND a.extraction_run_id = $extraction_run_id" if extraction_run_id else ""
+        cypher = f"""
+            MATCH (e:Entity {{organization_id: $organization_id}})-[:HAS_ALIAS]->(a:EntityAlias)
+            WHERE a.organization_id = $organization_id
+              AND a.source_document_id = $document_id
+              {where_run}
+            WITH a, count(a) AS cnt
+            DETACH DELETE a
+            RETURN cnt
+        """
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                cypher,
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
+            logger.debug(
+                "graph.entity.alias_document_deleted",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                count=cnt,
+            )
+            return cnt
+        except Exception as exc:
+            logger.warning(
+                "graph.entity.alias_document_delete_error",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                extraction_run_id=str(extraction_run_id) if extraction_run_id else None,
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0
+
+    async def delete_orphan_entities(
+        self,
+        *,
+        organization_id: UUID | str,
+    ) -> int:
+        """Delete Entity nodes with no remaining relationships. Returns count removed."""
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        async def _tx(tx: Any) -> int:
+            result = await tx.run(
+                """
+                MATCH (e:Entity {organization_id: $organization_id})
+                WHERE NOT (e)--()
+                WITH e, count(e) AS cnt
+                DELETE e
+                RETURN cnt
+                """,
+                organization_id=str(organization_id),
+            )
+            records = await result.data()
+            return records[0]["cnt"] if records else 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                cnt = await session.execute_write(_tx)
+            logger.debug(
+                "graph.entity.orphan_deleted",
+                organization_id=str(organization_id),
+                count=cnt,
+            )
+            return cnt
+        except Exception as exc:
+            logger.warning(
+                "graph.entity.orphan_delete_error",
+                organization_id=str(organization_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0
+
     async def upsert_entity_alias(
         self,
         *,

@@ -84,9 +84,7 @@ export async function getSharedAnswer(
   token: string,
   password?: string,
 ): Promise<SharedAnswerResponse> {
-  const params = password
-    ? `?password=${encodeURIComponent(password)}`
-    : "";
+  const params = password ? `?password=${encodeURIComponent(password)}` : "";
   return apiRequest<SharedAnswerResponse>(
     `/chat/answer-shared/${encodeURIComponent(token)}${params}`,
   );

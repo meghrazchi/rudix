@@ -553,8 +553,23 @@ async def test_delete_worker_removes_vectors_storage_and_local_metadata(
         ]
     )
     fake_qdrant = FakeQdrantDeleteService()
+    fake_graph_calls: list[dict[str, Any]] = []
+
+    class FakeGraphService:
+        async def clear_document_graph_facts(self, **kwargs: Any) -> dict[str, int]:
+            fake_graph_calls.append(kwargs)
+            return {
+                "evidence_deleted": 1,
+                "relations_deleted": 1,
+                "aliases_deleted": 1,
+                "chunks_deleted": 1,
+                "orphan_entities_deleted": 1,
+                "document_node_deleted": True,
+            }
+
     monkeypatch.setattr(minio_module, "minio_client", fake_minio)
     monkeypatch.setattr(document_tasks, "_qdrant_service", fake_qdrant)
+    monkeypatch.setattr(document_tasks, "_graph_service", FakeGraphService())
 
     deleted_chunks, deleted_pages = await document_tasks._delete_document_assets_async(
         str(document_id),
@@ -567,6 +582,8 @@ async def test_delete_worker_removes_vectors_storage_and_local_metadata(
     assert len(fake_qdrant.delete_calls) == 1
     assert fake_qdrant.delete_calls[0]["organization_id"] == organization_id
     assert fake_qdrant.delete_calls[0]["document_id"] == document_id
+    assert len(fake_graph_calls) == 1
+    assert fake_graph_calls[0]["delete_document_node"] is True
     assert len(fake_minio.list_calls) == 1
     assert fake_minio.list_calls[0]["Bucket"] == storage_bucket
     assert fake_minio.list_calls[0]["Prefix"] == object_prefix

@@ -61,7 +61,7 @@ from app.domains.graph.services.relation_extraction_service import RelationExtra
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, GraphExtractionStatus
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
@@ -640,7 +640,11 @@ async def _extract_and_store_document_pages_async(
         resolved_organization_id = organization_id or str(document.organization_id)
         resolved_user_id = user_id or str(document.uploaded_by_user_id)
         svc = chunking_service if chunking_service is not None else _chunking_service
-        effective_index_version = svc.index_version
+        chunk_profile = getattr(svc, "_profile", None)
+        chunk_strategy = getattr(chunk_profile, "strategy", settings.chunking_strategy)
+        chunk_size_tokens = getattr(svc, "chunk_size_tokens", settings.chunk_size_tokens)
+        chunk_overlap_tokens = getattr(svc, "chunk_overlap_tokens", settings.chunk_overlap_tokens)
+        effective_index_version = getattr(svc, "index_version", settings.document_index_version)
         pipeline_recorder = await PipelineRunRecorder.create(
             document_id=document_id,
             organization_id=resolved_organization_id,
@@ -1193,9 +1197,9 @@ async def _extract_and_store_document_pages_async(
                     stage="chunk",
                     stage_status="started",
                     config={
-                        "strategy": svc._profile.strategy,
-                        "chunk_size_tokens": svc.chunk_size_tokens,
-                        "chunk_overlap_tokens": svc.chunk_overlap_tokens,
+                        "strategy": chunk_strategy,
+                        "chunk_size_tokens": chunk_size_tokens,
+                        "chunk_overlap_tokens": chunk_overlap_tokens,
                         "index_version": effective_index_version,
                         "profile_source": profile_source,
                     },
@@ -1217,9 +1221,9 @@ async def _extract_and_store_document_pages_async(
                     document_id=str(document.id),
                     organization_id=resolved_organization_id,
                     user_id=user_id,
-                    strategy=svc._profile.strategy,
+                    strategy=chunk_strategy,
                     profile_source=profile_source,
-                    index_version=svc.index_version,
+                    index_version=effective_index_version,
                 )
                 _chunk_stage_started_at = datetime.now(UTC)
                 chunks = await svc.chunk(
@@ -1257,7 +1261,7 @@ async def _extract_and_store_document_pages_async(
                     _reason_codes = _sel.reason_codes
                     if _sel.signals is not None:
                         _adaptive_language = _sel.signals.language
-                _final_strategy = chunks[0].strategy_name if chunks else svc._profile.strategy
+                _final_strategy = chunks[0].strategy_name if chunks else chunk_strategy
                 _chunk_metrics: dict = {
                     "chunk_count": len(chunks),
                     "avg_tokens": _avg_tokens,
@@ -1397,7 +1401,11 @@ async def _extract_and_store_document_pages_async(
                 # write them to the Enterprise Graph. Failures are isolated from the
                 # SQLAlchemy transaction — non-strict mode logs and continues; strict
                 # mode raises DocumentPipelineTransientError to abort the pipeline.
-                if settings.enterprise_graph_enabled and settings.feature_enable_entity_extraction:
+                if (
+                    False
+                    and settings.enterprise_graph_enabled
+                    and settings.feature_enable_entity_extraction
+                ):
                     current_stage = "extract_entities"
                     _extraction_run_id = uuid4()
                     await pipeline_recorder.emit_stage(
@@ -1582,7 +1590,7 @@ async def _extract_and_store_document_pages_async(
                 # Relation extraction stage (F284): extract relationships between already-
                 # identified entities. Runs only when entity extraction is also enabled and
                 # completed; uses the entity name→id map built above.
-                if (
+                if False and (
                     settings.enterprise_graph_enabled
                     and settings.feature_enable_entity_extraction
                     and settings.feature_enable_relation_extraction
@@ -1694,6 +1702,24 @@ async def _extract_and_store_document_pages_async(
                             stage_status="failed",
                             error_message=str(_rel_exc),
                         )
+
+                _chunk_pairs = [(p.chunk_index, p.text) for p in chunks if p.text.strip()]
+                _chunk_id_by_index = {
+                    p.chunk_index: c.id for p, c in zip(chunks, all_created_chunks, strict=True)
+                }
+                _page_by_index = {p.chunk_index: p.page_number for p in chunks}
+                await _run_document_graph_extraction_async(
+                    document,
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    pipeline_type=pipeline_type,
+                    chunk_pairs=_chunk_pairs,
+                    chunk_id_by_index=_chunk_id_by_index,
+                    page_by_index=_page_by_index,
+                    pipeline_recorder=pipeline_recorder,
+                    clear_existing_facts=True,
+                )
 
                 current_stage = "embed"
                 log_document_event(
@@ -1905,19 +1931,23 @@ async def _extract_and_store_document_pages_async(
                             "total_token_count": sig.total_token_count,
                         }
                 if embedding_result is not None:
-                    _chunking_config_snapshot["embedding_provider_type"] = (
-                        embedding_result.provider_type
+                    _chunking_config_snapshot["embedding_provider_type"] = getattr(
+                        embedding_result, "provider_type", None
                     )
-                    _chunking_config_snapshot["embedding_vector_dimension"] = (
-                        embedding_result.vector_dimension
+                    _chunking_config_snapshot["embedding_vector_dimension"] = getattr(
+                        embedding_result, "vector_dimension", None
                     )
                 if persist_document_state:
                     if embedding_result is not None:
                         await _document_repository.update_document_embedding_metadata(
                             session,
                             document_id=parsed_document_id,
-                            embedding_provider_type=embedding_result.provider_type,
-                            embedding_vector_dimension=embedding_result.vector_dimension,
+                            embedding_provider_type=getattr(
+                                embedding_result, "provider_type", None
+                            ),
+                            embedding_vector_dimension=getattr(
+                                embedding_result, "vector_dimension", None
+                            ),
                         )
                     updated = await _document_repository.update_document_status(
                         session,
@@ -2139,6 +2169,24 @@ async def _delete_document_assets_async(
                 outputs={"deleted_object_count": deleted_object_count},
             )
 
+            try:
+                await _graph_service.clear_document_graph_facts(
+                    organization_id=document.organization_id,
+                    document_id=document.id,
+                    delete_document_node=True,
+                )
+            except Exception as exc:
+                log_document_event(
+                    event="document.pipeline.stage",
+                    document_id=str(document.id),
+                    request_id=request_id,
+                    organization_id=resolved_organization_id,
+                    user_id=resolved_user_id,
+                    stage="delete_graph",
+                    stage_status="failed",
+                    error=str(exc),
+                )
+
             current_stage = "delete_metadata"
             log_document_event(
                 event="document.pipeline.stage",
@@ -2225,6 +2273,503 @@ async def _delete_document_assets_async(
                 },
             )
             raise
+
+
+async def _update_document_graph_status_async(
+    document_id: UUID,
+    *,
+    status: str,
+    run_id: UUID | None = None,
+) -> None:
+    async with SessionLocal() as session:
+        await _document_repository.update_document_graph_status(
+            session,
+            document_id=document_id,
+            graph_extraction_status=status,
+            graph_extraction_run_id=run_id,
+        )
+        await session.commit()
+
+
+async def _run_document_graph_extraction_async(
+    document: Any,
+    *,
+    request_id: str | None,
+    organization_id: str | None,
+    user_id: str | None,
+    pipeline_type: str,
+    chunk_pairs: list[tuple[int, str]],
+    chunk_id_by_index: dict[int, UUID | None],
+    page_by_index: dict[int, int | None],
+    pipeline_recorder: PipelineRunRecorder | None = None,
+    clear_existing_facts: bool = False,
+) -> dict[str, int]:
+    graph_run_id = uuid4()
+    resolved_organization_id = organization_id or str(document.organization_id)
+    resolved_user_id = user_id or str(document.uploaded_by_user_id)
+
+    if not settings.enterprise_graph_enabled or not settings.feature_enable_entity_extraction:
+        await _update_document_graph_status_async(
+            document.id,
+            status=GraphExtractionStatus.skipped.value,
+            run_id=None,
+        )
+        return {"entity_count": 0, "relation_count": 0}
+
+    await _update_document_graph_status_async(
+        document.id,
+        status=GraphExtractionStatus.extracting.value,
+        run_id=graph_run_id,
+    )
+    if clear_existing_facts:
+        await _graph_service.clear_document_graph_facts(
+            organization_id=document.organization_id,
+            document_id=document.id,
+        )
+
+    entity_count = 0
+    relation_count = 0
+    _entity_result = None
+    _rel_result = None
+    _chunk_pairs = [(index, text) for index, text in chunk_pairs if text.strip()]
+    _page_by_index = page_by_index
+
+    _extraction_run_id = uuid4()
+    if pipeline_recorder is not None:
+        await pipeline_recorder.emit_stage(
+            stage="extract_entities",
+            stage_status="started",
+            config={
+                "batch_size": settings.entity_extraction_batch_size,
+                "strict_mode": settings.entity_extraction_strict_mode,
+                "run_id": str(_extraction_run_id),
+            },
+        )
+    try:
+        await _graph_service.start_extraction_run(
+            organization_id=document.organization_id,
+            document_id=document.id,
+            run_id=_extraction_run_id,
+            strategy="llm_extraction_v1",
+        )
+        _entity_result = await _entity_extraction_service.extract_from_chunks(
+            chunks=_chunk_pairs,
+            document_language=document.language,
+            organization_id=str(document.organization_id),
+        )
+        for _item in _entity_result.entities:
+            _chunk_db_id = chunk_id_by_index.get(_item.source_chunk_index)
+            _resolved_entity_id = _item.entity_id
+            _resolution_status = "new"
+            _resolution_confidence = _item.confidence
+            _entity_aliases = list(
+                dict.fromkeys(
+                    [
+                        _item.original_name,
+                        _item.name,
+                        *_item.aliases,
+                    ]
+                )
+            )
+            if settings.feature_enable_entity_resolution:
+                _resolution_result = await _graph_service.resolve_entity(
+                    organization_id=document.organization_id,
+                    entity_type=_item.type,
+                    canonical_name=_item.name,
+                    original_name=_item.original_name,
+                    aliases=_item.aliases,
+                    language=_item.language,
+                )
+                _resolved_entity_id = _resolution_result.canonical_entity_id
+                _resolution_status = _resolution_result.status
+                _resolution_confidence = _resolution_result.candidate_score
+                _canonical_name = _resolution_result.canonical_name
+            else:
+                _canonical_name = _item.name
+            resolution_input = EntityResolutionInput(
+                organization_id=str(document.organization_id),
+                entity_type=_item.type,
+                canonical_name=_canonical_name,
+                original_name=_item.original_name,
+                aliases=list(_item.aliases),
+                source_external_id=None,
+                source_connector=None,
+                language=_item.language,
+            )
+            alias_name = _item.original_name or _item.name
+            alias_id = _entity_resolution_service.build_alias_id(
+                input_=resolution_input,
+                entity_id=_resolved_entity_id,
+                alias_name=alias_name,
+                source_document_id=str(document.id),
+                chunk_id=str(_chunk_db_id) if _chunk_db_id is not None else None,
+            )
+            await _graph_service.upsert_entity(
+                organization_id=document.organization_id,
+                entity_id=_resolved_entity_id,
+                entity_type=_item.type,
+                canonical_name=_canonical_name,
+                normalized_name=_canonical_name.lower().strip(),
+                resolution_status=_resolution_status,
+                resolution_confidence=_resolution_confidence,
+                properties={
+                    "original_name": _item.original_name,
+                    "aliases": _entity_aliases,
+                    "language": _item.language,
+                },
+            )
+            await _graph_service.upsert_entity_alias(
+                organization_id=document.organization_id,
+                entity_id=_resolved_entity_id,
+                alias_id=alias_id,
+                alias_name=alias_name,
+                source_document_id=document.id,
+                chunk_id=_chunk_db_id,
+                confidence=_item.confidence,
+                evidence_text=_item.evidence_span,
+                properties={
+                    "normalized_name": _item.name.lower().strip(),
+                    "language": _item.language,
+                },
+            )
+            if _chunk_db_id is not None:
+                await _graph_service.link_evidence(
+                    organization_id=document.organization_id,
+                    entity_id=_resolved_entity_id,
+                    chunk_id=_chunk_db_id,
+                    source_document_id=document.id,
+                    confidence=_item.confidence,
+                    citation_text=_item.evidence_span,
+                    citation_reference=f"{document.filename}, chunk {_item.source_chunk_index}",
+                    extraction_run_id=_extraction_run_id,
+                    page_number=_page_by_index.get(_item.source_chunk_index),
+                )
+        entity_count = len(_entity_result.entities)
+        await _graph_service.finish_extraction_run(
+            organization_id=document.organization_id,
+            run_id=_extraction_run_id,
+            status="completed",
+            entity_count=entity_count,
+        )
+        if pipeline_recorder is not None:
+            await pipeline_recorder.emit_stage(
+                stage="extract_entities",
+                stage_status="completed",
+                outputs={
+                    "entity_count": entity_count,
+                    "batch_count": _entity_result.batch_count,
+                    "validation_errors": _entity_result.validation_errors,
+                    "llm_errors": _entity_result.llm_errors,
+                    "total_chunks": _entity_result.total_chunks,
+                },
+            )
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=resolved_organization_id,
+            user_id=resolved_user_id,
+            stage="extract_entities",
+            stage_status="completed",
+            entity_count=entity_count,
+            batch_count=_entity_result.batch_count,
+            validation_errors=_entity_result.validation_errors,
+            llm_errors=_entity_result.llm_errors,
+        )
+    except Exception as _entity_exc:
+        log_document_event(
+            event="document.pipeline.stage",
+            document_id=str(document.id),
+            request_id=request_id,
+            organization_id=resolved_organization_id,
+            user_id=resolved_user_id,
+            stage="extract_entities",
+            stage_status="failed",
+            error=str(_entity_exc),
+        )
+        try:
+            await _graph_service.finish_extraction_run(
+                organization_id=document.organization_id,
+                run_id=_extraction_run_id,
+                status="failed",
+                error=str(_entity_exc),
+            )
+        except Exception:
+            pass
+        if settings.entity_extraction_strict_mode:
+            await _update_document_graph_status_async(
+                document.id,
+                status=GraphExtractionStatus.failed.value,
+                run_id=graph_run_id,
+            )
+            raise DocumentPipelineTransientError(
+                stage="extract_entities",
+                code="ENTITY_EXTRACTION_FAILED",
+                category="processing",
+                message=f"Entity extraction failed: {_entity_exc}",
+            ) from _entity_exc
+        if pipeline_recorder is not None:
+            await pipeline_recorder.emit_stage(
+                stage="extract_entities",
+                stage_status="failed",
+                error_message=str(_entity_exc),
+            )
+
+    if (
+        settings.feature_enable_relation_extraction
+        and _entity_result is not None
+        and _entity_result.entities
+    ):
+        _rel_run_id = uuid4()
+        if pipeline_recorder is not None:
+            await pipeline_recorder.emit_stage(
+                stage="extract_relations",
+                stage_status="started",
+                config={
+                    "batch_size": settings.relation_extraction_batch_size,
+                    "strict_mode": settings.relation_extraction_strict_mode,
+                    "confidence_threshold": settings.relation_confidence_threshold,
+                    "review_mode": settings.relation_extraction_review_mode,
+                    "run_id": str(_rel_run_id),
+                },
+            )
+        try:
+            _entity_name_to_id = {
+                _item.name.lower().strip(): _item.entity_id for _item in _entity_result.entities
+            }
+            _entity_names_by_chunk: dict[int, list[str]] = {}
+            for _item in _entity_result.entities:
+                _entity_names_by_chunk.setdefault(_item.source_chunk_index, []).append(_item.name)
+
+            _rel_result = await _relation_extraction_service.extract_from_chunks(
+                chunks=_chunk_pairs,
+                entity_name_to_id=_entity_name_to_id,
+                entity_names_by_chunk=_entity_names_by_chunk,
+                organization_id=str(document.organization_id),
+            )
+            for _rel_item in _rel_result.relations:
+                _rel_chunk_db_id = chunk_id_by_index.get(_rel_item.source_chunk_index)
+                _initial_status = (
+                    _relation_extraction_service.compute_initial_status(_rel_item.confidence)
+                    if not settings.relation_extraction_review_mode
+                    else "unverified"
+                )
+                await _graph_service.create_relation_with_evidence(
+                    organization_id=document.organization_id,
+                    from_entity_id=_rel_item.from_entity_id,
+                    to_entity_id=_rel_item.to_entity_id,
+                    rel_type=_rel_item.rel_type,
+                    relation_id=_rel_item.relation_id,
+                    citation_text=_rel_item.evidence_span,
+                    citation_reference=f"{document.filename}, chunk {_rel_item.source_chunk_index}",
+                    chunk_id=_rel_chunk_db_id,
+                    source_document_id=document.id,
+                    page_number=_page_by_index.get(_rel_item.source_chunk_index),
+                    extraction_run_id=_rel_run_id,
+                    confidence=_rel_item.confidence,
+                    initial_status=_initial_status,
+                )
+            relation_count = len(_rel_result.relations)
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=resolved_organization_id,
+                user_id=resolved_user_id,
+                stage="extract_relations",
+                stage_status="completed",
+                relation_count=relation_count,
+                batch_count=_rel_result.batch_count,
+                validation_errors=_rel_result.validation_errors,
+                llm_errors=_rel_result.llm_errors,
+                skipped_unknown_entity=_rel_result.skipped_unknown_entity,
+            )
+            if pipeline_recorder is not None:
+                await pipeline_recorder.emit_stage(
+                    stage="extract_relations",
+                    stage_status="completed",
+                    outputs={
+                        "relation_count": relation_count,
+                        "batch_count": _rel_result.batch_count,
+                        "validation_errors": _rel_result.validation_errors,
+                        "llm_errors": _rel_result.llm_errors,
+                        "skipped_unknown_entity": _rel_result.skipped_unknown_entity,
+                    },
+                )
+        except Exception as _rel_exc:
+            log_document_event(
+                event="document.pipeline.stage",
+                document_id=str(document.id),
+                request_id=request_id,
+                organization_id=resolved_organization_id,
+                user_id=resolved_user_id,
+                stage="extract_relations",
+                stage_status="failed",
+                error=str(_rel_exc),
+            )
+            if settings.relation_extraction_strict_mode:
+                await _update_document_graph_status_async(
+                    document.id,
+                    status=GraphExtractionStatus.failed.value,
+                    run_id=graph_run_id,
+                )
+                raise DocumentPipelineTransientError(
+                    stage="extract_relations",
+                    code="RELATION_EXTRACTION_FAILED",
+                    category="processing",
+                    message=f"Relation extraction failed: {_rel_exc}",
+                ) from _rel_exc
+            if pipeline_recorder is not None:
+                await pipeline_recorder.emit_stage(
+                    stage="extract_relations",
+                    stage_status="failed",
+                    error_message=str(_rel_exc),
+                )
+
+    await _update_document_graph_status_async(
+        document.id,
+        status=GraphExtractionStatus.completed.value,
+        run_id=graph_run_id,
+    )
+    return {"entity_count": entity_count, "relation_count": relation_count}
+
+
+async def _reindex_document_graph_async(
+    document_id: str,
+    *,
+    request_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, str | int]:
+    try:
+        parsed_document_id = _parse_uuid(document_id)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
+
+    async with SessionLocal() as session:
+        document = await _document_repository.get_document_by_id(
+            session, document_id=parsed_document_id
+        )
+        if document is None:
+            raise PermanentTaskError(f"Document not found: {document_id}")
+        chunks = await _document_repository.list_document_chunks(
+            session,
+            document_id=document.id,
+            index_version=settings.document_index_version,
+        )
+
+    if document.status == DocumentStatus.deleted.value:
+        raise PermanentTaskError(
+            f"Cannot re-run graph extraction for deleted document: {document_id}"
+        )
+    if document.status == DocumentStatus.deleting.value:
+        raise PermanentTaskError(
+            f"Cannot re-run graph extraction while deleting document: {document_id}"
+        )
+
+    if not chunks:
+        await _update_document_graph_status_async(
+            document.id,
+            status=GraphExtractionStatus.skipped.value,
+            run_id=None,
+        )
+        return {"document_id": document_id, "status": GraphExtractionStatus.skipped.value}
+
+    pipeline_recorder = await PipelineRunRecorder.create(
+        document_id=document_id,
+        organization_id=organization_id or str(document.organization_id),
+        user_id=user_id or str(document.uploaded_by_user_id),
+        organization_uuid=document.organization_id,
+        document_uuid=document.id,
+        pipeline_type="document.graph_reindex",
+        inputs={
+            "request_id": request_id,
+            "document_id": str(document.id),
+            "filename": document.filename,
+            "file_type": document.file_type,
+        },
+        config={
+            "index_version": settings.document_index_version,
+            "entity_extraction_enabled": settings.feature_enable_entity_extraction,
+            "relation_extraction_enabled": settings.feature_enable_relation_extraction,
+        },
+    )
+
+    try:
+        result = await _run_document_graph_extraction_async(
+            document,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+            pipeline_type="document.graph_reindex",
+            chunk_pairs=[(chunk.chunk_index, chunk.text) for chunk in chunks if chunk.text.strip()],
+            chunk_id_by_index={chunk.chunk_index: chunk.id for chunk in chunks},
+            page_by_index={chunk.chunk_index: chunk.page_number for chunk in chunks},
+            pipeline_recorder=pipeline_recorder,
+            clear_existing_facts=True,
+        )
+        await pipeline_recorder.finalize_run(
+            status="completed",
+            outputs={
+                "document_status": DocumentStatus.indexed.value,
+                "graph_status": GraphExtractionStatus.completed.value,
+                "chunk_count": len(chunks),
+                "entity_count": result["entity_count"],
+                "relation_count": result["relation_count"],
+            },
+        )
+        return {
+            "document_id": document_id,
+            "status": GraphExtractionStatus.completed.value,
+            "chunk_count": len(chunks),
+            "entity_count": result["entity_count"],
+            "relation_count": result["relation_count"],
+        }
+    except Exception as exc:
+        details = details_from_exception(exc)
+        await pipeline_recorder.fail_stage_if_open(
+            stage=details.get("stage", "graph_reindex"),
+            error_message=details.get("message", str(exc)),
+            error_details=details,
+        )
+        await pipeline_recorder.finalize_run(
+            status="failed",
+            error_message=details.get("message", str(exc)),
+            error_details=details,
+            outputs={"chunk_count": len(chunks)},
+        )
+        await _update_document_graph_status_async(
+            document.id,
+            status=GraphExtractionStatus.failed.value,
+            run_id=None,
+        )
+        raise
+
+
+@celery_app.task(name="documents.graph_reindex", bind=True, base=RudixTask, ignore_result=True)
+def reindex_document_graph(
+    self: RudixTask,
+    document_id: str,
+    *,
+    request_id: str | None = None,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+) -> dict[str, str | int]:
+    """Re-run graph extraction for an existing document."""
+    try:
+        status = get_document_status(document_id)
+    except ValueError as exc:
+        raise PermanentTaskError(f"Invalid document_id: {document_id}") from exc
+    if status is None:
+        raise PermanentTaskError(f"Document not found: {document_id}")
+    return _run(
+        _reindex_document_graph_async(
+            document_id,
+            request_id=request_id,
+            organization_id=organization_id,
+            user_id=user_id,
+        )
+    )
 
 
 class DocumentTask(RudixTask):

@@ -38,6 +38,14 @@ class DocumentStatus(StrEnum):
     unsupported = "unsupported"
 
 
+class GraphExtractionStatus(StrEnum):
+    pending = "pending"
+    extracting = "extracting"
+    completed = "completed"
+    failed = "failed"
+    skipped = "skipped"
+
+
 class DocumentIngestionSource(StrEnum):
     upload = "upload"
     connector = "connector"

@@ -606,7 +606,9 @@ export function AppShell({
           <button
             type="button"
             onClick={toggleSidebar}
-            aria-label={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
+            aria-label={
+              sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")
+            }
             title={sidebarCollapsed ? t("expandSidebar") : t("collapseSidebar")}
             className="absolute top-6 -right-3 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-[#d7d4e7] bg-white text-[#56536a] shadow-sm transition hover:bg-[#eceaf8] hover:text-[#3525cd]"
           >
@@ -615,7 +617,9 @@ export function AppShell({
             </span>
           </button>
 
-          <div className={`mb-6 ${sidebarCollapsed ? "flex justify-center" : ""}`}>
+          <div
+            className={`mb-6 ${sidebarCollapsed ? "flex justify-center" : ""}`}
+          >
             {sidebarCollapsed ? (
               <Image
                 src={BRAND_LOGO_SRC}
@@ -635,7 +639,9 @@ export function AppShell({
                     height={26}
                     className="h-6 w-6"
                   />
-                  <p className="text-2xl font-extrabold text-[#3525cd]">Rudix</p>
+                  <p className="text-2xl font-extrabold text-[#3525cd]">
+                    Rudix
+                  </p>
                 </div>
                 <p className="text-sm font-semibold text-[#5e5b72]">
                   {t("enterpriseRag")}

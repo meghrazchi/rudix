@@ -43,7 +43,10 @@ export type EvaluationQuestionListResponse = {
 };
 export type CreateEvaluationQuestionRequest = Omit<
   Schemas["CreateEvaluationQuestionRequest"],
-  "question_language" | "expected_answer_language" | "source_language" | "translation_notes"
+  | "question_language"
+  | "expected_answer_language"
+  | "source_language"
+  | "translation_notes"
 > & {
   question_language?: EvalLanguageCode | null;
   expected_answer_language?: EvalLanguageCode | null;
@@ -618,7 +621,10 @@ export type LanguageCoverageResponse = {
   coverage_warning_languages: string[];
 };
 
-export const EVAL_LANGUAGE_OPTIONS: { value: EvalLanguageCode; label: string }[] = [
+export const EVAL_LANGUAGE_OPTIONS: {
+  value: EvalLanguageCode;
+  label: string;
+}[] = [
   { value: "en", label: "English" },
   { value: "de", label: "German" },
   { value: "es", label: "Spanish" },

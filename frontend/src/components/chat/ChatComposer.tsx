@@ -157,7 +157,8 @@ export function ChatComposer({
   const [isAdditionalSettingsOpen, setIsAdditionalSettingsOpen] =
     useState(false);
   const [isScopeMenuOpen, setIsScopeMenuOpen] = useState(false);
-  const [draftScopeMode, setDraftScopeMode] = useState<ChatScopeMode>(scopeMode);
+  const [draftScopeMode, setDraftScopeMode] =
+    useState<ChatScopeMode>(scopeMode);
   const [activeScopeSubmenu, setActiveScopeSubmenu] = useState<
     "collections" | "connectors" | "documents" | null
   >(null);
@@ -353,7 +354,7 @@ export function ChatComposer({
                     aria-hidden="true"
                   >
                     filter_list
-</span>
+                  </span>
                   <span className="truncate">{scopeSelectorLabel}</span>
                   <span
                     className="material-symbols-outlined text-[14px]"
@@ -363,8 +364,6 @@ export function ChatComposer({
                   </span>
                 </button>
               </div>
-
-
 
               <button
                 type="button"
@@ -434,7 +433,9 @@ export function ChatComposer({
                       >
                         description
                       </span>
-                      <span className="flex-1 truncate">{tPage("selectDocuments")}</span>
+                      <span className="flex-1 truncate">
+                        {tPage("selectDocuments")}
+                      </span>
                       <span
                         className="material-symbols-outlined text-[15px] text-[#6a6780]"
                         aria-hidden="true"

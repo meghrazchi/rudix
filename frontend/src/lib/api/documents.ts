@@ -56,7 +56,20 @@ export type RetryDeleteDocumentResponse = {
   queue_status: "queued";
 };
 export type ReindexDocumentResponse = Schemas["ReindexDocumentResponse"];
-export type DocumentStatusResponse = Schemas["DocumentStatusResponse"];
+export type ReindexDocumentGraphResponse = {
+  document_id: string;
+  status: "pending" | "extracting" | "completed" | "failed" | "skipped";
+  queue_status: "queued";
+};
+export type DocumentStatusResponse = Schemas["DocumentStatusResponse"] & {
+  graph_extraction_status?:
+    | "pending"
+    | "extracting"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | null;
+};
 export type DocumentChunkTokenDistributionResponse = {
   min_tokens: number;
   max_tokens: number;
@@ -100,6 +113,13 @@ export type DocumentListItemResponse = Schemas["DocumentListItemResponse"] & {
   source?: string | null;
   source_provider?: string | null;
   source_provider_label?: string | null;
+  graph_extraction_status?:
+    | "pending"
+    | "extracting"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | null;
   language?: string | null;
   retention_class?: string | null;
   notes?: string | null;
@@ -118,6 +138,13 @@ export type DocumentDetailResponse = Omit<
   Schemas["DocumentDetailResponse"],
   "chunking_diagnostics" | "language"
 > & {
+  graph_extraction_status?:
+    | "pending"
+    | "extracting"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | null;
   language?: string | null;
   language_confidence?: number | null;
   language_source?: string | null;
@@ -407,6 +434,17 @@ export async function reindexDocument(
     {
       method: "POST",
       json: payload,
+    },
+  );
+}
+
+export async function reindexDocumentGraph(
+  documentId: string,
+): Promise<ReindexDocumentGraphResponse> {
+  return apiRequest<ReindexDocumentGraphResponse>(
+    `/documents/${encodeURIComponent(documentId)}/graph/reindex`,
+    {
+      method: "POST",
     },
   );
 }

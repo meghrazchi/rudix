@@ -23,7 +23,12 @@ import { writeSessionToStorage } from "@/lib/auth-session";
 type UseAuthSessionResult = {
   state: SessionState;
   boundaryEvent: AuthBoundaryEventDetail | null;
-  boundaryMessageKey: "signedOut" | "sessionExpired" | "sessionRevoked" | "sessionInvalid" | null;
+  boundaryMessageKey:
+    | "signedOut"
+    | "sessionExpired"
+    | "sessionRevoked"
+    | "sessionInvalid"
+    | null;
   setAuthenticatedSession: (session: AuthenticatedSession) => void;
   signOut: () => Promise<void>;
   clearBoundaryEvent: () => void;

@@ -174,6 +174,12 @@ class ReindexDocumentResponse(BaseModel):
     queue_status: Literal["queued"]
 
 
+class ReindexDocumentGraphResponse(BaseModel):
+    document_id: str
+    status: Literal["pending", "extracting", "completed", "failed", "skipped"]
+    queue_status: Literal["queued"]
+
+
 class DocumentErrorDetails(BaseModel):
     stage: str
     code: str
@@ -185,6 +191,9 @@ class DocumentErrorDetails(BaseModel):
 class DocumentStatusResponse(BaseModel):
     document_id: str
     status: DocumentStatus
+    graph_extraction_status: (
+        Literal["pending", "extracting", "completed", "failed", "skipped"] | None
+    ) = None
     error_message: str | None = None
     error_details: DocumentErrorDetails | None = None
     updated_at: datetime | None = None
@@ -204,6 +213,9 @@ class DocumentListItemResponse(BaseModel):
     filename: str
     file_type: AllowedFileType
     status: DocumentStatus
+    graph_extraction_status: (
+        Literal["pending", "extracting", "completed", "failed", "skipped"] | None
+    ) = None
     page_count: int | None = None
     chunk_count: int
     error_message: str | None = None
@@ -286,6 +298,9 @@ class DocumentDetailResponse(BaseModel):
     filename: str
     file_type: AllowedFileType
     status: DocumentStatus
+    graph_extraction_status: (
+        Literal["pending", "extracting", "completed", "failed", "skipped"] | None
+    ) = None
     page_count: int | None = None
     chunk_count: int
     checksum: str | None = None

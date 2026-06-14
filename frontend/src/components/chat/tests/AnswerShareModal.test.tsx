@@ -121,7 +121,9 @@ describe("AnswerShareModal", () => {
     );
     render();
     await screen.findByRole("dialog");
-    await userEvent.click(screen.getByRole("button", { name: "Generate link" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Generate link" }),
+    );
     await waitFor(() => expect(created).toBe(true));
   });
 
@@ -131,9 +133,7 @@ describe("AnswerShareModal", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Specific users" }),
     );
-    expect(
-      screen.getByPlaceholderText(/uuid-1, uuid-2/),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/uuid-1, uuid-2/)).toBeInTheDocument();
   });
 
   it("disables Generate link when specific_users mode has empty user list", async () => {

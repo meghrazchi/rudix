@@ -254,6 +254,24 @@ class DocumentRepository:
         await session.refresh(document)
         return document
 
+    async def update_document_graph_status(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        graph_extraction_status: str,
+        graph_extraction_run_id: UUID | None = None,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.graph_extraction_status = graph_extraction_status
+        document.graph_extraction_run_id = graph_extraction_run_id
+        await session.flush()
+        await session.refresh(document)
+        return document
+
     async def update_document_language(
         self,
         session: AsyncSession,

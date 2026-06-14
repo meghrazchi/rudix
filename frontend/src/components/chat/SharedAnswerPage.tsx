@@ -36,7 +36,11 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
   return "text-[#464555]";
 }
 
-function CitationCard({ citation }: { citation: SharedAnswerCitationResponse }) {
+function CitationCard({
+  citation,
+}: {
+  citation: SharedAnswerCitationResponse;
+}) {
   const providerLabel = citation.source_provider_label ?? null;
   const sourceTitle = citation.source_title ?? citation.filename ?? "Document";
   return (
@@ -143,9 +147,7 @@ function PasswordGate({
             autoFocus
             className="w-full rounded-lg border border-[#d2cee6] px-3 py-2 text-sm text-[#2f2a46] outline-none focus:ring-2 focus:ring-[#3525cd]/20"
           />
-          {error ? (
-            <p className="text-xs text-rose-700">{error}</p>
-          ) : null}
+          {error ? <p className="text-xs text-rose-700">{error}</p> : null}
           <button
             type="submit"
             disabled={loading || !input.trim()}

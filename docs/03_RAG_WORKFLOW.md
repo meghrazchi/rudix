@@ -206,6 +206,21 @@ Rules:
 - Use the same embedding model for user queries.
 - Re-index when embedding model changes.
 
+## Graph lifecycle
+
+When Enterprise Graph is enabled, graph extraction runs after chunking and
+before the document is marked fully ready:
+
+1. Document chunks are written to PostgreSQL.
+2. Graph extraction marks the document `graph_extraction_status=extracting`.
+3. Derived entities, aliases, evidence links, and relations are written to Neo4j.
+4. Successful completion marks the graph status `completed`; failures mark it
+   `failed`; disabled or inapplicable flows use `skipped`.
+5. Re-index and graph retry flows clear the prior graph facts for the document
+   before rebuilding so retries do not duplicate entities or relations.
+6. Document delete removes graph facts, orphaned evidence, and the graph
+   document node so no document-scoped facts remain behind.
+
 ## Query pipeline
 
 The query pipeline runs when a user asks a question.

@@ -951,7 +951,9 @@ export function DatasetBuilderPanel({
         <h3 className="mb-2 text-sm font-semibold text-[#2f2a48]">
           Language coverage
         </h3>
-        <LanguageCoverageTable evaluationSetId={evaluationSet.evaluation_set_id} />
+        <LanguageCoverageTable
+          evaluationSetId={evaluationSet.evaluation_set_id}
+        />
       </section>
 
       <ImportDialog

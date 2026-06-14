@@ -19,7 +19,9 @@ vi.mock("@/lib/api/provider-observability", () => ({
 
 const TIME_RANGE = { from: "2026-05-15", to: "2026-06-13" };
 
-function makeCard(overrides: Partial<ProviderHealthCard> = {}): ProviderHealthCard {
+function makeCard(
+  overrides: Partial<ProviderHealthCard> = {},
+): ProviderHealthCard {
   return {
     provider_key: "openai",
     total_events: 100,
@@ -67,7 +69,9 @@ describe("ProviderHealthSection", () => {
   });
 
   it("shows loading state while data is fetching", async () => {
-    mockApi.getProviderObservabilitySnapshot.mockReturnValue(new Promise(() => {}));
+    mockApi.getProviderObservabilitySnapshot.mockReturnValue(
+      new Promise(() => {}),
+    );
     render(
       <Wrapper>
         <ProviderHealthSection timeRange={TIME_RANGE} />
@@ -92,7 +96,9 @@ describe("ProviderHealthSection", () => {
   });
 
   it("shows telemetry_missing notice when no providers", async () => {
-    mockApi.getProviderObservabilitySnapshot.mockResolvedValue(makeSnapshot([]));
+    mockApi.getProviderObservabilitySnapshot.mockResolvedValue(
+      makeSnapshot([]),
+    );
     render(
       <Wrapper>
         <ProviderHealthSection timeRange={TIME_RANGE} />
@@ -168,9 +174,7 @@ describe("ProviderHealthSection", () => {
 
   it("displays latency metrics in the card", async () => {
     mockApi.getProviderObservabilitySnapshot.mockResolvedValue(
-      makeSnapshot([
-        makeCard({ avg_latency_ms: 450, p95_latency_ms: 1200 }),
-      ]),
+      makeSnapshot([makeCard({ avg_latency_ms: 450, p95_latency_ms: 1200 })]),
     );
     render(
       <Wrapper>
@@ -206,9 +210,7 @@ describe("ProviderHealthSection", () => {
     );
     await waitFor(() => {
       expect(screen.getByText(/slo suggestions/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/too many failures/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/too many failures/i)).toBeInTheDocument();
     });
   });
 
@@ -228,7 +230,9 @@ describe("ProviderHealthSection", () => {
   });
 
   it("passes date range query to API", async () => {
-    mockApi.getProviderObservabilitySnapshot.mockResolvedValue(makeSnapshot([]));
+    mockApi.getProviderObservabilitySnapshot.mockResolvedValue(
+      makeSnapshot([]),
+    );
     const range = { from: "2026-05-01", to: "2026-05-31" };
     render(
       <Wrapper>
@@ -236,7 +240,9 @@ describe("ProviderHealthSection", () => {
       </Wrapper>,
     );
     await waitFor(() => {
-      expect(mockApi.getProviderObservabilitySnapshot).toHaveBeenCalledWith(range);
+      expect(mockApi.getProviderObservabilitySnapshot).toHaveBeenCalledWith(
+        range,
+      );
     });
   });
 
@@ -257,7 +263,12 @@ describe("ProviderHealthSection", () => {
   it("shows 'no data' badge for zero-event provider", async () => {
     mockApi.getProviderObservabilitySnapshot.mockResolvedValue(
       makeSnapshot([
-        makeCard({ total_events: 0, failure_rate: null, timeout_rate: null, fallback_rate: null }),
+        makeCard({
+          total_events: 0,
+          failure_rate: null,
+          timeout_rate: null,
+          fallback_rate: null,
+        }),
       ]),
     );
     render(

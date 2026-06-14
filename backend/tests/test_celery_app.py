@@ -1,5 +1,6 @@
 import os
 from decimal import Decimal
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -179,6 +180,182 @@ def test_process_document_extracts_and_sets_indexed_status(monkeypatch: pytest.M
     assert result["embedding_retry_count"] == 1
     assert result["cleaning_pages_modified"] == 2
     assert status_calls == [("doc-1", DocumentStatus.processing.value)]
+
+
+@pytest.mark.asyncio
+async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document = SimpleNamespace(
+        id=uuid4(),
+        organization_id=uuid4(),
+        uploaded_by_user_id=uuid4(),
+        filename="policy.pdf",
+        language="en",
+    )
+    chunk_pairs = [(0, "Alpha mentions Beta."), (1, "Beta is covered.")]
+    chunk_id_by_index = {0: uuid4(), 1: uuid4()}
+    page_by_index = {0: 1, 1: 2}
+    graph_status_calls: list[tuple[str, str, str | None]] = []
+    graph_calls: list[tuple[str, dict[str, object]]] = []
+    entity_id = uuid4()
+    relation_id = uuid4()
+
+    class FakeRecorder:
+        async def emit_stage(self, **_: object) -> None:
+            return None
+
+    async def _set_graph_status(
+        document_id: UUID,
+        *,
+        status: str,
+        run_id: UUID | None = None,
+    ) -> None:
+        graph_status_calls.append((str(document_id), status, str(run_id) if run_id else None))
+
+    async def _clear_document_graph_facts(**kwargs: object) -> None:
+        graph_calls.append(("clear", kwargs))
+
+    async def _start_extraction_run(**kwargs: object) -> None:
+        graph_calls.append(("start_run", kwargs))
+
+    async def _finish_extraction_run(**kwargs: object) -> None:
+        graph_calls.append(("finish_run", kwargs))
+
+    async def _upsert_entity(**kwargs: object) -> None:
+        graph_calls.append(("entity", kwargs))
+
+    async def _upsert_alias(**kwargs: object) -> None:
+        graph_calls.append(("alias", kwargs))
+
+    async def _link_evidence(**kwargs: object) -> None:
+        graph_calls.append(("evidence", kwargs))
+
+    async def _create_relation(**kwargs: object) -> None:
+        graph_calls.append(("relation", kwargs))
+
+    async def _extract_entities(**_: object) -> object:
+        entity = SimpleNamespace(
+            entity_id=entity_id,
+            type="policy",
+            name="Alpha",
+            original_name="Alpha",
+            aliases=["Alpha Policy"],
+            language="en",
+            confidence=0.93,
+            evidence_span="Alpha mentions Beta.",
+            source_chunk_index=0,
+        )
+        return SimpleNamespace(
+            entities=[entity],
+            batch_count=1,
+            total_chunks=2,
+            validation_errors=0,
+            llm_errors=0,
+        )
+
+    async def _extract_relations(**_: object) -> object:
+        relation = SimpleNamespace(
+            relation_id=relation_id,
+            from_entity_id=entity_id,
+            to_entity_id=uuid4(),
+            rel_type="RELATES_TO",
+            confidence=0.82,
+            evidence_span="Alpha mentions Beta.",
+            source_chunk_index=0,
+        )
+        return SimpleNamespace(
+            relations=[relation],
+            batch_count=1,
+            skipped_unknown_entity=0,
+            validation_errors=0,
+            llm_errors=0,
+        )
+
+    monkeypatch.setattr(settings, "feature_enable_entity_resolution", False)
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "feature_enable_entity_extraction", True)
+    monkeypatch.setattr(settings, "feature_enable_relation_extraction", True)
+    monkeypatch.setattr(document_tasks, "_update_document_graph_status_async", _set_graph_status)
+    monkeypatch.setattr(
+        document_tasks._graph_service,
+        "clear_document_graph_facts",
+        _clear_document_graph_facts,
+    )
+    monkeypatch.setattr(
+        document_tasks._graph_service, "start_extraction_run", _start_extraction_run
+    )
+    monkeypatch.setattr(
+        document_tasks._graph_service,
+        "finish_extraction_run",
+        _finish_extraction_run,
+    )
+    monkeypatch.setattr(document_tasks._graph_service, "upsert_entity", _upsert_entity)
+    monkeypatch.setattr(document_tasks._graph_service, "upsert_entity_alias", _upsert_alias)
+    monkeypatch.setattr(document_tasks._graph_service, "link_evidence", _link_evidence)
+    monkeypatch.setattr(
+        document_tasks._graph_service,
+        "create_relation_with_evidence",
+        _create_relation,
+    )
+    monkeypatch.setattr(
+        document_tasks._entity_extraction_service,
+        "extract_from_chunks",
+        _extract_entities,
+    )
+    monkeypatch.setattr(
+        document_tasks._relation_extraction_service,
+        "extract_from_chunks",
+        _extract_relations,
+    )
+
+    result = await document_tasks._run_document_graph_extraction_async(
+        document,
+        request_id="req-graph-1",
+        organization_id=str(document.organization_id),
+        user_id=str(document.uploaded_by_user_id),
+        pipeline_type="document.process",
+        chunk_pairs=chunk_pairs,
+        chunk_id_by_index=chunk_id_by_index,
+        page_by_index=page_by_index,
+        pipeline_recorder=FakeRecorder(),
+        clear_existing_facts=True,
+    )
+
+    assert result == {"entity_count": 1, "relation_count": 1}
+    assert graph_status_calls[0][1] == "extracting"
+    assert graph_status_calls[-1][1] == "completed"
+    assert any(name == "clear" for name, _ in graph_calls)
+    assert any(name == "entity" for name, _ in graph_calls)
+    assert any(name == "alias" for name, _ in graph_calls)
+    assert any(name == "evidence" for name, _ in graph_calls)
+    assert any(name == "relation" for name, _ in graph_calls)
+
+
+def test_graph_reindex_task_dispatches_rebuild_helper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.indexed.value,
+    )
+
+    async def _rebuild(document_id: str, **_: object) -> dict[str, str | int]:
+        assert document_id == "doc-graph-1"
+        return {
+            "document_id": document_id,
+            "status": "completed",
+            "chunk_count": 4,
+            "entity_count": 2,
+            "relation_count": 1,
+        }
+
+    monkeypatch.setattr(document_tasks, "_reindex_document_graph_async", _rebuild)
+
+    result = document_tasks.reindex_document_graph.run("doc-graph-1")
+    assert result["status"] == "completed"
+    assert result["chunk_count"] == 4
 
 
 def test_document_task_terminal_failure_marks_document_failed(

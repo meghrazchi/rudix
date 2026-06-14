@@ -19,7 +19,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import DocumentIngestionSource, DocumentStatus
+from app.models.enums import DocumentIngestionSource, DocumentStatus, GraphExtractionStatus
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -32,6 +32,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "status IN ('uploaded', 'processing', 'indexed', 'failed', 'quarantined', 'blocked', 'delete_requested', 'deleting', 'deleted', 'retained_by_policy', 'pending_scan', 'infected', 'extraction_failed', 'ocr_applied', 'skipped', 'unsupported')",
             name="documents_status_allowed",
+        ),
+        CheckConstraint(
+            "graph_extraction_status IN ('pending', 'extracting', 'completed', 'failed', 'skipped')",
+            name="documents_graph_extraction_status_allowed",
         ),
         CheckConstraint(
             "ingestion_source IS NULL OR ingestion_source IN ('upload', 'connector')",
@@ -109,6 +113,15 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Embedding provenance (F219): set when document is indexed; tracks which provider/dimension was used.
     embedding_provider_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
     embedding_vector_dimension: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    graph_extraction_status: Mapped[str] = mapped_column(
+        String(16),
+        default=GraphExtractionStatus.pending.value,
+        nullable=False,
+    )
+    graph_extraction_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+    )
     # Connector ingestion provenance (F245): links back to the ExternalItem this document came from.
     # NULL for manually uploaded documents.
     ingestion_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
