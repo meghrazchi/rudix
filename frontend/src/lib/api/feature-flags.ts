@@ -7,6 +7,7 @@ export type FeatureFlagName =
   | "evaluations"
   | "chunking_profiles"
   | "adaptive_chunking"
+  | "graph_rag"
   | "advanced_pdf_extraction"
   | "language_aware_rag"
   | "pipeline_explorer"
@@ -22,6 +23,7 @@ export const ALL_FLAG_NAMES: FeatureFlagName[] = [
   "evaluations",
   "chunking_profiles",
   "adaptive_chunking",
+  "graph_rag",
   "advanced_pdf_extraction",
   "language_aware_rag",
   "pipeline_explorer",
@@ -38,6 +40,7 @@ export const FLAG_LABELS: Record<FeatureFlagName, string> = {
   evaluations: "Evaluations",
   chunking_profiles: "Chunking profiles",
   adaptive_chunking: "Adaptive chunking",
+  graph_rag: "GraphRAG retrieval",
   advanced_pdf_extraction: "Advanced PDF extraction",
   language_aware_rag: "Language-aware RAG",
   pipeline_explorer: "Pipeline explorer",

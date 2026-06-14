@@ -227,6 +227,11 @@ before the document is marked fully ready:
 8. Document delete removes graph facts, orphaned evidence, and the graph
    document node so no document-scoped facts remain behind.
 
+Graph-backed chat retrieval is a separate runtime feature. It reuses the same
+organization and document scoping as the vector pipeline, but it never replaces
+Qdrant. If Neo4j is down or graph expansion returns no evidence-backed chunks,
+the backend keeps the normal Qdrant-only answer path.
+
 ## Query pipeline
 
 The query pipeline runs when a user asks a question.
@@ -239,13 +244,17 @@ The query pipeline runs when a user asks a question.
 4. Backend embeds the question.
 5. Backend searches Qdrant with metadata filters.
 6. Backend retrieves top-k candidate chunks.
-7. Backend re-ranks chunks.
-8. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
-9. Backend calls the LLM.
-10. Backend validates citations.
-11. Backend computes confidence score.
-12. Backend stores the answer, citations, and prompt template version ID.
-13. Backend returns the answer to frontend.
+7. If `FEATURE_ENABLE_GRAPH_RAG=true` for the organization, the backend looks
+   up question entities in Neo4j, expands to related entities and evidence
+   within configured hop/entity/chunk limits, and merges graph-backed chunks
+   into the candidate set.
+8. Backend re-ranks chunks.
+9. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
+10. Backend calls the LLM.
+11. Backend validates citations.
+12. Backend computes confidence score.
+13. Backend stores the answer, citations, prompt template version ID, and graph debug metadata.
+14. Backend returns the answer to frontend.
 
 ### Query Mermaid diagram
 
@@ -257,13 +266,16 @@ flowchart TD
     D --> E[Embed Query]
     E --> F[Qdrant Search with Filters]
     F --> G[Top-K Chunks]
-    G --> H[Rerank]
-    H --> I[Resolve Prompt Version + Prompt Builder]
-    I --> J[LLM Call]
-    J --> K[Citation Validation]
-    K --> L[Confidence Score]
-    L --> M[Persist Chat + Citations + Prompt Version]
-    M --> N[Return Response to Next.js]
+    G --> H{GraphRAG enabled?}
+    H -->|yes| I[Neo4j entity lookup and evidence expansion]
+    H -->|no| J[Rerank]
+    I --> J[Rerank]
+    J --> K[Resolve Prompt Version + Prompt Builder]
+    K --> L[LLM Call]
+    L --> M[Citation Validation]
+    M --> N[Confidence Score]
+    N --> O[Persist Chat + Citations + Prompt Version + Graph Metadata]
+    O --> P[Return Response to Next.js]
 ```
 
 ## Retrieval configuration

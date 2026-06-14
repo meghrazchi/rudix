@@ -686,6 +686,7 @@ class GraphService:
         entity_ids: list[UUID | str],
         depth: int = 2,
         limit: int = 20,
+        relationship_types: list[str] | None = None,
     ) -> list[dict]:
         """Multi-hop entity traversal for GraphRAG context expansion."""
         return await self._graphrag.find_related_entities(
@@ -693,6 +694,7 @@ class GraphService:
             entity_ids=entity_ids,
             depth=depth,
             limit=limit,
+            relationship_types=relationship_types,
         )
 
     async def find_entities_by_name(
@@ -717,10 +719,14 @@ class GraphService:
         organization_id: UUID | str,
         entity_ids: list[UUID | str],
         limit: int = 50,
+        document_ids: list[UUID | str] | None = None,
+        confidence_threshold: float | None = None,
     ) -> list[dict]:
         """Retrieve evidence links for a set of entities (GraphRAG citation support)."""
         return await self._graphrag.get_evidence_for_entities(
             organization_id=organization_id,
             entity_ids=entity_ids,
             limit=limit,
+            document_ids=document_ids,
+            confidence_threshold=confidence_threshold,
         )

@@ -11,8 +11,8 @@ from app.domains.admin.schemas.feature_flags import (
     FeatureFlagDeleteResponse,
     FeatureFlagDetail,
     FeatureFlagName,
-    FeatureFlagsResponse,
     FeatureFlagSetResponse,
+    FeatureFlagsResponse,
     PublicFeatureFlagsResponse,
 )
 from app.models.feature_flags import OrgFeatureFlagOverride
@@ -25,6 +25,7 @@ _SETTINGS_ATTR: dict[str, str] = {
     "evaluations": "feature_enable_evaluations",
     "chunking_profiles": "feature_enable_chunking_profiles",
     "adaptive_chunking": "feature_enable_adaptive_chunking",
+    "graph_rag": "feature_enable_graph_rag",
     "advanced_pdf_extraction": "feature_enable_advanced_pdf_extraction",
     "language_aware_rag": "feature_enable_language_aware_rag",
     "pipeline_explorer": "feature_enable_pipeline_explorer",
@@ -103,8 +104,7 @@ class FeatureFlagService:
         )
         override_map = {o.flag_name: o for o in overrides}
         resolved = {
-            name: _resolve_flag(name, override_map.get(name)).enabled
-            for name in ALL_FLAG_NAMES
+            name: _resolve_flag(name, override_map.get(name)).enabled for name in ALL_FLAG_NAMES
         }
         return PublicFeatureFlagsResponse(flags=resolved)
 
@@ -143,9 +143,7 @@ class FeatureFlagService:
     ) -> FeatureFlagDeleteResponse:
         if flag_name not in _SETTINGS_ATTR:
             raise ValueError(f"Unknown feature flag: {flag_name!r}")
-        await self._repository.delete(
-            session, organization_id=organization_id, flag_name=flag_name
-        )
+        await self._repository.delete(session, organization_id=organization_id, flag_name=flag_name)
         env_default = _env_default(flag_name)
         return FeatureFlagDeleteResponse(
             organization_id=str(organization_id),

@@ -611,6 +611,9 @@ describe("ChatPage", () => {
         rerank_applied: true,
         embedding_model: "model-a",
         llm_model: "model-b",
+        graph_context_used: true,
+        graph_context_reason: "matched_entities",
+        graph_chunk_count: 1,
       },
       created_at: "2026-05-14T10:10:00Z",
     });
@@ -631,6 +634,8 @@ describe("ChatPage", () => {
     expect(screen.getByText("rerank_applied")).toBeInTheDocument();
     expect(screen.getByText("embedding_model")).toBeInTheDocument();
     expect(screen.getByText("llm_model")).toBeInTheDocument();
+    expect(screen.getByText("graph_context_used")).toBeInTheDocument();
+    expect(screen.getByText("graph_context_reason")).toBeInTheDocument();
   });
 
   it("shows only indexed documents in the selector", async () => {

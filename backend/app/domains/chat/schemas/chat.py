@@ -220,6 +220,15 @@ class ChatDebugResponse(BaseModel):
     prompt_template_key: str | None = None
     prompt_template_version: int | None = None
     prompt_template_version_id: str | None = None
+    graph_context_enabled: bool = False
+    graph_context_used: bool = False
+    graph_context_unavailable: bool = False
+    graph_context_reason: str | None = None
+    graph_seed_entity_count: int = 0
+    graph_related_entity_count: int = 0
+    graph_chunk_count: int = 0
+    graph_max_hops_used: int = 0
+    graph_relation_types_used: list[str] = Field(default_factory=list)
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

@@ -631,6 +631,10 @@ Notes:
 - `rerank=true` applies MMR reranking on retrieved candidates before prompt construction.
 - MMR behavior is configured through `RERANK_MMR_LAMBDA`, `RERANK_MMR_CANDIDATE_COUNT`, and `RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD`.
 - `rerank=false` returns raw retrieval ordering (similarity-only) up to `top_k`.
+- When `FEATURE_ENABLE_GRAPH_RAG=true`, the backend may expand Qdrant hits with
+  evidence-backed Neo4j context that is still scoped to the caller organization
+  and allowed document IDs. Graph-only facts are not cited unless a matching
+  document/chunk reference exists in the retrieved context.
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
 - The active `answer_generation` prompt template version is resolved per organization and persisted on assistant chat messages for rollback/evaluation traceability.
 - Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `rerank_score`, `rerank_rank`) and an explicit allowed chunk ID list for citation validation.
@@ -709,7 +713,16 @@ Response:
     "llm_model": "gpt-5.4-mini",
     "prompt_template_key": "answer_generation",
     "prompt_template_version": 3,
-    "prompt_template_version_id": "uuid"
+    "prompt_template_version_id": "uuid",
+    "graph_context_enabled": false,
+    "graph_context_used": false,
+    "graph_context_unavailable": false,
+    "graph_context_reason": null,
+    "graph_seed_entity_count": 0,
+    "graph_related_entity_count": 0,
+    "graph_chunk_count": 0,
+    "graph_max_hops_used": 0,
+    "graph_relation_types_used": []
   },
   "created_at": "2026-05-09T10:01:10Z"
 }

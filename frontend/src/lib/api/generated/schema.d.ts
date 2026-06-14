@@ -1291,6 +1291,24 @@ export interface components {
       detected_language?: string | null;
       /** Answer Language Used */
       answer_language_used?: string | null;
+      /** Graph Context Enabled */
+      graph_context_enabled?: boolean;
+      /** Graph Context Used */
+      graph_context_used?: boolean;
+      /** Graph Context Unavailable */
+      graph_context_unavailable?: boolean;
+      /** Graph Context Reason */
+      graph_context_reason?: string | null;
+      /** Graph Seed Entity Count */
+      graph_seed_entity_count?: number;
+      /** Graph Related Entity Count */
+      graph_related_entity_count?: number;
+      /** Graph Chunk Count */
+      graph_chunk_count?: number;
+      /** Graph Max Hops Used */
+      graph_max_hops_used?: number;
+      /** Graph Relation Types Used */
+      graph_relation_types_used?: string[];
     };
     /** ChatMessageRequest */
     ChatMessageRequest: {

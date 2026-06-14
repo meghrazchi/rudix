@@ -7,28 +7,48 @@ from time import perf_counter
 from typing import Annotated, Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.passwords import (
+    PasswordHashConfig,
+    build_password_hasher,
+    hash_password,
+    verify_password,
+)
 from app.clients import qdrant_client as qdrant_module
+from app.clients import redis_client as redis_module
 from app.core.config import settings
+from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.core.logging import log_query_event
 from app.core.safety_guardrails import PromptInjectionGuard
-from app.db.session import get_db_session
+from app.db.session import SessionLocal, get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.admin.services.feature_flag_service import FeatureFlagService
+from app.domains.ai.profile.schemas import TaskType
+from app.domains.ai.profile.service import resolve_task_profile
+from app.domains.chat.repositories.answer_share import AnswerShareRepository
 from app.domains.chat.repositories.chat import ChatRepository
 from app.domains.chat.repositories.feedback import FeedbackRepository
-from app.domains.chat.repositories.answer_share import AnswerShareRepository
 from app.domains.chat.repositories.share import ChatShareRepository
 from app.domains.chat.schemas.answer_share import (
     AnswerShareListResponse,
     AnswerShareResponse,
     CreateAnswerShareRequest,
-    SharedAnswerResponse,
     SharedAnswerCitationResponse,
+    SharedAnswerResponse,
 )
 from app.domains.chat.schemas.chat import (
     ChatCitationResponse,
@@ -60,8 +80,11 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
-from app.domains.ai.profile.schemas import TaskType
-from app.domains.ai.profile.service import resolve_task_profile
+from app.domains.chat.services.graph_retrieval_service import (
+    GraphRetrievalResult,
+    GraphRetrievalService,
+    GraphRetrievedChunk,
+)
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
     LLMService,
@@ -80,11 +103,8 @@ from app.domains.prompt_templates.services.prompt_template_service import Prompt
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
-from app.core.langfuse_tracer import ChatTraceMetadata, trace_chat_query
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.rate_limit.dependencies import _build_key, _rate_limit_disabled, _scope_limit
-from app.clients import redis_client as redis_module
-from app.db.session import SessionLocal
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 # Separate router for WebSocket — must NOT be under protected_router because
@@ -107,6 +127,8 @@ _prompt_template_service = PromptTemplateService()
 _citation_service = CitationService()
 _source_provenance_service = SourceProvenanceService()
 _confidence_service = ConfidenceService()
+_graph_retrieval_service = GraphRetrievalService()
+_feature_flag_service = FeatureFlagService()
 _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
@@ -122,6 +144,9 @@ class RetrievedChunk:
     similarity_score: float
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    retrieval_source: str = "vector"
+    graph_score: float | None = None
+    graph_hops: int = 0
 
 
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
@@ -173,6 +198,70 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
         text=candidate.text,
         similarity_score=candidate.similarity_score,
     )
+
+
+def _to_graph_retrieved_chunk(candidate: GraphRetrievedChunk) -> RetrievedChunk:
+    return RetrievedChunk(
+        document_id=candidate.document_id,
+        chunk_id=candidate.chunk_id,
+        filename=candidate.filename,
+        page_number=candidate.page_number,
+        text=candidate.text,
+        similarity_score=candidate.similarity_score,
+        retrieval_source="graph",
+        graph_score=candidate.graph_score,
+        graph_hops=candidate.graph_hops,
+    )
+
+
+def _merge_retrieved_chunks(
+    vector_chunks: list[RetrievedChunk],
+    graph_chunks: list[RetrievedChunk],
+) -> list[RetrievedChunk]:
+    merged: dict[str, RetrievedChunk] = {}
+    insertion_order: list[str] = []
+
+    def _merge_graph_hops(existing_hops: int, new_hops: int) -> int:
+        if existing_hops == 0:
+            return new_hops
+        if new_hops == 0:
+            return existing_hops
+        return min(existing_hops, new_hops)
+
+    def _upsert(chunk: RetrievedChunk) -> None:
+        key = str(chunk.chunk_id)
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = chunk
+            insertion_order.append(key)
+            return
+
+        merged[key] = RetrievedChunk(
+            document_id=existing.document_id,
+            chunk_id=existing.chunk_id,
+            filename=existing.filename or chunk.filename,
+            page_number=(
+                existing.page_number if existing.page_number is not None else chunk.page_number
+            ),
+            text=existing.text if len(existing.text) >= len(chunk.text) else chunk.text,
+            similarity_score=max(existing.similarity_score, chunk.similarity_score),
+            rerank_score=existing.rerank_score,
+            rerank_rank=existing.rerank_rank,
+            retrieval_source="merged",
+            graph_score=max(
+                existing.graph_score or 0.0,
+                chunk.graph_score or 0.0,
+            )
+            or None,
+            graph_hops=_merge_graph_hops(existing.graph_hops, chunk.graph_hops),
+        )
+
+    for chunk in vector_chunks:
+        _upsert(chunk)
+    for chunk in graph_chunks:
+        _upsert(chunk)
+
+    return [merged[key] for key in insertion_order]
 
 
 def _with_provenance(
@@ -318,6 +407,58 @@ def _confidence_category_from_score(score: float | None) -> str | None:
     if score >= settings.confidence_medium_threshold:
         return "medium"
     return "low"
+
+
+async def _resolve_graph_rag_enabled(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+) -> bool:
+    try:
+        return await _feature_flag_service.is_enabled(
+            db_session,
+            organization_id=organization_id,
+            flag_name="graph_rag",
+        )
+    except Exception as exc:
+        log_query_event(
+            event="query.graph.feature_flag_fallback",
+            organization_id=str(organization_id),
+            error=exc.__class__.__name__,
+            detail=str(exc),
+            enabled=settings.feature_enable_graph_rag,
+        )
+        return settings.feature_enable_graph_rag
+
+
+async def _augment_retrieval_with_graph_context(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    question: str,
+    vector_chunks: list[RetrievedChunk],
+    allowed_document_ids: list[UUID] | None,
+    graph_enabled: bool,
+) -> tuple[list[RetrievedChunk], GraphRetrievalResult]:
+    if not graph_enabled:
+        return vector_chunks, GraphRetrievalResult(
+            graph_context_enabled=False,
+            graph_context_used=False,
+            graph_context_reason="disabled",
+        )
+
+    graph_result = await _graph_retrieval_service.expand(
+        session=db_session,
+        organization_id=organization_id,
+        question=question,
+        allowed_document_ids=allowed_document_ids,
+        graph_enabled=True,
+    )
+    if not graph_result.chunks:
+        return vector_chunks, graph_result
+
+    graph_chunks = [_to_graph_retrieved_chunk(chunk) for chunk in graph_result.chunks]
+    return _merge_retrieved_chunks(vector_chunks, graph_chunks), graph_result
 
 
 @router.post("/sessions", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -771,6 +912,7 @@ async def query_chat(
     citations: list[ChatCitationResponse] = []
     not_found = injection_check.blocked
     citation_validation_failed = False
+    graph_context_result = GraphRetrievalResult()
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -905,6 +1047,17 @@ async def query_chat(
                 db_session,
                 organization_id=organization_id,
                 chunks=retrieved_chunks,
+            )
+            graph_enabled = await _resolve_graph_rag_enabled(
+                db_session, organization_id=organization_id
+            )
+            retrieved_chunks, graph_context_result = await _augment_retrieval_with_graph_context(
+                db_session,
+                organization_id=organization_id,
+                question=payload.question,
+                vector_chunks=retrieved_chunks,
+                allowed_document_ids=document_ids,
+                graph_enabled=graph_enabled,
             )
         except Exception as exc:
             log_query_event(
@@ -1152,6 +1305,15 @@ async def query_chat(
                 "answer_latency_ms": answer_latency_ms,
                 "retrieval_count": len(retrieved_chunks),
                 "selected_count": len(selected_chunks),
+                "graph_context_enabled": graph_context_result.graph_context_enabled,
+                "graph_context_used": graph_context_result.graph_context_used,
+                "graph_context_unavailable": graph_context_result.graph_context_unavailable,
+                "graph_context_reason": graph_context_result.graph_context_reason,
+                "graph_seed_entity_count": graph_context_result.graph_seed_entity_count,
+                "graph_related_entity_count": graph_context_result.graph_related_entity_count,
+                "graph_chunk_count": graph_context_result.graph_chunk_count,
+                "graph_max_hops_used": graph_context_result.graph_max_hops_used,
+                "graph_relation_types_used": list(graph_context_result.graph_relation_types_used),
                 "rerank_applied": payload.rerank,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
@@ -1184,6 +1346,8 @@ async def query_chat(
                 "citation_count": len(citations),
                 "retrieval_count": len(retrieved_chunks),
                 "selected_count": len(selected_chunks),
+                "graph_context_used": graph_context_result.graph_context_used,
+                "graph_context_reason": graph_context_result.graph_context_reason,
                 "rerank_applied": payload.rerank,
                 "prompt_template_key": PromptTemplateKey.answer_generation.value
                 if answer_prompt_version is not None
@@ -1269,6 +1433,8 @@ async def query_chat(
         confidence_category=confidence_category,
         retrieval_count=len(retrieved_chunks),
         selected_count=len(selected_chunks),
+        graph_context_used=graph_context_result.graph_context_used,
+        graph_context_reason=graph_context_result.graph_context_reason,
         source_scope=source_scope_result.label,
         detected_language=detected_language,
         answer_language_mode=payload.answer_language,
@@ -1305,6 +1471,15 @@ async def query_chat(
             selected_count=len(selected_chunks),
             rerank_applied=payload.rerank,
             source_scope=source_scope_result.label,
+            graph_context_enabled=graph_context_result.graph_context_enabled,
+            graph_context_used=graph_context_result.graph_context_used,
+            graph_context_unavailable=graph_context_result.graph_context_unavailable,
+            graph_context_reason=graph_context_result.graph_context_reason,
+            graph_seed_entity_count=graph_context_result.graph_seed_entity_count,
+            graph_related_entity_count=graph_context_result.graph_related_entity_count,
+            graph_chunk_count=graph_context_result.graph_chunk_count,
+            graph_max_hops_used=graph_context_result.graph_max_hops_used,
+            graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
             embedding_model=embedding_model,
             llm_model=llm_model,
             llm_provider=llm_provider,
@@ -2071,6 +2246,7 @@ async def _authenticate_ws_token(
     if token.startswith("rudix_"):
         # API key path.
         from fastapi import Request as _Request
+
         scope: dict[str, Any] = {
             "type": "http",
             "method": "GET",
@@ -2081,12 +2257,13 @@ async def _authenticate_ws_token(
         }
         try:
             from app.auth.dependencies import _authenticate_api_key as _api_key_auth
+
             fake_req = _Request(scope)
             return await _api_key_auth(fake_req, token, db_session)
         except Exception:
             return None
 
-    # JWT path – construct a minimal Request with the Authorization header.
+    # JWT path - construct a minimal Request with the Authorization header.
     scope = {
         "type": "http",
         "method": "GET",
@@ -2097,7 +2274,6 @@ async def _authenticate_ws_token(
     }
     try:
         from fastapi import Request as _Request
-        from app.auth.errors import AuthenticationError, AuthorizationError
 
         fake_req = _Request(scope)
         provider = get_auth_provider()
@@ -2239,6 +2415,7 @@ async def _run_ws_chat_pipeline(
             citations: list[ChatCitationResponse] = []
             not_found = injection_check.blocked
             citation_validation_failed = False
+            graph_context_result = GraphRetrievalResult()
 
             chat_profile = await resolve_task_profile(
                 db_session, organization_id=organization_id, task_type=TaskType.chat
@@ -2315,9 +2492,10 @@ async def _run_ws_chat_pipeline(
                 # Embedding
                 embed_started = perf_counter()
                 try:
-                    query_vector, embedding_prompt_tokens = (
-                        await _query_retrieval_service.embed_query(question=query_request.question)
-                    )
+                    (
+                        query_vector,
+                        embedding_prompt_tokens,
+                    ) = await _query_retrieval_service.embed_query(question=query_request.question)
                 except Exception:
                     await send("chat.error", safe_error_code="query_embedding_failed")
                     return
@@ -2334,11 +2512,23 @@ async def _run_ws_chat_pipeline(
                         initial_top_k=retrieval_top_k,
                         qdrant_client=_get_qdrant_client(),
                     )
-                    retrieved_chunks = [
-                        _to_retrieved_chunk(c) for c in retrieved_candidates
-                    ]
+                    retrieved_chunks = [_to_retrieved_chunk(c) for c in retrieved_candidates]
                     retrieved_chunks = await _source_provenance_service.filter_active_chunks(
                         db_session, organization_id=organization_id, chunks=retrieved_chunks
+                    )
+                    graph_enabled = await _resolve_graph_rag_enabled(
+                        db_session, organization_id=organization_id
+                    )
+                    (
+                        retrieved_chunks,
+                        graph_context_result,
+                    ) = await _augment_retrieval_with_graph_context(
+                        db_session,
+                        organization_id=organization_id,
+                        question=query_request.question,
+                        vector_chunks=retrieved_chunks,
+                        allowed_document_ids=document_ids,
+                        graph_enabled=graph_enabled,
                     )
                 except Exception:
                     await send("chat.error", safe_error_code="retrieval_failed")
@@ -2427,7 +2617,11 @@ async def _run_ws_chat_pipeline(
                     answer = llm_result.answer
                     await send("generation.delta", {"text": answer})
 
-                    if llm_result.not_found or not answer.strip() or answer.strip() == _NOT_FOUND_ANSWER:
+                    if (
+                        llm_result.not_found
+                        or not answer.strip()
+                        or answer.strip() == _NOT_FOUND_ANSWER
+                    ):
                         answer = _NOT_FOUND_ANSWER
                         not_found = True
                     else:
@@ -2451,10 +2645,12 @@ async def _run_ws_chat_pipeline(
                             ],
                             model_citations=llm_result.citations,
                         )
-                        provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
-                            db_session,
-                            organization_id=organization_id,
-                            chunk_ids=[UUID(c.chunk_id) for c in citation_result.citations],
+                        provenance_by_chunk_id = (
+                            await _source_provenance_service.load_citation_details(
+                                db_session,
+                                organization_id=organization_id,
+                                chunk_ids=[UUID(c.chunk_id) for c in citation_result.citations],
+                            )
                         )
                         citations = [
                             _with_provenance(c, provenance_by_chunk_id.get(UUID(c.chunk_id)))
@@ -2606,7 +2802,9 @@ async def _run_ws_chat_pipeline(
                     embedding_prompt_tokens=embedding_prompt_tokens,
                     llm_prompt_tokens=llm_prompt_tokens,
                     llm_completion_tokens=llm_completion_tokens,
-                    llm_total_tokens=embedding_prompt_tokens + llm_prompt_tokens + llm_completion_tokens,
+                    llm_total_tokens=embedding_prompt_tokens
+                    + llm_prompt_tokens
+                    + llm_completion_tokens,
                     estimated_cost_usd=llm_cost_usd,
                     latencies_ms=dict(latencies_ms),
                     answer_latency_ms=answer_latency_ms,
@@ -2629,6 +2827,10 @@ async def _run_ws_chat_pipeline(
                 not_found=not_found,
                 confidence_score=confidence_score,
                 confidence_category=confidence_category,
+                retrieval_count=len(retrieved_chunks),
+                selected_count=len(selected_chunks),
+                graph_context_used=graph_context_result.graph_context_used,
+                graph_context_reason=graph_context_result.graph_context_reason,
                 transport="websocket",
             )
 
@@ -2664,6 +2866,15 @@ async def _run_ws_chat_pipeline(
                     selected_count=len(selected_chunks),
                     rerank_applied=query_request.rerank,
                     source_scope=source_scope_result.label,
+                    graph_context_enabled=graph_context_result.graph_context_enabled,
+                    graph_context_used=graph_context_result.graph_context_used,
+                    graph_context_unavailable=graph_context_result.graph_context_unavailable,
+                    graph_context_reason=graph_context_result.graph_context_reason,
+                    graph_seed_entity_count=graph_context_result.graph_seed_entity_count,
+                    graph_related_entity_count=graph_context_result.graph_related_entity_count,
+                    graph_chunk_count=graph_context_result.graph_chunk_count,
+                    graph_max_hops_used=graph_context_result.graph_max_hops_used,
+                    graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
                     embedding_model=embedding_model,
                     llm_model=llm_model,
                     llm_provider=llm_provider,
@@ -2790,7 +3001,7 @@ async def chat_websocket(
                     websocket.receive_text(),
                     timeout=float(settings.ws_chat_idle_timeout_seconds),
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 break
 
             try:
@@ -2846,21 +3057,13 @@ async def chat_websocket(
         if active_task and not active_task.done():
             active_task.cancel()
         async with _ws_connection_lock:
-            _ws_connection_counts[user_id] = max(
-                0, _ws_connection_counts.get(user_id, 1) - 1
-            )
+            _ws_connection_counts[user_id] = max(0, _ws_connection_counts.get(user_id, 1) - 1)
         log_query_event(
             event="ws_chat.connection.closed",
             organization_id=principal.organization_id,
             user_id=user_id,
         )
 
-
-# ---------------------------------------------------------------------------
-# Answer-share endpoints (F259)
-# ---------------------------------------------------------------------------
-
-from app.auth.passwords import PasswordHashConfig, build_password_hasher, hash_password, verify_password  # noqa: E402
 
 _answer_share_password_hasher = build_password_hasher(
     PasswordHashConfig(
@@ -2919,10 +3122,12 @@ async def create_answer_share(
     try:
         msg_id = UUID(message_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+        ) from exc
 
     # Verify the message belongs to an assistant turn in this org.
-    message = await _get_assistant_message_for_org(
+    await _get_assistant_message_for_org(
         db_session, message_id=msg_id, organization_id=organization_id
     )
 
@@ -2952,9 +3157,7 @@ async def create_answer_share(
         else None
     )
     password_hash = (
-        hash_password(payload.password, _answer_share_password_hasher)
-        if payload.password
-        else None
+        hash_password(payload.password, _answer_share_password_hasher) if payload.password else None
     )
     allowed_ids = payload.allowed_user_ids if payload.access_mode == "specific_users" else None
 
@@ -3019,7 +3222,9 @@ async def list_answer_shares(
     try:
         msg_id = UUID(message_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found"
+        ) from exc
 
     await _get_assistant_message_for_org(
         db_session, message_id=msg_id, organization_id=organization_id
@@ -3063,7 +3268,9 @@ async def revoke_answer_share(
         msg_id = UUID(message_id)
         share_uuid = UUID(share_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Share not found") from exc
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Share not found"
+        ) from exc
 
     revoked = await answer_share_repository.revoke_answer_share(
         db_session,
@@ -3130,7 +3337,9 @@ async def get_shared_answer(
 
     # Password check
     if share.password_hash is not None:
-        if not password or not verify_password(password, share.password_hash, _answer_share_password_hasher):
+        if not password or not verify_password(
+            password, share.password_hash, _answer_share_password_hasher
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="A valid password is required to access this share link.",
@@ -3147,6 +3356,7 @@ async def get_shared_answer(
 
     # Load the assistant message and its preceding user message.
     from sqlalchemy import select as _select
+
     from app.models.chat import ChatMessage as _ChatMessage
 
     assistant_result = await db_session.execute(

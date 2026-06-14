@@ -2914,6 +2914,15 @@ export function ChatPage() {
                             "fallback_used",
                             "fallback_from",
                             "fallback_to",
+                            "graph_context_enabled",
+                            "graph_context_used",
+                            "graph_context_unavailable",
+                            "graph_context_reason",
+                            "graph_seed_entity_count",
+                            "graph_related_entity_count",
+                            "graph_chunk_count",
+                            "graph_max_hops_used",
+                            "graph_relation_types_used",
                             "detected_language",
                             "answer_language_used",
                           ] as const
@@ -2921,7 +2930,10 @@ export function ChatPage() {
                           <div
                             key={key}
                             className={
-                              key === "llm_model" || key === "llm_provider"
+                              key === "llm_model" ||
+                              key === "llm_provider" ||
+                              key === "graph_context_reason" ||
+                              key === "graph_relation_types_used"
                                 ? "col-span-2"
                                 : ""
                             }

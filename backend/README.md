@@ -591,6 +591,11 @@ Notes:
 - Enterprise Graph uses Neo4j as a derived layer only. PostgreSQL remains the
   source of truth, Qdrant remains the vector store, and graph features stay
   gated behind `ENTERPRISE_GRAPH_ENABLED`.
+- Graph-backed chat retrieval is separately gated behind
+  `FEATURE_ENABLE_GRAPH_RAG` and uses `GRAPH_RAG_*` settings for hop depth,
+  related-entity limits, graph chunk limits, confidence thresholds, and
+  relationship allowlists. When Neo4j is unavailable, chat falls back to the
+  normal Qdrant path without breaking non-graph functionality.
 - Entity canonicalization is gated behind `FEATURE_ENABLE_ENTITY_RESOLUTION`.
   When enabled, the worker resolves aliases and language variants to canonical
   entity records, stores alias/source mention nodes, and leaves low-confidence

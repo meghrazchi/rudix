@@ -521,6 +521,7 @@ class Settings(BaseSettings):
     feature_enable_agents: bool | None = None
     feature_enable_chunking_profiles: bool = False
     feature_enable_adaptive_chunking: bool = False
+    feature_enable_graph_rag: bool = False
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
@@ -580,6 +581,47 @@ class Settings(BaseSettings):
     relation_extraction_max_retries: int = Field(default=2, ge=0, le=5)
     relation_confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     relation_extraction_review_mode: bool = False
+    graph_rag_max_hops: int = Field(default=2, ge=1, le=5)
+    graph_rag_max_related_entities: int = Field(default=8, ge=1, le=50)
+    graph_rag_max_chunks: int = Field(default=5, ge=1, le=50)
+    graph_rag_confidence_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    graph_rag_relation_type_allowlist: list[str] = Field(
+        default_factory=lambda: [
+            "RELATES_TO",
+            "OWNS",
+            "COVERS_CONTROL",
+            "CONTAINS_OBLIGATION",
+            "PROVIDES_SERVICE_TO",
+            "SUPERSEDES",
+            "AFFECTS",
+            "DEPENDS_ON",
+        ]
+    )
+
+    @field_validator("graph_rag_relation_type_allowlist", mode="before")
+    @classmethod
+    def validate_graph_rag_relation_types(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = [item.strip() for item in value.split(",")]
+        elif isinstance(value, list):
+            raw_items = [str(item).strip() for item in value]
+        else:
+            raise ValueError(
+                "graph_rag_relation_type_allowlist must be a comma-separated string or list"
+            )
+
+        normalized: list[str] = []
+        for relation_type in raw_items:
+            if not relation_type:
+                continue
+            upper = relation_type.upper()
+            if upper not in normalized:
+                normalized.append(upper)
+        if not normalized:
+            raise ValueError("graph_rag_relation_type_allowlist must contain at least one value")
+        return normalized
 
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
@@ -923,6 +965,14 @@ class Settings(BaseSettings):
 
         if self.connector_rollout_stage == ConnectorRolloutStage.off:
             self.feature_enable_connectors = False
+
+        self.graph_rag_relation_type_allowlist = [
+            relation_type.strip().upper()
+            for relation_type in self.graph_rag_relation_type_allowlist
+            if relation_type.strip()
+        ]
+        if not self.graph_rag_relation_type_allowlist:
+            raise ValueError("graph_rag_relation_type_allowlist must contain at least one value")
 
         if self.retrieval_final_top_k > self.retrieval_initial_top_k:
             raise ValueError(
@@ -1297,6 +1347,7 @@ class Settings(BaseSettings):
                 "agents": self.feature_enable_agents,
                 "chunking_profiles": self.feature_enable_chunking_profiles,
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
+                "graph_rag": self.feature_enable_graph_rag,
                 "entity_extraction": self.feature_enable_entity_extraction,
                 "entity_resolution": self.feature_enable_entity_resolution,
                 "mcp": self.feature_enable_mcp,
@@ -1319,6 +1370,11 @@ class Settings(BaseSettings):
                 "entity_resolution_enabled": self.feature_enable_entity_resolution,
                 "entity_resolution_auto_merge_threshold": self.entity_resolution_auto_merge_threshold,
                 "entity_resolution_review_threshold": self.entity_resolution_review_threshold,
+                "graph_rag_max_hops": self.graph_rag_max_hops,
+                "graph_rag_max_related_entities": self.graph_rag_max_related_entities,
+                "graph_rag_max_chunks": self.graph_rag_max_chunks,
+                "graph_rag_confidence_threshold": self.graph_rag_confidence_threshold,
+                "graph_rag_relation_type_allowlist": self.graph_rag_relation_type_allowlist,
             },
             "answer_language_workspace_default": self.answer_language_workspace_default,
             "collaboration_bots": {

@@ -73,6 +73,11 @@ Connector operations must also enforce:
 - sync-trigger, sync-start, sync-success, sync-failure, source-selection, source-deletion, disconnect, and permission-change events must be audit logged with safe metadata only
 - connector sync endpoints should be rate-limited separately from general admin actions
 - revoked or disconnected connector sources must be excluded from retrieval and citation expansion
+- Neo4j credentials for Enterprise Graph and GraphRAG must live in environment
+  or secret storage only; never log raw connection strings or passwords, and
+  graph queries must remain organization-scoped and permission-checked
+- GraphRAG answers must still be grounded in retrieved document/chunk evidence;
+  graph-only facts without a supporting source reference must not be cited
 
 Collaboration bot operations must also enforce:
 

@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -492,6 +493,188 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert audit_logs[0].metadata_json["assistant_message_id"] == payload["message_id"]
     assert "question" not in audit_logs[0].metadata_json
     assert "answer" not in audit_logs[0].metadata_json
+
+
+@pytest.mark.asyncio
+async def test_post_chat_uses_graph_context_when_enabled(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+    graph_document_chunk = await DocumentRepository().create_document_chunk(
+        db_session,
+        document_id=document.id,
+        page_number=2,
+        chunk_index=1,
+        text="Graph-linked policy references the same annual leave term.",
+        token_count=42,
+        embedding_model=settings.openai_embedding_model,
+        index_version=settings.document_index_version,
+        qdrant_point_id=f"{document.id}:{settings.document_index_version}:1",
+    )
+    await db_session.commit()
+    await db_session.refresh(graph_document_chunk)
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}',
+    )
+    monkeypatch.setattr(chat_api._feature_flag_service, "is_enabled", AsyncMock(return_value=True))
+    monkeypatch.setattr(
+        chat_api._graph_retrieval_service,
+        "expand",
+        AsyncMock(
+            return_value=chat_api.GraphRetrievalResult(
+                chunks=[
+                    chat_api.GraphRetrievedChunk(
+                        document_id=document.id,
+                        chunk_id=graph_document_chunk.id,
+                        filename="policy.pdf",
+                        page_number=2,
+                        text="Graph-linked policy references the same annual leave term.",
+                        similarity_score=0.81,
+                        graph_score=0.81,
+                        graph_hops=1,
+                    )
+                ],
+                graph_context_enabled=True,
+                graph_context_used=True,
+                graph_seed_entity_count=1,
+                graph_related_entity_count=1,
+                graph_chunk_count=1,
+                graph_max_hops_used=1,
+                graph_relation_types_used=("RELATES_TO",),
+            )
+        ),
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": 'What does "annual leave" mean here?',
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["debug"]["graph_context_enabled"] is True
+    assert payload["debug"]["graph_context_used"] is True
+    assert payload["debug"]["graph_context_unavailable"] is False
+    assert payload["debug"]["graph_context_reason"] is None
+    assert payload["debug"]["graph_seed_entity_count"] == 1
+    assert payload["debug"]["graph_related_entity_count"] == 1
+    assert payload["debug"]["graph_chunk_count"] == 1
+    assert payload["debug"]["graph_max_hops_used"] == 1
+    assert payload["debug"]["graph_relation_types_used"] == ["RELATES_TO"]
+    assert payload["debug"]["retrieval_count"] == 2
+    assert payload["debug"]["selected_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_post_chat_falls_back_when_graph_never_available(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}',
+    )
+    monkeypatch.setattr(chat_api._feature_flag_service, "is_enabled", AsyncMock(return_value=True))
+    monkeypatch.setattr(
+        chat_api._graph_retrieval_service,
+        "expand",
+        AsyncMock(
+            return_value=chat_api.GraphRetrievalResult(
+                graph_context_enabled=True,
+                graph_context_used=False,
+                graph_context_unavailable=True,
+                graph_context_reason="neo4j_unavailable",
+            )
+        ),
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "question": "What does annual leave mean?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["debug"]["graph_context_enabled"] is True
+    assert payload["debug"]["graph_context_used"] is False
+    assert payload["debug"]["graph_context_unavailable"] is True
+    assert payload["debug"]["graph_context_reason"] == "neo4j_unavailable"
+    assert payload["debug"]["retrieval_count"] == 1
 
 
 @pytest.mark.asyncio

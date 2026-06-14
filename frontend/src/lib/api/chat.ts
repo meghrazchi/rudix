@@ -50,10 +50,21 @@ export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   fallback_from?: string | null;
   fallback_to?: string | null;
   fallback_reason?: string | null;
+  graph_context_enabled?: boolean;
+  graph_context_used?: boolean;
+  graph_context_unavailable?: boolean;
+  graph_context_reason?: string | null;
+  graph_seed_entity_count?: number;
+  graph_related_entity_count?: number;
+  graph_chunk_count?: number;
+  graph_max_hops_used?: number;
+  graph_relation_types_used?: string[];
 };
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];
-export type ChatQueryResponse = Schemas["ChatQueryResponse"];
+export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
+  debug: Schemas["ChatQueryResponse"]["debug"] | null;
+};
 export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];
 export type ChatSessionMessageListResponse =

@@ -14,6 +14,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.domains.graph.repositories._base import _get_driver_and_settings
+from app.domains.graph.schema import RELATIONSHIP_TYPES
 from app.domains.graph.services.entity_resolution_service import normalize_entity_name
 
 logger = get_logger("graph.repositories.graphrag")
@@ -29,6 +30,7 @@ class GraphRAGRepository:
         entity_ids: list[UUID | str],
         depth: int = 2,
         limit: int = 20,
+        relationship_types: list[str] | None = None,
     ) -> list[dict]:
         """Return entities reachable within *depth* hops from the seed entity_ids.
 
@@ -44,6 +46,18 @@ class GraphRAGRepository:
         # depth is a Python int from trusted internal callers; max-clamped for safety.
         safe_depth = max(1, min(depth, 5))
         seed_ids = [str(eid) for eid in entity_ids]
+        safe_relationship_types = [
+            relation_type
+            for relation_type in (relationship_types or [])
+            if relation_type in RELATIONSHIP_TYPES and relation_type != "EVIDENCE_FOR"
+        ]
+        relation_filter = ""
+        relation_params: dict[str, Any] = {}
+        if safe_relationship_types:
+            relation_filter = (
+                "WHERE ALL(rel IN relationships(p) WHERE type(rel) IN $relationship_types) "
+            )
+            relation_params["relationship_types"] = safe_relationship_types
 
         try:
             async with driver.session(database=settings.neo4j_database) as session:
@@ -53,6 +67,7 @@ class GraphRAGRepository:
                         MATCH (seed:Entity {{organization_id: $organization_id}})
                         WHERE seed.entity_id IN $entity_ids
                         MATCH p = (seed)-[*1..{safe_depth}]-(related:Entity {{organization_id: $organization_id}})
+                        {relation_filter}
                         WHERE NOT related.entity_id IN $entity_ids
                         WITH related, min(length(p)) AS hops
                         RETURN
@@ -66,6 +81,7 @@ class GraphRAGRepository:
                         organization_id=str(organization_id),
                         entity_ids=seed_ids,
                         limit=limit,
+                        **relation_params,
                     ),
                     timeout=settings.neo4j_query_timeout_seconds,
                 )
@@ -152,6 +168,8 @@ class GraphRAGRepository:
         organization_id: UUID | str,
         entity_ids: list[UUID | str],
         limit: int = 50,
+        document_ids: list[UUID | str] | None = None,
+        confidence_threshold: float | None = None,
     ) -> list[dict]:
         """Return EVIDENCE_FOR links for a set of entities.
 
@@ -166,6 +184,7 @@ class GraphRAGRepository:
             return []
 
         seed_ids = [str(eid) for eid in entity_ids]
+        normalized_document_ids = [str(doc_id) for doc_id in document_ids] if document_ids else []
 
         try:
             async with driver.session(database=settings.neo4j_database) as session:
@@ -176,8 +195,11 @@ class GraphRAGRepository:
                               -[ev:EVIDENCE_FOR]->
                               (e:Entity {organization_id: $organization_id})
                         WHERE e.entity_id IN $entity_ids
+                        AND ($confidence_threshold IS NULL OR coalesce(ev.confidence, 0.0) >= $confidence_threshold)
+                        AND ($document_ids = [] OR c.source_document_id IN $document_ids)
                         RETURN
                             e.entity_id              AS entity_id,
+                            e.canonical_name         AS canonical_name,
                             c.chunk_id               AS chunk_id,
                             c.source_document_id     AS source_document_id,
                             c.workspace_id           AS workspace_id,
@@ -196,6 +218,8 @@ class GraphRAGRepository:
                         organization_id=str(organization_id),
                         entity_ids=seed_ids,
                         limit=limit,
+                        document_ids=normalized_document_ids,
+                        confidence_threshold=confidence_threshold,
                     ),
                     timeout=settings.neo4j_query_timeout_seconds,
                 )
