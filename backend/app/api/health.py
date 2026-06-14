@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, HTTPException, Response, status
 
 from app.clients.minio_client import check_minio_health
+from app.clients.neo4j_client import check_neo4j_health
 from app.clients.qdrant_client import check_qdrant_health
 from app.clients.rabbitmq_client import check_rabbitmq_health
 from app.clients.redis_client import check_redis_health
@@ -90,21 +91,21 @@ async def _readiness_dependencies() -> dict[str, HealthDependency]:
         except Exception:
             return False
 
-    (
-        postgres_ok,
-        redis_ok,
-        rabbitmq_ok,
-        qdrant_ok,
-        minio_ok,
-    ) = await asyncio.gather(
+    checks = [
         run_async_check(check_database_health),
         run_async_check(check_redis_health),
         run_async_check(check_rabbitmq_health),
         run_sync_check(check_qdrant_health),
         run_sync_check(check_minio_health),
-    )
+    ]
+    if settings.enterprise_graph_enabled:
+        checks.append(run_async_check(check_neo4j_health))
 
-    return {
+    results = await asyncio.gather(*checks)
+    postgres_ok, redis_ok, rabbitmq_ok, qdrant_ok, minio_ok = results[:5]
+    neo4j_ok: bool | None = results[5] if settings.enterprise_graph_enabled else None
+
+    dependencies: dict[str, HealthDependency] = {
         "postgres": _build_dependency(
             ok=postgres_ok,
             detail="postgres_unreachable",
@@ -138,6 +139,18 @@ async def _readiness_dependencies() -> dict[str, HealthDependency]:
         ),
         "openai_config": _openai_configuration_health(),
     }
+
+    if neo4j_ok is not None:
+        dependencies["neo4j"] = _build_dependency(
+            ok=neo4j_ok,
+            detail="neo4j_unreachable",
+            metadata={
+                "uri": _sanitize_url(settings.neo4j_uri or ""),
+                "database": settings.neo4j_database,
+            },
+        )
+
+    return dependencies
 
 
 def _failed_dependencies(dependencies: dict[str, HealthDependency]) -> list[str]:

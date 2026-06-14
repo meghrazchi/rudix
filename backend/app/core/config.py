@@ -541,6 +541,20 @@ class Settings(BaseSettings):
     bot_teams_shared_secret: SecretStr | None = None
     bot_process_events_async: bool = True
     bot_delivery_timeout_seconds: float = Field(default=5.0, ge=0.1, le=30.0)
+
+    # Enterprise Graph (Neo4j) — F279
+    # Set ENTERPRISE_GRAPH_ENABLED=true and configure the bolt URI + credentials to activate.
+    # When disabled, all upload/chat/RAG flows operate normally without Neo4j.
+    # WARNING: neo4j_password is sensitive — never log or return it in API responses.
+    enterprise_graph_enabled: bool = False
+    neo4j_uri: str | None = Field(default=None, max_length=255)
+    neo4j_username: str | None = Field(default=None, max_length=128)
+    neo4j_password: SecretStr | None = None
+    neo4j_database: str = Field(default="neo4j", min_length=1, max_length=128)
+    neo4j_connection_timeout_seconds: float = Field(default=5.0, ge=0.1, le=60.0)
+    neo4j_query_timeout_seconds: float = Field(default=10.0, ge=0.1, le=120.0)
+    neo4j_max_connection_pool_size: int = Field(default=50, ge=1, le=500)
+
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
     ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
@@ -584,6 +598,21 @@ class Settings(BaseSettings):
     mcp_external_servers: Annotated[list[MCPExternalServerSettings], NoDecode] = Field(
         default_factory=list
     )
+
+    @field_validator("neo4j_uri")
+    @classmethod
+    def validate_neo4j_uri(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        allowed = ("bolt://", "neo4j://", "bolt+s://", "neo4j+s://", "bolt+ssc://", "neo4j+ssc://")
+        if not any(cleaned.lower().startswith(scheme) for scheme in allowed):
+            raise ValueError(
+                "neo4j_uri must start with bolt://, neo4j://, bolt+s://, or neo4j+s://"
+            )
+        return cleaned
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -857,6 +886,14 @@ class Settings(BaseSettings):
                         raise ValueError(
                             "external MCP servers require auth_type=bearer or auth_type=header in staging/production"
                         )
+
+        if self.enterprise_graph_enabled:
+            if not self.neo4j_uri:
+                raise ValueError("neo4j_uri is required when enterprise_graph_enabled=true")
+            if not self.neo4j_username:
+                raise ValueError("neo4j_username is required when enterprise_graph_enabled=true")
+            if self.neo4j_password is None or not self.neo4j_password.get_secret_value().strip():
+                raise ValueError("neo4j_password is required when enterprise_graph_enabled=true")
 
         if self.connector_rollout_stage == ConnectorRolloutStage.off:
             self.feature_enable_connectors = False
@@ -1243,6 +1280,14 @@ class Settings(BaseSettings):
                 "advanced_pdf_extraction": self.feature_enable_advanced_pdf_extraction,
                 "pdf_extraction_tables": self.pdf_extraction_enable_tables,
                 "pdf_extraction_images": self.pdf_extraction_enable_images,
+            },
+            "enterprise_graph": {
+                "enabled": self.enterprise_graph_enabled,
+                "uri_set": self.neo4j_uri is not None,
+                "database": self.neo4j_database,
+                "connection_timeout_seconds": self.neo4j_connection_timeout_seconds,
+                "query_timeout_seconds": self.neo4j_query_timeout_seconds,
+                "max_connection_pool_size": self.neo4j_max_connection_pool_size,
             },
             "answer_language_workspace_default": self.answer_language_workspace_default,
             "collaboration_bots": {

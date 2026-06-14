@@ -287,6 +287,39 @@ services:
       start_period: 120s
     restart: unless-stopped
 
+  # ── Enterprise Graph (Neo4j) ─────────────────────────────────────────────
+  # Start with:  make up-graph
+  # Set ENTERPRISE_GRAPH_ENABLED=true, NEO4J_URI, NEO4J_USERNAME, NEO4J_PASSWORD in .env.
+  # Neo4j stores derived graph entities and relationships for GraphRAG; it does NOT
+  # replace PostgreSQL (source of truth) or Qdrant (vector search).
+  # WARNING: NEO4J_PASSWORD is sensitive — never log or expose it in API responses.
+
+  neo4j:
+    profiles: ["enterprise-graph"]
+    image: ${NEO4J_IMAGE:-neo4j:5-community}
+    # Bolt (7687) and HTTP browser (7474) are NOT published to the host by default —
+    # internal Docker network only. For local development host access add:
+    #   ports: ["7474:7474", "7687:7687"]
+    # in a local docker-compose.override.yml. Never expose these ports publicly in production.
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-neo4j-dev-change-me}
+      NEO4J_server_memory_heap_initial__size: ${NEO4J_HEAP_INITIAL:-256m}
+      NEO4J_server_memory_heap_max__size: ${NEO4J_HEAP_MAX:-1G}
+      NEO4J_server_memory_pagecache_size: ${NEO4J_PAGECACHE:-256m}
+    volumes:
+      - neo4j_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: ${NEO4J_MEMORY_LIMIT:-2g}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -O /dev/null -q http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
   litellm:
     profiles: ["litellm"]
     image: ${LITELLM_IMAGE:-ghcr.io/berriai/litellm:main-latest}
@@ -317,3 +350,4 @@ volumes:
   clamav_data:
   ollama_data:
   vllm_cache:
+  neo4j_data:

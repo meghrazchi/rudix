@@ -1,5 +1,6 @@
 .PHONY: up up-d up-mcp down down-v down-mcp restart ps logs logs-api logs-worker logs-mcp logs-infra \
 	up-ollama up-vllm up-litellm down-local-llm logs-local-llm pull-local-model \
+	up-graph down-graph logs-graph reset-graph \
 	migrate test lint check-backend \
 	frontend-dev frontend-build frontend-lint frontend-typecheck frontend-test frontend-e2e frontend-format check-frontend \
 	api-types api-types-check api-types-update \
@@ -50,6 +51,28 @@ logs-local-llm:
 
 pull-local-model:
 	$(COMPOSE) --profile ollama exec ollama ollama pull $${OLLAMA_MODEL:-llama3.2}
+
+## Enterprise Graph (Neo4j) — F279
+# Start the Neo4j container and enable graph support.
+# Prerequisites: set ENTERPRISE_GRAPH_ENABLED=true, NEO4J_URI=bolt://neo4j:7687,
+# NEO4J_USERNAME, and NEO4J_PASSWORD in .env, then restart the main stack.
+# Neo4j binds to the internal Docker network only (no host ports by default).
+# To allow host access for the Neo4j Browser, add a docker-compose.override.yml with
+#   ports: ["7474:7474", "7687:7687"] under the neo4j service.
+
+up-graph:
+	$(COMPOSE) --profile enterprise-graph up -d neo4j
+
+down-graph:
+	$(COMPOSE) --profile enterprise-graph stop neo4j
+
+logs-graph:
+	$(COMPOSE) --profile enterprise-graph logs -f neo4j
+
+reset-graph:
+	$(COMPOSE) --profile enterprise-graph stop neo4j
+	docker volume rm $$($(COMPOSE) --profile enterprise-graph config --volumes | grep neo4j_data) 2>/dev/null; true
+	$(COMPOSE) --profile enterprise-graph up -d neo4j
 
 restart:
 	$(COMPOSE) restart
