@@ -587,6 +587,8 @@ export function AppShell({
 
   const displayName = profileDisplayName(session);
   const displayInitials = profileInitials(displayName);
+  const mainOverflowClass =
+    activeRoute.key === "chat" ? "overflow-hidden" : "overflow-auto";
 
   const commandSectionLabelFor = (section: CommandResultSection): string =>
     getCommandSectionLabel(section);
@@ -1112,7 +1114,9 @@ export function AppShell({
             </div>
           </header>
           <ServiceStatusBanner />
-          <main className="min-h-0 flex-1 overflow-auto">{children}</main>
+          <main className={`min-h-0 flex-1 ${mainOverflowClass}`}>
+            {children}
+          </main>
         </div>
       </div>
 

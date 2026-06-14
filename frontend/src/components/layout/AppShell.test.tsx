@@ -33,9 +33,11 @@ function buildNavItems(
 function renderShell({
   session,
   onSignOut = vi.fn(),
+  activeRouteKey = "dashboard",
 }: {
   session: AuthenticatedSession;
   onSignOut?: () => void;
+  activeRouteKey?: AppNavigationItem["key"];
 }) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -45,7 +47,7 @@ function renderShell({
   });
 
   const activeRoute =
-    APP_ROUTES.find((route) => route.key === "dashboard") ?? APP_ROUTES[0];
+    APP_ROUTES.find((route) => route.key === activeRouteKey) ?? APP_ROUTES[0];
   const navItems = buildNavItems(activeRoute.key, session);
 
   return render(
@@ -275,5 +277,22 @@ describe("AppShell top bar menus", () => {
         "No matching results. Try a filename, status, chat title, or page name.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("keeps the chat route from scrolling the app main container", () => {
+    renderShell({
+      activeRouteKey: "chat",
+      session: {
+        userId: "user-6",
+        email: "member@example.com",
+        role: "member",
+        organizationId: "org-1",
+        organizationName: "Org One",
+        accessToken: "token-6",
+      },
+    });
+
+    expect(screen.getByRole("main")).toHaveClass("overflow-hidden");
+    expect(screen.getByRole("main")).not.toHaveClass("overflow-auto");
   });
 });
