@@ -5,6 +5,7 @@ import {
   readSessionFromStorage,
   writeSessionToStorage,
 } from "@/lib/auth-session";
+import { clearCrossTabRefreshLease } from "@/lib/auth-refresh-coordinator";
 import { ApiClientError } from "@/lib/api/errors";
 import { resetFrontendBreadcrumbsForTesting } from "@/lib/observability";
 import { apiRequest, getJwtExpirationTimeMs } from "@/lib/api/request";
@@ -28,6 +29,7 @@ describe("apiRequest header attachment", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     clearSessionStorage();
+    clearCrossTabRefreshLease();
     vi.stubGlobal("fetch", fetchMock);
     process.env = { ...originalEnv };
   });
@@ -35,6 +37,7 @@ describe("apiRequest header attachment", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     clearSessionStorage();
+    clearCrossTabRefreshLease();
     process.env = { ...originalEnv };
   });
 
@@ -177,6 +180,7 @@ describe("apiRequest refresh handling", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     clearSessionStorage();
+    clearCrossTabRefreshLease();
     vi.stubGlobal("fetch", fetchMock);
     process.env = { ...originalEnv };
   });
@@ -184,6 +188,7 @@ describe("apiRequest refresh handling", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     clearSessionStorage();
+    clearCrossTabRefreshLease();
     process.env = { ...originalEnv };
   });
 
@@ -308,6 +313,73 @@ describe("apiRequest refresh handling", () => {
 
     expect(refreshCalls).toBe(1);
     expect(mutationCalls).toBe(1);
+    expect(readSessionFromStorage()?.accessToken).toBe("new-token");
+  });
+
+  it("coordinates refresh across tabs so only one refresh request is sent", async () => {
+    process.env.NEXT_PUBLIC_AUTH_REFRESH_URL = "http://api.test/auth/refresh";
+
+    const expiredToken = createJwt(Math.floor(Date.now() / 1_000) - 60);
+    writeSessionToStorage({
+      userId: "user-1",
+      email: "user@example.com",
+      role: "member",
+      organizationId: "org-1",
+      organizationName: "Org One",
+      accessToken: expiredToken,
+    });
+
+    let refreshCalls = 0;
+    let resolveRefresh: (response: Response) => void = () => undefined;
+    const refreshPromise = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/auth/refresh")) {
+        refreshCalls += 1;
+        return refreshPromise;
+      }
+
+      return new Response("not found", { status: 404 });
+    });
+
+    vi.resetModules();
+    const requestA = await import("@/lib/api/request");
+    vi.resetModules();
+    const requestB = await import("@/lib/api/request");
+
+    const firstRefresh = requestA.refreshAccessToken({
+      trigger: "startup",
+    });
+    const secondRefresh = requestB.refreshAccessToken({
+      trigger: "startup",
+    });
+
+    await vi.waitFor(() => {
+      expect(refreshCalls).toBe(1);
+    });
+
+    resolveRefresh(
+      new Response(
+        JSON.stringify({
+          access_token: "new-token",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    const [firstSession, secondSession] = await Promise.all([
+      firstRefresh,
+      secondRefresh,
+    ]);
+
+    expect(firstSession?.accessToken).toBe("new-token");
+    expect(secondSession?.accessToken).toBe("new-token");
     expect(readSessionFromStorage()?.accessToken).toBe("new-token");
   });
 });

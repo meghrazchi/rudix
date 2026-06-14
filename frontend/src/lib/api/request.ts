@@ -6,6 +6,10 @@ import {
   type AuthBoundaryReason,
   type AuthenticatedSession,
 } from "@/lib/auth-session";
+import {
+  clearCrossTabRefreshLease,
+  refreshWithCrossTabLease,
+} from "@/lib/auth-refresh-coordinator";
 import { clearAuthSensitiveQueryState } from "@/lib/api/query";
 
 import {
@@ -791,10 +795,12 @@ export async function refreshAccessToken(params?: {
   }
 
   if (!refreshInFlight) {
-    refreshInFlight = executeRefreshRequest({
-      currentSession,
-      apiBaseUrl: params?.apiBaseUrl,
-    }).finally(() => {
+    refreshInFlight = refreshWithCrossTabLease(currentSession, () =>
+      executeRefreshRequest({
+        currentSession,
+        apiBaseUrl: params?.apiBaseUrl,
+      }),
+    ).finally(() => {
       refreshInFlight = null;
     });
   }
@@ -829,6 +835,7 @@ export async function clearFrontendAuthState(params: {
   redirectToLogin: boolean;
 }): Promise<void> {
   clearProactiveRefreshTimer();
+  clearCrossTabRefreshLease();
   clearSessionStorage();
   await clearAuthSensitiveClientState();
 
