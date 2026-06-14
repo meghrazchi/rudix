@@ -26,6 +26,8 @@ _SETTINGS_ATTR: dict[str, str] = {
     "chunking_profiles": "feature_enable_chunking_profiles",
     "adaptive_chunking": "feature_enable_adaptive_chunking",
     "graph_rag": "feature_enable_graph_rag",
+    "graph_extraction": "feature_enable_graph_extraction",
+    "graph_explorer": "feature_enable_graph_explorer",
     "advanced_pdf_extraction": "feature_enable_advanced_pdf_extraction",
     "language_aware_rag": "feature_enable_language_aware_rag",
     "pipeline_explorer": "feature_enable_pipeline_explorer",

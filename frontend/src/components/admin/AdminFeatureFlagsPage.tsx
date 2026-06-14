@@ -178,7 +178,7 @@ export function AdminFeatureFlagsPage() {
   if (isLoading) {
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
-        <LoadingState label="Loading feature flags…" />
+        <LoadingState title="Loading feature flags…" />
       </section>
     );
   }
@@ -197,7 +197,7 @@ export function AdminFeatureFlagsPage() {
     }
     return (
       <section className="px-4 py-5 lg:px-8 lg:py-8">
-        <ErrorState message={getApiErrorMessage(error)} />
+        <ErrorState error={error} />
       </section>
     );
   }

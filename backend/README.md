@@ -600,6 +600,10 @@ Notes:
   related-entity limits, graph chunk limits, confidence thresholds, and
   relationship allowlists. When Neo4j is unavailable, chat falls back to the
   normal Qdrant path without breaking non-graph functionality.
+- Admin graph observability is available under `/api/v1/admin/graph/observability`
+  for owner/admin users. It reports extraction health, entity and relation
+  quality, GraphRAG query latency, fallback usage, and daily trend snapshots,
+  all scoped to the active organization.
 - Entity canonicalization is gated behind `FEATURE_ENABLE_ENTITY_RESOLUTION`.
   When enabled, the worker resolves aliases and language variants to canonical
   entity records, stores alias/source mention nodes, and leaves low-confidence

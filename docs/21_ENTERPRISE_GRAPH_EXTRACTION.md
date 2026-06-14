@@ -108,6 +108,12 @@ All variables are set in `.env`. Restart the API and Celery workers after change
 | `GRAPH_RAG_CONFIDENCE_THRESHOLD` | `0.6` | Minimum evidence confidence for GraphRAG inclusion. |
 | `GRAPH_RAG_RELATION_TYPE_ALLOWLIST` | All types | Comma-separated list of relation types to follow during traversal. |
 
+The admin feature-flag surface also includes per-organization rollout controls
+for `graph_rag`, `graph_extraction`, and `graph_explorer`. The graph
+observability dashboard combines extraction health, entity/relation quality,
+GraphRAG latency, fallback usage, and daily trend snapshots so admins can
+roll out safely and spot regressions early.
+
 ### 2.6 Docker Compose image
 
 | Variable | Default | Description |
@@ -363,6 +369,7 @@ All endpoints return `503 enterprise_graph_unavailable` when the graph layer is 
 | `DELETE` | `/admin/graph/entities/{entity_id}` | Delete entity and its aliases. |
 | `GET` | `/admin/graph/entities/{entity_id}/aliases` | List source mentions for an entity. |
 | `GET` | `/admin/graph/entities/{entity_id}/citations` | Citation-ready provenance for the entity. |
+| `GET` | `/admin/graph/observability` | Graph extraction health, quality metrics, latency, and alert thresholds. |
 
 #### Provenance and evidence
 

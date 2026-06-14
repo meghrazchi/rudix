@@ -522,6 +522,10 @@ class Settings(BaseSettings):
     feature_enable_chunking_profiles: bool = False
     feature_enable_adaptive_chunking: bool = False
     feature_enable_graph_rag: bool = False
+    # graph_extraction gates the entity/relation extraction pipeline per org.
+    # graph_explorer gates the read-only graph explorer UI per org.
+    feature_enable_graph_extraction: bool = False
+    feature_enable_graph_explorer: bool = True
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
     feature_expose_config_snapshot: bool = True
@@ -597,6 +601,18 @@ class Settings(BaseSettings):
             "DEPENDS_ON",
         ]
     )
+    # Graph observability alert thresholds (F291).
+    # Admins can override these via environment variables to tune alerting sensitivity.
+    # extraction_failure_rate_max: fraction of extraction runs that must fail to trigger an alert.
+    # query_failure_rate_max: fraction of GraphRAG queries that must fail to trigger an alert.
+    # graphrag_fallback_rate_max: fraction of GraphRAG queries that fall back to standard RAG.
+    # low_confidence_entity_rate_max: fraction of entities with confidence < 0.5.
+    # query_latency_ms_max: p95 GraphRAG latency ceiling in milliseconds.
+    graph_alert_extraction_failure_rate_max: float = Field(default=0.2, ge=0.0, le=1.0)
+    graph_alert_query_failure_rate_max: float = Field(default=0.1, ge=0.0, le=1.0)
+    graph_alert_graphrag_fallback_rate_max: float = Field(default=0.3, ge=0.0, le=1.0)
+    graph_alert_low_confidence_entity_rate_max: float = Field(default=0.3, ge=0.0, le=1.0)
+    graph_alert_query_latency_ms_max: float = Field(default=2000.0, ge=0.0)
 
     @field_validator("graph_rag_relation_type_allowlist", mode="before")
     @classmethod

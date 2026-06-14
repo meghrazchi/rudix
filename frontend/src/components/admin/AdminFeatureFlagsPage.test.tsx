@@ -48,8 +48,8 @@ function makeAdminSession(): SessionState {
     session: {
       userId: "user-1",
       email: "admin@example.com",
-      displayName: "Admin",
       organizationId: "org-1",
+      organizationName: "Org 1",
       role: "admin",
     },
   };
@@ -82,6 +82,9 @@ const mockFlagsResponse: FeatureFlagsResponse = {
     makeFlag("evaluations", false, true, true),
     makeFlag("chunking_profiles", false, false),
     makeFlag("adaptive_chunking", false, false),
+    makeFlag("graph_rag", false, false),
+    makeFlag("graph_extraction", true, false),
+    makeFlag("graph_explorer", true, true),
     makeFlag("advanced_pdf_extraction", true, true),
     makeFlag("language_aware_rag", true, true),
     makeFlag("pipeline_explorer", true, true),
@@ -126,8 +129,8 @@ describe("AdminFeatureFlagsPage", () => {
       session: {
         userId: "u2",
         email: "viewer@example.com",
-        displayName: "Viewer",
         organizationId: "org-1",
+        organizationName: "Org 1",
         role: "viewer",
       },
     };
@@ -151,21 +154,64 @@ describe("AdminFeatureFlagsPage", () => {
 
   it("shows error state on API failure", async () => {
     mockApi.listAdminFeatureFlags.mockRejectedValue(
-      new ApiClientError("Server error", 500, false),
+      new ApiClientError({
+        status: 500,
+        code: "unknown_error",
+        message: "Server error",
+        details: null,
+        requestId: null,
+        userMessage: "Something went wrong while contacting the API.",
+        actionMessage: "Try again.",
+        retryable: false,
+      }),
     );
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/Server error/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Something went wrong while contacting the API/i),
+      ).toBeInTheDocument(),
     );
   });
 
   it("shows forbidden state on 403 response", async () => {
     mockApi.listAdminFeatureFlags.mockRejectedValue(
-      new ApiClientError("Forbidden", 403, false),
+      new ApiClientError({
+        status: 403,
+        code: "forbidden",
+        message: "Forbidden",
+        details: null,
+        requestId: null,
+        userMessage: "You do not have permission for this action.",
+        actionMessage: "Switch organization or contact an administrator.",
+        retryable: false,
+      }),
     );
     renderPage();
     await waitFor(() =>
       expect(screen.getByText(/Access denied/i)).toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText(/You do not have permission to manage feature flags\./i),
+    ).toBeInTheDocument();
+  });
+
+  it("shows inline error when set mutation fails", async () => {
+    mockApi.listAdminFeatureFlags.mockResolvedValue(mockFlagsResponse);
+    mockApi.setAdminFeatureFlag.mockRejectedValue(new Error("Save failed"));
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText("Connectors")).toBeInTheDocument(),
+    );
+
+    const disableButtons = screen.getAllByRole("button", {
+      name: /^Disable$/i,
+    });
+    await user.click(disableButtons[0]);
+    await user.click(screen.getByRole("button", { name: /Confirm/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Save failed/i)).toBeInTheDocument(),
     );
   });
 
@@ -273,28 +319,6 @@ describe("AdminFeatureFlagsPage", () => {
 
     await waitFor(() =>
       expect(mockApi.clearAdminFeatureFlag).toHaveBeenCalledWith("evaluations"),
-    );
-  });
-
-  it("shows inline error when set mutation fails", async () => {
-    mockApi.listAdminFeatureFlags.mockResolvedValue(mockFlagsResponse);
-    mockApi.setAdminFeatureFlag.mockRejectedValue(
-      new ApiClientError("Save failed", 500, false),
-    );
-    const user = userEvent.setup();
-    renderPage();
-    await waitFor(() =>
-      expect(screen.getByText("Connectors")).toBeInTheDocument(),
-    );
-
-    const disableButtons = screen.getAllByRole("button", {
-      name: /^Disable$/i,
-    });
-    await user.click(disableButtons[0]);
-    await user.click(screen.getByRole("button", { name: /Confirm/i }));
-
-    await waitFor(() =>
-      expect(screen.getByText(/Save failed/i)).toBeInTheDocument(),
     );
   });
 });

@@ -91,7 +91,10 @@ function EntityTypeGroup({
       </div>
       <ul className="space-y-1">
         {typeEntities.slice(0, 8).map((entity) => (
-          <li key={entity.entity_id} className="flex items-center justify-between gap-2">
+          <li
+            key={entity.entity_id}
+            className="flex items-center justify-between gap-2"
+          >
             <Link
               href={`/graph/entities/${encodeURIComponent(entity.entity_id)}?back=${encodeURIComponent(`/documents/${documentId}`)}`}
               className="truncate text-xs font-semibold text-[#3525cd] hover:underline"
@@ -126,9 +129,7 @@ function EvidenceCard({
   return (
     <div className="rounded-lg border border-[#e9e6f5] bg-white p-3">
       <div className="mb-1 flex flex-wrap items-center gap-2 text-[10px] text-[#69637f]">
-        {item.page_number != null ? (
-          <span>Page {item.page_number}</span>
-        ) : null}
+        {item.page_number != null ? <span>Page {item.page_number}</span> : null}
         {item.confidence != null ? (
           <span>Confidence {formatConfidence(item.confidence)}</span>
         ) : null}
@@ -140,14 +141,16 @@ function EvidenceCard({
         </Link>
       </div>
       {snippet ? (
-        <p className="rounded-r border-l-2 border-[#3525cd]/40 bg-[#faf9ff] py-1 pr-2 pl-2 text-xs italic text-[#4d4861]">
+        <p className="rounded-r border-l-2 border-[#3525cd]/40 bg-[#faf9ff] py-1 pr-2 pl-2 text-xs text-[#4d4861] italic">
           {snippet.length > 280 ? `${snippet.slice(0, 280)}…` : snippet}
         </p>
       ) : (
         <p className="text-[10px] text-[#69637f]">No excerpt available</p>
       )}
       {item.citation_reference ? (
-        <p className="mt-1 text-[10px] text-[#69637f]">{item.citation_reference}</p>
+        <p className="mt-1 text-[10px] text-[#69637f]">
+          {item.citation_reference}
+        </p>
       ) : null}
     </div>
   );
@@ -157,7 +160,9 @@ function ExtractionRunRow({ run }: { run: DocumentGraphInsightRunItem }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#e9e6f5] bg-white px-3 py-2 text-xs">
       <span className={extractionRunStatusBadge(run.status)}>{run.status}</span>
-      <span className="text-[#69637f]">{formatDate(run.updated_at ?? run.created_at)}</span>
+      <span className="text-[#69637f]">
+        {formatDate(run.updated_at ?? run.created_at)}
+      </span>
       {run.entity_count != null ? (
         <span className="text-[#69637f]">{run.entity_count} entities</span>
       ) : null}
@@ -167,7 +172,10 @@ function ExtractionRunRow({ run }: { run: DocumentGraphInsightRunItem }) {
         </span>
       ) : null}
       {run.error ? (
-        <span className="ml-auto truncate max-w-[180px] text-rose-600" title={run.error}>
+        <span
+          className="ml-auto max-w-[180px] truncate text-rose-600"
+          title={run.error}
+        >
           {run.error}
         </span>
       ) : null}

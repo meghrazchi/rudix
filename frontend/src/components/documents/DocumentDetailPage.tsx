@@ -223,7 +223,11 @@ function buildLifecycleTimeline(
 
   const hasGraphStep = steps.some((s) => s.key === "extract_entities");
   const graphExtractionStatus = detail.graph_extraction_status;
-  if (!hasGraphStep && graphExtractionStatus && graphExtractionStatus !== "skipped") {
+  if (
+    !hasGraphStep &&
+    graphExtractionStatus &&
+    graphExtractionStatus !== "skipped"
+  ) {
     let state: TimelineStepState = "pending";
     if (graphExtractionStatus === "completed") state = "completed";
     else if (graphExtractionStatus === "failed") state = "failed";
@@ -240,7 +244,10 @@ function buildLifecycleTimeline(
         pipelineRunId: null,
         pipelineType: null,
         durationMs: null,
-        status: graphExtractionStatus === "extracting" ? "running" : graphExtractionStatus,
+        status:
+          graphExtractionStatus === "extracting"
+            ? "running"
+            : graphExtractionStatus,
         outputs: null,
       });
     }

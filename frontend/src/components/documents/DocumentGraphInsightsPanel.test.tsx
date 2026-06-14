@@ -85,12 +85,14 @@ type PanelStatus =
   | null
   | undefined;
 
-function renderPanel(overrides: {
-  graphExtractionStatus?: PanelStatus;
-  canReindex?: boolean;
-  isReindexPending?: boolean;
-  onReindexGraph?: () => void;
-} = {}) {
+function renderPanel(
+  overrides: {
+    graphExtractionStatus?: PanelStatus;
+    canReindex?: boolean;
+    isReindexPending?: boolean;
+    onReindexGraph?: () => void;
+  } = {},
+) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -129,18 +131,14 @@ describe("DocumentGraphInsightsPanel", () => {
 
     it("shows no-extraction message when status is null", () => {
       renderPanel({ graphExtractionStatus: null });
-      expect(
-        screen.getByText(/not been configured/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/not been configured/i)).toBeInTheDocument();
     });
   });
 
   describe("in-progress states", () => {
     it("shows extracting message when status is extracting", () => {
       renderPanel({ graphExtractionStatus: "extracting" });
-      expect(
-        screen.getByText(/in progress/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/in progress/i)).toBeInTheDocument();
     });
 
     it("shows queued message when status is pending", () => {
@@ -152,7 +150,10 @@ describe("DocumentGraphInsightsPanel", () => {
   describe("graph unavailable (503)", () => {
     it("shows unavailable notice when graph returns 503", async () => {
       mockedGetInsights.mockRejectedValueOnce(
-        normalizeApiError({ status: 503, detail: "enterprise_graph_unavailable" }),
+        normalizeApiError({
+          status: 503,
+          detail: "enterprise_graph_unavailable",
+        }),
       );
       renderPanel({ graphExtractionStatus: "completed" });
 
@@ -169,9 +170,7 @@ describe("DocumentGraphInsightsPanel", () => {
 
   describe("loading state", () => {
     it("shows loading state while fetching", async () => {
-      mockedGetInsights.mockImplementation(
-        () => new Promise(() => {}),
-      );
+      mockedGetInsights.mockImplementation(() => new Promise(() => {}));
       renderPanel({ graphExtractionStatus: "completed" });
       await waitFor(() => {
         expect(screen.getByText(/loading graph insights/i)).toBeInTheDocument();
