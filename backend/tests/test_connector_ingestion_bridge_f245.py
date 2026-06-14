@@ -49,6 +49,7 @@ from app.models.enums import (
     ConnectorConnectionStatus,
     DocumentIngestionSource,
     DocumentStatus,
+    GraphExtractionStatus,
     ExternalItemType,
     ExternalItemVisibility,
 )
@@ -114,7 +115,7 @@ async def _make_bridge_context(db_session: AsyncSession) -> BridgeContext:
         provider_id=provider.id,
         display_name="Bridge Test Connection",
         status=ConnectorConnectionStatus.active.value,
-        config_json={},
+        auth_config_json={},
         created_by_user_id=user.id,
     )
     db_session.add(connection)
@@ -401,6 +402,7 @@ async def test_ingest_infected_file_creates_document_with_infected_status(
     doc = await db_session.get(Document, result.document_id)
     assert doc is not None
     assert doc.status == DocumentStatus.infected
+    assert doc.graph_extraction_status == GraphExtractionStatus.skipped.value
     assert doc.security_scan_result is not None
     assert doc.security_scan_result["status"] == "infected"
     assert doc.security_scan_result["signature"] == "EICAR.TEST"
@@ -432,6 +434,7 @@ async def test_ingest_dlp_blocked_txt_creates_blocked_document(db_session: Async
     doc = await db_session.get(Document, result.document_id)
     assert doc is not None
     assert doc.status == DocumentStatus.blocked
+    assert doc.graph_extraction_status == GraphExtractionStatus.skipped.value
     assert doc.dlp_scan_result is not None
     assert doc.dlp_scan_result["total_findings"] > 0
 
@@ -447,7 +450,14 @@ async def test_ingest_duplicate_warn_links_existing_document(db_session: AsyncSe
     bridge = _bridge()
 
     # First ingestion creates the document.
-    first = await _ingest(db_session, ctx, bridge, content=_TXT_BYTES)
+    first = await _ingest(
+        db_session,
+        ctx,
+        bridge,
+        content=_TXT_BYTES,
+        filename="notes.txt",
+        mime_type="text/plain",
+    )
     assert first.status == DocumentStatus.pending_scan
 
     # Second ingestion with same bytes → same checksum → duplicate.
@@ -504,7 +514,14 @@ async def test_ingest_duplicate_reject_skips_without_source_document(
 
     # Create the first document normally.
     bridge_warn = _bridge()
-    first = await _ingest(db_session, ctx, bridge_warn, content=_TXT_BYTES)
+    first = await _ingest(
+        db_session,
+        ctx,
+        bridge_warn,
+        content=_TXT_BYTES,
+        filename="notes.txt",
+        mime_type="text/plain",
+    )
     assert first.status == DocumentStatus.pending_scan
 
     # Use a reject-policy bridge for the second ingestion.
@@ -623,7 +640,14 @@ async def test_reingest_same_item_upserts_source_document(db_session: AsyncSessi
     ctx = await _make_bridge_context(db_session)
     bridge = _bridge()
 
-    first = await _ingest(db_session, ctx, bridge, content=_TXT_BYTES)
+    first = await _ingest(
+        db_session,
+        ctx,
+        bridge,
+        content=_TXT_BYTES,
+        filename="notes.txt",
+        mime_type="text/plain",
+    )
     assert first.status == DocumentStatus.pending_scan
 
     # Ingest the same external_item_id again with same content → duplicate → skipped + upserted
@@ -746,6 +770,8 @@ def _mock_doc(*, doc_id: UUID, checksum: str) -> _NS:
         checksum=checksum,
         file_type="txt",
         status="indexed",
+        graph_extraction_status=GraphExtractionStatus.completed.value,
+        graph_extraction_run_id=uuid4(),
         security_scan_result=None,
         dlp_scan_result=None,
     )
@@ -772,7 +798,9 @@ async def test_reingest_routes_to_update_when_source_doc_exists() -> None:
     bridge = _bridge()
     with (
         patch.object(bridge, "_find_existing_source_document", new=AsyncMock(return_value=src_doc)),
-        patch.object(bridge, "_reingest_existing_item", new=AsyncMock(return_value=expected)) as mock_reingest,
+        patch.object(
+            bridge, "_reingest_existing_item", new=AsyncMock(return_value=expected)
+        ) as mock_reingest,
     ):
         result = await bridge.ingest_item(
             AsyncMock(spec=AsyncSession),
@@ -892,5 +920,6 @@ async def test_reingest_changed_bytes_updates_document_in_place() -> None:
     mock_upload.assert_called_once()
     assert doc.checksum == new_checksum
     assert doc.status == DocumentStatus.pending_scan.value
+    assert doc.graph_extraction_status == GraphExtractionStatus.pending.value
     assert src_doc.content_hash == new_checksum
     assert src_doc.sync_version == 5

@@ -212,13 +212,19 @@ When Enterprise Graph is enabled, graph extraction runs after chunking and
 before the document is marked fully ready:
 
 1. Document chunks are written to PostgreSQL.
-2. Graph extraction marks the document `graph_extraction_status=extracting`.
-3. Derived entities, aliases, evidence links, and relations are written to Neo4j.
-4. Successful completion marks the graph status `completed`; failures mark it
+2. When a document enters processing or re-indexing, the backend sets
+   `graph_extraction_status=pending` so the UI can show graph work is queued.
+3. Graph extraction marks the document `graph_extraction_status=extracting`.
+4. Derived entities, aliases, evidence links, and relations are written to Neo4j.
+5. Successful completion marks the graph status `completed`; failures mark it
    `failed`; disabled or inapplicable flows use `skipped`.
-5. Re-index and graph retry flows clear the prior graph facts for the document
-   before rebuilding so retries do not duplicate entities or relations.
-6. Document delete removes graph facts, orphaned evidence, and the graph
+6. Re-index and graph retry flows clear the prior graph facts for the document
+   using the previous extraction run ID when available, so retries do not
+   duplicate entities or relations.
+7. Connector re-syncs that create or update a document reset graph work to
+   `pending`; connector-only documents that are blocked or infected are marked
+   `skipped`.
+8. Document delete removes graph facts, orphaned evidence, and the graph
    document node so no document-scoped facts remain behind.
 
 ## Query pipeline

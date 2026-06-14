@@ -43,7 +43,11 @@ from app.domains.documents.services.duplicate_detection import (
 from app.domains.documents.services.malware_scan import MalwareScanService
 from app.models.connector_source import SourceDocument, SourceReference
 from app.models.document import Document
-from app.models.enums import DocumentIngestionSource, DocumentStatus
+from app.models.enums import (
+    DocumentIngestionSource,
+    DocumentStatus,
+    GraphExtractionStatus,
+)
 
 if TYPE_CHECKING:
     pass
@@ -343,6 +347,9 @@ class ConnectorIngestionBridge:
                 security_scan_result=scan_dict,
                 external_item_id=external_item_id,
             )
+            doc.graph_extraction_status = GraphExtractionStatus.skipped.value
+            doc.graph_extraction_run_id = None
+            await session.flush()
             _logger.warning(
                 "connector.ingestion.infected",
                 external_item_id=str(external_item_id),
@@ -380,6 +387,9 @@ class ConnectorIngestionBridge:
                 dlp_scan_result=dlp_dict,
                 external_item_id=external_item_id,
             )
+            doc.graph_extraction_status = GraphExtractionStatus.skipped.value
+            doc.graph_extraction_run_id = None
+            await session.flush()
             _logger.warning(
                 "connector.ingestion.dlp_blocked",
                 external_item_id=str(external_item_id),
@@ -805,6 +815,12 @@ class ConnectorIngestionBridge:
             doc.status = new_doc_status.value
             doc.security_scan_result = scan_dict
             doc.dlp_scan_result = dlp_dict
+            if new_doc_status == DocumentStatus.pending_scan:
+                doc.graph_extraction_status = GraphExtractionStatus.pending.value
+                doc.graph_extraction_run_id = None
+            else:
+                doc.graph_extraction_status = GraphExtractionStatus.skipped.value
+                doc.graph_extraction_run_id = None
             if storage_key:
                 doc.storage_bucket = "documents"
                 doc.storage_object_key = storage_key

@@ -28,7 +28,7 @@ os.environ.setdefault("CLERK_JWT_AUDIENCE", "rudix-api")
 
 from app.core.config import settings
 from app.core.document_errors import decode_document_error
-from app.models.enums import DocumentStatus, EvaluationRunStatus
+from app.models.enums import DocumentStatus, EvaluationRunStatus, GraphExtractionStatus
 from app.workers import document_tasks, evaluation_tasks
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
@@ -192,6 +192,7 @@ async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
         uploaded_by_user_id=uuid4(),
         filename="policy.pdf",
         language="en",
+        graph_extraction_run_id=uuid4(),
     )
     chunk_pairs = [(0, "Alpha mentions Beta."), (1, "Beta is covered.")]
     chunk_id_by_index = {0: uuid4(), 1: uuid4()}
@@ -325,11 +326,144 @@ async def test_graph_extraction_helper_updates_status_and_prunes_existing_graph(
     assert result == {"entity_count": 1, "relation_count": 1}
     assert graph_status_calls[0][1] == "extracting"
     assert graph_status_calls[-1][1] == "completed"
-    assert any(name == "clear" for name, _ in graph_calls)
+    assert any(
+        name == "clear" and kwargs.get("extraction_run_id") == document.graph_extraction_run_id
+        for name, kwargs in graph_calls
+    )
     assert any(name == "entity" for name, _ in graph_calls)
     assert any(name == "alias" for name, _ in graph_calls)
     assert any(name == "evidence" for name, _ in graph_calls)
     assert any(name == "relation" for name, _ in graph_calls)
+
+
+def test_process_document_marks_graph_pending_before_processing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document_id = str(uuid4())
+    graph_status_calls: list[tuple[str, str, str | None]] = []
+
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.uploaded.value,
+    )
+
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
+        del error_message
+        assert status == DocumentStatus.processing
+        return True
+
+    async def _set_graph_status(
+        document_id: UUID,
+        *,
+        status: str,
+        run_id: UUID | None = None,
+    ) -> None:
+        graph_status_calls.append((str(document_id), status, str(run_id) if run_id else None))
+
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
+        class _Stats:
+            pages_modified = 0
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 1,
+                    "cleaning_pages_modified": 0,
+                    "cleaning_null_bytes_removed": 0,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 0,
+                    "cleaning_blank_lines_collapsed": 0,
+                    "cleaning_chars_before": 10,
+                    "cleaning_chars_after": 10,
+                }
+
+        class _EmbeddingResult:
+            batch_count = 1
+            retry_count = 0
+            input_tokens = 10
+            total_tokens = 10
+            latency_ms = 5
+            approximate_cost_usd = Decimal("0.000001")
+
+        return 1, 1, _Stats(), _EmbeddingResult()
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "_update_document_graph_status_async", _set_graph_status)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
+
+    result = document_tasks.process_document.run(document_id)
+    assert result["status"] == DocumentStatus.indexed.value
+    assert graph_status_calls == [(document_id, GraphExtractionStatus.pending.value, None)]
+
+
+def test_reindex_document_marks_graph_pending_before_processing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document_id = str(uuid4())
+    graph_status_calls: list[tuple[str, str, str | None]] = []
+
+    monkeypatch.setattr(
+        document_tasks,
+        "get_document_status",
+        lambda _: DocumentStatus.indexed.value,
+    )
+
+    def _set_document_status(
+        document_id: str, *, status: DocumentStatus, error_message: str | None = None
+    ) -> bool:
+        del error_message
+        assert status == DocumentStatus.processing
+        return True
+
+    async def _set_graph_status(
+        document_id: UUID,
+        *,
+        status: str,
+        run_id: UUID | None = None,
+    ) -> None:
+        graph_status_calls.append((str(document_id), status, str(run_id) if run_id else None))
+
+    async def _extract_and_store(_: str, **__: object) -> tuple[int, int, object, object]:
+        class _Stats:
+            pages_modified = 0
+
+            @staticmethod
+            def as_log_fields() -> dict[str, int]:
+                return {
+                    "cleaning_pages_total": 1,
+                    "cleaning_pages_modified": 0,
+                    "cleaning_null_bytes_removed": 0,
+                    "cleaning_invalid_characters_removed": 0,
+                    "cleaning_whitespace_runs_collapsed": 0,
+                    "cleaning_blank_lines_collapsed": 0,
+                    "cleaning_chars_before": 10,
+                    "cleaning_chars_after": 10,
+                }
+
+        class _EmbeddingResult:
+            batch_count = 1
+            retry_count = 0
+            input_tokens = 10
+            total_tokens = 10
+            latency_ms = 5
+            approximate_cost_usd = Decimal("0.000001")
+
+        return 1, 1, _Stats(), _EmbeddingResult()
+
+    monkeypatch.setattr(document_tasks, "set_document_status", _set_document_status)
+    monkeypatch.setattr(document_tasks, "_update_document_graph_status_async", _set_graph_status)
+    monkeypatch.setattr(
+        document_tasks, "_extract_and_store_document_pages_async", _extract_and_store
+    )
+
+    result = document_tasks.reindex_document.run(document_id)
+    assert result["status"] == DocumentStatus.indexed.value
+    assert graph_status_calls == [(document_id, GraphExtractionStatus.pending.value, None)]
 
 
 def test_graph_reindex_task_dispatches_rebuild_helper(

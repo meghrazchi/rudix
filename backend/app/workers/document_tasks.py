@@ -2305,6 +2305,7 @@ async def _run_document_graph_extraction_async(
     clear_existing_facts: bool = False,
 ) -> dict[str, int]:
     graph_run_id = uuid4()
+    previous_graph_run_id = getattr(document, "graph_extraction_run_id", None)
     resolved_organization_id = organization_id or str(document.organization_id)
     resolved_user_id = user_id or str(document.uploaded_by_user_id)
 
@@ -2322,9 +2323,14 @@ async def _run_document_graph_extraction_async(
         run_id=graph_run_id,
     )
     if clear_existing_facts:
+        cleanup_kwargs: dict[str, UUID | str] = {
+            "organization_id": document.organization_id,
+            "document_id": document.id,
+        }
+        if previous_graph_run_id is not None:
+            cleanup_kwargs["extraction_run_id"] = previous_graph_run_id
         await _graph_service.clear_document_graph_facts(
-            organization_id=document.organization_id,
-            document_id=document.id,
+            **cleanup_kwargs,
         )
 
     entity_count = 0
@@ -2959,6 +2965,18 @@ def process_document(
     if not processing_updated:
         raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
 
+    try:
+        document_uuid = _parse_uuid(document_id)
+    except ValueError:
+        document_uuid = None
+    if document_uuid is not None:
+        _run(
+            _update_document_graph_status_async(
+                document_uuid,
+                status=GraphExtractionStatus.pending.value,
+                run_id=None,
+            )
+        )
     log_document_event(
         event="document.processing.started",
         document_id=document_id,
@@ -3154,6 +3172,18 @@ def reindex_document(
         if not processing_updated:
             raise TransientTaskError(f"Unable to move document to processing state: {document_id}")
 
+    try:
+        document_uuid = _parse_uuid(document_id)
+    except ValueError:
+        document_uuid = None
+    if document_uuid is not None:
+        _run(
+            _update_document_graph_status_async(
+                document_uuid,
+                status=GraphExtractionStatus.pending.value,
+                run_id=None,
+            )
+        )
     log_document_event(
         event="document.reindex.started",
         document_id=document_id,
