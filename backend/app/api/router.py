@@ -17,6 +17,7 @@ from app.interfaces.http import (
     agent_runs,
     auth,
     billing,
+    bots,
     chat,
     collections,
     connector_discovery,
@@ -36,10 +37,10 @@ from app.interfaces.http import (
     notifications,
     observability,
     org_settings,
-    provider_observability,
     pipeline,
     profile,
     prompt_templates,
+    provider_observability,
     quality_gates,
     quotas,
     rag_profiles,
@@ -56,6 +57,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(auth.router)
 api_router.include_router(scim.router)
+api_router.include_router(bots.public_router)
 # WebSocket chat endpoint must be registered outside protected_router so that
 # FastAPI does not try to inject get_current_principal as an HTTP dependency
 # during the WebSocket upgrade (browsers cannot send Authorization headers).
@@ -102,6 +104,7 @@ protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(admin_roles.router)
 protected_router.include_router(admin_api_keys.router)
 protected_router.include_router(admin_webhooks.router)
+protected_router.include_router(bots.admin_router)
 protected_router.include_router(admin_email.router)
 protected_router.include_router(team.router)
 protected_router.include_router(team_invitations.router)

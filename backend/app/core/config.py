@@ -313,6 +313,7 @@ class Settings(BaseSettings):
     rate_limit_delete_requests: int = Field(default=20, ge=1, le=10000)
     rate_limit_admin_requests: int = Field(default=15, ge=1, le=10000)
     rate_limit_connector_requests: int = Field(default=15, ge=1, le=10000)
+    rate_limit_bot_requests: int = Field(default=30, ge=1, le=10000)
     rate_limit_auth_login_requests: int = Field(default=10, ge=1, le=10000)
     rate_limit_auth_refresh_requests: int = Field(default=60, ge=1, le=10000)
     rate_limit_auth_logout_requests: int = Field(default=30, ge=1, le=10000)
@@ -526,6 +527,20 @@ class Settings(BaseSettings):
     feature_enable_language_aware_rag: bool = True
     # WebSocket chat transport (F277).
     feature_chat_websocket_enabled: bool = True
+    # Slack / Microsoft Teams bot transport (F261).
+    feature_enable_collaboration_bots: bool = True
+    bot_slack_signing_secret: SecretStr | None = None
+    bot_slack_client_id: str | None = Field(default=None, min_length=1, max_length=255)
+    bot_slack_client_secret: SecretStr | None = None
+    bot_slack_oauth_redirect_uri: AnyHttpUrl | None = None
+    bot_slack_oauth_scopes: str = Field(
+        default="app_mentions:read,chat:write,commands,users:read,users:read.email",
+        min_length=1,
+        max_length=512,
+    )
+    bot_teams_shared_secret: SecretStr | None = None
+    bot_process_events_async: bool = True
+    bot_delivery_timeout_seconds: float = Field(default=5.0, ge=0.1, le=30.0)
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
     ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
@@ -1075,6 +1090,7 @@ class Settings(BaseSettings):
             "rate_limit_delete_requests": self.rate_limit_delete_requests,
             "rate_limit_admin_requests": self.rate_limit_admin_requests,
             "rate_limit_connector_requests": self.rate_limit_connector_requests,
+            "rate_limit_bot_requests": self.rate_limit_bot_requests,
             "rate_limit_auth_login_requests": self.rate_limit_auth_login_requests,
             "rate_limit_auth_refresh_requests": self.rate_limit_auth_refresh_requests,
             "rate_limit_auth_logout_requests": self.rate_limit_auth_logout_requests,
@@ -1221,6 +1237,7 @@ class Settings(BaseSettings):
                 "mcp": self.feature_enable_mcp,
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "connectors": self.feature_enable_connectors,
+                "collaboration_bots": self.feature_enable_collaboration_bots,
                 "expose_config_snapshot": self.feature_expose_config_snapshot,
                 "language_aware_rag": self.feature_enable_language_aware_rag,
                 "advanced_pdf_extraction": self.feature_enable_advanced_pdf_extraction,
@@ -1228,6 +1245,15 @@ class Settings(BaseSettings):
                 "pdf_extraction_images": self.pdf_extraction_enable_images,
             },
             "answer_language_workspace_default": self.answer_language_workspace_default,
+            "collaboration_bots": {
+                "slack_signing_secret_set": self.bot_slack_signing_secret is not None,
+                "slack_client_id_set": self.bot_slack_client_id is not None,
+                "slack_client_secret_set": self.bot_slack_client_secret is not None,
+                "slack_oauth_redirect_uri_set": self.bot_slack_oauth_redirect_uri is not None,
+                "teams_shared_secret_set": self.bot_teams_shared_secret is not None,
+                "process_events_async": self.bot_process_events_async,
+                "delivery_timeout_seconds": self.bot_delivery_timeout_seconds,
+            },
             "mcp": {
                 "server_name": self.mcp_server_name,
                 "transport": self.mcp_transport.value,

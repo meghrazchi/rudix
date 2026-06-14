@@ -74,6 +74,40 @@ Connector operations must also enforce:
 - connector sync endpoints should be rate-limited separately from general admin actions
 - revoked or disconnected connector sources must be excluded from retrieval and citation expansion
 
+Collaboration bot operations must also enforce:
+
+- Slack/Teams provider adapters normalize inbound events only; Rudix authorization,
+  source-scope, retrieval, and citation policy must stay in backend domain services.
+- Slack request signatures must be verified when `BOT_SLACK_SIGNING_SECRET` is
+  configured.
+- Teams bot webhooks must require authenticated transport. The built-in HTTP
+  adapter supports `BOT_TEAMS_SHARED_SECRET`; production Bot Framework
+  integrations should keep SDK validation in the transport adapter.
+- Bot installations must be organization-scoped and tied to provider
+  workspace/team/tenant IDs.
+- Slack/Teams bot delivery tokens must be stored only through the encrypted bot
+  credential path. Do not place tokens, secrets, passwords, or authorization
+  headers in installation `config` metadata.
+- Admins can enable or disable each installation; disabled installations must
+  reject ask events before retrieval.
+- External Slack/Teams users must be explicitly mapped to active Rudix users in
+  the same organization before asking questions.
+- The mapped Rudix user role and organization context must be used for every
+  chat query, source-scope resolution, Qdrant filter, and citation expansion.
+- Bot source scopes must use the existing `SourceScopeService`; collection and
+  source filters must never bypass collection access policy checks.
+- Bot citation links should point back to authenticated Rudix document routes.
+  Do not expose connector deep links or source ACL snapshots directly in Slack
+  or Teams responses unless a separate permission check allows it.
+- Public Slack/Teams events should acknowledge quickly and continue processing
+  through the same backend service. Background delivery failures must be safe,
+  audited, and must not leak provider tokens or internal error details.
+- Bot audit metadata must include provider, workspace/team/tenant IDs, external
+  user ID, channel/thread IDs, source-scope mode, outcome, and request ID, but
+  must not include raw questions, answers, tokens, secrets, or private document
+  text.
+- Bot asks must be rate-limited per provider workspace/team and external user.
+
 ## Agent tool security
 
 When agent/tool execution is enabled, enforce the same security boundary as API endpoints:
@@ -183,6 +217,7 @@ Recommended limits:
 | ----------------------- | ------------ |
 | Upload documents        | 20/hour/user |
 | Ask questions           | 60/hour/user |
+| Bot ask command         | 30/window/workspace/user |
 | Run evaluation          | Admin only   |
 | Manage prompt templates | Admin only   |
 | Delete documents        | 30/hour/user |
@@ -247,6 +282,8 @@ Track:
 - Share-link create/revoke/view actions.
 - Connector connection create/reconnect/disconnect/delete actions.
 - Connector source selection, permission changes, sync start/success/failure, and citation access.
+- Bot installation changes, user mapping changes, ask requests, rejected asks,
+  completed asks, and failed asks.
 
 Audit explorer/export requirements:
 

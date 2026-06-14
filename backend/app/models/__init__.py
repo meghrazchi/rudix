@@ -1,7 +1,7 @@
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.answer_share import AnswerShare
-from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.auth_session import AuthRefreshSession
+from app.models.bot import BotInstallation, BotUserMapping
 from app.models.chat import ChatMessage, ChatSession
 from app.models.chat_share import ChatShare
 from app.models.chunking_profile import OrganizationChunkingProfile
@@ -16,6 +16,7 @@ from app.models.connector import (
 from app.models.connector_credential import ConnectorCredential, ConnectorOAuthState
 from app.models.connector_source import ExternalItemTombstone, SourceDocument, SourceReference
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
+from app.models.custom_role import CustomRole, CustomRolePermission
 from app.models.document import Document, DocumentChunk, DocumentPage
 from app.models.email import EmailDeliveryLog, UserNotificationPreference
 from app.models.evaluation import (
@@ -26,8 +27,8 @@ from app.models.evaluation import (
     EvaluationSet,
 )
 from app.models.failed_job import FailedJob, FailedJobAuditLog
-from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.feature_flags import OrgFeatureFlagOverride
+from app.models.feedback_review_item import FeedbackReviewItem
 from app.models.governance import OrganizationGovernancePolicy
 from app.models.incident import Incident, IncidentNote
 from app.models.message_feedback import MessageFeedback
@@ -52,14 +53,14 @@ from app.models.user import User
 
 __all__ = [
     "AgentApproval",
-    "AnswerShare",
-    "CustomRole",
-    "CustomRolePermission",
     "AgentRun",
     "AgentStep",
     "AgentToolCall",
+    "AnswerShare",
     "AuditLog",
     "AuthRefreshSession",
+    "BotInstallation",
+    "BotUserMapping",
     "ChatMessage",
     "ChatSession",
     "ChatShare",
@@ -72,11 +73,12 @@ __all__ = [
     "ConnectorProvider",
     "ConnectorSyncJob",
     "ConnectorSyncRun",
+    "CustomRole",
+    "CustomRolePermission",
     "Document",
     "DocumentChunk",
     "DocumentPage",
     "EmailDeliveryLog",
-    "UserNotificationPreference",
     "EvaluationDatasetVersion",
     "EvaluationQuestion",
     "EvaluationResult",
@@ -93,15 +95,15 @@ __all__ = [
     "MessageFeedback",
     "Notification",
     "OrgDomainVerification",
+    "OrgFeatureFlagOverride",
     "OrgModelProviderChangeLog",
     "OrgModelProviderSettings",
     "OrgSCIMConfig",
     "OrgSSOConfig",
     "Organization",
-    "OrganizationInvitation",
-    "OrgFeatureFlagOverride",
     "OrganizationChunkingProfile",
     "OrganizationGovernancePolicy",
+    "OrganizationInvitation",
     "OrganizationMember",
     "PipelineEvent",
     "PipelineRun",
@@ -119,4 +121,5 @@ __all__ = [
     "SourceReference",
     "UsageEvent",
     "User",
+    "UserNotificationPreference",
 ]

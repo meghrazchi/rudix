@@ -1,7 +1,6 @@
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -35,6 +34,13 @@ from app.auth.token_codec import create_app_access_token
 from app.clients import qdrant_client as qdrant_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
+from app.domains.ai.providers.factory import default_provider_factory
+from app.domains.ai.providers.protocols import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+)
 from app.domains.chat.services.rerank_service import RerankService
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.interfaces.http import chat as chat_api
@@ -71,14 +77,6 @@ class FakeQdrantClient:
     def search(self, **kwargs: object) -> list[FakeQdrantResult]:
         self.calls.append(kwargs)
         return list(self._results)
-
-
-from app.domains.ai.providers.protocols import (
-    ChatCompletionRequest,
-    ChatCompletionResponse,
-    EmbeddingRequest,
-    EmbeddingResponse,
-)
 
 
 class _FakeChatProvider:
@@ -119,6 +117,8 @@ def _inject_providers(
     """Inject fake providers into the chat module's singleton services."""
     chat_provider = _FakeChatProvider(answer=answer)
     embed_provider = _FakeEmbeddingProvider()
+    default_provider_factory._chat_providers.clear()
+    default_provider_factory._chat_providers[settings.llm_default_provider] = chat_provider
     monkeypatch.setattr(chat_api._llm_service, "_provider", chat_provider)
     monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", embed_provider)
     return chat_provider, embed_provider
@@ -150,6 +150,7 @@ async def chat_query_client(
     qdrant_module.qdrant_client = None
     chat_api._llm_service._provider = None
     chat_api._query_retrieval_service._embedding_provider = None
+    default_provider_factory._chat_providers.clear()
 
 
 async def _seed_principal(
@@ -412,7 +413,10 @@ async def test_post_chat_orchestrates_and_persists_messages(
             )
         ]
     )
-    _inject_providers(monkeypatch, answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}')
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}',
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",
@@ -607,7 +611,10 @@ async def test_post_chat_rerank_toggle_disables_rerank_metadata_and_uses_top_k_l
             )
         ]
     )
-    _inject_providers(monkeypatch, answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}')
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}',
+    )
     monkeypatch.setattr(
         chat_api,
         "_rerank_service",
@@ -671,7 +678,10 @@ async def test_post_chat_accepts_structured_json_generation_response(
             )
         ]
     )
-    _inject_providers(monkeypatch, answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}')
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}',
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",
@@ -1259,7 +1269,10 @@ async def test_post_chat_scope_mode_all_behaves_like_no_scope_mode(
             )
         ]
     )
-    _inject_providers(monkeypatch, answer='{"answer":"Remote work is permitted two days per week.","not_found":false,"citations":[]}')
+    _inject_providers(
+        monkeypatch,
+        answer='{"answer":"Remote work is permitted two days per week.","not_found":false,"citations":[]}',
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",
@@ -1339,7 +1352,9 @@ async def test_post_chat_source_scope_includes_uploads_and_connector_sources(
             ),
         ]
     )
-    _inject_providers(monkeypatch, answer='{"answer":"Mixed scope answer.","not_found":false,"citations":[]}')
+    _inject_providers(
+        monkeypatch, answer='{"answer":"Mixed scope answer.","not_found":false,"citations":[]}'
+    )
 
     response = await chat_query_client.post(
         "/api/v1/chat",

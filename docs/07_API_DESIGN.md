@@ -869,6 +869,162 @@ Response:
 
 List evaluation runs that recorded the selected prompt template version.
 
+## Collaboration bots
+
+Slack and Microsoft Teams bot access is exposed as a transport adapter around the
+same Rudix chat query path used by `/chat`.
+
+Configuration:
+
+- `FEATURE_ENABLE_COLLABORATION_BOTS` controls the whole bot surface.
+- `BOT_SLACK_SIGNING_SECRET` verifies Slack signed requests when configured.
+- `BOT_SLACK_CLIENT_ID`, `BOT_SLACK_CLIENT_SECRET`, and optional
+  `BOT_SLACK_OAUTH_REDIRECT_URI` enable Slack OAuth installation.
+- `BOT_SLACK_OAUTH_SCOPES` controls requested Slack app scopes.
+- `BOT_TEAMS_SHARED_SECRET` verifies Teams webhook requests using a bearer secret
+  when configured.
+- `BOT_PROCESS_EVENTS_ASYNC` controls whether public bot events acknowledge
+  quickly and deliver the final answer back to the platform.
+- `BOT_DELIVERY_TIMEOUT_SECONDS` caps Slack/Teams outbound delivery calls.
+- `RATE_LIMIT_BOT_REQUESTS` applies per workspace/team and external user within
+  the shared `RATE_LIMIT_WINDOW_SECONDS`.
+
+Admin setup endpoints require `owner|admin`:
+
+- `POST /admin/bots/slack/oauth/start`
+- `GET /admin/bots/installations`
+- `POST /admin/bots/installations`
+- `PATCH /admin/bots/installations/{installation_id}`
+- `PUT /admin/bots/installations/{installation_id}/credential`
+- `DELETE /admin/bots/installations/{installation_id}/credential`
+- `GET /admin/bots/installations/{installation_id}/mappings`
+- `PUT /admin/bots/installations/{installation_id}/mappings`
+
+Installation records store provider metadata only: provider, external
+workspace/team/tenant IDs, enabled/disabled status, display name, optional
+default `source_scope`, safe config metadata, and encrypted credential metadata.
+Raw Slack or Teams bot tokens are encrypted at rest and never returned by API
+responses.
+
+External-user mappings bind one Slack/Teams user ID to a Rudix user in the same
+organization. Bot ask events are rejected unless:
+
+- the workspace/team installation exists
+- the installation is enabled
+- the external user is mapped and active
+- the mapped Rudix user is active in the organization
+- the request is within the bot rate limit
+
+Provider event endpoints:
+
+- `POST /bots/slack/events`
+- `GET /bots/slack/oauth/callback`
+- `POST /bots/teams/events`
+
+Slack adapters accept URL verification payloads, JSON event callbacks, and
+slash-command form payloads. Teams adapters accept Activity-style JSON payloads.
+Both normalize to the same internal ask event:
+
+```json
+{
+  "workspace_id": "T123 or tenant-id",
+  "user_id": "U123 or aadObjectId",
+  "text": "What is the leave policy?",
+  "source_scope": {
+    "mode": "collections",
+    "collection_ids": ["uuid"]
+  }
+}
+```
+
+If the event omits `source_scope`, the installation default is used. If neither
+is set, the query falls back to normal workspace scope. Collection, source, and
+document filters are resolved by the existing source-scope and document-access
+services before retrieval.
+
+Slash commands and message text can include lightweight selectors:
+
+- `--collection <collection_id>` limits retrieval to one or more collections.
+- `--document <document_id>` forwards explicit document IDs to the same chat
+  permission checks used by the web API.
+
+By default, event endpoints return a fast acknowledgement and deliver the final
+answer asynchronously to Slack `response_url`, Slack `chat.postMessage` thread,
+or Teams Bot Framework conversation endpoints when delivery credentials are
+configured. Local/debug callers can set `X-Rudix-Bot-Sync: true` to receive the
+full `BotAskResponse` in the HTTP response.
+
+Responses include safe platform-ready text, an optional loading string, the
+persisted chat session/message IDs, not-found status, and Rudix citation links:
+
+```json
+{
+  "ok": true,
+  "provider": "slack",
+  "response_type": "in_channel",
+  "text": "Employees receive 20 paid leave days per year.\n\nSources:\n[1] policy.pdf, p. 4: http://localhost:3000/documents/...",
+  "loading_text": "Rudix is searching the permitted sources for an answer.",
+  "thread_id": "1710000000.0001",
+  "chat_session_id": "uuid",
+  "message_id": "uuid",
+  "not_found": false,
+  "citations": [
+    {
+      "label": "policy.pdf, p. 4",
+      "document_id": "uuid",
+      "chunk_id": "uuid",
+      "filename": "policy.pdf",
+      "page_number": 4,
+      "url": "http://localhost:3000/documents/{document_id}?chunk_id={chunk_id}&citation=1"
+    }
+  ]
+}
+```
+
+Error responses are safe and actionable:
+
+```json
+{
+  "ok": false,
+  "provider": "teams",
+  "response_type": "ephemeral",
+  "text": "Your Slack or Teams account is not mapped to a Rudix user.",
+  "error": {
+    "code": "bot_user_not_mapped",
+    "message": "Your Slack or Teams account is not mapped to a Rudix user."
+  }
+}
+```
+
+Audit events:
+
+- `bots.installation.created`
+- `bots.installation.updated`
+- `bots.credential.updated`
+- `bots.credential.cleared`
+- `bots.slack.oauth.started`
+- `bots.user_mapping.upserted`
+- `bots.ask.requested`
+- `bots.ask.completed`
+- `bots.ask.rejected_disabled`
+- `bots.ask.rejected_unmapped_user`
+- `bots.ask.rejected_inactive_user`
+- `bots.ask.rejected_rate_limited`
+- `bots.ask.failed`
+- `bots.delivery.completed`
+- `bots.delivery.failed`
+
+Audit metadata includes provider, workspace/team/tenant IDs, external user ID,
+channel/thread IDs, source-scope mode, chat session/message IDs when available,
+citation count, not-found status, and safe outcome data. Raw questions, answers,
+tokens, secrets, and private document text are not written to bot audit metadata.
+
+Transport note: official Slack and Microsoft Teams SDKs should remain transport
+adapters only. They may acknowledge events quickly and dispatch the normalized
+ask event to the same backend service; Rudix authorization, scope resolution,
+retrieval, citation rendering, audit, and rate limiting must remain in the core
+backend.
+
 ## Search/debug endpoints
 
 ### POST `/retrieval/search`
@@ -1621,6 +1777,7 @@ Recommended:
 | ------------------- | ---------------------- |
 | `/documents/upload` | 20 uploads/hour/user   |
 | `/chat`             | 60 questions/hour/user |
+| `/bots/*/events`    | 30 asks/window/workspace/user |
 | `/evaluations/run`  | Admin only             |
 | `/retrieval/search` | Admin/debug only       |
 

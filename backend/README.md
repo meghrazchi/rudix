@@ -68,6 +68,7 @@ make seed-dev
 - Task terminal failures mark related document/evaluation rows as `failed` where applicable.
 - Redis-backed endpoint rate limiting is configurable and disabled by default in development/test (`RATE_LIMIT_DISABLE_IN_DEVELOPMENT`, `RATE_LIMIT_DISABLE_IN_TEST`).
 - Connector sync endpoints use connector-specific Redis rate limits (`RATE_LIMIT_CONNECTOR_REQUESTS`) in addition to the shared admin/document scopes.
+- Slack and Microsoft Teams bot ask events use bot-specific Redis rate limits (`RATE_LIMIT_BOT_REQUESTS`) keyed by provider workspace/team and external user.
 - Chunking/index metadata is environment-driven (`CHUNK_SIZE_TOKENS`, `CHUNK_OVERLAP_TOKENS`, `DOCUMENT_INDEX_VERSION`, `CHUNKING_STRATEGY`).
 - `CHUNKING_STRATEGY` selects the default strategy for all document processing (default: `token_recursive`). Set to `adaptive_hybrid` to enable automatic per-document strategy selection based on file type, OCR status, and structure heuristics.
 - Upload malware scanning is environment-driven (`MALWARE_SCAN_*`) and runs before MinIO writes.
@@ -116,6 +117,8 @@ Current endpoint authorization:
 - `documents/upload` and `documents/upload-url`: `owner|admin|member`
 - `evaluations` (POST): `owner|admin`
 - `admin/usage`, `admin/audit-logs`, `admin/audit-logs/export`, and `admin/governance`: `owner|admin`
+- `admin/bots/*`: `owner|admin`
+- `bots/slack/events` and `bots/teams/events`: public transport endpoints guarded by Slack signatures or Teams bearer secret when configured.
 - `documents/{document_id}`, `chat` `document_ids`, and `evaluations.document_id` are org-scoped; cross-org lookups return `404`.
 - Retrieval-side qdrant filters must include `organization_id` (see `app/domains/documents/services/qdrant_filters.py`).
 
@@ -217,6 +220,49 @@ Relevant settings:
 - `CONNECTOR_OAUTH_CLIENTS`
 - `FEATURE_ENABLE_CONNECTORS`
 - `CONNECTOR_ROLLOUT_STAGE`
+
+## Collaboration bots (F261)
+
+Slack and Microsoft Teams bot access is implemented as thin HTTP transport
+adapters around the existing Rudix chat query path.
+
+Full setup and local testing guide:
+`docs/20_COLLABORATION_BOT_INTEGRATION.md`.
+
+Key behavior:
+
+- Bot feature rollout is controlled by `FEATURE_ENABLE_COLLABORATION_BOTS`.
+- Slack OAuth installation starts at `POST /api/v1/admin/bots/slack/oauth/start`
+  and completes at `/api/v1/bots/slack/oauth/callback`.
+- Admins manage installations with `GET|POST|PATCH /api/v1/admin/bots/installations`.
+- Admins can rotate encrypted platform bot tokens with `PUT /api/v1/admin/bots/installations/{installation_id}/credential`.
+- Admins map external Slack/Teams users with `PUT /api/v1/admin/bots/installations/{installation_id}/mappings`.
+- Ask events arrive at `POST /api/v1/bots/slack/events` or `POST /api/v1/bots/teams/events`.
+- Slack request signatures are verified when `BOT_SLACK_SIGNING_SECRET` is set.
+- Teams requests require `Authorization: Bearer <secret>` when `BOT_TEAMS_SHARED_SECRET` is set.
+- Public bot events acknowledge quickly by default, then post final answers back
+  to Slack `response_url`, Slack thread, or Teams conversation where delivery
+  credentials are configured. Use `X-Rudix-Bot-Sync: true` for local curl tests
+  that should return the answer directly.
+- External users must be mapped to active Rudix users in the same organization before asking questions.
+- Bot queries use the mapped Rudix user's organization and role context, then reuse existing source-scope, document-access, retrieval, citation, usage, and audit services.
+- Bot citations render as Rudix document links only; connector deep links and ACL snapshots are not sent to Slack or Teams responses.
+- Safe bot states include empty question, disabled installation, unmapped user, inactive user, rate-limited, and query failure.
+
+Relevant settings:
+
+- `FEATURE_ENABLE_COLLABORATION_BOTS`
+- `BOT_SLACK_SIGNING_SECRET`
+- `BOT_SLACK_CLIENT_ID`
+- `BOT_SLACK_CLIENT_SECRET`
+- `BOT_SLACK_OAUTH_REDIRECT_URI`
+- `BOT_SLACK_OAUTH_SCOPES`
+- `BOT_TEAMS_SHARED_SECRET`
+- `BOT_PROCESS_EVENTS_ASYNC`
+- `BOT_DELIVERY_TIMEOUT_SECONDS`
+- `RATE_LIMIT_BOT_REQUESTS`
+
+## Standalone MCP server runtime
 
 Supported transports:
 
