@@ -125,7 +125,7 @@ describe("AppShell top bar menus", () => {
       onSignOut,
       session: {
         userId: "user-1",
-        email: "owner@example.com",
+        email: "admin@example.com",
         role: "owner",
         organizationId: "org-1",
         organizationName: "Org One",
@@ -137,10 +137,13 @@ describe("AppShell top bar menus", () => {
     profileButton.focus();
     await userEvent.keyboard("{Enter}");
 
-    expect(await screen.findByText("User profile")).toBeInTheDocument();
-    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
-    expect(screen.getByText("User ID: user-1")).toBeInTheDocument();
+    expect(await screen.findByText("admin")).toBeInTheDocument();
+    expect(screen.getByText("admin@example.com")).toBeInTheDocument();
     expect(screen.getByText("Organization: Org One")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
+      "href",
+      "/settings?tab=profile",
+    );
     expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",

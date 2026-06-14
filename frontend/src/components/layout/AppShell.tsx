@@ -28,6 +28,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 import { OnboardingChecklist } from "@/components/onboarding/OnboardingChecklist";
+import { ProfileMenu } from "@/components/layout/ProfileMenu";
 import { ServiceStatusBanner } from "@/components/admin/ServiceStatusBanner";
 import { WorkspaceSwitcherCard } from "@/components/workspace/WorkspaceSwitcherCard";
 import {
@@ -49,7 +50,6 @@ import type {
 import type { AuthenticatedSession } from "@/lib/auth-session";
 import {
   type HelpMenuItem,
-  isAdminLikeRole,
   isExternalHref,
   resolveHelpMenuItems,
 } from "@/lib/top-bar";
@@ -69,37 +69,6 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-function useRoleLabel() {
-  const t = useTranslations("appShell.roles");
-  return function roleLabel(role: AuthenticatedSession["role"]): string {
-    if (role === "owner") return t("owner");
-    if (role === "admin") return t("admin");
-    if (role === "member") return t("member");
-    return t("viewer");
-  };
-}
-
-function profileDisplayName(session: AuthenticatedSession): string {
-  if (session.email && session.email.includes("@")) {
-    return session.email.split("@")[0] ?? "User";
-  }
-  return session.email ?? session.userId;
-}
-
-function profileInitials(displayName: string): string {
-  const parts = displayName
-    .split(/[\s._-]+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
-
-  if (parts.length === 0) {
-    return "U";
-  }
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
 
 function useRouteDisabledReason() {
   const t = useTranslations("navigation");
@@ -365,8 +334,6 @@ export function AppShell({
   const t = useTranslations("appShell");
   const tCommon = useTranslations("common");
   const tNav = useTranslations("navigation");
-  const tAuth = useTranslations("auth");
-  const getRoleLabel = useRoleLabel();
   const getCommandSectionLabel = useCommandSectionLabel();
   const navLabel = useNavLabelMap();
   const navDescription = useNavDescriptionMap();
@@ -589,8 +556,6 @@ export function AppShell({
     setOpenMenu(null);
   }
 
-  const displayName = profileDisplayName(session);
-  const displayInitials = profileInitials(displayName);
   const mainOverflowClass =
     activeRoute.key === "chat" ? "overflow-hidden" : "overflow-auto";
 
@@ -927,7 +892,7 @@ export function AppShell({
                     aria-haspopup="menu"
                     aria-expanded={openMenu === "notifications"}
                     aria-label={t("notifications")}
-                    className="relative inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
+                    className="relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
                     <span
                       aria-hidden="true"
@@ -959,7 +924,7 @@ export function AppShell({
                     aria-expanded={openMenu === "help"}
                     aria-label={t("help")}
                     data-onboarding="help-button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
+                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-[#65617b] transition hover:bg-[#f3f1ff]"
                   >
                     <span
                       aria-hidden="true"
@@ -1038,88 +1003,14 @@ export function AppShell({
 
                 <span className="hidden h-8 w-px bg-[#e5e3f1] md:block" />
 
-                <div className="relative" ref={profileMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => toggleMenu("profile")}
-                    aria-haspopup="menu"
-                    aria-expanded={openMenu === "profile"}
-                    aria-label={t("profileMenu")}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[#e5e3f1] px-2 py-1.5 text-[#4a4662] transition hover:bg-[#f3f1ff]"
-                  >
-                    <span className="hidden text-right xl:block">
-                      <span className="block text-sm font-semibold">
-                        {displayName}
-                      </span>
-                      <span className="block text-[10px] font-semibold tracking-wide text-[#7b7793] uppercase">
-                        {getRoleLabel(session.role)}
-                      </span>
-                    </span>
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#d9d6e8] bg-[#f4f2ff] text-xs font-bold text-[#3525cd]">
-                      {displayInitials}
-                    </span>
-                  </button>
-
-                  {openMenu === "profile" ? (
-                    <div
-                      role="menu"
-                      aria-label={t("profileMenuPanel")}
-                      className="absolute right-0 z-50 mt-2 w-[280px] rounded-xl border border-[#d7d4e8] bg-white p-3 shadow-xl"
-                    >
-                      <p className="text-xs font-bold tracking-[0.14em] text-[#5d58a8] uppercase">
-                        {t("userProfile")}
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-[#2f2a46]">
-                        {session.email ?? session.userId}
-                      </p>
-                      <p className="text-xs text-[#68647b]">
-                        {t("userId")}: {session.userId}
-                      </p>
-                      <p className="mt-1 text-xs text-[#68647b]">
-                        {t("organization")}:{" "}
-                        {session.organizationName ??
-                          session.organizationId ??
-                          t("unassigned")}
-                      </p>
-                      <p className="text-xs text-[#68647b]">
-                        {t("role")}: {getRoleLabel(session.role)}
-                      </p>
-
-                      <div className="mt-3 border-t border-[#ebe8f7] pt-2">
-                        <Link
-                          href="/settings"
-                          role="menuitem"
-                          data-menu-autofocus="true"
-                          onClick={closeMenu}
-                          className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
-                        >
-                          {tNav("settings")}
-                        </Link>
-                        {isAdminLikeRole(session.role) ? (
-                          <Link
-                            href="/admin"
-                            role="menuitem"
-                            onClick={closeMenu}
-                            className="block rounded-lg px-3 py-2 text-sm font-semibold text-[#3f3b58] hover:bg-[#f5f3ff]"
-                          >
-                            {tNav("adminUsage")}
-                          </Link>
-                        ) : null}
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            closeMenu();
-                            onSignOut();
-                          }}
-                          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                        >
-                          {tAuth("signOut")}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
+                <ProfileMenu
+                  session={session}
+                  isOpen={openMenu === "profile"}
+                  onToggle={() => toggleMenu("profile")}
+                  onClose={closeMenu}
+                  onSignOut={onSignOut}
+                  menuRef={profileMenuRef}
+                />
               </div>
             </div>
           </header>
