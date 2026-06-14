@@ -554,6 +554,14 @@ class Settings(BaseSettings):
     neo4j_connection_timeout_seconds: float = Field(default=5.0, ge=0.1, le=60.0)
     neo4j_query_timeout_seconds: float = Field(default=10.0, ge=0.1, le=120.0)
     neo4j_max_connection_pool_size: int = Field(default=50, ge=1, le=500)
+    # Entity extraction pipeline (F283): LLM-based entity extraction from document chunks.
+    # Requires enterprise_graph_enabled=true. Set FEATURE_ENABLE_ENTITY_EXTRACTION=true to activate.
+    # strict_mode=true aborts the document pipeline on extraction failure (default: continue).
+    feature_enable_entity_extraction: bool = False
+    entity_extraction_batch_size: int = Field(default=10, ge=1, le=50)
+    entity_extraction_strict_mode: bool = False
+    entity_extraction_timeout_seconds: float = Field(default=60.0, ge=5.0, le=300.0)
+    entity_extraction_max_retries: int = Field(default=2, ge=0, le=5)
 
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)

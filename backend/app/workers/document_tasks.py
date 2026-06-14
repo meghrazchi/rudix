@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Coroutine
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from sqlalchemy import select
@@ -49,6 +49,8 @@ from app.domains.documents.services.text_normalization import (
     TextCleaningStats,
     clean_extracted_sections,
 )
+from app.domains.graph.services.entity_extraction_service import EntityExtractionService
+from app.domains.graph.services.graph_service import GraphService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 from app.models.enums import DocumentStatus
@@ -66,6 +68,12 @@ _usage_repository = UsageRepository()
 _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService(strategy=settings.chunking_strategy)
 _source_provenance_service = SourceProvenanceService()
+_graph_service = GraphService()
+_entity_extraction_service = EntityExtractionService(
+    batch_size=settings.entity_extraction_batch_size,
+    timeout_seconds=settings.entity_extraction_timeout_seconds,
+    max_retries=settings.entity_extraction_max_retries,
+)
 
 
 def _make_chunking_service(
@@ -1365,6 +1373,136 @@ async def _extract_and_store_document_pages_async(
                     for c, p in zip(all_created_chunks, chunks, strict=True)
                     if not is_hierarchical or p.chunk_level == 1
                 ]
+
+                # Entity extraction stage (F283): extract entities from all chunks and
+                # write them to the Enterprise Graph. Failures are isolated from the
+                # SQLAlchemy transaction — non-strict mode logs and continues; strict
+                # mode raises DocumentPipelineTransientError to abort the pipeline.
+                if settings.enterprise_graph_enabled and settings.feature_enable_entity_extraction:
+                    current_stage = "extract_entities"
+                    _extraction_run_id = uuid4()
+                    await pipeline_recorder.emit_stage(
+                        stage="extract_entities",
+                        stage_status="started",
+                        config={
+                            "batch_size": settings.entity_extraction_batch_size,
+                            "strict_mode": settings.entity_extraction_strict_mode,
+                            "run_id": str(_extraction_run_id),
+                        },
+                    )
+                    try:
+                        await _graph_service.start_extraction_run(
+                            organization_id=document.organization_id,
+                            document_id=document.id,
+                            run_id=_extraction_run_id,
+                            strategy="llm_extraction_v1",
+                        )
+                        _chunk_pairs: list[tuple[int, str]] = [
+                            (p.chunk_index, p.text)
+                            for p in chunks
+                            if p.text.strip()
+                        ]
+                        _chunk_id_by_index: dict[int, UUID] = {
+                            p.chunk_index: c.id
+                            for p, c in zip(chunks, all_created_chunks, strict=True)
+                        }
+                        _page_by_index: dict[int, int | None] = {
+                            p.chunk_index: p.page_number for p in chunks
+                        }
+                        _entity_result = await _entity_extraction_service.extract_from_chunks(
+                            chunks=_chunk_pairs,
+                            document_language=document.language,
+                            organization_id=str(document.organization_id),
+                        )
+                        for _item in _entity_result.entities:
+                            _chunk_db_id = _chunk_id_by_index.get(_item.source_chunk_index)
+                            await _graph_service.upsert_entity(
+                                organization_id=document.organization_id,
+                                entity_id=_item.entity_id,
+                                entity_type=_item.type,
+                                canonical_name=_item.name,
+                                properties={
+                                    "original_name": _item.original_name,
+                                    "aliases": _item.aliases,
+                                    "language": _item.language,
+                                },
+                            )
+                            if _chunk_db_id is not None:
+                                await _graph_service.link_evidence(
+                                    organization_id=document.organization_id,
+                                    entity_id=_item.entity_id,
+                                    chunk_id=_chunk_db_id,
+                                    source_document_id=document.id,
+                                    confidence=_item.confidence,
+                                    citation_text=_item.evidence_span,
+                                    citation_reference=(
+                                        f"{document.filename}, chunk {_item.source_chunk_index}"
+                                    ),
+                                    extraction_run_id=_extraction_run_id,
+                                    page_number=_page_by_index.get(_item.source_chunk_index),
+                                )
+                        await _graph_service.finish_extraction_run(
+                            organization_id=document.organization_id,
+                            run_id=_extraction_run_id,
+                            status="completed",
+                            entity_count=len(_entity_result.entities),
+                        )
+                        log_document_event(
+                            event="document.pipeline.stage",
+                            document_id=str(document.id),
+                            request_id=request_id,
+                            organization_id=resolved_organization_id,
+                            user_id=resolved_user_id,
+                            stage="extract_entities",
+                            stage_status="completed",
+                            entity_count=len(_entity_result.entities),
+                            batch_count=_entity_result.batch_count,
+                            validation_errors=_entity_result.validation_errors,
+                            llm_errors=_entity_result.llm_errors,
+                        )
+                        await pipeline_recorder.emit_stage(
+                            stage="extract_entities",
+                            stage_status="completed",
+                            outputs={
+                                "entity_count": len(_entity_result.entities),
+                                "batch_count": _entity_result.batch_count,
+                                "validation_errors": _entity_result.validation_errors,
+                                "llm_errors": _entity_result.llm_errors,
+                                "total_chunks": _entity_result.total_chunks,
+                            },
+                        )
+                    except Exception as _entity_exc:
+                        log_document_event(
+                            event="document.pipeline.stage",
+                            document_id=str(document.id),
+                            request_id=request_id,
+                            organization_id=resolved_organization_id,
+                            user_id=resolved_user_id,
+                            stage="extract_entities",
+                            stage_status="failed",
+                            error=str(_entity_exc),
+                        )
+                        try:
+                            await _graph_service.finish_extraction_run(
+                                organization_id=document.organization_id,
+                                run_id=_extraction_run_id,
+                                status="failed",
+                                error=str(_entity_exc),
+                            )
+                        except Exception:
+                            pass
+                        if settings.entity_extraction_strict_mode:
+                            raise DocumentPipelineTransientError(
+                                stage="extract_entities",
+                                code="ENTITY_EXTRACTION_FAILED",
+                                category="processing",
+                                message=f"Entity extraction failed: {_entity_exc}",
+                            ) from _entity_exc
+                        await pipeline_recorder.emit_stage(
+                            stage="extract_entities",
+                            stage_status="failed",
+                            error_message=str(_entity_exc),
+                        )
 
                 current_stage = "embed"
                 log_document_event(
