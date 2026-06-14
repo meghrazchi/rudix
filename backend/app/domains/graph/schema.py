@@ -108,4 +108,45 @@ FOR (c:Chunk) ON (c.source_connector)""",
 FOR (r:ExtractionRun) ON (r.run_id)""",
         ],
     ),
+    GraphMigration(
+        version="0003",
+        description=(
+            "Relationship property indexes for relation status, relation_id, and confidence (F284). "
+            "One index per relationship type is required by Neo4j for relationship property indexes."
+        ),
+        statements=[
+            # relation_id index per typed relationship (needed for GET/PATCH/DELETE by id)
+            *[
+                f"""CREATE INDEX {rel_type.lower()}_relation_id_idx IF NOT EXISTS
+FOR ()-[r:{rel_type}]-() ON (r.relation_id)"""
+                for rel_type in (
+                    "MENTIONS",
+                    "OWNS",
+                    "RELATES_TO",
+                    "COVERS_CONTROL",
+                    "CONTAINS_OBLIGATION",
+                    "PROVIDES_SERVICE_TO",
+                    "SUPERSEDES",
+                    "AFFECTS",
+                    "DEPENDS_ON",
+                )
+            ],
+            # status index per typed relationship (needed for list-by-status filter)
+            *[
+                f"""CREATE INDEX {rel_type.lower()}_status_idx IF NOT EXISTS
+FOR ()-[r:{rel_type}]-() ON (r.status)"""
+                for rel_type in (
+                    "MENTIONS",
+                    "OWNS",
+                    "RELATES_TO",
+                    "COVERS_CONTROL",
+                    "CONTAINS_OBLIGATION",
+                    "PROVIDES_SERVICE_TO",
+                    "SUPERSEDES",
+                    "AFFECTS",
+                    "DEPENDS_ON",
+                )
+            ],
+        ],
+    ),
 ]

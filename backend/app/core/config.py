@@ -562,6 +562,18 @@ class Settings(BaseSettings):
     entity_extraction_strict_mode: bool = False
     entity_extraction_timeout_seconds: float = Field(default=60.0, ge=5.0, le=300.0)
     entity_extraction_max_retries: int = Field(default=2, ge=0, le=5)
+    # Relation extraction pipeline (F284): LLM-based relation extraction, runs after entity
+    # extraction. Requires enterprise_graph_enabled=true and feature_enable_entity_extraction=true.
+    # confidence_threshold: relations below this value receive status=low_confidence.
+    # review_mode: when true, all relations start as unverified regardless of confidence.
+    # strict_mode: when true, pipeline fails on extraction error (default: continue).
+    feature_enable_relation_extraction: bool = False
+    relation_extraction_batch_size: int = Field(default=10, ge=1, le=50)
+    relation_extraction_strict_mode: bool = False
+    relation_extraction_timeout_seconds: float = Field(default=60.0, ge=5.0, le=300.0)
+    relation_extraction_max_retries: int = Field(default=2, ge=0, le=5)
+    relation_confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    relation_extraction_review_mode: bool = False
 
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)

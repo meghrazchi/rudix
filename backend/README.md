@@ -588,6 +588,13 @@ Notes:
 - Qdrant payloads include security and citation fields: `organization_id`, `user_id`, `document_id`, `chunk_id`, `filename`, `file_type`, `page_number`, `chunk_index`, `text`, `embedding_model`, `index_version`.
 - Worker marks status transitions `uploaded -> processing -> indexed` and terminal failures as `failed`.
 - Failure rows store a safe `error_message` plus structured `error_details` (stage/code/category/retryable/message) for frontend polling.
+- Enterprise Graph uses Neo4j as a derived layer only. PostgreSQL remains the
+  source of truth, Qdrant remains the vector store, and graph features stay
+  gated behind `ENTERPRISE_GRAPH_ENABLED`.
+- Relation extraction runs after entity extraction when
+  `FEATURE_ENABLE_RELATION_EXTRACTION=true`. Confidence below
+  `RELATION_CONFIDENCE_THRESHOLD` is marked `low_confidence`; review mode keeps
+  newly extracted relations in `unverified` state until they are approved.
 
 ## Directory overview
 

@@ -51,6 +51,7 @@ from app.domains.documents.services.text_normalization import (
 )
 from app.domains.graph.services.entity_extraction_service import EntityExtractionService
 from app.domains.graph.services.graph_service import GraphService
+from app.domains.graph.services.relation_extraction_service import RelationExtractionService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
 from app.models.enums import DocumentStatus
@@ -73,6 +74,12 @@ _entity_extraction_service = EntityExtractionService(
     batch_size=settings.entity_extraction_batch_size,
     timeout_seconds=settings.entity_extraction_timeout_seconds,
     max_retries=settings.entity_extraction_max_retries,
+)
+_relation_extraction_service = RelationExtractionService(
+    batch_size=settings.relation_extraction_batch_size,
+    timeout_seconds=settings.relation_extraction_timeout_seconds,
+    max_retries=settings.relation_extraction_max_retries,
+    confidence_threshold=settings.relation_confidence_threshold,
 )
 
 
@@ -1374,6 +1381,12 @@ async def _extract_and_store_document_pages_async(
                     if not is_hierarchical or p.chunk_level == 1
                 ]
 
+                # Sentinels shared between entity and relation extraction stages (F283/F284).
+                _entity_result = None
+                _chunk_pairs: list[tuple[int, str]] = []
+                _chunk_id_by_index: dict[int, UUID] = {}
+                _page_by_index: dict[int, int | None] = {}
+
                 # Entity extraction stage (F283): extract entities from all chunks and
                 # write them to the Enterprise Graph. Failures are isolated from the
                 # SQLAlchemy transaction — non-strict mode logs and continues; strict
@@ -1397,16 +1410,16 @@ async def _extract_and_store_document_pages_async(
                             run_id=_extraction_run_id,
                             strategy="llm_extraction_v1",
                         )
-                        _chunk_pairs: list[tuple[int, str]] = [
+                        _chunk_pairs = [
                             (p.chunk_index, p.text)
                             for p in chunks
                             if p.text.strip()
                         ]
-                        _chunk_id_by_index: dict[int, UUID] = {
+                        _chunk_id_by_index = {
                             p.chunk_index: c.id
                             for p, c in zip(chunks, all_created_chunks, strict=True)
                         }
-                        _page_by_index: dict[int, int | None] = {
+                        _page_by_index = {
                             p.chunk_index: p.page_number for p in chunks
                         }
                         _entity_result = await _entity_extraction_service.extract_from_chunks(
@@ -1502,6 +1515,126 @@ async def _extract_and_store_document_pages_async(
                             stage="extract_entities",
                             stage_status="failed",
                             error_message=str(_entity_exc),
+                        )
+
+                # Relation extraction stage (F284): extract relationships between already-
+                # identified entities. Runs only when entity extraction is also enabled and
+                # completed; uses the entity name→id map built above.
+                if (
+                    settings.enterprise_graph_enabled
+                    and settings.feature_enable_entity_extraction
+                    and settings.feature_enable_relation_extraction
+                    and _entity_result is not None
+                ):
+                    current_stage = "extract_relations"
+                    _rel_run_id = uuid4()
+                    await pipeline_recorder.emit_stage(
+                        stage="extract_relations",
+                        stage_status="started",
+                        config={
+                            "batch_size": settings.relation_extraction_batch_size,
+                            "strict_mode": settings.relation_extraction_strict_mode,
+                            "confidence_threshold": settings.relation_confidence_threshold,
+                            "review_mode": settings.relation_extraction_review_mode,
+                            "run_id": str(_rel_run_id),
+                        },
+                    )
+                    try:
+                        # Build entity name→id lookup and per-chunk entity lists from
+                        # the entity extraction result.
+                        _entity_name_to_id = {
+                            _item.name.lower().strip(): _item.entity_id
+                            for _item in _entity_result.entities
+                        }
+                        _entity_names_by_chunk: dict[int, list[str]] = {}
+                        for _item in _entity_result.entities:
+                            _entity_names_by_chunk.setdefault(
+                                _item.source_chunk_index, []
+                            ).append(_item.name)
+
+                        _rel_result = await _relation_extraction_service.extract_from_chunks(
+                            chunks=_chunk_pairs,
+                            entity_name_to_id=_entity_name_to_id,
+                            entity_names_by_chunk=_entity_names_by_chunk,
+                            organization_id=str(document.organization_id),
+                        )
+                        for _rel_item in _rel_result.relations:
+                            _rel_chunk_db_id = _chunk_id_by_index.get(
+                                _rel_item.source_chunk_index
+                            )
+                            _initial_status = (
+                                _relation_extraction_service.compute_initial_status(
+                                    _rel_item.confidence
+                                )
+                                if not settings.relation_extraction_review_mode
+                                else "unverified"
+                            )
+                            await _graph_service.create_relation_with_evidence(
+                                organization_id=document.organization_id,
+                                from_entity_id=_rel_item.from_entity_id,
+                                to_entity_id=_rel_item.to_entity_id,
+                                rel_type=_rel_item.rel_type,
+                                relation_id=_rel_item.relation_id,
+                                citation_text=_rel_item.evidence_span,
+                                citation_reference=(
+                                    f"{document.filename}, chunk {_rel_item.source_chunk_index}"
+                                ),
+                                chunk_id=_rel_chunk_db_id,
+                                source_document_id=document.id,
+                                page_number=_page_by_index.get(
+                                    _rel_item.source_chunk_index
+                                ),
+                                extraction_run_id=_rel_run_id,
+                                confidence=_rel_item.confidence,
+                                initial_status=_initial_status,
+                            )
+                        log_document_event(
+                            event="document.pipeline.stage",
+                            document_id=str(document.id),
+                            request_id=request_id,
+                            organization_id=resolved_organization_id,
+                            user_id=resolved_user_id,
+                            stage="extract_relations",
+                            stage_status="completed",
+                            relation_count=len(_rel_result.relations),
+                            batch_count=_rel_result.batch_count,
+                            validation_errors=_rel_result.validation_errors,
+                            llm_errors=_rel_result.llm_errors,
+                            skipped_unknown_entity=_rel_result.skipped_unknown_entity,
+                        )
+                        await pipeline_recorder.emit_stage(
+                            stage="extract_relations",
+                            stage_status="completed",
+                            outputs={
+                                "relation_count": len(_rel_result.relations),
+                                "batch_count": _rel_result.batch_count,
+                                "validation_errors": _rel_result.validation_errors,
+                                "llm_errors": _rel_result.llm_errors,
+                                "skipped_unknown_entity": _rel_result.skipped_unknown_entity,
+                            },
+                        )
+                    except Exception as _rel_exc:
+                        log_document_event(
+                            event="document.pipeline.stage",
+                            document_id=str(document.id),
+                            request_id=request_id,
+                            organization_id=resolved_organization_id,
+                            user_id=resolved_user_id,
+                            stage="extract_relations",
+                            stage_status="failed",
+                            error=str(_rel_exc),
+                        )
+                        if settings.relation_extraction_strict_mode:
+                            raise DocumentPipelineTransientError(
+                                stage="extract_relations",
+                                code="RELATION_EXTRACTION_FAILED",
+                                category="processing",
+                                message=f"Relation extraction failed: {_rel_exc}",
+                            ) from _rel_exc
+                        await pipeline_recorder.emit_stage(
+                            stage="extract_relations",
+                            stage_status="failed",
+                            error_message=str(_rel_exc),
                         )
 
                 current_stage = "embed"

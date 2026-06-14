@@ -219,6 +219,32 @@ Duplicate policy:
 
 ### GET `/documents`
 
+## Enterprise Graph
+
+When `enterprise_graph_enabled=true`, the backend exposes admin-only graph
+operations under `/admin/graph` for owners and admins.
+
+### Relation provenance
+
+- `POST /admin/graph/evidence` creates evidence links for entity provenance.
+- `GET /admin/graph/documents/{document_id}/provenance` returns document-level
+  evidence chains.
+- `GET /admin/graph/entities/{entity_id}/citations` returns citation-ready
+  evidence for an entity.
+
+### Relation management
+
+- `GET /admin/graph/relations` lists relations with optional `status`,
+  `rel_type`, `workspace_id`, and `min_confidence` filters.
+- `POST /admin/graph/relations` creates evidence-backed relations only.
+- `GET /admin/graph/relations/{relation_id}` fetches a single relation.
+- `PATCH /admin/graph/relations/{relation_id}/status` updates review state.
+- `DELETE /admin/graph/relations/{relation_id}` deletes a relation by stable id.
+
+Relation states are `unverified`, `verified`, `rejected`, and
+`low_confidence`. Low-confidence relations are still stored with evidence and
+can be excluded from GraphRAG by downstream filters.
+
 List documents.
 
 Query params:

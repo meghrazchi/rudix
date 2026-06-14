@@ -28,6 +28,7 @@ from app.domains.graph.repositories.graphrag_repository import GraphRAGRepositor
 from app.domains.graph.repositories.relation_repository import (
     RelationDirection,
     RelationRepository,
+    RelationStatus,
 )
 
 logger = get_logger("graph.service")
@@ -221,6 +222,106 @@ class GraphService:
             from_entity_id=from_entity_id,
             to_entity_id=to_entity_id,
             rel_type=rel_type,
+        )
+
+    async def create_relation_with_evidence(
+        self,
+        *,
+        organization_id: UUID | str,
+        from_entity_id: UUID | str,
+        to_entity_id: UUID | str,
+        rel_type: str,
+        relation_id: UUID | str,
+        evidence_text: str | None = None,
+        citation_text: str | None = None,
+        citation_reference: str | None = None,
+        chunk_id: UUID | str | None = None,
+        source_document_id: UUID | str | None = None,
+        page_number: int | None = None,
+        workspace_id: UUID | str | None = None,
+        source_connector: str | None = None,
+        extraction_run_id: UUID | str | None = None,
+        confidence: float = 0.5,
+        initial_status: RelationStatus = "unverified",
+    ) -> None:
+        """Create or merge an evidence-backed relation. No-op when graph unavailable."""
+        await self._relations.create_relation_with_evidence(
+            organization_id=organization_id,
+            from_entity_id=from_entity_id,
+            to_entity_id=to_entity_id,
+            rel_type=rel_type,
+            relation_id=relation_id,
+            evidence_text=evidence_text,
+            citation_text=citation_text,
+            citation_reference=citation_reference,
+            chunk_id=chunk_id,
+            source_document_id=source_document_id,
+            page_number=page_number,
+            workspace_id=workspace_id,
+            source_connector=source_connector,
+            extraction_run_id=extraction_run_id,
+            confidence=confidence,
+            initial_status=initial_status,
+        )
+
+    async def list_relations(
+        self,
+        *,
+        organization_id: UUID | str,
+        status: RelationStatus | None = None,
+        rel_type: str | None = None,
+        workspace_id: UUID | str | None = None,
+        min_confidence: float | None = None,
+        skip: int = 0,
+        limit: int = 50,
+    ) -> list[dict]:
+        """List relations with optional filters. Returns [] when unavailable."""
+        return await self._relations.list_relations(
+            organization_id=organization_id,
+            status=status,
+            rel_type=rel_type,
+            workspace_id=workspace_id,
+            min_confidence=min_confidence,
+            skip=skip,
+            limit=limit,
+        )
+
+    async def get_relation(
+        self,
+        *,
+        organization_id: UUID | str,
+        relation_id: UUID | str,
+    ) -> dict | None:
+        """Fetch a single relation by stable relation_id. Returns None if not found."""
+        return await self._relations.get_relation(
+            organization_id=organization_id,
+            relation_id=relation_id,
+        )
+
+    async def update_relation_status(
+        self,
+        *,
+        organization_id: UUID | str,
+        relation_id: UUID | str,
+        status: RelationStatus,
+    ) -> bool:
+        """Transition relation status. Returns True if relation was found and updated."""
+        return await self._relations.update_relation_status(
+            organization_id=organization_id,
+            relation_id=relation_id,
+            status=status,
+        )
+
+    async def delete_relation_by_id(
+        self,
+        *,
+        organization_id: UUID | str,
+        relation_id: UUID | str,
+    ) -> bool:
+        """Delete a relation by its stable relation_id. Returns True if removed."""
+        return await self._relations.delete_relation_by_id(
+            organization_id=organization_id,
+            relation_id=relation_id,
         )
 
     # ------------------------------------------------------------------

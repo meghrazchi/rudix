@@ -25,6 +25,8 @@ Build a production-ready AI Document Q&A Assistant where users can upload docume
 - Monitor errors, latency, cost, and failed jobs.
 - Normalize external connector sources such as Confluence and Google Drive
   before they enter the shared ingestion and query lifecycle.
+- Store derived enterprise graph facts in Neo4j when enabled, with PostgreSQL
+  remaining the source of truth and Qdrant remaining the vector store.
 
 ## High-level architecture
 
@@ -89,6 +91,7 @@ Design constraints:
 | PostgreSQL | Source of truth for users, documents, chunks, messages, citations, evaluations |
 | MinIO | Stores uploaded files and extracted text artifacts |
 | Qdrant | Stores vector embeddings and chunk payloads |
+| Neo4j | Stores derived entities, evidence-backed relations, and GraphRAG traversal data |
 | RabbitMQ | Reliable task queue broker |
 | Celery workers | Long-running background jobs: extraction, chunking, embeddings, indexing |
 | Redis | Cache, rate limit helper, optional Celery result backend |
