@@ -8,8 +8,12 @@ Routes:
   POST /admin/graph/entities                           — upsert entity
   GET  /admin/graph/entities/{entity_id}               — get entity
   DELETE /admin/graph/entities/{entity_id}             — delete entity
+  GET  /admin/graph/entities/{entity_id}/aliases       — entity aliases
   GET  /admin/graph/entities/{entity_id}/evidence      — entity evidence links
   GET  /admin/graph/entities/{entity_id}/relations     — entity relationships
+  GET  /admin/graph/entity-resolution/candidates       — review candidates
+  POST /admin/graph/entity-resolution/merge            — record merge decision
+  POST /admin/graph/entity-resolution/split            — record split decision
   GET  /admin/graph/documents/{document_id}/extraction-runs — extraction run history
 
 Auth: owner/admin only.
@@ -65,6 +69,69 @@ class EntityResponse(BaseModel):
     external_source_id: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class EntityAliasItem(BaseModel):
+    alias_id: str
+    entity_id: str
+    alias_name: str
+    normalized_name: str | None = None
+    source_document_id: str | None = None
+    chunk_id: str | None = None
+    workspace_id: str | None = None
+    source_external_id: str | None = None
+    source_connector: str | None = None
+    language: str | None = None
+    confidence: float | None = None
+    evidence_text: str | None = None
+    page_number: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class EntityAliasListResponse(BaseModel):
+    entity_id: str
+    items: list[EntityAliasItem]
+
+
+class EntityResolutionCandidateItem(BaseModel):
+    entity_id: str
+    entity_type: str
+    canonical_name: str
+    normalized_name: str | None = None
+    external_source_id: str | None = None
+    resolution_status: str | None = None
+    resolution_confidence: float | None = None
+    aliases: list[str] = Field(default_factory=list)
+    alias_normalized_names: list[str] = Field(default_factory=list)
+    alias_count: int = 0
+
+
+class EntityResolutionCandidateListResponse(BaseModel):
+    items: list[EntityResolutionCandidateItem]
+
+
+class EntityMergeDecisionRequest(BaseModel):
+    target_entity_id: str = Field(..., min_length=1)
+    source_entity_ids: list[str] = Field(default_factory=list, min_length=1)
+    reason: str | None = None
+    reviewer_id: str | None = None
+
+
+class EntitySplitDecisionRequest(BaseModel):
+    target_entity_id: str = Field(..., min_length=1)
+    source_entity_ids: list[str] = Field(default_factory=list, min_length=1)
+    reason: str | None = None
+    reviewer_id: str | None = None
+
+
+class EntityDecisionResponse(BaseModel):
+    decision_id: str
+    decision_kind: str
+    target_entity_id: str
+    source_entity_ids: list[str]
+    reason: str | None = None
+    reviewer_id: str | None = None
 
 
 class EntityListResponse(BaseModel):
@@ -224,6 +291,25 @@ async def delete_entity(
     return DeleteResponse(deleted=deleted)
 
 
+@router.get("/entities/{entity_id}/aliases", response_model=EntityAliasListResponse)
+async def get_entity_aliases(
+    entity_id: str,
+    principal: _AdminPrincipal,
+    _: _RateLimit,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> EntityAliasListResponse:
+    """Return alias and mention records for an entity."""
+    _require_graph_enabled()
+    svc = _graph_service()
+    items_raw = await svc.list_entity_aliases(
+        organization_id=principal.organization_id,
+        entity_id=entity_id,
+        limit=limit,
+    )
+    items = [EntityAliasItem(**item) for item in items_raw]
+    return EntityAliasListResponse(entity_id=entity_id, items=items)
+
+
 # ---------------------------------------------------------------------------
 # Evidence endpoint
 # ---------------------------------------------------------------------------
@@ -306,6 +392,105 @@ async def get_entity_relations(
         for r in items_raw
     ]
     return RelationListResponse(entity_id=entity_id, items=items)
+
+
+# ---------------------------------------------------------------------------
+# Resolution endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/entity-resolution/candidates",
+    response_model=EntityResolutionCandidateListResponse,
+)
+async def list_entity_resolution_candidates(
+    principal: _AdminPrincipal,
+    _: _RateLimit,
+    entity_type: str | None = Query(default=None),
+    name_query: str | None = Query(default=None, min_length=1),
+    source_external_id: str | None = Query(default=None, min_length=1),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> EntityResolutionCandidateListResponse:
+    """Return candidate canonical entities for review."""
+    _require_graph_enabled()
+    if name_query is None and source_external_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="resolution_query_required",
+        )
+    svc = _graph_service()
+    items_raw = await svc.find_entity_resolution_candidates(
+        organization_id=principal.organization_id,
+        entity_type=entity_type,
+        normalized_name=name_query,
+        aliases=[name_query] if name_query else None,
+        source_external_id=source_external_id,
+        limit=limit,
+    )
+    items = [EntityResolutionCandidateItem(**item) for item in items_raw]
+    return EntityResolutionCandidateListResponse(items=items)
+
+
+@router.post("/entity-resolution/merge", response_model=EntityDecisionResponse)
+async def record_entity_merge_decision(
+    body: EntityMergeDecisionRequest,
+    principal: _AdminPrincipal,
+    _: _RateLimit,
+) -> EntityDecisionResponse:
+    """Record a manual merge decision for later replay and audit."""
+    _require_graph_enabled()
+    svc = _graph_service()
+    await svc.record_entity_merge_decision(
+        organization_id=principal.organization_id,
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+        reason=body.reason,
+        reviewer_id=body.reviewer_id,
+    )
+    decision_id = svc.build_entity_merge_decision_id(
+        organization_id=principal.organization_id,
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+    )
+    return EntityDecisionResponse(
+        decision_id=str(decision_id),
+        decision_kind="merge",
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+        reason=body.reason,
+        reviewer_id=body.reviewer_id,
+    )
+
+
+@router.post("/entity-resolution/split", response_model=EntityDecisionResponse)
+async def record_entity_split_decision(
+    body: EntitySplitDecisionRequest,
+    principal: _AdminPrincipal,
+    _: _RateLimit,
+) -> EntityDecisionResponse:
+    """Record a manual split decision for later replay and audit."""
+    _require_graph_enabled()
+    svc = _graph_service()
+    await svc.record_entity_split_decision(
+        organization_id=principal.organization_id,
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+        reason=body.reason,
+        reviewer_id=body.reviewer_id,
+    )
+    decision_id = svc.build_entity_split_decision_id(
+        organization_id=principal.organization_id,
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+    )
+    return EntityDecisionResponse(
+        decision_id=str(decision_id),
+        decision_kind="split",
+        target_entity_id=body.target_entity_id,
+        source_entity_ids=body.source_entity_ids,
+        reason=body.reason,
+        reviewer_id=body.reviewer_id,
+    )
 
 
 # ---------------------------------------------------------------------------

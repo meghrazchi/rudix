@@ -591,6 +591,12 @@ Notes:
 - Enterprise Graph uses Neo4j as a derived layer only. PostgreSQL remains the
   source of truth, Qdrant remains the vector store, and graph features stay
   gated behind `ENTERPRISE_GRAPH_ENABLED`.
+- Entity canonicalization is gated behind `FEATURE_ENABLE_ENTITY_RESOLUTION`.
+  When enabled, the worker resolves aliases and language variants to canonical
+  entity records, stores alias/source mention nodes, and leaves low-confidence
+  matches in review state instead of auto-merging them.
+- Admin graph review endpoints expose alias inspection plus manual
+  merge/split decision recording under `/admin/graph/entity-resolution/*`.
 - Relation extraction runs after entity extraction when
   `FEATURE_ENABLE_RELATION_EXTRACTION=true`. Confidence below
   `RELATION_CONFIDENCE_THRESHOLD` is marked `low_confidence`; review mode keeps

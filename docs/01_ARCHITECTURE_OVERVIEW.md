@@ -91,7 +91,7 @@ Design constraints:
 | PostgreSQL | Source of truth for users, documents, chunks, messages, citations, evaluations |
 | MinIO | Stores uploaded files and extracted text artifacts |
 | Qdrant | Stores vector embeddings and chunk payloads |
-| Neo4j | Stores derived entities, evidence-backed relations, and GraphRAG traversal data |
+| Neo4j | Stores derived canonical entities, aliases, evidence-backed relations, and GraphRAG traversal data |
 | RabbitMQ | Reliable task queue broker |
 | Celery workers | Long-running background jobs: extraction, chunking, embeddings, indexing |
 | Redis | Cache, rate limit helper, optional Celery result backend |
@@ -129,6 +129,7 @@ Query     = question → retrieve → rerank → generate → cite
 6. **Every user query must be permission-filtered.** Qdrant search should never retrieve chunks from documents the user cannot access.
 7. **Model names must be configurable.** Use environment variables for LLM and embedding model names.
 8. **Evaluation is part of the product.** Track retrieval quality, citation correctness, faithfulness, latency, and cost.
+9. **Graph canonicalization is conservative.** High-confidence aliases may be merged into canonical entity records, but low-confidence matches remain reviewable and never cross organizations.
 
 ## Core data lifecycle
 

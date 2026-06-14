@@ -16,6 +16,8 @@ NODE_LABELS: tuple[str, ...] = (
     "Document",
     "Chunk",
     "Entity",
+    "EntityAlias",
+    "EntityResolutionDecision",
     "Person",
     "Organization",
     "Customer",
@@ -147,6 +149,30 @@ FOR ()-[r:{rel_type}]-() ON (r.status)"""
                     "DEPENDS_ON",
                 )
             ],
+        ],
+    ),
+    GraphMigration(
+        version="0004",
+        description="Entity alias and manual resolution decision support (F285).",
+        statements=[
+            """CREATE CONSTRAINT entity_alias_org_alias_key IF NOT EXISTS
+FOR (a:EntityAlias) REQUIRE (a.organization_id, a.alias_id) IS NODE KEY""",
+            """CREATE CONSTRAINT entity_resolution_decision_org_decision_key IF NOT EXISTS
+FOR (d:EntityResolutionDecision) REQUIRE (d.organization_id, d.decision_id) IS NODE KEY""",
+            """CREATE INDEX entity_normalized_name_idx IF NOT EXISTS
+FOR (e:Entity) ON (e.normalized_name)""",
+            """CREATE INDEX entity_resolution_status_idx IF NOT EXISTS
+FOR (e:Entity) ON (e.resolution_status)""",
+            """CREATE INDEX entity_alias_normalized_name_idx IF NOT EXISTS
+FOR (a:EntityAlias) ON (a.normalized_name)""",
+            """CREATE INDEX entity_alias_source_external_id_idx IF NOT EXISTS
+FOR (a:EntityAlias) ON (a.source_external_id)""",
+            """CREATE INDEX entity_alias_chunk_id_idx IF NOT EXISTS
+FOR (a:EntityAlias) ON (a.chunk_id)""",
+            """CREATE INDEX entity_resolution_decision_kind_idx IF NOT EXISTS
+FOR (d:EntityResolutionDecision) ON (d.decision_kind)""",
+            """CREATE INDEX entity_resolution_decision_target_idx IF NOT EXISTS
+FOR (d:EntityResolutionDecision) ON (d.target_entity_id)""",
         ],
     ),
 ]

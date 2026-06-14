@@ -103,19 +103,18 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
 
+import app.clients.neo4j_client as neo4j_module
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.domains.graph.repositories.entity_repository import EntityRepository
 from app.domains.graph.repositories.document_repository import DocumentGraphRepository
-from app.domains.graph.repositories.relation_repository import RelationRepository
+from app.domains.graph.repositories.entity_repository import EntityRepository
 from app.domains.graph.repositories.evidence_repository import EvidenceRepository
 from app.domains.graph.repositories.extraction_run_repository import ExtractionRunRepository
 from app.domains.graph.repositories.graphrag_repository import GraphRAGRepository
+from app.domains.graph.repositories.relation_repository import RelationRepository
 from app.domains.graph.services.graph_service import GraphService
 from app.main import app
-
-import app.clients.neo4j_client as neo4j_module
 
 _ORG = "org-test-f281"
 _WS = "ws-test-f281"
@@ -163,7 +162,6 @@ def _principal_override(role: str = "owner"):
     return _dep
 
 
-
 # ---------------------------------------------------------------------------
 # A. EntityRepository.upsert_entity — graph disabled → no-op
 # ---------------------------------------------------------------------------
@@ -209,9 +207,11 @@ async def test_b_entity_upsert_driver_none():
 @pytest.mark.asyncio
 async def test_c_entity_upsert_success():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         repo = EntityRepository()
         await repo.upsert_entity(
             organization_id=_ORG,
@@ -231,7 +231,7 @@ async def test_c_entity_upsert_success():
 
 
 # ---------------------------------------------------------------------------
-# D–F. EntityRepository.get_entity edge cases
+# D-F. EntityRepository.get_entity edge cases
 # ---------------------------------------------------------------------------
 
 
@@ -254,10 +254,11 @@ async def test_e_entity_get_driver_none():
 @pytest.mark.asyncio
 async def test_f_entity_get_not_found():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         result = await EntityRepository().get_entity(organization_id=_ORG, entity_id="missing")
         assert result is None
@@ -277,10 +278,11 @@ async def test_g_entity_get_found():
         "canonical_name": "Acme",
     }
     driver = _mock_driver(records=[{"entity": entity_data}])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         result = await EntityRepository().get_entity(organization_id=_ORG, entity_id="e-001")
         assert result is not None
@@ -307,10 +309,11 @@ async def test_h_entity_list_entity_type_filter():
         "canonical_name": "Privacy Policy",
     }
     driver = _mock_driver(records=[{"entity": entity_data}])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await EntityRepository().list_entities(
             organization_id=_ORG,
@@ -333,10 +336,11 @@ async def test_h_entity_list_entity_type_filter():
 @pytest.mark.asyncio
 async def test_i_entity_list_workspace_filter():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await EntityRepository().list_entities(
             organization_id=_ORG,
@@ -348,7 +352,7 @@ async def test_i_entity_list_workspace_filter():
 
 
 # ---------------------------------------------------------------------------
-# J–K. EntityRepository.delete_entity
+# J-K. EntityRepository.delete_entity
 # ---------------------------------------------------------------------------
 
 
@@ -368,9 +372,11 @@ async def test_j_entity_delete_found():
     session_mock.__aexit__ = AsyncMock(return_value=False)
     driver.session = MagicMock(return_value=session_mock)
 
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         deleted = await EntityRepository().delete_entity(organization_id=_ORG, entity_id="e-001")
         assert deleted is True
 
@@ -391,15 +397,126 @@ async def test_k_entity_delete_missing():
     session_mock.__aexit__ = AsyncMock(return_value=False)
     driver.session = MagicMock(return_value=session_mock)
 
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         deleted = await EntityRepository().delete_entity(organization_id=_ORG, entity_id="missing")
         assert deleted is False
 
 
+@pytest.mark.asyncio
+async def test_k1_entity_alias_upsert_scoped_and_parameterized():
+    driver = _mock_driver()
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
+        repo = EntityRepository()
+        await repo.upsert_entity_alias(
+            organization_id=_ORG,
+            entity_id="e-001",
+            alias_id="alias-001",
+            alias_name="MSFT",
+            source_document_id="doc-001",
+            chunk_id="chunk-001",
+            confidence=0.9,
+            evidence_text="Microsoft",
+        )
+        session = driver.session.return_value.__aenter__.return_value
+        tx_fn = session.execute_write.call_args[0][0]
+        tx_mock = AsyncMock()
+        await tx_fn(tx_mock)
+        call_kwargs = tx_mock.run.call_args[1]
+        assert call_kwargs["organization_id"] == _ORG
+        assert call_kwargs["entity_id"] == "e-001"
+        assert call_kwargs["alias_id"] == "alias-001"
+
+
+@pytest.mark.asyncio
+async def test_k2_find_entity_resolution_candidates_filters_by_org_and_alias():
+    driver = _mock_driver(records=[{"entity_id": "e-001"}])
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
+        repo = EntityRepository()
+        await repo.find_entity_resolution_candidates(
+            organization_id=_ORG,
+            entity_type="Organization",
+            normalized_name="acme corp",
+            aliases=["Acme"],
+            source_external_id="sharepoint-123",
+        )
+        session = driver.session.return_value.__aenter__.return_value
+        call_kwargs = session.run.call_args[1]
+        assert call_kwargs["organization_id"] == _ORG
+        assert call_kwargs["entity_type"] == "Organization"
+        assert call_kwargs["normalized_name"] == "acme corp"
+        assert call_kwargs["source_external_id"] == "sharepoint-123"
+        assert call_kwargs["aliases"] == ["acme"]
+
+
+@pytest.mark.asyncio
+async def test_k3_record_merge_decision_parameterizes_all_ids():
+    driver = _mock_driver()
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
+        repo = EntityRepository()
+        await repo.record_entity_merge_decision(
+            organization_id=_ORG,
+            decision_id="dec-merge",
+            target_entity_id="e-001",
+            source_entity_ids=["e-002", "e-003"],
+            reason="same vendor",
+            reviewer_id="owner-1",
+        )
+        session = driver.session.return_value.__aenter__.return_value
+        tx_fn = session.execute_write.call_args[0][0]
+        tx_mock = AsyncMock()
+        await tx_fn(tx_mock)
+        call_kwargs = tx_mock.run.call_args[1]
+        assert call_kwargs["organization_id"] == _ORG
+        assert call_kwargs["decision_id"] == "dec-merge"
+        assert call_kwargs["source_entity_ids"] == ["e-002", "e-003"]
+
+
+@pytest.mark.asyncio
+async def test_k4_record_split_decision_parameterizes_all_ids():
+    driver = _mock_driver()
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
+        repo = EntityRepository()
+        await repo.record_entity_split_decision(
+            organization_id=_ORG,
+            decision_id="dec-split",
+            target_entity_id="e-001",
+            source_entity_ids=["e-002"],
+            reason="false positive",
+            reviewer_id="owner-1",
+        )
+        session = driver.session.return_value.__aenter__.return_value
+        tx_fn = session.execute_write.call_args[0][0]
+        tx_mock = AsyncMock()
+        await tx_fn(tx_mock)
+        call_kwargs = tx_mock.run.call_args[1]
+        assert call_kwargs["organization_id"] == _ORG
+        assert call_kwargs["decision_id"] == "dec-split"
+        assert call_kwargs["source_entity_ids"] == ["e-002"]
+
+
 # ---------------------------------------------------------------------------
-# L–N. DocumentGraphRepository
+# L-N. DocumentGraphRepository
 # ---------------------------------------------------------------------------
 
 
@@ -416,10 +533,11 @@ async def test_l_document_upsert_disabled():
 async def test_m_document_get_found():
     doc_data = {"organization_id": _ORG, "document_id": "doc-001", "title": "Test"}
     driver = _mock_driver(records=[{"doc": doc_data}])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         result = await DocumentGraphRepository().get_document_node(
             organization_id=_ORG, document_id="doc-001"
@@ -444,9 +562,11 @@ async def test_n_document_delete():
     session_mock.__aexit__ = AsyncMock(return_value=False)
     driver.session = MagicMock(return_value=session_mock)
 
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         deleted = await DocumentGraphRepository().delete_document_node(
             organization_id=_ORG, document_id="doc-001"
         )
@@ -454,7 +574,7 @@ async def test_n_document_delete():
 
 
 # ---------------------------------------------------------------------------
-# O–S. RelationRepository
+# O-S. RelationRepository
 # ---------------------------------------------------------------------------
 
 
@@ -472,9 +592,11 @@ async def test_o_relation_unknown_type_raises():
 @pytest.mark.asyncio
 async def test_p_relation_create_valid():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await RelationRepository().create_relation(
             organization_id=_ORG,
             from_entity_id="e-001",
@@ -488,10 +610,11 @@ async def test_p_relation_create_valid():
 @pytest.mark.asyncio
 async def test_q_relation_get_out_direction():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await RelationRepository().get_entity_relations(
             organization_id=_ORG,
@@ -530,9 +653,11 @@ async def test_s_relation_delete_success():
     session_mock.__aexit__ = AsyncMock(return_value=False)
     driver.session = MagicMock(return_value=session_mock)
 
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         deleted = await RelationRepository().delete_relation(
             organization_id=_ORG,
             from_entity_id="e-001",
@@ -543,7 +668,7 @@ async def test_s_relation_delete_success():
 
 
 # ---------------------------------------------------------------------------
-# T–W. EvidenceRepository
+# T-W. EvidenceRepository
 # ---------------------------------------------------------------------------
 
 
@@ -564,9 +689,11 @@ async def test_t_evidence_link_disabled():
 @pytest.mark.asyncio
 async def test_u_evidence_link_success():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id="e-001",
@@ -597,10 +724,11 @@ async def test_v_evidence_get_list():
         }
     ]
     driver = _mock_driver(records=ev_records)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await EvidenceRepository().get_entity_evidence(
             organization_id=_ORG, entity_id="e-001"
@@ -625,9 +753,11 @@ async def test_w_evidence_delete_for_chunk():
     session_mock.__aexit__ = AsyncMock(return_value=False)
     driver.session = MagicMock(return_value=session_mock)
 
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         cnt = await EvidenceRepository().delete_evidence_for_chunk(
             organization_id=_ORG, chunk_id="c-001"
         )
@@ -635,7 +765,7 @@ async def test_w_evidence_delete_for_chunk():
 
 
 # ---------------------------------------------------------------------------
-# X–AA. ExtractionRunRepository
+# X-AA. ExtractionRunRepository
 # ---------------------------------------------------------------------------
 
 
@@ -654,9 +784,11 @@ async def test_x_extraction_run_disabled():
 @pytest.mark.asyncio
 async def test_y_extraction_run_create():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await ExtractionRunRepository().create_extraction_run(
             organization_id=_ORG,
             document_id="doc-001",
@@ -676,9 +808,11 @@ async def test_y_extraction_run_create():
 @pytest.mark.asyncio
 async def test_z_extraction_run_update():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(neo4j_module, "_neo4j_driver", driver):
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
+    ):
         await ExtractionRunRepository().update_extraction_run(
             organization_id=_ORG,
             run_id="run-001",
@@ -709,10 +843,11 @@ async def test_aa_extraction_run_list():
         }
     ]
     driver = _mock_driver(records=run_data)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await ExtractionRunRepository().get_extraction_runs(
             organization_id=_ORG, document_id="doc-001"
@@ -722,15 +857,13 @@ async def test_aa_extraction_run_list():
 
 
 # ---------------------------------------------------------------------------
-# AB–AH. GraphRAGRepository
+# AB-AH. GraphRAGRepository
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_ab_graphrag_empty_ids():
-    result = await GraphRAGRepository().find_related_entities(
-        organization_id=_ORG, entity_ids=[]
-    )
+    result = await GraphRAGRepository().find_related_entities(organization_id=_ORG, entity_ids=[])
     assert result == []
 
 
@@ -748,10 +881,11 @@ async def test_ac_graphrag_driver_none():
 async def test_ad_graphrag_depth_clamped():
     """depth > 5 must be clamped to 5; depth < 1 clamped to 1."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         # depth=99 → safe_depth should be 5
         await GraphRAGRepository().find_related_entities(
@@ -782,10 +916,11 @@ async def test_ae_graphrag_name_search_driver_none():
 @pytest.mark.asyncio
 async def test_af_graphrag_name_search_entity_type_filter():
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await GraphRAGRepository().find_entities_by_name(
             organization_id=_ORG, name_query="acme", entity_type="Organization"
@@ -816,10 +951,11 @@ async def test_ah_graphrag_evidence_returns_list():
         }
     ]
     driver = _mock_driver(records=ev_records)
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         results = await GraphRAGRepository().get_evidence_for_entities(
             organization_id=_ORG, entity_ids=["e-001"]
@@ -831,7 +967,7 @@ async def test_ah_graphrag_evidence_returns_list():
 
 
 # ---------------------------------------------------------------------------
-# AI–AQ. GraphService
+# AI-AQ. GraphService
 # ---------------------------------------------------------------------------
 
 
@@ -854,8 +990,9 @@ async def test_aj_service_not_available_driver_none():
 @pytest.mark.asyncio
 async def test_ak_service_available():
     driver = _mock_driver()
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         svc = GraphService()
         assert svc.is_available() is True
@@ -935,8 +1072,30 @@ async def test_aq_service_delegates_find_related_entities():
     assert result == []
 
 
+@pytest.mark.asyncio
+async def test_aq1_service_delegates_find_entity_resolution_candidates():
+    find_mock = AsyncMock(return_value=[])
+    svc = GraphService()
+    svc._entities.find_entity_resolution_candidates = find_mock
+    result = await svc.find_entity_resolution_candidates(
+        organization_id=_ORG, normalized_name="acme"
+    )
+    find_mock.assert_awaited_once()
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_aq2_service_delegates_list_entity_aliases():
+    list_mock = AsyncMock(return_value=[])
+    svc = GraphService()
+    svc._entities.list_entity_aliases = list_mock
+    result = await svc.list_entity_aliases(organization_id=_ORG, entity_id="e-001")
+    list_mock.assert_awaited_once()
+    assert result == []
+
+
 # ---------------------------------------------------------------------------
-# AR–BC. HTTP endpoint tests
+# AR-BC. HTTP endpoint tests
 # ---------------------------------------------------------------------------
 
 _BASE = "/api/v1/admin/graph"
@@ -949,6 +1108,12 @@ def _svc_mock(**overrides: Any) -> MagicMock:
     svc.upsert_entity = AsyncMock()
     svc.get_entity = AsyncMock(return_value=None)
     svc.delete_entity = AsyncMock(return_value=False)
+    svc.list_entity_aliases = AsyncMock(return_value=[])
+    svc.find_entity_resolution_candidates = AsyncMock(return_value=[])
+    svc.record_entity_merge_decision = AsyncMock()
+    svc.record_entity_split_decision = AsyncMock()
+    svc.build_entity_merge_decision_id = MagicMock(return_value="merge-decision-id")
+    svc.build_entity_split_decision_id = MagicMock(return_value="split-decision-id")
     svc.get_entity_evidence = AsyncMock(return_value=[])
     svc.get_entity_relations = AsyncMock(return_value=[])
     svc.get_document_extraction_runs = AsyncMock(return_value=[])
@@ -1019,7 +1184,12 @@ def test_au_upsert_entity_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_av_upsert_entity_success(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_entities as ent_module
 
-    entity = {"entity_id": "e-001", "entity_type": "Organization", "canonical_name": "Acme", "organization_id": _ORG}
+    entity = {
+        "entity_id": "e-001",
+        "entity_type": "Organization",
+        "canonical_name": "Acme",
+        "organization_id": _ORG,
+    }
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     svc = _svc_mock(get_entity=AsyncMock(return_value=entity))
@@ -1092,7 +1262,13 @@ def test_az_get_entity_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_entities as ent_module
 
     evidence = [
-        {"chunk_id": "c-001", "source_document_id": "doc-001", "confidence": 0.9, "evidence_text": "...", "created_at": None}
+        {
+            "chunk_id": "c-001",
+            "source_document_id": "doc-001",
+            "confidence": 0.9,
+            "evidence_text": "...",
+            "created_at": None,
+        }
     ]
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
@@ -1106,6 +1282,34 @@ def test_az_get_entity_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
         data = resp.json()
         assert data["entity_id"] == "e-001"
         assert len(data["items"]) == 1
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+
+
+def test_az1_get_entity_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.interfaces.http.admin_graph_entities as ent_module
+
+    aliases = [
+        {
+            "alias_id": "alias-001",
+            "entity_id": "e-001",
+            "alias_name": "MSFT",
+            "normalized_name": "msft",
+            "source_document_id": "doc-001",
+        }
+    ]
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    svc = _svc_mock(list_entity_aliases=AsyncMock(return_value=aliases))
+    monkeypatch.setattr(ent_module, "_graph_service", lambda: svc)
+    app.dependency_overrides[get_current_principal] = _principal_override("owner")
+    try:
+        client = TestClient(app)
+        resp = client.get(f"{_BASE}/entities/e-001/aliases")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["entity_id"] == "e-001"
+        assert data["items"][0]["alias_name"] == "MSFT"
     finally:
         app.dependency_overrides.pop(get_current_principal, None)
 
@@ -1126,10 +1330,101 @@ def test_ba_get_entity_relations_bad_type(monkeypatch: pytest.MonkeyPatch) -> No
         app.dependency_overrides.pop(get_current_principal, None)
 
 
+def test_ba1_list_entity_resolution_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.interfaces.http.admin_graph_entities as ent_module
+
+    candidates = [
+        {
+            "entity_id": "e-001",
+            "entity_type": "Organization",
+            "canonical_name": "Acme Corp",
+            "normalized_name": "acme corp",
+            "resolution_status": "auto_merged",
+            "resolution_confidence": 0.95,
+            "aliases": ["Acme", "ACME"],
+            "alias_normalized_names": ["acme"],
+            "alias_count": 2,
+        }
+    ]
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    svc = _svc_mock(find_entity_resolution_candidates=AsyncMock(return_value=candidates))
+    monkeypatch.setattr(ent_module, "_graph_service", lambda: svc)
+    app.dependency_overrides[get_current_principal] = _principal_override("owner")
+    try:
+        client = TestClient(app)
+        resp = client.get(f"{_BASE}/entity-resolution/candidates?name_query=Acme")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["items"][0]["canonical_name"] == "Acme Corp"
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+
+
+def test_bb1_record_merge_decision(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.interfaces.http.admin_graph_entities as ent_module
+
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    svc = _svc_mock()
+    monkeypatch.setattr(ent_module, "_graph_service", lambda: svc)
+    app.dependency_overrides[get_current_principal] = _principal_override("owner")
+    try:
+        client = TestClient(app)
+        resp = client.post(
+            f"{_BASE}/entity-resolution/merge",
+            json={
+                "target_entity_id": "e-001",
+                "source_entity_ids": ["e-002", "e-003"],
+                "reason": "same vendor",
+                "reviewer_id": "user-1",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["decision_kind"] == "merge"
+        svc.record_entity_merge_decision.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+
+
+def test_bb2_record_split_decision(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.interfaces.http.admin_graph_entities as ent_module
+
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+    svc = _svc_mock()
+    monkeypatch.setattr(ent_module, "_graph_service", lambda: svc)
+    app.dependency_overrides[get_current_principal] = _principal_override("owner")
+    try:
+        client = TestClient(app)
+        resp = client.post(
+            f"{_BASE}/entity-resolution/split",
+            json={
+                "target_entity_id": "e-001",
+                "source_entity_ids": ["e-002"],
+                "reason": "false positive",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["decision_kind"] == "split"
+        svc.record_entity_split_decision.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_current_principal, None)
+
+
 def test_bb_get_entity_relations_valid(monkeypatch: pytest.MonkeyPatch) -> None:
     import app.interfaces.http.admin_graph_entities as ent_module
 
-    relations = [{"from_entity_id": "e-001", "rel_type": "RELATES_TO", "to_entity_id": "e-002", "properties": {}}]
+    relations = [
+        {
+            "from_entity_id": "e-001",
+            "rel_type": "RELATES_TO",
+            "to_entity_id": "e-002",
+            "properties": {},
+        }
+    ]
     monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
     monkeypatch.setattr(settings, "rate_limit_enabled", False)
     svc = _svc_mock(get_entity_relations=AsyncMock(return_value=relations))
@@ -1178,7 +1473,7 @@ def test_bc_get_extraction_runs(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Security tests: BD–BH
+# Security tests: BD-BH
 # ---------------------------------------------------------------------------
 
 
@@ -1186,10 +1481,11 @@ def test_bc_get_extraction_runs(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_bd_entity_list_where_always_includes_org():
     """list_entities Cypher always binds organization_id — verify WHERE clause."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await EntityRepository().list_entities(organization_id=_ORG)
         session = driver.session.return_value.__aenter__.return_value
@@ -1204,10 +1500,11 @@ async def test_bd_entity_list_where_always_includes_org():
 async def test_be_entity_get_always_binds_org():
     """get_entity Cypher always binds organization_id param."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         await EntityRepository().get_entity(organization_id=_ORG, entity_id="e-001")
         session = driver.session.return_value.__aenter__.return_value
@@ -1239,14 +1536,13 @@ async def test_bf_relation_type_injection_guard():
 async def test_bg_graphrag_always_binds_org():
     """find_related_entities Cypher always binds organization_id."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
-        await GraphRAGRepository().find_related_entities(
-            organization_id=_ORG, entity_ids=["e-001"]
-        )
+        await GraphRAGRepository().find_related_entities(organization_id=_ORG, entity_ids=["e-001"])
         session = driver.session.return_value.__aenter__.return_value
         call_kwargs = session.run.call_args[1]
         assert call_kwargs["organization_id"] == _ORG
@@ -1256,10 +1552,11 @@ async def test_bg_graphrag_always_binds_org():
 async def test_bh_graphrag_depth_never_unbounded():
     """depth is always clamped — no [*] unbounded pattern ever reaches Neo4j."""
     driver = _mock_driver(records=[])
-    with patch.object(settings, "enterprise_graph_enabled", True), patch.object(
-        settings, "neo4j_database", _DB
-    ), patch.object(settings, "neo4j_query_timeout_seconds", 5.0), patch.object(
-        neo4j_module, "_neo4j_driver", driver
+    with (
+        patch.object(settings, "enterprise_graph_enabled", True),
+        patch.object(settings, "neo4j_database", _DB),
+        patch.object(settings, "neo4j_query_timeout_seconds", 5.0),
+        patch.object(neo4j_module, "_neo4j_driver", driver),
     ):
         for depth in [0, 1, 3, 5, 10, 100, -1]:
             await GraphRAGRepository().find_related_entities(

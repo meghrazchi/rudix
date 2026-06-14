@@ -241,6 +241,18 @@ operations under `/admin/graph` for owners and admins.
 - `PATCH /admin/graph/relations/{relation_id}/status` updates review state.
 - `DELETE /admin/graph/relations/{relation_id}` deletes a relation by stable id.
 
+### Entity canonicalization
+
+- `GET /admin/graph/entities/{entity_id}/aliases` lists alias/source-mention
+  records for a canonical entity.
+- `GET /admin/graph/entity-resolution/candidates` lists likely matches for
+  review using org-scoped entity resolution heuristics.
+- `POST /admin/graph/entity-resolution/merge` records a manual merge decision.
+- `POST /admin/graph/entity-resolution/split` records a manual split decision.
+
+Entity resolution is organization-scoped and only uses derived graph data. Low
+confidence candidates are not auto-merged; they remain available for review.
+
 Relation states are `unverified`, `verified`, `rejected`, and
 `low_confidence`. Low-confidence relations are still stored with evidence and
 can be excluded from GraphRAG by downstream filters.

@@ -12,7 +12,6 @@ repository classes and enforces:
 
 from __future__ import annotations
 
-from typing import Literal
 from uuid import UUID
 
 from app.clients.neo4j_client import get_driver
@@ -29,6 +28,11 @@ from app.domains.graph.repositories.relation_repository import (
     RelationDirection,
     RelationRepository,
     RelationStatus,
+)
+from app.domains.graph.services.entity_resolution_service import (
+    EntityResolutionInput,
+    EntityResolutionResult,
+    EntityResolutionService,
 )
 
 logger = get_logger("graph.service")
@@ -48,6 +52,7 @@ class GraphService:
         self._evidence = EvidenceRepository()
         self._extraction_runs = ExtractionRunRepository()
         self._graphrag = GraphRAGRepository()
+        self._entity_resolution = EntityResolutionService()
 
     # ------------------------------------------------------------------
     # Availability
@@ -122,6 +127,170 @@ class GraphService:
         return await self._entities.delete_entity(
             organization_id=organization_id,
             entity_id=entity_id,
+        )
+
+    async def upsert_entity_alias(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_id: UUID | str,
+        alias_id: UUID | str,
+        alias_name: str,
+        source_document_id: UUID | str | None = None,
+        chunk_id: UUID | str | None = None,
+        workspace_id: UUID | str | None = None,
+        source_external_id: str | None = None,
+        source_connector: str | None = None,
+        language: str | None = None,
+        confidence: float | None = None,
+        evidence_text: str | None = None,
+        properties: dict | None = None,
+    ) -> None:
+        await self._entities.upsert_entity_alias(
+            organization_id=organization_id,
+            entity_id=entity_id,
+            alias_id=alias_id,
+            alias_name=alias_name,
+            source_document_id=source_document_id,
+            chunk_id=chunk_id,
+            workspace_id=workspace_id,
+            source_external_id=source_external_id,
+            source_connector=source_connector,
+            language=language,
+            confidence=confidence,
+            evidence_text=evidence_text,
+            properties=properties,
+        )
+
+    async def find_entity_resolution_candidates(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_type: str | None = None,
+        normalized_name: str | None = None,
+        aliases: list[str] | None = None,
+        source_external_id: str | None = None,
+        limit: int = 10,
+    ) -> list[dict]:
+        return await self._entities.find_entity_resolution_candidates(
+            organization_id=organization_id,
+            entity_type=entity_type,
+            normalized_name=normalized_name,
+            aliases=aliases,
+            source_external_id=source_external_id,
+            limit=limit,
+        )
+
+    async def list_entity_aliases(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_id: UUID | str,
+        limit: int = 50,
+    ) -> list[dict]:
+        return await self._entities.list_entity_aliases(
+            organization_id=organization_id,
+            entity_id=entity_id,
+            limit=limit,
+        )
+
+    async def resolve_entity(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_type: str,
+        canonical_name: str,
+        original_name: str | None = None,
+        aliases: list[str] | None = None,
+        source_external_id: str | None = None,
+        source_connector: str | None = None,
+        language: str | None = None,
+        embedding_similarity: float | None = None,
+    ) -> EntityResolutionResult:
+        input_ = EntityResolutionInput(
+            organization_id=str(organization_id),
+            entity_type=entity_type,
+            canonical_name=canonical_name,
+            original_name=original_name,
+            aliases=aliases or [],
+            source_external_id=source_external_id,
+            source_connector=source_connector,
+            language=language,
+            embedding_similarity=embedding_similarity,
+        )
+        return await self._entity_resolution.resolve_entity(
+            repository=self._entities,
+            input_=input_,
+        )
+
+    async def record_entity_merge_decision(
+        self,
+        *,
+        organization_id: UUID | str,
+        target_entity_id: UUID | str,
+        source_entity_ids: list[UUID | str],
+        reason: str | None = None,
+        reviewer_id: str | None = None,
+    ) -> None:
+        await self._entities.record_entity_merge_decision(
+            organization_id=organization_id,
+            decision_id=self._entity_resolution.build_merge_decision_id(
+                organization_id=str(organization_id),
+                target_entity_id=str(target_entity_id),
+                source_entity_ids=[str(entity_id) for entity_id in source_entity_ids],
+            ),
+            target_entity_id=target_entity_id,
+            source_entity_ids=source_entity_ids,
+            reason=reason,
+            reviewer_id=reviewer_id,
+        )
+
+    def build_entity_merge_decision_id(
+        self,
+        *,
+        organization_id: UUID | str,
+        target_entity_id: UUID | str,
+        source_entity_ids: list[UUID | str],
+    ) -> UUID:
+        return self._entity_resolution.build_merge_decision_id(
+            organization_id=str(organization_id),
+            target_entity_id=str(target_entity_id),
+            source_entity_ids=[str(entity_id) for entity_id in source_entity_ids],
+        )
+
+    async def record_entity_split_decision(
+        self,
+        *,
+        organization_id: UUID | str,
+        target_entity_id: UUID | str,
+        source_entity_ids: list[UUID | str],
+        reason: str | None = None,
+        reviewer_id: str | None = None,
+    ) -> None:
+        await self._entities.record_entity_split_decision(
+            organization_id=organization_id,
+            decision_id=self._entity_resolution.build_split_decision_id(
+                organization_id=str(organization_id),
+                target_entity_id=str(target_entity_id),
+                source_entity_ids=[str(entity_id) for entity_id in source_entity_ids],
+            ),
+            target_entity_id=target_entity_id,
+            source_entity_ids=source_entity_ids,
+            reason=reason,
+            reviewer_id=reviewer_id,
+        )
+
+    def build_entity_split_decision_id(
+        self,
+        *,
+        organization_id: UUID | str,
+        target_entity_id: UUID | str,
+        source_entity_ids: list[UUID | str],
+    ) -> UUID:
+        return self._entity_resolution.build_split_decision_id(
+            organization_id=str(organization_id),
+            target_entity_id=str(target_entity_id),
+            source_entity_ids=[str(entity_id) for entity_id in source_entity_ids],
         )
 
     # ------------------------------------------------------------------

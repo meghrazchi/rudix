@@ -58,16 +58,13 @@ os.environ.setdefault("APP_AUTH_SECRET", "test-secret")
 
 from fastapi.testclient import TestClient
 
+import app.clients.neo4j_client as neo4j_module
+import app.domains.graph.migration_runner as runner_module
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
-from app.domains.graph import schema as graph_schema
 from app.domains.graph.schema import MIGRATIONS, NODE_LABELS, RELATIONSHIP_TYPES
 from app.main import app
-
-import app.clients.neo4j_client as neo4j_module
-import app.domains.graph.migration_runner as runner_module
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -82,6 +79,7 @@ def _principal_override(role: str):
             roles=[role],
             auth_provider="app",
         )
+
     return _dep
 
 
@@ -115,17 +113,41 @@ def _mock_driver(session: Any) -> MagicMock:
 
 def test_a_node_labels_contains_all_required() -> None:
     required = {
-        "Document", "Chunk", "Entity", "Person", "Organization", "Customer",
-        "Vendor", "Product", "Project", "Policy", "Contract", "Control",
-        "Requirement", "Risk", "Ticket", "System", "Process", "Obligation",
+        "Document",
+        "Chunk",
+        "Entity",
+        "Person",
+        "Organization",
+        "Customer",
+        "EntityAlias",
+        "EntityResolutionDecision",
+        "Vendor",
+        "Product",
+        "Project",
+        "Policy",
+        "Contract",
+        "Control",
+        "Requirement",
+        "Risk",
+        "Ticket",
+        "System",
+        "Process",
+        "Obligation",
     }
     assert required == set(NODE_LABELS)
 
 
 def test_b_relationship_types_contains_all_required() -> None:
     required = {
-        "MENTIONS", "EVIDENCE_FOR", "RELATES_TO", "OWNS", "COVERS_CONTROL",
-        "CONTAINS_OBLIGATION", "PROVIDES_SERVICE_TO", "SUPERSEDES", "AFFECTS",
+        "MENTIONS",
+        "EVIDENCE_FOR",
+        "RELATES_TO",
+        "OWNS",
+        "COVERS_CONTROL",
+        "CONTAINS_OBLIGATION",
+        "PROVIDES_SERVICE_TO",
+        "SUPERSEDES",
+        "AFFECTS",
         "DEPENDS_ON",
     }
     assert required == set(RELATIONSHIP_TYPES)
@@ -151,6 +173,14 @@ def test_e_v0001_has_nine_indexes() -> None:
     m = next(m for m in MIGRATIONS if m.version == "0001")
     index_stmts = [s for s in m.statements if "CREATE INDEX" in s]
     assert len(index_stmts) == 9
+
+
+def test_e1_v0004_contains_alias_and_decision_support() -> None:
+    m = next(m for m in MIGRATIONS if m.version == "0004")
+    assert any("entity_alias_org_alias_key" in s for s in m.statements)
+    assert any("entity_resolution_decision_org_decision_key" in s for s in m.statements)
+    assert any("entity_normalized_name_idx" in s for s in m.statements)
+    assert any("entity_alias_normalized_name_idx" in s for s in m.statements)
 
 
 def test_f_all_ddl_statements_contain_if_not_exists() -> None:
@@ -390,7 +420,11 @@ async def test_o_get_migration_status_returns_records() -> None:
     mock_result = AsyncMock()
     mock_result.data = AsyncMock(
         return_value=[
-            {"version": "0001", "description": "Initial schema", "applied_at": "2026-06-14T00:00:00+00:00"},
+            {
+                "version": "0001",
+                "description": "Initial schema",
+                "applied_at": "2026-06-14T00:00:00+00:00",
+            },
         ]
     )
     session = AsyncMock()

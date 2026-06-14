@@ -14,6 +14,7 @@ from uuid import UUID
 
 from app.core.logging import get_logger
 from app.domains.graph.repositories._base import _get_driver_and_settings
+from app.domains.graph.services.entity_resolution_service import normalize_entity_name
 
 logger = get_logger("graph.repositories.graphrag")
 
@@ -99,11 +100,17 @@ class GraphRAGRepository:
 
         where_parts = [
             "e.organization_id = $organization_id",
-            "toLower(e.canonical_name) CONTAINS toLower($name_query)",
+            "("
+            "toLower(e.canonical_name) CONTAINS toLower($name_query) OR "
+            "toLower(e.normalized_name) CONTAINS toLower($normalized_query) OR "
+            "toLower(a.alias_name) CONTAINS toLower($name_query) OR "
+            "toLower(a.normalized_name) CONTAINS toLower($normalized_query)"
+            ")",
         ]
         params: dict[str, Any] = {
             "organization_id": str(organization_id),
             "name_query": name_query,
+            "normalized_query": normalize_entity_name(name_query),
             "limit": limit,
         }
         if entity_type is not None:
@@ -111,12 +118,14 @@ class GraphRAGRepository:
             params["entity_type"] = entity_type
 
         cypher = (
-            "MATCH (e:Entity) WHERE "
+            "MATCH (e:Entity) OPTIONAL MATCH (e)-[:HAS_ALIAS]->(a:EntityAlias {organization_id: $organization_id}) WHERE "
             + " AND ".join(where_parts)
             + " RETURN e.entity_id AS entity_id,"
             "        e.entity_type AS entity_type,"
             "        e.canonical_name AS canonical_name,"
-            "        e.workspace_id AS workspace_id"
+            "        e.workspace_id AS workspace_id,"
+            "        e.normalized_name AS normalized_name,"
+            "        collect(DISTINCT a.alias_name) AS aliases"
             " ORDER BY e.canonical_name LIMIT $limit"
         )
 

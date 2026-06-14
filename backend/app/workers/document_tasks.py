@@ -22,23 +22,25 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.connectors.repositories.connectors import ConnectorRepository
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.chunking.hashing import compute_chunk_hash
+from app.domains.documents.extraction import extract_document
+from app.domains.documents.extraction.models import DocumentProfile
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.documents.services.chunking_service import ChunkingService
+from app.domains.documents.services.dlp_service import scan_text_for_dlp
 from app.domains.documents.services.embedding_service import (
     EmbeddingResult,
     EmbeddingService,
     PermanentEmbeddingError,
     TransientEmbeddingError,
 )
-from app.domains.documents.services.dlp_service import scan_text_for_dlp
 from app.domains.documents.services.language_detection_service import (
-    detect_language_from_text as _detect_language_from_text,
     confidence_bucket as _language_confidence_bucket,
 )
-from app.domains.documents.extraction import extract_document
-from app.domains.documents.extraction.models import DocumentProfile
-from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
+from app.domains.documents.services.language_detection_service import (
+    detect_language_from_text as _detect_language_from_text,
+)
 from app.domains.documents.services.ocr_detection import detect_ocr_need
+from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
 from app.domains.documents.services.qdrant_service import QdrantService
 from app.domains.documents.services.text_extraction import (
@@ -50,13 +52,16 @@ from app.domains.documents.services.text_normalization import (
     clean_extracted_sections,
 )
 from app.domains.graph.services.entity_extraction_service import EntityExtractionService
+from app.domains.graph.services.entity_resolution_service import (
+    EntityResolutionInput,
+    EntityResolutionService,
+)
 from app.domains.graph.services.graph_service import GraphService
 from app.domains.graph.services.relation_extraction_service import RelationExtractionService
 from app.domains.pipeline.repositories.pipeline import PipelineRepository
 from app.domains.pipeline.services.pipeline_event_service import sanitize_pipeline_payload
+from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.enums import DocumentStatus
-from app.models.connector import ConnectorConnection, ExternalItem
-from app.models.connector import ConnectorProvider
 from app.workers.async_runtime import run_async
 from app.workers.base_task import PermanentTaskError, RudixTask, TransientTaskError
 from app.workers.celery_app import celery_app
@@ -70,6 +75,7 @@ _audit_log_service = AuditLogService()
 _chunking_service = ChunkingService(strategy=settings.chunking_strategy)
 _source_provenance_service = SourceProvenanceService()
 _graph_service = GraphService()
+_entity_resolution_service = EntityResolutionService()
 _entity_extraction_service = EntityExtractionService(
     batch_size=settings.entity_extraction_batch_size,
     timeout_seconds=settings.entity_extraction_timeout_seconds,
@@ -1410,18 +1416,12 @@ async def _extract_and_store_document_pages_async(
                             run_id=_extraction_run_id,
                             strategy="llm_extraction_v1",
                         )
-                        _chunk_pairs = [
-                            (p.chunk_index, p.text)
-                            for p in chunks
-                            if p.text.strip()
-                        ]
+                        _chunk_pairs = [(p.chunk_index, p.text) for p in chunks if p.text.strip()]
                         _chunk_id_by_index = {
                             p.chunk_index: c.id
                             for p, c in zip(chunks, all_created_chunks, strict=True)
                         }
-                        _page_by_index = {
-                            p.chunk_index: p.page_number for p in chunks
-                        }
+                        _page_by_index = {p.chunk_index: p.page_number for p in chunks}
                         _entity_result = await _entity_extraction_service.extract_from_chunks(
                             chunks=_chunk_pairs,
                             document_language=document.language,
@@ -1429,21 +1429,83 @@ async def _extract_and_store_document_pages_async(
                         )
                         for _item in _entity_result.entities:
                             _chunk_db_id = _chunk_id_by_index.get(_item.source_chunk_index)
+                            _resolved_entity_id = _item.entity_id
+                            _resolution_status = "new"
+                            _resolution_confidence = _item.confidence
+                            _entity_aliases = list(
+                                dict.fromkeys(
+                                    [
+                                        _item.original_name,
+                                        _item.name,
+                                        *_item.aliases,
+                                    ]
+                                )
+                            )
+                            if settings.feature_enable_entity_resolution:
+                                _resolution_result = await _graph_service.resolve_entity(
+                                    organization_id=document.organization_id,
+                                    entity_type=_item.type,
+                                    canonical_name=_item.name,
+                                    original_name=_item.original_name,
+                                    aliases=_item.aliases,
+                                    language=_item.language,
+                                )
+                                _resolved_entity_id = _resolution_result.canonical_entity_id
+                                _resolution_status = _resolution_result.status
+                                _resolution_confidence = _resolution_result.candidate_score
+                                _canonical_name = _resolution_result.canonical_name
+                            else:
+                                _canonical_name = _item.name
+                            resolution_input = EntityResolutionInput(
+                                organization_id=str(document.organization_id),
+                                entity_type=_item.type,
+                                canonical_name=_canonical_name,
+                                original_name=_item.original_name,
+                                aliases=list(_item.aliases),
+                                source_external_id=None,
+                                source_connector=None,
+                                language=_item.language,
+                            )
+                            alias_name = _item.original_name or _item.name
+                            alias_id = _entity_resolution_service.build_alias_id(
+                                input_=resolution_input,
+                                entity_id=_resolved_entity_id,
+                                alias_name=alias_name,
+                                source_document_id=str(document.id),
+                                chunk_id=str(_chunk_db_id) if _chunk_db_id is not None else None,
+                            )
                             await _graph_service.upsert_entity(
                                 organization_id=document.organization_id,
-                                entity_id=_item.entity_id,
+                                entity_id=_resolved_entity_id,
                                 entity_type=_item.type,
-                                canonical_name=_item.name,
+                                canonical_name=_canonical_name,
+                                normalized_name=_canonical_name.lower().strip(),
+                                resolution_status=_resolution_status,
+                                resolution_confidence=_resolution_confidence,
                                 properties={
                                     "original_name": _item.original_name,
-                                    "aliases": _item.aliases,
+                                    "aliases": _entity_aliases,
+                                    "language": _item.language,
+                                },
+                            )
+                            await _graph_service.upsert_entity_alias(
+                                organization_id=document.organization_id,
+                                entity_id=_resolved_entity_id,
+                                alias_id=alias_id,
+                                alias_name=alias_name,
+                                source_document_id=document.id,
+                                chunk_id=_chunk_db_id,
+                                confidence=_item.confidence,
+                                evidence_text=_item.evidence_span,
+                                properties={
+                                    "normalized_name": _item.name.lower().strip(),
                                     "language": _item.language,
                                 },
                             )
                             if _chunk_db_id is not None:
                                 await _graph_service.link_evidence(
                                     organization_id=document.organization_id,
-                                    entity_id=_item.entity_id,
+                                    entity_id=_resolved_entity_id,
                                     chunk_id=_chunk_db_id,
                                     source_document_id=document.id,
                                     confidence=_item.confidence,
@@ -1548,9 +1610,9 @@ async def _extract_and_store_document_pages_async(
                         }
                         _entity_names_by_chunk: dict[int, list[str]] = {}
                         for _item in _entity_result.entities:
-                            _entity_names_by_chunk.setdefault(
-                                _item.source_chunk_index, []
-                            ).append(_item.name)
+                            _entity_names_by_chunk.setdefault(_item.source_chunk_index, []).append(
+                                _item.name
+                            )
 
                         _rel_result = await _relation_extraction_service.extract_from_chunks(
                             chunks=_chunk_pairs,
@@ -1559,9 +1621,7 @@ async def _extract_and_store_document_pages_async(
                             organization_id=str(document.organization_id),
                         )
                         for _rel_item in _rel_result.relations:
-                            _rel_chunk_db_id = _chunk_id_by_index.get(
-                                _rel_item.source_chunk_index
-                            )
+                            _rel_chunk_db_id = _chunk_id_by_index.get(_rel_item.source_chunk_index)
                             _initial_status = (
                                 _relation_extraction_service.compute_initial_status(
                                     _rel_item.confidence
@@ -1581,9 +1641,7 @@ async def _extract_and_store_document_pages_async(
                                 ),
                                 chunk_id=_rel_chunk_db_id,
                                 source_document_id=document.id,
-                                page_number=_page_by_index.get(
-                                    _rel_item.source_chunk_index
-                                ),
+                                page_number=_page_by_index.get(_rel_item.source_chunk_index),
                                 extraction_run_id=_rel_run_id,
                                 confidence=_rel_item.confidence,
                                 initial_status=_initial_status,

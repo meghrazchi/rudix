@@ -562,6 +562,12 @@ class Settings(BaseSettings):
     entity_extraction_strict_mode: bool = False
     entity_extraction_timeout_seconds: float = Field(default=60.0, ge=5.0, le=300.0)
     entity_extraction_max_retries: int = Field(default=2, ge=0, le=5)
+    # Entity resolution and canonicalization (F285): merges aliases and source
+    # mentions into canonical records when the confidence threshold is met.
+    # Requires enterprise_graph_enabled=true. Remains off by default.
+    feature_enable_entity_resolution: bool = False
+    entity_resolution_auto_merge_threshold: float = Field(default=0.88, ge=0.0, le=1.0)
+    entity_resolution_review_threshold: float = Field(default=0.65, ge=0.0, le=1.0)
     # Relation extraction pipeline (F284): LLM-based relation extraction, runs after entity
     # extraction. Requires enterprise_graph_enabled=true and feature_enable_entity_extraction=true.
     # confidence_threshold: relations below this value receive status=low_confidence.
@@ -1291,6 +1297,8 @@ class Settings(BaseSettings):
                 "agents": self.feature_enable_agents,
                 "chunking_profiles": self.feature_enable_chunking_profiles,
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
+                "entity_extraction": self.feature_enable_entity_extraction,
+                "entity_resolution": self.feature_enable_entity_resolution,
                 "mcp": self.feature_enable_mcp,
                 "external_mcp_connectors": self.feature_enable_external_mcp_connectors,
                 "connectors": self.feature_enable_connectors,
@@ -1308,6 +1316,9 @@ class Settings(BaseSettings):
                 "connection_timeout_seconds": self.neo4j_connection_timeout_seconds,
                 "query_timeout_seconds": self.neo4j_query_timeout_seconds,
                 "max_connection_pool_size": self.neo4j_max_connection_pool_size,
+                "entity_resolution_enabled": self.feature_enable_entity_resolution,
+                "entity_resolution_auto_merge_threshold": self.entity_resolution_auto_merge_threshold,
+                "entity_resolution_review_threshold": self.entity_resolution_review_threshold,
             },
             "answer_language_workspace_default": self.answer_language_workspace_default,
             "collaboration_bots": {
