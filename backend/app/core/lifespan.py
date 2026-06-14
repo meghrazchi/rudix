@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from app.clients.clamav_client import close_clamav, init_clamav
 from app.clients.minio_client import close_minio, init_minio
 from app.clients.neo4j_client import close_neo4j, init_neo4j
+from app.domains.graph.migration_runner import run_graph_migrations
 from app.clients.qdrant_client import close_qdrant, init_qdrant
 from app.clients.rabbitmq_client import close_rabbitmq, init_rabbitmq
 from app.clients.redis_client import close_redis, init_redis
@@ -89,6 +90,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         init_minio()
         init_clamav()
         await init_neo4j()
+        await run_graph_migrations()
         await probe_local_providers()
         yield
     finally:
