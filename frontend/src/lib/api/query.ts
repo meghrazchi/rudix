@@ -141,6 +141,8 @@ export const queryKeys = {
       ["graph", "entities", params ?? {}] as const,
     entity: (entityId: string, params?: Record<string, unknown>) =>
       ["graph", "entity", entityId, params ?? {}] as const,
+    documentInsights: (documentId: string) =>
+      ["graph", "document-insights", documentId] as const,
   },
   pipeline: {
     all: ["pipeline"] as const,

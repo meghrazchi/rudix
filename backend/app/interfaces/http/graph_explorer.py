@@ -133,6 +133,46 @@ class GraphEntityDetailResponse(BaseModel):
     summary: dict[str, int]
 
 
+class DocumentGraphInsightEntityItem(BaseModel):
+    entity_id: str
+    entity_type: str | None = None
+    canonical_name: str
+    confidence: float | None = None
+    evidence_count: int = 0
+
+
+class DocumentGraphInsightEvidenceItem(BaseModel):
+    chunk_id: str
+    source_document_id: str
+    page_number: int | None = None
+    confidence: float | None = None
+    evidence_text: str | None = None
+    citation_text: str | None = None
+    citation_reference: str | None = None
+    extraction_run_id: str | None = None
+
+
+class DocumentGraphInsightRunItem(BaseModel):
+    run_id: str
+    status: str
+    strategy: str | None = None
+    entity_count: int | None = None
+    error: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class DocumentGraphInsightsResponse(BaseModel):
+    entity_count: int = 0
+    relation_count: int = 0
+    avg_confidence: float | None = None
+    entities_by_type: dict[str, int] = Field(default_factory=dict)
+    top_entities: list[DocumentGraphInsightEntityItem] = Field(default_factory=list)
+    recent_evidence: list[DocumentGraphInsightEvidenceItem] = Field(default_factory=list)
+    extraction_runs: list[DocumentGraphInsightRunItem] = Field(default_factory=list)
+    last_run_at: str | None = None
+
+
 RelationshipDirection = Literal["out", "in", "both"]
 _Principal = Annotated[AuthenticatedPrincipal, Depends(get_current_principal)]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))]
@@ -217,4 +257,69 @@ async def get_entity_detail(
             GraphConnectedEntityItem(**item) for item in detail["connected_entities"]
         ],
         summary=dict(detail["summary"]),
+    )
+
+
+@router.get("/documents/{document_id}/insights", response_model=DocumentGraphInsightsResponse)
+async def get_document_graph_insights(
+    document_id: str,
+    principal: _Principal,
+    _: _RateLimit,
+) -> DocumentGraphInsightsResponse:
+    """Return graph facts extracted from a document for the Insights panel (F289).
+
+    Returns a safe 503 when Enterprise Graph is disabled or Neo4j is
+    unreachable so the document details page degrades gracefully.
+    """
+    _require_graph_available()
+    svc = _graph_service()
+    data = await svc.get_document_insights(
+        organization_id=principal.organization_id,
+        document_id=document_id,
+    )
+
+    top_entities = [
+        DocumentGraphInsightEntityItem(
+            entity_id=str(item.get("entity_id") or ""),
+            entity_type=item.get("entity_type"),
+            canonical_name=str(item.get("canonical_name") or ""),
+            confidence=item.get("confidence"),
+            evidence_count=int(item.get("evidence_count") or 0),
+        )
+        for item in (data.get("top_entities") or [])
+    ]
+    recent_evidence = [
+        DocumentGraphInsightEvidenceItem(
+            chunk_id=str(item.get("chunk_id") or ""),
+            source_document_id=str(item.get("source_document_id") or ""),
+            page_number=item.get("page_number"),
+            confidence=item.get("confidence"),
+            evidence_text=item.get("evidence_text"),
+            citation_text=item.get("citation_text"),
+            citation_reference=item.get("citation_reference"),
+            extraction_run_id=item.get("extraction_run_id"),
+        )
+        for item in (data.get("recent_evidence") or [])
+    ]
+    extraction_runs = [
+        DocumentGraphInsightRunItem(
+            run_id=str(run.get("run_id") or ""),
+            status=str(run.get("status") or "unknown"),
+            strategy=run.get("strategy"),
+            entity_count=run.get("entity_count"),
+            error=run.get("error"),
+            created_at=run.get("created_at"),
+            updated_at=run.get("updated_at"),
+        )
+        for run in (data.get("extraction_runs") or [])
+    ]
+    return DocumentGraphInsightsResponse(
+        entity_count=int(data.get("entity_count") or 0),
+        relation_count=int(data.get("relation_count") or 0),
+        avg_confidence=data.get("avg_confidence"),
+        entities_by_type=dict(data.get("entities_by_type") or {}),
+        top_entities=top_entities,
+        recent_evidence=recent_evidence,
+        extraction_runs=extraction_runs,
+        last_run_at=data.get("last_run_at"),
     )

@@ -701,6 +701,48 @@ class RelationRepository:
             )
             return []
 
+    async def count_relations_for_document(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+    ) -> int:
+        """Count evidence-backed relation edges where source_document_id matches.
+
+        Relation edges created via create_relation_with_evidence carry a
+        source_document_id property; this count reflects how many graph-level
+        relations were extracted from the given document.  Returns 0 on error
+        or when the graph is unavailable.
+        """
+        driver, settings = _get_driver_and_settings()
+        if driver is None:
+            return 0
+
+        try:
+            async with driver.session(database=settings.neo4j_database) as session:
+                result = await asyncio.wait_for(
+                    session.run(
+                        """
+                        MATCH ()-[r {organization_id: $org, source_document_id: $document_id}]->()
+                        RETURN count(r) AS relation_count
+                        """,
+                        org=str(organization_id),
+                        document_id=str(document_id),
+                    ),
+                    timeout=settings.neo4j_query_timeout_seconds,
+                )
+                records = await result.data()
+            return int(records[0]["relation_count"]) if records else 0
+        except Exception as exc:
+            logger.warning(
+                "graph.relation.count_doc_error",
+                organization_id=str(organization_id),
+                document_id=str(document_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return 0
+
     async def delete_relation(
         self,
         *,

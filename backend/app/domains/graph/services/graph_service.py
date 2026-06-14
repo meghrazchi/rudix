@@ -778,6 +778,18 @@ class GraphService:
             initial_status=initial_status,
         )
 
+    async def count_document_relations(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+    ) -> int:
+        """Count evidence-backed relation edges sourced from a document."""
+        return await self._relations.count_relations_for_document(
+            organization_id=organization_id,
+            document_id=document_id,
+        )
+
     async def list_relations(
         self,
         *,
@@ -973,6 +985,80 @@ class GraphService:
             document_id=document_id,
             limit=limit,
         )
+
+    async def get_document_insights(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        entity_limit: int = 50,
+        evidence_limit: int = 20,
+        run_limit: int = 5,
+    ) -> dict[str, object]:
+        """Return graph facts extracted from a document for the Insights panel (F289).
+
+        Aggregates:
+          - entities extracted from this document, grouped by type
+          - evidence snippets with chunk/page provenance for deep-links
+          - relation count (edges carrying source_document_id)
+          - extraction run history with status and entity counts
+
+        Returns safe empty data when Neo4j is unavailable so the document
+        details page continues to work without the graph.
+        """
+        entity_result = await self.search_entities(
+            organization_id=organization_id,
+            source_document_id=document_id,
+            limit=entity_limit,
+        )
+        entities: list[dict] = list(entity_result.get("items") or [])
+        entity_count: int = int(entity_result.get("total") or 0)
+
+        confidences = [
+            float(e["confidence"])
+            for e in entities
+            if e.get("confidence") is not None
+        ]
+        avg_confidence: float | None = (
+            round(sum(confidences) / len(confidences), 4) if confidences else None
+        )
+
+        entities_by_type: dict[str, int] = {}
+        for entity in entities:
+            entity_type = str(entity.get("entity_type") or "Unknown")
+            entities_by_type[entity_type] = entities_by_type.get(entity_type, 0) + 1
+
+        evidence: list[dict] = await self.get_document_provenance(
+            organization_id=organization_id,
+            document_id=document_id,
+            limit=evidence_limit,
+        )
+
+        relation_count: int = await self.count_document_relations(
+            organization_id=organization_id,
+            document_id=document_id,
+        )
+
+        extraction_runs: list[dict] = await self.get_document_extraction_runs(
+            organization_id=organization_id,
+            document_id=document_id,
+            limit=run_limit,
+        )
+
+        last_run_at: str | None = None
+        if extraction_runs:
+            last_run_at = str(extraction_runs[0].get("updated_at") or extraction_runs[0].get("created_at") or "")
+
+        return {
+            "entity_count": entity_count,
+            "relation_count": relation_count,
+            "avg_confidence": avg_confidence,
+            "entities_by_type": entities_by_type,
+            "top_entities": entities[:entity_limit],
+            "recent_evidence": evidence,
+            "extraction_runs": extraction_runs,
+            "last_run_at": last_run_at or None,
+        }
 
     # ------------------------------------------------------------------
     # GraphRAG queries

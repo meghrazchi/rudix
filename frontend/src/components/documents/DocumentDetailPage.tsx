@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { DocumentChunkingDiagnosticsPanel } from "@/components/documents/DocumentChunkingDiagnosticsPanel";
 import { DocumentExtractionDiagnosticsPanel } from "@/components/documents/DocumentExtractionDiagnosticsPanel";
+import { DocumentGraphInsightsPanel } from "@/components/documents/DocumentGraphInsightsPanel";
 import type {
   DocumentDetailResponse,
   DocumentLifecycleTimelineStepResponse,
@@ -1760,6 +1761,18 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                             setActionFeedback(null);
                             setActionRequestId(null);
                             reindexMutation.mutate({ payload, label });
+                          }}
+                        />
+
+                        <DocumentGraphInsightsPanel
+                          documentId={documentId}
+                          graphExtractionStatus={graphStatus}
+                          canReindex={canReindex && capabilities.canReindex}
+                          isReindexPending={graphReindexMutation.isPending}
+                          onReindexGraph={() => {
+                            setActionFeedback(null);
+                            setActionRequestId(null);
+                            graphReindexMutation.mutate();
                           }}
                         />
 

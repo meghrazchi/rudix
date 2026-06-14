@@ -149,3 +149,51 @@ export async function getGraphEntity(
     },
   );
 }
+
+export type DocumentGraphInsightEntityItem = {
+  entity_id: string;
+  entity_type?: string | null;
+  canonical_name: string;
+  confidence?: number | null;
+  evidence_count: number;
+};
+
+export type DocumentGraphInsightEvidenceItem = {
+  chunk_id: string;
+  source_document_id: string;
+  page_number?: number | null;
+  confidence?: number | null;
+  evidence_text?: string | null;
+  citation_text?: string | null;
+  citation_reference?: string | null;
+  extraction_run_id?: string | null;
+};
+
+export type DocumentGraphInsightRunItem = {
+  run_id: string;
+  status: string;
+  strategy?: string | null;
+  entity_count?: number | null;
+  error?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type DocumentGraphInsightsResponse = {
+  entity_count: number;
+  relation_count: number;
+  avg_confidence?: number | null;
+  entities_by_type: Record<string, number>;
+  top_entities: DocumentGraphInsightEntityItem[];
+  recent_evidence: DocumentGraphInsightEvidenceItem[];
+  extraction_runs: DocumentGraphInsightRunItem[];
+  last_run_at?: string | null;
+};
+
+export async function getDocumentGraphInsights(
+  documentId: string,
+): Promise<DocumentGraphInsightsResponse> {
+  return apiRequest<DocumentGraphInsightsResponse>(
+    `/graph/documents/${encodeURIComponent(documentId)}/insights`,
+  );
+}
