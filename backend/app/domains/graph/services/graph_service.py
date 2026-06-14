@@ -236,8 +236,21 @@ class GraphService:
         source_document_id: UUID | str,
         confidence: float | None = None,
         evidence_text: str | None = None,
+        # F282 full provenance
+        workspace_id: UUID | str | None = None,
+        document_version_id: str | None = None,
+        page_number: int | None = None,
+        source_connector: str | None = None,
+        external_url: str | None = None,
+        extraction_run_id: UUID | str | None = None,
+        citation_text: str | None = None,
+        citation_reference: str | None = None,
     ) -> None:
-        """Link a Chunk to an Entity as evidence. No-op when graph is unavailable."""
+        """Link a Chunk to an Entity as evidence with full provenance (F282).
+
+        Requires at least one of evidence_text, citation_text, or citation_reference.
+        No-op when graph is unavailable.
+        """
         await self._evidence.link_evidence(
             organization_id=organization_id,
             entity_id=entity_id,
@@ -245,6 +258,14 @@ class GraphService:
             source_document_id=source_document_id,
             confidence=confidence,
             evidence_text=evidence_text,
+            workspace_id=workspace_id,
+            document_version_id=document_version_id,
+            page_number=page_number,
+            source_connector=source_connector,
+            external_url=external_url,
+            extraction_run_id=extraction_run_id,
+            citation_text=citation_text,
+            citation_reference=citation_reference,
         )
 
     async def get_entity_evidence(
@@ -270,6 +291,20 @@ class GraphService:
         return await self._evidence.delete_evidence_for_chunk(
             organization_id=organization_id,
             chunk_id=chunk_id,
+        )
+
+    async def get_document_provenance(
+        self,
+        *,
+        organization_id: UUID | str,
+        document_id: UUID | str,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Return all evidence links for all entities extracted from a document (F282)."""
+        return await self._evidence.get_document_provenance(
+            organization_id=organization_id,
+            document_id=document_id,
+            limit=limit,
         )
 
     # ------------------------------------------------------------------

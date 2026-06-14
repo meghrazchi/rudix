@@ -168,12 +168,20 @@ class GraphRAGRepository:
                               (e:Entity {organization_id: $organization_id})
                         WHERE e.entity_id IN $entity_ids
                         RETURN
-                            e.entity_id           AS entity_id,
-                            c.chunk_id            AS chunk_id,
-                            c.source_document_id  AS source_document_id,
-                            ev.confidence         AS confidence,
-                            ev.evidence_text      AS evidence_text
-                        ORDER BY ev.confidence DESC
+                            e.entity_id              AS entity_id,
+                            c.chunk_id               AS chunk_id,
+                            c.source_document_id     AS source_document_id,
+                            c.workspace_id           AS workspace_id,
+                            c.source_connector       AS source_connector,
+                            ev.document_version_id   AS document_version_id,
+                            ev.page_number           AS page_number,
+                            ev.external_url          AS external_url,
+                            ev.extraction_run_id     AS extraction_run_id,
+                            ev.confidence            AS confidence,
+                            ev.evidence_text         AS evidence_text,
+                            ev.citation_text         AS citation_text,
+                            ev.citation_reference    AS citation_reference
+                        ORDER BY ev.confidence DESC NULLS LAST
                         LIMIT $limit
                         """,
                         organization_id=str(organization_id),

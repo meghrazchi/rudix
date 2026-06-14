@@ -31,6 +31,7 @@ from app.interfaces.http import (
     feature_flags,
     feedback_review,
     admin_graph_entities,
+    admin_graph_provenance,
     admin_graph_schema,
     graph_health,
     langfuse_diagnostics,
@@ -99,6 +100,7 @@ protected_router.include_router(langfuse_diagnostics.router)
 protected_router.include_router(graph_health.router)
 protected_router.include_router(admin_graph_schema.router)
 protected_router.include_router(admin_graph_entities.router)
+protected_router.include_router(admin_graph_provenance.router)
 protected_router.include_router(failed_jobs.router)
 protected_router.include_router(admin_status.router)
 protected_router.include_router(admin_sso.router)

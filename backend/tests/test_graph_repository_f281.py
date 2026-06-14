@@ -551,11 +551,13 @@ async def test_s_relation_delete_success():
 async def test_t_evidence_link_disabled():
     _reset_driver()
     with patch.object(settings, "enterprise_graph_enabled", False):
+        # F282: citation_text satisfies provenance validation; driver=None → silent no-op
         await EvidenceRepository().link_evidence(
             organization_id=_ORG,
             entity_id="e-001",
             chunk_id="c-001",
             source_document_id="doc-001",
+            citation_text="Acme Corp provides services.",
         )
 
 

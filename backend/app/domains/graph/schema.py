@@ -94,4 +94,18 @@ FOR (e:Entity) ON (e.workspace_id)""",
 FOR (e:Entity) ON (e.external_source_id)""",
         ],
     ),
+    GraphMigration(
+        version="0002",
+        description="Provenance indexes for Chunk node: workspace_id, page_number, source_connector (F282)",
+        statements=[
+            """CREATE INDEX chunk_workspace_id_idx IF NOT EXISTS
+FOR (c:Chunk) ON (c.workspace_id)""",
+            """CREATE INDEX chunk_page_number_idx IF NOT EXISTS
+FOR (c:Chunk) ON (c.page_number)""",
+            """CREATE INDEX chunk_source_connector_idx IF NOT EXISTS
+FOR (c:Chunk) ON (c.source_connector)""",
+            """CREATE INDEX extraction_run_id_node_idx IF NOT EXISTS
+FOR (r:ExtractionRun) ON (r.run_id)""",
+        ],
+    ),
 ]

@@ -75,8 +75,16 @@ class EntityListResponse(BaseModel):
 class EvidenceItem(BaseModel):
     chunk_id: str
     source_document_id: str
+    workspace_id: str | None = None
+    document_version_id: str | None = None
+    page_number: int | None = None
+    source_connector: str | None = None
+    external_url: str | None = None
+    extraction_run_id: str | None = None
     confidence: float | None = None
     evidence_text: str | None = None
+    citation_text: str | None = None
+    citation_reference: str | None = None
     created_at: str | None = None
 
 
@@ -240,8 +248,16 @@ async def get_entity_evidence(
         EvidenceItem(
             chunk_id=r.get("chunk_id", ""),
             source_document_id=r.get("source_document_id", ""),
+            workspace_id=r.get("workspace_id"),
+            document_version_id=r.get("document_version_id"),
+            page_number=r.get("page_number"),
+            source_connector=r.get("source_connector"),
+            external_url=r.get("external_url"),
+            extraction_run_id=r.get("extraction_run_id"),
             confidence=r.get("confidence"),
             evidence_text=r.get("evidence_text"),
+            citation_text=r.get("citation_text"),
+            citation_reference=r.get("citation_reference"),
             created_at=r.get("created_at"),
         )
         for r in items_raw
