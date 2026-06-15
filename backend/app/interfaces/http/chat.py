@@ -98,6 +98,10 @@ from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
 )
+from app.domains.chat.services.parent_context_expansion_service import (
+    ParentContextExpansionService,
+    ParentExpansionResult,
+)
 from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
@@ -166,6 +170,7 @@ _grounded_verifier = GroundedAnswerVerifier()
 _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
+_parent_context_expansion_service = ParentContextExpansionService()
 _document_repository_for_trust = _DocumentRepository()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
@@ -188,6 +193,9 @@ class RetrievedChunk:
     keyword_score: float | None = None
     hybrid_score: float | None = None
     chunk_type: str = "text"
+    # Parent-child context (F300): present when a child chunk was retrieved.
+    chunk_level: int = 0
+    parent_text: str | None = None
 
 
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
@@ -239,6 +247,8 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
         text=candidate.text,
         similarity_score=candidate.similarity_score,
         chunk_type=candidate.chunk_type,
+        chunk_level=candidate.chunk_level,
+        parent_text=candidate.parent_text,
     )
 
 
@@ -254,6 +264,8 @@ def _hybrid_to_retrieved_chunk(candidate: HybridCandidate) -> RetrievedChunk:
         keyword_score=candidate.keyword_score,
         hybrid_score=candidate.hybrid_score,
         chunk_type=getattr(candidate, "chunk_type", "text"),
+        chunk_level=candidate.chunk_level,
+        parent_text=candidate.parent_text,
     )
 
 
@@ -312,6 +324,8 @@ def _merge_retrieved_chunks(
             or None,
             graph_hops=_merge_graph_hops(existing.graph_hops, chunk.graph_hops),
             chunk_type=existing.chunk_type,
+            chunk_level=existing.chunk_level,
+            parent_text=existing.parent_text or chunk.parent_text,
         )
 
     for chunk in vector_chunks:
@@ -343,6 +357,8 @@ def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
                 keyword_score=chunk.keyword_score,
                 hybrid_score=chunk.hybrid_score,
                 chunk_type=chunk.chunk_type,
+                chunk_level=chunk.chunk_level,
+                parent_text=chunk.parent_text,
             )
         )
     return ranked_chunks
@@ -574,6 +590,8 @@ async def _rerank_chunks(
                 keyword_score=source_chunk.keyword_score,
                 hybrid_score=source_chunk.hybrid_score,
                 chunk_type=source_chunk.chunk_type,
+                chunk_level=source_chunk.chunk_level,
+                parent_text=source_chunk.parent_text,
             )
         )
     return selected_chunks, rerank_result
@@ -583,9 +601,11 @@ def _build_prompt(
     *,
     question: str,
     chunks: list[RetrievedChunk],
+    parent_context_map: dict[str, str] | None = None,
     answer_language: str | None = None,
     template: str | None = None,
 ) -> str:
+    _ctx = parent_context_map or {}
     return _prompt_service.build_prompt(
         question=question,
         not_found_answer=_NOT_FOUND_ANSWER,
@@ -597,7 +617,7 @@ def _build_prompt(
                 chunk_id=str(chunk.chunk_id),
                 filename=chunk.filename,
                 page_number=chunk.page_number,
-                text=chunk.text,
+                text=_ctx.get(str(chunk.chunk_id)) or chunk.text,
                 similarity_score=chunk.similarity_score,
                 original_rank=chunk.original_rank,
                 rerank_score=chunk.rerank_score,
@@ -1199,6 +1219,12 @@ async def query_chat(
     _ocr_quality_map: dict[str, str] = {}
     ocr_quality_downranking_enabled = False
     ocr_low_confidence_chunk_count = 0
+    _parent_expansion_result: ParentExpansionResult | None = None
+    _parent_context_map: dict[str, str] = {}
+    parent_context_expansion_enabled = False
+    parent_context_child_hit_count = 0
+    parent_context_expanded_count = 0
+    parent_context_tokens_used = 0
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1508,6 +1534,8 @@ async def query_chat(
                                 keyword_score=_chunk.keyword_score,
                                 hybrid_score=_chunk.hybrid_score,
                                 chunk_type=_chunk.chunk_type,
+                                chunk_level=_chunk.chunk_level,
+                                parent_text=_chunk.parent_text,
                             )
                         )
                     retrieved_chunks = sorted(
@@ -1583,6 +1611,8 @@ async def query_chat(
                                 keyword_score=_chunk.keyword_score,
                                 hybrid_score=_chunk.hybrid_score,
                                 chunk_type=_chunk.chunk_type,
+                                chunk_level=_chunk.chunk_level,
+                                parent_text=_chunk.parent_text,
                             )
                         )
                     retrieved_chunks = sorted(
@@ -1643,11 +1673,45 @@ async def query_chat(
             confidence_category = confidence_result.category
             confidence_explanation = confidence_result.explanation
 
+        # Parent-context expansion (F300).
+        # Runs on the final selected_chunks after reranking.  For each child chunk that
+        # carries a parent_text, the parent section is substituted into the LLM prompt
+        # while citations continue to reference the precise child chunk.  Token budget is
+        # enforced per chunk; permission safety is guaranteed by org-scoped retrieval.
+        if settings.feature_enable_parent_context_expansion and selected_chunks:
+            _pc_enabled = True
+            _pc_max_tokens = settings.parent_context_max_tokens_per_chunk
+            if rag_profile is not None:
+                _pc_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                _pc_enabled = _pc_cfg.parent_context_expansion_enabled
+                _pc_max_tokens = _pc_cfg.parent_context_max_tokens_per_chunk
+            _parent_expansion_result = _parent_context_expansion_service.expand(
+                chunks=selected_chunks,
+                enabled=_pc_enabled,
+                max_tokens_per_chunk=_pc_max_tokens,
+            )
+            _parent_context_map = _parent_expansion_result.context_map
+            parent_context_expansion_enabled = _parent_expansion_result.expanded_count > 0
+            parent_context_child_hit_count = _parent_expansion_result.child_hit_count
+            parent_context_expanded_count = _parent_expansion_result.expanded_count
+            parent_context_tokens_used = _parent_expansion_result.tokens_used
+            if parent_context_expansion_enabled:
+                log_query_event(
+                    event="query.parent_context.expanded",
+                    organization_id=principal.organization_id,
+                    user_id=principal.user_id,
+                    job_id=str(chat_session.id),
+                    child_hit_count=parent_context_child_hit_count,
+                    expanded_count=parent_context_expanded_count,
+                    tokens_used=parent_context_tokens_used,
+                )
+
         prompt_started = perf_counter()
         prompt = (
             _build_prompt(
                 question=payload.question,
                 chunks=selected_chunks,
+                parent_context_map=_parent_context_map if _parent_context_map else None,
                 answer_language=answer_language_used,
                 template=answer_prompt_template,
             )
@@ -2227,6 +2291,10 @@ async def query_chat(
             table_query_detected=table_query_detected,
             ocr_quality_downranking_enabled=ocr_quality_downranking_enabled,
             ocr_low_confidence_chunk_count=ocr_low_confidence_chunk_count,
+            parent_context_expansion_enabled=parent_context_expansion_enabled,
+            parent_context_child_hit_count=parent_context_child_hit_count,
+            parent_context_expanded_count=parent_context_expanded_count,
+            parent_context_tokens_used=parent_context_tokens_used,
         ),
         created_at=assistant_message.created_at,
     )

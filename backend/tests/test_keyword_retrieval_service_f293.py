@@ -104,6 +104,9 @@ def _make_row(
     section_path: str | None = None,
     filename: str = "policy.pdf",
     rank_score: float = 0.5,
+    chunk_level: int = 0,
+    parent_chunk_id: UUID | None = None,
+    parent_text: str | None = None,
 ) -> dict:
     return {
         "chunk_id": chunk_id or uuid4(),
@@ -113,6 +116,10 @@ def _make_row(
         "section_path": section_path,
         "filename": filename,
         "rank_score": rank_score,
+        # Parent-child fields (F300).
+        "chunk_level": chunk_level,
+        "parent_chunk_id": parent_chunk_id,
+        "parent_text": parent_text,
     }
 
 

@@ -51,6 +51,10 @@ def _make_row(**kwargs) -> dict:
         "section_path": None,
         "filename": "doc.pdf",
         "rank_score": 0.5,
+        # Parent-child fields (F300).
+        "chunk_level": 0,
+        "parent_chunk_id": None,
+        "parent_text": None,
     }
     defaults.update(kwargs)
     return defaults

@@ -295,6 +295,11 @@ class ChatDebugResponse(BaseModel):
     # OCR quality downranking (F299).
     ocr_quality_downranking_enabled: bool = False
     ocr_low_confidence_chunk_count: int = 0
+    # Parent-context expansion (F300): child chunks expanded to parent section text for LLM prompt.
+    parent_context_expansion_enabled: bool = False
+    parent_context_child_hit_count: int = 0
+    parent_context_expanded_count: int = 0
+    parent_context_tokens_used: int = 0
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

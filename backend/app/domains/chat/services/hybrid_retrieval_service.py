@@ -28,6 +28,10 @@ class HybridCandidate:
     exact_match_hit: bool = False
     vector_rank: int | None = None
     keyword_rank: int | None = None
+    # Parent-child context (F300): populated for child chunks.
+    chunk_level: int = 0
+    parent_chunk_id: UUID | None = None
+    parent_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -95,6 +99,10 @@ def merge_with_rrf(
         )
 
         # Pull metadata from whichever source has this chunk.
+        # Vector source is preferred for parent fields since the text is stored in Qdrant.
+        chunk_level: int = 0
+        parent_chunk_id: UUID | None = None
+        parent_text: str | None = None
         if chunk_id_str in vector_data:
             vc = vector_data[chunk_id_str]
             chunk_id = vc.chunk_id
@@ -104,6 +112,9 @@ def merge_with_rrf(
             text = vc.text
             section_path = vc.section_path
             similarity_score = vc.similarity_score
+            chunk_level = vc.chunk_level
+            parent_chunk_id = vc.parent_chunk_id
+            parent_text = vc.parent_text
         else:
             kc = keyword_data[chunk_id_str]
             chunk_id = kc.chunk_id
@@ -113,10 +124,20 @@ def merge_with_rrf(
             text = kc.text
             section_path = kc.section_path
             similarity_score = 0.0
+            chunk_level = kc.chunk_level
+            parent_chunk_id = kc.parent_chunk_id
+            parent_text = kc.parent_text
 
         kw_data = keyword_data.get(chunk_id_str)
         keyword_score = kw_data.keyword_score if kw_data else 0.0
         exact_match_hit = kw_data.exact_match_hit if kw_data else False
+        # Prefer keyword parent_text when vector did not supply it.
+        if parent_text is None and kw_data is not None:
+            parent_text = kw_data.parent_text
+            if chunk_level == 0:
+                chunk_level = kw_data.chunk_level
+            if parent_chunk_id is None:
+                parent_chunk_id = kw_data.parent_chunk_id
 
         # Apply exact-match boost to the final hybrid score.
         if exact_match_hit and exact_match_tokens:
@@ -147,6 +168,9 @@ def merge_with_rrf(
                 exact_match_hit=exact_match_hit,
                 vector_rank=v_rank if in_vector else None,
                 keyword_rank=kw_rank if in_keyword else None,
+                chunk_level=chunk_level,
+                parent_chunk_id=parent_chunk_id,
+                parent_text=parent_text,
             )
         )
 

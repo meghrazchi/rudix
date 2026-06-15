@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk
@@ -26,6 +26,10 @@ class KeywordRetrievedCandidate:
     keyword_score: float
     # True when the query contained an exact-match token found in the chunk.
     exact_match_hit: bool = False
+    # Parent-child context (F300): populated for child chunks (chunk_level=1).
+    chunk_level: int = 0
+    parent_chunk_id: UUID | None = None
+    parent_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -94,6 +98,8 @@ class KeywordRetrievalService:
         tsquery = func.plainto_tsquery("english", query)
         rank_expr = func.ts_rank(DocumentChunk.text_search_vector, tsquery)
 
+        # Left-join parent chunk at table level to avoid ORM mapper ambiguity (F300).
+        _parent_alias = DocumentChunk.__table__.alias("parent_chunk")
         stmt = (
             select(
                 DocumentChunk.id.label("chunk_id"),
@@ -101,10 +107,14 @@ class KeywordRetrievalService:
                 DocumentChunk.text,
                 DocumentChunk.page_number,
                 DocumentChunk.section_path,
+                DocumentChunk.chunk_level,
+                DocumentChunk.parent_chunk_id,
+                _parent_alias.c.text.label("parent_text"),
                 Document.filename,
                 rank_expr.label("rank_score"),
             )
             .join(Document, DocumentChunk.document_id == Document.id)
+            .outerjoin(_parent_alias, DocumentChunk.parent_chunk_id == _parent_alias.c.id)
             .where(
                 Document.organization_id == organization_id,
                 Document.status == "indexed",
@@ -146,6 +156,17 @@ class KeywordRetrievalService:
             except (TypeError, ValueError):
                 continue
 
+            chunk_level = int(row["chunk_level"] or 0)
+            raw_parent_id = row["parent_chunk_id"]
+            parent_chunk_id: UUID | None = None
+            if raw_parent_id:
+                try:
+                    parent_chunk_id = UUID(str(raw_parent_id))
+                except (TypeError, ValueError):
+                    pass
+            raw_parent_text = row["parent_text"]
+            parent_text = str(raw_parent_text).strip() if raw_parent_text else None
+
             candidates.append(
                 KeywordRetrievedCandidate(
                     document_id=doc_id,
@@ -156,6 +177,9 @@ class KeywordRetrievalService:
                     section_path=section_path,
                     keyword_score=score,
                     exact_match_hit=exact_hit,
+                    chunk_level=chunk_level,
+                    parent_chunk_id=parent_chunk_id,
+                    parent_text=parent_text,
                 )
             )
 

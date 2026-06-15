@@ -684,6 +684,11 @@ class Settings(BaseSettings):
     table_retrieval_boost_multiplier: float = Field(default=1.25, ge=1.0, le=5.0)
     # OCR quality downranking (F299): penalise retrieval scores for low-confidence OCR chunks.
     feature_enable_ocr_quality_downranking: bool = True
+    # Parent-context expansion (F300): replace child-chunk text with parent section text in the
+    # LLM prompt while keeping citations on the precise child chunk.
+    # parent_context_max_tokens_per_chunk: estimated-token cap per expanded parent text.
+    feature_enable_parent_context_expansion: bool = True
+    parent_context_max_tokens_per_chunk: int = Field(default=512, ge=64, le=8192)
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

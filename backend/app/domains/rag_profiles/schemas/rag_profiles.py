@@ -63,6 +63,13 @@ class RagProfileConfig(BaseModel):
     # table_retrieval_boost_multiplier: per-profile multiplier override (default uses system setting).
     table_retrieval_boost_enabled: bool = Field(default=True)
     table_retrieval_boost_multiplier: float = Field(default=1.25, ge=1.0, le=5.0)
+    # Parent-context expansion (F300).
+    # parent_context_expansion_enabled: substitute parent section text for child chunks in the LLM
+    #   prompt so the model receives richer surrounding context without losing precise citations.
+    # parent_context_max_tokens_per_chunk: hard per-chunk token budget for expanded parent text.
+    #   Parent texts exceeding this limit are truncated at a word boundary.
+    parent_context_expansion_enabled: bool = Field(default=True)
+    parent_context_max_tokens_per_chunk: int = Field(default=512, ge=64, le=8192)
 
     @field_validator("rerank_model")
     @classmethod
