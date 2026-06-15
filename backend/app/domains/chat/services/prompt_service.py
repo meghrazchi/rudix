@@ -47,6 +47,7 @@ class PromptService:
         question: str,
         chunks: list[PromptContextChunk],
         not_found_answer: str,
+        conflict_context: str = "",
         answer_language: str | None = None,
         template: str | None = None,
     ) -> str:
@@ -77,6 +78,7 @@ class PromptService:
                 "context_blocks": context_block,
                 "allowed_chunk_ids": allowed_chunk_ids_text,
                 "not_found_answer": not_found_answer,
+                "conflict_context": conflict_context,
                 "answer_language_instruction": lang_rule,
             },
         )

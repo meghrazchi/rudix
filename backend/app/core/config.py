@@ -550,6 +550,14 @@ class Settings(BaseSettings):
     feature_enable_query_rewriting: bool = False
     query_rewriting_timeout_seconds: float = Field(default=5.0, ge=0.5, le=30.0)
     query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
+    # Conflict detection and agreement scoring (F301).
+    # feature_enable_conflict_detection gates the extra analysis pass that detects
+    # contradictory claims across retrieved documents.
+    # conflict_detection_min_source_docs keeps the detector from running on
+    # single-source answers where there is no meaningful disagreement signal.
+    feature_enable_conflict_detection: bool = False
+    conflict_detection_timeout_seconds: float = Field(default=6.0, ge=0.5, le=60.0)
+    conflict_detection_min_source_docs: int = Field(default=2, ge=2, le=10)
     # Grounded-answer verifier (F296): checks that generated answers are supported
     # by retrieved source chunks. Unsupported claims are removed (standard mode)
     # or the answer is refused (strict mode). Adds one LLM call after generation.
@@ -1430,6 +1438,7 @@ class Settings(BaseSettings):
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
                 "query_rewriting": self.feature_enable_query_rewriting,
+                "conflict_detection": self.feature_enable_conflict_detection,
                 "grounded_answer_verification": self.feature_enable_grounded_answer_verification,
                 "graph_rag": self.feature_enable_graph_rag,
                 "entity_extraction": self.feature_enable_entity_extraction,

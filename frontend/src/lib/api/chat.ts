@@ -49,6 +49,7 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
   table_col_count?: number | null;
   table_headers?: string[];
   table_section_context?: string | null;
+  conflict_status?: "preferred" | "conflicting" | "neutral" | null;
   // OCR quality (F299)
   doc_ocr_quality_status?: "high" | "medium" | "low" | "failed" | "not_required" | null;
   doc_ocr_low_confidence_warning?: boolean;
@@ -69,11 +70,27 @@ export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   graph_chunk_count?: number;
   graph_max_hops_used?: number;
   graph_relation_types_used?: string[];
+  conflict_detection_enabled?: boolean;
+  conflict_detection_applied?: boolean;
+  conflict_detection_latency_ms?: number;
+  conflict_detection_agreement_level?: "full" | "partial" | "conflicting";
+  conflict_detection_conflict_count?: number;
+  conflict_detection_conflicting_document_ids?: string[];
+  conflict_detection_preferred_document_ids?: string[];
+  conflict_detection_model?: string | null;
+  conflict_detection_provider?: string | null;
 };
+export type ChatConflictPairResponse = Schemas["ChatConflictPairResponse"];
 export type ChatConfidenceExplanationResponse =
   Schemas["ChatConfidenceExplanationResponse"];
 export type ChatQueryResponse = Omit<Schemas["ChatQueryResponse"], "debug"> & {
   debug: Schemas["ChatQueryResponse"]["debug"] | null;
+  agreement_level?: "full" | "partial" | "conflicting";
+  conflict_detected?: boolean;
+  conflict_summary?: string | null;
+  conflicting_document_ids?: string[];
+  preferred_document_ids?: string[];
+  conflict_pairs?: ChatConflictPairResponse[];
 };
 export type ChatMessageResponse = Schemas["ChatMessageResponse"];
 export type ChatSessionMessageResponse = Schemas["ChatSessionMessageResponse"];

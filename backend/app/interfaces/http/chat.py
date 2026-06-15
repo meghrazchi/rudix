@@ -54,6 +54,7 @@ from app.domains.chat.schemas.chat import (
     ChatCitationResponse,
     ChatConfidenceExplanationResponse,
     ChatDebugResponse,
+    ChatConflictPairResponse,
     ChatMessageRequest,
     ChatMessageResponse,
     ChatQueryRequest,
@@ -80,6 +81,12 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.conflict_detection_service import (
+    ConflictDetectionChunk,
+    ConflictDetectionResult,
+    ConflictDetectionService,
+    ConflictPair,
+)
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
     GroundedVerifierResult,
@@ -161,6 +168,7 @@ _prompt_template_service = PromptTemplateService()
 _citation_service = CitationService()
 _source_provenance_service = SourceProvenanceService()
 _confidence_service = ConfidenceService()
+_conflict_detection_service = ConflictDetectionService()
 _graph_retrieval_service = GraphRetrievalService()
 _feature_flag_service = FeatureFlagService()
 _llm_service = LLMService()
@@ -396,6 +404,7 @@ def _with_freshness(
         source_last_synced_at=citation.source_last_synced_at,
         source_trust_status=citation.source_trust_status,
         source_acl_snapshot=citation.source_acl_snapshot,
+        conflict_status=citation.conflict_status,
         doc_trust_status=trust.trust_status,
         doc_version_label=trust.version_label,
         doc_review_date=trust.review_date,
@@ -433,6 +442,7 @@ def _with_provenance(
         source_last_synced_at=provenance.source_last_synced_at,
         source_trust_status=cast(Any, provenance.source_trust_status),
         source_acl_snapshot=provenance.source_acl_snapshot,
+        conflict_status=citation.conflict_status,
     )
 
 
@@ -467,6 +477,7 @@ def _with_table_metadata(
         source_last_synced_at=citation.source_last_synced_at,
         source_trust_status=citation.source_trust_status,
         source_acl_snapshot=citation.source_acl_snapshot,
+        conflict_status=citation.conflict_status,
         doc_trust_status=citation.doc_trust_status,
         doc_version_label=citation.doc_version_label,
         doc_review_date=citation.doc_review_date,
@@ -513,6 +524,7 @@ def _with_ocr_quality(
         source_last_synced_at=citation.source_last_synced_at,
         source_trust_status=citation.source_trust_status,
         source_acl_snapshot=citation.source_acl_snapshot,
+        conflict_status=citation.conflict_status,
         doc_trust_status=citation.doc_trust_status,
         doc_version_label=citation.doc_version_label,
         doc_review_date=citation.doc_review_date,
@@ -527,6 +539,83 @@ def _with_ocr_quality(
         table_section_context=citation.table_section_context,
         doc_ocr_quality_status=quality_status,
         doc_ocr_low_confidence_warning=_ocr_quality_service.is_low_confidence(quality_status),
+    )
+
+
+def _with_conflict_status(
+    citation: ChatCitationResponse,
+    conflict_result: ConflictDetectionResult,
+) -> ChatCitationResponse:
+    if not conflict_result.applied or not conflict_result.conflict_detected:
+        return citation
+
+    status: Literal["preferred", "conflicting", "neutral"] = "neutral"
+    if citation.document_id in conflict_result.preferred_document_ids:
+        status = "preferred"
+    elif citation.document_id in conflict_result.conflicting_document_ids:
+        status = "conflicting"
+
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        original_rank=citation.original_rank,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        final_rank=citation.final_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=citation.source_provider,
+        source_provider_label=citation.source_provider_label,
+        source_title=citation.source_title,
+        source_key=citation.source_key,
+        source_section=citation.source_section,
+        source_deep_link=citation.source_deep_link,
+        source_last_synced_at=citation.source_last_synced_at,
+        source_trust_status=citation.source_trust_status,
+        source_acl_snapshot=citation.source_acl_snapshot,
+        conflict_status=status,
+        doc_trust_status=citation.doc_trust_status,
+        doc_version_label=citation.doc_version_label,
+        doc_review_date=citation.doc_review_date,
+        doc_effective_date=citation.doc_effective_date,
+        doc_stale_warning=citation.doc_stale_warning,
+        doc_is_excluded_status=citation.doc_is_excluded_status,
+        is_table_chunk=citation.is_table_chunk,
+        table_caption=citation.table_caption,
+        table_row_count=citation.table_row_count,
+        table_col_count=citation.table_col_count,
+        table_headers=citation.table_headers,
+        table_section_context=citation.table_section_context,
+        doc_ocr_quality_status=citation.doc_ocr_quality_status,
+        doc_ocr_low_confidence_warning=citation.doc_ocr_low_confidence_warning,
+    )
+
+
+def _build_conflict_context(conflict_result: ConflictDetectionResult) -> str:
+    if not conflict_result.applied or conflict_result.agreement_level == "full":
+        return ""
+
+    preferred = ", ".join(conflict_result.preferred_document_ids) or "<none>"
+    conflicting = ", ".join(conflict_result.conflicting_document_ids) or "<none>"
+    pair_lines = [
+        f"- {pair.document_id_a} vs {pair.document_id_b}: {pair.topic} ({pair.severity})"
+        for pair in conflict_result.conflict_pairs[:5]
+    ]
+    pair_block = "\n".join(pair_lines) if pair_lines else "- No valid conflict pairs returned."
+    return (
+        "Source agreement guidance:\n"
+        f"- agreement_level: {conflict_result.agreement_level}\n"
+        f"- conflict_summary: {conflict_result.conflict_summary or 'Conflicting sources detected.'}\n"
+        f"- preferred_document_ids: {preferred}\n"
+        f"- conflicting_document_ids: {conflicting}\n"
+        f"- conflict_pairs:\n{pair_block}\n"
+        "Use the preferred sources as the primary basis, mention disagreements clearly, "
+        "and avoid presenting a single certain answer when the sources do not agree.\n"
     )
 
 
@@ -602,6 +691,7 @@ def _build_prompt(
     question: str,
     chunks: list[RetrievedChunk],
     parent_context_map: dict[str, str] | None = None,
+    conflict_context: str = "",
     answer_language: str | None = None,
     template: str | None = None,
 ) -> str:
@@ -609,6 +699,7 @@ def _build_prompt(
     return _prompt_service.build_prompt(
         question=question,
         not_found_answer=_NOT_FOUND_ANSWER,
+        conflict_context=conflict_context,
         answer_language=answer_language,
         template=template,
         chunks=[
@@ -627,6 +718,37 @@ def _build_prompt(
             for chunk in chunks
         ],
     )
+
+
+def _build_conflict_detection_chunks(
+    *,
+    chunks: list[RetrievedChunk],
+    parent_context_map: dict[str, str] | None,
+    trust_map: dict[str, DocumentTrustData],
+    org_stale_threshold_days: int | None,
+) -> list[ConflictDetectionChunk]:
+    context_map = parent_context_map or {}
+    detection_chunks: list[ConflictDetectionChunk] = []
+    for chunk in chunks:
+        trust = trust_map.get(str(chunk.document_id))
+        effective_trust_status = (
+            _source_freshness_service.compute_effective_trust_status(
+                trust,
+                org_stale_threshold_days=org_stale_threshold_days,
+            )
+            if trust is not None
+            else "current"
+        )
+        detection_chunks.append(
+            ConflictDetectionChunk(
+                chunk_id=str(chunk.chunk_id),
+                document_id=str(chunk.document_id),
+                text=context_map.get(str(chunk.chunk_id)) or chunk.text,
+                similarity_score=chunk.similarity_score,
+                trust_status=effective_trust_status,
+            )
+        )
+    return detection_chunks
 
 
 async def _resolve_answer_prompt_version(
@@ -1225,6 +1347,13 @@ async def query_chat(
     parent_context_child_hit_count = 0
     parent_context_expanded_count = 0
     parent_context_tokens_used = 0
+    conflict_detection_enabled = False
+    conflict_detection_applied = False
+    conflict_detection_latency_ms = 0
+    conflict_detection_result = ConflictDetectionResult(
+        conflict_detected=False,
+        agreement_level="full",
+    )
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1706,12 +1835,48 @@ async def query_chat(
                     tokens_used=parent_context_tokens_used,
                 )
 
+        if selected_chunks and not not_found:
+            _conflict_enabled = settings.feature_enable_conflict_detection
+            _conflict_min_docs = settings.conflict_detection_min_source_docs
+            if rag_profile is not None:
+                _conflict_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                _conflict_enabled = _conflict_cfg.conflict_detection_enabled
+            conflict_detection_enabled = _conflict_enabled
+            if _conflict_enabled:
+                _conflict_started = perf_counter()
+                conflict_detection_result = await _conflict_detection_service.detect(
+                    chunks=_build_conflict_detection_chunks(
+                        chunks=selected_chunks,
+                        parent_context_map=_parent_context_map if _parent_context_map else None,
+                        trust_map=_freshness_trust_map,
+                        org_stale_threshold_days=_freshness_stale_threshold_days,
+                    ),
+                    min_source_docs=_conflict_min_docs,
+                )
+                conflict_detection_applied = conflict_detection_result.applied
+                conflict_detection_latency_ms = int((perf_counter() - _conflict_started) * 1000)
+                latencies_ms["conflict_detection"] = conflict_detection_latency_ms
+                if conflict_detection_applied:
+                    log_query_event(
+                        event="query.conflict_detection.completed",
+                        organization_id=principal.organization_id,
+                        user_id=principal.user_id,
+                        job_id=str(chat_session.id),
+                        agreement_level=conflict_detection_result.agreement_level,
+                        conflict_detected=conflict_detection_result.conflict_detected,
+                        conflict_count=len(conflict_detection_result.conflict_pairs),
+                        preferred_document_ids=conflict_detection_result.preferred_document_ids,
+                        conflicting_document_ids=conflict_detection_result.conflicting_document_ids,
+                        latency_ms=conflict_detection_latency_ms,
+                    )
+
         prompt_started = perf_counter()
         prompt = (
             _build_prompt(
                 question=payload.question,
                 chunks=selected_chunks,
                 parent_context_map=_parent_context_map if _parent_context_map else None,
+                conflict_context=_build_conflict_context(conflict_detection_result),
                 answer_language=answer_language_used,
                 template=answer_prompt_template,
             )
@@ -1797,19 +1962,22 @@ async def query_chat(
                     str(k): v for k, v in _table_metadata_by_chunk_id.items()
                 }
                 citations = [
-                    _with_ocr_quality(
-                        _with_table_metadata(
-                            _with_freshness(
-                                _with_provenance(
-                                    citation,
-                                    provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                    _with_conflict_status(
+                        _with_ocr_quality(
+                            _with_table_metadata(
+                                _with_freshness(
+                                    _with_provenance(
+                                        citation,
+                                        provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                                    ),
+                                    _freshness_trust_map,
+                                    _freshness_stale_ids,
                                 ),
-                                _freshness_trust_map,
-                                _freshness_stale_ids,
+                                _table_metadata_map,
                             ),
-                            _table_metadata_map,
+                            {str(k): v for k, v in _ocr_quality_map.items()},
                         ),
-                        {str(k): v for k, v in _ocr_quality_map.items()},
+                        conflict_detection_result,
                     )
                     for citation in citation_result.citations
                 ]
@@ -2000,6 +2168,17 @@ async def query_chat(
                 "graph_chunk_count": graph_context_result.graph_chunk_count,
                 "graph_max_hops_used": graph_context_result.graph_max_hops_used,
                 "graph_relation_types_used": list(graph_context_result.graph_relation_types_used),
+                "conflict_detection_enabled": conflict_detection_enabled,
+                "conflict_detection_applied": conflict_detection_applied,
+                "conflict_detection_latency_ms": conflict_detection_latency_ms,
+                "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
+                "conflict_detection_conflict_count": len(conflict_detection_result.conflict_pairs),
+                "conflict_detection_conflicting_document_ids": list(
+                    conflict_detection_result.conflicting_document_ids
+                ),
+                "conflict_detection_preferred_document_ids": list(
+                    conflict_detection_result.preferred_document_ids
+                ),
                 "rerank_applied": rerank_applied,
                 "rerank_enabled": rerank_settings.enabled,
                 "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
@@ -2045,6 +2224,17 @@ async def query_chat(
                 "selected_count": len(selected_chunks),
                 "graph_context_used": graph_context_result.graph_context_used,
                 "graph_context_reason": graph_context_result.graph_context_reason,
+                "conflict_detection_enabled": conflict_detection_enabled,
+                "conflict_detection_applied": conflict_detection_applied,
+                "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
+                "conflict_detection_conflict_count": len(conflict_detection_result.conflict_pairs),
+                "conflict_detection_latency_ms": conflict_detection_latency_ms,
+                "conflict_detection_conflicting_document_ids": list(
+                    conflict_detection_result.conflicting_document_ids
+                ),
+                "conflict_detection_preferred_document_ids": list(
+                    conflict_detection_result.preferred_document_ids
+                ),
                 "rerank_applied": rerank_applied,
                 "rerank_enabled": rerank_settings.enabled,
                 "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
@@ -2177,6 +2367,24 @@ async def query_chat(
         citations=[] if not_found else citations,
         citation_validation_failed=citation_validation_failed,
         verification_failed=verification_failed,
+        agreement_level=conflict_detection_result.agreement_level,
+        conflict_detected=conflict_detection_result.conflict_detected,
+        conflict_summary=(
+            conflict_detection_result.conflict_summary
+            if conflict_detection_result.conflict_detected
+            else None
+        ),
+        conflicting_document_ids=list(conflict_detection_result.conflicting_document_ids),
+        preferred_document_ids=list(conflict_detection_result.preferred_document_ids),
+        conflict_pairs=[
+            ChatConflictPairResponse(
+                document_id_a=pair.document_id_a,
+                document_id_b=pair.document_id_b,
+                topic=pair.topic,
+                severity=pair.severity,
+            )
+            for pair in conflict_detection_result.conflict_pairs
+        ],
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),
@@ -2204,6 +2412,19 @@ async def query_chat(
             graph_related_entity_count=graph_context_result.graph_related_entity_count,
             graph_chunk_count=graph_context_result.graph_chunk_count,
             graph_max_hops_used=graph_context_result.graph_max_hops_used,
+            conflict_detection_enabled=conflict_detection_enabled,
+            conflict_detection_applied=conflict_detection_applied,
+            conflict_detection_latency_ms=conflict_detection_latency_ms,
+            conflict_detection_agreement_level=conflict_detection_result.agreement_level,
+            conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
+            conflict_detection_conflicting_document_ids=list(
+                conflict_detection_result.conflicting_document_ids
+            ),
+            conflict_detection_preferred_document_ids=list(
+                conflict_detection_result.preferred_document_ids
+            ),
+            conflict_detection_model=conflict_detection_result.model_name or None,
+            conflict_detection_provider=conflict_detection_result.provider_key or None,
             graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
             embedding_model=embedding_model,
             llm_model=llm_model,
@@ -3214,6 +3435,13 @@ async def _run_ws_chat_pipeline(
             citation_validation_failed = False
             graph_context_result = GraphRetrievalResult()
             rerank_result: RerankResult | None = None
+            conflict_detection_enabled = False
+            conflict_detection_applied = False
+            conflict_detection_latency_ms = 0
+            conflict_detection_result = ConflictDetectionResult(
+                conflict_detected=False,
+                agreement_level="full",
+            )
 
             chat_profile = await resolve_task_profile(
                 db_session, organization_id=organization_id, task_type=TaskType.chat
@@ -3395,11 +3623,47 @@ async def _run_ws_chat_pipeline(
                     confidence_category = confidence_result.category
                     confidence_explanation = confidence_result.explanation
 
+                if selected_chunks and not not_found:
+                    _conflict_enabled = settings.feature_enable_conflict_detection
+                    _conflict_min_docs = settings.conflict_detection_min_source_docs
+                    if rag_profile is not None:
+                        _conflict_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                        _conflict_enabled = _conflict_cfg.conflict_detection_enabled
+                    conflict_detection_enabled = _conflict_enabled
+                    if _conflict_enabled:
+                        _conflict_started = perf_counter()
+                        conflict_detection_result = await _conflict_detection_service.detect(
+                            chunks=_build_conflict_detection_chunks(
+                                chunks=selected_chunks,
+                                parent_context_map=None,
+                                trust_map=_freshness_trust_map,
+                                org_stale_threshold_days=_freshness_stale_threshold_days,
+                            ),
+                            min_source_docs=_conflict_min_docs,
+                        )
+                        conflict_detection_applied = conflict_detection_result.applied
+                        conflict_detection_latency_ms = int(
+                            (perf_counter() - _conflict_started) * 1000
+                        )
+                        latencies_ms["conflict_detection"] = conflict_detection_latency_ms
+                        if conflict_detection_applied:
+                            await send(
+                                "conflict_detection.completed",
+                                {
+                                    "agreement_level": conflict_detection_result.agreement_level,
+                                    "conflict_detected": conflict_detection_result.conflict_detected,
+                                    "conflict_count": len(conflict_detection_result.conflict_pairs),
+                                    "preferred_document_ids": conflict_detection_result.preferred_document_ids,
+                                    "conflicting_document_ids": conflict_detection_result.conflicting_document_ids,
+                                },
+                            )
+
                 prompt_started = perf_counter()
                 prompt = (
                     _build_prompt(
                         question=query_request.question,
                         chunks=selected_chunks,
+                        conflict_context=_build_conflict_context(conflict_detection_result),
                         answer_language=answer_language_used,
                         template=answer_prompt_template,
                     )
@@ -3469,7 +3733,10 @@ async def _run_ws_chat_pipeline(
                             )
                         )
                         citations = [
-                            _with_provenance(c, provenance_by_chunk_id.get(UUID(c.chunk_id)))
+                            _with_conflict_status(
+                                _with_provenance(c, provenance_by_chunk_id.get(UUID(c.chunk_id))),
+                                conflict_detection_result,
+                            )
                             for c in citation_result.citations
                         ]
                         citation_validation_failed = citation_result.invalid_chunk_id_count > 0
@@ -3577,6 +3844,13 @@ async def _run_ws_chat_pipeline(
                         "rerank_completion_tokens": rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
                         "rerank_total_tokens": rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
                         "rerank_cost_usd": float(rerank_diagnostics.approximate_cost_usd) if rerank_diagnostics else None,
+                        "conflict_detection_enabled": conflict_detection_enabled,
+                        "conflict_detection_applied": conflict_detection_applied,
+                        "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
+                        "conflict_detection_conflict_count": len(
+                            conflict_detection_result.conflict_pairs
+                        ),
+                        "conflict_detection_latency_ms": conflict_detection_latency_ms,
                         "transport": "websocket",
                     },
                 )
@@ -3593,6 +3867,12 @@ async def _run_ws_chat_pipeline(
                         "not_found": not_found,
                         "confidence_category": confidence_category,
                         "citation_count": len(citations),
+                        "conflict_detection_enabled": conflict_detection_enabled,
+                        "conflict_detection_applied": conflict_detection_applied,
+                        "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
+                        "conflict_detection_conflict_count": len(
+                            conflict_detection_result.conflict_pairs
+                        ),
                         "transport": "websocket",
                     },
                 )
@@ -3656,6 +3936,13 @@ async def _run_ws_chat_pipeline(
                     prompt_template_version=answer_prompt_version.version_number
                     if answer_prompt_version is not None
                     else None,
+                    conflict_detection_enabled=conflict_detection_enabled,
+                    conflict_detection_applied=conflict_detection_applied,
+                    conflict_detection_latency_ms=conflict_detection_latency_ms,
+                    conflict_detection_agreement_level=conflict_detection_result.agreement_level,
+                    conflict_detection_conflict_count=len(
+                        conflict_detection_result.conflict_pairs
+                    ),
                 )
             )
             log_query_event(
@@ -3671,6 +3958,10 @@ async def _run_ws_chat_pipeline(
                 selected_count=len(selected_chunks),
                 graph_context_used=graph_context_result.graph_context_used,
                 graph_context_reason=graph_context_result.graph_context_reason,
+                conflict_detection_enabled=conflict_detection_enabled,
+                conflict_detection_applied=conflict_detection_applied,
+                conflict_detection_agreement_level=conflict_detection_result.agreement_level,
+                conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
                 transport="websocket",
             )
 
@@ -3700,6 +3991,26 @@ async def _run_ws_chat_pipeline(
                 not_found=not_found,
                 citations=[] if not_found else citations,
                 citation_validation_failed=citation_validation_failed,
+                agreement_level=conflict_detection_result.agreement_level,
+                conflict_detected=conflict_detection_result.conflict_detected,
+                conflict_summary=(
+                    conflict_detection_result.conflict_summary
+                    if conflict_detection_result.conflict_detected
+                    else None
+                ),
+                conflicting_document_ids=list(
+                    conflict_detection_result.conflicting_document_ids
+                ),
+                preferred_document_ids=list(conflict_detection_result.preferred_document_ids),
+                conflict_pairs=[
+                    ChatConflictPairResponse(
+                        document_id_a=pair.document_id_a,
+                        document_id_b=pair.document_id_b,
+                        topic=pair.topic,
+                        severity=pair.severity,
+                    )
+                    for pair in conflict_detection_result.conflict_pairs
+                ],
                 debug=ChatDebugResponse(
                     latencies_ms=latencies_ms,
                     retrieval_count=len(retrieved_chunks),
@@ -3708,12 +4019,18 @@ async def _run_ws_chat_pipeline(
                     rerank_enabled=rerank_settings.enabled,
                     rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
                     rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
-                    rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-                    rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+                    rerank_fallback_used=rerank_diagnostics.fallback_used
+                    if rerank_diagnostics
+                    else False,
+                    rerank_fallback_reason=rerank_diagnostics.fallback_reason
+                    if rerank_diagnostics
+                    else None,
                     rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
                     rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
                     rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-                    rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                    rerank_completion_tokens=rerank_diagnostics.completion_tokens
+                    if rerank_diagnostics
+                    else 0,
                     rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
                     rerank_cost_usd=float(rerank_diagnostics.approximate_cost_usd)
                     if rerank_diagnostics
@@ -3727,6 +4044,21 @@ async def _run_ws_chat_pipeline(
                     graph_related_entity_count=graph_context_result.graph_related_entity_count,
                     graph_chunk_count=graph_context_result.graph_chunk_count,
                     graph_max_hops_used=graph_context_result.graph_max_hops_used,
+                    conflict_detection_enabled=conflict_detection_enabled,
+                    conflict_detection_applied=conflict_detection_applied,
+                    conflict_detection_latency_ms=conflict_detection_latency_ms,
+                    conflict_detection_agreement_level=conflict_detection_result.agreement_level,
+                    conflict_detection_conflict_count=len(
+                        conflict_detection_result.conflict_pairs
+                    ),
+                    conflict_detection_conflicting_document_ids=list(
+                        conflict_detection_result.conflicting_document_ids
+                    ),
+                    conflict_detection_preferred_document_ids=list(
+                        conflict_detection_result.preferred_document_ids
+                    ),
+                    conflict_detection_model=conflict_detection_result.model_name or None,
+                    conflict_detection_provider=conflict_detection_result.provider_key or None,
                     graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
                     embedding_model=embedding_model,
                     llm_model=llm_model,

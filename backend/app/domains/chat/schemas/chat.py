@@ -136,6 +136,13 @@ class ChatStatsResponse(BaseModel):
     total_sessions: int
 
 
+class ChatConflictPairResponse(BaseModel):
+    document_id_a: str
+    document_id_b: str
+    topic: str
+    severity: Literal["low", "medium", "high"] = "medium"
+
+
 class Citation(BaseModel):
     document_id: str
     chunk_id: str
@@ -202,6 +209,7 @@ class ChatCitationResponse(BaseModel):
         | None
     ) = None
     source_acl_snapshot: dict[str, Any] = Field(default_factory=dict)
+    conflict_status: Literal["preferred", "conflicting", "neutral"] | None = None
     # Source freshness fields (F297): populated from document trust metadata.
     doc_trust_status: str | None = None
     doc_version_label: str | None = None
@@ -258,6 +266,15 @@ class ChatDebugResponse(BaseModel):
     graph_related_entity_count: int = 0
     graph_chunk_count: int = 0
     graph_max_hops_used: int = 0
+    conflict_detection_enabled: bool = False
+    conflict_detection_applied: bool = False
+    conflict_detection_latency_ms: int = 0
+    conflict_detection_agreement_level: Literal["full", "partial", "conflicting"] = "full"
+    conflict_detection_conflict_count: int = 0
+    conflict_detection_conflicting_document_ids: list[str] = Field(default_factory=list)
+    conflict_detection_preferred_document_ids: list[str] = Field(default_factory=list)
+    conflict_detection_model: str | None = None
+    conflict_detection_provider: str | None = None
     graph_relation_types_used: list[str] = Field(default_factory=list)
     hybrid_retrieval_enabled: bool = False
     hybrid_vector_hit_count: int = 0
@@ -330,5 +347,11 @@ class ChatQueryResponse(BaseModel):
     citations: list[ChatCitationResponse] = Field(default_factory=list)
     citation_validation_failed: bool = False
     verification_failed: bool = False
+    agreement_level: Literal["full", "partial", "conflicting"] = "full"
+    conflict_detected: bool = False
+    conflict_summary: str | None = None
+    conflicting_document_ids: list[str] = Field(default_factory=list)
+    preferred_document_ids: list[str] = Field(default_factory=list)
+    conflict_pairs: list[ChatConflictPairResponse] = Field(default_factory=list)
     debug: ChatDebugResponse
     created_at: datetime

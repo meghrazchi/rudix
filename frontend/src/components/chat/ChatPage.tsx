@@ -18,6 +18,7 @@ import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
 import { AnswerShareModal } from "@/components/chat/AnswerShareModal";
+import { ConflictWarningCard } from "@/components/chat/ConflictIndicators";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -40,6 +41,7 @@ import {
   listChatSessions,
   queryChat,
   type ChatCitationResponse,
+  type ChatConflictPairResponse,
   type ChatDebugResponse,
   type ChatSessionMessageResponse,
   type ChatQueryRequest,
@@ -175,6 +177,12 @@ type ChatTurn = {
     confidence_category: "low" | "medium" | "high";
     not_found: boolean;
     citation_validation_failed: boolean;
+    agreement_level: "full" | "partial" | "conflicting";
+    conflict_detected: boolean;
+    conflict_summary: string | null;
+    conflicting_document_ids: string[];
+    preferred_document_ids: string[];
+    conflict_pairs: ChatConflictPairResponse[];
     debug: ChatDebugResponse | null;
     citations: ChatCitationResponse[];
     created_at: string;
@@ -210,6 +218,18 @@ function formatPercent(value: number | null | undefined): string {
 
 function confidenceBadgeClass(): string {
   return "inline-flex items-center gap-1 rounded-full border border-[#d7d4e8] bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide text-emerald-800";
+}
+
+function conflictStatusLabel(
+  status: "preferred" | "conflicting" | "neutral" | null | undefined,
+): string | null {
+  if (status === "preferred") {
+    return "Preferred";
+  }
+  if (status === "conflicting") {
+    return "Conflicting";
+  }
+  return null;
 }
 
 function agentRunStatusClass(status: string): string {
@@ -362,6 +382,12 @@ function toTurnResponseFromQuery(
     confidence_category: response.confidence_category,
     not_found: response.not_found,
     citation_validation_failed: response.citation_validation_failed ?? false,
+    agreement_level: response.agreement_level ?? "full",
+    conflict_detected: response.conflict_detected ?? false,
+    conflict_summary: response.conflict_summary ?? null,
+    conflicting_document_ids: response.conflicting_document_ids ?? [],
+    preferred_document_ids: response.preferred_document_ids ?? [],
+    conflict_pairs: response.conflict_pairs ?? [],
     debug: response.debug ?? null,
     citations: response.citations ?? [],
     created_at: response.created_at,
@@ -376,6 +402,66 @@ function toTurnResponseFromQuery(
 function toTurnResponseFromHistoryMessage(
   message: ChatSessionMessageResponse,
 ): ChatTurn["response"] {
+  const messageRecord = message as unknown as Record<string, unknown>;
+  const agreementLevel =
+    messageRecord.agreement_level === "partial" ||
+    messageRecord.agreement_level === "conflicting"
+      ? messageRecord.agreement_level
+      : "full";
+  const conflictDetected = Boolean(messageRecord.conflict_detected);
+  const conflictSummary =
+    typeof messageRecord.conflict_summary === "string"
+      ? messageRecord.conflict_summary
+      : null;
+  const conflictingDocumentIds = Array.isArray(
+    messageRecord.conflicting_document_ids,
+  )
+    ? messageRecord.conflicting_document_ids.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+  const preferredDocumentIds = Array.isArray(
+    messageRecord.preferred_document_ids,
+  )
+    ? messageRecord.preferred_document_ids.filter(
+        (value): value is string => typeof value === "string",
+      )
+    : [];
+  const conflictPairs = Array.isArray(messageRecord.conflict_pairs)
+    ? messageRecord.conflict_pairs
+        .map((pair) => {
+          const record = pair as Record<string, unknown>;
+          const documentIdA = toStringOrNull(record.document_id_a) ?? "";
+          const documentIdB = toStringOrNull(record.document_id_b) ?? "";
+          const topic = toStringOrNull(record.topic) ?? "";
+          const severity =
+            record.severity === "low" ||
+            record.severity === "medium" ||
+            record.severity === "high"
+              ? record.severity
+              : "medium";
+          if (!documentIdA || !documentIdB || !topic) {
+            return null;
+          }
+          return {
+            document_id_a: documentIdA,
+            document_id_b: documentIdB,
+            topic,
+            severity,
+          };
+        })
+        .filter(
+          (
+            pair,
+          ): pair is {
+            document_id_a: string;
+            document_id_b: string;
+            topic: string;
+            severity: "low" | "medium" | "high";
+          } => pair !== null,
+        )
+    : [];
+
   return {
     message_id: message.message_id,
     answer: message.content,
@@ -386,6 +472,12 @@ function toTurnResponseFromHistoryMessage(
     confidence_category: message.confidence_category ?? "low",
     not_found: false,
     citation_validation_failed: false,
+    agreement_level,
+    conflict_detected,
+    conflict_summary,
+    conflicting_document_ids: conflictDetected ? conflictingDocumentIds : [],
+    preferred_document_ids: conflictDetected ? preferredDocumentIds : [],
+    conflict_pairs: conflictDetected ? conflictPairs : [],
     debug: null,
     citations: message.citations ?? [],
     created_at: message.created_at,
@@ -421,6 +513,12 @@ function toTurnResponseFromAgentRun(
     confidence_category: toConfidenceCategory(confidence.category, score),
     not_found: Boolean(outcome?.not_found),
     citation_validation_failed: false,
+    agreement_level: "full",
+    conflict_detected: false,
+    conflict_summary: null,
+    conflicting_document_ids: [],
+    preferred_document_ids: [],
+    conflict_pairs: [],
     debug: null,
     citations,
     created_at: new Date().toISOString(),
@@ -2189,6 +2287,17 @@ export function ChatPage() {
                                   </p>
                                 ) : null}
 
+                                <ConflictWarningCard
+                                  conflictDetected={
+                                    turn.response.conflict_detected
+                                  }
+                                  agreementLevel={turn.response.agreement_level}
+                                  conflictSummary={turn.response.conflict_summary}
+                                  preferredDocumentIds={
+                                    turn.response.preferred_document_ids
+                                  }
+                                />
+
                                 {turn.response.not_found ? (
                                   <div className="space-y-2">
                                     <p className="rounded-lg border border-[#d2cee6] bg-[#faf9ff] px-3 py-2 text-sm break-words text-[#2f2a46]">
@@ -2254,6 +2363,15 @@ export function ChatPage() {
                                                     <span className="block truncate text-xs font-medium text-[#1b1b24]">
                                                       {label}
                                                     </span>
+                                                    {conflictStatusLabel(
+                                                      citation.conflict_status,
+                                                    ) ? (
+                                                      <span className="mt-1 inline-flex rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#5d58a8]">
+                                                        {conflictStatusLabel(
+                                                          citation.conflict_status,
+                                                        )}
+                                                      </span>
+                                                    ) : null}
                                                   </span>
                                                 </button>
                                                 {isPreviewableFile(
@@ -2706,6 +2824,122 @@ export function ChatPage() {
                   <p className="text-xs text-[#777587]">
                     {tc("sourceDocsAsk")}
                   </p>
+                ) : selectedCitationTurn.response.conflict_detected ? (
+                  <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={agreementLevelClass(
+                          selectedCitationTurn.response.agreement_level,
+                        )}
+                      >
+                        {agreementLevelLabel(
+                          selectedCitationTurn.response.agreement_level,
+                        )}
+                      </span>
+                      <span className="font-semibold">
+                        Source comparison
+                      </span>
+                    </div>
+                    {selectedCitationTurn.response.conflict_summary ? (
+                      <p className="mt-1 text-[11px] leading-snug">
+                        {selectedCitationTurn.response.conflict_summary}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div>
+                        <p className="mb-2 text-[10px] font-bold tracking-widest text-emerald-800 uppercase">
+                          Preferred sources
+                        </p>
+                        <div className="space-y-2">
+                          {selectedCitationTurn.response.citations
+                            .filter((citation) =>
+                              selectedCitationTurn.response.preferred_document_ids.includes(
+                                citation.document_id,
+                              ),
+                            )
+                            .map((citation, ci) => (
+                              <button
+                                key={`preferred:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                type="button"
+                                onClick={() => {
+                                  setActiveCitation(citation);
+                                  setIsKnowledgeHubOpen(false);
+                                }}
+                                className="group w-full rounded-lg border border-emerald-200 bg-white p-3 text-left transition-all hover:border-emerald-400"
+                              >
+                                <div className="mb-1 flex items-center justify-between">
+                                  <span
+                                    className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                  >
+                                    {getFileTypeLabel(citation.filename)}
+                                  </span>
+                                  <span className="text-[9px] font-semibold text-emerald-700 uppercase">
+                                    Preferred
+                                  </span>
+                                </div>
+                                <h4
+                                  className="truncate text-sm font-bold text-[#1b1b24]"
+                                  title={citation.filename ?? tc("unknownDocument")}
+                                >
+                                  {citation.filename ?? tc("unknownDocument")}
+                                </h4>
+                                {citation.page_number ? (
+                                  <p className="text-[9px] text-[#464555]">
+                                    Page {citation.page_number}
+                                  </p>
+                                ) : null}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-2 text-[10px] font-bold tracking-widest text-rose-800 uppercase">
+                          Conflicting sources
+                        </p>
+                        <div className="space-y-2">
+                          {selectedCitationTurn.response.citations
+                            .filter((citation) =>
+                              selectedCitationTurn.response.conflicting_document_ids.includes(
+                                citation.document_id,
+                              ),
+                            )
+                            .map((citation, ci) => (
+                              <button
+                                key={`conflicting:${citation.document_id}:${citation.chunk_id}:${ci}`}
+                                type="button"
+                                onClick={() => {
+                                  setActiveCitation(citation);
+                                  setIsKnowledgeHubOpen(false);
+                                }}
+                                className="group w-full rounded-lg border border-rose-200 bg-white p-3 text-left transition-all hover:border-rose-400"
+                              >
+                                <div className="mb-1 flex items-center justify-between">
+                                  <span
+                                    className={`text-[10px] font-bold ${getFileTypeColorClass(citation.filename)}`}
+                                  >
+                                    {getFileTypeLabel(citation.filename)}
+                                  </span>
+                                  <span className="text-[9px] font-semibold text-rose-700 uppercase">
+                                    Conflicting
+                                  </span>
+                                </div>
+                                <h4
+                                  className="truncate text-sm font-bold text-[#1b1b24]"
+                                  title={citation.filename ?? tc("unknownDocument")}
+                                >
+                                  {citation.filename ?? tc("unknownDocument")}
+                                </h4>
+                                {citation.page_number ? (
+                                  <p className="text-[9px] text-[#464555]">
+                                    Page {citation.page_number}
+                                  </p>
+                                ) : null}
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ) : selectedCitationTurn.response.not_found ? (
                   <p className="text-xs text-[#777587]">
                     {tc("sourceDocsNotFound")}

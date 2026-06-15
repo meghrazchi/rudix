@@ -43,6 +43,10 @@ class RagProfileConfig(BaseModel):
     query_rewriting_enabled: bool = Field(default=True)
     query_decomposition_enabled: bool = Field(default=True)
     query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
+    # Conflict detection and agreement scoring (F301).
+    # conflict_detection_enabled: run the detector over selected chunks and
+    # surface agreement metadata when multiple sources disagree.
+    conflict_detection_enabled: bool = Field(default=False)
     # Grounded-answer verification (F296).
     # grounded_answer_verification_enabled: run LLM verifier after generation to check claim support.
     # grounded_answer_verification_mode: "strict" refuses the whole answer when unsupported;

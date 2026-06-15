@@ -662,6 +662,15 @@ Notes:
   evidence-backed Neo4j context that is still scoped to the caller organization
   and allowed document IDs. Graph-only facts are not cited unless a matching
   document/chunk reference exists in the retrieved context.
+- When `FEATURE_ENABLE_CONFLICT_DETECTION=true` or the active RAG profile sets
+  `conflict_detection_enabled=true`, the backend compares retrieved sources
+  before generation and returns conflict metadata when evidence disagrees.
+- The chat response payload includes `agreement_level`, `conflict_detected`,
+  `conflict_summary`, `conflicting_document_ids`, `preferred_document_ids`, and
+  per-citation `conflict_status` metadata so the UI can warn about conflicts and
+  compare sources safely.
+- Debug telemetry includes conflict-detection latency and the preferred versus
+  conflicting document sets for admin-visible diagnostics.
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
 - The active `answer_generation` prompt template version is resolved per organization and persisted on assistant chat messages for rollback/evaluation traceability.
 - Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `original_rank`, `rerank_score`, `rerank_rank`, `final_rank`) and an explicit allowed chunk ID list for citation validation.

@@ -316,6 +316,12 @@ Key properties:
   the original retrieval order instead of breaking chat.
 - Retrieval diagnostics store original rank, rerank score/rank, final rank, and
   rerank cost/latency metadata for safe admin-visible debugging.
+- When multiple retrieved documents disagree, the conflict detector scores
+  source agreement before prompt construction, marks preferred/current sources,
+  and surfaces conflict context instead of pretending there is a single certain
+  answer.
+- Conflict detection is gated by `FEATURE_ENABLE_CONFLICT_DETECTION` and can be
+  overridden per RAG profile with `conflict_detection_enabled`.
 
 ## Prompt builder
 

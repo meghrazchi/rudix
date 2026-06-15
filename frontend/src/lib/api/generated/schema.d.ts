@@ -1235,6 +1235,22 @@ export interface components {
       start_offset?: number | null;
       /** End Offset */
       end_offset?: number | null;
+      /** Conflict Status */
+      conflict_status?: "preferred" | "conflicting" | "neutral" | null;
+    };
+    /** ChatConflictPairResponse */
+    ChatConflictPairResponse: {
+      /** Document Id A */
+      document_id_a: string;
+      /** Document Id B */
+      document_id_b: string;
+      /** Topic */
+      topic: string;
+      /**
+       * Severity
+       * @enum {string}
+       */
+      severity: "low" | "medium" | "high";
     };
     /** ChatConfidenceExplanationResponse */
     ChatConfidenceExplanationResponse: {
@@ -1309,6 +1325,27 @@ export interface components {
       graph_max_hops_used?: number;
       /** Graph Relation Types Used */
       graph_relation_types_used?: string[];
+      /** Conflict Detection Enabled */
+      conflict_detection_enabled?: boolean;
+      /** Conflict Detection Applied */
+      conflict_detection_applied?: boolean;
+      /** Conflict Detection Latency Ms */
+      conflict_detection_latency_ms?: number;
+      /**
+       * Conflict Detection Agreement Level
+       * @enum {string}
+       */
+      conflict_detection_agreement_level?: "full" | "partial" | "conflicting";
+      /** Conflict Detection Conflict Count */
+      conflict_detection_conflict_count?: number;
+      /** Conflict Detection Conflicting Document Ids */
+      conflict_detection_conflicting_document_ids?: string[];
+      /** Conflict Detection Preferred Document Ids */
+      conflict_detection_preferred_document_ids?: string[];
+      /** Conflict Detection Model */
+      conflict_detection_model?: string | null;
+      /** Conflict Detection Provider */
+      conflict_detection_provider?: string | null;
     };
     /** ChatMessageRequest */
     ChatMessageRequest: {
@@ -1394,6 +1431,22 @@ export interface components {
       citations?: components["schemas"]["ChatCitationResponse"][];
       /** Citation Validation Failed */
       citation_validation_failed?: boolean;
+      /**
+       * Agreement Level
+       * @default full
+       * @enum {string}
+       */
+      agreement_level?: "full" | "partial" | "conflicting";
+      /** Conflict Detected */
+      conflict_detected?: boolean;
+      /** Conflict Summary */
+      conflict_summary?: string | null;
+      /** Conflicting Document Ids */
+      conflicting_document_ids?: string[];
+      /** Preferred Document Ids */
+      preferred_document_ids?: string[];
+      /** Conflict Pairs */
+      conflict_pairs?: components["schemas"]["ChatConflictPairResponse"][];
       debug: components["schemas"]["ChatDebugResponse"];
       /**
        * Created At
