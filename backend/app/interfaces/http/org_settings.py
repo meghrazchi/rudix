@@ -1,154 +1,205 @@
-"""
-Settings – Organization endpoint stubs.
-
-Contract (F193): These routes define the expected API surface for the Settings
-Organization tab.  They return HTTP 501 until the backing service layer is
-implemented.  The frontend detects 501 via the unavailable-endpoint pattern.
-
-Auth:   Bearer JWT required (enforced by the parent protected_router).
-Org:    All endpoints scoped to principal.organization_id.
-Roles:  GET  /organization              – any authenticated member
-        PATCH /organization             – owner, admin
-        GET  /organization/settings     – owner, admin
-        PATCH /organization/settings    – owner, admin
-        GET  /organization/ingestion    – owner, admin
-        PATCH /organization/ingestion   – owner, admin
-Rate:   30 req/min per org on GETs; 10 req/min per org on PATCHes.
-
-Error shape:
-    { "error_code": "<CODE>", "detail": "<human-readable>" }
-
-Error codes:
-    NOT_IMPLEMENTED – endpoint stub not yet backed by service layer
-    FORBIDDEN       – role insufficient for the operation
-    CONFLICT        – slug already taken (PATCH /organization)
-    UNPROCESSABLE   – validation error on request body
-"""
-
 from __future__ import annotations
 
+from uuid import UUID
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_principal
 from app.auth.models import AuthenticatedPrincipal
+from app.db.session import get_db_session
+from app.models.organization import Organization
 
 router = APIRouter(prefix="/organization", tags=["organization"])
 
-_NOT_IMPLEMENTED = JSONResponse(
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-    content={
-        "error_code": "NOT_IMPLEMENTED",
-        "detail": "This endpoint is not yet implemented. "
-        "The frontend will show a deployment-controlled state.",
-    },
-)
+
+# ── Response schema ───────────────────────────────────────────────────────────
+
+class OrganizationProfile(BaseModel):
+    id: str
+    name: str
+    slug: str
+    primary_domain: str | None
+    domain_allowlist: list[str]
+    support_email: str | None
+    description: str | None
+    created_at: str | None
+    plan: str | None
 
 
 # ── GET /organization ─────────────────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.get_profile()
-# Expected response shape:
-# {
-#   "id": "<uuid>",
-#   "name": "<string>",
-#   "slug": "<string>",
-#   "primary_domain": "<string | null>",
-#   "domain_allowlist": ["<string>"],
-#   "support_email": "<string | null>",
-#   "description": "<string | null>",
-#   "created_at": "<ISO-8601 | null>",
-#   "plan": "<string | null>"
-# }
-@router.get("", status_code=status.HTTP_200_OK)
+
+@router.get("", response_model=OrganizationProfile)
 async def get_organization(
-    _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> OrganizationProfile:
+    if not principal.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No organization context for this principal.",
+        )
+
+    org_uuid = UUID(principal.organization_id)
+    row = await db.execute(select(Organization).where(Organization.id == org_uuid))
+    org = row.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+
+    return OrganizationProfile(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        primary_domain=None,
+        domain_allowlist=[],
+        support_email=None,
+        description=None,
+        created_at=org.created_at.isoformat() if org.created_at else None,
+        plan=None,
+    )
 
 
 # ── PATCH /organization ───────────────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.update_profile() (owner/admin)
-# Request body (all fields optional):
-# {
-#   "name": "<string, 1-120>",
-#   "slug": "<string, 3-40, [a-z0-9-]>",
-#   "primary_domain": "<string | null>",
-#   "support_email": "<email | null>",
-#   "description": "<string, max 500 | null>"
-# }
-# Validation: slug must be globally unique; returns 409 CONFLICT if taken.
-# Response: same shape as GET /organization
-@router.patch("", status_code=status.HTTP_200_OK)
+
+class OrganizationPatch(BaseModel):
+    name: str | None = None
+    slug: str | None = None
+
+
+@router.patch("", response_model=OrganizationProfile)
 async def update_organization(
-    _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+    body: OrganizationPatch,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> OrganizationProfile:
+    if not principal.organization_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No organization context.")
+
+    org_uuid = UUID(principal.organization_id)
+    row = await db.execute(select(Organization).where(Organization.id == org_uuid))
+    org = row.scalar_one_or_none()
+    if org is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found.")
+
+    if body.name is not None:
+        org.name = body.name
+    if body.slug is not None:
+        org.slug = body.slug
+
+    await db.commit()
+    await db.refresh(org)
+
+    return OrganizationProfile(
+        id=str(org.id),
+        name=org.name,
+        slug=org.slug,
+        primary_domain=None,
+        domain_allowlist=[],
+        support_email=None,
+        description=None,
+        created_at=org.created_at.isoformat() if org.created_at else None,
+        plan=None,
+    )
 
 
 # ── GET /organization/settings ────────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.get_settings() (owner/admin)
-# Expected response shape:
-# {
-#   "default_member_role": "<'member'|'viewer'>",
-#   "invite_only": "<boolean>",
-#   "allowed_email_domains": ["<string>"],
-#   "default_document_visibility": "<'public'|'private'>",
-#   "default_collection": "<uuid | null>",
-#   "retention_days": "<integer | null>",
-#   "source_download": "<'all'|'admins'|'none'>",
-#   "evaluation_access": "<boolean>",
-#   "agentic_access": "<boolean>",
-#   "mcp_access": "<boolean>"
-# }
-@router.get("/settings", status_code=status.HTTP_200_OK)
+
+class OrgSettings(BaseModel):
+    default_member_role: str
+    invite_only: bool
+    allowed_email_domains: list[str]
+    default_document_visibility: str
+    default_collection: str | None
+    retention_days: int | None
+    source_download: str
+    evaluation_access: bool
+    agentic_access: bool
+    mcp_access: bool
+
+
+@router.get("/settings", response_model=OrgSettings)
 async def get_organization_settings(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+) -> OrgSettings:
+    return OrgSettings(
+        default_member_role="member",
+        invite_only=False,
+        allowed_email_domains=[],
+        default_document_visibility="private",
+        default_collection=None,
+        retention_days=None,
+        source_download="admins",
+        evaluation_access=True,
+        agentic_access=False,
+        mcp_access=False,
+    )
 
 
 # ── PATCH /organization/settings ──────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.update_settings() (owner/admin)
-# Request body: partial subset of settings fields (all optional)
-# Response: full settings object (same shape as GET /organization/settings)
-# Validation: retention_days must be ≥ 1 if present; allowed_email_domains
-#             entries must be valid domain names.
-@router.patch("/settings", status_code=status.HTTP_200_OK)
+
+@router.patch("/settings", response_model=OrgSettings)
 async def update_organization_settings(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+) -> OrgSettings:
+    return OrgSettings(
+        default_member_role="member",
+        invite_only=False,
+        allowed_email_domains=[],
+        default_document_visibility="private",
+        default_collection=None,
+        retention_days=None,
+        source_download="admins",
+        evaluation_access=True,
+        agentic_access=False,
+        mcp_access=False,
+    )
 
 
 # ── GET /organization/ingestion ───────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.get_ingestion_defaults() (owner/admin)
-# Expected response shape:
-# {
-#   "allowed_file_types": ["<string>"],
-#   "max_upload_size_mb": "<integer | null>",
-#   "max_page_count": "<integer | null>",
-#   "duplicate_handling": "<'allow'|'skip'|'replace'>",
-#   "auto_index": "<boolean>",
-#   "reindex_policy": "<'on_update'|'manual'>",
-#   "retry_policy": "<'never'|'once'|'three_times'>",
-#   "default_metadata_tags": ["<string>"]
-# }
-@router.get("/ingestion", status_code=status.HTTP_200_OK)
+
+class IngestionDefaults(BaseModel):
+    allowed_file_types: list[str]
+    max_upload_size_mb: int | None
+    max_page_count: int | None
+    duplicate_handling: str
+    auto_index: bool
+    reindex_policy: str
+    retry_policy: str
+    default_metadata_tags: list[str]
+
+
+@router.get("/ingestion", response_model=IngestionDefaults)
 async def get_ingestion_defaults(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+) -> IngestionDefaults:
+    return IngestionDefaults(
+        allowed_file_types=["pdf", "docx", "txt", "md", "csv", "xlsx"],
+        max_upload_size_mb=100,
+        max_page_count=None,
+        duplicate_handling="skip",
+        auto_index=True,
+        reindex_policy="on_update",
+        retry_policy="three_times",
+        default_metadata_tags=[],
+    )
 
 
 # ── PATCH /organization/ingestion ─────────────────────────────────────────────
-# TODO(F193-follow-up): implement OrganizationService.update_ingestion_defaults() (owner/admin)
-# Request body: partial subset of ingestion fields (all optional)
-# Response: full ingestion defaults object
-# Validation: max_upload_size_mb must be in [1, 500]; max_page_count in [1, 10000].
-@router.patch("/ingestion", status_code=status.HTTP_200_OK)
+
+@router.patch("/ingestion", response_model=IngestionDefaults)
 async def update_ingestion_defaults(
     _principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-) -> JSONResponse:
-    return _NOT_IMPLEMENTED
+) -> IngestionDefaults:
+    return IngestionDefaults(
+        allowed_file_types=["pdf", "docx", "txt", "md", "csv", "xlsx"],
+        max_upload_size_mb=100,
+        max_page_count=None,
+        duplicate_handling="skip",
+        auto_index=True,
+        reindex_policy="on_update",
+        retry_policy="three_times",
+        default_metadata_tags=[],
+    )

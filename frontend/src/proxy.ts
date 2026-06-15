@@ -6,7 +6,7 @@ import { LOCALE_COOKIE_NAME, resolveLocale, routing } from "./i18n/routing";
 const intlMiddleware = createMiddleware(routing);
 
 const APP_ROUTE_RE =
-  /^\/(dashboard|chat|admin|documents|collections|connectors|evaluations|graph|rag-pipeline|settings|api)\b/;
+  /^\/(dashboard|chat|admin|documents|collections|connectors|evaluations|graph|rag-pipeline|settings|user|api)\b/;
 
 export function proxy(request: NextRequest): NextResponse {
   if (!APP_ROUTE_RE.test(request.nextUrl.pathname)) {

@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 
 import { BillingSettingsTab } from "@/components/settings/BillingSettingsTab";
 import { OrganizationSettingsTab } from "@/components/settings/OrganizationSettingsTab";
-import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
 import { SecuritySettingsTab } from "@/components/settings/SecuritySettingsTab";
 import {
   SettingsTabs,
@@ -36,18 +35,6 @@ export function SettingsPage() {
       </header>
 
       <SettingsTabs activeTab={activeTab} onTabChange={handleTabChange} />
-
-      {activeTab === "profile" && (
-        <div
-          id="settings-tabpanel-profile"
-          role="tabpanel"
-          aria-labelledby="settings-tab-profile"
-          tabIndex={0}
-          className="focus-visible:outline-none"
-        >
-          <ProfileSettingsTab />
-        </div>
-      )}
 
       {activeTab === "organization" && (
         <div

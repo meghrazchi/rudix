@@ -122,7 +122,7 @@ export function ProfileMenu({
           {/* Actions */}
           <div className="p-2">
             <Link
-              href="/settings?tab=profile"
+              href="/user/profile"
               role="menuitem"
               data-menu-autofocus="true"
               onClick={onClose}

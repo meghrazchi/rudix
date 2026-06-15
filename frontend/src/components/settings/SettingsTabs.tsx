@@ -3,17 +3,15 @@
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-export type SettingsTabId = "profile" | "organization" | "security" | "billing";
+export type SettingsTabId = "organization" | "security" | "billing";
 
 const VALID_TAB_IDS: readonly SettingsTabId[] = [
-  "profile",
   "organization",
   "security",
   "billing",
 ];
 
 const TAB_IDS: SettingsTabId[] = [
-  "profile",
   "organization",
   "security",
   "billing",
@@ -24,7 +22,7 @@ export function useSettingsTab(): SettingsTabId {
   const raw = searchParams.get("tab");
   return (VALID_TAB_IDS as readonly string[]).includes(raw ?? "")
     ? (raw as SettingsTabId)
-    : "profile";
+    : "organization";
 }
 
 type SettingsTabsProps = {
