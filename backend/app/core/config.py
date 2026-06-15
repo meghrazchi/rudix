@@ -542,6 +542,14 @@ class Settings(BaseSettings):
     hybrid_retrieval_rrf_k: int = Field(default=60, ge=1, le=1000)
     # Multiplier applied to a chunk's RRF score when an exact-match token is found.
     hybrid_retrieval_exact_match_boost: float = Field(default=1.5, ge=1.0, le=10.0)
+    # Query rewriting and decomposition (F295).
+    # When enabled the LLM rewrites vague questions and decomposes multi-part questions
+    # into focused sub-queries for parallel retrieval.
+    # WARNING: each LLM rewriting call adds latency and token cost before retrieval.
+    # Keep query_rewriting_timeout_seconds well below the overall request timeout.
+    feature_enable_query_rewriting: bool = False
+    query_rewriting_timeout_seconds: float = Field(default=5.0, ge=0.5, le=30.0)
+    query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
     feature_enable_graph_rag: bool = False
     # graph_extraction gates the entity/relation extraction pipeline per org.
     # graph_explorer gates the read-only graph explorer UI per org.
@@ -1403,6 +1411,7 @@ class Settings(BaseSettings):
                 "chunking_profiles": self.feature_enable_chunking_profiles,
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
+                "query_rewriting": self.feature_enable_query_rewriting,
                 "graph_rag": self.feature_enable_graph_rag,
                 "entity_extraction": self.feature_enable_entity_extraction,
                 "entity_resolution": self.feature_enable_entity_resolution,

@@ -246,6 +246,14 @@ class ChatDebugResponse(BaseModel):
     hybrid_vector_hit_count: int = 0
     hybrid_keyword_hit_count: int = 0
     hybrid_exact_match_tokens: list[str] = Field(default_factory=list)
+    query_rewriting_enabled: bool = False
+    query_rewriting_applied: bool = False
+    query_decomposed: bool = False
+    original_query: str | None = None
+    rewritten_query: str | None = None
+    sub_queries: list[str] = Field(default_factory=list)
+    query_rewriting_strategy: str | None = None
+    query_rewriting_latency_ms: int = 0
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

@@ -91,6 +91,7 @@ from app.domains.chat.services.hybrid_retrieval_service import (
 )
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
+from app.domains.chat.services.query_rewriting_service import QueryRewritingResult, QueryRewritingService
 from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
@@ -145,6 +146,7 @@ _graph_retrieval_service = GraphRetrievalService()
 _feature_flag_service = FeatureFlagService()
 _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
+_query_rewriting_service = QueryRewritingService()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
 
@@ -1018,6 +1020,7 @@ async def query_chat(
     citation_validation_failed = False
     graph_context_result = GraphRetrievalResult()
     rerank_result: RerankResult | None = None
+    query_rewrite_result: QueryRewritingResult | None = None
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1044,6 +1047,36 @@ async def query_chat(
             answer_language_mode=payload.answer_language,
             answer_language_used=answer_language_used,
         )
+
+    # Query rewriting and decomposition (F295).
+    # Runs after language detection so the detected language is available for context.
+    # Scope filters (document_ids, org tenancy) are applied in the retrieval layer and
+    # are never altered here — rewriting cannot widen access.
+    if settings.feature_enable_query_rewriting and not injection_check.blocked:
+        _profile_rewriting = True
+        _profile_decomposition = True
+        _profile_max_sub_queries: int | None = None
+        if rag_profile is not None:
+            _profile_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+            _profile_rewriting = _profile_cfg.query_rewriting_enabled
+            _profile_decomposition = _profile_cfg.query_decomposition_enabled
+            _profile_max_sub_queries = _profile_cfg.query_rewriting_max_sub_queries
+        query_rewrite_result = await _query_rewriting_service.rewrite(
+            payload.question,
+            profile_rewriting_enabled=_profile_rewriting,
+            profile_decomposition_enabled=_profile_decomposition,
+            max_sub_queries=_profile_max_sub_queries,
+        )
+        if query_rewrite_result.rewriting_applied or query_rewrite_result.decomposition_applied:
+            log_query_event(
+                event="query.rewriting.applied",
+                organization_id=principal.organization_id,
+                user_id=principal.user_id,
+                strategy=query_rewrite_result.strategy,
+                rewriting_applied=query_rewrite_result.rewriting_applied,
+                decomposition_applied=query_rewrite_result.decomposition_applied,
+                sub_query_count=len(query_rewrite_result.sub_queries),
+            )
 
     if injection_check.blocked:
         # Question matched injection heuristics: return safe not-found without LLM call.
@@ -1113,11 +1146,27 @@ async def query_chat(
         rerank_input_limit = rerank_settings.max_input_candidates or settings.rerank_default_input_candidates
         retrieval_top_k = max(final_top_k, rerank_input_limit if rerank_applied else final_top_k)
 
+        # Determine which queries to use for retrieval.
+        # For rewrite: use the single rewritten query.
+        # For decompose: use primary_query + each sub_query for parallel retrieval.
+        # For original (or no rewriting): use the user's question unchanged.
+        if query_rewrite_result is not None and query_rewrite_result.decomposition_applied:
+            _retrieval_queries = [query_rewrite_result.primary_query] + list(
+                query_rewrite_result.sub_queries
+            )
+        elif query_rewrite_result is not None and query_rewrite_result.rewriting_applied:
+            _retrieval_queries = [query_rewrite_result.primary_query]
+        else:
+            _retrieval_queries = [payload.question]
+
         embed_started = perf_counter()
         try:
-            query_vector, embedding_prompt_tokens = await _query_retrieval_service.embed_query(
-                question=payload.question,
-            )
+            embed_tasks = [
+                _query_retrieval_service.embed_query(question=q) for q in _retrieval_queries
+            ]
+            embed_results = await asyncio.gather(*embed_tasks)
+            # Sum token counts across all embedding calls.
+            embedding_prompt_tokens = sum(tokens for _, tokens in embed_results)
         except Exception as exc:
             log_query_event(
                 event="query.failed.embed",
@@ -1137,42 +1186,63 @@ async def query_chat(
 
         retrieve_started = perf_counter()
         try:
-            retrieved_candidates = _query_retrieval_service.retrieve_candidates(
-                query_vector=query_vector,
-                organization_id=organization_id,
-                document_ids=document_ids,
-                initial_top_k=retrieval_top_k,
-                qdrant_client=_get_qdrant_client(),
-            )
+            # Collect chunks from all retrieval queries, deduplicating by chunk_id.
+            # When the same chunk appears in multiple sub-query results we keep the
+            # instance with the highest similarity score.
+            _merged_chunks: dict[str, "RetrievedChunk"] = {}
+            _primary_query_for_kw = _retrieval_queries[0]
 
-            if settings.feature_enable_hybrid_retrieval:
-                kw_result = await _keyword_retrieval_service.search_chunks(
-                    session=db_session,
-                    query=payload.question,
+            for (query_vector, _), retrieval_q in zip(embed_results, _retrieval_queries):
+                retrieved_candidates = _query_retrieval_service.retrieve_candidates(
+                    query_vector=query_vector,
                     organization_id=organization_id,
                     document_ids=document_ids,
-                    top_k=retrieval_top_k,
-                    exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                    initial_top_k=retrieval_top_k,
+                    qdrant_client=_get_qdrant_client(),
                 )
-                hybrid_result = _hybrid_retrieval_service.merge(
-                    vector_candidates=retrieved_candidates,
-                    keyword_candidates=kw_result.candidates,
-                    exact_match_tokens=kw_result.exact_match_tokens,
-                    vector_weight=settings.hybrid_retrieval_vector_weight,
-                    rrf_k=settings.hybrid_retrieval_rrf_k,
-                    exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
-                )
-                retrieved_chunks = [
-                    _hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates
-                ]
-                hybrid_retrieval_enabled = True
-                hybrid_vector_hit_count = hybrid_result.vector_hit_count
-                hybrid_keyword_hit_count = hybrid_result.keyword_hit_count
-                hybrid_exact_match_tokens = hybrid_result.exact_match_tokens
-            else:
-                retrieved_chunks = [
-                    _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
-                ]
+
+                if settings.feature_enable_hybrid_retrieval:
+                    kw_result = await _keyword_retrieval_service.search_chunks(
+                        session=db_session,
+                        query=retrieval_q,
+                        organization_id=organization_id,
+                        document_ids=document_ids,
+                        top_k=retrieval_top_k,
+                        exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                    )
+                    hybrid_result = _hybrid_retrieval_service.merge(
+                        vector_candidates=retrieved_candidates,
+                        keyword_candidates=kw_result.candidates,
+                        exact_match_tokens=kw_result.exact_match_tokens,
+                        vector_weight=settings.hybrid_retrieval_vector_weight,
+                        rrf_k=settings.hybrid_retrieval_rrf_k,
+                        exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                    )
+                    batch_chunks = [
+                        _hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates
+                    ]
+                    # Accumulate hybrid stats only for the primary query.
+                    if retrieval_q == _primary_query_for_kw:
+                        hybrid_retrieval_enabled = True
+                        hybrid_vector_hit_count = hybrid_result.vector_hit_count
+                        hybrid_keyword_hit_count = hybrid_result.keyword_hit_count
+                        hybrid_exact_match_tokens = hybrid_result.exact_match_tokens
+                else:
+                    batch_chunks = [
+                        _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
+                    ]
+
+                for chunk in batch_chunks:
+                    key = str(chunk.chunk_id)
+                    if (
+                        key not in _merged_chunks
+                        or chunk.similarity_score > _merged_chunks[key].similarity_score
+                    ):
+                        _merged_chunks[key] = chunk
+
+            retrieved_chunks = sorted(
+                _merged_chunks.values(), key=lambda c: c.similarity_score, reverse=True
+            )
 
             retrieved_chunks = await _source_provenance_service.filter_active_chunks(
                 db_session,
@@ -1677,6 +1747,28 @@ async def query_chat(
             hybrid_vector_hit_count=hybrid_vector_hit_count,
             hybrid_keyword_hit_count=hybrid_keyword_hit_count,
             hybrid_exact_match_tokens=hybrid_exact_match_tokens,
+            query_rewriting_enabled=settings.feature_enable_query_rewriting,
+            query_rewriting_applied=query_rewrite_result.rewriting_applied
+            if query_rewrite_result is not None
+            else False,
+            query_decomposed=query_rewrite_result.decomposition_applied
+            if query_rewrite_result is not None
+            else False,
+            original_query=query_rewrite_result.original_query
+            if query_rewrite_result is not None
+            else None,
+            rewritten_query=query_rewrite_result.primary_query
+            if query_rewrite_result is not None and query_rewrite_result.rewriting_applied
+            else None,
+            sub_queries=list(query_rewrite_result.sub_queries)
+            if query_rewrite_result is not None
+            else [],
+            query_rewriting_strategy=query_rewrite_result.strategy
+            if query_rewrite_result is not None
+            else None,
+            query_rewriting_latency_ms=query_rewrite_result.latency_ms
+            if query_rewrite_result is not None
+            else 0,
         ),
         created_at=assistant_message.created_at,
     )

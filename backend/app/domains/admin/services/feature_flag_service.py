@@ -35,6 +35,7 @@ _SETTINGS_ATTR: dict[str, str] = {
     "experimental_profiles": "feature_enable_experimental_profiles",
     "provider_fallback": "feature_enable_provider_fallback",
     "external_mcp_connectors": "feature_enable_external_mcp_connectors",
+    "query_rewriting": "feature_enable_query_rewriting",
 }
 
 

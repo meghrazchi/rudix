@@ -36,6 +36,13 @@ class RagProfileConfig(BaseModel):
     hybrid_retrieval_enabled: bool = Field(default=False)
     hybrid_vector_weight: float = Field(default=0.7, ge=0.0, le=1.0)
     hybrid_exact_match_boost: float = Field(default=1.5, ge=1.0, le=10.0)
+    # Query rewriting and decomposition (F295).
+    # query_rewriting_enabled: allow LLM to expand/rewrite the retrieval query.
+    # query_decomposition_enabled: allow LLM to split multi-part questions into sub-queries.
+    # query_rewriting_max_sub_queries: hard cap on generated sub-queries per question.
+    query_rewriting_enabled: bool = Field(default=True)
+    query_decomposition_enabled: bool = Field(default=True)
+    query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
 
     @field_validator("rerank_model")
     @classmethod
