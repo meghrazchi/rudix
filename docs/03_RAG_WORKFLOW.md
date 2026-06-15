@@ -248,7 +248,7 @@ The query pipeline runs when a user asks a question.
    up question entities in Neo4j, expands to related entities and evidence
    within configured hop/entity/chunk limits, and merges graph-backed chunks
    into the candidate set.
-8. Backend re-ranks chunks.
+8. Backend reranks chunks with the configured provider-backed reranker, capped by the profile/env input limits.
 9. Backend resolves the active organization `answer_generation` prompt version and builds a context block.
 10. Backend calls the LLM.
 11. Backend validates citations.
@@ -286,12 +286,14 @@ Default:
 initial_top_k = 20
 final_top_k = 5
 similarity_metric = cosine
-reranking = MMR first, cross-encoder later
+reranking = provider-backed cross-encoder with safe original-order fallback
 ```
 
 ## Re-ranking
 
-Use two stages:
+Reranking is a production-only relevance pass that runs after retrieval and before
+prompt construction. The selected rerank model can come from the active RAG
+profile or the environment defaults.
 
 ### Stage 1: Vector retrieval
 
@@ -299,19 +301,21 @@ Qdrant returns top 20 similar chunks.
 
 ### Stage 2: Reranking
 
-Options:
-
-- MMR for diversity.
-- Cross-encoder for quality.
-- LLM-based reranking for small top-k sets.
-
-Recommended production path:
-
 ```text
-MVP: Qdrant top-k only
-V1: Qdrant top-20 + MMR top-5
-V2: Qdrant top-30 + cross-encoder top-5
+Retrieval -> rerank top-N candidates -> prompt construction
 ```
+
+Key properties:
+
+- Provider-backed cross-encoder / reranker scoring is applied to the retrieved
+  candidates before prompt construction.
+- The reranker can be disabled per RAG profile or by request toggle.
+- Input size, batch size, timeout, and candidate text truncation are
+  configurable through the RAG profile or environment defaults.
+- If the reranker fails, times out, or is unavailable, the backend falls back to
+  the original retrieval order instead of breaking chat.
+- Retrieval diagnostics store original rank, rerank score/rank, final rank, and
+  rerank cost/latency metadata for safe admin-visible debugging.
 
 ## Prompt builder
 

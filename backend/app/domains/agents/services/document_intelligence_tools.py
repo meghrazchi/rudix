@@ -569,7 +569,7 @@ class DocumentIntelligenceToolService:
             self._qdrant_client = qdrant_module.qdrant_client
         return self._qdrant_client
 
-    def _rerank_chunks(
+    async def _rerank_chunks(
         self,
         *,
         chunks: list[_RetrievedChunk],
@@ -588,7 +588,7 @@ class DocumentIntelligenceToolService:
             )
             for chunk in chunks
         ]
-        rerank_results = self._rerank_service.rerank(
+        rerank_results = await self._rerank_service.rerank(
             candidates=rerank_inputs,
             enabled=enabled,
             final_top_k=final_top_k,
@@ -648,7 +648,7 @@ class DocumentIntelligenceToolService:
         retrieved_chunks = [
             _to_retrieved_chunk(candidate) for candidate in retrieval_result.candidates
         ]
-        selected_chunks = self._rerank_chunks(
+        selected_chunks = await self._rerank_chunks(
             chunks=retrieved_chunks, enabled=rerank, final_top_k=top_k
         )
         embedding_tokens = retrieval_result.embedding_prompt_tokens

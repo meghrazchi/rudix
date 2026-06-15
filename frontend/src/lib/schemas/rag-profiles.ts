@@ -6,25 +6,71 @@ export const ragCitationStrictnessSchema = z.enum([
   "lenient",
 ]);
 export const ragSafetyModeSchema = z.enum(["strict", "standard", "permissive"]);
+export const ragRerankFallbackBehaviorSchema = z.enum([
+  "original",
+  "disabled",
+]);
+
+const optionalTrimmedStringSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().trim().max(32_000).nullable().optional());
+
+const optionalModelNameSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().trim().max(255).nullable().optional());
+
+const optionalProviderSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.string().trim().max(64).nullable().optional());
+
+const optionalNumberSchema = (
+  schema: z.ZodTypeAny,
+): z.ZodTypeAny =>
+  z.preprocess((value) => {
+    if (value === "" || value === null || value === undefined) {
+      return null;
+    }
+    return value;
+  }, schema.nullable().optional());
 
 export const ragProfileConfigSchema = z.object({
   top_k: z.coerce.number().int().min(1).max(100).default(10),
   rerank_enabled: z.boolean().default(false),
-  rerank_model: z.string().trim().max(255).nullable().optional(),
+  rerank_provider: optionalProviderSchema,
+  rerank_model: optionalModelNameSchema,
+  rerank_timeout_seconds: optionalNumberSchema(
+    z.coerce.number().min(0.1).max(120),
+  ),
+  rerank_batch_size: optionalNumberSchema(z.coerce.number().int().min(1).max(200)),
+  rerank_input_max_candidates: optionalNumberSchema(
+    z.coerce.number().int().min(1).max(200),
+  ),
+  rerank_max_candidate_chars: optionalNumberSchema(
+    z.coerce.number().int().min(128).max(20_000),
+  ),
+  rerank_fallback_behavior: ragRerankFallbackBehaviorSchema.default("original"),
   confidence_threshold: z.coerce.number().min(0).max(1).default(0),
   citation_strictness: ragCitationStrictnessSchema.default("moderate"),
-  model_provider: z.string().trim().max(64).nullable().optional(),
-  model_name: z.string().trim().max(255).nullable().optional(),
-  prompt_template: z.string().max(32_000).nullable().optional(),
+  model_provider: optionalProviderSchema,
+  model_name: optionalModelNameSchema,
+  prompt_template: optionalTrimmedStringSchema,
   safety_mode: ragSafetyModeSchema.default("standard"),
   chunk_filter: z.record(z.string(), z.unknown()).nullable().optional(),
-  max_context_tokens: z.coerce
-    .number()
-    .int()
-    .min(256)
-    .max(128_000)
-    .nullable()
-    .optional(),
+  max_context_tokens: optionalNumberSchema(
+    z.coerce.number().int().min(256).max(128_000),
+  ),
 });
 
 export const ragProfileCreateRequestSchema = z.object({

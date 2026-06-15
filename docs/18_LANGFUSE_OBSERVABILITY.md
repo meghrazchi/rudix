@@ -118,7 +118,7 @@ Each chat/RAG query produces one Langfuse trace with the following child spans:
 rag.chat                          (root trace)
   ├── embedding.query             latency, model, token count
   ├── retrieval.vector_search     latency, retrieved_count
-  ├── retrieval.rerank            latency, selected_count  (only when rerank=true)
+  ├── retrieval.rerank            latency, selected_count, provider/model, fallback, token/cost metadata  (only when rerank=true)
   ├── llm.generate_answer         model, token usage, cost estimate, latency
   └── citations.validate          cited_count, validation_failed flag
 ```
@@ -142,6 +142,17 @@ rag.chat
 | `release_version` | API version string |
 | `retrieved_count` | Chunks returned by vector search |
 | `selected_count` | Chunks after reranking |
+| `rerank_enabled` | Whether the active RAG profile allows reranking |
+| `rerank_provider` | Provider key used for reranking |
+| `rerank_model` | Model name used for reranking |
+| `rerank_fallback_used` | `true` when reranking fell back to the original order |
+| `rerank_fallback_reason` | Safe fallback reason string when reranking fails |
+| `rerank_input_count` | Number of candidates sent to the reranker |
+| `rerank_batch_count` | Number of rerank batches executed |
+| `rerank_prompt_tokens` | Rerank prompt token count |
+| `rerank_completion_tokens` | Rerank completion token count |
+| `rerank_total_tokens` | Total rerank token count |
+| `rerank_cost_usd` | Approximate rerank cost estimate |
 | `cited_count` | Citations in the final answer |
 | `not_found` | `true` when the answer could not be grounded |
 | `citation_validation_failed` | `true` when citation chunk IDs could not be resolved |

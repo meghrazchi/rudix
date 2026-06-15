@@ -648,16 +648,23 @@ Request:
 
 Notes:
 
-- `rerank=true` applies MMR reranking on retrieved candidates before prompt construction.
-- MMR behavior is configured through `RERANK_MMR_LAMBDA`, `RERANK_MMR_CANDIDATE_COUNT`, and `RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD`.
-- `rerank=false` returns raw retrieval ordering (similarity-only) up to `top_k`.
+- `rerank=true` applies provider-backed cross-encoder reranking on retrieved
+  candidates before prompt construction when reranking is enabled by the active
+  RAG profile.
+- Rerank provider, model, timeout, batch size, input limit, and fallback
+  behavior are controlled through the active RAG profile or the
+  `RERANK_DEFAULT_*` environment settings.
+- `rerank=false` skips the rerank pass and returns raw retrieval ordering
+  (similarity-only) up to `top_k`.
+- If reranking fails, times out, or the provider is unavailable, the backend
+  falls back to the original retrieval order and records rerank diagnostics.
 - When `FEATURE_ENABLE_GRAPH_RAG=true`, the backend may expand Qdrant hits with
   evidence-backed Neo4j context that is still scoped to the caller organization
   and allowed document IDs. Graph-only facts are not cited unless a matching
   document/chunk reference exists in the retrieved context.
 - Prompt builder enforces grounded-only behavior: no outside knowledge, no fake citations, and explicit treatment of retrieved document text as untrusted input.
 - The active `answer_generation` prompt template version is resolved per organization and persisted on assistant chat messages for rollback/evaluation traceability.
-- Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `rerank_score`, `rerank_rank`) and an explicit allowed chunk ID list for citation validation.
+- Prompt context blocks include source metadata (`document_id`, `chunk_id`, `filename`, `page_number`) plus retrieval metadata (`similarity_score`, `original_rank`, `rerank_score`, `rerank_rank`, `final_rank`) and an explicit allowed chunk ID list for citation validation.
 - LLM is instructed to return strict JSON (`answer`, `not_found`, `citations`) for deterministic downstream parsing.
 - Backend requests JSON mode when supported by the selected model/provider and transparently retries without JSON mode for providers that do not support `response_format`.
 - If model output is still not valid structured JSON after retries, backend falls back to a safe not-found response (no citations).
@@ -711,8 +718,10 @@ Response:
       "page_number": 4,
       "score": 0.91,
       "similarity_score": 0.89,
+      "original_rank": 3,
       "rerank_score": 0.91,
       "rerank_rank": 1,
+      "final_rank": 1,
       "text_snippet": "Employees receive 20 paid leave days..."
     }
   ],
@@ -729,6 +738,17 @@ Response:
     "retrieval_count": 10,
     "selected_count": 5,
     "rerank_applied": true,
+    "rerank_enabled": true,
+    "rerank_provider": "openai",
+    "rerank_model": null,
+    "rerank_fallback_used": false,
+    "rerank_fallback_reason": null,
+    "rerank_input_count": 10,
+    "rerank_batch_count": 2,
+    "rerank_prompt_tokens": 1240,
+    "rerank_completion_tokens": 48,
+    "rerank_total_tokens": 1288,
+    "rerank_cost_usd": 0.0,
     "embedding_model": "text-embedding-3-small",
     "llm_model": "gpt-5.4-mini",
     "prompt_template_key": "answer_generation",

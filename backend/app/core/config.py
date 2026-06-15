@@ -87,6 +87,11 @@ class MCPExternalAuthType(StrEnum):
     header = "header"
 
 
+class RerankFallbackBehavior(StrEnum):
+    original = "original"
+    disabled = "disabled"
+
+
 class ConnectorRolloutStage(StrEnum):
     off = "off"
     development = "development"
@@ -455,6 +460,15 @@ class Settings(BaseSettings):
     ocr_image_dpi: int = Field(default=300, ge=72, le=600)
     retrieval_initial_top_k: int = Field(default=20, ge=1, le=200)
     retrieval_final_top_k: int = Field(default=5, ge=1, le=50)
+    rerank_default_provider: str = Field(default="openai", min_length=1, max_length=64)
+    rerank_default_model_name: str | None = Field(default=None, max_length=255)
+    rerank_default_timeout_seconds: float = Field(default=6.0, ge=0.1, le=120.0)
+    rerank_default_batch_size: int = Field(default=8, ge=1, le=200)
+    rerank_default_input_candidates: int = Field(default=20, ge=1, le=200)
+    rerank_default_candidate_chars: int = Field(default=2000, ge=128, le=20_000)
+    rerank_default_fallback_behavior: RerankFallbackBehavior = RerankFallbackBehavior.original
+    rerank_input_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
+    rerank_output_cost_per_million_tokens_usd: float = Field(default=0.0, ge=0.0, le=1000.0)
     rerank_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
     rerank_mmr_candidate_count: int = Field(default=20, ge=1, le=200)
     rerank_mmr_duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
@@ -1005,6 +1019,15 @@ class Settings(BaseSettings):
         if self.rerank_mmr_candidate_count < self.retrieval_final_top_k:
             raise ValueError("rerank_mmr_candidate_count must be >= retrieval_final_top_k")
 
+        if self.rerank_default_input_candidates < self.retrieval_final_top_k:
+            raise ValueError(
+                "rerank_default_input_candidates must be >= retrieval_final_top_k"
+            )
+        if self.rerank_default_batch_size > self.rerank_default_input_candidates:
+            raise ValueError(
+                "rerank_default_batch_size must be <= rerank_default_input_candidates"
+            )
+
         if self.confidence_high_threshold < self.confidence_medium_threshold:
             raise ValueError("confidence_high_threshold must be >= confidence_medium_threshold")
 
@@ -1322,6 +1345,15 @@ class Settings(BaseSettings):
             },
             "retrieval_initial_top_k": self.retrieval_initial_top_k,
             "retrieval_final_top_k": self.retrieval_final_top_k,
+            "rerank_default_provider": self.rerank_default_provider,
+            "rerank_default_model_name": self.rerank_default_model_name,
+            "rerank_default_timeout_seconds": self.rerank_default_timeout_seconds,
+            "rerank_default_batch_size": self.rerank_default_batch_size,
+            "rerank_default_input_candidates": self.rerank_default_input_candidates,
+            "rerank_default_candidate_chars": self.rerank_default_candidate_chars,
+            "rerank_default_fallback_behavior": self.rerank_default_fallback_behavior.value,
+            "rerank_input_cost_per_million_tokens_usd": self.rerank_input_cost_per_million_tokens_usd,
+            "rerank_output_cost_per_million_tokens_usd": self.rerank_output_cost_per_million_tokens_usd,
             "rerank_mmr_lambda": self.rerank_mmr_lambda,
             "rerank_mmr_candidate_count": self.rerank_mmr_candidate_count,
             "rerank_mmr_duplicate_similarity_threshold": self.rerank_mmr_duplicate_similarity_threshold,

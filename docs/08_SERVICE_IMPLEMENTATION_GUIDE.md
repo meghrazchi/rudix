@@ -304,7 +304,7 @@ qdrant_filter = {
 Pseudo-code:
 
 ```python
-def retrieve_context(question, organization_id, document_ids, top_k=5):
+async def retrieve_context(question, organization_id, document_ids, top_k=5):
     query_vector = embedding_service.embed_texts([question])[0]
 
     candidates = qdrant.search(
@@ -314,7 +314,7 @@ def retrieve_context(question, organization_id, document_ids, top_k=5):
         limit=20
     )
 
-    reranked = rerank_service.rerank(
+    reranked = await rerank_service.rerank(
         query=question,
         candidates=candidates,
         top_k=top_k
@@ -325,15 +325,10 @@ def retrieve_context(question, organization_id, document_ids, top_k=5):
 
 ## Reranking service
 
-Start with MMR.
-
-Later add a cross-encoder.
-
-```python
-def mmr_rerank(candidates, lambda_mult=0.7, top_k=5):
-    # Balance relevance and diversity.
-    pass
-```
+Use a provider-backed cross-encoder reranker with safe original-order fallback.
+The service should cap input size, batch requests, enforce timeouts, and record
+rerank diagnostics so retrieval can recover cleanly when the reranker is
+disabled or unavailable.
 
 ## Prompt service
 

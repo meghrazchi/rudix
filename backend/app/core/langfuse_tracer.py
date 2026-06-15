@@ -157,6 +157,17 @@ class ChatTraceMetadata:
     retrieved_count: int = 0
     selected_count: int = 0
     rerank_applied: bool = False
+    rerank_enabled: bool = False
+    rerank_provider: str | None = None
+    rerank_model: str | None = None
+    rerank_fallback_used: bool = False
+    rerank_fallback_reason: str | None = None
+    rerank_input_count: int = 0
+    rerank_batch_count: int = 0
+    rerank_prompt_tokens: int = 0
+    rerank_completion_tokens: int = 0
+    rerank_total_tokens: int = 0
+    rerank_cost_usd: Decimal | None = None
     # Answer quality
     cited_count: int = 0
     not_found: bool = False
@@ -261,6 +272,17 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         "release_version": settings.api_version,
         "service": "rudix-api",
         "rerank_applied": metadata.rerank_applied,
+        "rerank_enabled": metadata.rerank_enabled,
+        "rerank_provider": metadata.rerank_provider,
+        "rerank_model": metadata.rerank_model,
+        "rerank_fallback_used": metadata.rerank_fallback_used,
+        "rerank_fallback_reason": metadata.rerank_fallback_reason,
+        "rerank_input_count": metadata.rerank_input_count,
+        "rerank_batch_count": metadata.rerank_batch_count,
+        "rerank_prompt_tokens": metadata.rerank_prompt_tokens,
+        "rerank_completion_tokens": metadata.rerank_completion_tokens,
+        "rerank_total_tokens": metadata.rerank_total_tokens,
+        "rerank_cost_usd": str(metadata.rerank_cost_usd) if metadata.rerank_cost_usd is not None else None,
         "retrieved_count": metadata.retrieved_count,
         "selected_count": metadata.selected_count,
         "cited_count": metadata.cited_count,
@@ -313,12 +335,24 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         retrieve_span.end()
 
     # --- Rerank span ---
-    if metadata.rerank_applied and metadata.latencies_ms.get("rerank") is not None:
+    if metadata.rerank_enabled and metadata.latencies_ms.get("rerank") is not None:
         rerank_span = trace.span(
             name="retrieval.rerank",
             metadata={
                 "selected_count": metadata.selected_count,
                 "latency_ms": metadata.latencies_ms.get("rerank"),
+                "provider": metadata.rerank_provider,
+                "model": metadata.rerank_model,
+                "fallback_used": metadata.rerank_fallback_used,
+                "fallback_reason": metadata.rerank_fallback_reason,
+                "input_count": metadata.rerank_input_count,
+                "batch_count": metadata.rerank_batch_count,
+                "prompt_tokens": metadata.rerank_prompt_tokens,
+                "completion_tokens": metadata.rerank_completion_tokens,
+                "total_tokens": metadata.rerank_total_tokens,
+                "estimated_cost_usd": str(metadata.rerank_cost_usd)
+                if metadata.rerank_cost_usd is not None
+                else None,
             },
         )
         rerank_span.end()

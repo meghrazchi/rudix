@@ -33,8 +33,6 @@ import {
   ragProfileCreateRequestSchema,
   ragProfileUpdateRequestSchema,
   rollbackRagProfileRequestSchema,
-  type RagProfileCreateRequest,
-  type RagProfileUpdateRequest,
   type RollbackRagProfileRequest,
 } from "@/lib/schemas/rag-profiles";
 import { useAuthSession } from "@/lib/use-auth-session";
@@ -62,15 +60,15 @@ function ProfileForm({
   isSaving,
 }: {
   initial?: RagProfileResponse | null;
-  onSave: (data: RagProfileCreateRequest | RagProfileUpdateRequest) => void;
+  onSave: (data: any) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
   const schema = initial
     ? ragProfileUpdateRequestSchema
     : ragProfileCreateRequestSchema;
-  const form = useForm<RagProfileCreateRequest>({
-    resolver: zodResolver(schema),
+  const form = useForm<any>({
+    resolver: zodResolver(schema) as any,
     defaultValues: {
       name: initial?.name ?? "",
       description: initial?.description ?? "",
@@ -79,7 +77,17 @@ function ProfileForm({
       config: {
         top_k: initial?.config?.top_k ?? 10,
         rerank_enabled: initial?.config?.rerank_enabled ?? false,
+        rerank_provider: initial?.config?.rerank_provider ?? "",
         rerank_model: initial?.config?.rerank_model ?? "",
+        rerank_timeout_seconds:
+          initial?.config?.rerank_timeout_seconds ?? "",
+        rerank_batch_size: initial?.config?.rerank_batch_size ?? "",
+        rerank_input_max_candidates:
+          initial?.config?.rerank_input_max_candidates ?? "",
+        rerank_max_candidate_chars:
+          initial?.config?.rerank_max_candidate_chars ?? "",
+        rerank_fallback_behavior:
+          initial?.config?.rerank_fallback_behavior ?? "original",
         confidence_threshold: initial?.config?.confidence_threshold ?? 0,
         citation_strictness: initial?.config?.citation_strictness ?? "moderate",
         model_provider: initial?.config?.model_provider ?? "",
@@ -99,7 +107,7 @@ function ProfileForm({
       onSubmit={(e) => {
         e.preventDefault();
         void form.handleSubmit((values) => {
-          onSave(values);
+          onSave(values as any);
         })(e);
       }}
     >
@@ -118,7 +126,7 @@ function ProfileForm({
           />
           {form.formState.errors.name ? (
             <p role="alert" className="text-xs text-rose-700">
-              {form.formState.errors.name.message}
+              {String(form.formState.errors.name.message)}
             </p>
           ) : null}
         </div>
@@ -255,19 +263,126 @@ function ProfileForm({
         </div>
 
         {rerankEnabled ? (
-          <div className="space-y-1 md:col-span-2">
-            <label
-              htmlFor="rag-rerank-model"
-              className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
-            >
-              Rerank Model
-            </label>
-            <input
-              id="rag-rerank-model"
-              {...form.register("config.rerank_model")}
-              placeholder="e.g. cross-encoder/ms-marco-MiniLM-L-6-v2"
-              className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
-            />
+          <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-provider"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Rerank Provider
+              </label>
+              <input
+                id="rag-rerank-provider"
+                {...form.register("config.rerank_provider")}
+                placeholder="e.g. openai"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-model"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Rerank Model
+              </label>
+              <input
+                id="rag-rerank-model"
+                {...form.register("config.rerank_model")}
+                placeholder="e.g. cross-encoder/ms-marco-MiniLM-L-6-v2"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-timeout"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Timeout Seconds
+              </label>
+              <input
+                id="rag-rerank-timeout"
+                type="number"
+                min={0.1}
+                max={120}
+                step={0.1}
+                {...form.register("config.rerank_timeout_seconds")}
+                placeholder="Optional"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-batch-size"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Batch Size
+              </label>
+              <input
+                id="rag-rerank-batch-size"
+                type="number"
+                min={1}
+                max={200}
+                {...form.register("config.rerank_batch_size")}
+                placeholder="Optional"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-input-max"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Input Max Candidates
+              </label>
+              <input
+                id="rag-rerank-input-max"
+                type="number"
+                min={1}
+                max={200}
+                {...form.register("config.rerank_input_max_candidates")}
+                placeholder="Optional"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label
+                htmlFor="rag-rerank-candidate-chars"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Candidate Char Limit
+              </label>
+              <input
+                id="rag-rerank-candidate-chars"
+                type="number"
+                min={128}
+                max={20_000}
+                {...form.register("config.rerank_max_candidate_chars")}
+                placeholder="Optional"
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              />
+            </div>
+
+            <div className="space-y-1 md:col-span-2">
+              <label
+                htmlFor="rag-rerank-fallback"
+                className="text-[10px] font-semibold tracking-widest text-[#464555] uppercase"
+              >
+                Fallback Behavior
+              </label>
+              <select
+                id="rag-rerank-fallback"
+                {...form.register("config.rerank_fallback_behavior")}
+                className="w-full rounded-xl border border-[#c7c4d8] bg-white px-4 py-2 text-sm text-[#1b1b24] outline-none focus:border-[#3525cd] focus:ring-2 focus:ring-[#3525cd]/10"
+              >
+                <option value="original">Original ranking</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
           </div>
         ) : null}
 
@@ -649,7 +764,7 @@ export function RagProfilesSection() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: RagProfileCreateRequest) => createRagProfile(payload),
+    mutationFn: (payload: any) => createRagProfile(payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile created." });
       setShowForm(false);
@@ -667,7 +782,7 @@ export function RagProfilesSection() {
       payload,
     }: {
       id: string;
-      payload: RagProfileCreateRequest;
+      payload: any;
     }) => updateRagProfile(id, payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile updated." });
@@ -680,14 +795,14 @@ export function RagProfilesSection() {
       setFeedback({ tone: "error", message: getApiErrorMessage(error) }),
   });
 
-  const handleSave = (data: RagProfileCreateRequest) => {
+  const handleSave = (data: any) => {
     if (editingProfile) {
       void updateMutation.mutateAsync({
         id: editingProfile.profile_id,
-        payload: data,
+        payload: data as any,
       });
     } else {
-      void createMutation.mutateAsync(data);
+      void createMutation.mutateAsync(data as any);
     }
   };
 
@@ -745,11 +860,7 @@ export function RagProfilesSection() {
           ) : null}
           <ProfileForm
             initial={editingProfile}
-            onSave={
-              handleSave as (
-                d: RagProfileCreateRequest | RagProfileCreateRequest,
-              ) => void
-            }
+            onSave={handleSave}
             onCancel={() => {
               setShowForm(false);
               setEditingProfile(null);

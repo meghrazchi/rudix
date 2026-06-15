@@ -10,7 +10,13 @@ export type RagProfileSource =
 export type RagProfileConfig = {
   top_k?: number;
   rerank_enabled?: boolean;
+  rerank_provider?: string | null;
   rerank_model?: string | null;
+  rerank_timeout_seconds?: number | null;
+  rerank_batch_size?: number | null;
+  rerank_input_max_candidates?: number | null;
+  rerank_max_candidate_chars?: number | null;
+  rerank_fallback_behavior?: "original" | "disabled";
   confidence_threshold?: number;
   citation_strictness?: RagCitationStrictness;
   model_provider?: string | null;

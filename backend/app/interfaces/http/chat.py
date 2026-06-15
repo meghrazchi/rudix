@@ -85,6 +85,11 @@ from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalService,
     GraphRetrievedChunk,
 )
+from app.domains.chat.services.hybrid_retrieval_service import (
+    HybridCandidate,
+    HybridRetrievalService,
+)
+from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
 from app.domains.chat.services.llm_service import (
     LLMService,
@@ -92,20 +97,22 @@ from app.domains.chat.services.llm_service import (
     TransientLLMServiceError,
 )
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
-from app.domains.chat.services.hybrid_retrieval_service import (
-    HybridCandidate,
-    HybridRetrievalService,
-)
-from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.query_retrieval_service import (
     QueryRetrievalService,
     RetrievedCandidate,
 )
-from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
+from app.domains.chat.services.rerank_service import (
+    RerankCandidate,
+    RerankResult,
+    RerankService,
+    RerankSettings,
+)
 from app.domains.chat.services.source_scope_service import SourceScopeService
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
+from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
 from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
 from app.models.prompt_template import PromptTemplateVersion
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -149,8 +156,10 @@ class RetrievedChunk:
     page_number: int | None
     text: str
     similarity_score: float
+    original_rank: int | None = None
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    final_rank: int | None = None
     retrieval_source: str = "vector"
     graph_score: float | None = None
     graph_hops: int = 0
@@ -287,6 +296,31 @@ def _merge_retrieved_chunks(
     return [merged[key] for key in insertion_order]
 
 
+def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    ranked_chunks: list[RetrievedChunk] = []
+    for index, chunk in enumerate(chunks, start=1):
+        ranked_chunks.append(
+            RetrievedChunk(
+                document_id=chunk.document_id,
+                chunk_id=chunk.chunk_id,
+                filename=chunk.filename,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                similarity_score=chunk.similarity_score,
+                original_rank=index,
+                rerank_score=chunk.rerank_score,
+                rerank_rank=chunk.rerank_rank,
+                final_rank=chunk.final_rank,
+                retrieval_source=chunk.retrieval_source,
+                graph_score=chunk.graph_score,
+                graph_hops=chunk.graph_hops,
+                keyword_score=chunk.keyword_score,
+                hybrid_score=chunk.hybrid_score,
+            )
+        )
+    return ranked_chunks
+
+
 def _with_provenance(
     citation: ChatCitationResponse,
     provenance: Any | None,
@@ -318,14 +352,23 @@ def _with_provenance(
     )
 
 
-def _rerank_chunks(
+async def _rerank_chunks(
     *,
+    query: str,
     chunks: list[RetrievedChunk],
     enabled: bool,
     final_top_k: int,
-) -> list[RetrievedChunk]:
+    settings_override: RerankSettings | None = None,
+) -> tuple[list[RetrievedChunk], RerankResult]:
     if final_top_k < 1 or not chunks:
-        return []
+        empty_result = await _rerank_service.rerank(
+            query=query,
+            candidates=[],
+            enabled=enabled,
+            final_top_k=final_top_k,
+            settings_override=settings_override,
+        )
+        return [], empty_result
 
     chunk_by_key = {str(chunk.chunk_id): chunk for chunk in chunks}
     rerank_inputs = [
@@ -333,18 +376,21 @@ def _rerank_chunks(
             key=str(chunk.chunk_id),
             text=chunk.text,
             similarity_score=chunk.similarity_score,
+            original_rank=chunk.original_rank,
         )
         for chunk in chunks
     ]
 
-    rerank_results = _rerank_service.rerank(
+    rerank_result: RerankResult = await _rerank_service.rerank(
+        query=query,
         candidates=rerank_inputs,
         enabled=enabled,
         final_top_k=final_top_k,
+        settings_override=settings_override,
     )
 
     selected_chunks: list[RetrievedChunk] = []
-    for reranked in rerank_results:
+    for reranked in rerank_result.candidates:
         source_chunk = chunk_by_key.get(reranked.key)
         if source_chunk is None:
             continue
@@ -356,11 +402,18 @@ def _rerank_chunks(
                 page_number=source_chunk.page_number,
                 text=source_chunk.text,
                 similarity_score=source_chunk.similarity_score,
+                original_rank=reranked.original_rank,
                 rerank_score=reranked.rerank_score,
                 rerank_rank=reranked.rerank_rank,
+                final_rank=reranked.final_rank,
+                retrieval_source=source_chunk.retrieval_source,
+                graph_score=source_chunk.graph_score,
+                graph_hops=source_chunk.graph_hops,
+                keyword_score=source_chunk.keyword_score,
+                hybrid_score=source_chunk.hybrid_score,
             )
         )
-    return selected_chunks
+    return selected_chunks, rerank_result
 
 
 def _build_prompt(
@@ -383,8 +436,10 @@ def _build_prompt(
                 page_number=chunk.page_number,
                 text=chunk.text,
                 similarity_score=chunk.similarity_score,
+                original_rank=chunk.original_rank,
                 rerank_score=chunk.rerank_score,
                 rerank_rank=chunk.rerank_rank,
+                final_rank=chunk.final_rank,
             )
             for chunk in chunks
         ],
@@ -408,6 +463,20 @@ async def _resolve_answer_prompt_version(
             code="prompt_template_unavailable",
             message="Answer prompt template is unavailable",
         ) from exc
+
+
+def _build_rerank_settings(config: dict | None) -> RerankSettings:
+    profile_config = RagProfileConfig.model_validate(config or {})
+    return RerankSettings(
+        enabled=profile_config.rerank_enabled if config is not None else True,
+        provider_key=profile_config.rerank_provider,
+        model_name=profile_config.rerank_model,
+        timeout_seconds=profile_config.rerank_timeout_seconds,
+        batch_size=profile_config.rerank_batch_size,
+        max_input_candidates=profile_config.rerank_input_max_candidates,
+        max_candidate_chars=profile_config.rerank_max_candidate_chars,
+        fallback_behavior=profile_config.rerank_fallback_behavior,
+    )
 
 
 def _to_confidence_signals(
@@ -916,6 +985,14 @@ async def query_chat(
     latencies_ms: dict[str, int] = {}
     total_started = perf_counter()
     embedding_model = _query_retrieval_service.embedding_model
+    rag_profile, _ = await resolve_profile_for_context(
+        db_session,
+        organization_id=organization_id,
+        collection_id=None,
+    )
+    rerank_settings = _build_rerank_settings(
+        dict(rag_profile.config) if rag_profile is not None else None
+    )
 
     retrieved_chunks: list[RetrievedChunk] = []
     selected_chunks: list[RetrievedChunk] = []
@@ -940,6 +1017,7 @@ async def query_chat(
     not_found = injection_check.blocked
     citation_validation_failed = False
     graph_context_result = GraphRetrievalResult()
+    rerank_result: RerankResult | None = None
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1031,10 +1109,9 @@ async def query_chat(
         confidence_explanation = confidence_result.explanation
     else:
         final_top_k = payload.top_k or settings.retrieval_final_top_k
-        retrieval_top_k = max(
-            final_top_k,
-            _rerank_service.candidate_count if payload.rerank else final_top_k,
-        )
+        rerank_applied = bool(payload.rerank and rerank_settings.enabled)
+        rerank_input_limit = rerank_settings.max_input_candidates or settings.rerank_default_input_candidates
+        retrieval_top_k = max(final_top_k, rerank_input_limit if rerank_applied else final_top_k)
 
         embed_started = perf_counter()
         try:
@@ -1113,6 +1190,7 @@ async def query_chat(
                 allowed_document_ids=document_ids,
                 graph_enabled=graph_enabled,
             )
+            retrieved_chunks = _with_original_ranks(retrieved_chunks)
         except Exception as exc:
             log_query_event(
                 event="query.failed.retrieve",
@@ -1131,15 +1209,17 @@ async def query_chat(
         latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
 
         rerank_started = perf_counter()
-        selected_chunks = _rerank_chunks(
+        selected_chunks, rerank_result = await _rerank_chunks(
+            query=payload.question,
             chunks=retrieved_chunks,
-            enabled=payload.rerank,
+            enabled=rerank_applied,
             final_top_k=final_top_k,
+            settings_override=rerank_settings,
         )
         latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
 
         confidence_signals = _to_confidence_signals(
-            chunks=selected_chunks, rerank_applied=payload.rerank
+            chunks=selected_chunks, rerank_applied=rerank_applied
         )
         confidence_result = _confidence_service.score(
             chunks=confidence_signals,
@@ -1230,8 +1310,10 @@ async def query_chat(
                             page_number=chunk.page_number,
                             text=chunk.text,
                             similarity_score=chunk.similarity_score,
+                            original_rank=chunk.original_rank,
                             rerank_score=chunk.rerank_score,
                             rerank_rank=chunk.rerank_rank,
+                            final_rank=chunk.final_rank,
                         )
                         for chunk in selected_chunks
                     ],
@@ -1291,6 +1373,7 @@ async def query_chat(
 
     latencies_ms["llm"] = llm_latency_ms
     answer_latency_ms = int((perf_counter() - total_started) * 1000)
+    rerank_diagnostics = rerank_result.diagnostics if rerank_result is not None else None
 
     persist_started = perf_counter()
     try:
@@ -1330,7 +1413,7 @@ async def query_chat(
                 start_offset=citation.start_offset,
                 end_offset=citation.end_offset,
                 similarity_score=citation.similarity_score,
-                rerank_score=citation.rerank_score if payload.rerank else None,
+                rerank_score=citation.rerank_score if rerank_applied else None,
             )
 
         await usage_repository.create_usage_event(
@@ -1368,7 +1451,18 @@ async def query_chat(
                 "graph_chunk_count": graph_context_result.graph_chunk_count,
                 "graph_max_hops_used": graph_context_result.graph_max_hops_used,
                 "graph_relation_types_used": list(graph_context_result.graph_relation_types_used),
-                "rerank_applied": payload.rerank,
+                "rerank_applied": rerank_applied,
+                "rerank_enabled": rerank_settings.enabled,
+                "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
+                "rerank_model": rerank_diagnostics.model_name if rerank_diagnostics else None,
+                "rerank_fallback_used": rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+                "rerank_fallback_reason": rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+                "rerank_input_count": rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                "rerank_batch_count": rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+                "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+                "rerank_completion_tokens": rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                "rerank_total_tokens": rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+                "rerank_cost_usd": float(rerank_diagnostics.approximate_cost_usd) if rerank_diagnostics else None,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
                 "llm_provider": llm_provider,
@@ -1402,7 +1496,10 @@ async def query_chat(
                 "selected_count": len(selected_chunks),
                 "graph_context_used": graph_context_result.graph_context_used,
                 "graph_context_reason": graph_context_result.graph_context_reason,
-                "rerank_applied": payload.rerank,
+                "rerank_applied": rerank_applied,
+                "rerank_enabled": rerank_settings.enabled,
+                "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
+                "rerank_model": rerank_diagnostics.model_name if rerank_diagnostics else None,
                 "prompt_template_key": PromptTemplateKey.answer_generation.value
                 if answer_prompt_version is not None
                 else None,
@@ -1447,7 +1544,18 @@ async def query_chat(
             feature_area="chat",
             retrieved_count=len(retrieved_chunks),
             selected_count=len(selected_chunks),
-            rerank_applied=payload.rerank,
+            rerank_applied=rerank_applied,
+            rerank_enabled=rerank_settings.enabled,
+            rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
+            rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+            rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+            rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+            rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+            rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+            rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+            rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+            rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+            rerank_cost_usd=rerank_diagnostics.approximate_cost_usd if rerank_diagnostics else None,
             cited_count=len(citations),
             not_found=not_found,
             citation_validation_failed=citation_validation_failed,
@@ -1523,7 +1631,20 @@ async def query_chat(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),
             selected_count=len(selected_chunks),
-            rerank_applied=payload.rerank,
+            rerank_applied=rerank_applied,
+            rerank_enabled=rerank_settings.enabled,
+            rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
+            rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+            rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+            rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+            rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+            rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+            rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+            rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+            rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+            rerank_cost_usd=float(rerank_diagnostics.approximate_cost_usd)
+            if rerank_diagnostics
+            else None,
             source_scope=source_scope_result.label,
             graph_context_enabled=graph_context_result.graph_context_enabled,
             graph_context_used=graph_context_result.graph_context_used,
@@ -2474,9 +2595,18 @@ async def _run_ws_chat_pipeline(
             not_found = injection_check.blocked
             citation_validation_failed = False
             graph_context_result = GraphRetrievalResult()
+            rerank_result: RerankResult | None = None
 
             chat_profile = await resolve_task_profile(
                 db_session, organization_id=organization_id, task_type=TaskType.chat
+            )
+            rag_profile, _ = await resolve_profile_for_context(
+                db_session,
+                organization_id=organization_id,
+                collection_id=None,
+            )
+            rerank_settings = _build_rerank_settings(
+                dict(rag_profile.config) if rag_profile is not None else None
             )
             detected_language: str | None = None
             answer_language_used: str | None = None
@@ -2542,9 +2672,14 @@ async def _run_ws_chat_pipeline(
             else:
                 # ── Full RAG pipeline ─────────────────────────────────────────
                 final_top_k = query_request.top_k or settings.retrieval_final_top_k
+                rerank_applied = bool(query_request.rerank and rerank_settings.enabled)
+                rerank_input_limit = (
+                    rerank_settings.max_input_candidates
+                    or settings.rerank_default_input_candidates
+                )
                 retrieval_top_k = max(
                     final_top_k,
-                    _rerank_service.candidate_count if query_request.rerank else final_top_k,
+                    rerank_input_limit if rerank_applied else final_top_k,
                 )
 
                 # Embedding
@@ -2588,6 +2723,7 @@ async def _run_ws_chat_pipeline(
                         allowed_document_ids=document_ids,
                         graph_enabled=graph_enabled,
                     )
+                    retrieved_chunks = _with_original_ranks(retrieved_chunks)
                 except Exception:
                     await send("chat.error", safe_error_code="retrieval_failed")
                     return
@@ -2599,20 +2735,22 @@ async def _run_ws_chat_pipeline(
 
                 # Reranking
                 rerank_started = perf_counter()
-                if query_request.rerank:
+                if rerank_applied:
                     await send("rerank.started")
-                selected_chunks = _rerank_chunks(
+                selected_chunks, rerank_result = await _rerank_chunks(
+                    query=query_request.question,
                     chunks=retrieved_chunks,
-                    enabled=query_request.rerank,
+                    enabled=rerank_applied,
                     final_top_k=final_top_k,
+                    settings_override=rerank_settings,
                 )
                 latencies_ms["rerank"] = int((perf_counter() - rerank_started) * 1000)
-                if query_request.rerank:
+                if rerank_applied:
                     await send("rerank.completed", {"selected_count": len(selected_chunks)})
 
                 # Confidence pre-LLM
                 confidence_signals = _to_confidence_signals(
-                    chunks=selected_chunks, rerank_applied=query_request.rerank
+                    chunks=selected_chunks, rerank_applied=rerank_applied
                 )
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
@@ -2696,8 +2834,10 @@ async def _run_ws_chat_pipeline(
                                     page_number=chunk.page_number,
                                     text=chunk.text,
                                     similarity_score=chunk.similarity_score,
+                                    original_rank=chunk.original_rank,
                                     rerank_score=chunk.rerank_score,
                                     rerank_rank=chunk.rerank_rank,
+                                    final_rank=chunk.final_rank,
                                 )
                                 for chunk in selected_chunks
                             ],
@@ -2743,6 +2883,7 @@ async def _run_ws_chat_pipeline(
             latencies_ms["llm"] = llm_latency_ms
             answer_latency_ms = int((perf_counter() - total_started) * 1000)
             latencies_ms["total"] = answer_latency_ms
+            rerank_diagnostics = rerank_result.diagnostics if rerank_result is not None else None
 
             # ── Persistence ───────────────────────────────────────────────────
             try:
@@ -2778,7 +2919,7 @@ async def _run_ws_chat_pipeline(
                         start_offset=citation.start_offset,
                         end_offset=citation.end_offset,
                         similarity_score=citation.similarity_score,
-                        rerank_score=citation.rerank_score if query_request.rerank else None,
+                        rerank_score=citation.rerank_score if rerank_applied else None,
                     )
                 persisted_document_ids = (
                     [str(d) for d in document_ids] if document_ids is not None else []
@@ -2806,6 +2947,18 @@ async def _run_ws_chat_pipeline(
                         "citation_count": len(citations),
                         "latencies_ms": latencies_ms,
                         "answer_latency_ms": answer_latency_ms,
+                        "rerank_applied": rerank_applied,
+                        "rerank_enabled": rerank_settings.enabled,
+                        "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
+                        "rerank_model": rerank_diagnostics.model_name if rerank_diagnostics else None,
+                        "rerank_fallback_used": rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+                        "rerank_fallback_reason": rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+                        "rerank_input_count": rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                        "rerank_batch_count": rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+                        "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+                        "rerank_completion_tokens": rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                        "rerank_total_tokens": rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+                        "rerank_cost_usd": float(rerank_diagnostics.approximate_cost_usd) if rerank_diagnostics else None,
                         "transport": "websocket",
                     },
                 )
@@ -2846,7 +2999,18 @@ async def _run_ws_chat_pipeline(
                     feature_area="chat_ws",
                     retrieved_count=len(retrieved_chunks),
                     selected_count=len(selected_chunks),
-                    rerank_applied=query_request.rerank,
+                    rerank_applied=rerank_applied,
+                    rerank_enabled=rerank_settings.enabled,
+                    rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
+                    rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+                    rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+                    rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+                    rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                    rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+                    rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                    rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+                    rerank_cost_usd=rerank_diagnostics.approximate_cost_usd if rerank_diagnostics else None,
                     cited_count=len(citations),
                     not_found=not_found,
                     citation_validation_failed=citation_validation_failed,
@@ -2922,7 +3086,20 @@ async def _run_ws_chat_pipeline(
                     latencies_ms=latencies_ms,
                     retrieval_count=len(retrieved_chunks),
                     selected_count=len(selected_chunks),
-                    rerank_applied=query_request.rerank,
+                    rerank_applied=rerank_applied,
+                    rerank_enabled=rerank_settings.enabled,
+                    rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
+                    rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
+                    rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
+                    rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+                    rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                    rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
+                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+                    rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                    rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
+                    rerank_cost_usd=float(rerank_diagnostics.approximate_cost_usd)
+                    if rerank_diagnostics
+                    else None,
                     source_scope=source_scope_result.label,
                     graph_context_enabled=graph_context_result.graph_context_enabled,
                     graph_context_used=graph_context_result.graph_context_used,

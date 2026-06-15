@@ -21,8 +21,10 @@ class PromptContextChunk:
     page_number: int | None
     text: str
     similarity_score: float | None = None
+    original_rank: int | None = None
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    final_rank: int | None = None
 
 
 def _language_instruction(answer_language: str | None) -> str:
@@ -59,8 +61,10 @@ class PromptService:
                 f"filename={chunk.filename}\n"
                 f"page_number={chunk.page_number}\n"
                 f"similarity_score={chunk.similarity_score}\n"
+                f"original_rank={chunk.original_rank}\n"
                 f"rerank_score={chunk.rerank_score}\n"
                 f"rerank_rank={chunk.rerank_rank}\n"
+                f"final_rank={chunk.final_rank}\n"
                 f"text:\n{chunk.text}"
             )
 

@@ -29,6 +29,15 @@ ENV_KEYS = [
     "RATE_LIMIT_DELETE_REQUESTS",
     "RATE_LIMIT_ADMIN_REQUESTS",
     "EVALUATION_PREVENT_DUPLICATE_ACTIVE_RUNS",
+    "RERANK_DEFAULT_PROVIDER",
+    "RERANK_DEFAULT_MODEL_NAME",
+    "RERANK_DEFAULT_TIMEOUT_SECONDS",
+    "RERANK_DEFAULT_BATCH_SIZE",
+    "RERANK_DEFAULT_INPUT_CANDIDATES",
+    "RERANK_DEFAULT_CANDIDATE_CHARS",
+    "RERANK_DEFAULT_FALLBACK_BEHAVIOR",
+    "RERANK_INPUT_COST_PER_MILLION_TOKENS_USD",
+    "RERANK_OUTPUT_COST_PER_MILLION_TOKENS_USD",
     "RERANK_MMR_LAMBDA",
     "RERANK_MMR_CANDIDATE_COUNT",
     "RERANK_MMR_DUPLICATE_SIMILARITY_THRESHOLD",
@@ -244,6 +253,24 @@ def test_invalid_rerank_candidate_count_relationship_fails_fast() -> None:
     payload = valid_settings_kwargs()
     payload["retrieval_final_top_k"] = 10
     payload["rerank_mmr_candidate_count"] = 5
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_rerank_limit_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["retrieval_final_top_k"] = 10
+    payload["rerank_default_input_candidates"] = 5
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **payload)
+
+
+def test_invalid_rerank_batch_relationship_fails_fast() -> None:
+    payload = valid_settings_kwargs()
+    payload["rerank_default_input_candidates"] = 5
+    payload["rerank_default_batch_size"] = 6
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None, **payload)

@@ -278,7 +278,7 @@ When `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=true` (default in non-prod
 2. On load: remote endpoint is tried first; local storage is used as fallback; factory defaults apply when both are absent.
 3. Set `NEXT_PUBLIC_SETTINGS_PREFERENCES_LOCAL_FALLBACK=false` in production to remove the local fallback and make remote failures throw.
 
-Fields covered: `defaultTopK`, `rerankEnabled`, `developerMode`, `answerDetailLevel`, `showConfidenceScore`, `expandCitations`, and all `notifications.*` booleans.
+Fields covered: `defaultTopK`, `confidenceThreshold`, `rerankEnabled`, `developerMode`, `answerDetailLevel`, `showConfidenceScore`, `expandCitations`, and all `notifications.*` booleans. The RAG profile settings tab also exposes rerank provider/model, timeout, batch size, candidate limits, and fallback behavior controls.
 
 Profile, Organization, Security, and Billing tabs do **not** use local fallback — they show unavailable states when backend endpoints are missing.
 

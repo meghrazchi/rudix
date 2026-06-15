@@ -51,18 +51,13 @@ from app.db.session import get_db_session
 from app.domains.rag_profiles.repositories.rag_profiles import RagProfileRepository
 from app.domains.rag_profiles.services.rag_profile_service import (
     SYSTEM_DEFAULT_CONFIG,
-    create_profile_with_version,
     resolve_profile_for_context,
-    rollback_to_version,
-    update_profile_with_version,
 )
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
-from app.models.rag_profile import RagProfile
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -620,6 +615,13 @@ async def test_system_default_config_has_required_keys() -> None:
     required = {
         "top_k",
         "rerank_enabled",
+        "rerank_provider",
+        "rerank_model",
+        "rerank_timeout_seconds",
+        "rerank_batch_size",
+        "rerank_input_max_candidates",
+        "rerank_max_candidate_chars",
+        "rerank_fallback_behavior",
         "confidence_threshold",
         "citation_strictness",
         "safety_mode",

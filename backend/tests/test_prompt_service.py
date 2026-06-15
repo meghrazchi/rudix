@@ -14,8 +14,10 @@ def test_build_prompt_snapshot_includes_grounding_rules_and_metadata() -> None:
                 page_number=4,
                 text="Employees receive 20 paid leave days per year.",
                 similarity_score=0.89,
+                original_rank=1,
                 rerank_score=0.91,
                 rerank_rank=1,
+                final_rank=1,
             ),
             PromptContextChunk(
                 document_id="22222222-2222-2222-2222-222222222222",
@@ -24,8 +26,10 @@ def test_build_prompt_snapshot_includes_grounding_rules_and_metadata() -> None:
                 page_number=2,
                 text="Unused leave can be carried over according to policy limits.",
                 similarity_score=0.81,
+                original_rank=2,
                 rerank_score=0.77,
                 rerank_rank=2,
+                final_rank=2,
             ),
         ],
     )
@@ -74,8 +78,10 @@ def test_build_prompt_snapshot_includes_grounding_rules_and_metadata() -> None:
         "filename=policy.pdf\n"
         "page_number=4\n"
         "similarity_score=0.89\n"
+        "original_rank=1\n"
         "rerank_score=0.91\n"
         "rerank_rank=1\n"
+        "final_rank=1\n"
         "text:\n"
         "Employees receive 20 paid leave days per year.\n\n"
         "[2]\n"
@@ -84,8 +90,10 @@ def test_build_prompt_snapshot_includes_grounding_rules_and_metadata() -> None:
         "filename=benefits.pdf\n"
         "page_number=2\n"
         "similarity_score=0.81\n"
+        "original_rank=2\n"
         "rerank_score=0.77\n"
         "rerank_rank=2\n"
+        "final_rank=2\n"
         "text:\n"
         "Unused leave can be carried over according to policy limits."
     )

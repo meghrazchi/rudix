@@ -33,7 +33,11 @@ from app.domains.chat.services.query_retrieval_service import (
     QueryRetrievalService,
     RetrievedCandidate,
 )
-from app.domains.chat.services.rerank_service import RerankCandidate, RerankService
+from app.domains.chat.services.rerank_service import (
+    RerankCandidate,
+    RerankResult,
+    RerankService,
+)
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.services.evaluation_metrics_service import (
@@ -74,8 +78,10 @@ class RetrievedChunk:
     page_number: int | None
     text: str
     similarity_score: float
+    original_rank: int | None = None
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    final_rank: int | None = None
 
 
 @dataclass(frozen=True)
@@ -378,14 +384,41 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
     )
 
 
-def _rerank_chunks(
+def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
+    ranked_chunks: list[RetrievedChunk] = []
+    for index, chunk in enumerate(chunks, start=1):
+        ranked_chunks.append(
+            RetrievedChunk(
+                document_id=chunk.document_id,
+                chunk_id=chunk.chunk_id,
+                filename=chunk.filename,
+                page_number=chunk.page_number,
+                text=chunk.text,
+                similarity_score=chunk.similarity_score,
+                original_rank=index,
+                rerank_score=chunk.rerank_score,
+                rerank_rank=chunk.rerank_rank,
+                final_rank=chunk.final_rank,
+            )
+        )
+    return ranked_chunks
+
+
+async def _rerank_chunks(
     *,
+    query: str,
     chunks: list[RetrievedChunk],
     enabled: bool,
     final_top_k: int,
-) -> list[RetrievedChunk]:
+) -> tuple[list[RetrievedChunk], RerankResult]:
     if final_top_k < 1 or not chunks:
-        return []
+        empty_result = await _rerank_service.rerank(
+            query=query,
+            candidates=[],
+            enabled=enabled,
+            final_top_k=final_top_k,
+        )
+        return [], empty_result
 
     chunk_by_key = {str(chunk.chunk_id): chunk for chunk in chunks}
     rerank_inputs = [
@@ -393,17 +426,19 @@ def _rerank_chunks(
             key=str(chunk.chunk_id),
             text=chunk.text,
             similarity_score=chunk.similarity_score,
+            original_rank=chunk.original_rank,
         )
         for chunk in chunks
     ]
-    rerank_results = _rerank_service.rerank(
+    rerank_result = await _rerank_service.rerank(
+        query=query,
         candidates=rerank_inputs,
         enabled=enabled,
         final_top_k=final_top_k,
     )
 
     selected_chunks: list[RetrievedChunk] = []
-    for reranked in rerank_results:
+    for reranked in rerank_result.candidates:
         source_chunk = chunk_by_key.get(reranked.key)
         if source_chunk is None:
             continue
@@ -415,11 +450,13 @@ def _rerank_chunks(
                 page_number=source_chunk.page_number,
                 text=source_chunk.text,
                 similarity_score=source_chunk.similarity_score,
+                original_rank=reranked.original_rank,
                 rerank_score=reranked.rerank_score,
                 rerank_rank=reranked.rerank_rank,
+                final_rank=reranked.final_rank,
             )
         )
-    return selected_chunks
+    return selected_chunks, rerank_result
 
 
 def _build_prompt(
@@ -440,8 +477,10 @@ def _build_prompt(
                 page_number=chunk.page_number,
                 text=chunk.text,
                 similarity_score=chunk.similarity_score,
+                original_rank=chunk.original_rank,
                 rerank_score=chunk.rerank_score,
                 rerank_rank=chunk.rerank_rank,
+                final_rank=chunk.final_rank,
             )
             for chunk in chunks
         ],
@@ -467,10 +506,12 @@ def _serialize_chunk(chunk: RetrievedChunk) -> dict[str, Any]:
         "filename": chunk.filename,
         "page_number": chunk.page_number,
         "similarity_score": round(float(chunk.similarity_score), 6),
+        "original_rank": chunk.original_rank,
         "rerank_score": round(float(chunk.rerank_score), 6)
         if chunk.rerank_score is not None
         else None,
         "rerank_rank": chunk.rerank_rank,
+        "final_rank": chunk.final_rank,
         "text_snippet": chunk.text[:400],
     }
 
@@ -896,10 +937,12 @@ async def _evaluate_question_pipeline_async(
         index_version=index_version,
     )
     retrieved_chunks = [_to_retrieved_chunk(candidate) for candidate in retrieved_candidates]
+    retrieved_chunks = _with_original_ranks(retrieved_chunks)
     latencies_ms["retrieve"] = int((perf_counter() - retrieve_started) * 1000)
 
     rerank_started = perf_counter()
-    selected_chunks = _rerank_chunks(
+    selected_chunks, _rerank_result = await _rerank_chunks(
+        query=question_text,
         chunks=retrieved_chunks,
         enabled=config.rerank,
         final_top_k=config.top_k,

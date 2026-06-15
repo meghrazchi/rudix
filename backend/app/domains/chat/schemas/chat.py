@@ -176,8 +176,10 @@ class ChatCitationResponse(BaseModel):
     page_number: int | None = None
     score: float | None = None
     similarity_score: float | None = None
+    original_rank: int | None = None
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    final_rank: int | None = None
     text_snippet: str | None = None
     start_offset: int | None = None
     end_offset: int | None = None
@@ -207,6 +209,17 @@ class ChatDebugResponse(BaseModel):
     retrieval_count: int
     selected_count: int
     rerank_applied: bool
+    rerank_enabled: bool = False
+    rerank_provider: str | None = None
+    rerank_model: str | None = None
+    rerank_fallback_used: bool = False
+    rerank_fallback_reason: str | None = None
+    rerank_input_count: int = 0
+    rerank_batch_count: int = 0
+    rerank_prompt_tokens: int = 0
+    rerank_completion_tokens: int = 0
+    rerank_total_tokens: int = 0
+    rerank_cost_usd: float | None = None
     source_scope: str | None = None
     embedding_model: str | None = None
     llm_model: str | None = None

@@ -21,8 +21,10 @@ class CitationContextChunk:
     page_number: int | None
     text: str
     similarity_score: float
+    original_rank: int | None = None
     rerank_score: float | None = None
     rerank_rank: int | None = None
+    final_rank: int | None = None
 
 
 @dataclass(frozen=True)
@@ -103,8 +105,10 @@ class CitationService:
             page_number=chunk.page_number,
             score=score,
             similarity_score=chunk.similarity_score,
+            original_rank=chunk.original_rank,
             rerank_score=chunk.rerank_score,
             rerank_rank=chunk.rerank_rank,
+            final_rank=chunk.final_rank,
             text_snippet=clamped_snippet,
             start_offset=start_offset,
             end_offset=end_offset,

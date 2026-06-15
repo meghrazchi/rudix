@@ -17,6 +17,12 @@ class RagProfileConfig(BaseModel):
     top_k: int = Field(default=10, ge=1, le=100)
     rerank_enabled: bool = Field(default=False)
     rerank_model: str | None = Field(default=None, max_length=255)
+    rerank_provider: str | None = Field(default=None, max_length=64)
+    rerank_timeout_seconds: float | None = Field(default=None, ge=0.1, le=120.0)
+    rerank_batch_size: int | None = Field(default=None, ge=1, le=200)
+    rerank_input_max_candidates: int | None = Field(default=None, ge=1, le=200)
+    rerank_max_candidate_chars: int | None = Field(default=None, ge=128, le=20_000)
+    rerank_fallback_behavior: Literal["original", "disabled"] = Field(default="original")
     confidence_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
     citation_strictness: Literal["strict", "moderate", "lenient"] = Field(default="moderate")
     model_provider: str | None = Field(default=None, max_length=64)
@@ -40,6 +46,16 @@ class RagProfileConfig(BaseModel):
                 raise ValueError("rerank_model must not be blank")
             return trimmed
         return value
+
+    @field_validator("rerank_provider", "rerank_fallback_behavior")
+    @classmethod
+    def validate_rerank_provider(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        trimmed = value.strip().lower()
+        if not trimmed:
+            raise ValueError("rerank_provider must not be blank")
+        return trimmed
 
     @field_validator("model_provider")
     @classmethod

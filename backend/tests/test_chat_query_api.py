@@ -1,3 +1,4 @@
+import json
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -87,6 +88,24 @@ class _FakeChatProvider:
 
     async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
         self.calls.append(request)
+        if "You are reranking retrieved document chunks" in request.prompt:
+            keys = [
+                line.split(":", 1)[1].strip()
+                for line in request.prompt.splitlines()
+                if line.startswith("key:")
+            ]
+            scores = [
+                {"key": key, "score": round(max(0.1, 0.92 - (index * 0.01)), 2)}
+                for index, key in enumerate(keys)
+            ]
+            return ChatCompletionResponse(
+                content=json.dumps({"scores": scores}),
+                model=settings.openai_llm_model,
+                prompt_tokens=19,
+                completion_tokens=7,
+                total_tokens=26,
+                latency_ms=5,
+            )
         return ChatCompletionResponse(
             content=self.answer,
             model=settings.openai_llm_model,
@@ -120,6 +139,7 @@ def _inject_providers(
     embed_provider = _FakeEmbeddingProvider()
     default_provider_factory._chat_providers.clear()
     default_provider_factory._chat_providers[settings.llm_default_provider] = chat_provider
+    default_provider_factory._chat_providers[settings.rerank_default_provider] = chat_provider
     monkeypatch.setattr(chat_api._llm_service, "_provider", chat_provider)
     monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", embed_provider)
     return chat_provider, embed_provider
@@ -444,12 +464,20 @@ async def test_post_chat_orchestrates_and_persists_messages(
     assert len(payload["citations"]) == 1
     assert payload["citations"][0]["document_id"] == str(document.id)
     assert payload["citations"][0]["filename"] == "policy.pdf"
+    assert payload["citations"][0]["original_rank"] == 1
     assert payload["citations"][0]["similarity_score"] == pytest.approx(0.92)
     assert payload["citations"][0]["rerank_score"] == pytest.approx(0.92)
     assert payload["citations"][0]["rerank_rank"] == 1
+    assert payload["citations"][0]["final_rank"] == 1
     assert payload["debug"]["retrieval_count"] == 1
     assert payload["debug"]["selected_count"] == 1
     assert payload["debug"]["rerank_applied"] is True
+    assert payload["debug"]["rerank_enabled"] is True
+    assert payload["debug"]["rerank_provider"] == settings.rerank_default_provider
+    assert payload["debug"]["rerank_model"] is None
+    assert payload["debug"]["rerank_input_count"] == 1
+    assert payload["debug"]["rerank_batch_count"] == 1
+    assert payload["debug"]["rerank_fallback_used"] is False
     assert payload["debug"]["embedding_model"] == settings.openai_embedding_model
     assert "total" in payload["debug"]["latencies_ms"]
 
@@ -1093,7 +1121,7 @@ async def test_post_chat_low_confidence_falls_back_to_not_found(
     assert payload["confidence_score"] < 0.2
     assert payload["confidence_category"] == "low"
     assert payload["confidence_explanation"]["not_found_signal"] is True
-    assert chat_provider.calls == []
+    assert len(chat_provider.calls) == 1
 
 
 @pytest.mark.asyncio
