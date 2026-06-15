@@ -868,6 +868,8 @@ async def get_document(
     )
     doc_ocr_languages_override = document.ocr_languages_override
     doc_ocr_quality_snapshot = document.ocr_quality_snapshot
+    doc_ocr_quality_status = document.ocr_quality_status
+    doc_ocr_avg_confidence = document.ocr_avg_confidence
     doc_extraction_snapshot = document.extraction_snapshot
     doc_embedding_provider_type = document.embedding_provider_type
     doc_embedding_vector_dimension = document.embedding_vector_dimension
@@ -946,6 +948,8 @@ async def get_document(
         language_source=doc_language_source,
         ocr_languages_override=doc_ocr_languages_override,
         ocr_quality_snapshot=doc_ocr_quality_snapshot,
+        ocr_quality_status=doc_ocr_quality_status,
+        ocr_avg_confidence=doc_ocr_avg_confidence,
         extraction_snapshot=doc_extraction_snapshot,
         embedding_provider_type=doc_embedding_provider_type,
         embedding_vector_dimension=doc_embedding_vector_dimension,

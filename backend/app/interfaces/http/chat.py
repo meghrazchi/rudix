@@ -98,6 +98,7 @@ from app.domains.chat.services.table_retrieval_service import (
     TableBoostResult,
     TableRetrievalService,
 )
+from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
     HybridRetrievalService,
@@ -164,6 +165,7 @@ _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
 _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
+_ocr_quality_service = OcrQualityService()
 _document_repository_for_trust = _DocumentRepository()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
@@ -461,6 +463,54 @@ def _with_table_metadata(
         table_col_count=meta.get("col_count"),
         table_headers=list(meta.get("headers") or []),
         table_section_context=meta.get("section_context"),
+    )
+
+
+def _with_ocr_quality(
+    citation: ChatCitationResponse,
+    ocr_quality_map: dict[str, str],
+) -> ChatCitationResponse:
+    """Annotate a citation with OCR quality status and low-confidence warning."""
+    quality_status = ocr_quality_map.get(citation.document_id)
+    if quality_status is None:
+        return citation
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        original_rank=citation.original_rank,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        final_rank=citation.final_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=citation.source_provider,
+        source_provider_label=citation.source_provider_label,
+        source_title=citation.source_title,
+        source_key=citation.source_key,
+        source_section=citation.source_section,
+        source_deep_link=citation.source_deep_link,
+        source_last_synced_at=citation.source_last_synced_at,
+        source_trust_status=citation.source_trust_status,
+        source_acl_snapshot=citation.source_acl_snapshot,
+        doc_trust_status=citation.doc_trust_status,
+        doc_version_label=citation.doc_version_label,
+        doc_review_date=citation.doc_review_date,
+        doc_effective_date=citation.doc_effective_date,
+        doc_stale_warning=citation.doc_stale_warning,
+        doc_is_excluded_status=citation.doc_is_excluded_status,
+        is_table_chunk=citation.is_table_chunk,
+        table_caption=citation.table_caption,
+        table_row_count=citation.table_row_count,
+        table_col_count=citation.table_col_count,
+        table_headers=citation.table_headers,
+        table_section_context=citation.table_section_context,
+        doc_ocr_quality_status=quality_status,
+        doc_ocr_low_confidence_warning=_ocr_quality_service.is_low_confidence(quality_status),
     )
 
 
@@ -1146,6 +1196,9 @@ async def query_chat(
     table_chunk_count = 0
     table_query_detected = False
     _table_boost_result: TableBoostResult | None = None
+    _ocr_quality_map: dict[str, str] = {}
+    ocr_quality_downranking_enabled = False
+    ocr_low_confidence_chunk_count = 0
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1488,6 +1541,54 @@ async def query_chat(
                             retrieved_chunks, key=lambda c: c.similarity_score, reverse=True
                         )
 
+            # OCR quality downranking (F299).
+            # Loads OCR quality status for retrieved documents and applies score penalties
+            # for low/failed OCR quality, ensuring high-quality text chunks rank higher.
+            if settings.feature_enable_ocr_quality_downranking and retrieved_chunks:
+                ocr_quality_downranking_enabled = True
+                _ocr_doc_ids = list({chunk.document_id for chunk in retrieved_chunks})
+                _ocr_docs = await _document_repository_for_trust.get_documents_by_ids_for_trust(
+                    db_session,
+                    document_ids=_ocr_doc_ids,
+                    organization_id=organization_id,
+                )
+                _ocr_quality_map = _ocr_quality_service.build_quality_map(_ocr_docs)
+                if _ocr_quality_map:
+                    ocr_adjusted: list[RetrievedChunk] = []
+                    for _chunk in retrieved_chunks:
+                        _new_score = _ocr_quality_service.apply_quality_score(
+                            score=_chunk.similarity_score,
+                            document_id=str(_chunk.document_id),
+                            quality_map=_ocr_quality_map,
+                        )
+                        if _ocr_quality_service.is_low_confidence(
+                            _ocr_quality_map.get(str(_chunk.document_id))
+                        ):
+                            ocr_low_confidence_chunk_count += 1
+                        ocr_adjusted.append(
+                            RetrievedChunk(
+                                document_id=_chunk.document_id,
+                                chunk_id=_chunk.chunk_id,
+                                filename=_chunk.filename,
+                                page_number=_chunk.page_number,
+                                text=_chunk.text,
+                                similarity_score=_new_score,
+                                original_rank=_chunk.original_rank,
+                                rerank_score=_chunk.rerank_score,
+                                rerank_rank=_chunk.rerank_rank,
+                                final_rank=_chunk.final_rank,
+                                retrieval_source=_chunk.retrieval_source,
+                                graph_score=_chunk.graph_score,
+                                graph_hops=_chunk.graph_hops,
+                                keyword_score=_chunk.keyword_score,
+                                hybrid_score=_chunk.hybrid_score,
+                                chunk_type=_chunk.chunk_type,
+                            )
+                        )
+                    retrieved_chunks = sorted(
+                        ocr_adjusted, key=lambda c: c.similarity_score, reverse=True
+                    )
+
         except Exception as exc:
             log_query_event(
                 event="query.failed.retrieve",
@@ -1632,16 +1733,19 @@ async def query_chat(
                     str(k): v for k, v in _table_metadata_by_chunk_id.items()
                 }
                 citations = [
-                    _with_table_metadata(
-                        _with_freshness(
-                            _with_provenance(
-                                citation,
-                                provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                    _with_ocr_quality(
+                        _with_table_metadata(
+                            _with_freshness(
+                                _with_provenance(
+                                    citation,
+                                    provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                                ),
+                                _freshness_trust_map,
+                                _freshness_stale_ids,
                             ),
-                            _freshness_trust_map,
-                            _freshness_stale_ids,
+                            _table_metadata_map,
                         ),
-                        _table_metadata_map,
+                        {str(k): v for k, v in _ocr_quality_map.items()},
                     )
                     for citation in citation_result.citations
                 ]
@@ -2121,6 +2225,8 @@ async def query_chat(
             table_boost_count=table_boost_count,
             table_chunk_count=table_chunk_count,
             table_query_detected=table_query_detected,
+            ocr_quality_downranking_enabled=ocr_quality_downranking_enabled,
+            ocr_low_confidence_chunk_count=ocr_low_confidence_chunk_count,
         ),
         created_at=assistant_message.created_at,
     )

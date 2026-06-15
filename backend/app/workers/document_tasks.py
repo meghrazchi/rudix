@@ -41,6 +41,7 @@ from app.domains.documents.services.language_detection_service import (
 )
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
+from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
 from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.domains.documents.services.qdrant_service import QdrantService
@@ -121,6 +122,7 @@ def _make_chunking_service(
 
 _embedding_service = EmbeddingService()
 _qdrant_service = QdrantService()
+_ocr_quality_service = OcrQualityService()
 
 
 def _safe_duration_ms(*, started_at: datetime, ended_at: datetime) -> int:
@@ -959,14 +961,41 @@ async def _extract_and_store_document_pages_async(
                         ocr_avg_confidence=ocr_result.avg_confidence,
                         ocr_languages=ocr_result.languages,
                     )
-                    # Persist quality snapshot without logging document content.
+                    # Classify OCR quality and persist snapshot + derived fields (F299).
+                    derived_quality_status = _ocr_quality_service.classify(
+                        avg_confidence=ocr_result.avg_confidence,
+                        ocr_status=ocr_result.status,
+                        ocr_applied=True,
+                        file_type=document.file_type,
+                    )
                     async with SessionLocal() as ocr_quality_session:
                         await _document_repository.update_document_ocr_quality(
                             ocr_quality_session,
                             document_id=parsed_document_id,
                             ocr_quality_snapshot=ocr_quality_snapshot,
+                            ocr_quality_status=derived_quality_status,
+                            ocr_avg_confidence=ocr_result.avg_confidence,
                         )
+                        # Persist per-page OCR confidence for retrieval downranking.
+                        page_confidence_map = {
+                            p.page_number: p.confidence
+                            for p in ocr_result.pages
+                            if p.status == "completed" and p.confidence is not None
+                        }
+                        if page_confidence_map:
+                            await _document_repository.update_document_pages_ocr_confidence_bulk(
+                                ocr_quality_session,
+                                document_id=parsed_document_id,
+                                page_confidences=page_confidence_map,
+                            )
                         await ocr_quality_session.commit()
+                    log_document_event(
+                        event="document.ocr_quality.classified",
+                        document_id=str(document.id),
+                        organization_id=resolved_organization_id,
+                        ocr_quality_status=derived_quality_status,
+                        ocr_avg_confidence=ocr_result.avg_confidence,
+                    )
 
                     if ocr_result.status == "failed":
                         first_warning = page_warnings[0] if page_warnings else "unknown error"

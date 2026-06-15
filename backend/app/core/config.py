@@ -682,6 +682,8 @@ class Settings(BaseSettings):
     # table_retrieval_boost_multiplier: score multiplier applied to table chunks on table-like queries.
     feature_enable_table_aware_retrieval: bool = True
     table_retrieval_boost_multiplier: float = Field(default=1.25, ge=1.0, le=5.0)
+    # OCR quality downranking (F299): penalise retrieval scores for low-confidence OCR chunks.
+    feature_enable_ocr_quality_downranking: bool = True
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True
@@ -1436,6 +1438,7 @@ class Settings(BaseSettings):
                 "advanced_pdf_extraction": self.feature_enable_advanced_pdf_extraction,
                 "pdf_extraction_tables": self.pdf_extraction_enable_tables,
                 "pdf_extraction_images": self.pdf_extraction_enable_images,
+                "ocr_quality_downranking": self.feature_enable_ocr_quality_downranking,
             },
             "enterprise_graph": {
                 "enabled": self.enterprise_graph_enabled,

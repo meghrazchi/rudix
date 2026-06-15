@@ -216,6 +216,9 @@ class ChatCitationResponse(BaseModel):
     table_col_count: int | None = None
     table_headers: list[str] = Field(default_factory=list)
     table_section_context: str | None = None
+    # OCR quality (F299): populated when the source document was OCR-processed.
+    doc_ocr_quality_status: str | None = None
+    doc_ocr_low_confidence_warning: bool = False
 
 
 class ChatDebugResponse(BaseModel):
@@ -289,6 +292,9 @@ class ChatDebugResponse(BaseModel):
     table_boost_count: int = 0
     table_chunk_count: int = 0
     table_query_detected: bool = False
+    # OCR quality downranking (F299).
+    ocr_quality_downranking_enabled: bool = False
+    ocr_low_confidence_chunk_count: int = 0
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

@@ -42,6 +42,16 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
     | "uploaded"
     | null;
   source_acl_snapshot?: Record<string, unknown>;
+  // Table-aware retrieval (F298): populated for table chunks.
+  is_table_chunk?: boolean;
+  table_caption?: string | null;
+  table_row_count?: number | null;
+  table_col_count?: number | null;
+  table_headers?: string[];
+  table_section_context?: string | null;
+  // OCR quality (F299)
+  doc_ocr_quality_status?: "high" | "medium" | "low" | "failed" | "not_required" | null;
+  doc_ocr_low_confidence_warning?: boolean;
 };
 export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {
   source_scope?: string | null;

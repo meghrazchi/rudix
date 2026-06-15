@@ -211,15 +211,82 @@ class DocumentRepository:
         *,
         document_id: UUID,
         ocr_quality_snapshot: dict,
+        ocr_quality_status: str | None = None,
+        ocr_avg_confidence: float | None = None,
     ) -> Document | None:
         result = await session.execute(select(Document).where(Document.id == document_id))
         document = result.scalar_one_or_none()
         if document is None:
             return None
         document.ocr_quality_snapshot = ocr_quality_snapshot
+        if ocr_quality_status is not None:
+            document.ocr_quality_status = ocr_quality_status
+        if ocr_avg_confidence is not None:
+            document.ocr_avg_confidence = ocr_avg_confidence
         await session.flush()
         await session.refresh(document)
         return document
+
+    async def update_document_page_ocr_confidence(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        page_number: int,
+        ocr_confidence: float,
+    ) -> DocumentPage | None:
+        result = await session.execute(
+            select(DocumentPage).where(
+                DocumentPage.document_id == document_id,
+                DocumentPage.page_number == page_number,
+            )
+        )
+        page = result.scalar_one_or_none()
+        if page is None:
+            return None
+        page.ocr_confidence = ocr_confidence
+        await session.flush()
+        await session.refresh(page)
+        return page
+
+    async def update_document_pages_ocr_confidence_bulk(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        page_confidences: dict[int, float],
+    ) -> int:
+        """Bulk-update ocr_confidence on DocumentPage rows. Returns updated count."""
+        if not page_confidences:
+            return 0
+        updated = 0
+        result = await session.execute(
+            select(DocumentPage).where(DocumentPage.document_id == document_id)
+        )
+        pages = {p.page_number: p for p in result.scalars().all()}
+        for page_number, confidence in page_confidences.items():
+            page = pages.get(page_number)
+            if page is not None:
+                page.ocr_confidence = confidence
+                updated += 1
+        await session.flush()
+        return updated
+
+    async def get_page_ocr_confidence_map(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+    ) -> dict[int, float]:
+        """Return {page_number: ocr_confidence} for pages that have OCR confidence data."""
+        result = await session.execute(
+            select(DocumentPage.page_number, DocumentPage.ocr_confidence)
+            .where(
+                DocumentPage.document_id == document_id,
+                DocumentPage.ocr_confidence.isnot(None),
+            )
+        )
+        return {row[0]: row[1] for row in result.all()}
 
     async def update_document_extraction_snapshot(
         self,

@@ -316,3 +316,11 @@ class EmailDeliveryStatus(StrEnum):
     failed = "failed"
     bounced = "bounced"
     unsubscribed = "unsubscribed"
+
+
+class OcrQualityStatus(StrEnum):
+    high = "high"
+    medium = "medium"
+    low = "low"
+    failed = "failed"
+    not_required = "not_required"

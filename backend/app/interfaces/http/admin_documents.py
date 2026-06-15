@@ -22,8 +22,10 @@ from app.domains.documents.schemas.documents import (
 )
 from app.models.document import Document
 from app.models.enums import DocumentStatus, DocumentTrustStatus, OrganizationRole
+from app.models.enums import OcrQualityStatus
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import delete_document as delete_document_task
+from app.workers.document_tasks import reindex_document as reindex_document_task
 
 _ALLOWED_TRUST_STATUSES = frozenset(s.value for s in DocumentTrustStatus)
 
@@ -109,6 +111,13 @@ class AdminTrustStatusResponse(BaseModel):
     superseded_by_document_id: str | None
     trusted_at: datetime | None
     updated_at: datetime
+
+
+class AdminOcrRetryResponse(BaseModel):
+    document_id: str
+    ocr_quality_status: str | None
+    ocr_avg_confidence: float | None
+    queue_status: Literal["queued"]
 
 
 router = APIRouter(prefix="/admin/documents", tags=["admin"])
@@ -525,4 +534,93 @@ async def update_document_trust_status(
         else None,
         trusted_at=updated.trusted_at,
         updated_at=updated.updated_at,
+    )
+
+
+# Low-OCR-quality statuses that are eligible for retry.
+_OCR_RETRY_ELIGIBLE_STATUSES: frozenset[str] = frozenset(
+    {OcrQualityStatus.low, OcrQualityStatus.failed}
+)
+
+
+@router.post(
+    "/{document_id}/ocr-retry",
+    response_model=AdminOcrRetryResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def retry_ocr_for_document(
+    request: Request,
+    document_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminOcrRetryResponse:
+    """Schedule a reindex for a document with low or failed OCR quality (F299).
+
+    Only allowed for documents whose ocr_quality_status is 'low' or 'failed'.
+    Admins should set ocr_languages_override via PATCH /{id}/ocr-config first
+    if the language setting needs changing.
+    """
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    try:
+        doc_uuid = UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid document_id format",
+        ) from exc
+
+    document = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
+    if document is None or document.organization_id != actor_organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    if document.ocr_quality_status not in _OCR_RETRY_ELIGIBLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"OCR retry is only allowed for documents with ocr_quality_status "
+                f"'low' or 'failed'. Current status: '{document.ocr_quality_status}'."
+            ),
+        )
+
+    reindex_document_task.delay(
+        document_id=str(doc_uuid),
+        organization_id=str(actor_organization_id),
+        user_id=str(actor_user_id),
+        request_id=request_id,
+    )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.ocr_retry.requested",
+        resource_type="document",
+        resource_id=doc_uuid,
+        request_id=request_id,
+        metadata={
+            "ocr_quality_status": document.ocr_quality_status,
+            "ocr_avg_confidence": document.ocr_avg_confidence,
+        },
+    )
+    await db_session.commit()
+
+    return AdminOcrRetryResponse(
+        document_id=str(doc_uuid),
+        ocr_quality_status=document.ocr_quality_status,
+        ocr_avg_confidence=document.ocr_avg_confidence,
+        queue_status="queued",
     )

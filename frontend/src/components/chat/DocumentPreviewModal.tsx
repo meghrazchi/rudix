@@ -176,6 +176,8 @@ export function DocumentPreviewModal({
     citation.source_provider_label ?? citation.source_provider ?? null;
   const sourceSection = citation.source_section ?? null;
   const sourceTrust = citation.source_trust_status ?? null;
+  const ocrQualityStatus = citation.doc_ocr_quality_status ?? null;
+  const ocrLowConfidence = citation.doc_ocr_low_confidence_warning ?? false;
 
   const hasSiblings = citations.length > 1;
   const canGoPrev = activeIndex > 0;
@@ -239,6 +241,20 @@ export function DocumentPreviewModal({
               {sourceTrust ? (
                 <span className="rounded bg-[#f0ecf9] px-1.5 py-0.5 font-mono text-[10px] font-bold text-[#5d58a8] uppercase">
                   {sourceTrust}
+                </span>
+              ) : null}
+              {ocrQualityStatus && ocrQualityStatus !== "not_required" ? (
+                <span
+                  className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase ${
+                    ocrQualityStatus === "high"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : ocrQualityStatus === "medium"
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-red-50 text-red-700"
+                  }`}
+                  title={`OCR quality: ${ocrQualityStatus}`}
+                >
+                  OCR {ocrQualityStatus}
                 </span>
               ) : null}
               {citation.page_number != null ? (
@@ -377,6 +393,22 @@ export function DocumentPreviewModal({
           </div>
         ) : null}
 
+        {/* OCR low-confidence warning */}
+        {ocrLowConfidence ? (
+          <div className="flex shrink-0 items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-2.5">
+            <span
+              className="material-symbols-outlined mt-0.5 shrink-0 text-[16px] text-amber-600"
+              aria-hidden="true"
+            >
+              warning
+            </span>
+            <p className="text-[11px] text-amber-800">
+              This source was extracted via low-confidence OCR. The text may
+              contain errors and the answer reliability may be reduced.
+            </p>
+          </div>
+        ) : null}
+
         {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto">
           {/* Restricted */}
@@ -477,7 +509,68 @@ export function DocumentPreviewModal({
                         Page {chunk.page_number}
                       </p>
                     ) : null}
-                    {parts ? (
+                    {isHighlighted && citation.is_table_chunk ? (
+                      <div className="font-sans">
+                        <div className="mb-2 flex items-center gap-1.5">
+                          <span
+                            className="material-symbols-outlined text-[14px] text-[#3525cd]"
+                            aria-hidden="true"
+                          >
+                            table_chart
+                          </span>
+                          <span className="text-[10px] font-semibold tracking-wide text-[#3525cd] uppercase">
+                            Table chunk
+                          </span>
+                        </div>
+                        {citation.table_caption ? (
+                          <p className="mb-1 text-xs font-semibold text-[#1b1b24]">
+                            {citation.table_caption}
+                          </p>
+                        ) : null}
+                        {citation.table_section_context ? (
+                          <p className="mb-2 text-[11px] text-[#6a6780]">
+                            Section: {citation.table_section_context}
+                          </p>
+                        ) : null}
+                        {citation.table_headers &&
+                        citation.table_headers.length > 0 ? (
+                          <div className="mb-2 overflow-x-auto rounded border border-[#cbc5e6]">
+                            <table className="min-w-full text-[11px]">
+                              <thead>
+                                <tr className="bg-[#ede9ff]">
+                                  {citation.table_headers.map((h, i) => (
+                                    <th
+                                      key={i}
+                                      className="border-r border-[#cbc5e6] px-2 py-1 text-left font-semibold text-[#3e376f] last:border-r-0"
+                                    >
+                                      {h}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                            </table>
+                          </div>
+                        ) : null}
+                        <div className="flex gap-3 text-[10px] text-[#6a6780]">
+                          {citation.table_row_count != null ? (
+                            <span>{citation.table_row_count} rows</span>
+                          ) : null}
+                          {citation.table_col_count != null ? (
+                            <span>{citation.table_col_count} columns</span>
+                          ) : null}
+                        </div>
+                        {chunkText ? (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-[10px] text-[#6a6780] hover:text-[#3525cd]">
+                              Show raw text
+                            </summary>
+                            <p className="mt-1 font-serif text-xs leading-relaxed text-[#1b1b24]">
+                              {chunkText}
+                            </p>
+                          </details>
+                        ) : null}
+                      </div>
+                    ) : parts ? (
                       <p>
                         {parts.before}
                         <mark className="rounded bg-[#3525cd]/20 px-0.5 font-bold text-[#3525cd] not-italic">

@@ -321,6 +321,8 @@ class DocumentDetailResponse(BaseModel):
     dlp_scan_result: dict | None = None
     ocr_languages_override: str | None = None
     ocr_quality_snapshot: dict | None = None
+    ocr_quality_status: str | None = None
+    ocr_avg_confidence: float | None = None
     extraction_snapshot: dict | None = None
     embedding_provider_type: str | None = None
     embedding_vector_dimension: int | None = None

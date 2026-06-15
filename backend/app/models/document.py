@@ -22,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import DocumentIngestionSource, DocumentStatus, DocumentTrustStatus, GraphExtractionStatus
+from app.models.enums import DocumentIngestionSource, DocumentStatus, DocumentTrustStatus, GraphExtractionStatus, OcrQualityStatus
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -47,6 +47,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "trust_status IN ('draft', 'current', 'verified', 'stale', 'deprecated', 'superseded', 'expired')",
             name="documents_trust_status_allowed",
+        ),
+        CheckConstraint(
+            "ocr_quality_status IS NULL OR ocr_quality_status IN ('high', 'medium', 'low', 'failed', 'not_required')",
+            name="documents_ocr_quality_status_allowed",
         ),
         CheckConstraint(
             "language_source IS NULL OR language_source IN ('upload_provided', 'auto_detected', 'admin_override')",
@@ -131,6 +135,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Uuid(as_uuid=True),
         nullable=True,
     )
+    # OCR quality scoring (F299): derived from ocr_quality_snapshot after OCR completes.
+    # ocr_quality_status: classified tier (high/medium/low/failed/not_required).
+    # ocr_avg_confidence: average confidence across completed OCR pages (0.0–1.0).
+    ocr_quality_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    ocr_avg_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Connector ingestion provenance (F245): links back to the ExternalItem this document came from.
     # NULL for manually uploaded documents.
     ingestion_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -197,6 +206,8 @@ class DocumentPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text(), nullable=False)
     char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Per-page OCR confidence (F299): populated when OCR is applied to this page.
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     document = relationship("Document", back_populates="pages")
 
