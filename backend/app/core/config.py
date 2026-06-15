@@ -521,6 +521,13 @@ class Settings(BaseSettings):
     feature_enable_agents: bool | None = None
     feature_enable_chunking_profiles: bool = False
     feature_enable_adaptive_chunking: bool = False
+    feature_enable_hybrid_retrieval: bool = False
+    # Weight given to vector (semantic) scores when merging. keyword weight = 1 - vector_weight.
+    hybrid_retrieval_vector_weight: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Constant k used in Reciprocal Rank Fusion: score = 1 / (k + rank).
+    hybrid_retrieval_rrf_k: int = Field(default=60, ge=1, le=1000)
+    # Multiplier applied to a chunk's RRF score when an exact-match token is found.
+    hybrid_retrieval_exact_match_boost: float = Field(default=1.5, ge=1.0, le=10.0)
     feature_enable_graph_rag: bool = False
     # graph_extraction gates the entity/relation extraction pipeline per org.
     # graph_explorer gates the read-only graph explorer UI per org.
@@ -1363,6 +1370,7 @@ class Settings(BaseSettings):
                 "agents": self.feature_enable_agents,
                 "chunking_profiles": self.feature_enable_chunking_profiles,
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
+                "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
                 "graph_rag": self.feature_enable_graph_rag,
                 "entity_extraction": self.feature_enable_entity_extraction,
                 "entity_resolution": self.feature_enable_entity_resolution,

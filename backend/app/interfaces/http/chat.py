@@ -92,6 +92,11 @@ from app.domains.chat.services.llm_service import (
     TransientLLMServiceError,
 )
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
+from app.domains.chat.services.hybrid_retrieval_service import (
+    HybridCandidate,
+    HybridRetrievalService,
+)
+from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.query_retrieval_service import (
     QueryRetrievalService,
     RetrievedCandidate,
@@ -120,6 +125,8 @@ audit_log_service = AuditLogService()
 
 _MAX_ACTIVE_SHARES_PER_SESSION = 10
 _query_retrieval_service = QueryRetrievalService()
+_keyword_retrieval_service = KeywordRetrievalService()
+_hybrid_retrieval_service = HybridRetrievalService()
 _source_scope_service = SourceScopeService()
 _rerank_service = RerankService()
 _prompt_service = PromptService()
@@ -147,6 +154,8 @@ class RetrievedChunk:
     retrieval_source: str = "vector"
     graph_score: float | None = None
     graph_hops: int = 0
+    keyword_score: float | None = None
+    hybrid_score: float | None = None
 
 
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
@@ -197,6 +206,20 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
         page_number=candidate.page_number,
         text=candidate.text,
         similarity_score=candidate.similarity_score,
+    )
+
+
+def _hybrid_to_retrieved_chunk(candidate: HybridCandidate) -> RetrievedChunk:
+    return RetrievedChunk(
+        document_id=candidate.document_id,
+        chunk_id=candidate.chunk_id,
+        filename=candidate.filename,
+        page_number=candidate.page_number,
+        text=candidate.text,
+        similarity_score=candidate.similarity_score,
+        retrieval_source=candidate.retrieval_source,
+        keyword_score=candidate.keyword_score,
+        hybrid_score=candidate.hybrid_score,
     )
 
 
@@ -897,6 +920,10 @@ async def query_chat(
     retrieved_chunks: list[RetrievedChunk] = []
     selected_chunks: list[RetrievedChunk] = []
     embedding_prompt_tokens = 0
+    hybrid_retrieval_enabled = False
+    hybrid_vector_hit_count = 0
+    hybrid_keyword_hit_count = 0
+    hybrid_exact_match_tokens: list[str] = []
     llm_prompt_tokens = 0
     llm_completion_tokens = 0
     llm_model: str | None = None
@@ -1040,9 +1067,36 @@ async def query_chat(
                 initial_top_k=retrieval_top_k,
                 qdrant_client=_get_qdrant_client(),
             )
-            retrieved_chunks = [
-                _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
-            ]
+
+            if settings.feature_enable_hybrid_retrieval:
+                kw_result = await _keyword_retrieval_service.search_chunks(
+                    session=db_session,
+                    query=payload.question,
+                    organization_id=organization_id,
+                    document_ids=document_ids,
+                    top_k=retrieval_top_k,
+                    exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                )
+                hybrid_result = _hybrid_retrieval_service.merge(
+                    vector_candidates=retrieved_candidates,
+                    keyword_candidates=kw_result.candidates,
+                    exact_match_tokens=kw_result.exact_match_tokens,
+                    vector_weight=settings.hybrid_retrieval_vector_weight,
+                    rrf_k=settings.hybrid_retrieval_rrf_k,
+                    exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
+                )
+                retrieved_chunks = [
+                    _hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates
+                ]
+                hybrid_retrieval_enabled = True
+                hybrid_vector_hit_count = hybrid_result.vector_hit_count
+                hybrid_keyword_hit_count = hybrid_result.keyword_hit_count
+                hybrid_exact_match_tokens = hybrid_result.exact_match_tokens
+            else:
+                retrieved_chunks = [
+                    _to_retrieved_chunk(candidate) for candidate in retrieved_candidates
+                ]
+
             retrieved_chunks = await _source_provenance_service.filter_active_chunks(
                 db_session,
                 organization_id=organization_id,
@@ -1498,6 +1552,10 @@ async def query_chat(
             prompt_template_version_id=str(answer_prompt_version.id)
             if answer_prompt_version is not None
             else None,
+            hybrid_retrieval_enabled=hybrid_retrieval_enabled,
+            hybrid_vector_hit_count=hybrid_vector_hit_count,
+            hybrid_keyword_hit_count=hybrid_keyword_hit_count,
+            hybrid_exact_match_tokens=hybrid_exact_match_tokens,
         ),
         created_at=assistant_message.created_at,
     )

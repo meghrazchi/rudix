@@ -229,6 +229,10 @@ class ChatDebugResponse(BaseModel):
     graph_chunk_count: int = 0
     graph_max_hops_used: int = 0
     graph_relation_types_used: list[str] = Field(default_factory=list)
+    hybrid_retrieval_enabled: bool = False
+    hybrid_vector_hit_count: int = 0
+    hybrid_keyword_hit_count: int = 0
+    hybrid_exact_match_tokens: list[str] = Field(default_factory=list)
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

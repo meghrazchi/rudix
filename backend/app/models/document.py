@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    Computed,
     DateTime,
     Float,
     ForeignKey,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -218,6 +220,13 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     chunk_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     child_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # PostgreSQL generated column for full-text search (F293).
+    # GENERATED ALWAYS AS — never written by application code.
+    text_search_vector = mapped_column(
+        TSVECTOR,
+        Computed("to_tsvector('english', COALESCE(text, ''))", persisted=True),
+        nullable=True,
+    )
 
     document = relationship("Document", back_populates="chunks")
     citations = relationship("Citation", back_populates="chunk")

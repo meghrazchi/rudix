@@ -26,6 +26,10 @@ class RagProfileConfig(BaseModel):
     # Optional chunk post-filter applied after vector retrieval
     chunk_filter: dict | None = Field(default=None)
     max_context_tokens: int | None = Field(default=None, ge=256, le=128_000)
+    # Hybrid retrieval (F293): combines vector search with PostgreSQL full-text search.
+    hybrid_retrieval_enabled: bool = Field(default=False)
+    hybrid_vector_weight: float = Field(default=0.7, ge=0.0, le=1.0)
+    hybrid_exact_match_boost: float = Field(default=1.5, ge=1.0, le=10.0)
 
     @field_validator("rerank_model")
     @classmethod
