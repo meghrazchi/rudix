@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -45,8 +46,8 @@ class PipelineRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     pipeline_type: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     inputs_json: Mapped[dict] = mapped_column("inputs", JSON, nullable=False, default=dict)
     outputs_json: Mapped[dict] = mapped_column("outputs", JSON, nullable=False, default=dict)
@@ -105,8 +106,8 @@ class PipelineEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
     node_name: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     inputs_json: Mapped[dict] = mapped_column("inputs", JSON, nullable=False, default=dict)
     outputs_json: Mapped[dict] = mapped_column("outputs", JSON, nullable=False, default=dict)

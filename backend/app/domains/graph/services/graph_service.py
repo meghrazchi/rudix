@@ -78,6 +78,9 @@ class GraphService:
         canonical_name: str,
         workspace_id: UUID | str | None = None,
         external_source_id: str | None = None,
+        normalized_name: str | None = None,
+        resolution_status: str | None = None,
+        resolution_confidence: float | None = None,
         properties: dict | None = None,
     ) -> None:
         """Create or update an Entity node. No-op when graph is unavailable."""
@@ -88,6 +91,9 @@ class GraphService:
             canonical_name=canonical_name,
             workspace_id=workspace_id,
             external_source_id=external_source_id,
+            normalized_name=normalized_name,
+            resolution_status=resolution_status,
+            resolution_confidence=resolution_confidence,
             properties=properties,
         )
 

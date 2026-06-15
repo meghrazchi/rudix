@@ -1,7 +1,8 @@
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, or_, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
@@ -334,16 +335,28 @@ class DocumentRepository:
         text: str,
         char_count: int,
     ) -> DocumentPage:
-        page = DocumentPage(
-            document_id=document_id,
-            page_number=page_number,
-            text=text,
-            char_count=char_count,
+        stmt = (
+            pg_insert(DocumentPage)
+            .values(
+                id=uuid4(),
+                document_id=document_id,
+                page_number=page_number,
+                text=text,
+                char_count=char_count,
+            )
+            .on_conflict_do_update(
+                constraint="uq_document_pages_document_id",
+                set_={"text": text, "char_count": char_count, "updated_at": func.now()},
+            )
         )
-        session.add(page)
-        await session.flush()
-        await session.refresh(page)
-        return page
+        await session.execute(stmt)
+        result = await session.execute(
+            select(DocumentPage).where(
+                DocumentPage.document_id == document_id,
+                DocumentPage.page_number == page_number,
+            )
+        )
+        return result.scalar_one()
 
     async def delete_document_pages(self, session: AsyncSession, *, document_id: UUID) -> int:
         result = await session.execute(
