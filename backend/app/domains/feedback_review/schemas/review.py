@@ -7,6 +7,15 @@ FeedbackReviewStatusLiteral = Literal[
     "new", "triaged", "needs_document", "eval_created", "fixed", "rejected", "duplicate"
 ]
 FeedbackSeverityLiteral = Literal["low", "medium", "high"]
+FeedbackCategoryLiteral = Literal[
+    "wrong_answer",
+    "bad_citation",
+    "outdated_source",
+    "missing_information",
+    "low_confidence",
+    "unsafe_response",
+]
+DifficultyLiteral = Literal["easy", "medium", "hard"]
 
 
 class TriageFeedbackRequest(BaseModel):
@@ -22,6 +31,20 @@ class UpdateReviewItemRequest(BaseModel):
     linked_document_id: str | None = None
 
 
+class ConvertToEvalCaseRequest(BaseModel):
+    evaluation_set_id: str
+    default_difficulty: DifficultyLiteral = "medium"
+    reviewer_notes: str | None = Field(default=None, max_length=4000)
+
+
+class ConvertToEvalCaseResponse(BaseModel):
+    review_id: str
+    evaluation_set_id: str
+    evaluation_question_id: str
+    question: str
+    already_existed: bool
+
+
 class FeedbackSummaryResponse(BaseModel):
     feedback_id: str
     message_id: str
@@ -29,6 +52,13 @@ class FeedbackSummaryResponse(BaseModel):
     rating: str
     reason: str | None = None
     comment: str | None = None
+    # F303 fields
+    category: FeedbackCategoryLiteral | None = None
+    question_text: str | None = None
+    answer_text: str | None = None
+    model_name: str | None = None
+    redacted_at: datetime | None = None
+    converted_to_eval_question_id: str | None = None
     submitted_at: datetime
 
 
@@ -82,6 +112,14 @@ class FeedbackReviewItemResponse(BaseModel):
                 rating=feedback.rating,
                 reason=feedback.reason,
                 comment=feedback.comment,
+                category=feedback.category,  # type: ignore[arg-type]
+                question_text=feedback.question_text,
+                answer_text=feedback.answer_text,
+                model_name=feedback.model_name,
+                redacted_at=feedback.redacted_at,
+                converted_to_eval_question_id=str(feedback.converted_to_eval_question_id)
+                if feedback.converted_to_eval_question_id
+                else None,
                 submitted_at=feedback.created_at,
             )
 
@@ -116,6 +154,41 @@ class FeedbackReviewItemResponse(BaseModel):
             updated_at=item.updated_at,
             feedback=fb_summary,
             message=msg_summary,
+        )
+
+    @classmethod
+    def from_model_feedback_only(cls, feedback: object) -> "FeedbackReviewItemResponse":
+        """Build a minimal response when there is no associated FeedbackReviewItem."""
+        from app.models.message_feedback import MessageFeedback
+
+        assert isinstance(feedback, MessageFeedback)
+        fb_summary = FeedbackSummaryResponse(
+            feedback_id=str(feedback.id),
+            message_id=str(feedback.message_id),
+            submitter_user_id=str(feedback.user_id),
+            rating=feedback.rating,
+            reason=feedback.reason,
+            comment=feedback.comment,
+            category=feedback.category,  # type: ignore[arg-type]
+            question_text=feedback.question_text,
+            answer_text=feedback.answer_text,
+            model_name=feedback.model_name,
+            redacted_at=feedback.redacted_at,
+            converted_to_eval_question_id=str(feedback.converted_to_eval_question_id)
+            if feedback.converted_to_eval_question_id
+            else None,
+            submitted_at=feedback.created_at,
+        )
+        return cls(
+            review_id="",
+            feedback_id=str(feedback.id),
+            organization_id=str(feedback.organization_id),
+            status="new",  # type: ignore[arg-type]
+            severity="medium",  # type: ignore[arg-type]
+            created_at=feedback.created_at,
+            updated_at=feedback.updated_at,
+            feedback=fb_summary,
+            message=None,
         )
 
 

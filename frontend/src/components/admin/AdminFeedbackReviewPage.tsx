@@ -16,9 +16,12 @@ import { ErrorState } from "@/components/states/ErrorState";
 import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { listEvaluationSets } from "@/lib/api/evaluations";
 import {
   buildFeedbackReviewExportUrl,
+  convertFeedbackToEvalCase,
   listFeedbackReviewItems,
+  redactFeedbackDiagnostics,
   triageFeedback,
   updateFeedbackReviewItem,
   type FeedbackReviewItemResponse,
@@ -84,6 +87,11 @@ function severityPillClass(s: FeedbackSeverity): string {
   }
 }
 
+function categoryLabel(cat: string | null | undefined): string {
+  if (!cat) return "—";
+  return cat.replace(/_/g, " ");
+}
+
 function trimToNull(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
@@ -100,15 +108,159 @@ function triggerCsvDownload(url: string): void {
   anchor.remove();
 }
 
+type ConvertModalProps = {
+  reviewId: string;
+  onClose: () => void;
+  onConverted: (reviewId: string) => void;
+};
+
+function ConvertToEvalModal({ reviewId, onClose, onConverted }: ConvertModalProps) {
+  const [evalSetId, setEvalSetId] = useState("");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const evalSetsQuery = useQuery({
+    queryKey: ["evaluation-sets-list"],
+    queryFn: () => listEvaluationSets({ limit: 100, offset: 0 }),
+  });
+
+  const convertMutation = useMutation({
+    mutationFn: () =>
+      convertFeedbackToEvalCase(reviewId, {
+        evaluation_set_id: evalSetId,
+        default_difficulty: difficulty,
+        reviewer_notes: trimToNull(notes),
+      }),
+    onSuccess: () => {
+      onConverted(reviewId);
+      onClose();
+    },
+    onError: (err) => {
+      setError(getApiErrorMessage(err));
+    },
+  });
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Convert to evaluation case"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(e) => {
+        if (e.currentTarget === e.target) onClose();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-[#d7d4e8] bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-[#e2dff1] px-5 py-4">
+          <h2 className="text-base font-semibold text-[#2a2640]">
+            Convert to evaluation case
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff]"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
+              Evaluation dataset
+            </span>
+            {evalSetsQuery.isLoading ? (
+              <p className="text-sm text-[#777587]">Loading datasets…</p>
+            ) : (
+              <select
+                value={evalSetId}
+                onChange={(e) => setEvalSetId(e.target.value)}
+                className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+              >
+                <option value="">Select a dataset…</option>
+                {evalSetsQuery.data?.items.map((s) => (
+                  <option key={s.evaluation_set_id} value={s.evaluation_set_id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
+              Difficulty
+            </span>
+            <select
+              value={difficulty}
+              onChange={(e) =>
+                setDifficulty(e.target.value as "easy" | "medium" | "hard")
+              }
+              className="h-10 w-full rounded-lg border border-[#c7c4d8] bg-white px-3 text-sm text-[#1b1b24]"
+            >
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-semibold tracking-wide text-[#464555] uppercase">
+              Reviewer notes (optional)
+            </span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={4000}
+              className="w-full resize-none rounded-lg border border-[#c7c4d8] bg-white px-3 py-2 text-sm text-[#1b1b24]"
+            />
+          </label>
+
+          {error ? (
+            <p className="text-sm text-rose-700">{error}</p>
+          ) : null}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={convertMutation.isPending}
+              className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => convertMutation.mutate()}
+              disabled={!evalSetId || convertMutation.isPending}
+              className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a1eb5] disabled:opacity-50"
+            >
+              {convertMutation.isPending ? "Converting…" : "Convert"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type DetailPanelProps = {
   item: FeedbackReviewItemResponse;
   onClose: () => void;
   onUpdate: (reviewId: string, payload: UpdateReviewItemPayload) => void;
+  onConvert: (reviewId: string) => void;
+  onRedact: (feedbackId: string) => void;
   isUpdating: boolean;
 };
 
 const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
-  function DetailPanel({ item, onClose, onUpdate, isUpdating }, ref) {
+  function DetailPanel(
+    { item, onClose, onUpdate, onConvert, onRedact, isUpdating },
+    ref,
+  ) {
     const [statusInput, setStatusInput] = useState<FeedbackReviewStatus>(
       item.status,
     );
@@ -132,6 +284,9 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
         linked_document_id: trimToNull(linkedDocId),
       });
     }
+
+    const isRedacted = item.feedback?.redacted_at != null;
+    const isConverted = item.feedback?.converted_to_eval_question_id != null;
 
     return (
       <aside
@@ -170,14 +325,24 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
             </h4>
             <dl className="grid gap-1 text-sm">
               <div className="flex gap-2">
-                <dt className="w-16 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
                   Rating
                 </dt>
                 <dd className="text-[#302f39]">{item.feedback.rating}</dd>
               </div>
+              {item.feedback.category ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Category
+                  </dt>
+                  <dd className="capitalize text-[#302f39]">
+                    {categoryLabel(item.feedback.category)}
+                  </dd>
+                </div>
+              ) : null}
               {item.feedback.reason ? (
                 <div className="flex gap-2">
-                  <dt className="w-16 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
                     Reason
                   </dt>
                   <dd className="text-[#302f39]">{item.feedback.reason}</dd>
@@ -193,11 +358,58 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                   </dd>
                 </div>
               ) : null}
+              {item.feedback.model_name ? (
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+                    Model
+                  </dt>
+                  <dd className="font-mono text-xs text-[#464555]">
+                    {item.feedback.model_name}
+                  </dd>
+                </div>
+              ) : null}
+              {isRedacted ? (
+                <p className="mt-1 text-[10px] italic text-[#777587]">
+                  Diagnostics redacted on{" "}
+                  {formatTimestamp(item.feedback.redacted_at!)}
+                </p>
+              ) : null}
+              {isConverted ? (
+                <p className="mt-1 text-[10px] text-violet-700">
+                  Converted to eval case{" "}
+                  <span className="font-mono">
+                    {item.feedback.converted_to_eval_question_id}
+                  </span>
+                </p>
+              ) : null}
             </dl>
           </section>
         ) : null}
 
-        {item.message ? (
+        {/* Captured question / answer diagnostics */}
+        {item.feedback?.question_text && !isRedacted ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Captured question
+            </h4>
+            <p className="text-sm text-[#302f39]">
+              {item.feedback.question_text}
+            </p>
+          </section>
+        ) : null}
+
+        {item.feedback?.answer_text && !isRedacted ? (
+          <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
+              Captured answer
+            </h4>
+            <p className="line-clamp-6 text-sm text-[#302f39]">
+              {item.feedback.answer_text}
+            </p>
+          </section>
+        ) : null}
+
+        {item.message && !item.feedback?.question_text ? (
           <section className="mb-4 rounded-lg border border-[#e4e1ee] bg-[#faf9ff] p-3">
             <h4 className="mb-2 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
               Original answer
@@ -215,6 +427,30 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
               </p>
             ) : null}
           </section>
+        ) : null}
+
+        {/* F303 quick actions */}
+        {item.review_id ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {!isConverted ? (
+              <button
+                type="button"
+                onClick={() => onConvert(item.review_id)}
+                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100"
+              >
+                Convert to eval case
+              </button>
+            ) : null}
+            {!isRedacted && item.feedback ? (
+              <button
+                type="button"
+                onClick={() => onRedact(item.feedback!.feedback_id)}
+                className="rounded-lg border border-[#c7c4d8] px-3 py-1.5 text-xs font-semibold text-[#777587] hover:bg-[#f5f2ff]"
+              >
+                Redact diagnostics
+              </button>
+            ) : null}
+          </div>
         ) : null}
 
         <section className="space-y-3">
@@ -343,6 +579,7 @@ export function AdminFeedbackReviewPage() {
   const [offset, setOffset] = useState(0);
   const [selectedItem, setSelectedItem] =
     useState<FeedbackReviewItemResponse | null>(null);
+  const [convertReviewId, setConvertReviewId] = useState<string | null>(null);
 
   const panelRef = useRef<HTMLElement | null>(null);
   const tableHostRef = useRef<HTMLDivElement | null>(null);
@@ -388,6 +625,18 @@ export function AdminFeedbackReviewPage() {
         queryKey: queryKeys.feedbackReview.all,
       });
       setSelectedItem(updated);
+    },
+  });
+
+  const redactMutation = useMutation({
+    mutationFn: (feedbackId: string) => redactFeedbackDiagnostics(feedbackId),
+    onSuccess: (updated) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.feedbackReview.all,
+      });
+      if (selectedItem && updated.feedback_id === selectedItem.feedback_id) {
+        setSelectedItem(updated);
+      }
     },
   });
 
@@ -479,8 +728,8 @@ export function AdminFeedbackReviewPage() {
               Feedback review queue
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-[#464555]">
-              Triage answer feedback, assign severity, link evaluation cases,
-              and track resolution of knowledge gaps.
+              Triage answer feedback, assign severity, convert failures to
+              evaluation cases, and track resolution of knowledge gaps.
             </p>
           </div>
           <button
@@ -667,7 +916,7 @@ export function AdminFeedbackReviewPage() {
                     <tr className="text-left text-[11px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
                       <th className="px-4 py-3">Submitted</th>
                       <th className="px-4 py-3">Rating</th>
-                      <th className="px-4 py-3">Reason</th>
+                      <th className="px-4 py-3">Category</th>
                       <th className="px-4 py-3 text-center">Status</th>
                       <th className="px-4 py-3 text-center">Severity</th>
                       <th className="px-4 py-3">Answer preview</th>
@@ -700,8 +949,8 @@ export function AdminFeedbackReviewPage() {
                               <span className="text-[#777587]">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-[#302f39]">
-                            {item.feedback?.reason ?? "—"}
+                          <td className="px-4 py-3 text-sm capitalize text-[#302f39]">
+                            {categoryLabel(item.feedback?.category)}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span
@@ -719,7 +968,9 @@ export function AdminFeedbackReviewPage() {
                           </td>
                           <td className="max-w-[240px] px-4 py-3 text-xs text-[#464555]">
                             <span className="line-clamp-2">
-                              {item.message?.content_preview ?? "—"}
+                              {item.feedback?.question_text ??
+                                item.message?.content_preview ??
+                                "—"}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -785,6 +1036,8 @@ export function AdminFeedbackReviewPage() {
               onUpdate={(reviewId, payload) =>
                 updateMutation.mutate({ reviewId, payload })
               }
+              onConvert={(reviewId) => setConvertReviewId(reviewId)}
+              onRedact={(feedbackId) => redactMutation.mutate(feedbackId)}
               isUpdating={updateMutation.isPending}
             />
           </>
@@ -795,6 +1048,20 @@ export function AdminFeedbackReviewPage() {
         <p className="text-sm text-rose-700">
           {getApiErrorMessage(updateMutation.error)}
         </p>
+      ) : null}
+
+      {convertReviewId ? (
+        <ConvertToEvalModal
+          reviewId={convertReviewId}
+          onClose={() => setConvertReviewId(null)}
+          onConverted={() => {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.feedbackReview.all,
+            });
+            setConvertReviewId(null);
+            setSelectedItem(null);
+          }}
+        />
       ) : null}
     </section>
   );

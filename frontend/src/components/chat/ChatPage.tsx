@@ -1465,12 +1465,14 @@ export function ChatPage() {
       rating,
       reason,
       comment,
+      category,
     }: {
       messageId: string;
       rating: "up" | "down";
       reason?: FeedbackReason | null;
       comment?: string | null;
-    }) => submitMessageFeedback(messageId, { rating, reason, comment }),
+      category?: import("@/lib/api/feedback").FeedbackCategory | null;
+    }) => submitMessageFeedback(messageId, { rating, reason, comment, category }),
     onSuccess: (data) => {
       setFeedbackByMessageId((previous) => ({
         ...previous,
@@ -3856,16 +3858,18 @@ export function ChatPage() {
       {chatFeedbackEnabled && feedbackModalMessageId ? (
         <FeedbackModal
           existingReason={feedbackByMessageId[feedbackModalMessageId]?.reason}
+          existingCategory={feedbackByMessageId[feedbackModalMessageId]?.category}
           existingComment={feedbackByMessageId[feedbackModalMessageId]?.comment}
           isSubmitting={feedbackSubmitMutation.isPending}
           isDeleting={feedbackDeleteMutation.isPending}
-          onSubmit={(reason, comment) => {
+          onSubmit={(reason, comment, category) => {
             feedbackSubmitMutation.mutate(
               {
                 messageId: feedbackModalMessageId,
                 rating: "down",
                 reason,
                 comment,
+                category,
               },
               { onSuccess: () => setFeedbackModalMessageId(null) },
             );

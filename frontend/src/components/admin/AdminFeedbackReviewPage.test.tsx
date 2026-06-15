@@ -14,6 +14,12 @@ const mockApi = vi.hoisted(() => ({
   listFeedbackReviewItems: vi.fn(),
   updateFeedbackReviewItem: vi.fn(),
   triageFeedback: vi.fn(),
+  convertFeedbackToEvalCase: vi.fn(),
+  redactFeedbackDiagnostics: vi.fn(),
+}));
+
+const mockEvalApi = vi.hoisted(() => ({
+  listEvaluationSets: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -35,6 +41,19 @@ vi.mock("@/lib/api/feedback-review", async (importOriginal) => {
       mockApi.updateFeedbackReviewItem(reviewId, payload),
     triageFeedback: (feedbackId: string, payload: unknown) =>
       mockApi.triageFeedback(feedbackId, payload),
+    convertFeedbackToEvalCase: (reviewId: string, payload: unknown) =>
+      mockApi.convertFeedbackToEvalCase(reviewId, payload),
+    redactFeedbackDiagnostics: (feedbackId: string) =>
+      mockApi.redactFeedbackDiagnostics(feedbackId),
+  };
+});
+
+vi.mock("@/lib/api/evaluations", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/evaluations")>();
+  return {
+    ...actual,
+    listEvaluationSets: (params?: unknown) =>
+      mockEvalApi.listEvaluationSets(params),
   };
 });
 
@@ -64,6 +83,13 @@ const SAMPLE_ITEM: FeedbackReviewItemResponse = {
     rating: "down",
     reason: "wrong_citation",
     comment: "Citation is wrong.",
+    // F303 fields
+    category: "bad_citation",
+    question_text: "What is the capital of France?",
+    answer_text: "The capital of France is London.",
+    model_name: "gpt-4o",
+    redacted_at: null,
+    converted_to_eval_question_id: null,
     submitted_at: "2026-06-01T09:55:00Z",
   },
   message: {
@@ -74,6 +100,29 @@ const SAMPLE_ITEM: FeedbackReviewItemResponse = {
     model_name: "gpt-4o",
     latency_ms: 890,
     created_at: "2026-06-01T09:50:00Z",
+  },
+};
+
+const REDACTED_ITEM: FeedbackReviewItemResponse = {
+  ...SAMPLE_ITEM,
+  review_id: "rev-2",
+  feedback: {
+    ...SAMPLE_ITEM.feedback!,
+    feedback_id: "fb-2",
+    question_text: null,
+    answer_text: null,
+    redacted_at: "2026-06-02T10:00:00Z",
+  },
+};
+
+const CONVERTED_ITEM: FeedbackReviewItemResponse = {
+  ...SAMPLE_ITEM,
+  review_id: "rev-3",
+  status: "eval_created",
+  feedback: {
+    ...SAMPLE_ITEM.feedback!,
+    feedback_id: "fb-3",
+    converted_to_eval_question_id: "eval-q-1",
   },
 };
 
@@ -110,7 +159,11 @@ describe("AdminFeedbackReviewPage", () => {
     mockApi.listFeedbackReviewItems.mockReset();
     mockApi.updateFeedbackReviewItem.mockReset();
     mockApi.triageFeedback.mockReset();
+    mockApi.convertFeedbackToEvalCase.mockReset();
+    mockApi.redactFeedbackDiagnostics.mockReset();
+    mockEvalApi.listEvaluationSets.mockReset();
     mockApi.listFeedbackReviewItems.mockResolvedValue(EMPTY_RESPONSE);
+    mockEvalApi.listEvaluationSets.mockResolvedValue({ items: [], total: 0 });
   });
 
   it("shows forbidden state for non-admin users", async () => {
@@ -155,7 +208,7 @@ describe("AdminFeedbackReviewPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders feedback items in queue table", async () => {
+  it("renders feedback items with category column", async () => {
     mockState.authState = adminSession();
     mockApi.listFeedbackReviewItems.mockResolvedValue({
       items: [SAMPLE_ITEM],
@@ -166,10 +219,12 @@ describe("AdminFeedbackReviewPage", () => {
 
     renderPage();
     expect(await screen.findByText("Thumbs down")).toBeInTheDocument();
-    expect(await screen.findByText("wrong_citation")).toBeInTheDocument();
+    // F303: category column shows bad citation
+    expect(await screen.findByText("bad citation")).toBeInTheDocument();
     expect(await screen.findByText(/new/i)).toBeInTheDocument();
+    // Question text is shown in the preview column
     expect(
-      await screen.findByText(/The capital of France is London/),
+      await screen.findByText(/What is the capital of France/),
     ).toBeInTheDocument();
   });
 
@@ -201,7 +256,7 @@ describe("AdminFeedbackReviewPage", () => {
     expect(highSev).toBeInTheDocument();
   });
 
-  it("opens detail panel when Review button is clicked", async () => {
+  it("opens detail panel with category and question/answer text", async () => {
     mockState.authState = adminSession();
     mockApi.listFeedbackReviewItems.mockResolvedValue({
       items: [SAMPLE_ITEM],
@@ -214,9 +269,183 @@ describe("AdminFeedbackReviewPage", () => {
     const reviewBtn = await screen.findByRole("button", { name: "Review" });
     fireEvent.click(reviewBtn);
 
-    expect(await screen.findByText("Original feedback")).toBeInTheDocument();
-    expect(await screen.findByText("Original answer")).toBeInTheDocument();
-    expect(screen.getByText("Citation is wrong.")).toBeInTheDocument();
+    // F303: category shown in detail panel
+    expect(await screen.findByText("Category")).toBeInTheDocument();
+    expect(await screen.findByText("bad citation")).toBeInTheDocument();
+
+    // F303: captured question text shown
+    expect(
+      await screen.findByText("Captured question"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("What is the capital of France?"),
+    ).toBeInTheDocument();
+
+    // F303: captured answer text shown
+    expect(
+      await screen.findByText("Captured answer"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("The capital of France is London."),
+    ).toBeInTheDocument();
+
+    // F303: model name shown
+    expect(screen.getByText("gpt-4o")).toBeInTheDocument();
+
+    // F303: "Convert to eval case" and "Redact diagnostics" buttons
+    expect(
+      screen.getByRole("button", { name: "Convert to eval case" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Redact diagnostics" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides redact button when already redacted", async () => {
+    mockState.authState = adminSession();
+    mockApi.listFeedbackReviewItems.mockResolvedValue({
+      items: [REDACTED_ITEM],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    renderPage();
+    const reviewBtn = await screen.findByRole("button", { name: "Review" });
+    fireEvent.click(reviewBtn);
+
+    expect(
+      screen.queryByRole("button", { name: "Redact diagnostics" }),
+    ).not.toBeInTheDocument();
+    // Should show redacted-at message
+    expect(await screen.findByText(/Diagnostics redacted on/)).toBeInTheDocument();
+  });
+
+  it("hides convert button when already converted", async () => {
+    mockState.authState = adminSession();
+    mockApi.listFeedbackReviewItems.mockResolvedValue({
+      items: [CONVERTED_ITEM],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+
+    renderPage();
+    const reviewBtn = await screen.findByRole("button", { name: "Review" });
+    fireEvent.click(reviewBtn);
+
+    expect(
+      screen.queryByRole("button", { name: "Convert to eval case" }),
+    ).not.toBeInTheDocument();
+    // Should show converted message
+    expect(
+      await screen.findByText(/Converted to eval case/),
+    ).toBeInTheDocument();
+  });
+
+  it("opens ConvertToEvalModal when convert button is clicked", async () => {
+    mockState.authState = adminSession();
+    mockApi.listFeedbackReviewItems.mockResolvedValue({
+      items: [SAMPLE_ITEM],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockEvalApi.listEvaluationSets.mockResolvedValue({
+      items: [
+        { evaluation_set_id: "set-1", name: "My Dataset", status: "draft" },
+      ],
+      total: 1,
+    });
+
+    renderPage();
+    const reviewBtn = await screen.findByRole("button", { name: "Review" });
+    fireEvent.click(reviewBtn);
+
+    const convertBtn = await screen.findByRole("button", {
+      name: "Convert to eval case",
+    });
+    fireEvent.click(convertBtn);
+
+    expect(
+      await screen.findByText("Convert to evaluation case"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("My Dataset")).toBeInTheDocument();
+  });
+
+  it("calls convertFeedbackToEvalCase when modal Convert is submitted", async () => {
+    mockState.authState = adminSession();
+    mockApi.listFeedbackReviewItems.mockResolvedValue({
+      items: [SAMPLE_ITEM],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockEvalApi.listEvaluationSets.mockResolvedValue({
+      items: [
+        { evaluation_set_id: "set-1", name: "My Dataset", status: "draft" },
+      ],
+      total: 1,
+    });
+    mockApi.convertFeedbackToEvalCase.mockResolvedValue({
+      review_id: "rev-1",
+      evaluation_set_id: "set-1",
+      evaluation_question_id: "eq-1",
+      question: "What is the capital of France?",
+      already_existed: false,
+    });
+
+    renderPage();
+    const reviewBtn = await screen.findByRole("button", { name: "Review" });
+    fireEvent.click(reviewBtn);
+
+    const convertBtn = await screen.findByRole("button", {
+      name: "Convert to eval case",
+    });
+    fireEvent.click(convertBtn);
+
+    // Select the evaluation set
+    const setSelect = await screen.findByRole("combobox", {
+      name: /evaluation dataset/i,
+    });
+    fireEvent.change(setSelect, { target: { value: "set-1" } });
+
+    const submitBtn = screen.getByRole("button", { name: "Convert" });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mockApi.convertFeedbackToEvalCase).toHaveBeenCalledWith(
+        "rev-1",
+        expect.objectContaining({ evaluation_set_id: "set-1" }),
+      );
+    });
+  });
+
+  it("calls redactFeedbackDiagnostics when redact button is clicked", async () => {
+    mockState.authState = adminSession();
+    mockApi.listFeedbackReviewItems.mockResolvedValue({
+      items: [SAMPLE_ITEM],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    });
+    mockApi.redactFeedbackDiagnostics.mockResolvedValue({
+      ...SAMPLE_ITEM,
+      feedback: { ...SAMPLE_ITEM.feedback!, redacted_at: "2026-06-02T00:00:00Z" },
+    });
+
+    renderPage();
+    const reviewBtn = await screen.findByRole("button", { name: "Review" });
+    fireEvent.click(reviewBtn);
+
+    const redactBtn = await screen.findByRole("button", {
+      name: "Redact diagnostics",
+    });
+    fireEvent.click(redactBtn);
+
+    await waitFor(() => {
+      expect(mockApi.redactFeedbackDiagnostics).toHaveBeenCalledWith("fb-1");
+    });
   });
 
   it("calls updateFeedbackReviewItem when Save changes is clicked", async () => {

@@ -201,6 +201,15 @@ class FeedbackReason(StrEnum):
     other = "other"
 
 
+class FeedbackCategory(StrEnum):
+    wrong_answer = "wrong_answer"
+    bad_citation = "bad_citation"
+    outdated_source = "outdated_source"
+    missing_information = "missing_information"
+    low_confidence = "low_confidence"
+    unsafe_response = "unsafe_response"
+
+
 class NotificationEventType(StrEnum):
     upload_indexed = "upload_indexed"
     upload_failed = "upload_failed"

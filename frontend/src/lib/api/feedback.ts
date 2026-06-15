@@ -10,10 +10,29 @@ export type FeedbackReason =
   | "unsafe_content"
   | "other";
 
+export type FeedbackCategory =
+  | "wrong_answer"
+  | "bad_citation"
+  | "outdated_source"
+  | "missing_information"
+  | "low_confidence"
+  | "unsafe_response";
+
+export type FeedbackDiagnostics = {
+  question_text?: string | null;
+  answer_text?: string | null;
+  citations?: Record<string, unknown>[] | null;
+  retrieval_diagnostics?: Record<string, unknown> | null;
+  model_name?: string | null;
+  rag_profile_id?: string | null;
+};
+
 export type SubmitFeedbackPayload = {
   rating: FeedbackRating;
   reason?: FeedbackReason | null;
   comment?: string | null;
+  category?: FeedbackCategory | null;
+  diagnostics?: FeedbackDiagnostics | null;
 };
 
 export type MessageFeedbackResponse = {
@@ -23,6 +42,14 @@ export type MessageFeedbackResponse = {
   rating: FeedbackRating;
   reason: FeedbackReason | null;
   comment: string | null;
+  category: FeedbackCategory | null;
+  question_text: string | null;
+  answer_text: string | null;
+  model_name: string | null;
+  rag_profile_id: string | null;
+  retain_until: string | null;
+  redacted_at: string | null;
+  converted_to_eval_question_id: string | null;
   created_at: string;
   updated_at: string;
 };

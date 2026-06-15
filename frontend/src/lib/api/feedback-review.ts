@@ -1,4 +1,5 @@
 import { apiRequest } from "@/lib/api/request";
+import type { FeedbackCategory } from "@/lib/api/feedback";
 
 export type FeedbackReviewStatus =
   | "new"
@@ -18,6 +19,13 @@ export type FeedbackSummary = {
   rating: "up" | "down";
   reason: string | null;
   comment: string | null;
+  // F303 fields
+  category: FeedbackCategory | null;
+  question_text: string | null;
+  answer_text: string | null;
+  model_name: string | null;
+  redacted_at: string | null;
+  converted_to_eval_question_id: string | null;
   submitted_at: string;
 };
 
@@ -60,6 +68,7 @@ export type FeedbackReviewListParams = {
   severity?: FeedbackSeverity | null;
   rating?: "up" | "down" | null;
   reason?: string | null;
+  category?: FeedbackCategory | null;
   reviewer_id?: string | null;
   limit?: number;
   offset?: number;
@@ -76,6 +85,20 @@ export type UpdateReviewItemPayload = {
   reviewer_notes?: string | null;
   linked_eval_question_id?: string | null;
   linked_document_id?: string | null;
+};
+
+export type ConvertToEvalCasePayload = {
+  evaluation_set_id: string;
+  default_difficulty?: "easy" | "medium" | "hard";
+  reviewer_notes?: string | null;
+};
+
+export type ConvertToEvalCaseResponse = {
+  review_id: string;
+  evaluation_set_id: string;
+  evaluation_question_id: string;
+  question: string;
+  already_existed: boolean;
 };
 
 export async function listFeedbackReviewItems(
@@ -119,6 +142,25 @@ export async function updateFeedbackReviewItem(
   return apiRequest<FeedbackReviewItemResponse>(
     `/feedback-review/${encodeURIComponent(reviewId)}`,
     { method: "PATCH", json: payload },
+  );
+}
+
+export async function convertFeedbackToEvalCase(
+  reviewId: string,
+  payload: ConvertToEvalCasePayload,
+): Promise<ConvertToEvalCaseResponse> {
+  return apiRequest<ConvertToEvalCaseResponse>(
+    `/feedback-review/${encodeURIComponent(reviewId)}/convert-to-eval`,
+    { method: "POST", json: payload },
+  );
+}
+
+export async function redactFeedbackDiagnostics(
+  feedbackId: string,
+): Promise<FeedbackReviewItemResponse> {
+  return apiRequest<FeedbackReviewItemResponse>(
+    `/feedback-review/feedback/${encodeURIComponent(feedbackId)}/redact`,
+    { method: "POST", json: {} },
   );
 }
 

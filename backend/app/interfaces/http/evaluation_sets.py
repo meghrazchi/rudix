@@ -712,7 +712,11 @@ async def convert_feedback_to_cases(
 ) -> ConvertFeedbackToCasesResponse:
     from uuid import UUID as _UUID
 
-    from app.models.chat import MessageFeedback
+    from sqlalchemy import select as _select
+
+    from app.domains.chat.repositories.feedback import FeedbackRepository as _FeedbackRepo
+    from app.models.feedback_review_item import FeedbackReviewItem as _ReviewItem
+    from app.models.message_feedback import MessageFeedback
 
     organization_id = _organization_id_from_principal(principal)
     user_id = _user_id_from_principal(principal)
@@ -731,8 +735,7 @@ async def convert_feedback_to_cases(
         db_session, evaluation_set_id=evaluation_set.id
     )
 
-    from sqlalchemy import select as _select
-
+    feedback_repo = _FeedbackRepo()
     created = 0
     skipped = 0
     for fid_str in payload.feedback_ids:
@@ -742,31 +745,74 @@ async def convert_feedback_to_cases(
             skipped += 1
             continue
 
-        result = await db_session.execute(_select(MessageFeedback).where(MessageFeedback.id == fid))
+        result = await db_session.execute(
+            _select(MessageFeedback).where(
+                MessageFeedback.id == fid,
+                MessageFeedback.organization_id == organization_id,
+            )
+        )
         feedback = result.scalar_one_or_none()
         if feedback is None:
             skipped += 1
             continue
 
-        message_text = ""
-        if hasattr(feedback, "message") and feedback.message is not None:
-            msg = feedback.message
-            if hasattr(msg, "content") and msg.content:
-                message_text = str(msg.content).strip()
+        # Prefer captured question_text; fall back to chat message content
+        question_text = feedback.question_text
+        if not question_text:
+            from app.models.chat import ChatMessage as _ChatMsg
 
-        if not message_text or message_text.lower() in existing_texts:
+            msg_result = await db_session.execute(
+                _select(_ChatMsg).where(_ChatMsg.id == feedback.message_id)
+            )
+            msg = msg_result.scalar_one_or_none()
+            if msg and msg.content:
+                question_text = str(msg.content).strip()
+
+        if not question_text or question_text.lower() in existing_texts:
             skipped += 1
             continue
 
-        await evaluation_repository.create_evaluation_question(
+        metadata: dict = {
+            "source": "feedback",
+            "feedback_id": fid_str,
+            "category": feedback.category,
+            "model_name": feedback.model_name,
+        }
+        if feedback.citations_json:
+            metadata["citations"] = feedback.citations_json
+        if feedback.retrieval_diagnostics_json:
+            metadata["retrieval_diagnostics"] = feedback.retrieval_diagnostics_json
+
+        question = await evaluation_repository.create_evaluation_question(
             db_session,
             evaluation_set_id=evaluation_set.id,
-            question=message_text,
+            question=question_text,
+            expected_answer=feedback.answer_text or None,
             difficulty=payload.default_difficulty,
-            metadata={"source": "feedback", "feedback_id": fid_str},
+            owner_id=user_id,
+            metadata=metadata,
         )
-        existing_texts.add(message_text.lower())
+        existing_texts.add(question_text.lower())
         created += 1
+
+        # Mark feedback record as converted
+        await feedback_repo.mark_converted(
+            db_session, feedback_id=fid, eval_question_id=question.id
+        )
+
+        # Auto-update associated review item to eval_created
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
+        review_result = await db_session.execute(
+            _select(_ReviewItem).where(_ReviewItem.feedback_id == fid)
+        )
+        review_item = review_result.scalar_one_or_none()
+        if review_item is not None and review_item.status not in ("fixed", "rejected", "duplicate"):
+            review_item.status = "eval_created"
+            review_item.linked_eval_question_id = question.id
+            review_item.resolved_at = _dt.now(tz=_tz.utc)
+            db_session.add(review_item)
 
     if created > 0:
         await audit_log_service.record(

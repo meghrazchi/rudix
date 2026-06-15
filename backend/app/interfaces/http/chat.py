@@ -3085,6 +3085,16 @@ def _to_feedback_response(fb: "MessageFeedback") -> MessageFeedbackResponse:  # 
         rating=fb.rating,  # type: ignore[arg-type]
         reason=fb.reason,  # type: ignore[arg-type]
         comment=fb.comment,
+        category=fb.category,  # type: ignore[arg-type]
+        question_text=fb.question_text,
+        answer_text=fb.answer_text,
+        model_name=fb.model_name,
+        rag_profile_id=str(fb.rag_profile_id) if fb.rag_profile_id else None,
+        retain_until=fb.retain_until,
+        redacted_at=fb.redacted_at,
+        converted_to_eval_question_id=str(fb.converted_to_eval_question_id)
+        if fb.converted_to_eval_question_id
+        else None,
         created_at=fb.created_at,
         updated_at=fb.updated_at,
     )
@@ -3150,6 +3160,14 @@ async def submit_message_feedback(
         db_session, message_id=msg_id, organization_id=organization_id
     )
 
+    diag = payload.diagnostics
+    rag_profile_uuid: UUID | None = None
+    if diag and diag.rag_profile_id:
+        try:
+            rag_profile_uuid = UUID(diag.rag_profile_id)
+        except ValueError:
+            rag_profile_uuid = None
+
     feedback = await feedback_repository.upsert_feedback(
         db_session,
         message_id=msg_id,
@@ -3158,6 +3176,13 @@ async def submit_message_feedback(
         rating=payload.rating,
         reason=payload.reason,
         comment=payload.comment,
+        category=payload.category,
+        question_text=diag.question_text if diag else None,
+        answer_text=diag.answer_text if diag else None,
+        citations_json={"items": diag.citations} if diag and diag.citations is not None else None,
+        retrieval_diagnostics_json=diag.retrieval_diagnostics if diag else None,
+        model_name=diag.model_name if diag else None,
+        rag_profile_id=rag_profile_uuid,
     )
     await audit_log_service.record(
         db_session,
@@ -3167,7 +3192,12 @@ async def submit_message_feedback(
         resource_type="chat_message",
         resource_id=msg_id,
         request_id=request_id,
-        metadata={"rating": payload.rating, "reason": payload.reason},
+        metadata={
+            "rating": payload.rating,
+            "reason": payload.reason,
+            "category": payload.category,
+            "has_diagnostics": diag is not None,
+        },
     )
     await db_session.commit()
     await db_session.refresh(feedback)
