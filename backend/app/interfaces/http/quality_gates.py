@@ -15,6 +15,7 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.quality_gates.repositories.quality_gates import QualityGateRepository
 from app.domains.quality_gates.schemas.quality_gates import (
+    BaselineMetricDelta,
     CreateQualityGateRequest,
     GateCheckResult,
     QualityGateListResponse,
@@ -30,6 +31,7 @@ from app.domains.quality_gates.schemas.quality_gates import (
 from app.domains.quality_gates.services.quality_gate_service import (
     build_gate_report,
     evaluate_gate,
+    evaluate_regression,
 )
 from app.domains.safety_evals.repositories.safety_evals import SafetyEvalRepository
 from app.models.enums import OrganizationRole, QualityGateVerdict
@@ -424,6 +426,25 @@ async def trigger_quality_gate_run(
     )
     verdict, passed_checks, failed_checks = evaluate_gate(thresholds, eval_summary, safety_summary)
 
+    # Baseline regression comparison — fetch baseline metrics when configured.
+    baseline_summary: dict | None = None
+    if gate.baseline_evaluation_run_id is not None:
+        baseline_run = await _eval_repo.get_evaluation_run_for_organization(
+            db_session,
+            evaluation_run_id=gate.baseline_evaluation_run_id,
+            organization_id=organization_id,
+        )
+        if baseline_run is not None:
+            raw_baseline = dict(baseline_run.config or {})
+            baseline_raw = raw_baseline.get("metrics_summary")
+            baseline_summary = dict(baseline_raw) if isinstance(baseline_raw, dict) else None
+
+    regression_failed, baseline_deltas = evaluate_regression(thresholds, eval_summary, baseline_summary)
+    if regression_failed:
+        failed_checks.extend(regression_failed)
+        if verdict == QualityGateVerdict.passed.value:
+            verdict = QualityGateVerdict.failed.value
+
     report = build_gate_report(
         gate_run_id="",
         quality_gate_id=str(gate.id),
@@ -436,6 +457,7 @@ async def trigger_quality_gate_run(
         failed_checks=failed_checks,
         evaluation_summary=eval_summary,
         safety_summary=safety_summary,
+        baseline_comparison=baseline_deltas if baseline_deltas else None,
     )
 
     gate_run = await _gate_repo.create_gate_run(
@@ -584,6 +606,13 @@ async def get_quality_gate_report(
     passed_checks = [GateCheckResult(**c) for c in report.get("passed_checks", [])]
     failed_checks = [GateCheckResult(**c) for c in report.get("failed_checks", [])]
 
+    raw_deltas = report.get("baseline_comparison")
+    baseline_comparison = (
+        [BaselineMetricDelta(**d) for d in raw_deltas]
+        if isinstance(raw_deltas, list)
+        else None
+    )
+
     ci_exit_code = (
         0
         if gate_run.verdict
@@ -619,6 +648,7 @@ async def get_quality_gate_report(
         overridden_at=overridden_at_str,
         evaluation_summary=report.get("evaluation_summary"),
         safety_summary=report.get("safety_summary"),
+        baseline_comparison=baseline_comparison,
         ci_exit_code=ci_exit_code,
     )
 

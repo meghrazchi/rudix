@@ -1,0 +1,145 @@
+# Accuracy evaluation CI jobs — F302
+#
+# Runs retrieval + answer-quality evaluation gates before staging deploys (smoke)
+# and on a nightly schedule (full dataset). A failed gate blocks the deploy
+# unless manually overridden via the Rudix admin UI with a documented reason.
+#
+# Required CI/CD variables (set in GitLab project/group settings):
+#   RUDIX_API_BASE_URL          — Staging API base URL
+#   RUDIX_API_TOKEN             — Service-account bearer token with admin role
+#   ACCURACY_EVAL_SET_ID        — UUID of the published evaluation set
+#   QUALITY_GATE_ID             — UUID of the accuracy quality gate
+#
+# Optional:
+#   QUESTION_LIMIT              — Max questions in smoke mode (default: 20)
+#   QUALITY_GATE_DRY_RUN        — Set to '1' to evaluate without blocking
+#   EVAL_POLL_INTERVAL_SEC      — Status poll interval in seconds (default: 10)
+#   EVAL_TIMEOUT_SEC            — Max wait for eval completion (default: 900)
+#   ENABLE_ACCURACY_GATE        — Set to 'true' to activate gate jobs (opt-in)
+
+.accuracy_eval:base:
+  stage: integration
+  image: python:3.12-slim
+  variables:
+    ACCURACY_EVAL_REPORT_PATH: artifacts/accuracy-eval-report.json
+    ACCURACY_EVAL_JUNIT_PATH: artifacts/accuracy-eval-junit.xml
+  script:
+    - mkdir -p artifacts
+    - |
+      for var in ACCURACY_EVAL_SET_ID QUALITY_GATE_ID; do
+        if [ -z "$(eval echo \$${var})" ]; then
+          echo "[accuracy-eval] ${var} is not set — skipping."
+          exit 0
+        fi
+      done
+    - python ci/scripts/accuracy_eval_runner.py
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - artifacts/accuracy-eval-report.json
+      - artifacts/accuracy-eval-junit.xml
+    reports:
+      junit: artifacts/accuracy-eval-junit.xml
+      dotenv: artifacts/accuracy-eval.env
+
+# ---------------------------------------------------------------------------
+# Smoke eval — runs on every MR against the default branch (fast, ~20 questions)
+# Blocks staging deploy when the gate fails.
+# ---------------------------------------------------------------------------
+eval:accuracy:smoke:
+  extends:
+    - .accuracy_eval:base
+  rules:
+    - if: >-
+        $CI_PIPELINE_SOURCE == "merge_request_event"
+        && $ENABLE_ACCURACY_GATE == "true"
+    - if: >-
+        $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+        && $CI_COMMIT_REF_PROTECTED == "true"
+        && $ENABLE_ACCURACY_GATE == "true"
+    - when: never
+  needs:
+    - job: integration:stack-smoke
+  variables:
+    EVAL_MODE: smoke
+    QUESTION_LIMIT: "20"
+  before_script:
+    - mkdir -p artifacts
+    - echo "ACCURACY_GATE_VERDICT=pending" > artifacts/accuracy-eval.env
+  after_script:
+    - |
+      if [ -f artifacts/accuracy-eval-report.json ]; then
+        VERDICT="$(python3 -c "
+import json, sys
+r = json.load(open('artifacts/accuracy-eval-report.json'))
+print(r.get('verdict', 'unknown'))
+")"
+        echo "ACCURACY_GATE_VERDICT=${VERDICT}" > artifacts/accuracy-eval.env
+        echo "[accuracy-eval] Smoke verdict: ${VERDICT}"
+      fi
+
+# ---------------------------------------------------------------------------
+# Nightly full eval — scheduled pipeline, full evaluation set, strict thresholds
+# Used as the definitive quality gate before tagging a release.
+# ---------------------------------------------------------------------------
+eval:accuracy:nightly:
+  extends:
+    - .accuracy_eval:base
+  rules:
+    - if: >-
+        $CI_PIPELINE_SOURCE == "schedule"
+        && $ENABLE_ACCURACY_GATE == "true"
+    - when: never
+  variables:
+    EVAL_MODE: nightly
+    # No question limit for the full dataset
+    EVAL_TIMEOUT_SEC: "1800"
+  before_script:
+    - mkdir -p artifacts
+    - echo "ACCURACY_GATE_VERDICT=pending" > artifacts/accuracy-eval.env
+  after_script:
+    - |
+      if [ -f artifacts/accuracy-eval-report.json ]; then
+        VERDICT="$(python3 -c "
+import json, sys
+r = json.load(open('artifacts/accuracy-eval-report.json'))
+print(r.get('verdict', 'unknown'))
+")"
+        echo "ACCURACY_GATE_VERDICT=${VERDICT}" > artifacts/accuracy-eval.env
+        echo "[accuracy-eval] Nightly verdict: ${VERDICT}"
+      fi
+
+# ---------------------------------------------------------------------------
+# Release accuracy gate — runs on production tags, blocks release pipeline.
+# Requires EVAL_MODE=nightly and uses full dataset with production thresholds.
+# ---------------------------------------------------------------------------
+eval:accuracy:release:
+  extends:
+    - .accuracy_eval:base
+  rules:
+    - if: >-
+        $CI_COMMIT_TAG
+        && $CI_COMMIT_REF_PROTECTED == "true"
+        && $ENABLE_ACCURACY_GATE == "true"
+    - when: never
+  needs:
+    - job: build:backend-images
+    - job: build:frontend-image
+  variables:
+    EVAL_MODE: nightly
+    EVAL_TIMEOUT_SEC: "1800"
+  before_script:
+    - mkdir -p artifacts
+    - echo "ACCURACY_GATE_VERDICT=pending" > artifacts/accuracy-eval.env
+  after_script:
+    - |
+      if [ -f artifacts/accuracy-eval-report.json ]; then
+        VERDICT="$(python3 -c "
+import json, sys
+r = json.load(open('artifacts/accuracy-eval-report.json'))
+print(r.get('verdict', 'unknown'))
+")"
+        echo "ACCURACY_GATE_VERDICT=${VERDICT}" > artifacts/accuracy-eval.env
+        echo "[accuracy-eval] Release verdict: ${VERDICT}"
+      fi

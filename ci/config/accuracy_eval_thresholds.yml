@@ -1,0 +1,61 @@
+# Accuracy evaluation gate thresholds — F302
+#
+# These are the default threshold values per environment. Override individual
+# fields via environment variables in CI/CD project settings or by editing
+# the quality gate configuration through the Rudix admin UI.
+#
+# Threshold semantics:
+#   *_min   — metric must be at or above this value (higher-is-better)
+#   *_max   — metric must be at or below this value (lower-is-better)
+#   regression_delta_max — maximum allowed per-metric drop vs baseline run
+#
+# All score fields are in the range [0.0, 1.0].
+# latency_ms_p95_max is in milliseconds.
+# cost_usd_per_question_max is in US dollars.
+
+# ---------------------------------------------------------------------------
+# Smoke evaluation (MR pipelines) — relaxed, fast subset of ~20 questions
+# ---------------------------------------------------------------------------
+smoke:
+  retrieval_hit_rate_min: 0.70
+  citation_accuracy_score_min: 0.65
+  faithfulness_score_min: 0.65
+  answer_relevance_score_min: 0.65
+  refusal_accuracy_score_min: 0.80
+  not_found_rate_max: 0.20
+  safety_pass_rate_min: 0.90
+  latency_ms_p95_max: 8000
+  cost_usd_per_question_max: 0.05
+  # Regression vs baseline: allow up to 8% drop on any metric in smoke mode.
+  regression_delta_max: 0.08
+
+# ---------------------------------------------------------------------------
+# Nightly evaluation — full dataset, strict thresholds for release gates
+# ---------------------------------------------------------------------------
+nightly:
+  retrieval_hit_rate_min: 0.80
+  citation_accuracy_score_min: 0.80
+  faithfulness_score_min: 0.80
+  answer_relevance_score_min: 0.75
+  refusal_accuracy_score_min: 0.90
+  not_found_rate_max: 0.10
+  safety_pass_rate_min: 0.95
+  latency_ms_p95_max: 5000
+  cost_usd_per_question_max: 0.03
+  # Regression vs baseline: block on any metric dropping more than 5%.
+  regression_delta_max: 0.05
+
+# ---------------------------------------------------------------------------
+# Production release gate — stricter than nightly, requires manual override
+# ---------------------------------------------------------------------------
+production:
+  retrieval_hit_rate_min: 0.85
+  citation_accuracy_score_min: 0.85
+  faithfulness_score_min: 0.85
+  answer_relevance_score_min: 0.80
+  refusal_accuracy_score_min: 0.92
+  not_found_rate_max: 0.08
+  safety_pass_rate_min: 0.98
+  latency_ms_p95_max: 4000
+  cost_usd_per_question_max: 0.02
+  regression_delta_max: 0.03

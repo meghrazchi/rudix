@@ -2,6 +2,8 @@
 
 Compares evaluation run summary metrics against configured thresholds and
 produces a structured verdict + report dict suitable for CI artifact upload.
+Supports baseline regression comparison when a baseline_evaluation_run_id is
+configured on the gate.
 """
 
 from __future__ import annotations
@@ -9,6 +11,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.domains.quality_gates.schemas.quality_gates import (
+    BaselineMetricDelta,
     GateCheckResult,
     QualityGateThresholds,
 )
@@ -20,10 +23,21 @@ _EVAL_THRESHOLD_MAP: list[tuple[str, str, str, bool]] = [
     ("citation_accuracy_score_min", "citation_accuracy_score", "Citation Accuracy", True),
     ("faithfulness_score_min", "faithfulness_score", "Faithfulness Score", True),
     ("answer_relevance_score_min", "answer_relevance_score", "Answer Relevance", True),
+    ("refusal_accuracy_score_min", "refusal_accuracy_score", "Refusal Accuracy", True),
     ("not_found_rate_max", "not_found_rate", "Not-Found Rate", False),
     ("latency_ms_p95_max", "latency_ms_p95", "Latency p95 (ms)", False),
     ("cost_usd_per_question_max", "cost_usd_per_question", "Cost per Question (USD)", False),
     ("language_adherence_score_min", "language_adherence_score", "Language Adherence", True),
+]
+
+# Metrics eligible for regression tracking (higher is better only, 0–1 range)
+_REGRESSION_METRICS: list[tuple[str, str]] = [
+    ("retrieval_hit_rate", "Retrieval Hit Rate"),
+    ("citation_accuracy_score", "Citation Accuracy"),
+    ("faithfulness_score", "Faithfulness Score"),
+    ("answer_relevance_score", "Answer Relevance"),
+    ("refusal_accuracy_score", "Refusal Accuracy"),
+    ("language_adherence_score", "Language Adherence"),
 ]
 
 _SAFETY_THRESHOLD_KEY = "safety_pass_rate_min"
@@ -104,6 +118,82 @@ def evaluate_gate(
     return verdict, passed, failed
 
 
+def evaluate_regression(
+    thresholds: QualityGateThresholds,
+    evaluation_summary: dict | None,
+    baseline_summary: dict | None,
+) -> tuple[list[GateCheckResult], list[BaselineMetricDelta]]:
+    """Compare current metrics against a baseline and return regression checks + deltas.
+
+    Returns (regression_failed_checks, all_metric_deltas). Regression checks are
+    appended to the main failed_checks list by the caller when the verdict is
+    being determined.  Only higher-is-better metrics are regressed (a drop in
+    latency/cost is not a regression).
+    """
+    regression_failed: list[GateCheckResult] = []
+    deltas: list[BaselineMetricDelta] = []
+
+    if baseline_summary is None or evaluation_summary is None:
+        return regression_failed, deltas
+
+    delta_max = thresholds.regression_delta_max
+    if delta_max is None:
+        # Still compute deltas for reporting even if no regression threshold
+        for summary_key, label in _REGRESSION_METRICS:
+            baseline = _metric_float(baseline_summary, summary_key)
+            current = _metric_float(evaluation_summary, summary_key)
+            if baseline is None and current is None:
+                continue
+            delta = (current - baseline) if (current is not None and baseline is not None) else None
+            deltas.append(
+                BaselineMetricDelta(
+                    metric=summary_key,
+                    label=label,
+                    baseline=baseline,
+                    current=current,
+                    delta=delta,
+                    regressed=False,
+                )
+            )
+        return regression_failed, deltas
+
+    for summary_key, label in _REGRESSION_METRICS:
+        baseline = _metric_float(baseline_summary, summary_key)
+        current = _metric_float(evaluation_summary, summary_key)
+        if baseline is None and current is None:
+            continue
+        delta = (current - baseline) if (current is not None and baseline is not None) else None
+        regressed = delta is not None and delta < -delta_max
+        deltas.append(
+            BaselineMetricDelta(
+                metric=summary_key,
+                label=label,
+                baseline=baseline,
+                current=current,
+                delta=delta,
+                regressed=regressed,
+            )
+        )
+        if regressed:
+            assert delta is not None
+            regression_failed.append(
+                GateCheckResult(
+                    metric=f"regression:{summary_key}",
+                    label=f"Regression: {label}",
+                    threshold=-delta_max,
+                    actual=delta,
+                    passed=False,
+                    detail=(
+                        f"metric dropped {abs(delta):.4f} from baseline "
+                        f"{baseline:.4f} → {current:.4f} "
+                        f"(max allowed drop: {delta_max:.4f})"
+                    ),
+                )
+            )
+
+    return regression_failed, deltas
+
+
 def build_gate_report(
     *,
     gate_run_id: str,
@@ -117,6 +207,7 @@ def build_gate_report(
     failed_checks: list[GateCheckResult],
     evaluation_summary: dict | None,
     safety_summary: dict | None,
+    baseline_comparison: list[BaselineMetricDelta] | None = None,
     override_reason: str | None = None,
     overridden_by_id: str | None = None,
     overridden_at: datetime | None = None,
@@ -131,7 +222,7 @@ def build_gate_report(
         else 1
     )
 
-    return {
+    report: dict = {
         "gate_run_id": gate_run_id,
         "quality_gate_id": quality_gate_id,
         "quality_gate_name": quality_gate_name,
@@ -152,3 +243,6 @@ def build_gate_report(
         "safety_summary": safety_summary,
         "ci_exit_code": ci_exit_code,
     }
+    if baseline_comparison is not None:
+        report["baseline_comparison"] = [d.model_dump() for d in baseline_comparison]
+    return report

@@ -4,7 +4,8 @@
 	migrate test lint check-backend \
 	frontend-dev frontend-build frontend-lint frontend-typecheck frontend-test frontend-e2e frontend-format check-frontend \
 	api-types api-types-check api-types-update \
-	check-all
+	check-all \
+	eval-smoke eval-nightly
 
 COMPOSE := docker compose
 BACKEND_MAKE := $(MAKE) -C backend
@@ -159,3 +160,13 @@ check-all:
 # RUDIX_API_BASE_URL / RUDIX_API_TOKEN environment variables to be set.
 benchmark-local-model:
 	python ci/scripts/local_model_benchmark.py
+
+## Accuracy evaluation gates (F302)
+# Run the accuracy eval CI script in smoke or nightly mode.
+# Requires RUDIX_API_BASE_URL, RUDIX_API_TOKEN, ACCURACY_EVAL_SET_ID, and
+# QUALITY_GATE_ID to be set in your environment.
+eval-smoke:
+	EVAL_MODE=smoke python ci/scripts/accuracy_eval_runner.py
+
+eval-nightly:
+	EVAL_MODE=nightly python ci/scripts/accuracy_eval_runner.py

@@ -17,6 +17,16 @@ class QualityGateThresholds(BaseModel):
     citation_accuracy_score_min: float | None = Field(default=None, ge=0.0, le=1.0)
     faithfulness_score_min: float | None = Field(default=None, ge=0.0, le=1.0)
     answer_relevance_score_min: float | None = Field(default=None, ge=0.0, le=1.0)
+    refusal_accuracy_score_min: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Minimum fraction of refusal-type questions correctly handled — i.e., "
+            "questions with no supporting documents where the system should respond "
+            "with 'not found' rather than hallucinating an answer."
+        ),
+    )
     not_found_rate_max: float | None = Field(default=None, ge=0.0, le=1.0)
     safety_pass_rate_min: float | None = Field(default=None, ge=0.0, le=1.0)
     latency_ms_p95_max: float | None = Field(default=None, ge=0.0)
@@ -29,6 +39,17 @@ class QualityGateThresholds(BaseModel):
             "Minimum fraction of evaluated answers whose detected language matches "
             "the expected_answer_language. Only enforced when the evaluation run "
             "includes questions with expected_answer_language set."
+        ),
+    )
+    regression_delta_max: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Maximum allowed per-metric degradation (absolute delta) versus the "
+            "baseline evaluation run. When set and a baseline_evaluation_run_id is "
+            "configured on the quality gate, any metric that drops more than this "
+            "value from its baseline is treated as a regression failure."
         ),
     )
 
@@ -135,6 +156,15 @@ class GateCheckResult(BaseModel):
     detail: str | None = None
 
 
+class BaselineMetricDelta(BaseModel):
+    metric: str
+    label: str
+    baseline: float | None
+    current: float | None
+    delta: float | None
+    regressed: bool
+
+
 class QualityGateRunResponse(BaseModel):
     gate_run_id: str
     quality_gate_id: str
@@ -190,4 +220,5 @@ class QualityGateReportResponse(BaseModel):
     overridden_at: str | None = None
     evaluation_summary: dict[str, object] | None = None
     safety_summary: dict[str, object] | None = None
+    baseline_comparison: list[BaselineMetricDelta] | None = None
     ci_exit_code: int
