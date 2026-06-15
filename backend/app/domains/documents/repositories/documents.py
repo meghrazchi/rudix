@@ -394,6 +394,8 @@ class DocumentRepository:
         parent_chunk_id: UUID | None = None,
         chunk_level: int | None = None,
         child_count: int | None = None,
+        chunk_type: str = "text",
+        table_metadata: dict | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
             document_id=document_id,
@@ -412,6 +414,8 @@ class DocumentRepository:
             parent_chunk_id=parent_chunk_id,
             chunk_level=chunk_level,
             child_count=child_count,
+            chunk_type=chunk_type,
+            table_metadata=table_metadata,
         )
         session.add(chunk)
         await session.flush()
@@ -459,6 +463,41 @@ class DocumentRepository:
         statement = statement.order_by(DocumentChunk.chunk_index.asc()).offset(offset).limit(limit)
         result = await session.execute(statement)
         return list(result.scalars().all())
+
+    async def get_chunks_table_metadata(
+        self,
+        session: AsyncSession,
+        *,
+        chunk_ids: list[UUID],
+        organization_id: UUID,
+    ) -> dict[UUID, dict]:
+        """Return {chunk_id: table_metadata} for table chunks only.
+
+        Scoped to organization_id for tenant isolation (via document ownership check).
+        Only returns rows where chunk_type='table' and table_metadata is not NULL.
+        """
+        if not chunk_ids:
+            return {}
+
+        statement = (
+            select(
+                DocumentChunk.id.label("chunk_id"),
+                DocumentChunk.table_metadata,
+            )
+            .join(Document, DocumentChunk.document_id == Document.id)
+            .where(
+                DocumentChunk.id.in_(chunk_ids),
+                Document.organization_id == organization_id,
+                DocumentChunk.chunk_type == "table",
+                DocumentChunk.table_metadata.isnot(None),
+            )
+        )
+        rows = (await session.execute(statement)).mappings().all()
+        return {
+            UUID(str(row["chunk_id"])): dict(row["table_metadata"])
+            for row in rows
+            if row["table_metadata"] is not None
+        }
 
     async def count_document_chunks(
         self,

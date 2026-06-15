@@ -29,6 +29,9 @@ class ChunkLike(Protocol):
     chunk_level: int | None
     parent_chunk_id: UUID | None
     child_count: int | None
+    # Table-aware chunking (F298).
+    chunk_type: str
+    table_metadata: dict | None
 
 
 @dataclass(frozen=True)
@@ -155,6 +158,7 @@ class QdrantService:
                         ),
                         "parent_text": ((parent_text_by_chunk_id or {}).get(chunk.id)),
                         "child_count": chunk.child_count,
+                        "chunk_type": chunk.chunk_type,
                     },
                 )
             )

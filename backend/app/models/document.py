@@ -219,10 +219,15 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "child_count IS NULL OR child_count >= 0",
             name="document_chunks_child_count_non_negative",
         ),
+        CheckConstraint(
+            "chunk_type IN ('text', 'table', 'image')",
+            name="document_chunks_chunk_type_allowed",
+        ),
         Index("idx_chunks_document_id", "document_id"),
         Index("idx_chunks_qdrant_point_id", "qdrant_point_id"),
         Index("idx_chunks_parent_chunk_id", "parent_chunk_id"),
         Index("idx_chunks_chunk_level", "chunk_level"),
+        Index("idx_chunks_chunk_type", "chunk_type"),
     )
 
     document_id: Mapped[UUID] = mapped_column(
@@ -255,6 +260,14 @@ class DocumentChunk(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     chunk_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
     child_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Table-aware chunking (F298): 'text', 'table', or 'image'.
+    chunk_type: Mapped[str] = mapped_column(
+        String(16),
+        default="text",
+        nullable=False,
+    )
+    # Structured metadata for table chunks (F298). None for text/image chunks.
+    table_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # PostgreSQL generated column for full-text search (F293).
     # GENERATED ALWAYS AS — never written by application code.
     text_search_vector = mapped_column(

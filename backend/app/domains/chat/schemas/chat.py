@@ -209,6 +209,13 @@ class ChatCitationResponse(BaseModel):
     doc_effective_date: date | None = None
     doc_stale_warning: bool = False
     doc_is_excluded_status: bool = False
+    # Table-aware retrieval (F298): populated when the cited chunk is a table.
+    is_table_chunk: bool = False
+    table_caption: str | None = None
+    table_row_count: int | None = None
+    table_col_count: int | None = None
+    table_headers: list[str] = Field(default_factory=list)
+    table_section_context: str | None = None
 
 
 class ChatDebugResponse(BaseModel):
@@ -276,6 +283,12 @@ class ChatDebugResponse(BaseModel):
     freshness_excluded_count: int = 0
     freshness_boosted_count: int = 0
     freshness_stale_count: int = 0
+    # Table-aware retrieval (F298).
+    table_boost_enabled: bool = False
+    table_boost_applied: bool = False
+    table_boost_count: int = 0
+    table_chunk_count: int = 0
+    table_query_detected: bool = False
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

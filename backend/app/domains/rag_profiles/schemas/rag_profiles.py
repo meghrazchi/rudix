@@ -58,6 +58,11 @@ class RagProfileConfig(BaseModel):
     freshness_boost_enabled: bool = Field(default=True)
     exclude_deprecated_docs: bool = Field(default=True)
     stale_threshold_days: int | None = Field(default=None, ge=1, le=3650)
+    # Table-aware retrieval (F298).
+    # table_retrieval_boost_enabled: apply score multiplier to table chunks on table-like queries.
+    # table_retrieval_boost_multiplier: per-profile multiplier override (default uses system setting).
+    table_retrieval_boost_enabled: bool = Field(default=True)
+    table_retrieval_boost_multiplier: float = Field(default=1.25, ge=1.0, le=5.0)
 
     @field_validator("rerank_model")
     @classmethod

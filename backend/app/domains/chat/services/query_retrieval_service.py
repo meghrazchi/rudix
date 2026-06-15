@@ -28,6 +28,7 @@ class RetrievedCandidate:
     chunk_level: int = 0
     parent_chunk_id: UUID | None = None
     parent_text: str | None = None
+    chunk_type: str = "text"
 
 
 @dataclass(frozen=True)
@@ -168,6 +169,9 @@ class QueryRetrievalService:
                 except (TypeError, ValueError):
                     parent_chunk_id = None
             parent_text = str(payload.get("parent_text") or "").strip() or None
+            chunk_type = str(payload.get("chunk_type") or "text").strip() or "text"
+            if chunk_type not in ("text", "table", "image"):
+                chunk_type = "text"
 
             candidates.append(
                 RetrievedCandidate(
@@ -181,6 +185,7 @@ class QueryRetrievalService:
                     chunk_level=chunk_level,
                     parent_chunk_id=parent_chunk_id,
                     parent_text=parent_text,
+                    chunk_type=chunk_type,
                 )
             )
 

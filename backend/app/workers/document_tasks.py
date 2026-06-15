@@ -42,6 +42,7 @@ from app.domains.documents.services.language_detection_service import (
 from app.domains.documents.services.ocr_detection import detect_ocr_need
 from app.domains.documents.services.ocr_language_config import resolve_ocr_tesseract_string
 from app.domains.documents.services.ocr_service import merge_ocr_with_sections, run_ocr
+from app.domains.documents.services.table_chunking_service import build_table_chunk
 from app.domains.documents.services.qdrant_service import QdrantService
 from app.domains.documents.services.text_extraction import (
     extract_pdf_pages_native,
@@ -672,6 +673,7 @@ async def _extract_and_store_document_pages_async(
         extraction_result = None
         updated = None
         ocr_applied = False
+        _table_chunk_count = 0
         try:
             log_document_event(
                 event="document.pipeline.stage",
@@ -1391,6 +1393,72 @@ async def _extract_and_store_document_pages_async(
                     if not is_hierarchical or p.chunk_level == 1
                 ]
 
+                # Table-aware chunking (F298): create structured table chunks from extracted
+                # table blocks. These supplement the regular text chunks and are indexed
+                # with chunk_type='table' so the retrieval boost can identify them.
+                if (
+                    settings.feature_enable_table_aware_retrieval
+                    and extraction_result is not None
+                    and extraction_result.total_table_blocks > 0
+                ):
+                    _table_chunk_base = len(chunks)
+                    _table_global_idx = 0
+                    for _page_result in extraction_result.pages:
+                        if not _page_result.table_blocks:
+                            continue
+                        _section_text = " ".join(
+                            b.text.strip()
+                            for b in _page_result.text_blocks
+                            if b.text.strip()
+                        )
+                        _section_context: str | None = _section_text[:300] if _section_text else None
+                        for _table_block in _page_result.table_blocks:
+                            _table_result = build_table_chunk(
+                                _table_block, section_context=_section_context
+                            )
+                            if not _table_result.text.strip():
+                                _table_global_idx += 1
+                                continue
+                            _tbl_chunk_index = _table_chunk_base + _table_global_idx
+                            _tbl_point_id = _qdrant_service.build_point_id(
+                                document_id=parsed_document_id,
+                                chunk_index=_tbl_chunk_index,
+                                index_version=effective_index_version,
+                            )
+                            _tbl_db_chunk = await _document_repository.create_document_chunk(
+                                session,
+                                document_id=parsed_document_id,
+                                page_number=_table_block.page_number,
+                                chunk_index=_tbl_chunk_index,
+                                text=_table_result.text,
+                                token_count=max(1, len(_table_result.text) // 4),
+                                qdrant_point_id=_tbl_point_id,
+                                embedding_model=settings.openai_embedding_model,
+                                index_version=effective_index_version,
+                                chunk_hash=compute_chunk_hash(_table_result.text),
+                                section_path=(
+                                    f"page:{_table_block.page_number}"
+                                    f":table:{_table_block.table_index}"
+                                ),
+                                language=document.language,
+                                chunk_type="table",
+                                table_metadata=_table_result.table_metadata,
+                            )
+                            created_chunks.append(_tbl_db_chunk)
+                            _table_chunk_count += 1
+                            _table_global_idx += 1
+                    if _table_chunk_count > 0:
+                        log_document_event(
+                            event="document.pipeline.stage",
+                            document_id=str(document.id),
+                            request_id=request_id,
+                            organization_id=resolved_organization_id,
+                            user_id=resolved_user_id,
+                            stage="table_chunk",
+                            stage_status="completed",
+                            table_chunk_count=_table_chunk_count,
+                        )
+
                 # Sentinels shared between entity and relation extraction stages (F283/F284).
                 _entity_result = None
                 _chunk_pairs: list[tuple[int, str]] = []
@@ -1901,6 +1969,8 @@ async def _extract_and_store_document_pages_async(
                     "total_chunk_count": len(chunks),
                     "total_chunk_tokens": _total_chunk_tokens,
                 }
+                if _table_chunk_count > 0:
+                    _chunking_config_snapshot["table_chunk_count"] = _table_chunk_count
                 if extraction_result is not None:
                     _chunking_config_snapshot["document_profile"] = (
                         extraction_result.document_profile.value
@@ -1955,7 +2025,7 @@ async def _extract_and_store_document_pages_async(
                         status=DocumentStatus.indexed.value,
                         error_message=None,
                         page_count=len(cleaned_sections),
-                        chunk_count=len(chunks),
+                        chunk_count=len(chunks) + _table_chunk_count,
                         chunking_strategy=_strategy_name,
                         chunking_profile_version=_strategy_version,
                         chunking_config_snapshot=_chunking_config_snapshot,

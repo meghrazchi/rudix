@@ -677,6 +677,11 @@ class Settings(BaseSettings):
     ws_chat_max_connections_per_user: int = Field(default=3, ge=1, le=20)
     ws_chat_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
     ws_chat_heartbeat_interval_seconds: int = Field(default=30, ge=10, le=120)
+    # Table-aware retrieval (F298): boost table chunks when the query looks tabular.
+    # feature_enable_table_aware_retrieval gates the entire feature.
+    # table_retrieval_boost_multiplier: score multiplier applied to table chunks on table-like queries.
+    feature_enable_table_aware_retrieval: bool = True
+    table_retrieval_boost_multiplier: float = Field(default=1.25, ge=1.0, le=5.0)
     # PDF extraction pipeline (F237).
     feature_enable_advanced_pdf_extraction: bool = True
     pdf_extraction_enable_tables: bool = True

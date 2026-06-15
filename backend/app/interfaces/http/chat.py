@@ -94,6 +94,10 @@ from app.domains.chat.services.source_freshness_service import (
     DocumentTrustData,
     SourceFreshnessService,
 )
+from app.domains.chat.services.table_retrieval_service import (
+    TableBoostResult,
+    TableRetrievalService,
+)
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
     HybridRetrievalService,
@@ -159,6 +163,7 @@ _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
 _source_freshness_service = SourceFreshnessService()
+_table_retrieval_service = TableRetrievalService()
 _document_repository_for_trust = _DocumentRepository()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
@@ -180,6 +185,7 @@ class RetrievedChunk:
     graph_hops: int = 0
     keyword_score: float | None = None
     hybrid_score: float | None = None
+    chunk_type: str = "text"
 
 
 def _safe_http_error(*, status_code: int, code: str, message: str) -> HTTPException:
@@ -230,6 +236,7 @@ def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
         page_number=candidate.page_number,
         text=candidate.text,
         similarity_score=candidate.similarity_score,
+        chunk_type=candidate.chunk_type,
     )
 
 
@@ -244,6 +251,7 @@ def _hybrid_to_retrieved_chunk(candidate: HybridCandidate) -> RetrievedChunk:
         retrieval_source=candidate.retrieval_source,
         keyword_score=candidate.keyword_score,
         hybrid_score=candidate.hybrid_score,
+        chunk_type=getattr(candidate, "chunk_type", "text"),
     )
 
 
@@ -301,6 +309,7 @@ def _merge_retrieved_chunks(
             )
             or None,
             graph_hops=_merge_graph_hops(existing.graph_hops, chunk.graph_hops),
+            chunk_type=existing.chunk_type,
         )
 
     for chunk in vector_chunks:
@@ -331,6 +340,7 @@ def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
                 graph_hops=chunk.graph_hops,
                 keyword_score=chunk.keyword_score,
                 hybrid_score=chunk.hybrid_score,
+                chunk_type=chunk.chunk_type,
             )
         )
     return ranked_chunks
@@ -408,6 +418,52 @@ def _with_provenance(
     )
 
 
+def _with_table_metadata(
+    citation: ChatCitationResponse,
+    table_metadata_map: dict[str, dict],
+) -> ChatCitationResponse:
+    """Annotate a citation with table structure metadata when available."""
+    meta = table_metadata_map.get(citation.chunk_id)
+    if not meta:
+        return citation
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        original_rank=citation.original_rank,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        final_rank=citation.final_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=citation.source_provider,
+        source_provider_label=citation.source_provider_label,
+        source_title=citation.source_title,
+        source_key=citation.source_key,
+        source_section=citation.source_section,
+        source_deep_link=citation.source_deep_link,
+        source_last_synced_at=citation.source_last_synced_at,
+        source_trust_status=citation.source_trust_status,
+        source_acl_snapshot=citation.source_acl_snapshot,
+        doc_trust_status=citation.doc_trust_status,
+        doc_version_label=citation.doc_version_label,
+        doc_review_date=citation.doc_review_date,
+        doc_effective_date=citation.doc_effective_date,
+        doc_stale_warning=citation.doc_stale_warning,
+        doc_is_excluded_status=citation.doc_is_excluded_status,
+        is_table_chunk=True,
+        table_caption=meta.get("caption"),
+        table_row_count=meta.get("row_count"),
+        table_col_count=meta.get("col_count"),
+        table_headers=list(meta.get("headers") or []),
+        table_section_context=meta.get("section_context"),
+    )
+
+
 async def _rerank_chunks(
     *,
     query: str,
@@ -467,6 +523,7 @@ async def _rerank_chunks(
                 graph_hops=source_chunk.graph_hops,
                 keyword_score=source_chunk.keyword_score,
                 hybrid_score=source_chunk.hybrid_score,
+                chunk_type=source_chunk.chunk_type,
             )
         )
     return selected_chunks, rerank_result
@@ -1083,6 +1140,12 @@ async def query_chat(
     freshness_excluded_count = 0
     freshness_boosted_count = 0
     freshness_stale_count = 0
+    table_boost_enabled = False
+    table_boost_applied = False
+    table_boost_count = 0
+    table_chunk_count = 0
+    table_query_detected = False
+    _table_boost_result: TableBoostResult | None = None
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1391,11 +1454,39 @@ async def query_chat(
                                 graph_hops=_chunk.graph_hops,
                                 keyword_score=_chunk.keyword_score,
                                 hybrid_score=_chunk.hybrid_score,
+                                chunk_type=_chunk.chunk_type,
                             )
                         )
                     retrieved_chunks = sorted(
                         adjusted, key=lambda c: c.similarity_score, reverse=True
                     )
+
+            # Table-aware retrieval boost (F298).
+            # Applied after freshness scoring, before reranking.
+            if settings.feature_enable_table_aware_retrieval and retrieved_chunks:
+                _table_boost_enabled = True
+                _table_boost_multiplier = settings.table_retrieval_boost_multiplier
+                if rag_profile is not None:
+                    _tb_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                    _table_boost_enabled = _tb_cfg.table_retrieval_boost_enabled
+                    _table_boost_multiplier = _tb_cfg.table_retrieval_boost_multiplier
+                table_boost_enabled = _table_boost_enabled
+                retrieved_chunks, _table_boost_result = _table_retrieval_service.apply_table_boost(
+                    chunks=retrieved_chunks,
+                    query=payload.question,
+                    boost_multiplier=_table_boost_multiplier,
+                    enabled=_table_boost_enabled,
+                )
+                if _table_boost_result is not None:
+                    table_boost_applied = _table_boost_result.boost_applied
+                    table_boost_count = _table_boost_result.boosted_count
+                    table_chunk_count = _table_boost_result.table_chunk_count
+                    from app.domains.chat.services.table_retrieval_service import is_table_query as _is_table_query
+                    table_query_detected = _is_table_query(payload.question)
+                    if table_boost_applied:
+                        retrieved_chunks = sorted(
+                            retrieved_chunks, key=lambda c: c.similarity_score, reverse=True
+                        )
 
         except Exception as exc:
             log_query_event(
@@ -1530,14 +1621,27 @@ async def query_chat(
                     organization_id=organization_id,
                     chunk_ids=[UUID(citation.chunk_id) for citation in citation_result.citations],
                 )
+                # Table metadata lookup (F298): fetch table_metadata for any table chunks.
+                _citation_chunk_ids = [UUID(c.chunk_id) for c in citation_result.citations]
+                _table_metadata_by_chunk_id = await _document_repository_for_trust.get_chunks_table_metadata(
+                    db_session,
+                    chunk_ids=_citation_chunk_ids,
+                    organization_id=organization_id,
+                )
+                _table_metadata_map = {
+                    str(k): v for k, v in _table_metadata_by_chunk_id.items()
+                }
                 citations = [
-                    _with_freshness(
-                        _with_provenance(
-                            citation,
-                            provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                    _with_table_metadata(
+                        _with_freshness(
+                            _with_provenance(
+                                citation,
+                                provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                            ),
+                            _freshness_trust_map,
+                            _freshness_stale_ids,
                         ),
-                        _freshness_trust_map,
-                        _freshness_stale_ids,
+                        _table_metadata_map,
                     )
                     for citation in citation_result.citations
                 ]
@@ -2012,6 +2116,11 @@ async def query_chat(
             freshness_excluded_count=freshness_excluded_count,
             freshness_boosted_count=freshness_boosted_count,
             freshness_stale_count=freshness_stale_count,
+            table_boost_enabled=table_boost_enabled,
+            table_boost_applied=table_boost_applied,
+            table_boost_count=table_boost_count,
+            table_chunk_count=table_chunk_count,
+            table_query_detected=table_query_detected,
         ),
         created_at=assistant_message.created_at,
     )
