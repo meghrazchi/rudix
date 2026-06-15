@@ -168,19 +168,21 @@ export function ProfileMenu({
               {tSettingsTabs("profile")}
             </Link>
 
-            <Link
-              href="/settings"
-              role="menuitem"
-              onClick={onClose}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#3f3b58] transition hover:bg-[#f5f3ff]"
-            >
-              <Settings
-                className="h-4 w-4 shrink-0 text-[#7b76a0]"
-                strokeWidth={1.9}
-                aria-hidden
-              />
-              {tNav("settings")}
-            </Link>
+            {isAdminLikeRole(session.role) ? (
+              <Link
+                href="/settings"
+                role="menuitem"
+                onClick={onClose}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#3f3b58] transition hover:bg-[#f5f3ff]"
+              >
+                <Settings
+                  className="h-4 w-4 shrink-0 text-[#7b76a0]"
+                  strokeWidth={1.9}
+                  aria-hidden
+                />
+                {tNav("settings")}
+              </Link>
+            ) : null}
 
             {isAdminLikeRole(session.role) ? (
               <Link

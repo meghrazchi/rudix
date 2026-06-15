@@ -138,7 +138,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     description: "Organization and account settings",
     matchPrefixes: ["/settings"],
     requiresOrganization: true,
-    allowedRoles: ["owner", "admin", "member", "viewer"],
+    allowedRoles: ["owner", "admin"],
     hideInNav: true,
   },
   {

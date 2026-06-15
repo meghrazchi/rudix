@@ -1610,9 +1610,6 @@ export function DocumentsPage() {
                               >
                                 {truncateFilename(document.filename)}
                               </p>
-                              <p className="text-xs text-[#7a768f]">
-                                {document.document_id}
-                              </p>
                               {document.collections &&
                               document.collections.length > 0 ? (
                                 <div className="mt-1 flex flex-wrap gap-1">
