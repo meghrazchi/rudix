@@ -63,6 +63,9 @@ describe("app route protection", () => {
     expect(resolveProtectedRouteRedirect("/admin/audit-logs", state)).toBe(
       "/forbidden",
     );
+    expect(resolveProtectedRouteRedirect("/connectors", state)).toBe(
+      "/forbidden",
+    );
   });
 
   it("redirects users without organization context to onboarding", () => {
@@ -144,6 +147,36 @@ describe("permission-aware navigation", () => {
     expect(adminItem).toBeDefined();
     expect(adminItem?.disabled).toBe(true);
     expect(adminItem?.hidden).toBe(true);
+  });
+
+  it("disables connector nav item for member role", () => {
+    const nav = buildNavigationItems("/dashboard", {
+      userId: "u-1",
+      email: "member@rudix.local",
+      role: "member",
+      organizationId: "org-1",
+      organizationName: "Org 1",
+    });
+
+    const connectorsItem = nav.find((item) => item.key === "connectors");
+    expect(connectorsItem).toBeDefined();
+    expect(connectorsItem?.disabled).toBe(true);
+    expect(connectorsItem?.hidden).toBe(false);
+  });
+
+  it("allows connector nav item for admin role", () => {
+    const nav = buildNavigationItems("/dashboard", {
+      userId: "u-2",
+      email: "admin@rudix.local",
+      role: "admin",
+      organizationId: "org-1",
+      organizationName: "Org 1",
+    });
+
+    const connectorsItem = nav.find((item) => item.key === "connectors");
+    expect(connectorsItem).toBeDefined();
+    expect(connectorsItem?.disabled).toBe(false);
+    expect(connectorsItem?.hidden).toBe(false);
   });
 
   it("allows admin nav item for admin role", () => {

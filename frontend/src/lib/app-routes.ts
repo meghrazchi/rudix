@@ -119,7 +119,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     description: "Connect external sources like Confluence and Google Drive",
     matchPrefixes: ["/connectors"],
     requiresOrganization: true,
-    allowedRoles: ["owner", "admin", "member", "viewer"],
+    allowedRoles: ["owner", "admin"],
   },
   {
     key: "user-profile",

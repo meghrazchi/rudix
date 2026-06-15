@@ -140,16 +140,15 @@ describe("AppShell top bar menus", () => {
     expect(await screen.findByText("admin")).toBeInTheDocument();
     expect(screen.getByText("admin@example.com")).toBeInTheDocument();
     expect(screen.getByText("Organization: Org One")).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
-      "href",
-      "/settings?tab=profile",
-    );
+    expect(
+      screen.getByRole("menuitem", { name: "User Profile" }),
+    ).toHaveAttribute("href", "/user/profile");
     expect(screen.getByRole("menuitem", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings",
     );
     expect(
-      screen.getByRole("menuitem", { name: "Admin usage" }),
+      screen.getByRole("menuitem", { name: "Admin Console" }),
     ).toHaveAttribute("href", "/admin");
 
     await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
@@ -184,7 +183,7 @@ describe("AppShell top bar menus", () => {
       screen.getByRole("menuitem", { name: "Project README" }),
     ).toHaveAttribute("href", "https://github.com/example/project#readme");
     expect(
-      screen.queryByRole("link", { name: "Admin usage" }),
+      screen.queryByRole("link", { name: "Admin Console" }),
     ).not.toBeInTheDocument();
   });
 

@@ -1011,7 +1011,7 @@ describe("ChatPage", () => {
     const call = vi.mocked(queryChat).mock.calls.at(-1)?.[0];
     expect(call).toMatchObject({
       question: "connector scope check",
-      scope_mode: "connectors",
+      scope_mode: "all",
       source_scope: {
         mode: "connector_sources",
         connection_ids: ["conn-confluence-1"],
@@ -1127,7 +1127,7 @@ describe("ChatPage", () => {
       expect(vi.mocked(queryChat)).toHaveBeenCalledWith(
         expect.objectContaining({
           question: "Connector only scope",
-          scope_mode: "connectors",
+          scope_mode: "all",
           source_scope: {
             mode: "connector_sources",
             connection_ids: ["conn-confluence-1"],

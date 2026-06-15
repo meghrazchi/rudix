@@ -1717,6 +1717,9 @@ export function ChatPage() {
       }
     }
 
+    const backendScopeMode: ChatQueryRequest["scope_mode"] =
+      scopeMode === "connectors" ? "all" : scopeMode;
+
     const chatPayload = {
       question: trimmedQuestion,
       chat_session_id: targetSessionId,
@@ -1726,7 +1729,7 @@ export function ChatPage() {
           : undefined,
       top_k: topK,
       rerank,
-      scope_mode: scopeMode,
+      scope_mode: backendScopeMode,
       source_scope: buildSourceScopePayload() ?? undefined,
       answer_language: answerLanguage !== "auto" ? answerLanguage : undefined,
       _scopeLabel: currentScopeLabel,
