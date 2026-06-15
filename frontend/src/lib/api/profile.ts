@@ -20,6 +20,8 @@ export type ProfileCapabilities = {
   preferencesEnabled: boolean;
   signOutAllDevicesEnabled: boolean;
   deleteAccountEnabled: boolean;
+  avatarEnabled: boolean;
+  changePasswordEnabled: boolean;
 };
 
 export class ProfileEndpointUnavailableError extends Error {
@@ -46,6 +48,10 @@ function getProfileEndpoints() {
     deleteAccountUrl: trimToNull(
       process.env.NEXT_PUBLIC_PROFILE_DELETE_ACCOUNT_URL,
     ),
+    avatarUrl: trimToNull(process.env.NEXT_PUBLIC_PROFILE_AVATAR_URL),
+    changePasswordUrl: trimToNull(
+      process.env.NEXT_PUBLIC_SECURITY_CHANGE_PASSWORD_URL,
+    ),
   };
 }
 
@@ -56,6 +62,8 @@ export function getProfileCapabilities(): ProfileCapabilities {
     preferencesEnabled: e.preferencesUrl !== null,
     signOutAllDevicesEnabled: e.signOutAllUrl !== null,
     deleteAccountEnabled: e.deleteAccountUrl !== null,
+    avatarEnabled: e.avatarUrl !== null,
+    changePasswordEnabled: e.changePasswordUrl !== null,
   };
 }
 
@@ -216,4 +224,42 @@ export async function deletePersonalAccount(): Promise<void> {
   if (!deleteAccountUrl)
     throw new ProfileEndpointUnavailableError("deleteAccountEnabled");
   await apiRequest(deleteAccountUrl, { method: "DELETE", retry: false });
+}
+
+export async function uploadAvatar(file: File): Promise<UserProfile> {
+  const { avatarUrl } = getProfileEndpoints();
+  if (!avatarUrl) throw new ProfileEndpointUnavailableError("avatarEnabled");
+  const form = new FormData();
+  form.append("file", file);
+  const payload = await apiRequest<unknown>(avatarUrl, {
+    method: "POST",
+    body: form,
+    retry: false,
+  });
+  return normalizeUserProfile(payload);
+}
+
+export async function removeAvatar(): Promise<void> {
+  const { avatarUrl } = getProfileEndpoints();
+  if (!avatarUrl) throw new ProfileEndpointUnavailableError("avatarEnabled");
+  await apiRequest(avatarUrl, { method: "DELETE", retry: false });
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmNewPassword: string,
+): Promise<void> {
+  const { changePasswordUrl } = getProfileEndpoints();
+  if (!changePasswordUrl)
+    throw new ProfileEndpointUnavailableError("changePasswordEnabled");
+  await apiRequest(changePasswordUrl, {
+    method: "POST",
+    json: {
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_new_password: confirmNewPassword,
+    },
+    retry: false,
+  });
 }

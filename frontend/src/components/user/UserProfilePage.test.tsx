@@ -9,7 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ProfileSettingsTab } from "@/components/settings/ProfileSettingsTab";
+import { UserProfilePage } from "@/components/user/UserProfilePage";
 import type { SessionState } from "@/lib/auth-session";
 import type { SettingsPreferences } from "@/lib/settings-preferences";
 import type { ProfileCapabilities } from "@/lib/api/profile";
@@ -33,9 +33,20 @@ const mockSchemas = vi.hoisted(() => ({
 
 const mockProfileApi = vi.hoisted(() => ({
   capabilities: {
+    meEnabled: false,
+    preferencesEnabled: false,
     signOutAllDevicesEnabled: false,
     deleteAccountEnabled: false,
+    avatarEnabled: false,
+    changePasswordEnabled: false,
   } as ProfileCapabilities,
+  getMe: vi.fn(),
+  updateMe: vi.fn(),
+  uploadAvatar: vi.fn(),
+  removeAvatar: vi.fn(),
+  signOutAllDevices: vi.fn(),
+  deletePersonalAccount: vi.fn(),
+  changePassword: vi.fn(),
 }));
 
 vi.mock("@/lib/use-auth-session", () => ({
@@ -81,12 +92,18 @@ vi.mock("@/lib/schemas/settings", async () => {
 
 vi.mock("@/lib/api/profile", () => ({
   getProfileCapabilities: () => mockProfileApi.capabilities,
-  signOutAllDevices: vi.fn(),
-  deletePersonalAccount: vi.fn(),
+  getMe: () => mockProfileApi.getMe(),
+  updateMe: (...args: unknown[]) => mockProfileApi.updateMe(...args),
+  uploadAvatar: (...args: unknown[]) => mockProfileApi.uploadAvatar(...args),
+  removeAvatar: () => mockProfileApi.removeAvatar(),
+  signOutAllDevices: () => mockProfileApi.signOutAllDevices(),
+  deletePersonalAccount: () => mockProfileApi.deletePersonalAccount(),
+  changePassword: (...args: unknown[]) => mockProfileApi.changePassword(...args),
 }));
 
 const FULL_PREFERENCES: SettingsPreferences = {
   defaultTopK: 5,
+  confidenceThreshold: 70,
   rerankEnabled: true,
   developerMode: false,
   answerDetailLevel: "standard",
@@ -112,12 +129,12 @@ function renderTab() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ProfileSettingsTab />
+      <UserProfilePage />
     </QueryClientProvider>,
   );
 }
 
-describe("ProfileSettingsTab", () => {
+describe("UserProfilePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockState.signOut.mockResolvedValue(undefined);
@@ -126,6 +143,8 @@ describe("ProfileSettingsTab", () => {
       preferencesEnabled: false,
       signOutAllDevicesEnabled: false,
       deleteAccountEnabled: false,
+      avatarEnabled: false,
+      changePasswordEnabled: false,
     };
 
     mockState.authState = {
@@ -158,9 +177,37 @@ describe("ProfileSettingsTab", () => {
       landingPage: "/dashboard",
       keyboardShortcutHints: true,
     });
+
+    mockProfileApi.getMe.mockResolvedValue({
+      id: "user-123",
+      email: "alex.jones@example.com",
+      name: "Alex Jones",
+      avatarUrl: null,
+      createdAt: null,
+    });
+
+    mockProfileApi.updateMe.mockResolvedValue({
+      id: "user-123",
+      email: "alex.jones@example.com",
+      name: "Alex Updated",
+      avatarUrl: null,
+      createdAt: null,
+    });
+
+    mockProfileApi.signOutAllDevices.mockResolvedValue(undefined);
+    mockProfileApi.deletePersonalAccount.mockResolvedValue(undefined);
+    mockProfileApi.changePassword.mockResolvedValue(undefined);
+    mockProfileApi.removeAvatar.mockResolvedValue(undefined);
+    mockProfileApi.uploadAvatar.mockResolvedValue({
+      id: "user-123",
+      email: "alex.jones@example.com",
+      name: "Alex Jones",
+      avatarUrl: "https://example.com/avatar.jpg",
+      createdAt: null,
+    });
   });
 
-  // ── Account Identity ──────────────────────────────────────────────────────
+  // ── Account Identity ──────────────────────────────────────────────────────────
 
   it("renders account identity section with session data", async () => {
     renderTab();
@@ -172,15 +219,15 @@ describe("ProfileSettingsTab", () => {
       screen.getByDisplayValue("alex.jones@example.com"),
     ).toBeInTheDocument();
     expect(screen.getByText("user-123")).toBeInTheDocument();
-    expect(screen.getByText("member")).toBeInTheDocument();
+    expect(screen.getByText("Member")).toBeInTheDocument();
   });
 
-  it("shows initials avatar derived from email", async () => {
+  it("shows initials avatar derived from email when no me API", async () => {
     renderTab();
 
-    const avatar = await screen.findByLabelText("User initials avatar");
+    const avatar = await screen.findByRole("button", { name: "User initials avatar" });
     expect(avatar).toBeInTheDocument();
-    expect(avatar.textContent).toBe("AJ");
+    expect(avatar.textContent).toContain("AJ");
   });
 
   it("shows email input in account identity", async () => {
@@ -214,7 +261,7 @@ describe("ProfileSettingsTab", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy ID" }));
 
     expect(writeText).toHaveBeenCalledWith("user-123");
-    expect(await screen.findByText("Copied!")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
   });
 
   it("shows account identity section when session fields are null", async () => {
@@ -235,6 +282,133 @@ describe("ProfileSettingsTab", () => {
       await screen.findByRole("region", { name: "Account identity section" }),
     ).toBeInTheDocument();
     expect(screen.getAllByDisplayValue("").length).toBeGreaterThan(0);
+  });
+
+  it("shows editable name input when meEnabled capability is on", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      meEnabled: true,
+    };
+
+    renderTab();
+
+    const nameInput = await screen.findByDisplayValue("Alex Jones");
+    expect(nameInput).toBeInTheDocument();
+    expect(nameInput).not.toHaveAttribute("readonly");
+  });
+
+  it("shows read-only name when meEnabled is false", async () => {
+    renderTab();
+
+    await screen.findByRole("region", { name: "Account identity section" });
+    const nameInput = screen.getByDisplayValue("Alex Jones");
+    expect(nameInput).toHaveAttribute("readonly");
+  });
+
+  it("shows change password button when changePasswordEnabled", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      changePasswordEnabled: true,
+    };
+
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", { name: /change password/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows change password unavailable message when not enabled", async () => {
+    renderTab();
+
+    await screen.findByRole("region", { name: "Account identity section" });
+    expect(
+      screen.getByText(/password change is not available/i),
+    ).toBeInTheDocument();
+  });
+
+  it("opens and closes change password dialog", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      changePasswordEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /change password/i }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Change Password" }),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(
+      screen.queryByRole("dialog", { name: "Change Password" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("submits change password form", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      changePasswordEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /change password/i }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Change Password" });
+
+    await userEvent.type(
+      within(dialog).getByLabelText("Current Password"),
+      "OldPass123!",
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText("New Password"),
+      "NewPass456!",
+    );
+    await userEvent.type(
+      within(dialog).getByLabelText("Confirm New Password"),
+      "NewPass456!",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: /change password/i }),
+    );
+
+    await waitFor(() => {
+      expect(mockProfileApi.changePassword).toHaveBeenCalledWith(
+        "OldPass123!",
+        "NewPass456!",
+        "NewPass456!",
+      );
+    });
+  });
+
+  it("shows upload avatar button when avatarEnabled", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      avatarEnabled: true,
+    };
+
+    renderTab();
+
+    expect(
+      await screen.findByRole("button", { name: /upload photo/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows avatar unavailable message when not enabled", async () => {
+    renderTab();
+
+    await screen.findByRole("region", { name: "Account identity section" });
+    expect(
+      screen.getByText(/avatar upload is not configured/i),
+    ).toBeInTheDocument();
   });
 
   // ── Personal Preferences ──────────────────────────────────────────────────
@@ -279,7 +453,6 @@ describe("ProfileSettingsTab", () => {
     await userEvent.click(discardBtn);
 
     expect(mockSchemas.saveProfileUiPreferences).not.toHaveBeenCalled();
-    // After discard, language should be reset to original value
     expect(
       (screen.getByLabelText("Display Language") as HTMLSelectElement).value,
     ).toBe("en");
@@ -296,6 +469,34 @@ describe("ProfileSettingsTab", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Top-K Retrieval")).toBeInTheDocument();
+  });
+
+  it("renders confidence threshold slider", async () => {
+    renderTab();
+
+    expect(
+      await screen.findByLabelText("Confidence Threshold"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows expert mode toggle button", async () => {
+    renderTab();
+
+    expect(
+      await screen.findByRole("switch", { name: /expert mode/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("toggles expert mode on click", async () => {
+    renderTab();
+
+    const expertBtn = await screen.findByRole("switch", {
+      name: /expert mode/i,
+    });
+    expect(expertBtn).toHaveAttribute("aria-checked", "false");
+
+    await userEvent.click(expertBtn);
+    expect(expertBtn).toHaveAttribute("aria-checked", "true");
   });
 
   it("shows loading state while preferences load", () => {
@@ -463,6 +664,8 @@ describe("ProfileSettingsTab", () => {
       preferencesEnabled: false,
       signOutAllDevicesEnabled: true,
       deleteAccountEnabled: false,
+      avatarEnabled: false,
+      changePasswordEnabled: false,
     };
 
     renderTab();
@@ -471,6 +674,45 @@ describe("ProfileSettingsTab", () => {
     expect(
       screen.getByRole("button", { name: "Sign out everywhere" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows confirmation dialog before sign-out-all", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      signOutAllDevicesEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out everywhere" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", { name: "Sign out everywhere?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("calls signOutAllDevices when dialog is confirmed", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      signOutAllDevicesEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out everywhere" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Sign out everywhere?" });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Sign out everywhere" }),
+    );
+
+    await waitFor(() => {
+      expect(mockProfileApi.signOutAllDevices).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("shows unavailable state for delete account when not configured", async () => {
@@ -489,6 +731,8 @@ describe("ProfileSettingsTab", () => {
       preferencesEnabled: false,
       signOutAllDevicesEnabled: false,
       deleteAccountEnabled: true,
+      avatarEnabled: false,
+      changePasswordEnabled: false,
     };
 
     renderTab();
@@ -497,5 +741,85 @@ describe("ProfileSettingsTab", () => {
     expect(
       screen.getByRole("button", { name: "Delete account" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows delete account confirmation dialog with email input", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      deleteAccountEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete account" }),
+    );
+
+    const dialog = screen.getByRole("dialog", {
+      name: "Delete your account?",
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByLabelText(/type your email/i),
+    ).toBeInTheDocument();
+  });
+
+  it("requires correct email before deleting account", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      deleteAccountEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete account" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Delete your account?" });
+
+    // Type wrong email — should not call delete
+    await userEvent.type(
+      within(dialog).getByLabelText(/type your email/i),
+      "wrong@example.com",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: /permanently delete my account/i,
+      }),
+    );
+
+    expect(mockProfileApi.deletePersonalAccount).not.toHaveBeenCalled();
+  });
+
+  it("calls deletePersonalAccount when correct email is typed", async () => {
+    mockProfileApi.capabilities = {
+      ...mockProfileApi.capabilities,
+      deleteAccountEnabled: true,
+    };
+
+    renderTab();
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Delete account" }),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Delete your account?" });
+
+    await userEvent.type(
+      within(dialog).getByLabelText(/type your email/i),
+      "alex.jones@example.com",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: /permanently delete my account/i,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(mockProfileApi.deletePersonalAccount).toHaveBeenCalledTimes(1);
+    });
   });
 });

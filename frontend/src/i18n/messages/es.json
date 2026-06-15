@@ -2084,7 +2084,7 @@
     "description": "Gestiona la configuración de tu cuenta, organización, seguridad y facturación.",
     "rudixSettings": "Configuración de Rudix",
     "tabs": {
-      "profile": "Perfil",
+      "profile": "Perfil de usuario",
       "organization": "Organización",
       "security": "Seguridad",
       "billing": "Facturación"
@@ -2158,7 +2158,30 @@
         "notificationsSection": "Sección notificaciones",
         "accountActionsSection": "Sección acciones de cuenta",
         "userAvatar": "Avatar con iniciales de usuario"
-      }
+      },
+      "changePassword": "Cambiar contraseña",
+      "changePasswordDescription": "Actualice la contraseña de su cuenta.",
+      "changePasswordBtn": "Cambiar contraseña",
+      "changePasswordUnavailable": "El cambio de contraseña no está disponible para su tipo de cuenta.",
+      "currentPassword": "Contraseña actual",
+      "newPassword": "Nueva contraseña",
+      "confirmNewPassword": "Confirmar nueva contraseña",
+      "passwordChanged": "Contraseña cambiada correctamente. Todas las demás sesiones han sido cerradas.",
+      "uploadAvatar": "Subir foto",
+      "removeAvatar": "Eliminar foto",
+      "uploadingAvatar": "Subiendo…",
+      "avatarUnavailable": "La carga de avatar no está configurada.",
+      "confirmSignOutAll": "¿Cerrar sesión en todos los dispositivos?",
+      "confirmSignOutAllBody": "Esto revocará todas las sesiones activas en todos los dispositivos.",
+      "confirmSignOutAllBtn": "Cerrar sesión en todos los dispositivos",
+      "confirmDeleteAccount": "¿Eliminar su cuenta?",
+      "confirmDeleteAccountBody": "Esta acción es permanente y no se puede deshacer. Escriba su correo electrónico para confirmar.",
+      "confirmDeleteAccountEmailLabel": "Escriba su correo electrónico para confirmar",
+      "confirmDeleteAccountBtn": "Eliminar permanentemente mi cuenta",
+      "deleting": "Eliminando…",
+      "signingOutEverywhere": "Cerrando sesión…",
+      "cancel": "Cancelar",
+      "expertModeToggle": "Activar modo experto"
     },
     "organization": {
       "title": "Organización",

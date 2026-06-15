@@ -4,9 +4,11 @@ import type { RefObject } from "react";
 import { LogOut, Settings, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 
 import type { AuthenticatedSession } from "@/lib/auth-session";
 import { isAdminLikeRole } from "@/lib/top-bar";
+import { getMe, getProfileCapabilities } from "@/lib/api/profile";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -67,7 +69,19 @@ export function ProfileMenu({
   const tAuth = useTranslations("auth");
   const getRoleLabel = useRoleLabel();
 
-  const displayName = profileDisplayName(session);
+  const profileCapabilities = getProfileCapabilities();
+  const meQuery = useQuery({
+    queryKey: ["profile", "me"],
+    queryFn: getMe,
+    enabled: profileCapabilities.meEnabled,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const avatarUrl = meQuery.data?.avatarUrl ?? null;
+  const displayName = meQuery.data?.name
+    ? meQuery.data.name
+    : profileDisplayName(session);
   const initials = profileInitials(displayName);
 
   return (
@@ -80,9 +94,18 @@ export function ProfileMenu({
         aria-label={t("profileMenu")}
         className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#ded9ef] bg-white text-[#4a4662] shadow-sm transition hover:border-[#c9c2e3] hover:bg-[#f7f5ff] focus-visible:ring-2 focus-visible:ring-[#3525cd]/40 focus-visible:outline-none"
       >
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f2ff] text-xs font-bold text-[#3525cd]">
-          {initials}
-        </span>
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={displayName}
+            className="h-9 w-9 rounded-full object-cover"
+          />
+        ) : (
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f4f2ff] text-xs font-bold text-[#3525cd]">
+            {initials}
+          </span>
+        )}
       </button>
 
       {isOpen ? (
@@ -94,8 +117,17 @@ export function ProfileMenu({
           {/* Identity header */}
           <div className="bg-[#f7f5ff] px-4 py-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-lg font-bold text-[#3525cd] shadow-sm ring-1 ring-[#e0daf0]">
-                {initials}
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-lg font-bold text-[#3525cd] shadow-sm ring-1 ring-[#e0daf0]">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

@@ -2054,7 +2054,7 @@
     "description": "Gérez les paramètres de votre compte, de votre organisation, de sécurité et de facturation.",
     "rudixSettings": "Paramètres Rudix",
     "tabs": {
-      "profile": "Profil",
+      "profile": "Profil utilisateur",
       "organization": "Organisation",
       "security": "Sécurité",
       "billing": "Facturation"
@@ -2128,7 +2128,30 @@
         "notificationsSection": "Section notifications",
         "accountActionsSection": "Section actions du compte",
         "userAvatar": "Avatar avec initiales de l'utilisateur"
-      }
+      },
+      "changePassword": "Changer le mot de passe",
+      "changePasswordDescription": "Mettez à jour le mot de passe de votre compte.",
+      "changePasswordBtn": "Changer le mot de passe",
+      "changePasswordUnavailable": "Le changement de mot de passe n'est pas disponible pour votre type de compte.",
+      "currentPassword": "Mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "confirmNewPassword": "Confirmer le nouveau mot de passe",
+      "passwordChanged": "Mot de passe modifié avec succès. Toutes les autres sessions ont été déconnectées.",
+      "uploadAvatar": "Télécharger une photo",
+      "removeAvatar": "Supprimer la photo",
+      "uploadingAvatar": "Téléchargement…",
+      "avatarUnavailable": "Le téléchargement d'avatar n'est pas configuré.",
+      "confirmSignOutAll": "Se déconnecter partout ?",
+      "confirmSignOutAllBody": "Cela révoquera toutes les sessions actives sur tous les appareils.",
+      "confirmSignOutAllBtn": "Se déconnecter partout",
+      "confirmDeleteAccount": "Supprimer votre compte ?",
+      "confirmDeleteAccountBody": "Cette action est permanente et irréversible. Tapez votre adresse e-mail pour confirmer.",
+      "confirmDeleteAccountEmailLabel": "Tapez votre adresse e-mail pour confirmer",
+      "confirmDeleteAccountBtn": "Supprimer définitivement mon compte",
+      "deleting": "Suppression…",
+      "signingOutEverywhere": "Déconnexion…",
+      "cancel": "Annuler",
+      "expertModeToggle": "Basculer le mode expert"
     },
     "organization": {
       "title": "Organisation",

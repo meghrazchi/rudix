@@ -12,13 +12,35 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import get_current_principal, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.passwords import (
+    PasswordHashConfig,
+    build_password_hasher,
+    hash_password,
+    verify_password,
+)
+from app.auth.session_repository import AuthSessionRepository
 from app.core.config import settings
 from app.db.session import get_db_session
+from app.domains.admin.services.audit_service import AuditLogService
 from app.models.governance import OrganizationGovernancePolicy
 from app.models.org_sso_config import OrgSSOConfig
 from app.models.usage import AuditLog
+from app.models.user import User
 
 router = APIRouter(prefix="/security", tags=["security"])
+
+_AUDIT = AuditLogService()
+_SESSION_REPO = AuthSessionRepository()
+
+_password_hasher = build_password_hasher(
+    PasswordHashConfig(
+        memory_cost=settings.app_auth_password_hash_memory_cost_kib,
+        time_cost=settings.app_auth_password_hash_time_cost,
+        parallelism=settings.app_auth_password_hash_parallelism,
+        hash_length=settings.app_auth_password_hash_length,
+        salt_length=settings.app_auth_password_salt_length,
+    )
+)
 
 _ADMIN_ROLES = ("owner", "admin")
 
@@ -316,3 +338,83 @@ async def get_audit_events(
     ]
 
     return AuditEventList(items=items, total=total)
+
+
+# ── POST /security/change-password ───────────────────────────────────────────
+
+
+class ChangePasswordBody(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_new_password: str
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    body: ChangePasswordBody,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> None:
+    if principal.auth_provider != "app":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password change is not available for externally managed accounts.",
+        )
+
+    if body.new_password != body.confirm_new_password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password and confirmation do not match.",
+        )
+    if len(body.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password must be at least 8 characters.",
+        )
+    if len(body.new_password) > 128:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="New password must not exceed 128 characters.",
+        )
+
+    user_uuid = UUID(principal.user_id)
+    row = await db.execute(select(User).where(User.id == user_uuid))
+    user = row.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    if not user.hashed_password or user.password_state == "unset":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password change is not available for your account type.",
+        )
+
+    if not verify_password(body.current_password, user.hashed_password, _password_hasher):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect.",
+        )
+
+    user.hashed_password = hash_password(body.new_password, _password_hasher)
+    user.password_state = "active"
+    user.password_changed_at = datetime.now(UTC)
+
+    # Revoke all refresh sessions so all other devices must re-authenticate.
+    await _SESSION_REPO.mark_user_sessions_revoked(
+        db,
+        user_id=user_uuid,
+        revoked_at=datetime.now(UTC),
+        reason="password_changed",
+    )
+
+    await db.commit()
+
+    if principal.organization_id:
+        await _AUDIT.record(
+            db,
+            organization_id=UUID(principal.organization_id),
+            user_id=user_uuid,
+            action="user.password.changed",
+            resource_type="user",
+            resource_id=principal.user_id,
+        )

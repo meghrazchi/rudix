@@ -2084,7 +2084,7 @@
     "description": "Manage your account, organization, security, and billing settings.",
     "rudixSettings": "Rudix Settings",
     "tabs": {
-      "profile": "Profile",
+      "profile": "User Profile",
       "organization": "Organization",
       "security": "Security",
       "billing": "Billing"
@@ -2158,7 +2158,30 @@
         "notificationsSection": "Notifications section",
         "accountActionsSection": "Account actions section",
         "userAvatar": "User initials avatar"
-      }
+      },
+      "changePassword": "Change Password",
+      "changePasswordDescription": "Update your account password.",
+      "changePasswordBtn": "Change password",
+      "changePasswordUnavailable": "Password change is not available for your account type.",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmNewPassword": "Confirm New Password",
+      "passwordChanged": "Password changed successfully. All other sessions have been signed out.",
+      "uploadAvatar": "Upload photo",
+      "removeAvatar": "Remove photo",
+      "uploadingAvatar": "Uploading…",
+      "avatarUnavailable": "Avatar upload is not configured.",
+      "confirmSignOutAll": "Sign out everywhere?",
+      "confirmSignOutAllBody": "This will revoke all active sessions on all devices. You will remain signed in on this device until this session expires.",
+      "confirmSignOutAllBtn": "Sign out everywhere",
+      "confirmDeleteAccount": "Delete your account?",
+      "confirmDeleteAccountBody": "This action is permanent and cannot be undone. Type your email address to confirm.",
+      "confirmDeleteAccountEmailLabel": "Type your email to confirm",
+      "confirmDeleteAccountBtn": "Permanently delete my account",
+      "deleting": "Deleting…",
+      "signingOutEverywhere": "Signing out…",
+      "cancel": "Cancel",
+      "expertModeToggle": "Toggle expert mode"
     },
     "organization": {
       "title": "Organization",

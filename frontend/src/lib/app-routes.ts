@@ -15,7 +15,8 @@ export type AppRouteKey =
   | "pipeline"
   | "connectors"
   | "settings"
-  | "admin";
+  | "admin"
+  | "user-profile";
 
 export type AppRouteMeta = {
   key: AppRouteKey;
@@ -25,6 +26,7 @@ export type AppRouteMeta = {
   matchPrefixes: string[];
   requiresOrganization: boolean;
   allowedRoles: AppRole[];
+  hideInNav?: boolean;
 };
 
 export type RouteAccessReason =
@@ -120,6 +122,16 @@ export const APP_ROUTES: AppRouteMeta[] = [
     allowedRoles: ["owner", "admin", "member", "viewer"],
   },
   {
+    key: "user-profile",
+    href: "/user/profile",
+    label: "User Profile",
+    description: "Account identity, avatar, preferences, and account actions",
+    matchPrefixes: ["/user"],
+    requiresOrganization: false,
+    allowedRoles: ["owner", "admin", "member", "viewer"],
+    hideInNav: true,
+  },
+  {
     key: "settings",
     href: "/settings",
     label: "Settings",
@@ -127,6 +139,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/settings"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    hideInNav: true,
   },
   {
     key: "admin",
@@ -136,6 +149,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/admin"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin"],
+    hideInNav: true,
   },
 ];
 
@@ -206,7 +220,7 @@ export function buildNavigationItems(
           normalizedPathname === prefix ||
           normalizedPathname.startsWith(`${prefix}/`),
       ),
-      hidden: isMissingOrganization,
+      hidden: isMissingOrganization || (route.hideInNav ?? false),
       disabled: !access.allowed && !isMissingOrganization,
       disabledReason:
         access.allowed || isMissingOrganization ? null : access.reason,

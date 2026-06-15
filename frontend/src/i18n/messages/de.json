@@ -2054,7 +2054,7 @@
     "description": "Konto, Organisation, Sicherheit und Abrechnung verwalten.",
     "rudixSettings": "Rudix-Einstellungen",
     "tabs": {
-      "profile": "Profil",
+      "profile": "Benutzerprofil",
       "organization": "Organisation",
       "security": "Sicherheit",
       "billing": "Abrechnung"
@@ -2128,7 +2128,30 @@
         "notificationsSection": "Bereich Benachrichtigungen",
         "accountActionsSection": "Bereich Kontoaktionen",
         "userAvatar": "Benutzer-Initialen-Avatar"
-      }
+      },
+      "changePassword": "Passwort ändern",
+      "changePasswordDescription": "Aktualisieren Sie Ihr Kontokennwort.",
+      "changePasswordBtn": "Passwort ändern",
+      "changePasswordUnavailable": "Passwortänderung ist für Ihren Kontotyp nicht verfügbar.",
+      "currentPassword": "Aktuelles Passwort",
+      "newPassword": "Neues Passwort",
+      "confirmNewPassword": "Neues Passwort bestätigen",
+      "passwordChanged": "Passwort erfolgreich geändert. Alle anderen Sitzungen wurden abgemeldet.",
+      "uploadAvatar": "Foto hochladen",
+      "removeAvatar": "Foto entfernen",
+      "uploadingAvatar": "Wird hochgeladen…",
+      "avatarUnavailable": "Avatar-Upload ist nicht konfiguriert.",
+      "confirmSignOutAll": "Überall abmelden?",
+      "confirmSignOutAllBody": "Dadurch werden alle aktiven Sitzungen auf allen Geräten widerrufen.",
+      "confirmSignOutAllBtn": "Überall abmelden",
+      "confirmDeleteAccount": "Ihr Konto löschen?",
+      "confirmDeleteAccountBody": "Diese Aktion ist dauerhaft und kann nicht rückgängig gemacht werden. Geben Sie Ihre E-Mail-Adresse zur Bestätigung ein.",
+      "confirmDeleteAccountEmailLabel": "E-Mail-Adresse zur Bestätigung eingeben",
+      "confirmDeleteAccountBtn": "Mein Konto dauerhaft löschen",
+      "deleting": "Wird gelöscht…",
+      "signingOutEverywhere": "Wird abgemeldet…",
+      "cancel": "Abbrechen",
+      "expertModeToggle": "Expertenmodus umschalten"
     },
     "organization": {
       "title": "Organisation",

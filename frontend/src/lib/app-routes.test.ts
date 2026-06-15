@@ -143,7 +143,7 @@ describe("permission-aware navigation", () => {
     const adminItem = nav.find((item) => item.key === "admin");
     expect(adminItem).toBeDefined();
     expect(adminItem?.disabled).toBe(true);
-    expect(adminItem?.hidden).toBe(false);
+    expect(adminItem?.hidden).toBe(true);
   });
 
   it("allows admin nav item for admin role", () => {
@@ -158,7 +158,7 @@ describe("permission-aware navigation", () => {
     const adminItem = nav.find((item) => item.key === "admin");
     expect(adminItem).toBeDefined();
     expect(adminItem?.disabled).toBe(false);
-    expect(adminItem?.hidden).toBe(false);
+    expect(adminItem?.hidden).toBe(true);
   });
 
   it("routes authenticated navigation target to onboarding when organization is missing", () => {

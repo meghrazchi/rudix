@@ -46,6 +46,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=True,
     )
 
+    avatar_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    preferences_json: Mapped[str | None] = mapped_column(String(16384), nullable=True)
+
     # SCIM / lifecycle fields
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # 'manual' | 'sso' | 'scim'

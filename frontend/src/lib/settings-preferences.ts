@@ -75,6 +75,13 @@ export const settingsTopKBounds = {
   defaultValue: TOP_K_DEFAULT,
 } as const;
 
+export const settingsConfidenceBounds = {
+  min: 0,
+  max: 100,
+  defaultValue: 70,
+  highTrustThreshold: 80,
+} as const;
+
 export const ANSWER_DETAIL_LEVELS = ["brief", "standard", "detailed"] as const;
 export type AnswerDetailLevel = (typeof ANSWER_DETAIL_LEVELS)[number];
 
@@ -84,6 +91,11 @@ export const settingsPreferencesSchema = z.object({
     .int("Default top-k must be a whole number.")
     .min(TOP_K_MIN, `Default top-k must be at least ${TOP_K_MIN}.`)
     .max(TOP_K_MAX, `Default top-k must be at most ${TOP_K_MAX}.`),
+  confidenceThreshold: z
+    .number()
+    .int("Confidence threshold must be a whole number.")
+    .min(0, "Confidence threshold must be at least 0.")
+    .max(100, "Confidence threshold must be at most 100."),
   rerankEnabled: z.boolean(),
   developerMode: z.boolean(),
   answerDetailLevel: z.enum(ANSWER_DETAIL_LEVELS),
@@ -110,6 +122,8 @@ type SettingsPreferencesPayload = {
   default_top_k?: number;
   defaultTopK?: number;
   top_k?: number;
+  confidence_threshold?: number;
+  confidenceThreshold?: number;
   rerank_enabled?: boolean;
   rerankEnabled?: boolean;
   developer_mode?: boolean;
@@ -159,6 +173,7 @@ export function createDefaultSettingsPreferences(): SettingsPreferences {
 
   return {
     defaultTopK: TOP_K_DEFAULT,
+    confidenceThreshold: settingsConfidenceBounds.defaultValue,
     rerankEnabled: true,
     developerMode: runtimeConfig.features.developerMode,
     answerDetailLevel: "standard",
@@ -220,6 +235,10 @@ function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
       candidate.default_top_k ?? candidate.defaultTopK ?? candidate.top_k,
       defaults.defaultTopK,
     ),
+    confidenceThreshold: sanitizeNumber(
+      candidate.confidence_threshold ?? candidate.confidenceThreshold,
+      defaults.confidenceThreshold,
+    ),
     rerankEnabled: sanitizeBoolean(
       candidate.rerank_enabled ?? candidate.rerankEnabled,
       defaults.rerankEnabled,
@@ -275,6 +294,7 @@ function normalizePayloadToPreferences(payload: unknown): SettingsPreferences {
 function toPayload(preferences: SettingsPreferences): Record<string, unknown> {
   return {
     default_top_k: preferences.defaultTopK,
+    confidence_threshold: preferences.confidenceThreshold,
     rerank_enabled: preferences.rerankEnabled,
     developer_mode: preferences.developerMode,
     answer_detail_level: preferences.answerDetailLevel,
