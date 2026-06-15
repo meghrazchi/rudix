@@ -80,6 +80,11 @@ from app.domains.chat.schemas.share import (
 )
 from app.domains.chat.services.citation_service import CitationContextChunk, CitationService
 from app.domains.chat.services.confidence_service import ConfidenceChunkSignal, ConfidenceService
+from app.domains.chat.services.grounded_answer_verifier import (
+    GroundedAnswerVerifier,
+    GroundedVerifierResult,
+    VerifierChunk,
+)
 from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalResult,
     GraphRetrievalService,
@@ -147,6 +152,7 @@ _feature_flag_service = FeatureFlagService()
 _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
+_grounded_verifier = GroundedAnswerVerifier()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
 
@@ -1018,6 +1024,8 @@ async def query_chat(
     citations: list[ChatCitationResponse] = []
     not_found = injection_check.blocked
     citation_validation_failed = False
+    verification_failed = False
+    grounded_verifier_result: GroundedVerifierResult | None = None
     graph_context_result = GraphRetrievalResult()
     rerank_result: RerankResult | None = None
     query_rewrite_result: QueryRewritingResult | None = None
@@ -1430,6 +1438,70 @@ async def query_chat(
                         invalid_chunk_id_count=citation_result.invalid_chunk_id_count,
                     )
 
+                # Grounded-answer verification (F296).
+                # Verifies that each factual claim in the answer is supported by the
+                # retrieved chunks. In strict mode a fully unsupported answer becomes
+                # not_found. Raw chunk text is never stored in the verifier result.
+                if settings.feature_enable_grounded_answer_verification:
+                    _gv_enabled = True
+                    _gv_mode: str = "standard"
+                    _gv_threshold: float = 0.7
+                    if rag_profile is not None:
+                        _gv_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                        _gv_enabled = _gv_cfg.grounded_answer_verification_enabled
+                        _gv_mode = _gv_cfg.grounded_answer_verification_mode
+                        _gv_threshold = _gv_cfg.grounded_answer_verification_threshold
+                    if _gv_enabled:
+                        _gv_started = perf_counter()
+                        grounded_verifier_result = await _grounded_verifier.verify(
+                            answer=answer,
+                            chunks=[
+                                VerifierChunk(
+                                    chunk_id=str(chunk.chunk_id),
+                                    text=chunk.text,
+                                    similarity_score=chunk.similarity_score,
+                                )
+                                for chunk in selected_chunks
+                            ],
+                            mode=_gv_mode,
+                            threshold=_gv_threshold,
+                        )
+                        latencies_ms["grounded_verification"] = int(
+                            (perf_counter() - _gv_started) * 1000
+                        )
+                        if grounded_verifier_result.applied:
+                            answer = grounded_verifier_result.final_answer
+                            if not answer.strip():
+                                not_found = True
+                                verification_failed = True
+                            elif grounded_verifier_result.verdict in (
+                                "partially_supported",
+                                "unsupported",
+                            ):
+                                verification_failed = True
+                            log_query_event(
+                                event="query.grounded_verification.completed",
+                                organization_id=principal.organization_id,
+                                user_id=principal.user_id,
+                                job_id=str(chat_session.id),
+                                verdict=grounded_verifier_result.verdict,
+                                verification_score=grounded_verifier_result.verification_score,
+                                claim_count=grounded_verifier_result.claim_count,
+                                unsupported_count=grounded_verifier_result.unsupported_claim_count,
+                                removed_count=len(grounded_verifier_result.removed_claims),
+                                latency_ms=grounded_verifier_result.latency_ms,
+                            )
+                            if verification_failed:
+                                log_query_event(
+                                    event="query.grounded_verification.failed",
+                                    organization_id=principal.organization_id,
+                                    user_id=principal.user_id,
+                                    job_id=str(chat_session.id),
+                                    verdict=grounded_verifier_result.verdict,
+                                    removed_count=len(grounded_verifier_result.removed_claims),
+                                    reason_codes=grounded_verifier_result.reason_codes,
+                                )
+
             if not_found:
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
@@ -1697,6 +1769,7 @@ async def query_chat(
         not_found=not_found,
         citations=[] if not_found else citations,
         citation_validation_failed=citation_validation_failed,
+        verification_failed=verification_failed,
         debug=ChatDebugResponse(
             latencies_ms=latencies_ms,
             retrieval_count=len(retrieved_chunks),
@@ -1768,6 +1841,37 @@ async def query_chat(
             else None,
             query_rewriting_latency_ms=query_rewrite_result.latency_ms
             if query_rewrite_result is not None
+            else 0,
+            grounded_verification_enabled=settings.feature_enable_grounded_answer_verification,
+            grounded_verification_applied=grounded_verifier_result.applied
+            if grounded_verifier_result is not None
+            else False,
+            grounded_verification_verdict=grounded_verifier_result.verdict
+            if grounded_verifier_result is not None and grounded_verifier_result.applied
+            else None,
+            grounded_verification_score=grounded_verifier_result.verification_score
+            if grounded_verifier_result is not None and grounded_verifier_result.applied
+            else None,
+            grounded_verification_claim_count=grounded_verifier_result.claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_supported_count=grounded_verifier_result.supported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_unsupported_count=grounded_verifier_result.unsupported_claim_count
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_removed_count=len(grounded_verifier_result.removed_claims)
+            if grounded_verifier_result is not None
+            else 0,
+            grounded_verification_reason_codes=list(grounded_verifier_result.reason_codes)
+            if grounded_verifier_result is not None
+            else [],
+            grounded_verification_model=grounded_verifier_result.model_name
+            if grounded_verifier_result is not None and grounded_verifier_result.applied
+            else None,
+            grounded_verification_latency_ms=grounded_verifier_result.latency_ms
+            if grounded_verifier_result is not None
             else 0,
         ),
         created_at=assistant_message.created_at,

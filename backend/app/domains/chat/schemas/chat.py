@@ -254,6 +254,17 @@ class ChatDebugResponse(BaseModel):
     sub_queries: list[str] = Field(default_factory=list)
     query_rewriting_strategy: str | None = None
     query_rewriting_latency_ms: int = 0
+    grounded_verification_enabled: bool = False
+    grounded_verification_applied: bool = False
+    grounded_verification_verdict: str | None = None
+    grounded_verification_score: float | None = None
+    grounded_verification_claim_count: int = 0
+    grounded_verification_supported_count: int = 0
+    grounded_verification_unsupported_count: int = 0
+    grounded_verification_removed_count: int = 0
+    grounded_verification_reason_codes: list[str] = Field(default_factory=list)
+    grounded_verification_model: str | None = None
+    grounded_verification_latency_ms: int = 0
 
 
 class ChatConfidenceExplanationResponse(BaseModel):
@@ -283,5 +294,6 @@ class ChatQueryResponse(BaseModel):
     not_found: bool
     citations: list[ChatCitationResponse] = Field(default_factory=list)
     citation_validation_failed: bool = False
+    verification_failed: bool = False
     debug: ChatDebugResponse
     created_at: datetime

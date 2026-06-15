@@ -43,6 +43,14 @@ class RagProfileConfig(BaseModel):
     query_rewriting_enabled: bool = Field(default=True)
     query_decomposition_enabled: bool = Field(default=True)
     query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
+    # Grounded-answer verification (F296).
+    # grounded_answer_verification_enabled: run LLM verifier after generation to check claim support.
+    # grounded_answer_verification_mode: "strict" refuses the whole answer when unsupported;
+    #   "standard" only removes individual unsupported claims.
+    # grounded_answer_verification_threshold: minimum verification_score to consider answer supported.
+    grounded_answer_verification_enabled: bool = Field(default=False)
+    grounded_answer_verification_mode: Literal["strict", "standard"] = Field(default="standard")
+    grounded_answer_verification_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
 
     @field_validator("rerank_model")
     @classmethod

@@ -550,6 +550,12 @@ class Settings(BaseSettings):
     feature_enable_query_rewriting: bool = False
     query_rewriting_timeout_seconds: float = Field(default=5.0, ge=0.5, le=30.0)
     query_rewriting_max_sub_queries: int = Field(default=4, ge=1, le=8)
+    # Grounded-answer verifier (F296): checks that generated answers are supported
+    # by retrieved source chunks. Unsupported claims are removed (standard mode)
+    # or the answer is refused (strict mode). Adds one LLM call after generation.
+    # Keep grounded_verification_timeout_seconds well below the overall request timeout.
+    feature_enable_grounded_answer_verification: bool = False
+    grounded_verification_timeout_seconds: float = Field(default=12.0, ge=0.5, le=60.0)
     feature_enable_graph_rag: bool = False
     # graph_extraction gates the entity/relation extraction pipeline per org.
     # graph_explorer gates the read-only graph explorer UI per org.
@@ -1412,6 +1418,7 @@ class Settings(BaseSettings):
                 "adaptive_chunking": self.feature_enable_adaptive_chunking,
                 "hybrid_retrieval": self.feature_enable_hybrid_retrieval,
                 "query_rewriting": self.feature_enable_query_rewriting,
+                "grounded_answer_verification": self.feature_enable_grounded_answer_verification,
                 "graph_rag": self.feature_enable_graph_rag,
                 "entity_extraction": self.feature_enable_entity_extraction,
                 "entity_resolution": self.feature_enable_entity_resolution,
