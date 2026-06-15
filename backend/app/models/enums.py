@@ -51,6 +51,16 @@ class DocumentIngestionSource(StrEnum):
     connector = "connector"
 
 
+class DocumentTrustStatus(StrEnum):
+    draft = "draft"
+    current = "current"
+    verified = "verified"
+    stale = "stale"
+    deprecated = "deprecated"
+    superseded = "superseded"
+    expired = "expired"
+
+
 class ConnectorAuthType(StrEnum):
     none = "none"
     oauth2 = "oauth2"

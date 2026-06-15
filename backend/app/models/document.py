@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     JSON,
     CheckConstraint,
     Computed,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -21,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import DocumentIngestionSource, DocumentStatus, GraphExtractionStatus
+from app.models.enums import DocumentIngestionSource, DocumentStatus, DocumentTrustStatus, GraphExtractionStatus
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -44,6 +45,10 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="documents_ingestion_source_allowed",
         ),
         CheckConstraint(
+            "trust_status IN ('draft', 'current', 'verified', 'stale', 'deprecated', 'superseded', 'expired')",
+            name="documents_trust_status_allowed",
+        ),
+        CheckConstraint(
             "language_source IS NULL OR language_source IN ('upload_provided', 'auto_detected', 'admin_override')",
             name="documents_language_source_allowed",
         ),
@@ -56,6 +61,8 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("idx_documents_org_status", "organization_id", "status"),
         Index("idx_documents_uploaded_by", "uploaded_by_user_id"),
         Index("idx_documents_connector_external_item", "connector_external_item_id"),
+        Index("idx_documents_org_trust_status", "organization_id", "trust_status"),
+        Index("idx_documents_org_review_date", "organization_id", "review_date"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -132,6 +139,34 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("external_items.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Source freshness and trust (F297).
+    # trust_status: lifecycle classification used by the retrieval pipeline to boost/exclude docs.
+    # version_label: human-readable version string (e.g. "v2.1", "2024-Q3").
+    # superseded_by_document_id: points to the newer document when status='superseded'.
+    # review_date: next scheduled review; docs past this date may auto-transition to 'stale'.
+    # effective_date: when this document became the authoritative version.
+    # trusted_at / trusted_by_id: audit trail for 'verified' transitions.
+    # stale_after_days: per-document override for the stale threshold.
+    trust_status: Mapped[str] = mapped_column(
+        String(32),
+        default=DocumentTrustStatus.current.value,
+        nullable=False,
+    )
+    version_label: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    superseded_by_document_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    trusted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trusted_by_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    stale_after_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
     uploader = relationship("User", back_populates="documents")

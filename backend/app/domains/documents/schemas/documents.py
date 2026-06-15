@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, DocumentTrustStatus
 
 AllowedFileType = Literal["pdf", "txt", "docx"]
 
@@ -227,6 +227,9 @@ class DocumentListItemResponse(BaseModel):
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
     collections: list[DocumentCollectionSummary] = Field(default_factory=list)
+    trust_status: DocumentTrustStatus = DocumentTrustStatus.current
+    version_label: str | None = None
+    review_date: date | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -323,6 +326,14 @@ class DocumentDetailResponse(BaseModel):
     embedding_vector_dimension: int | None = None
     chunking_diagnostics: DocumentChunkingDiagnosticsResponse | None = None
     lifecycle_timeline: list[DocumentLifecycleTimelineStepResponse] = Field(default_factory=list)
+    # Source freshness and trust fields (F297).
+    trust_status: DocumentTrustStatus = DocumentTrustStatus.current
+    version_label: str | None = None
+    superseded_by_document_id: str | None = None
+    review_date: date | None = None
+    effective_date: date | None = None
+    trusted_at: datetime | None = None
+    stale_after_days: int | None = None
     created_at: datetime
     updated_at: datetime
 

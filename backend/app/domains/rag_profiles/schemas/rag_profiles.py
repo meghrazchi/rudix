@@ -51,6 +51,13 @@ class RagProfileConfig(BaseModel):
     grounded_answer_verification_enabled: bool = Field(default=False)
     grounded_answer_verification_mode: Literal["strict", "standard"] = Field(default="standard")
     grounded_answer_verification_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    # Source freshness and trust-status scoring (F297).
+    # freshness_boost_enabled: apply per-status score multipliers during retrieval.
+    # exclude_deprecated_docs: drop deprecated/superseded/expired docs from results by default.
+    # stale_threshold_days: org-level override for how many days without review before a doc is stale.
+    freshness_boost_enabled: bool = Field(default=True)
+    exclude_deprecated_docs: bool = Field(default=True)
+    stale_threshold_days: int | None = Field(default=None, ge=1, le=3650)
 
     @field_validator("rerank_model")
     @classmethod

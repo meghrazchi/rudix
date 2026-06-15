@@ -90,6 +90,10 @@ from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalService,
     GraphRetrievedChunk,
 )
+from app.domains.chat.services.source_freshness_service import (
+    DocumentTrustData,
+    SourceFreshnessService,
+)
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
     HybridRetrievalService,
@@ -115,6 +119,7 @@ from app.domains.chat.services.rerank_service import (
 )
 from app.domains.chat.services.source_scope_service import SourceScopeService
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
+from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
@@ -153,6 +158,8 @@ _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
+_source_freshness_service = SourceFreshnessService()
+_document_repository_for_trust = _DocumentRepository()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
 
 
@@ -327,6 +334,47 @@ def _with_original_ranks(chunks: list[RetrievedChunk]) -> list[RetrievedChunk]:
             )
         )
     return ranked_chunks
+
+
+def _with_freshness(
+    citation: ChatCitationResponse,
+    trust_map: dict[str, DocumentTrustData],
+    stale_document_ids: frozenset[str],
+) -> ChatCitationResponse:
+    """Annotate a citation with document trust/freshness metadata."""
+    trust = trust_map.get(citation.document_id)
+    if trust is None:
+        return citation
+    return ChatCitationResponse(
+        document_id=citation.document_id,
+        chunk_id=citation.chunk_id,
+        filename=citation.filename,
+        page_number=citation.page_number,
+        score=citation.score,
+        similarity_score=citation.similarity_score,
+        original_rank=citation.original_rank,
+        rerank_score=citation.rerank_score,
+        rerank_rank=citation.rerank_rank,
+        final_rank=citation.final_rank,
+        text_snippet=citation.text_snippet,
+        start_offset=citation.start_offset,
+        end_offset=citation.end_offset,
+        source_provider=citation.source_provider,
+        source_provider_label=citation.source_provider_label,
+        source_title=citation.source_title,
+        source_key=citation.source_key,
+        source_section=citation.source_section,
+        source_deep_link=citation.source_deep_link,
+        source_last_synced_at=citation.source_last_synced_at,
+        source_trust_status=citation.source_trust_status,
+        source_acl_snapshot=citation.source_acl_snapshot,
+        doc_trust_status=trust.trust_status,
+        doc_version_label=trust.version_label,
+        doc_review_date=trust.review_date,
+        doc_effective_date=trust.effective_date,
+        doc_stale_warning=citation.document_id in stale_document_ids,
+        doc_is_excluded_status=trust.trust_status in {"deprecated", "superseded", "expired"},
+    )
 
 
 def _with_provenance(
@@ -1029,6 +1077,12 @@ async def query_chat(
     graph_context_result = GraphRetrievalResult()
     rerank_result: RerankResult | None = None
     query_rewrite_result: QueryRewritingResult | None = None
+    _freshness_trust_map: dict[str, DocumentTrustData] = {}
+    _freshness_stale_ids: frozenset[str] = frozenset()
+    freshness_filter_enabled = False
+    freshness_excluded_count = 0
+    freshness_boosted_count = 0
+    freshness_stale_count = 0
 
     # Resolve the effective model profile for this organisation (F223).
     chat_profile = await resolve_task_profile(
@@ -1269,6 +1323,80 @@ async def query_chat(
                 graph_enabled=graph_enabled,
             )
             retrieved_chunks = _with_original_ranks(retrieved_chunks)
+
+            # Source freshness filtering and trust-score boosting (F297).
+            # Resolve freshness settings from RAG profile; defaults are safe (boost on, exclude on).
+            _freshness_boost_enabled = True
+            _freshness_exclude_deprecated = True
+            _freshness_stale_threshold_days: int | None = None
+            if rag_profile is not None:
+                _fp_cfg = RagProfileConfig.model_validate(dict(rag_profile.config))
+                _freshness_boost_enabled = _fp_cfg.freshness_boost_enabled
+                _freshness_exclude_deprecated = _fp_cfg.exclude_deprecated_docs
+                _freshness_stale_threshold_days = _fp_cfg.stale_threshold_days
+
+            freshness_filter_enabled = _freshness_boost_enabled or _freshness_exclude_deprecated
+            if freshness_filter_enabled and retrieved_chunks:
+                _unique_doc_ids = list(
+                    {chunk.document_id for chunk in retrieved_chunks}
+                )
+                _trust_docs = await _document_repository_for_trust.get_documents_by_ids_for_trust(
+                    db_session,
+                    document_ids=_unique_doc_ids,
+                    organization_id=organization_id,
+                )
+                _freshness_trust_map = _source_freshness_service.build_trust_map(_trust_docs)
+
+                if _freshness_exclude_deprecated:
+                    _filter_result = _source_freshness_service.filter_excluded(
+                        chunk_document_ids=[str(c.document_id) for c in retrieved_chunks],
+                        trust_map=_freshness_trust_map,
+                        exclude_deprecated=True,
+                        org_stale_threshold_days=_freshness_stale_threshold_days,
+                    )
+                    freshness_excluded_count = _filter_result.excluded_count
+                    _freshness_stale_ids = _filter_result.stale_document_ids
+                    freshness_stale_count = len(_freshness_stale_ids)
+                    if _filter_result.excluded_document_ids:
+                        retrieved_chunks = [
+                            c for c in retrieved_chunks
+                            if str(c.document_id) not in _filter_result.excluded_document_ids
+                        ]
+
+                if _freshness_boost_enabled and _freshness_trust_map:
+                    adjusted: list[RetrievedChunk] = []
+                    for _chunk in retrieved_chunks:
+                        _new_score = _source_freshness_service.apply_trust_score_multiplier(
+                            score=_chunk.similarity_score,
+                            document_id=str(_chunk.document_id),
+                            trust_map=_freshness_trust_map,
+                            org_stale_threshold_days=_freshness_stale_threshold_days,
+                        )
+                        if _new_score != _chunk.similarity_score:
+                            freshness_boosted_count += 1
+                        adjusted.append(
+                            RetrievedChunk(
+                                document_id=_chunk.document_id,
+                                chunk_id=_chunk.chunk_id,
+                                filename=_chunk.filename,
+                                page_number=_chunk.page_number,
+                                text=_chunk.text,
+                                similarity_score=_new_score,
+                                original_rank=_chunk.original_rank,
+                                rerank_score=_chunk.rerank_score,
+                                rerank_rank=_chunk.rerank_rank,
+                                final_rank=_chunk.final_rank,
+                                retrieval_source=_chunk.retrieval_source,
+                                graph_score=_chunk.graph_score,
+                                graph_hops=_chunk.graph_hops,
+                                keyword_score=_chunk.keyword_score,
+                                hybrid_score=_chunk.hybrid_score,
+                            )
+                        )
+                    retrieved_chunks = sorted(
+                        adjusted, key=lambda c: c.similarity_score, reverse=True
+                    )
+
         except Exception as exc:
             log_query_event(
                 event="query.failed.retrieve",
@@ -1403,7 +1531,14 @@ async def query_chat(
                     chunk_ids=[UUID(citation.chunk_id) for citation in citation_result.citations],
                 )
                 citations = [
-                    _with_provenance(citation, provenance_by_chunk_id.get(UUID(citation.chunk_id)))
+                    _with_freshness(
+                        _with_provenance(
+                            citation,
+                            provenance_by_chunk_id.get(UUID(citation.chunk_id)),
+                        ),
+                        _freshness_trust_map,
+                        _freshness_stale_ids,
+                    )
                     for citation in citation_result.citations
                 ]
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
@@ -1873,6 +2008,10 @@ async def query_chat(
             grounded_verification_latency_ms=grounded_verifier_result.latency_ms
             if grounded_verifier_result is not None
             else 0,
+            freshness_filter_enabled=freshness_filter_enabled,
+            freshness_excluded_count=freshness_excluded_count,
+            freshness_boosted_count=freshness_boosted_count,
+            freshness_stale_count=freshness_stale_count,
         ),
         created_at=assistant_message.created_at,
     )

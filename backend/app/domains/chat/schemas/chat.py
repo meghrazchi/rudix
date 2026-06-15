@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -202,6 +202,13 @@ class ChatCitationResponse(BaseModel):
         | None
     ) = None
     source_acl_snapshot: dict[str, Any] = Field(default_factory=dict)
+    # Source freshness fields (F297): populated from document trust metadata.
+    doc_trust_status: str | None = None
+    doc_version_label: str | None = None
+    doc_review_date: date | None = None
+    doc_effective_date: date | None = None
+    doc_stale_warning: bool = False
+    doc_is_excluded_status: bool = False
 
 
 class ChatDebugResponse(BaseModel):
@@ -265,6 +272,10 @@ class ChatDebugResponse(BaseModel):
     grounded_verification_reason_codes: list[str] = Field(default_factory=list)
     grounded_verification_model: str | None = None
     grounded_verification_latency_ms: int = 0
+    freshness_filter_enabled: bool = False
+    freshness_excluded_count: int = 0
+    freshness_boosted_count: int = 0
+    freshness_stale_count: int = 0
 
 
 class ChatConfidenceExplanationResponse(BaseModel):

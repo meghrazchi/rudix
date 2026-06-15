@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, or_, select
@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentChunk, DocumentPage
-from app.models.enums import DocumentStatus
+from app.models.enums import DocumentStatus, DocumentTrustStatus
 
 
 class DocumentRepository:
@@ -520,6 +520,61 @@ class DocumentRepository:
             .offset(offset)
         )
         return list(items_result.scalars().all()), total
+
+    async def update_document_trust_status(
+        self,
+        session: AsyncSession,
+        *,
+        document_id: UUID,
+        trust_status: str,
+        version_label: str | None = None,
+        review_date: date | None = None,
+        effective_date: date | None = None,
+        stale_after_days: int | None = None,
+        superseded_by_document_id: UUID | None = None,
+        trusted_at: datetime | None = None,
+        trusted_by_id: UUID | None = None,
+    ) -> Document | None:
+        result = await session.execute(select(Document).where(Document.id == document_id))
+        document = result.scalar_one_or_none()
+        if document is None:
+            return None
+        document.trust_status = trust_status
+        if version_label is not None:
+            document.version_label = version_label
+        if review_date is not None:
+            document.review_date = review_date
+        if effective_date is not None:
+            document.effective_date = effective_date
+        if stale_after_days is not None:
+            document.stale_after_days = stale_after_days
+        if superseded_by_document_id is not None:
+            document.superseded_by_document_id = superseded_by_document_id
+        if trusted_at is not None:
+            document.trusted_at = trusted_at
+        if trusted_by_id is not None:
+            document.trusted_by_id = trusted_by_id
+        await session.flush()
+        await session.refresh(document)
+        return document
+
+    async def get_documents_by_ids_for_trust(
+        self,
+        session: AsyncSession,
+        *,
+        document_ids: list[UUID],
+        organization_id: UUID,
+    ) -> list[Document]:
+        """Fetch minimal trust-related fields for a list of document IDs."""
+        if not document_ids:
+            return []
+        result = await session.execute(
+            select(Document).where(
+                Document.id.in_(document_ids),
+                Document.organization_id == organization_id,
+            )
+        )
+        return list(result.scalars().all())
 
     async def get_document_chunk_token_distribution(
         self,

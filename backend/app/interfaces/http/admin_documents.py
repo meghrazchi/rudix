@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated
+from datetime import UTC, date, datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -21,9 +21,11 @@ from app.domains.documents.schemas.documents import (
     RetryDeleteDocumentResponse,
 )
 from app.models.document import Document
-from app.models.enums import DocumentStatus, OrganizationRole
+from app.models.enums import DocumentStatus, DocumentTrustStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.document_tasks import delete_document as delete_document_task
+
+_ALLOWED_TRUST_STATUSES = frozenset(s.value for s in DocumentTrustStatus)
 
 
 class AdminLanguageOverrideRequest(BaseModel):
@@ -68,6 +70,44 @@ class AdminOcrConfigResponse(BaseModel):
     document_id: str
     ocr_languages_override: str | None
     ocr_quality_snapshot: dict | None
+    updated_at: datetime
+
+
+class AdminTrustStatusRequest(BaseModel):
+    trust_status: str
+    version_label: str | None = None
+    review_date: date | None = None
+    effective_date: date | None = None
+    stale_after_days: int | None = None
+    superseded_by_document_id: str | None = None
+
+    @field_validator("trust_status")
+    @classmethod
+    def validate_trust_status(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if normalized not in _ALLOWED_TRUST_STATUSES:
+            raise ValueError(
+                f"Invalid trust_status '{value}'. Must be one of: {sorted(_ALLOWED_TRUST_STATUSES)}"
+            )
+        return normalized
+
+    @field_validator("stale_after_days")
+    @classmethod
+    def validate_stale_after_days(cls, value: int | None) -> int | None:
+        if value is not None and (value < 1 or value > 3650):
+            raise ValueError("stale_after_days must be between 1 and 3650")
+        return value
+
+
+class AdminTrustStatusResponse(BaseModel):
+    document_id: str
+    trust_status: str
+    version_label: str | None
+    review_date: date | None
+    effective_date: date | None
+    stale_after_days: int | None
+    superseded_by_document_id: str | None
+    trusted_at: datetime | None
     updated_at: datetime
 
 
@@ -372,5 +412,117 @@ async def configure_document_ocr(
         document_id=str(updated.id),
         ocr_languages_override=updated.ocr_languages_override,
         ocr_quality_snapshot=updated.ocr_quality_snapshot,
+        updated_at=updated.updated_at,
+    )
+
+
+@router.patch(
+    "/{document_id}/trust-status",
+    response_model=AdminTrustStatusResponse,
+)
+async def update_document_trust_status(
+    request: Request,
+    document_id: str,
+    payload: AdminTrustStatusRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+            )
+        ),
+    ],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AdminTrustStatusResponse:
+    request_id = _request_id_from_request(request)
+    actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+
+    try:
+        doc_uuid = UUID(document_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid document_id format",
+        ) from exc
+
+    document = await document_repository.get_document_by_id(db_session, document_id=doc_uuid)
+    if document is None or document.organization_id != actor_organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    superseded_by_uuid: UUID | None = None
+    if payload.superseded_by_document_id is not None:
+        try:
+            superseded_by_uuid = UUID(payload.superseded_by_document_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid superseded_by_document_id format",
+            ) from exc
+        successor = await document_repository.get_document_by_id(
+            db_session, document_id=superseded_by_uuid
+        )
+        if successor is None or successor.organization_id != actor_organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="superseded_by_document_id refers to a document that does not exist",
+            )
+
+    now = datetime.now(UTC)
+    trusted_at = now if payload.trust_status == DocumentTrustStatus.verified.value else None
+    trusted_by_id = actor_user_id if payload.trust_status == DocumentTrustStatus.verified.value else None
+
+    updated = await document_repository.update_document_trust_status(
+        db_session,
+        document_id=doc_uuid,
+        trust_status=payload.trust_status,
+        version_label=payload.version_label,
+        review_date=payload.review_date,
+        effective_date=payload.effective_date,
+        stale_after_days=payload.stale_after_days,
+        superseded_by_document_id=superseded_by_uuid,
+        trusted_at=trusted_at,
+        trusted_by_id=trusted_by_id,
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=actor_organization_id,
+        user_id=actor_user_id,
+        action="document.trust_status.updated",
+        resource_type="document",
+        resource_id=doc_uuid,
+        request_id=request_id,
+        metadata={
+            "trust_status": payload.trust_status,
+            "version_label": payload.version_label,
+            "review_date": payload.review_date.isoformat() if payload.review_date else None,
+            "effective_date": payload.effective_date.isoformat() if payload.effective_date else None,
+            "stale_after_days": payload.stale_after_days,
+            "superseded_by_document_id": payload.superseded_by_document_id,
+        },
+    )
+    await db_session.commit()
+
+    return AdminTrustStatusResponse(
+        document_id=str(updated.id),
+        trust_status=updated.trust_status,
+        version_label=updated.version_label,
+        review_date=updated.review_date,
+        effective_date=updated.effective_date,
+        stale_after_days=updated.stale_after_days,
+        superseded_by_document_id=str(updated.superseded_by_document_id)
+        if updated.superseded_by_document_id
+        else None,
+        trusted_at=updated.trusted_at,
         updated_at=updated.updated_at,
     )
