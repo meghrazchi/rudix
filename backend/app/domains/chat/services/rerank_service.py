@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, ValidationError
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.domains.ai.providers.errors import (
+    InvalidProviderResponseError,
     ProviderInternalError,
     ProviderQuotaExceededError,
     ProviderTimeoutError,
@@ -189,7 +190,9 @@ class RerankService:
             ),
         )
 
-    def _build_batch_prompt(self, *, query: str, batch: list[RerankCandidate], max_chars: int) -> str:
+    def _build_batch_prompt(
+        self, *, query: str, batch: list[RerankCandidate], max_chars: int
+    ) -> str:
         candidate_blocks: list[str] = []
         for candidate in batch:
             candidate_blocks.append(
@@ -215,8 +218,7 @@ class RerankService:
             "Do not invent new keys. Preserve the input chunk keys exactly.\n"
             f"{examples}\n\n"
             f"Query:\n{query.strip()}\n\n"
-            "Candidates:\n"
-            + "\n\n".join(candidate_blocks)
+            "Candidates:\n" + "\n\n".join(candidate_blocks)
         )
 
     @staticmethod
@@ -256,9 +258,7 @@ class RerankService:
             raise ValueError("rerank provider returned invalid JSON") from exc
 
         if len(parsed.scores) != len(batch):
-            raise ValueError(
-                "rerank provider returned a mismatched number of scores"
-            )
+            raise ValueError("rerank provider returned a mismatched number of scores")
 
         scores_by_key = {item.key: item for item in parsed.scores}
         ordered_scores: list[_BatchScore] = []
@@ -487,7 +487,12 @@ class RerankService:
             ]
             for batch in batches:
                 batch_count += 1
-                batch_scores, batch_prompt_tokens, batch_completion_tokens, _ = await self._score_batch(
+                (
+                    batch_scores,
+                    batch_prompt_tokens,
+                    batch_completion_tokens,
+                    _,
+                ) = await self._score_batch(
                     query=query,
                     batch=batch,
                     provider=provider,
@@ -529,7 +534,14 @@ class RerankService:
                 final_top_k=final_top_k,
                 diagnostics=diagnostics,
             )
-        except (UnsupportedCapabilityError, ValueError, ValidationError, json.JSONDecodeError) as exc:
+        except (
+            InvalidProviderResponseError,
+            UnsupportedCapabilityError,
+            ValueError,
+            ValidationError,
+            json.JSONDecodeError,
+            TypeError,
+        ) as exc:
             logger.warning(
                 "rerank.failed provider_key=%s model=%s error=%s",
                 provider_key,

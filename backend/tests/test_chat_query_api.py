@@ -116,6 +116,28 @@ class _FakeChatProvider:
         )
 
 
+class _FakeChatProviderWithInvalidRerank(_FakeChatProvider):
+    async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        self.calls.append(request)
+        if "You are reranking retrieved document chunks" in request.prompt:
+            return ChatCompletionResponse(
+                content="not json",
+                model=settings.openai_llm_model,
+                prompt_tokens=19,
+                completion_tokens=7,
+                total_tokens=26,
+                latency_ms=5,
+            )
+        return ChatCompletionResponse(
+            content=self.answer,
+            model=settings.openai_llm_model,
+            prompt_tokens=31,
+            completion_tokens=17,
+            total_tokens=48,
+            latency_ms=5,
+        )
+
+
 class _FakeEmbeddingProvider:
     def __init__(self) -> None:
         self.calls: list[EmbeddingRequest] = []
@@ -143,6 +165,26 @@ def _inject_providers(
     monkeypatch.setattr(chat_api._llm_service, "_provider", chat_provider)
     monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", embed_provider)
     return chat_provider, embed_provider
+
+
+def _inject_custom_providers(
+    monkeypatch: pytest.MonkeyPatch, provider: _FakeChatProvider
+) -> _FakeEmbeddingProvider:
+    embed_provider = _FakeEmbeddingProvider()
+    default_provider_factory._chat_providers.clear()
+    default_provider_factory._chat_providers[settings.llm_default_provider] = provider
+    default_provider_factory._chat_providers[settings.rerank_default_provider] = provider
+    monkeypatch.setattr(chat_api._llm_service, "_provider", provider)
+    monkeypatch.setattr(chat_api._query_retrieval_service, "_embedding_provider", embed_provider)
+    return embed_provider
+
+
+class _FakeWebSocket:
+    def __init__(self) -> None:
+        self.sent_texts: list[str] = []
+
+    async def send_text(self, data: str) -> None:
+        self.sent_texts.append(data)
 
 
 @pytest_asyncio.fixture
@@ -413,12 +455,6 @@ async def test_post_chat_orchestrates_and_persists_messages(
         text="Employees receive twenty days of annual leave.",
     )
 
-    token = create_app_access_token(
-        subject=user.external_auth_id,
-        organization_id=str(organization.id),
-        expires_in_seconds=600,
-    )
-
     qdrant_module.qdrant_client = FakeQdrantClient(
         [
             FakeQdrantResult(
@@ -433,6 +469,11 @@ async def test_post_chat_orchestrates_and_persists_messages(
                 },
             )
         ]
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
     )
     _inject_providers(
         monkeypatch,
@@ -910,6 +951,99 @@ async def test_post_chat_accepts_structured_json_generation_response(
     assert payload["not_found"] is False
     assert payload["answer"] == "Employees receive twenty days of annual leave."
     assert len(payload["citations"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_websocket_chat_completes_when_rerank_provider_returns_invalid_json(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    document, chunk = await _seed_document_with_chunk(
+        db_session,
+        organization=organization,
+        uploader=user,
+        filename="policy.pdf",
+        text="Employees receive twenty days of annual leave.",
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    qdrant_module.qdrant_client = FakeQdrantClient(
+        [
+            FakeQdrantResult(
+                score=0.92,
+                payload={
+                    "organization_id": str(organization.id),
+                    "document_id": str(document.id),
+                    "chunk_id": str(chunk.id),
+                    "filename": "policy.pdf",
+                    "page_number": 1,
+                    "text": "Employees receive twenty days of annual leave.",
+                },
+            )
+        ]
+    )
+    _inject_custom_providers(
+        monkeypatch,
+        _FakeChatProviderWithInvalidRerank(
+            answer='{"answer":"Employees receive twenty days of annual leave.","not_found":false,"citations":[]}'
+        ),
+    )
+
+    class _SessionLocalOverride:
+        def __init__(self, session: AsyncSession) -> None:
+            self._session = session
+
+        def __call__(self) -> object:
+            session = self._session
+
+            class _SessionContext:
+                async def __aenter__(self_inner) -> AsyncSession:
+                    return session
+
+                async def __aexit__(
+                    self_inner,
+                    exc_type: object,
+                    exc: object,
+                    tb: object,
+                ) -> bool:
+                    return False
+
+            return _SessionContext()
+
+    monkeypatch.setattr(chat_api, "SessionLocal", _SessionLocalOverride(db_session))
+
+    websocket = _FakeWebSocket()
+    principal = chat_api.AuthenticatedPrincipal(
+        user_id=str(user.id),
+        organization_id=str(organization.id),
+        email=user.email,
+        roles=[OrganizationRole.member.value],
+        auth_provider="app",
+    )
+    await chat_api._run_ws_chat_pipeline(
+        websocket=websocket,  # type: ignore[arg-type]
+        payload={
+            "question": "How much annual leave is provided?",
+            "document_ids": [str(document.id)],
+            "top_k": 3,
+            "rerank": True,
+            "scope_mode": "documents",
+            "chat_session_id": None,
+        },
+        principal=principal,
+        request_id="ws-test-1",
+        sequence_start=0,
+    )
+
+    events = [json.loads(text) for text in websocket.sent_texts]
+
+    assert events[-1]["event"] == "chat.completed", events
 
 
 @pytest.mark.asyncio

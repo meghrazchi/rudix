@@ -20,7 +20,6 @@ import type {
   DocumentStatusResponse,
   AdminLanguageOverrideRequest,
   AdminOcrConfigRequest,
-  OcrQualitySnapshot,
 } from "@/lib/api/documents";
 import {
   configureDocumentOcr,
@@ -255,6 +254,24 @@ function buildLifecycleTimeline(
     }
   }
 
+  const hasReadyForChatStep = steps.some((s) => s.key === "ready_for_chat");
+  if (detail.status === "indexed" && !hasReadyForChatStep) {
+    steps.push({
+      key: "ready_for_chat",
+      label: labels.ready_for_chat,
+      description: "Document is available for retrieval-backed chat queries.",
+      state: "completed",
+      timestamp: detail.updated_at ?? null,
+      documentId: detail.document_id,
+      logs: [],
+      pipelineRunId: null,
+      pipelineType: null,
+      durationMs: null,
+      status: "completed",
+      outputs: null,
+    });
+  }
+
   return steps;
 }
 
@@ -295,6 +312,7 @@ type LifecycleLabels = {
   embed: string;
   index: string;
   extract_entities: string;
+  ready_for_chat: string;
 };
 
 function normalizeLifecycleLabel(
@@ -309,6 +327,7 @@ function normalizeLifecycleLabel(
   if (stepKey === "embed") return labels.embed;
   if (stepKey === "index") return labels.index;
   if (stepKey === "extract_entities") return labels.extract_entities;
+  if (stepKey === "ready_for_chat") return labels.ready_for_chat;
   return label;
 }
 
@@ -476,6 +495,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
     embed: td("lifecycle.embedded"),
     index: td("lifecycle.upserted"),
     extract_entities: td("lifecycle.graphExtraction"),
+    ready_for_chat: td("lifecycle.readyForChat"),
   };
 
   const noChunkMessages: NoChunksMessages = {

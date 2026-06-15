@@ -249,3 +249,9 @@ async def test_model_creation_roundtrip(db_session: AsyncSession) -> None:
     assert message_count == 1
     assert pipeline_event_count == 1
     assert agent_run_count == 1
+
+
+def test_document_uploader_relationship_uses_uploaded_by_user_id() -> None:
+    uploader_relationship = Document.__mapper__.relationships["uploader"]
+    assert {column.key for column in uploader_relationship.local_columns} == {"uploaded_by_user_id"}
+    assert "trusted_by_id" not in str(uploader_relationship.primaryjoin)

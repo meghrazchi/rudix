@@ -5,6 +5,7 @@ import json
 import pytest
 
 from app.core.config import settings
+from app.domains.ai.providers.errors import InvalidProviderResponseError
 from app.domains.ai.providers.errors import ProviderTimeoutError
 from app.domains.ai.providers.protocols import ChatCompletionRequest, ChatCompletionResponse
 from app.domains.chat.services.rerank_service import (
@@ -126,9 +127,7 @@ async def test_rerank_provider_reorders_chunks_and_records_diagnostics() -> None
     assert [item.rerank_rank for item in result.candidates] == [1, 2, 3]
     assert [item.final_rank for item in result.candidates] == [1, 2, 3]
     assert [item.original_rank for item in result.candidates] == [2, 3, 1]
-    assert [item.rerank_score for item in result.candidates] == pytest.approx(
-        [0.91, 0.85, 0.32]
-    )
+    assert [item.rerank_score for item in result.candidates] == pytest.approx([0.91, 0.85, 0.32])
     assert result.diagnostics.enabled is True
     assert result.diagnostics.provider_key == "rerank-provider"
     assert result.diagnostics.model_name == "rerank-model"
@@ -178,3 +177,32 @@ async def test_rerank_falls_back_when_provider_times_out() -> None:
     assert result.diagnostics.batch_count == 1
     assert result.diagnostics.selected_count == 2
     assert provider.calls[0].prompt.startswith("You are reranking retrieved document chunks")
+
+
+@pytest.mark.asyncio
+async def test_rerank_falls_back_when_provider_returns_invalid_response() -> None:
+    provider = _FakeRerankProvider(responses=[InvalidProviderResponseError("bad response")])
+    service = RerankService(provider_factory=_FakeProviderFactory(provider))
+    candidates = [
+        _candidate("a", similarity_score=0.91, original_rank=1),
+        _candidate("b", similarity_score=0.82, original_rank=2),
+    ]
+
+    result = await service.rerank(
+        query="What is the annual leave policy?",
+        candidates=candidates,
+        enabled=True,
+        final_top_k=1,
+        settings_override=RerankSettings(
+            enabled=True,
+            provider_key="rerank-provider",
+            model_name="rerank-model",
+            batch_size=2,
+            max_input_candidates=2,
+            max_candidate_chars=256,
+        ),
+    )
+
+    assert [item.key for item in result.candidates] == ["a"]
+    assert result.diagnostics.fallback_used is True
+    assert result.diagnostics.fallback_reason == "InvalidProviderResponseError"

@@ -399,7 +399,7 @@ function toTurnResponseFromQuery(
   };
 }
 
-function toTurnResponseFromHistoryMessage(
+export function toTurnResponseFromHistoryMessage(
   message: ChatSessionMessageResponse,
 ): ChatTurn["response"] {
   const messageRecord = message as unknown as Record<string, unknown>;
@@ -472,9 +472,9 @@ function toTurnResponseFromHistoryMessage(
     confidence_category: message.confidence_category ?? "low",
     not_found: false,
     citation_validation_failed: false,
-    agreement_level,
-    conflict_detected,
-    conflict_summary,
+    agreement_level: agreementLevel,
+    conflict_detected: conflictDetected,
+    conflict_summary: conflictSummary,
     conflicting_document_ids: conflictDetected ? conflictingDocumentIds : [],
     preferred_document_ids: conflictDetected ? preferredDocumentIds : [],
     conflict_pairs: conflictDetected ? conflictPairs : [],

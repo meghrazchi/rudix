@@ -1620,7 +1620,8 @@
         "chunked": "In Blöcke unterteilt",
         "embedded": "Eingebettet",
         "upserted": "In Qdrant hochgeladen",
-        "graphExtraction": "Graph-Extraktion"
+        "graphExtraction": "Graph-Extraktion",
+        "readyForChat": "Bereit für den Chat"
       },
       "rec": {
         "retryIndexing": "Indizierung nach Überprüfung der Anbieterverfügbarkeit und Warteschlangengesundheit erneut versuchen.",

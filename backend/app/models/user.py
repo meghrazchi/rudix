@@ -59,7 +59,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     memberships = relationship(
         "OrganizationMember", back_populates="user", cascade="all, delete-orphan"
     )
-    documents = relationship("Document", back_populates="uploader")
+    documents = relationship(
+        "Document",
+        back_populates="uploader",
+        foreign_keys="Document.uploaded_by_user_id",
+    )
     chat_sessions = relationship("ChatSession", back_populates="user")
     usage_events = relationship("UsageEvent", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")

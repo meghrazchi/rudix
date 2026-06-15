@@ -1620,7 +1620,8 @@
         "chunked": "Découpé",
         "embedded": "Vectorisé",
         "upserted": "Upserté vers Qdrant",
-        "graphExtraction": "Extraction de graphe"
+        "graphExtraction": "Extraction de graphe",
+        "readyForChat": "Prêt pour le chat"
       },
       "rec": {
         "retryIndexing": "Réessayez l’indexation après avoir validé la disponibilité du fournisseur et la santé de la file.",

@@ -1620,7 +1620,8 @@
         "chunked": "Fragmentado",
         "embedded": "Incrustado",
         "upserted": "Insertado/actualizado en Qdrant",
-        "graphExtraction": "Extracción de grafo"
+        "graphExtraction": "Extracción de grafo",
+        "readyForChat": "Listo para chat"
       },
       "rec": {
         "retryIndexing": "Reintenta la indexación después de validar la disponibilidad del proveedor y el estado de la cola.",

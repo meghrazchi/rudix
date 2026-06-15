@@ -107,9 +107,7 @@ def init_langfuse(*, runtime: Literal["api", "worker"]) -> bool:
         )
         return True
     except ImportError:
-        _logger.warning(
-            "langfuse.disabled runtime=%s reason=package_not_installed", runtime
-        )
+        _logger.warning("langfuse.disabled runtime=%s reason=package_not_installed", runtime)
         return False
     except Exception as exc:
         _logger.warning(
@@ -172,6 +170,11 @@ class ChatTraceMetadata:
     cited_count: int = 0
     not_found: bool = False
     citation_validation_failed: bool = False
+    conflict_detection_enabled: bool = False
+    conflict_detection_applied: bool = False
+    conflict_detection_agreement_level: str | None = None
+    conflict_detection_conflict_count: int = 0
+    conflict_detection_latency_ms: int = 0
     confidence_score: float | None = None
     confidence_category: str | None = None
     # Models and provider routing
@@ -282,12 +285,19 @@ def _emit_chat_trace(metadata: ChatTraceMetadata) -> None:
         "rerank_prompt_tokens": metadata.rerank_prompt_tokens,
         "rerank_completion_tokens": metadata.rerank_completion_tokens,
         "rerank_total_tokens": metadata.rerank_total_tokens,
-        "rerank_cost_usd": str(metadata.rerank_cost_usd) if metadata.rerank_cost_usd is not None else None,
+        "rerank_cost_usd": str(metadata.rerank_cost_usd)
+        if metadata.rerank_cost_usd is not None
+        else None,
         "retrieved_count": metadata.retrieved_count,
         "selected_count": metadata.selected_count,
         "cited_count": metadata.cited_count,
         "not_found": metadata.not_found,
         "citation_validation_failed": metadata.citation_validation_failed,
+        "conflict_detection_enabled": metadata.conflict_detection_enabled,
+        "conflict_detection_applied": metadata.conflict_detection_applied,
+        "conflict_detection_agreement_level": metadata.conflict_detection_agreement_level,
+        "conflict_detection_conflict_count": metadata.conflict_detection_conflict_count,
+        "conflict_detection_latency_ms": metadata.conflict_detection_latency_ms,
         "confidence_score": metadata.confidence_score,
         "confidence_category": metadata.confidence_category,
         "embedding_model": metadata.embedding_model,
@@ -417,8 +427,7 @@ async def check_langfuse_health() -> dict[str, object]:
         "enabled": settings.langfuse_enabled,
         "base_url_configured": settings.langfuse_base_url is not None,
         "keys_configured": (
-            settings.langfuse_public_key is not None
-            and settings.langfuse_secret_key is not None
+            settings.langfuse_public_key is not None and settings.langfuse_secret_key is not None
         ),
         "client_initialized": _is_enabled(),
         "reachable": False,

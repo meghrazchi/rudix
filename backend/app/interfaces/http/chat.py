@@ -4,7 +4,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from fastapi import (
@@ -85,7 +85,6 @@ from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionChunk,
     ConflictDetectionResult,
     ConflictDetectionService,
-    ConflictPair,
 )
 from app.domains.chat.services.grounded_answer_verifier import (
     GroundedAnswerVerifier,
@@ -116,7 +115,10 @@ from app.domains.chat.services.hybrid_retrieval_service import (
 )
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
-from app.domains.chat.services.query_rewriting_service import QueryRewritingResult, QueryRewritingService
+from app.domains.chat.services.query_rewriting_service import (
+    QueryRewritingResult,
+    QueryRewritingService,
+)
 from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
@@ -244,6 +246,31 @@ def _request_id_from_request(request: Request) -> str | None:
     if isinstance(request_id, str) and request_id.strip():
         return request_id
     return request.headers.get("x-request-id")
+
+
+def _parse_uuid_or_none(value: object) -> UUID | None:
+    try:
+        return UUID(str(value))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def _decimal_to_float_or_none(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _list_or_empty(value: object) -> list[object]:
+    if value is None:
+        return []
+    try:
+        return list(value)  # type: ignore[arg-type]
+    except TypeError:
+        return []
 
 
 def _to_retrieved_chunk(candidate: RetrievedCandidate) -> RetrievedChunk:
@@ -1476,7 +1503,9 @@ async def query_chat(
     else:
         final_top_k = payload.top_k or settings.retrieval_final_top_k
         rerank_applied = bool(payload.rerank and rerank_settings.enabled)
-        rerank_input_limit = rerank_settings.max_input_candidates or settings.rerank_default_input_candidates
+        rerank_input_limit = (
+            rerank_settings.max_input_candidates or settings.rerank_default_input_candidates
+        )
         retrieval_top_k = max(final_top_k, rerank_input_limit if rerank_applied else final_top_k)
 
         # Determine which queries to use for retrieval.
@@ -1551,9 +1580,7 @@ async def query_chat(
                         rrf_k=settings.hybrid_retrieval_rrf_k,
                         exact_match_boost=settings.hybrid_retrieval_exact_match_boost,
                     )
-                    batch_chunks = [
-                        _hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates
-                    ]
+                    batch_chunks = [_hybrid_to_retrieved_chunk(c) for c in hybrid_result.candidates]
                     # Accumulate hybrid stats only for the primary query.
                     if retrieval_q == _primary_query_for_kw:
                         hybrid_retrieval_enabled = True
@@ -1608,9 +1635,7 @@ async def query_chat(
 
             freshness_filter_enabled = _freshness_boost_enabled or _freshness_exclude_deprecated
             if freshness_filter_enabled and retrieved_chunks:
-                _unique_doc_ids = list(
-                    {chunk.document_id for chunk in retrieved_chunks}
-                )
+                _unique_doc_ids = list({chunk.document_id for chunk in retrieved_chunks})
                 _trust_docs = await _document_repository_for_trust.get_documents_by_ids_for_trust(
                     db_session,
                     document_ids=_unique_doc_ids,
@@ -1630,7 +1655,8 @@ async def query_chat(
                     freshness_stale_count = len(_freshness_stale_ids)
                     if _filter_result.excluded_document_ids:
                         retrieved_chunks = [
-                            c for c in retrieved_chunks
+                            c
+                            for c in retrieved_chunks
                             if str(c.document_id) not in _filter_result.excluded_document_ids
                         ]
 
@@ -1691,7 +1717,10 @@ async def query_chat(
                     table_boost_applied = _table_boost_result.boost_applied
                     table_boost_count = _table_boost_result.boosted_count
                     table_chunk_count = _table_boost_result.table_chunk_count
-                    from app.domains.chat.services.table_retrieval_service import is_table_query as _is_table_query
+                    from app.domains.chat.services.table_retrieval_service import (
+                        is_table_query as _is_table_query,
+                    )
+
                     table_query_detected = _is_table_query(payload.question)
                     if table_boost_applied:
                         retrieved_chunks = sorted(
@@ -1946,41 +1975,48 @@ async def query_chat(
                     ],
                     model_citations=llm_result.citations,
                 )
+                citation_chunk_ids = [
+                    chunk_id
+                    for citation in citation_result.citations
+                    if (chunk_id := _parse_uuid_or_none(citation.chunk_id)) is not None
+                ]
                 provenance_by_chunk_id = await _source_provenance_service.load_citation_details(
                     db_session,
                     organization_id=organization_id,
-                    chunk_ids=[UUID(citation.chunk_id) for citation in citation_result.citations],
+                    chunk_ids=citation_chunk_ids,
                 )
                 # Table metadata lookup (F298): fetch table_metadata for any table chunks.
-                _citation_chunk_ids = [UUID(c.chunk_id) for c in citation_result.citations]
-                _table_metadata_by_chunk_id = await _document_repository_for_trust.get_chunks_table_metadata(
-                    db_session,
-                    chunk_ids=_citation_chunk_ids,
-                    organization_id=organization_id,
-                )
-                _table_metadata_map = {
-                    str(k): v for k, v in _table_metadata_by_chunk_id.items()
-                }
-                citations = [
-                    _with_conflict_status(
-                        _with_ocr_quality(
-                            _with_table_metadata(
-                                _with_freshness(
-                                    _with_provenance(
-                                        citation,
-                                        provenance_by_chunk_id.get(UUID(citation.chunk_id)),
-                                    ),
-                                    _freshness_trust_map,
-                                    _freshness_stale_ids,
-                                ),
-                                _table_metadata_map,
-                            ),
-                            {str(k): v for k, v in _ocr_quality_map.items()},
-                        ),
-                        conflict_detection_result,
+                _citation_chunk_ids = citation_chunk_ids
+                _table_metadata_by_chunk_id = (
+                    await _document_repository_for_trust.get_chunks_table_metadata(
+                        db_session,
+                        chunk_ids=_citation_chunk_ids,
+                        organization_id=organization_id,
                     )
-                    for citation in citation_result.citations
-                ]
+                )
+                _table_metadata_map = {str(k): v for k, v in _table_metadata_by_chunk_id.items()}
+                citations = []
+                for citation in citation_result.citations:
+                    citation_uuid = _parse_uuid_or_none(citation.chunk_id)
+                    citations.append(
+                        _with_conflict_status(
+                            _with_ocr_quality(
+                                _with_table_metadata(
+                                    _with_freshness(
+                                        _with_provenance(
+                                            citation,
+                                            provenance_by_chunk_id.get(citation_uuid),
+                                        ),
+                                        _freshness_trust_map,
+                                        _freshness_stale_ids,
+                                    ),
+                                    _table_metadata_map,
+                                ),
+                                {str(k): v for k, v in _ocr_quality_map.items()},
+                            ),
+                            conflict_detection_result,
+                        )
+                    )
                 citation_validation_failed = citation_result.invalid_chunk_id_count > 0
                 confidence_result = _confidence_service.score(
                     chunks=confidence_signals,
@@ -2120,11 +2156,15 @@ async def query_chat(
         )
 
         for citation in citations:
+            document_uuid = _parse_uuid_or_none(citation.document_id)
+            chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
+            if document_uuid is None or chunk_uuid is None:
+                continue
             await chat_repository.create_citation(
                 db_session,
                 chat_message_id=assistant_message.id,
-                document_id=UUID(citation.document_id),
-                chunk_id=UUID(citation.chunk_id),
+                document_id=document_uuid,
+                chunk_id=chunk_uuid,
                 text_snippet=citation.text_snippet or "",
                 page_number=citation.page_number,
                 start_offset=citation.start_offset,
@@ -2167,30 +2207,46 @@ async def query_chat(
                 "graph_related_entity_count": graph_context_result.graph_related_entity_count,
                 "graph_chunk_count": graph_context_result.graph_chunk_count,
                 "graph_max_hops_used": graph_context_result.graph_max_hops_used,
-                "graph_relation_types_used": list(graph_context_result.graph_relation_types_used),
+                "graph_relation_types_used": _list_or_empty(
+                    graph_context_result.graph_relation_types_used
+                ),
                 "conflict_detection_enabled": conflict_detection_enabled,
                 "conflict_detection_applied": conflict_detection_applied,
                 "conflict_detection_latency_ms": conflict_detection_latency_ms,
                 "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
                 "conflict_detection_conflict_count": len(conflict_detection_result.conflict_pairs),
-                "conflict_detection_conflicting_document_ids": list(
+                "conflict_detection_conflicting_document_ids": _list_or_empty(
                     conflict_detection_result.conflicting_document_ids
                 ),
-                "conflict_detection_preferred_document_ids": list(
+                "conflict_detection_preferred_document_ids": _list_or_empty(
                     conflict_detection_result.preferred_document_ids
                 ),
                 "rerank_applied": rerank_applied,
                 "rerank_enabled": rerank_settings.enabled,
                 "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
                 "rerank_model": rerank_diagnostics.model_name if rerank_diagnostics else None,
-                "rerank_fallback_used": rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-                "rerank_fallback_reason": rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
-                "rerank_input_count": rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                "rerank_fallback_used": rerank_diagnostics.fallback_used
+                if rerank_diagnostics
+                else False,
+                "rerank_fallback_reason": rerank_diagnostics.fallback_reason
+                if rerank_diagnostics
+                else None,
+                "rerank_input_count": rerank_diagnostics.requested_count
+                if rerank_diagnostics
+                else 0,
                 "rerank_batch_count": rerank_diagnostics.batch_count if rerank_diagnostics else 0,
-                "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-                "rerank_completion_tokens": rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+                "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens
+                if rerank_diagnostics
+                else 0,
+                "rerank_completion_tokens": rerank_diagnostics.completion_tokens
+                if rerank_diagnostics
+                else 0,
                 "rerank_total_tokens": rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
-                "rerank_cost_usd": float(rerank_diagnostics.approximate_cost_usd) if rerank_diagnostics else None,
+                "rerank_cost_usd": _decimal_to_float_or_none(
+                    rerank_diagnostics.approximate_cost_usd
+                )
+                if rerank_diagnostics
+                else None,
                 "embedding_model": embedding_model,
                 "llm_model": llm_model,
                 "llm_provider": llm_provider,
@@ -2229,10 +2285,10 @@ async def query_chat(
                 "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
                 "conflict_detection_conflict_count": len(conflict_detection_result.conflict_pairs),
                 "conflict_detection_latency_ms": conflict_detection_latency_ms,
-                "conflict_detection_conflicting_document_ids": list(
+                "conflict_detection_conflicting_document_ids": _list_or_empty(
                     conflict_detection_result.conflicting_document_ids
                 ),
-                "conflict_detection_preferred_document_ids": list(
+                "conflict_detection_preferred_document_ids": _list_or_empty(
                     conflict_detection_result.preferred_document_ids
                 ),
                 "rerank_applied": rerank_applied,
@@ -2288,11 +2344,15 @@ async def query_chat(
             rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
             rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
             rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-            rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+            rerank_fallback_reason=rerank_diagnostics.fallback_reason
+            if rerank_diagnostics
+            else None,
             rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
             rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
             rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-            rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+            rerank_completion_tokens=rerank_diagnostics.completion_tokens
+            if rerank_diagnostics
+            else 0,
             rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
             rerank_cost_usd=rerank_diagnostics.approximate_cost_usd if rerank_diagnostics else None,
             cited_count=len(citations),
@@ -2374,8 +2434,8 @@ async def query_chat(
             if conflict_detection_result.conflict_detected
             else None
         ),
-        conflicting_document_ids=list(conflict_detection_result.conflicting_document_ids),
-        preferred_document_ids=list(conflict_detection_result.preferred_document_ids),
+        conflicting_document_ids=_list_or_empty(conflict_detection_result.conflicting_document_ids),
+        preferred_document_ids=_list_or_empty(conflict_detection_result.preferred_document_ids),
         conflict_pairs=[
             ChatConflictPairResponse(
                 document_id_a=pair.document_id_a,
@@ -2394,13 +2454,17 @@ async def query_chat(
             rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
             rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
             rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-            rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
+            rerank_fallback_reason=rerank_diagnostics.fallback_reason
+            if rerank_diagnostics
+            else None,
             rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
             rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
             rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-            rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
+            rerank_completion_tokens=rerank_diagnostics.completion_tokens
+            if rerank_diagnostics
+            else 0,
             rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
-            rerank_cost_usd=float(rerank_diagnostics.approximate_cost_usd)
+            rerank_cost_usd=_decimal_to_float_or_none(rerank_diagnostics.approximate_cost_usd)
             if rerank_diagnostics
             else None,
             source_scope=source_scope_result.label,
@@ -2425,7 +2489,9 @@ async def query_chat(
             ),
             conflict_detection_model=conflict_detection_result.model_name or None,
             conflict_detection_provider=conflict_detection_result.provider_key or None,
-            graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
+            graph_relation_types_used=_list_or_empty(
+                graph_context_result.graph_relation_types_used
+            ),
             embedding_model=embedding_model,
             llm_model=llm_model,
             llm_provider=llm_provider,
@@ -3520,8 +3586,7 @@ async def _run_ws_chat_pipeline(
                 final_top_k = query_request.top_k or settings.retrieval_final_top_k
                 rerank_applied = bool(query_request.rerank and rerank_settings.enabled)
                 rerank_input_limit = (
-                    rerank_settings.max_input_candidates
-                    or settings.rerank_default_input_candidates
+                    rerank_settings.max_input_candidates or settings.rerank_default_input_candidates
                 )
                 retrieval_top_k = max(
                     final_top_k,
@@ -3725,20 +3790,30 @@ async def _run_ws_chat_pipeline(
                             ],
                             model_citations=llm_result.citations,
                         )
+                        citation_chunk_ids = [
+                            chunk_id
+                            for c in citation_result.citations
+                            if (chunk_id := _parse_uuid_or_none(c.chunk_id)) is not None
+                        ]
                         provenance_by_chunk_id = (
                             await _source_provenance_service.load_citation_details(
                                 db_session,
                                 organization_id=organization_id,
-                                chunk_ids=[UUID(c.chunk_id) for c in citation_result.citations],
+                                chunk_ids=citation_chunk_ids,
                             )
                         )
-                        citations = [
-                            _with_conflict_status(
-                                _with_provenance(c, provenance_by_chunk_id.get(UUID(c.chunk_id))),
-                                conflict_detection_result,
+                        citations = []
+                        for citation in citation_result.citations:
+                            citation_uuid = _parse_uuid_or_none(citation.chunk_id)
+                            citations.append(
+                                _with_conflict_status(
+                                    _with_provenance(
+                                        citation,
+                                        provenance_by_chunk_id.get(citation_uuid),
+                                    ),
+                                    conflict_detection_result,
+                                )
                             )
-                            for c in citation_result.citations
-                        ]
                         citation_validation_failed = citation_result.invalid_chunk_id_count > 0
                         confidence_result = _confidence_service.score(
                             chunks=confidence_signals,
@@ -3794,11 +3869,15 @@ async def _run_ws_chat_pipeline(
                     else None,
                 )
                 for citation in citations:
+                    document_uuid = _parse_uuid_or_none(citation.document_id)
+                    chunk_uuid = _parse_uuid_or_none(citation.chunk_id)
+                    if document_uuid is None or chunk_uuid is None:
+                        continue
                     await chat_repository.create_citation(
                         db_session,
                         chat_message_id=assistant_message.id,
-                        document_id=UUID(citation.document_id),
-                        chunk_id=UUID(citation.chunk_id),
+                        document_id=document_uuid,
+                        chunk_id=chunk_uuid,
                         text_snippet=citation.text_snippet or "",
                         page_number=citation.page_number,
                         start_offset=citation.start_offset,
@@ -3834,16 +3913,38 @@ async def _run_ws_chat_pipeline(
                         "answer_latency_ms": answer_latency_ms,
                         "rerank_applied": rerank_applied,
                         "rerank_enabled": rerank_settings.enabled,
-                        "rerank_provider": rerank_diagnostics.provider_key if rerank_diagnostics else None,
-                        "rerank_model": rerank_diagnostics.model_name if rerank_diagnostics else None,
-                        "rerank_fallback_used": rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-                        "rerank_fallback_reason": rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
-                        "rerank_input_count": rerank_diagnostics.requested_count if rerank_diagnostics else 0,
-                        "rerank_batch_count": rerank_diagnostics.batch_count if rerank_diagnostics else 0,
-                        "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-                        "rerank_completion_tokens": rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
-                        "rerank_total_tokens": rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
-                        "rerank_cost_usd": float(rerank_diagnostics.approximate_cost_usd) if rerank_diagnostics else None,
+                        "rerank_provider": rerank_diagnostics.provider_key
+                        if rerank_diagnostics
+                        else None,
+                        "rerank_model": rerank_diagnostics.model_name
+                        if rerank_diagnostics
+                        else None,
+                        "rerank_fallback_used": rerank_diagnostics.fallback_used
+                        if rerank_diagnostics
+                        else False,
+                        "rerank_fallback_reason": rerank_diagnostics.fallback_reason
+                        if rerank_diagnostics
+                        else None,
+                        "rerank_input_count": rerank_diagnostics.requested_count
+                        if rerank_diagnostics
+                        else 0,
+                        "rerank_batch_count": rerank_diagnostics.batch_count
+                        if rerank_diagnostics
+                        else 0,
+                        "rerank_prompt_tokens": rerank_diagnostics.prompt_tokens
+                        if rerank_diagnostics
+                        else 0,
+                        "rerank_completion_tokens": rerank_diagnostics.completion_tokens
+                        if rerank_diagnostics
+                        else 0,
+                        "rerank_total_tokens": rerank_diagnostics.total_tokens
+                        if rerank_diagnostics
+                        else 0,
+                        "rerank_cost_usd": _decimal_to_float_or_none(
+                            rerank_diagnostics.approximate_cost_usd
+                        )
+                        if rerank_diagnostics
+                        else None,
                         "conflict_detection_enabled": conflict_detection_enabled,
                         "conflict_detection_applied": conflict_detection_applied,
                         "conflict_detection_agreement_level": conflict_detection_result.agreement_level,
@@ -3901,14 +4002,28 @@ async def _run_ws_chat_pipeline(
                     rerank_enabled=rerank_settings.enabled,
                     rerank_provider=rerank_diagnostics.provider_key if rerank_diagnostics else None,
                     rerank_model=rerank_diagnostics.model_name if rerank_diagnostics else None,
-                    rerank_fallback_used=rerank_diagnostics.fallback_used if rerank_diagnostics else False,
-                    rerank_fallback_reason=rerank_diagnostics.fallback_reason if rerank_diagnostics else None,
-                    rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                    rerank_fallback_used=rerank_diagnostics.fallback_used
+                    if rerank_diagnostics
+                    else False,
+                    rerank_fallback_reason=rerank_diagnostics.fallback_reason
+                    if rerank_diagnostics
+                    else None,
+                    rerank_input_count=rerank_diagnostics.requested_count
+                    if rerank_diagnostics
+                    else 0,
                     rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
-                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
-                    rerank_completion_tokens=rerank_diagnostics.completion_tokens if rerank_diagnostics else 0,
-                    rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
-                    rerank_cost_usd=rerank_diagnostics.approximate_cost_usd if rerank_diagnostics else None,
+                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens
+                    if rerank_diagnostics
+                    else 0,
+                    rerank_completion_tokens=rerank_diagnostics.completion_tokens
+                    if rerank_diagnostics
+                    else 0,
+                    rerank_total_tokens=rerank_diagnostics.total_tokens
+                    if rerank_diagnostics
+                    else 0,
+                    rerank_cost_usd=rerank_diagnostics.approximate_cost_usd
+                    if rerank_diagnostics
+                    else None,
                     cited_count=len(citations),
                     not_found=not_found,
                     citation_validation_failed=citation_validation_failed,
@@ -3940,9 +4055,7 @@ async def _run_ws_chat_pipeline(
                     conflict_detection_applied=conflict_detection_applied,
                     conflict_detection_latency_ms=conflict_detection_latency_ms,
                     conflict_detection_agreement_level=conflict_detection_result.agreement_level,
-                    conflict_detection_conflict_count=len(
-                        conflict_detection_result.conflict_pairs
-                    ),
+                    conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
                 )
             )
             log_query_event(
@@ -3964,7 +4077,6 @@ async def _run_ws_chat_pipeline(
                 conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
                 transport="websocket",
             )
-
             # ── Final event ───────────────────────────────────────────────────
             final_response = ChatQueryResponse(
                 chat_session_id=str(chat_session.id),
@@ -3998,10 +4110,12 @@ async def _run_ws_chat_pipeline(
                     if conflict_detection_result.conflict_detected
                     else None
                 ),
-                conflicting_document_ids=list(
+                conflicting_document_ids=_list_or_empty(
                     conflict_detection_result.conflicting_document_ids
                 ),
-                preferred_document_ids=list(conflict_detection_result.preferred_document_ids),
+                preferred_document_ids=_list_or_empty(
+                    conflict_detection_result.preferred_document_ids
+                ),
                 conflict_pairs=[
                     ChatConflictPairResponse(
                         document_id_a=pair.document_id_a,
@@ -4025,14 +4139,22 @@ async def _run_ws_chat_pipeline(
                     rerank_fallback_reason=rerank_diagnostics.fallback_reason
                     if rerank_diagnostics
                     else None,
-                    rerank_input_count=rerank_diagnostics.requested_count if rerank_diagnostics else 0,
+                    rerank_input_count=rerank_diagnostics.requested_count
+                    if rerank_diagnostics
+                    else 0,
                     rerank_batch_count=rerank_diagnostics.batch_count if rerank_diagnostics else 0,
-                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens if rerank_diagnostics else 0,
+                    rerank_prompt_tokens=rerank_diagnostics.prompt_tokens
+                    if rerank_diagnostics
+                    else 0,
                     rerank_completion_tokens=rerank_diagnostics.completion_tokens
                     if rerank_diagnostics
                     else 0,
-                    rerank_total_tokens=rerank_diagnostics.total_tokens if rerank_diagnostics else 0,
-                    rerank_cost_usd=float(rerank_diagnostics.approximate_cost_usd)
+                    rerank_total_tokens=rerank_diagnostics.total_tokens
+                    if rerank_diagnostics
+                    else 0,
+                    rerank_cost_usd=_decimal_to_float_or_none(
+                        rerank_diagnostics.approximate_cost_usd
+                    )
                     if rerank_diagnostics
                     else None,
                     source_scope=source_scope_result.label,
@@ -4048,9 +4170,7 @@ async def _run_ws_chat_pipeline(
                     conflict_detection_applied=conflict_detection_applied,
                     conflict_detection_latency_ms=conflict_detection_latency_ms,
                     conflict_detection_agreement_level=conflict_detection_result.agreement_level,
-                    conflict_detection_conflict_count=len(
-                        conflict_detection_result.conflict_pairs
-                    ),
+                    conflict_detection_conflict_count=len(conflict_detection_result.conflict_pairs),
                     conflict_detection_conflicting_document_ids=list(
                         conflict_detection_result.conflicting_document_ids
                     ),
@@ -4059,7 +4179,9 @@ async def _run_ws_chat_pipeline(
                     ),
                     conflict_detection_model=conflict_detection_result.model_name or None,
                     conflict_detection_provider=conflict_detection_result.provider_key or None,
-                    graph_relation_types_used=list(graph_context_result.graph_relation_types_used),
+                    graph_relation_types_used=_list_or_empty(
+                        graph_context_result.graph_relation_types_used
+                    ),
                     embedding_model=embedding_model,
                     llm_model=llm_model,
                     llm_provider=llm_provider,

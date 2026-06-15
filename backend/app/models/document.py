@@ -22,7 +22,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import DocumentIngestionSource, DocumentStatus, DocumentTrustStatus, GraphExtractionStatus, OcrQualityStatus
+from app.models.enums import (
+    DocumentIngestionSource,
+    DocumentStatus,
+    DocumentTrustStatus,
+    GraphExtractionStatus,
+    OcrQualityStatus,
+)
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -178,7 +184,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     stale_after_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     organization = relationship("Organization", back_populates="documents")
-    uploader = relationship("User", back_populates="documents")
+    uploader = relationship(
+        "User",
+        back_populates="documents",
+        foreign_keys=[uploaded_by_user_id],
+    )
     pages = relationship("DocumentPage", back_populates="document", cascade="all, delete-orphan")
     chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
     citations = relationship("Citation", back_populates="document")

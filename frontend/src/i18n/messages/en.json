@@ -1620,7 +1620,8 @@
         "chunked": "Chunked",
         "embedded": "Embedded",
         "upserted": "Upserted to Qdrant",
-        "graphExtraction": "Graph extraction"
+        "graphExtraction": "Graph extraction",
+        "readyForChat": "Ready for chat"
       },
       "rec": {
         "retryIndexing": "Retry indexing after validating provider availability and queue health.",
