@@ -71,3 +71,6 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="organization",
         cascade="all, delete-orphan",
     )
+    ab_experiments = relationship(
+        "AbExperiment", back_populates="organization", cascade="all, delete-orphan"
+    )

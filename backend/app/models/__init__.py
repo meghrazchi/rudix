@@ -1,3 +1,9 @@
+from app.models.ab_experiment import (
+    AbExperiment,
+    AbExperimentRun,
+    AbExperimentVariant,
+    AbExperimentVariantRun,
+)
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.answer_share import AnswerShare
 from app.models.auth_session import AuthRefreshSession
@@ -52,6 +58,10 @@ from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 
 __all__ = [
+    "AbExperiment",
+    "AbExperimentRun",
+    "AbExperimentVariant",
+    "AbExperimentVariantRun",
     "AgentApproval",
     "AgentRun",
     "AgentStep",

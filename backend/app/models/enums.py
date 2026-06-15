@@ -333,3 +333,16 @@ class OcrQualityStatus(StrEnum):
     low = "low"
     failed = "failed"
     not_required = "not_required"
+
+
+class AbExperimentStatus(StrEnum):
+    draft = "draft"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+
+
+class AbVariantApprovalStatus(StrEnum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
