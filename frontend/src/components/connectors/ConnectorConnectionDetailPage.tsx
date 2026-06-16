@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { getApiErrorMessage, type ApiClientError } from "@/lib/api/errors";
+import { ConnectorPermissionReviewPanel } from "@/components/connectors/ConnectorPermissionReviewPanel";
 import {
   disconnectConnector,
   getConnectorConnection,
@@ -1176,6 +1177,8 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
         {/* Right column */}
         <div className="space-y-6">
+          <ConnectorPermissionReviewPanel connectionId={connection.id} />
+
           <CredentialPanel
             diagnostics={safeDiagnostics}
             connectionStatus={connection.status}

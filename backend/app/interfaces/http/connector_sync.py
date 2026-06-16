@@ -24,6 +24,7 @@ from app.domains.connectors.services.connector_service import (
     ConnectorPlatformDisabledError,
     ensure_connector_platform_enabled,
 )
+from app.domains.connectors.services.permission_review_service import PermissionReviewService
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
 from app.models.enums import ConnectorSyncJobStatus, OrganizationRole
@@ -226,6 +227,23 @@ async def trigger_sync_now(
     job_id: Annotated[UUID | None, Query()] = None,
 ) -> TriggerSyncNowResponse:
     org_id = _org_id(principal)
+
+    # Block sync until permissions have been explicitly reviewed and confirmed.
+    review_confirmed = await PermissionReviewService().is_confirmed(
+        db_session,
+        organization_id=org_id,
+        connection_id=connection_id,
+    )
+    if not review_confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Permission review required. "
+                "An admin must review and confirm the connector permission scope "
+                "before indexing can begin."
+            ),
+        )
+
     try:
         run = await _engine().trigger_manual_sync(
             db_session,

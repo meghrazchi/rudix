@@ -29,6 +29,10 @@ from app.domains.connectors.services.oauth_lifecycle import (
     OAuthRefreshError,
     OAuthStateValidationError,
 )
+from app.domains.connectors.services.permission_review_service import (
+    PermissionReviewNotFoundError,
+    PermissionReviewService,
+)
 from app.domains.connectors.services.provider_registry import (
     ProviderRegistryError,
     default_provider_registry,
@@ -211,6 +215,29 @@ class ConnectorDisconnectResponse(BaseModel):
     status: str
     disabled_sync_jobs: int
     remote_revoked_token_count: int
+
+
+class ScopeWarningResponse(BaseModel):
+    code: str
+    message: str
+    scope: str | None = None
+
+
+class PermissionReviewResponse(BaseModel):
+    id: str
+    connection_id: str
+    is_confirmed: bool
+    is_broad_scope: bool
+    scope_warnings: list[ScopeWarningResponse]
+    permission_snapshot: dict[str, Any]
+    reviewed_by_user_id: str | None
+    reviewed_at: str | None
+    created_at: str
+    updated_at: str
+
+
+def _review_service() -> PermissionReviewService:
+    return PermissionReviewService()
 
 
 def _service() -> ConnectorOAuthLifecycleService:
@@ -761,6 +788,80 @@ async def disconnect_connector(
     )
     await db_session.commit()
     return ConnectorDisconnectResponse(**result)
+
+
+def _permission_review_response(review: Any) -> PermissionReviewResponse:
+    from app.models.connector import ConnectorPermissionReview as _CPR
+
+    r: _CPR = review
+    return PermissionReviewResponse(
+        id=str(r.id),
+        connection_id=str(r.connection_id),
+        is_confirmed=r.is_confirmed,
+        is_broad_scope=r.is_broad_scope,
+        scope_warnings=[ScopeWarningResponse(**w) for w in (r.scope_warnings_json or [])],
+        permission_snapshot=sanitize_metadata(r.permission_snapshot_json or {}),
+        reviewed_by_user_id=(str(r.reviewed_by_user_id) if r.reviewed_by_user_id else None),
+        reviewed_at=r.reviewed_at.isoformat() if r.reviewed_at else None,
+        created_at=r.created_at.isoformat(),
+        updated_at=r.updated_at.isoformat(),
+    )
+
+
+@router.get(
+    "/{connection_id}/permission-review",
+    response_model=PermissionReviewResponse,
+)
+async def get_permission_review(
+    connection_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PermissionReviewResponse:
+    """Return (or lazily generate) the permission review for this connection.
+
+    On first call the service analyses the active credential scopes and source
+    configuration to build a snapshot with scope warnings. Subsequent calls
+    return the stored record unchanged until the admin refreshes it.
+    """
+    organization_id = _org_id(principal)
+    try:
+        review = await _review_service().get_or_create(
+            db_session,
+            organization_id=organization_id,
+            connection_id=connection_id,
+        )
+    except PermissionReviewNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db_session.commit()
+    return _permission_review_response(review)
+
+
+@router.post(
+    "/{connection_id}/permission-review/confirm",
+    response_model=PermissionReviewResponse,
+)
+async def confirm_permission_review(
+    connection_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PermissionReviewResponse:
+    """Confirm the permission review for a connection.
+
+    This must be called before the first sync can be triggered. Generates the
+    review record from live credential data if it does not yet exist.
+    """
+    organization_id = _org_id(principal)
+    try:
+        review = await _review_service().confirm(
+            db_session,
+            organization_id=organization_id,
+            connection_id=connection_id,
+            user_id=_user_id(principal),
+        )
+    except PermissionReviewNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    await db_session.commit()
+    return _permission_review_response(review)
 
 
 @router.get("/{connection_id}/diagnostics", response_model=ConnectorDiagnosticsResponse)

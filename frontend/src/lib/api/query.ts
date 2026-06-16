@@ -290,6 +290,8 @@ export const queryKeys = {
   connectorConnections: ["connectors", "connections"] as const,
   connectorConnection: (connectionId: string) =>
     ["connectors", "connections", connectionId] as const,
+  connectorPermissionReview: (connectionId: string) =>
+    ["connectors", "permission-review", connectionId] as const,
   connectorSyncJobs: (connectionId: string) =>
     ["connectors", connectionId, "sync-jobs"] as const,
   connectorSyncRuns: (connectionId: string) =>

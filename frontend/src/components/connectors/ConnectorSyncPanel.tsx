@@ -15,6 +15,7 @@ import {
   type SyncJob,
   type SyncRun,
 } from "@/lib/api/connector-sync";
+import { getPermissionReview } from "@/lib/api/connectors";
 import { queryKeys } from "@/lib/api/query";
 
 const RUN_STATUS_BADGE: Record<string, string> = {
@@ -138,12 +139,41 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
     onError: (err) => setErrorMsg(getApiErrorMessage(err)),
   });
 
+  const permissionReviewQuery = useQuery({
+    queryKey: queryKeys.connectorPermissionReview(connectionId),
+    queryFn: () => getPermissionReview(connectionId),
+  });
+
   const jobs: SyncJob[] = jobsQuery.data?.items ?? [];
   const runs: SyncRun[] = runsQuery.data?.items ?? [];
   const activeJob = jobs.find((j) => j.status === "active") ?? jobs[0];
+  const reviewConfirmed = permissionReviewQuery.data?.is_confirmed ?? false;
+  const reviewLoaded = !permissionReviewQuery.isLoading;
 
   return (
     <div className="space-y-6">
+      {/* Permission review gate */}
+      {reviewLoaded && !reviewConfirmed && (
+        <div
+          className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"
+          data-testid="permission-review-gate"
+        >
+          <span className="material-symbols-outlined mt-0.5 shrink-0 text-[22px] text-amber-600">
+            lock
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-amber-900">
+              Sync blocked — permission review required
+            </div>
+            <p className="mt-0.5 text-sm text-amber-800">
+              An admin must review and confirm the connector permission scope
+              before indexing can begin. Use the Permission review panel above to
+              confirm.
+            </p>
+          </div>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {errorMsg}
@@ -163,7 +193,12 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
             {activeJob && (
               <button
                 type="button"
-                disabled={triggerMutation.isPending}
+                disabled={triggerMutation.isPending || !reviewConfirmed}
+                title={
+                  !reviewConfirmed
+                    ? "Confirm permission review before syncing"
+                    : undefined
+                }
                 onClick={() => triggerMutation.mutate({ jobId: activeJob.id })}
                 className="rounded-xl bg-[#3525cd] px-4 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >

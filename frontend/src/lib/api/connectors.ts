@@ -65,6 +65,25 @@ export type ConnectorConnectionDetail = ConnectorConnectionSummary & {
   source_permission_snapshots: SourcePermissionSnapshot[];
 };
 
+export type ScopeWarning = {
+  code: string;
+  message: string;
+  scope: string | null;
+};
+
+export type PermissionReview = {
+  id: string;
+  connection_id: string;
+  is_confirmed: boolean;
+  is_broad_scope: boolean;
+  scope_warnings: ScopeWarning[];
+  permission_snapshot: Record<string, unknown>;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ConnectorConnectionsListResponse = {
   items: ConnectorConnectionSummary[];
   total: number;
@@ -158,6 +177,23 @@ export async function deleteConnectorConnection(
   return apiRequest<void>(
     `/connectors/connections/${encodeURIComponent(connectionId)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function getPermissionReview(
+  connectionId: string,
+): Promise<PermissionReview> {
+  return apiRequest<PermissionReview>(
+    `/connectors/${encodeURIComponent(connectionId)}/permission-review`,
+  );
+}
+
+export async function confirmPermissionReview(
+  connectionId: string,
+): Promise<PermissionReview> {
+  return apiRequest<PermissionReview>(
+    `/connectors/${encodeURIComponent(connectionId)}/permission-review/confirm`,
+    { method: "POST" },
   );
 }
 

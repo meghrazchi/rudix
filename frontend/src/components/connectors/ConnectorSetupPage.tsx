@@ -30,6 +30,7 @@ type ConnectorSetupState = {
   display_name: string;
   external_account_id: string;
   config_values: Record<string, string | boolean>;
+  confirmed: boolean;
 };
 
 type Props = {
@@ -490,6 +491,217 @@ function ReviewStep({
           </span>
         </div>
       </aside>
+    </div>
+  );
+}
+
+// ── Scope-risk analysis (mirrors backend logic for instant feedback) ──────────
+
+const WRITE_SCOPE_KEYWORDS = ["write", "delete", "modify", "create", "update"];
+const ADMIN_SCOPE_KEYWORDS = ["admin"];
+const ORG_WIDE_SCOPE_SUFFIXES = [".all", ":all", "_all"];
+
+const PROVIDER_ORG_WIDE_SCOPES: Record<string, string[]> = {
+  google_drive: [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+  ],
+  "microsoft-sharepoint-onedrive": ["Sites.Read.All", "Files.Read.All"],
+};
+
+type ScopeRisk = "write_permission" | "admin_scope" | "org_wide_access" | "broad_read";
+
+function detectScopeRisks(
+  scopes: string[],
+  providerKey: string,
+  configValues: Record<string, string | boolean>,
+): { code: ScopeRisk; message: string; scope: string }[] {
+  const warnings: { code: ScopeRisk; message: string; scope: string }[] = [];
+
+  const hasFilter = ["folder_ids", "site_ids", "drive_ids", "space_keys", "project_keys"].some(
+    (k) => {
+      const v = configValues[k];
+      return typeof v === "string" ? v.trim().length > 0 : Boolean(v);
+    },
+  );
+
+  for (const scope of scopes) {
+    const lower = scope.toLowerCase();
+    if (WRITE_SCOPE_KEYWORDS.some((kw) => lower.includes(kw))) {
+      warnings.push({
+        code: "write_permission",
+        message: `'${scope}' grants write or delete access — Rudix only needs read-only scopes.`,
+        scope,
+      });
+      continue;
+    }
+    if (ADMIN_SCOPE_KEYWORDS.some((kw) => lower.includes(kw))) {
+      warnings.push({
+        code: "admin_scope",
+        message: `'${scope}' grants admin-level access beyond what indexing requires.`,
+        scope,
+      });
+      continue;
+    }
+    const providerOrgWide = PROVIDER_ORG_WIDE_SCOPES[providerKey] ?? [];
+    if (providerOrgWide.includes(scope) && !hasFilter) {
+      warnings.push({
+        code: "org_wide_access",
+        message: `'${scope}' grants access to your entire organisation with no source filter. Consider restricting to specific folders or sites.`,
+        scope,
+      });
+      continue;
+    }
+    if (ORG_WIDE_SCOPE_SUFFIXES.some((sfx) => lower.endsWith(sfx))) {
+      warnings.push({
+        code: "broad_read",
+        message: `'${scope}' appears to grant broad read access — confirm this is the minimum required scope.`,
+        scope,
+      });
+    }
+  }
+  return warnings;
+}
+
+const SCOPE_RISK_ICONS: Record<ScopeRisk, string> = {
+  write_permission: "edit_off",
+  admin_scope: "admin_panel_settings",
+  org_wide_access: "public",
+  broad_read: "visibility",
+};
+
+type PermissionReviewState = { confirmed: boolean };
+
+function PermissionReviewStep({
+  state,
+  onChange,
+  provider,
+  scopeValues,
+}: WizardStepProps<ConnectorSetupState> & {
+  provider: ProviderSummary;
+  scopeValues: Record<string, string | boolean>;
+}) {
+  const requestedScopes = useMemo(() => {
+    if (provider.key === "confluence") {
+      return CONFLUENCE_SCOPES.map((s) => s.scope);
+    }
+    if (provider.key === "google_drive") {
+      return GOOGLE_DRIVE_SCOPES.map((s) => s.scope);
+    }
+    if (provider.key === "microsoft-sharepoint-onedrive") {
+      return MICROSOFT_SHAREPOINT_ONEDRIVE_SCOPES.map((s) => s.scope);
+    }
+    return [];
+  }, [provider.key]);
+
+  const warnings = useMemo(
+    () => detectScopeRisks(requestedScopes, provider.key, scopeValues),
+    [requestedScopes, provider.key, scopeValues],
+  );
+
+  const isBroad = warnings.length > 0;
+
+  const confirmed = (state as unknown as PermissionReviewState & ConnectorSetupState).confirmed ?? false;
+
+  return (
+    <div className="space-y-5">
+      {isBroad && (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <span className="material-symbols-outlined mt-0.5 shrink-0 text-[22px] text-amber-600">
+            warning
+          </span>
+          <div>
+            <div className="text-sm font-semibold text-amber-900">
+              Broad permission scope detected
+            </div>
+            <p className="mt-0.5 text-sm text-amber-800">
+              The selected configuration grants broad access. Review each warning
+              below and narrow the scope where possible before confirming.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4 space-y-3">
+        <h3 className="text-sm font-semibold text-[#2a2640]">Requested OAuth scopes</h3>
+        {requestedScopes.length === 0 ? (
+          <p className="text-sm text-[#68647b]">
+            This provider uses API token authentication — no OAuth scopes are requested.
+          </p>
+        ) : (
+          <div className="divide-y divide-[#f0eef9] overflow-hidden rounded-xl border border-[#d7d4e8]">
+            {requestedScopes.map((scope) => {
+              const warning = warnings.find((w) => w.scope === scope);
+              return (
+                <div
+                  key={scope}
+                  className={`flex items-start gap-3 px-3 py-2.5 ${warning ? "bg-amber-50/60" : "bg-white"}`}
+                >
+                  <span
+                    className={`material-symbols-outlined mt-0.5 shrink-0 text-[18px] ${
+                      warning ? "text-amber-500" : "text-emerald-500"
+                    }`}
+                  >
+                    {warning ? SCOPE_RISK_ICONS[warning.code] : "check_circle"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-mono text-xs break-all text-[#2a2640]">{scope}</div>
+                    {warning && (
+                      <div className="mt-0.5 text-xs text-amber-700">{warning.message}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">sync_alt</span>
+            Sync direction
+          </div>
+          <p className="mt-1.5 text-sm text-[#68647b]">Read-only. Rudix never writes, edits, or deletes content in the connected source.</p>
+        </div>
+        <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">database</span>
+            Retention
+          </div>
+          <p className="mt-1.5 text-sm text-[#68647b]">Indexed content is stored until the connector is removed or a document is deleted at the source.</p>
+        </div>
+        <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">group</span>
+            Access
+          </div>
+          <p className="mt-1.5 text-sm text-[#68647b]">Indexed results are available to all members of your organisation via the assigned collection.</p>
+        </div>
+      </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#d7d4e8] bg-white p-4 transition-colors hover:border-[#3525cd]/40">
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={(e) =>
+            onChange({ ...(state as object), confirmed: e.target.checked } as ConnectorSetupState)
+          }
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#bfb9d8] text-[#3525cd] focus:ring-[#3525cd]"
+          data-testid="permission-review-confirm"
+        />
+        <div>
+          <div className="text-sm font-semibold text-[#2a2640]">
+            I confirm I have reviewed the requested permissions
+          </div>
+          <p className="mt-0.5 text-xs text-[#6a6780]">
+            {isBroad
+              ? "I understand this connector requests broad access and accept responsibility for the scope configured above."
+              : "I understand what data this connector will access and confirm it is appropriate for indexing."}
+          </p>
+        </div>
+      </label>
     </div>
   );
 }
@@ -1308,6 +1520,7 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
       display_name: provider.display_name,
       external_account_id: "",
       config_values: buildConfigFieldState(provider.config_schema),
+      confirmed: false,
     }),
     [provider],
   );
@@ -1376,6 +1589,18 @@ function WizardShell({ provider }: { provider: ProviderSummary }) {
             );
           },
         ),
+    },
+    {
+      key: "permissions",
+      label: "Permissions",
+      component: (props: WizardStepProps<ConnectorSetupState>) => (
+        <PermissionReviewStep
+          {...props}
+          provider={provider}
+          scopeValues={props.state.config_values}
+        />
+      ),
+      canProceed: (state: ConnectorSetupState) => state.confirmed === true,
     },
     {
       key: "review",

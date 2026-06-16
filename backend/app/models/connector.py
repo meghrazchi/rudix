@@ -132,6 +132,12 @@ class ConnectorConnection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="connection",
         cascade="all, delete-orphan",
     )
+    permission_review = relationship(
+        "ConnectorPermissionReview",
+        back_populates="connection",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class ExternalSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -180,6 +186,45 @@ class ExternalSource(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     collection = relationship("Collection")
     items = relationship("ExternalItem", back_populates="external_source")
     sync_jobs = relationship("ConnectorSyncJob", back_populates="external_source")
+
+
+class ConnectorPermissionReview(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "connector_permission_reviews"
+    __table_args__ = (
+        UniqueConstraint(
+            "connection_id",
+            name="uq_connector_permission_reviews_connection",
+        ),
+        Index("idx_connector_permission_reviews_org", "organization_id"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    connection_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("connector_connections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reviewed_by_user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    permission_snapshot_json: Mapped[dict] = mapped_column(
+        "permission_snapshot", JSON, nullable=False, default=dict
+    )
+    scope_warnings_json: Mapped[list] = mapped_column(
+        "scope_warnings", JSON, nullable=False, default=list
+    )
+    is_broad_scope: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    organization = relationship("Organization")
+    connection = relationship("ConnectorConnection", back_populates="permission_review")
 
 
 class ExternalItem(UUIDPrimaryKeyMixin, TimestampMixin, Base):
