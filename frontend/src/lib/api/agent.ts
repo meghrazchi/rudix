@@ -148,6 +148,49 @@ export type AgentRunDetailResponse = {
   approvals: AgentApprovalResponse[];
 };
 
+export type AgentRunListItem = {
+  run_id: string;
+  status: string;
+  objective: string | null;
+  total_cost_usd: number | null;
+  trace_request_id: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentRunListResponse = {
+  runs: AgentRunListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export async function listAgentRuns(params?: {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}): Promise<AgentRunListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit != null) searchParams.set("limit", String(params.limit));
+  if (params?.offset != null) searchParams.set("offset", String(params.offset));
+  if (params?.status) searchParams.set("status_filter", params.status);
+  const qs = searchParams.toString();
+  return apiRequest<AgentRunListResponse>(`/agent/runs${qs ? `?${qs}` : ""}`);
+}
+
+export async function cancelAgentRun(
+  runId: string,
+): Promise<AgentRunDetailResponse> {
+  return apiRequest<AgentRunDetailResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/cancel`,
+    { method: "POST", authRetry: "safe" },
+  );
+}
+
 export async function createAgentRun(
   payload: AgentRunCreateRequest,
 ): Promise<AgentRunCreateResponse> {

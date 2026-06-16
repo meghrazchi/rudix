@@ -111,7 +111,10 @@ export const queryKeys = {
       ["chat", "session-messages", sessionId] as const,
   },
   agent: {
+    all: ["agent"] as const,
     run: (runId: string) => ["agent", "run", runId] as const,
+    runs: (params?: Record<string, unknown>) =>
+      ["agent", "runs", params ?? {}] as const,
   },
   evaluations: {
     sets: ["evaluations", "sets"] as const,
@@ -333,6 +336,7 @@ export type FrontendMutationKind =
   | "chat.session.rename"
   | "chat.session.delete"
   | "agent.run"
+  | "agent.run.cancel"
   | "evaluation.run"
   | "evaluation.set.update"
   | "evaluation.set.delete"
@@ -432,6 +436,11 @@ export async function invalidateAfterMutation(
     kind === "chat.session.delete"
   ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.chat.sessions });
+    return;
+  }
+
+  if (kind === "agent.run.cancel") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.agent.all });
     return;
   }
 

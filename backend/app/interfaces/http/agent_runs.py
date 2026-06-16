@@ -129,6 +129,27 @@ class AgentRunDetailResponse(BaseModel):
     approvals: list[AgentApprovalResponse] = Field(default_factory=list)
 
 
+class AgentRunListItem(BaseModel):
+    run_id: str
+    status: str
+    objective: str | None = None
+    total_cost_usd: Decimal | None = None
+    trace_request_id: str | None = None
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentRunListResponse(BaseModel):
+    runs: list[AgentRunListItem]
+    total: int
+    limit: int
+    offset: int
+
+
 class AgentApprovalDecisionRequest(BaseModel):
     status: str = Field(pattern=r"^(approved|rejected)$")
     reason: str | None = Field(default=None, max_length=600)
@@ -391,6 +412,169 @@ async def get_agent_run(
         steps=[_to_step_response(step) for step in steps],
         tool_calls=[_to_tool_call_response(tool_call) for tool_call in tool_calls],
         approvals=[_to_approval_response(approval) for approval in approvals],
+    )
+
+
+@router.get("/runs", response_model=AgentRunListResponse)
+async def list_agent_runs(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = 20,
+    offset: int = 0,
+    status_filter: str | None = None,
+) -> AgentRunListResponse:
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    runs = await agent_run_repository.list_agent_runs(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        status=status_filter,
+        limit=safe_limit,
+        offset=safe_offset,
+    )
+    total = await agent_run_repository.count_agent_runs(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        status=status_filter,
+    )
+    return AgentRunListResponse(
+        runs=[
+            AgentRunListItem(
+                run_id=str(run.id),
+                status=run.status,
+                objective=run.objective,
+                total_cost_usd=run.total_cost_usd,
+                trace_request_id=run.trace_request_id,
+                error_message=run.error_message,
+                started_at=run.started_at,
+                completed_at=run.completed_at,
+                cancelled_at=run.cancelled_at,
+                created_at=run.created_at,
+                updated_at=run.updated_at,
+            )
+            for run in runs
+        ],
+        total=total,
+        limit=safe_limit,
+        offset=safe_offset,
+    )
+
+
+@router.post("/runs/{run_id}/cancel", response_model=AgentRunDetailResponse)
+async def cancel_agent_run(
+    run_id: str,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentRunDetailResponse:
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+
+    run = await agent_run_repository.get_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    if run.status in {"completed", "failed", "cancelled"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "run_already_terminal",
+                "message": "Only queued or running agent runs can be cancelled.",
+            },
+        )
+
+    updated = await agent_run_repository.update_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+        status="cancelled",
+        cancelled_at=datetime.now(tz=UTC),
+    )
+    if updated is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="agent.run.cancel",
+        resource_type="agent_run",
+        resource_id=run_uuid,
+        request_id=_request_id_from_request(request),
+        metadata={"run_id": str(run_uuid)},
+        required=False,
+    )
+    log_agent_event(
+        event="agent.run.cancel",
+        organization_id=str(organization_id),
+        user_id=str(user_id),
+        run_id=str(run_uuid),
+    )
+    await db_session.commit()
+
+    steps = await agent_run_repository.list_agent_steps(
+        db_session, agent_run_id=updated.id, organization_id=organization_id
+    )
+    tool_calls = await agent_run_repository.list_agent_tool_calls(
+        db_session, agent_run_id=updated.id, organization_id=organization_id
+    )
+    approvals = await agent_run_repository.list_agent_approvals(
+        db_session, agent_run_id=updated.id, organization_id=organization_id
+    )
+    return AgentRunDetailResponse(
+        run_id=str(updated.id),
+        organization_id=str(updated.organization_id),
+        user_id=str(updated.user_id) if updated.user_id is not None else None,
+        status=updated.status,
+        surface=updated.surface,
+        objective=updated.objective,
+        max_steps=updated.max_steps,
+        max_parallel_tool_calls=updated.max_parallel_tool_calls,
+        budget=updated.budget_json or {},
+        costs=updated.costs_json or {},
+        outcome=updated.outcome_json or {},
+        observations=updated.observations_json or {},
+        total_cost_usd=updated.total_cost_usd,
+        trace_request_id=updated.trace_request_id,
+        error_message=updated.error_message,
+        error_details=updated.error_details_json or {},
+        started_at=updated.started_at,
+        completed_at=updated.completed_at,
+        cancelled_at=updated.cancelled_at,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
+        steps=[_to_step_response(s) for s in steps],
+        tool_calls=[_to_tool_call_response(tc) for tc in tool_calls],
+        approvals=[_to_approval_response(a) for a in approvals],
     )
 
 

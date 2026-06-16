@@ -11,6 +11,7 @@ export type AppRouteKey =
   | "collections"
   | "graph"
   | "chat"
+  | "agent-workspace"
   | "evaluations"
   | "pipeline"
   | "connectors"
@@ -91,6 +92,15 @@ export const APP_ROUTES: AppRouteMeta[] = [
     label: "Chat",
     description: "Ask questions against indexed documents",
     matchPrefixes: ["/chat"],
+    requiresOrganization: true,
+    allowedRoles: ["owner", "admin", "member", "viewer"],
+  },
+  {
+    key: "agent-workspace",
+    href: "/workspace/agent",
+    label: "Agent Workspace",
+    description: "Run agentic tasks, inspect plans, tool calls, and answers",
+    matchPrefixes: ["/workspace/agent"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
   },
