@@ -174,6 +174,40 @@ class DocumentGraphInsightsResponse(BaseModel):
     last_run_at: str | None = None
 
 
+class GraphEntityTypeCountItem(BaseModel):
+    entity_type: str
+    count: int
+    avg_confidence: float | None = None
+
+
+class GraphStatsResponse(BaseModel):
+    total_entities: int
+    total_relations: int
+    avg_confidence: float | None = None
+    low_confidence_count: int
+    entities_by_type: list[GraphEntityTypeCountItem]
+    graph_available: bool
+
+
+class GraphRelationshipListResponse(BaseModel):
+    items: list[GraphRelationItem]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool = False
+
+
+class GraphNeighborItem(BaseModel):
+    entity_id: str
+    entity_type: str | None = None
+    canonical_name: str | None = None
+    normalized_name: str | None = None
+    relation_count: int = 0
+    confidence: float | None = None
+    rel_type: str | None = None
+    direction: str | None = None
+
+
 RelationshipDirection = Literal["out", "in", "both"]
 _Principal = Annotated[AuthenticatedPrincipal, Depends(require_permission(PermissionType.graph_view))]
 _RateLimit = Annotated[None, Depends(enforce_rate_limit(RateLimitScope.chat))]
@@ -324,3 +358,77 @@ async def get_document_graph_insights(
         extraction_runs=extraction_runs,
         last_run_at=data.get("last_run_at"),
     )
+
+
+@router.get("/stats", response_model=GraphStatsResponse)
+async def get_graph_stats(
+    principal: _Principal,
+    _: _RateLimit,
+) -> GraphStatsResponse:
+    """Return org-level graph statistics for the explorer overview panel (F269).
+
+    Always returns a valid response — `graph_available=false` when Neo4j is
+    unreachable so the UI can show an empty state rather than an error.
+    """
+    svc = _graph_service()
+    data = await svc.get_graph_stats(organization_id=principal.organization_id)
+    return GraphStatsResponse(
+        total_entities=data["total_entities"],
+        total_relations=data["total_relations"],
+        avg_confidence=data.get("avg_confidence"),
+        low_confidence_count=data["low_confidence_count"],
+        entities_by_type=[
+            GraphEntityTypeCountItem(**item) for item in data["entities_by_type"]
+        ],
+        graph_available=data["graph_available"],
+    )
+
+
+@router.get("/relationships", response_model=GraphRelationshipListResponse)
+async def list_relationships(
+    principal: _Principal,
+    _: _RateLimit,
+    rel_type: Annotated[str | None, Query(min_length=1)] = None,
+    min_confidence: Annotated[float | None, Query(ge=0.0, le=1.0)] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 25,
+) -> GraphRelationshipListResponse:
+    """List org-scoped relationships for the explorer relationships tab (F269)."""
+    _require_graph_available()
+    svc = _graph_service()
+    result = await svc.list_user_relationships(
+        organization_id=principal.organization_id,
+        rel_type=rel_type,
+        min_confidence=min_confidence,
+        skip=skip,
+        limit=limit,
+    )
+    return GraphRelationshipListResponse(
+        items=[GraphRelationItem(**item) for item in result["items"]],
+        total=int(result["total"]),
+        skip=skip,
+        limit=limit,
+        has_more=bool(result.get("has_more", False)),
+    )
+
+
+@router.get("/entities/{entity_id}/neighbors", response_model=list[GraphNeighborItem])
+async def get_entity_neighbors(
+    entity_id: str,
+    principal: _Principal,
+    _: _RateLimit,
+    depth: Annotated[int, Query(ge=1, le=5)] = 2,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    rel_type: Annotated[str | None, Query(min_length=1)] = None,
+) -> list[GraphNeighborItem]:
+    """Return multi-hop neighbors of an entity for the interactive graph explorer (F269)."""
+    _require_graph_available()
+    svc = _graph_service()
+    neighbors = await svc.get_entity_neighbors(
+        organization_id=principal.organization_id,
+        entity_id=entity_id,
+        depth=depth,
+        limit=limit,
+        relationship_types=[rel_type] if rel_type else None,
+    )
+    return [GraphNeighborItem(**item) for item in neighbors]

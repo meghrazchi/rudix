@@ -197,3 +197,87 @@ export async function getDocumentGraphInsights(
     `/graph/documents/${encodeURIComponent(documentId)}/insights`,
   );
 }
+
+// ------------------------------------------------------------------
+// F269 — Knowledge Graph Explorer additions
+// ------------------------------------------------------------------
+
+export type GraphEntityTypeCountItem = {
+  entity_type: string;
+  count: number;
+  avg_confidence?: number | null;
+};
+
+export type GraphStatsResponse = {
+  total_entities: number;
+  total_relations: number;
+  avg_confidence?: number | null;
+  low_confidence_count: number;
+  entities_by_type: GraphEntityTypeCountItem[];
+  graph_available: boolean;
+};
+
+export type GraphRelationshipListResponse = {
+  items: GraphRelationItem[];
+  total: number;
+  skip: number;
+  limit: number;
+  has_more: boolean;
+};
+
+export type GraphNeighborItem = {
+  entity_id: string;
+  entity_type?: string | null;
+  canonical_name?: string | null;
+  normalized_name?: string | null;
+  relation_count: number;
+  confidence?: number | null;
+  rel_type?: string | null;
+  direction?: string | null;
+};
+
+export async function getGraphStats(): Promise<GraphStatsResponse> {
+  return apiRequest<GraphStatsResponse>("/graph/stats");
+}
+
+export type ListGraphRelationshipsParams = {
+  rel_type?: string | null;
+  min_confidence?: number | null;
+  skip?: number;
+  limit?: number;
+};
+
+export async function listGraphRelationships(
+  params: ListGraphRelationshipsParams = {},
+): Promise<GraphRelationshipListResponse> {
+  return apiRequest<GraphRelationshipListResponse>("/graph/relationships", {
+    query: {
+      rel_type: params.rel_type ?? undefined,
+      min_confidence: params.min_confidence ?? undefined,
+      skip: params.skip ?? undefined,
+      limit: params.limit ?? undefined,
+    },
+  });
+}
+
+export type GetEntityNeighborsParams = {
+  depth?: number;
+  limit?: number;
+  rel_type?: string | null;
+};
+
+export async function getEntityNeighbors(
+  entityId: string,
+  params: GetEntityNeighborsParams = {},
+): Promise<GraphNeighborItem[]> {
+  return apiRequest<GraphNeighborItem[]>(
+    `/graph/entities/${encodeURIComponent(entityId)}/neighbors`,
+    {
+      query: {
+        depth: params.depth ?? undefined,
+        limit: params.limit ?? undefined,
+        rel_type: params.rel_type ?? undefined,
+      },
+    },
+  );
+}

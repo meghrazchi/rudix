@@ -262,3 +262,393 @@ def test_graph_disabled_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert response.status_code == 503
     assert response.json()["detail"] == "enterprise_graph_unavailable"
+
+
+# ------------------------------------------------------------------
+# F269 — GET /graph/stats
+# ------------------------------------------------------------------
+
+
+def test_graph_stats_returns_overview(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_graph_stats=AsyncMock(
+            return_value={
+                "total_entities": 120,
+                "total_relations": 54,
+                "avg_confidence": 0.87,
+                "low_confidence_count": 3,
+                "entities_by_type": [
+                    {
+                        "entity_type": "Vendor",
+                        "count": 80,
+                        "avg_confidence": 0.91,
+                    },
+                    {
+                        "entity_type": "Person",
+                        "count": 40,
+                        "avg_confidence": 0.82,
+                    },
+                ],
+                "graph_available": True,
+            }
+        ),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/stats")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_entities"] == 120
+    assert body["total_relations"] == 54
+    assert body["graph_available"] is True
+    assert len(body["entities_by_type"]) == 2
+    assert body["entities_by_type"][0]["entity_type"] == "Vendor"
+    fake_service.get_graph_stats.assert_awaited_once_with(
+        organization_id="org-graph"
+    )
+
+
+def test_graph_stats_returns_safe_zero_when_neo4j_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_graph_stats=AsyncMock(
+            return_value={
+                "total_entities": 0,
+                "total_relations": 0,
+                "avg_confidence": None,
+                "low_confidence_count": 0,
+                "entities_by_type": [],
+                "graph_available": False,
+            }
+        ),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/stats")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_entities"] == 0
+    assert body["graph_available"] is False
+    assert body["entities_by_type"] == []
+
+
+def test_graph_stats_cross_tenant_isolation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    captured: list[str] = []
+
+    async def _stats(*, organization_id: str) -> dict:
+        captured.append(str(organization_id))
+        return {
+            "total_entities": 0,
+            "total_relations": 0,
+            "avg_confidence": None,
+            "low_confidence_count": 0,
+            "entities_by_type": [],
+            "graph_available": True,
+        }
+
+    fake_service = SimpleNamespace(is_available=lambda: True, get_graph_stats=_stats)
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/stats")
+
+    assert response.status_code == 200
+    # The org comes from the authenticated principal, not from query params
+    assert captured == ["org-graph"]
+
+
+# ------------------------------------------------------------------
+# F269 — GET /graph/relationships
+# ------------------------------------------------------------------
+
+
+def test_list_relationships_returns_paginated_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        list_user_relationships=AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "relation_id": "rel-1",
+                        "from_entity_id": "entity-1",
+                        "rel_type": "OWNS",
+                        "to_entity_id": "entity-2",
+                        "status": "verified",
+                        "confidence": 0.9,
+                        "properties": {},
+                    }
+                ],
+                "total": 1,
+                "skip": 0,
+                "limit": 25,
+                "has_more": False,
+            }
+        ),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/relationships")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["rel_type"] == "OWNS"
+    assert body["has_more"] is False
+    fake_service.list_user_relationships.assert_awaited_once_with(
+        organization_id="org-graph",
+        rel_type=None,
+        min_confidence=None,
+        skip=0,
+        limit=25,
+    )
+
+
+def test_list_relationships_filters_are_forwarded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        list_user_relationships=AsyncMock(
+            return_value={
+                "items": [],
+                "total": 0,
+                "skip": 0,
+                "limit": 10,
+                "has_more": False,
+            }
+        ),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/v1/graph/relationships",
+        params={"rel_type": "OWNED_BY", "min_confidence": 0.85, "limit": 10},
+    )
+
+    assert response.status_code == 200
+    fake_service.list_user_relationships.assert_awaited_once_with(
+        organization_id="org-graph",
+        rel_type="OWNED_BY",
+        min_confidence=0.85,
+        skip=0,
+        limit=10,
+    )
+
+
+def test_list_relationships_503_when_graph_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(is_available=lambda: False)
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/relationships")
+
+    assert response.status_code == 503
+
+
+def test_list_relationships_cross_tenant_isolation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    captured: list[str] = []
+
+    async def _list_rels(*, organization_id: str, **_kwargs: Any) -> dict:
+        captured.append(str(organization_id))
+        return {
+            "items": [],
+            "total": 0,
+            "skip": 0,
+            "limit": 25,
+            "has_more": False,
+        }
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        list_user_relationships=_list_rels,
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/relationships")
+
+    assert response.status_code == 200
+    # Organization ID comes from the authenticated principal, not from query params
+    assert captured == ["org-graph"]
+
+
+# ------------------------------------------------------------------
+# F269 — GET /graph/entities/{id}/neighbors
+# ------------------------------------------------------------------
+
+
+def test_entity_neighbors_returns_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_entity_neighbors=AsyncMock(
+            return_value=[
+                {
+                    "entity_id": "entity-2",
+                    "entity_type": "Vendor",
+                    "canonical_name": "Partner Ltd",
+                    "normalized_name": "partner ltd",
+                    "relation_count": 3,
+                    "confidence": 0.88,
+                    "rel_type": "OWNS",
+                    "direction": "out",
+                }
+            ]
+        ),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/v1/graph/entities/entity-1/neighbors",
+        params={"depth": 2, "limit": 20},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["canonical_name"] == "Partner Ltd"
+    assert body[0]["rel_type"] == "OWNS"
+    fake_service.get_entity_neighbors.assert_awaited_once_with(
+        organization_id="org-graph",
+        entity_id="entity-1",
+        depth=2,
+        limit=20,
+        relationship_types=None,
+    )
+
+
+def test_entity_neighbors_rel_type_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_entity_neighbors=AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/v1/graph/entities/entity-1/neighbors",
+        params={"rel_type": "OWNS"},
+    )
+
+    assert response.status_code == 200
+    fake_service.get_entity_neighbors.assert_awaited_once_with(
+        organization_id="org-graph",
+        entity_id="entity-1",
+        depth=2,
+        limit=20,
+        relationship_types=["OWNS"],
+    )
+
+
+def test_entity_neighbors_depth_clamped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_entity_neighbors=AsyncMock(return_value=[]),
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get(
+        "/api/v1/graph/entities/entity-1/neighbors",
+        params={"depth": 10},  # exceeds max of 5
+    )
+
+    assert response.status_code == 422
+
+
+def test_entity_neighbors_503_when_graph_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    fake_service = SimpleNamespace(is_available=lambda: False)
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/entities/entity-1/neighbors")
+
+    assert response.status_code == 503
+
+
+def test_entity_neighbors_cross_tenant_isolation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "enterprise_graph_enabled", True)
+    monkeypatch.setattr(settings, "rate_limit_enabled", False)
+
+    captured: list[str] = []
+
+    async def _neighbors(*, organization_id: str, **_kwargs: Any) -> list[dict]:
+        captured.append(str(organization_id))
+        return []
+
+    fake_service = SimpleNamespace(
+        is_available=lambda: True,
+        get_entity_neighbors=_neighbors,
+    )
+    monkeypatch.setattr(graph_http, "_graph_service", lambda: fake_service)
+    app.dependency_overrides[get_current_principal] = _principal_override("viewer")
+
+    client = TestClient(app)
+    response = client.get("/api/v1/graph/entities/entity-x/neighbors")
+
+    assert response.status_code == 200
+    # Organization ID comes from the authenticated principal, not from path params
+    assert captured == ["org-graph"]

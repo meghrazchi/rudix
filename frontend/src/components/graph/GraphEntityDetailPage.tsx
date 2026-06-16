@@ -11,10 +11,12 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
+  getEntityNeighbors,
   getGraphEntity,
   type GraphConnectedDocumentItem,
   type GraphConnectedEntityItem,
   type GraphEvidenceItem,
+  type GraphNeighborItem,
   type GraphRelationItem,
 } from "@/lib/api/graph";
 import { queryKeys } from "@/lib/api/query";
@@ -65,6 +67,46 @@ function relationOtherEntity(
       ? relation.to_entity_id
       : relation.from_entity_id;
   return connectedEntities.get(otherId) ?? null;
+}
+
+function formatConfidenceNeighbor(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return ` · ${Math.round(value * 100)}% confidence`;
+}
+
+function NeighborCard({ item }: { item: GraphNeighborItem }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <Link
+            href={`/graph/entities/${encodeURIComponent(item.entity_id)}`}
+            className="font-semibold text-[#2a2640] hover:underline"
+          >
+            {item.canonical_name ?? item.entity_id}
+          </Link>
+          <p className="text-xs text-[#68647b]">
+            {item.entity_type ?? "Entity"}
+            {formatConfidenceNeighbor(item.confidence)}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {item.rel_type ? (
+            <span className="rounded-full bg-[#ece8ff] px-2 py-1 text-xs font-bold text-[#3525cd]">
+              {item.rel_type}
+            </span>
+          ) : null}
+          {item.direction ? (
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+              {item.direction}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function EvidenceCard({
@@ -130,6 +172,8 @@ export function GraphEntityDetailPage({
   const [appliedDirection, setAppliedDirection] =
     useState<RelationDirection>("both");
 
+  const [neighborDepth, setNeighborDepth] = useState(2);
+
   const queryParams = useMemo(
     () => ({
       rel_type: appliedRelType.trim() || undefined,
@@ -142,6 +186,12 @@ export function GraphEntityDetailPage({
   const query = useQuery({
     queryKey: queryKeys.graph.entity(entityId, queryParams),
     queryFn: () => getGraphEntity(entityId, queryParams),
+  });
+
+  const neighborsQuery = useQuery({
+    queryKey: queryKeys.graph.neighbors(entityId, { depth: neighborDepth }),
+    queryFn: () => getEntityNeighbors(entityId, { depth: neighborDepth, limit: 30 }),
+    staleTime: 60_000,
   });
 
   const isInitialLoading = query.isLoading && !query.data;
@@ -535,6 +585,53 @@ export function GraphEntityDetailPage({
             </table>
           </div>
         </article>
+      </section>
+
+      <section className="rounded-3xl border border-[#d7d4e8] bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-[#2a2640]">
+              Multi-hop neighbors
+            </h2>
+            <p className="text-sm text-[#68647b]">
+              Entities reachable within {neighborDepth} hop
+              {neighborDepth === 1 ? "" : "s"} via any relationship type.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-[#433e59]">
+            Depth
+            <select
+              value={neighborDepth}
+              onChange={(event) =>
+                setNeighborDepth(Number(event.target.value))
+              }
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-[#2a2640] transition outline-none focus:border-[#3525cd]"
+            >
+              {[1, 2, 3].map((d) => (
+                <option key={d} value={d}>
+                  {d} hop{d === 1 ? "" : "s"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {neighborsQuery.isLoading ? (
+            <p className="col-span-full text-sm text-[#68647b]">
+              Loading neighbors…
+            </p>
+          ) : (neighborsQuery.data ?? []).length > 0 ? (
+            (neighborsQuery.data ?? []).map((item) => (
+              <NeighborCard key={item.entity_id} item={item} />
+            ))
+          ) : (
+            <EmptyState
+              compact
+              title="No neighbors found"
+              description="Try increasing the hop depth or waiting for extraction to complete."
+            />
+          )}
+        </div>
       </section>
 
       <section className="rounded-3xl border border-[#d7d4e8] bg-white p-6 shadow-sm">

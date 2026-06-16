@@ -5,18 +5,53 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GraphEntityDetailPage } from "@/components/graph/GraphEntityDetailPage";
 import { normalizeApiError } from "@/lib/api/errors";
-import { getGraphEntity } from "@/lib/api/graph";
+import { getEntityNeighbors, getGraphEntity } from "@/lib/api/graph";
 
 vi.mock("@/lib/api/graph", async () => {
   const actual =
     await vi.importActual<typeof import("@/lib/api/graph")>("@/lib/api/graph");
   return {
     ...actual,
+    getEntityNeighbors: vi.fn(),
     getGraphEntity: vi.fn(),
   };
 });
 
+const mockedGetEntityNeighbors = vi.mocked(getEntityNeighbors);
 const mockedGetGraphEntity = vi.mocked(getGraphEntity);
+
+function makeDetailFixture() {
+  return {
+    entity: {
+      entity_id: "entity-1",
+      entity_type: "Vendor",
+      canonical_name: "Acme Corp",
+      normalized_name: "acme corp",
+      aliases: ["Acme"],
+      alias_count: 1,
+      workspace_id: "ws-1",
+      external_source_id: "src-1",
+      resolution_status: "verified",
+      resolution_confidence: 0.92,
+      confidence: 0.95,
+      last_updated_at: "2026-06-14T10:00:00Z",
+      evidence_count: 1,
+      related_document_count: 1,
+    },
+    aliases: [],
+    evidence: [],
+    relationships: [],
+    connected_documents: [],
+    connected_entities: [],
+    summary: {
+      alias_count: 0,
+      evidence_count: 0,
+      relationship_count: 0,
+      connected_document_count: 0,
+      connected_entity_count: 0,
+    },
+  };
+}
 
 function renderPage(entityId = "entity-1") {
   const queryClient = new QueryClient({
@@ -35,7 +70,9 @@ function renderPage(entityId = "entity-1") {
 
 describe("GraphEntityDetailPage", () => {
   beforeEach(() => {
+    mockedGetEntityNeighbors.mockReset();
     mockedGetGraphEntity.mockReset();
+    mockedGetEntityNeighbors.mockResolvedValue([]);
   });
 
   it("shows provenance-backed details and connected documents", async () => {
@@ -210,5 +247,88 @@ describe("GraphEntityDetailPage", () => {
       await screen.findByRole("heading", { name: "Graph entity restricted" }),
     ).toBeInTheDocument();
     expect(screen.getByText("entity-403")).toBeInTheDocument();
+  });
+
+  // ------------------------------------------------------------------
+  // F269 — Multi-hop neighbors section
+  // ------------------------------------------------------------------
+
+  it("shows multi-hop neighbors section heading", async () => {
+    mockedGetGraphEntity.mockResolvedValueOnce(makeDetailFixture());
+    mockedGetEntityNeighbors.mockResolvedValueOnce([]);
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Multi-hop neighbors"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders neighbor cards when neighbors are returned", async () => {
+    mockedGetGraphEntity.mockResolvedValueOnce(makeDetailFixture());
+    mockedGetEntityNeighbors.mockResolvedValueOnce([
+      {
+        entity_id: "entity-2",
+        entity_type: "Vendor",
+        canonical_name: "Partner Ltd",
+        normalized_name: "partner ltd",
+        relation_count: 3,
+        confidence: 0.88,
+        rel_type: "OWNS",
+        direction: "out",
+      },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText("Partner Ltd")).toBeInTheDocument();
+    expect(screen.getByText("OWNS")).toBeInTheDocument();
+  });
+
+  it("shows empty neighbors state when no neighbors found", async () => {
+    mockedGetGraphEntity.mockResolvedValueOnce(makeDetailFixture());
+    mockedGetEntityNeighbors.mockResolvedValueOnce([]);
+
+    renderPage();
+
+    await screen.findByText("Acme Corp");
+    expect(await screen.findByText("No neighbors found")).toBeInTheDocument();
+  });
+
+  it("calls getEntityNeighbors with correct depth", async () => {
+    mockedGetGraphEntity.mockResolvedValueOnce(makeDetailFixture());
+    mockedGetEntityNeighbors.mockResolvedValue([]);
+
+    renderPage("entity-1");
+
+    await screen.findByText("Acme Corp");
+
+    await waitFor(() => {
+      expect(mockedGetEntityNeighbors).toHaveBeenCalledWith(
+        "entity-1",
+        expect.objectContaining({ depth: 2, limit: 30 }),
+      );
+    });
+  });
+
+  it("changing depth selector re-fetches neighbors", async () => {
+    mockedGetGraphEntity.mockResolvedValueOnce(makeDetailFixture());
+    mockedGetEntityNeighbors.mockResolvedValue([]);
+
+    renderPage();
+
+    await screen.findByText("Acme Corp");
+
+    await userEvent.selectOptions(
+      screen.getByLabelText("Depth"),
+      "1",
+    );
+
+    await waitFor(() => {
+      expect(mockedGetEntityNeighbors).toHaveBeenLastCalledWith(
+        "entity-1",
+        expect.objectContaining({ depth: 1 }),
+      );
+    });
   });
 });

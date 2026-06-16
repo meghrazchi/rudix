@@ -1121,3 +1121,146 @@ class GraphService:
             document_ids=document_ids,
             confidence_threshold=confidence_threshold,
         )
+
+    # ------------------------------------------------------------------
+    # F269 — Knowledge Graph Explorer additions
+    # ------------------------------------------------------------------
+
+    async def get_graph_stats(
+        self,
+        *,
+        organization_id: UUID | str,
+    ) -> dict:
+        """Return org-level graph statistics for the explorer overview panel.
+
+        Combines entity metrics (counts by type, avg confidence) and relation
+        metrics from Neo4j. Returns safe zero values when graph is unavailable.
+        """
+        from app.domains.graph.repositories import metrics_repository
+
+        org_uuid = UUID(str(organization_id)) if not isinstance(organization_id, UUID) else organization_id
+
+        if not self.is_available():
+            return {
+                "total_entities": 0,
+                "total_relations": 0,
+                "avg_confidence": None,
+                "low_confidence_count": 0,
+                "entities_by_type": [],
+                "graph_available": False,
+            }
+
+        try:
+            entity_metrics = await metrics_repository.get_entity_metrics(
+                organization_id=org_uuid,
+            )
+            relation_metrics = await metrics_repository.get_relation_metrics(
+                organization_id=org_uuid,
+            )
+            by_type = [
+                {
+                    "entity_type": t.entity_type,
+                    "count": t.count,
+                    "avg_confidence": t.avg_confidence,
+                }
+                for t in entity_metrics.by_type
+            ]
+            return {
+                "total_entities": entity_metrics.total_entities,
+                "total_relations": relation_metrics.total_relations,
+                "avg_confidence": entity_metrics.avg_confidence,
+                "low_confidence_count": entity_metrics.low_confidence_count,
+                "entities_by_type": by_type,
+                "graph_available": True,
+            }
+        except Exception as exc:
+            logger.warning(
+                "graph.service.stats_error",
+                organization_id=str(organization_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return {
+                "total_entities": 0,
+                "total_relations": 0,
+                "avg_confidence": None,
+                "low_confidence_count": 0,
+                "entities_by_type": [],
+                "graph_available": False,
+            }
+
+    async def list_user_relationships(
+        self,
+        *,
+        organization_id: UUID | str,
+        rel_type: str | None = None,
+        min_confidence: float | None = None,
+        from_entity_id: str | None = None,
+        to_entity_id: str | None = None,
+        skip: int = 0,
+        limit: int = 25,
+    ) -> dict:
+        """List org-scoped relationships for the user-facing explorer.
+
+        Wraps RelationRepository.list_relations with member-safe visibility
+        (no unverified/rejected relations shown by default).
+        """
+        if not self.is_available():
+            return {"items": [], "total": 0, "skip": skip, "limit": limit}
+
+        try:
+            rows = await self._relations.list_relations(
+                organization_id=organization_id,
+                rel_type=rel_type,
+                min_confidence=min_confidence,
+                skip=skip,
+                limit=limit + 1,  # over-fetch to determine has_more
+            )
+            total_hint = skip + len(rows)
+            has_more = len(rows) > limit
+            items = rows[:limit]
+
+            # Filter out rejected relations from the user-facing view
+            visible = [r for r in items if r.get("status") != "rejected"]
+
+            return {
+                "items": visible,
+                "total": total_hint,
+                "skip": skip,
+                "limit": limit,
+                "has_more": has_more,
+            }
+        except Exception as exc:
+            logger.warning(
+                "graph.service.list_relationships_error",
+                organization_id=str(organization_id),
+                error=exc.__class__.__name__,
+                detail=str(exc),
+            )
+            return {"items": [], "total": 0, "skip": skip, "limit": limit}
+
+    async def get_entity_neighbors(
+        self,
+        *,
+        organization_id: UUID | str,
+        entity_id: UUID | str,
+        depth: int = 2,
+        limit: int = 20,
+        relationship_types: list[str] | None = None,
+    ) -> list[dict]:
+        """Return entities within *depth* hops of the given entity.
+
+        Delegates to GraphRAGRepository.find_related_entities — the same
+        multi-hop traversal used by the chat pipeline, exposed for the
+        interactive entity explorer (F269).
+        """
+        if not self.is_available():
+            return []
+
+        return await self._graphrag.find_related_entities(
+            organization_id=organization_id,
+            entity_ids=[entity_id],
+            depth=depth,
+            limit=limit,
+            relationship_types=relationship_types,
+        )
