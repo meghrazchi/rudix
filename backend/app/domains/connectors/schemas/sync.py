@@ -76,3 +76,40 @@ class SyncJobsListResponse(BaseModel):
 
 class UpdateSyncJobStatusRequest(BaseModel):
     status: str = Field(pattern="^(active|paused|disabled)$")
+
+
+class SyncConflictResponse(BaseModel):
+    id: str
+    organization_id: str
+    connection_id: str
+    external_item_id: str | None
+    sync_run_id: str | None
+    provider_item_id: str
+    conflict_type: str
+    status: str
+    conflict_detail: dict[str, Any]
+    resolved_by_user_id: str | None
+    resolved_at: str | None
+    resolution_strategy: str | None
+    created_at: str
+    updated_at: str
+
+
+class SyncConflictsListResponse(BaseModel):
+    items: list[SyncConflictResponse]
+    total: int
+
+
+class ResolveConflictRequest(BaseModel):
+    resolution: str = Field(pattern="^(resolved|dismissed)$")
+    resolution_strategy: str | None = Field(
+        default=None,
+        max_length=64,
+        pattern="^(keep_local|overwrite_remote|merge|acknowledge|none)?$",
+    )
+
+
+class ForceFullResyncResponse(BaseModel):
+    sync_run_id: str
+    status: str
+    message: str

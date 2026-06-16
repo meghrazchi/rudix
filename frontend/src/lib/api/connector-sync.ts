@@ -149,3 +149,85 @@ export async function cancelSyncRun(runId: string): Promise<SyncRun> {
     method: "POST",
   });
 }
+
+// ---------------------------------------------------------------------------
+// Force full resync
+// ---------------------------------------------------------------------------
+
+export type ForceFullResyncResponse = {
+  sync_run_id: string;
+  status: string;
+  message: string;
+};
+
+export async function triggerFullResync(
+  connectionId: string,
+  jobId?: string,
+): Promise<ForceFullResyncResponse> {
+  const qs = jobId ? `?job_id=${encodeURIComponent(jobId)}` : "";
+  return apiRequest<ForceFullResyncResponse>(
+    `/connectors/${connectionId}/sync/full${qs}`,
+    { method: "POST" },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Conflicts
+// ---------------------------------------------------------------------------
+
+export type SyncConflictStatus = "open" | "resolved" | "dismissed";
+export type SyncConflictType =
+  | "acl_changed"
+  | "renamed"
+  | "moved"
+  | "permission_revoked";
+
+export type SyncConflict = {
+  id: string;
+  organization_id: string;
+  connection_id: string;
+  external_item_id: string | null;
+  sync_run_id: string | null;
+  provider_item_id: string;
+  conflict_type: SyncConflictType;
+  status: SyncConflictStatus;
+  conflict_detail: Record<string, unknown>;
+  resolved_by_user_id: string | null;
+  resolved_at: string | null;
+  resolution_strategy: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SyncConflictsListResponse = {
+  items: SyncConflict[];
+  total: number;
+};
+
+export type ResolveConflictPayload = {
+  resolution: "resolved" | "dismissed";
+  resolution_strategy?: string;
+};
+
+export async function listSyncConflicts(
+  connectionId: string,
+  conflictStatus?: SyncConflictStatus,
+  limit = 50,
+): Promise<SyncConflictsListResponse> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (conflictStatus) params.set("status", conflictStatus);
+  return apiRequest<SyncConflictsListResponse>(
+    `/connectors/${connectionId}/conflicts?${params}`,
+  );
+}
+
+export async function resolveSyncConflict(
+  connectionId: string,
+  conflictId: string,
+  payload: ResolveConflictPayload,
+): Promise<SyncConflict> {
+  return apiRequest<SyncConflict>(
+    `/connectors/${connectionId}/conflicts/${conflictId}/resolve`,
+    { method: "POST", json: payload },
+  );
+}

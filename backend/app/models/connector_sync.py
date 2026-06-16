@@ -18,7 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
-from app.models.enums import ConnectorSyncJobStatus, ConnectorSyncRunStatus
+from app.models.enums import ConnectorSyncJobStatus, ConnectorSyncRunStatus, SyncConflictStatus, SyncConflictType
 
 
 class ConnectorSyncJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -139,3 +139,69 @@ class ConnectorSyncRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     external_source = relationship("ExternalSource")
     source_documents = relationship("SourceDocument", back_populates="sync_run")
     tombstones = relationship("ExternalItemTombstone", back_populates="sync_run")
+    conflicts = relationship("SyncConflict", back_populates="sync_run")
+
+
+class SyncConflict(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "connector_sync_conflicts"
+    __table_args__ = (
+        CheckConstraint(
+            "conflict_type IN ('acl_changed', 'renamed', 'moved', 'permission_revoked')",
+            name="connector_sync_conflicts_type_allowed",
+        ),
+        CheckConstraint(
+            "status IN ('open', 'resolved', 'dismissed')",
+            name="connector_sync_conflicts_status_allowed",
+        ),
+        Index("idx_connector_sync_conflicts_org_conn_status", "organization_id", "connection_id", "status"),
+        Index("idx_connector_sync_conflicts_external_item", "external_item_id"),
+        Index("idx_connector_sync_conflicts_created", "organization_id", "created_at"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    connection_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("connector_connections.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    external_item_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("external_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    sync_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("connector_sync_runs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    provider_item_id: Mapped[str] = mapped_column(String(1024), nullable=False)
+    conflict_type: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default=SyncConflictType.acl_changed.value,
+    )
+    status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default=SyncConflictStatus.open.value,
+    )
+    conflict_detail_json: Mapped[dict] = mapped_column(
+        "conflict_detail", JSON, nullable=False, default=dict
+    )
+    resolved_by_user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_strategy: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    organization = relationship("Organization")
+    connection = relationship("ConnectorConnection")
+    external_item = relationship("ExternalItem")
+    sync_run = relationship("ConnectorSyncRun", back_populates="conflicts")
+    resolved_by = relationship("User", foreign_keys=[resolved_by_user_id])

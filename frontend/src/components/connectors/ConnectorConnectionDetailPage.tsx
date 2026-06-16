@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { getApiErrorMessage, type ApiClientError } from "@/lib/api/errors";
+import { ConnectorConflictPanel } from "@/components/connectors/ConnectorConflictPanel";
 import { ConnectorPermissionReviewPanel } from "@/components/connectors/ConnectorPermissionReviewPanel";
 import {
   disconnectConnector,
@@ -17,6 +18,7 @@ import {
   listSyncJobs,
   listSyncRuns,
   retrySyncRun,
+  triggerFullResync,
   triggerSyncNow,
   updateSyncJobStatus,
   type SyncJob,
@@ -729,11 +731,15 @@ function PageErrorPanel({ error }: { error: ApiClientError }) {
 function HeaderActionsMenu({
   onReconnect,
   reconnectPending,
+  onFullResync,
+  fullResyncPending,
   onDisconnect,
   disconnectPending,
 }: {
   onReconnect: () => void;
   reconnectPending: boolean;
+  onFullResync: () => void;
+  fullResyncPending: boolean;
   onDisconnect: () => void;
   disconnectPending: boolean;
 }) {
@@ -775,6 +781,20 @@ function HeaderActionsMenu({
               refresh
             </span>
             {reconnectPending ? "Reconnecting…" : "Reconnect"}
+          </button>
+          <button
+            type="button"
+            disabled={fullResyncPending}
+            onClick={() => {
+              setOpen(false);
+              onFullResync();
+            }}
+            className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium text-[#2a2640] hover:bg-[#f5f2ff] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">
+              restart_alt
+            </span>
+            {fullResyncPending ? "Queuing…" : "Force full resync"}
           </button>
           <div className="mx-3 border-t border-[#e8e5f3]" />
           <button
@@ -876,6 +896,17 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.connectorConnection(connectionId),
+      });
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
+  });
+
+  const fullResyncMutation = useMutation({
+    mutationFn: (jobId?: string) => triggerFullResync(connectionId, jobId),
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.connectorSyncRuns(connectionId),
       });
     },
     onError: (error) => setActionError(getApiErrorMessage(error)),
@@ -1034,6 +1065,8 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             <HeaderActionsMenu
               onReconnect={() => refreshMutation.mutate()}
               reconnectPending={refreshMutation.isPending}
+              onFullResync={() => fullResyncMutation.mutate(activeJob?.id)}
+              fullResyncPending={fullResyncMutation.isPending}
               onDisconnect={() => disconnectMutation.mutate()}
               disconnectPending={disconnectMutation.isPending}
             />
@@ -1177,6 +1210,8 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
 
         {/* Right column */}
         <div className="space-y-6">
+          <ConnectorConflictPanel connectionId={connection.id} />
+
           <ConnectorPermissionReviewPanel connectionId={connection.id} />
 
           <CredentialPanel

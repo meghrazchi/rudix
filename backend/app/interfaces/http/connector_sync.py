@@ -13,6 +13,10 @@ from app.auth.models import AuthenticatedPrincipal
 from app.db.session import get_db_session
 from app.domains.connectors.schemas.sync import (
     CreateSyncJobRequest,
+    ForceFullResyncResponse,
+    ResolveConflictRequest,
+    SyncConflictResponse,
+    SyncConflictsListResponse,
     SyncJobResponse,
     SyncJobsListResponse,
     SyncRunResponse,
@@ -26,7 +30,7 @@ from app.domains.connectors.services.connector_service import (
 )
 from app.domains.connectors.services.permission_review_service import PermissionReviewService
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
-from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
+from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncConflict
 from app.models.enums import ConnectorSyncJobStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 from app.workers.celery_app import celery_app
@@ -342,6 +346,27 @@ async def get_sync_run(
     return _run_response(run)
 
 
+def _conflict_response(conflict: SyncConflict) -> SyncConflictResponse:
+    return SyncConflictResponse(
+        id=str(conflict.id),
+        organization_id=str(conflict.organization_id),
+        connection_id=str(conflict.connection_id),
+        external_item_id=str(conflict.external_item_id) if conflict.external_item_id else None,
+        sync_run_id=str(conflict.sync_run_id) if conflict.sync_run_id else None,
+        provider_item_id=conflict.provider_item_id,
+        conflict_type=conflict.conflict_type,
+        status=conflict.status,
+        conflict_detail=conflict.conflict_detail_json or {},
+        resolved_by_user_id=(
+            str(conflict.resolved_by_user_id) if conflict.resolved_by_user_id else None
+        ),
+        resolved_at=conflict.resolved_at.isoformat() if conflict.resolved_at else None,
+        resolution_strategy=conflict.resolution_strategy,
+        created_at=conflict.created_at.isoformat(),
+        updated_at=conflict.updated_at.isoformat(),
+    )
+
+
 @router.post("/sync-runs/{run_id}/cancel", response_model=SyncRunResponse)
 async def cancel_sync_run(
     run_id: UUID,
@@ -357,3 +382,142 @@ async def cancel_sync_run(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await db_session.commit()
     return _run_response(run)
+
+
+# ---------------------------------------------------------------------------
+# Force full resync
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{connection_id}/sync/full", response_model=ForceFullResyncResponse)
+async def trigger_full_resync(
+    connection_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.connector))],
+    __: Annotated[None, Depends(_require_connector_platform_enabled)],
+    job_id: Annotated[UUID | None, Query()] = None,
+) -> ForceFullResyncResponse:
+    """Clear the sync cursor and start a full re-index from the provider."""
+    org_id = _org_id(principal)
+
+    review_confirmed = await PermissionReviewService().is_confirmed(
+        db_session,
+        organization_id=org_id,
+        connection_id=connection_id,
+    )
+    if not review_confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Permission review required before syncing.",
+        )
+
+    try:
+        run = await _engine().trigger_full_resync(
+            db_session,
+            organization_id=org_id,
+            connection_id=connection_id,
+            job_id=job_id,
+            user_id=_user_id(principal),
+        )
+    except SyncEngineError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await db_session.commit()
+
+    celery_app.send_task(
+        "connectors.sync.run",
+        kwargs={
+            "sync_run_id": str(run.id),
+            "organization_id": str(org_id),
+        },
+    )
+    return ForceFullResyncResponse(
+        sync_run_id=str(run.id),
+        status=run.status,
+        message="Full resync queued — cursor cleared",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Conflicts
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{connection_id}/conflicts", response_model=SyncConflictsListResponse)
+async def list_sync_conflicts(
+    connection_id: UUID,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    conflict_status: Annotated[str | None, Query(alias="status")] = None,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> SyncConflictsListResponse:
+    org_id = _org_id(principal)
+    from app.domains.connectors.repositories.connectors import ConnectorRepository
+
+    repo = ConnectorRepository()
+    conflicts, total = await repo.list_conflicts(
+        db_session,
+        organization_id=org_id,
+        connection_id=connection_id,
+        status=conflict_status,
+        limit=limit,
+        offset=offset,
+    )
+    return SyncConflictsListResponse(
+        items=[_conflict_response(c) for c in conflicts],
+        total=total,
+    )
+
+
+@router.post(
+    "/{connection_id}/conflicts/{conflict_id}/resolve",
+    response_model=SyncConflictResponse,
+)
+async def resolve_sync_conflict(
+    connection_id: UUID,
+    conflict_id: UUID,
+    payload: ResolveConflictRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ADMIN_ROLES))],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SyncConflictResponse:
+    org_id = _org_id(principal)
+    from app.domains.connectors.audit import ConnectorAuditAction
+    from app.domains.connectors.repositories.connectors import ConnectorRepository
+    from app.domains.admin.services.audit_service import AuditLogService, sanitize_metadata
+
+    repo = ConnectorRepository()
+    conflict = await repo.get_conflict(db_session, organization_id=org_id, conflict_id=conflict_id)
+    if conflict is None or conflict.connection_id != connection_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conflict not found")
+    if conflict.status != "open":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"conflict is already {conflict.status}",
+        )
+
+    conflict = await repo.resolve_conflict(
+        db_session,
+        conflict=conflict,
+        status=payload.resolution,
+        resolved_by_user_id=_user_id(principal),
+        resolution_strategy=payload.resolution_strategy,
+    )
+    await AuditLogService().record(
+        db_session,
+        organization_id=org_id,
+        user_id=_user_id(principal),
+        action=ConnectorAuditAction.sync_conflict_resolved.value,
+        resource_type="sync_conflict",
+        resource_id=conflict.id,
+        metadata=sanitize_metadata(
+            {
+                "conflict_type": conflict.conflict_type,
+                "resolution": payload.resolution,
+                "resolution_strategy": payload.resolution_strategy,
+                "connection_id": str(connection_id),
+            }
+        ),
+    )
+    await db_session.commit()
+    return _conflict_response(conflict)

@@ -26,3 +26,6 @@ class ConnectorAuditAction(StrEnum):
     sync_item_skipped = "connector.sync.item.skipped"
     ingestion_failed = "connector.ingestion.failed"
     ingestion_skipped = "connector.ingestion.skipped"
+    sync_conflict_detected = "connector.sync.conflict.detected"
+    sync_conflict_resolved = "connector.sync.conflict.resolved"
+    sync_full_resync_triggered = "connector.sync.full_resync.triggered"

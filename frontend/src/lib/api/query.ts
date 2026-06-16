@@ -298,6 +298,8 @@ export const queryKeys = {
     ["connectors", connectionId, "sync-runs"] as const,
   connectorSyncRun: (runId: string) =>
     ["connectors", "sync-runs", runId] as const,
+  connectorConflicts: (connectionId: string, status?: string) =>
+    ["connectors", connectionId, "conflicts", status ?? "all"] as const,
   connectorProviders: ["connectors", "providers"] as const,
   connectorProvider: (key: string) => ["connectors", "providers", key] as const,
   connectorDiscovery: (

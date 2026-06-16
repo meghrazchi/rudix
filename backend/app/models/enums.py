@@ -126,6 +126,19 @@ class ExternalItemVisibility(StrEnum):
     restricted = "restricted"
 
 
+class SyncConflictType(StrEnum):
+    acl_changed = "acl_changed"
+    renamed = "renamed"
+    moved = "moved"
+    permission_revoked = "permission_revoked"
+
+
+class SyncConflictStatus(StrEnum):
+    open = "open"
+    resolved = "resolved"
+    dismissed = "dismissed"
+
+
 class DocumentProfile(StrEnum):
     text_based = "text_based"
     scanned = "scanned"

@@ -52,6 +52,7 @@ class ItemPage:
 class DeltaItem:
     provider_item_id: str
     is_deleted: bool = False
+    permission_revoked: bool = False
     item: NormalizedExternalItem | None = None
 
 

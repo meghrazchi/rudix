@@ -24,8 +24,8 @@ from app.models.connector_source import (
     SourceDocument,
     SourceReference,
 )
-from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun
-from app.models.enums import ConnectorConnectionStatus, ConnectorSyncJobStatus
+from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncConflict
+from app.models.enums import ConnectorConnectionStatus, ConnectorSyncJobStatus, SyncConflictStatus
 
 
 class ConnectorRepository:
@@ -691,4 +691,95 @@ class ConnectorRepository:
         session.add(tombstone)
         await session.flush()
         await session.refresh(tombstone)
+        return tombstone
+
+    # -----------------------------------------------------------------------
+    # Conflict tracking
+    # -----------------------------------------------------------------------
+
+    async def record_conflict(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        provider_item_id: str,
+        conflict_type: str,
+        sync_run_id: UUID | None = None,
+        external_item_id: UUID | None = None,
+        conflict_detail: dict | None = None,
+    ) -> SyncConflict:
+        conflict = SyncConflict(
+            organization_id=organization_id,
+            connection_id=connection_id,
+            external_item_id=external_item_id,
+            sync_run_id=sync_run_id,
+            provider_item_id=provider_item_id,
+            conflict_type=conflict_type,
+            status=SyncConflictStatus.open.value,
+            conflict_detail_json=conflict_detail or {},
+        )
+        session.add(conflict)
+        await session.flush()
+        await session.refresh(conflict)
+        return conflict
+
+    async def list_conflicts(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        connection_id: UUID,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[SyncConflict], int]:
+        base_q = select(SyncConflict).where(
+            SyncConflict.organization_id == organization_id,
+            SyncConflict.connection_id == connection_id,
+        )
+        if status is not None:
+            base_q = base_q.where(SyncConflict.status == status)
+        count_result = await session.execute(
+            select(func.count()).select_from(base_q.subquery())
+        )
+        total = count_result.scalar_one()
+        result = await session.execute(
+            base_q.order_by(SyncConflict.created_at.desc()).limit(limit).offset(offset)
+        )
+        return list(result.scalars().all()), total
+
+    async def get_conflict(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        conflict_id: UUID,
+    ) -> SyncConflict | None:
+        result = await session.execute(
+            select(SyncConflict).where(
+                SyncConflict.id == conflict_id,
+                SyncConflict.organization_id == organization_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def resolve_conflict(
+        self,
+        session: AsyncSession,
+        *,
+        conflict: SyncConflict,
+        status: str,
+        resolved_by_user_id: UUID | None = None,
+        resolution_strategy: str | None = None,
+    ) -> SyncConflict:
+        from datetime import UTC
+
+        conflict.status = status
+        conflict.resolved_at = datetime.now(UTC)
+        conflict.resolved_by_user_id = resolved_by_user_id
+        conflict.resolution_strategy = resolution_strategy
+        await session.flush()
+        await session.refresh(conflict)
+        return conflict
         return tombstone
