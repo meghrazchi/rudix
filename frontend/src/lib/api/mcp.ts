@@ -12,6 +12,15 @@ export type OrgMCPPolicy = {
   rate_limit_enabled: boolean;
   rate_limit_requests: number;
   rate_limit_window_seconds: number;
+  // F176 trust and exposure controls
+  allowed_resources: string[] | null;
+  allowed_prompts: string[] | null;
+  allowed_collections: string[] | null;
+  allowed_roles: string[] | null;
+  redact_document_text: boolean;
+  max_chunk_chars: number | null;
+  max_request_bytes: number | null;
+  max_response_bytes: number | null;
   updated_by_user_id: string | null;
   updated_at: string;
 };
@@ -27,6 +36,15 @@ export type UpdateMCPPolicyRequest = {
   rate_limit_enabled?: boolean | null;
   rate_limit_requests?: number | null;
   rate_limit_window_seconds?: number | null;
+  // F176 trust and exposure controls
+  allowed_resources?: string[] | null;
+  allowed_prompts?: string[] | null;
+  allowed_collections?: string[] | null;
+  allowed_roles?: string[] | null;
+  redact_document_text?: boolean | null;
+  max_chunk_chars?: number | null;
+  max_request_bytes?: number | null;
+  max_response_bytes?: number | null;
 };
 
 export type MCPDependencyStatus = {
@@ -117,6 +135,33 @@ function normalizePolicy(value: unknown): OrgMCPPolicy {
       typeof raw.rate_limit_window_seconds === "number"
         ? raw.rate_limit_window_seconds
         : 60,
+    allowed_resources: Array.isArray(raw.allowed_resources)
+      ? (raw.allowed_resources as unknown[]).filter(
+          (r): r is string => typeof r === "string",
+        )
+      : null,
+    allowed_prompts: Array.isArray(raw.allowed_prompts)
+      ? (raw.allowed_prompts as unknown[]).filter(
+          (p): p is string => typeof p === "string",
+        )
+      : null,
+    allowed_collections: Array.isArray(raw.allowed_collections)
+      ? (raw.allowed_collections as unknown[]).filter(
+          (c): c is string => typeof c === "string",
+        )
+      : null,
+    allowed_roles: Array.isArray(raw.allowed_roles)
+      ? (raw.allowed_roles as unknown[]).filter(
+          (r): r is string => typeof r === "string",
+        )
+      : null,
+    redact_document_text: raw.redact_document_text !== false,
+    max_chunk_chars:
+      typeof raw.max_chunk_chars === "number" ? raw.max_chunk_chars : null,
+    max_request_bytes:
+      typeof raw.max_request_bytes === "number" ? raw.max_request_bytes : null,
+    max_response_bytes:
+      typeof raw.max_response_bytes === "number" ? raw.max_response_bytes : null,
     updated_by_user_id:
       typeof raw.updated_by_user_id === "string"
         ? raw.updated_by_user_id

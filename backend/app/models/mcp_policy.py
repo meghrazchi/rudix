@@ -36,6 +36,18 @@ class OrgMCPPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "rate_limit_window_seconds <= 3600", name="mcp_policy_rate_limit_window_max"
         ),
+        CheckConstraint(
+            "max_chunk_chars IS NULL OR max_chunk_chars >= 100",
+            name="mcp_trust_max_chunk_chars_min",
+        ),
+        CheckConstraint(
+            "max_request_bytes IS NULL OR max_request_bytes >= 256",
+            name="mcp_trust_max_request_bytes_min",
+        ),
+        CheckConstraint(
+            "max_response_bytes IS NULL OR max_response_bytes >= 256",
+            name="mcp_trust_max_response_bytes_min",
+        ),
         Index("idx_org_mcp_policies_org", "organization_id"),
     )
 
@@ -63,6 +75,16 @@ class OrgMCPPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     rate_limit_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     rate_limit_requests: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     rate_limit_window_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+
+    # F176: trust and exposure controls
+    allowed_resources: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    allowed_prompts: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    allowed_collections: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    allowed_roles: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    redact_document_text: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    max_chunk_chars: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_request_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_response_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     organization = relationship("Organization", back_populates="mcp_policy")
     updated_by_user = relationship("User", back_populates="mcp_policy_updates")

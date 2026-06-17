@@ -16,6 +16,7 @@ import {
   type MCPStatusResponse,
   type MCPToolInfo,
   type OrgMCPPolicy,
+  type UpdateMCPPolicyRequest,
 } from "@/lib/api/mcp";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { extractRequestIdFromError, isForbiddenError } from "@/lib/forbidden";
@@ -268,6 +269,350 @@ function CapabilitiesEditor({
   );
 }
 
+const MCP_ROLES = ["owner", "admin", "member", "viewer"] as const;
+
+function TagListEditor({
+  label,
+  description,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  description: string;
+  value: string[] | null;
+  onChange: (v: string[] | null) => void;
+  placeholder?: string;
+}) {
+  const [useDefault, setUseDefault] = useState(value === null);
+  const [tags, setTags] = useState<string[]>(value ?? []);
+  const [input, setInput] = useState("");
+
+  function toggleDefault(toDefault: boolean) {
+    setUseDefault(toDefault);
+    onChange(toDefault ? null : tags);
+  }
+
+  function addTag() {
+    const trimmed = input.trim().toLowerCase();
+    if (!trimmed || tags.includes(trimmed)) return;
+    const next = [...tags, trimmed];
+    setTags(next);
+    onChange(next);
+    setInput("");
+  }
+
+  function removeTag(tag: string) {
+    const next = tags.filter((t) => t !== tag);
+    setTags(next);
+    onChange(next);
+  }
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-[#2a2640]">{label}</p>
+          <p className="text-xs text-[#68647b]">{description}</p>
+        </div>
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#68647b]">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 accent-[#3525cd]"
+            checked={useDefault}
+            onChange={(e) => toggleDefault(e.target.checked)}
+          />
+          Allow all (no restriction)
+        </label>
+      </div>
+      {!useDefault && (
+        <div className="rounded-lg border border-[#d7d4e8] p-3">
+          <div className="mb-2 flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="flex items-center gap-1 rounded-full bg-[#f5f3ff] px-2.5 py-0.5 text-xs text-[#4d4880]"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="ml-0.5 text-[#68647b] hover:text-red-600"
+                  aria-label={`Remove ${tag}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {tags.length === 0 && (
+              <span className="text-xs text-[#68647b]">
+                Empty — nothing is allowed for this field.
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && (e.preventDefault(), addTag())
+              }
+              placeholder={placeholder ?? "Enter value and press Enter"}
+              className="flex-1 rounded border border-[#d7d4e8] px-2 py-1 text-xs focus:border-[#3525cd] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={addTag}
+              className="rounded bg-[#f5f3ff] px-3 py-1 text-xs font-medium text-[#3525cd] hover:bg-[#ebe8ff]"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NullableNumberInput({
+  label,
+  description,
+  value,
+  onChange,
+  min,
+  unit,
+}: {
+  label: string;
+  description: string;
+  value: number | null;
+  onChange: (v: number | null) => void;
+  min: number;
+  unit?: string;
+}) {
+  const hasLimit = value !== null;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-[#2a2640]">{label}</p>
+          <p className="text-xs text-[#68647b]">{description}</p>
+        </div>
+        <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#68647b]">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 accent-[#3525cd]"
+            checked={!hasLimit}
+            onChange={(e) => onChange(e.target.checked ? null : min)}
+          />
+          No limit
+        </label>
+      </div>
+      {hasLimit && (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={min}
+            value={value}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-40 rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
+          />
+          {unit && (
+            <span className="text-xs text-[#68647b]">{unit}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MCPTrustControlsSection({
+  allowedResources,
+  allowedPrompts,
+  allowedCollections,
+  allowedRoles,
+  redactDocumentText,
+  maxChunkChars,
+  maxRequestBytes,
+  maxResponseBytes,
+  onChangeAllowedResources,
+  onChangeAllowedPrompts,
+  onChangeAllowedCollections,
+  onChangeAllowedRoles,
+  onChangeRedactDocumentText,
+  onChangeMaxChunkChars,
+  onChangeMaxRequestBytes,
+  onChangeMaxResponseBytes,
+}: {
+  allowedResources: string[] | null;
+  allowedPrompts: string[] | null;
+  allowedCollections: string[] | null;
+  allowedRoles: string[] | null;
+  redactDocumentText: boolean;
+  maxChunkChars: number | null;
+  maxRequestBytes: number | null;
+  maxResponseBytes: number | null;
+  onChangeAllowedResources: (v: string[] | null) => void;
+  onChangeAllowedPrompts: (v: string[] | null) => void;
+  onChangeAllowedCollections: (v: string[] | null) => void;
+  onChangeAllowedRoles: (v: string[] | null) => void;
+  onChangeRedactDocumentText: (v: boolean) => void;
+  onChangeMaxChunkChars: (v: number | null) => void;
+  onChangeMaxRequestBytes: (v: number | null) => void;
+  onChangeMaxResponseBytes: (v: number | null) => void;
+}) {
+  function toggleRole(role: string, checked: boolean) {
+    if (allowedRoles === null) {
+      onChangeAllowedRoles(checked ? MCP_ROLES.filter((r) => r !== role) : [role]);
+      return;
+    }
+    const next = checked
+      ? [...allowedRoles, role]
+      : allowedRoles.filter((r) => r !== role);
+    onChangeAllowedRoles(next);
+  }
+
+  const rolesAreRestricted = allowedRoles !== null;
+
+  return (
+    <section className="rounded-xl border border-[#d7d4e8] bg-white p-5">
+      <h2 className="mb-1 text-base font-semibold text-[#2a2640]">
+        Trust and exposure controls
+      </h2>
+      <p className="mb-5 text-sm text-[#68647b]">
+        Restrict which MCP surfaces can be accessed and how much raw document
+        content is allowed to flow through MCP responses.
+      </p>
+
+      <div className="space-y-6">
+        {/* Document redaction */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#2a2640]">
+              Redact document text
+            </p>
+            <p className="text-xs text-[#68647b]">
+              When enabled, raw document content is replaced with a placeholder
+              or truncated to the chunk char limit. Disable only for trusted
+              internal clients.
+            </p>
+          </div>
+          <ToggleSwitch
+            id="mcp-redact-doc"
+            checked={redactDocumentText}
+            onChange={onChangeRedactDocumentText}
+          />
+        </div>
+
+        {!redactDocumentText && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+            Raw document text may be returned in MCP responses. Ensure this is
+            intentional and clients are fully trusted.
+          </div>
+        )}
+
+        {/* Allowed roles */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-[#2a2640]">Allowed roles</p>
+              <p className="text-xs text-[#68647b]">
+                Restrict MCP access to specific org roles. Leave unrestricted to
+                allow all roles.
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#68647b]">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 accent-[#3525cd]"
+                checked={!rolesAreRestricted}
+                onChange={(e) =>
+                  onChangeAllowedRoles(e.target.checked ? null : [...MCP_ROLES])
+                }
+              />
+              Allow all roles
+            </label>
+          </div>
+          {rolesAreRestricted && (
+            <div className="flex flex-wrap gap-3">
+              {MCP_ROLES.map((role) => {
+                const checked = allowedRoles!.includes(role);
+                return (
+                  <label
+                    key={role}
+                    className="flex cursor-pointer items-center gap-1.5 text-sm text-[#2a2640]"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#3525cd]"
+                      checked={checked}
+                      onChange={(e) => toggleRole(role, e.target.checked)}
+                    />
+                    <span className="capitalize">{role}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Resource / prompt / collection allowlists */}
+        <TagListEditor
+          label="Allowed resources"
+          description="URI patterns for MCP resources clients may read. Use '*' suffix for prefix matching (e.g. rag://documents/*)."
+          value={allowedResources}
+          onChange={onChangeAllowedResources}
+          placeholder="e.g. rag://documents/*"
+        />
+
+        <TagListEditor
+          label="Allowed prompts"
+          description="MCP prompt names clients are permitted to invoke. Null means all prompts are allowed."
+          value={allowedPrompts}
+          onChange={onChangeAllowedPrompts}
+          placeholder="e.g. summarize"
+        />
+
+        <TagListEditor
+          label="Allowed collections"
+          description="Collection IDs or slugs accessible via MCP. Null means all collections are accessible."
+          value={allowedCollections}
+          onChange={onChangeAllowedCollections}
+          placeholder="e.g. col-abc123"
+        />
+
+        {/* Size limits */}
+        <NullableNumberInput
+          label="Max chunk chars"
+          description="Maximum characters returned per document chunk in MCP responses."
+          value={maxChunkChars}
+          onChange={onChangeMaxChunkChars}
+          min={100}
+          unit="characters"
+        />
+
+        <NullableNumberInput
+          label="Max request bytes"
+          description="Maximum MCP request payload size in bytes."
+          value={maxRequestBytes}
+          onChange={onChangeMaxRequestBytes}
+          min={256}
+          unit="bytes"
+        />
+
+        <NullableNumberInput
+          label="Max response bytes"
+          description="Maximum MCP response payload size in bytes."
+          value={maxResponseBytes}
+          onChange={onChangeMaxResponseBytes}
+          min={256}
+          unit="bytes"
+        />
+      </div>
+    </section>
+  );
+}
+
 function PolicyForm({
   policy,
   onSaved,
@@ -298,13 +643,38 @@ function PolicyForm({
   const [capsViewer, setCapsViewer] = useState<string[] | null>(
     policy.capabilities_viewer,
   );
+  // F176 trust controls
+  const [allowedResources, setAllowedResources] = useState<string[] | null>(
+    policy.allowed_resources,
+  );
+  const [allowedPrompts, setAllowedPrompts] = useState<string[] | null>(
+    policy.allowed_prompts,
+  );
+  const [allowedCollections, setAllowedCollections] = useState<string[] | null>(
+    policy.allowed_collections,
+  );
+  const [allowedRoles, setAllowedRoles] = useState<string[] | null>(
+    policy.allowed_roles,
+  );
+  const [redactDocumentText, setRedactDocumentText] = useState(
+    policy.redact_document_text,
+  );
+  const [maxChunkChars, setMaxChunkChars] = useState<number | null>(
+    policy.max_chunk_chars,
+  );
+  const [maxRequestBytes, setMaxRequestBytes] = useState<number | null>(
+    policy.max_request_bytes,
+  );
+  const [maxResponseBytes, setMaxResponseBytes] = useState<number | null>(
+    policy.max_response_bytes,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
   const saveMutation = useMutation({
-    mutationFn: () =>
-      updateMCPPolicy({
+    mutationFn: () => {
+      const req: UpdateMCPPolicyRequest = {
         enabled,
         read_only: readOnly,
         rate_limit_enabled: rateLimitEnabled,
@@ -314,7 +684,17 @@ function PolicyForm({
         capabilities_admin: capsAdmin,
         capabilities_member: capsMember,
         capabilities_viewer: capsViewer,
-      }),
+        allowed_resources: allowedResources,
+        allowed_prompts: allowedPrompts,
+        allowed_collections: allowedCollections,
+        allowed_roles: allowedRoles,
+        redact_document_text: redactDocumentText,
+        max_chunk_chars: maxChunkChars,
+        max_request_bytes: maxRequestBytes,
+        max_response_bytes: maxResponseBytes,
+      };
+      return updateMCPPolicy(req);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.mcpPolicy });
       onSaved();
@@ -471,6 +851,26 @@ function PolicyForm({
           />
         </div>
       </section>
+
+      {/* Trust and exposure controls */}
+      <MCPTrustControlsSection
+        allowedResources={allowedResources}
+        allowedPrompts={allowedPrompts}
+        allowedCollections={allowedCollections}
+        allowedRoles={allowedRoles}
+        redactDocumentText={redactDocumentText}
+        maxChunkChars={maxChunkChars}
+        maxRequestBytes={maxRequestBytes}
+        maxResponseBytes={maxResponseBytes}
+        onChangeAllowedResources={setAllowedResources}
+        onChangeAllowedPrompts={setAllowedPrompts}
+        onChangeAllowedCollections={setAllowedCollections}
+        onChangeAllowedRoles={setAllowedRoles}
+        onChangeRedactDocumentText={setRedactDocumentText}
+        onChangeMaxChunkChars={setMaxChunkChars}
+        onChangeMaxRequestBytes={setMaxRequestBytes}
+        onChangeMaxResponseBytes={setMaxResponseBytes}
+      />
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">

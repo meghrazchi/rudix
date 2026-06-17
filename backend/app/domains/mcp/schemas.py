@@ -17,6 +17,15 @@ class OrgMCPPolicyResponse(BaseModel):
     rate_limit_enabled: bool
     rate_limit_requests: int
     rate_limit_window_seconds: int
+    # F176 trust and exposure controls
+    allowed_resources: list[str] | None
+    allowed_prompts: list[str] | None
+    allowed_collections: list[str] | None
+    allowed_roles: list[str] | None
+    redact_document_text: bool
+    max_chunk_chars: int | None
+    max_request_bytes: int | None
+    max_response_bytes: int | None
     updated_by_user_id: str | None
     updated_at: datetime
 
@@ -32,6 +41,15 @@ class UpdateMCPPolicyRequest(BaseModel):
     rate_limit_enabled: bool | None = None
     rate_limit_requests: int | None = Field(default=None, ge=1, le=10000)
     rate_limit_window_seconds: int | None = Field(default=None, ge=1, le=3600)
+    # F176 trust and exposure controls
+    allowed_resources: list[str] | None = None
+    allowed_prompts: list[str] | None = None
+    allowed_collections: list[str] | None = None
+    allowed_roles: list[str] | None = None
+    redact_document_text: bool | None = None
+    max_chunk_chars: int | None = Field(default=None, ge=100)
+    max_request_bytes: int | None = Field(default=None, ge=256)
+    max_response_bytes: int | None = Field(default=None, ge=256)
 
 
 class MCPDependencyStatus(BaseModel):

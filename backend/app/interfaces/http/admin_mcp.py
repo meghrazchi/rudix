@@ -73,6 +73,14 @@ def _policy_to_response(policy, organization_id: UUID) -> OrgMCPPolicyResponse:
         rate_limit_enabled=policy.rate_limit_enabled,
         rate_limit_requests=policy.rate_limit_requests,
         rate_limit_window_seconds=policy.rate_limit_window_seconds,
+        allowed_resources=getattr(policy, "allowed_resources", None),
+        allowed_prompts=getattr(policy, "allowed_prompts", None),
+        allowed_collections=getattr(policy, "allowed_collections", None),
+        allowed_roles=getattr(policy, "allowed_roles", None),
+        redact_document_text=getattr(policy, "redact_document_text", True),
+        max_chunk_chars=getattr(policy, "max_chunk_chars", None),
+        max_request_bytes=getattr(policy, "max_request_bytes", None),
+        max_response_bytes=getattr(policy, "max_response_bytes", None),
         updated_by_user_id=(
             str(policy.updated_by_user_id) if policy.updated_by_user_id else None
         ),
@@ -127,7 +135,7 @@ async def update_mcp_policy(
     if payload.rate_limit_window_seconds is not None:
         upsert_kwargs["rate_limit_window_seconds"] = payload.rate_limit_window_seconds
 
-    # Use model_fields_set to detect explicit null assignments
+    # Use model_fields_set to detect explicit null assignments for JSON arrays
     set_fields = payload.model_fields_set
     for field in (
         "allowed_tools",
@@ -135,9 +143,19 @@ async def update_mcp_policy(
         "capabilities_admin",
         "capabilities_member",
         "capabilities_viewer",
+        "allowed_resources",
+        "allowed_prompts",
+        "allowed_collections",
+        "allowed_roles",
+        "max_chunk_chars",
+        "max_request_bytes",
+        "max_response_bytes",
     ):
         if field in set_fields:
             upsert_kwargs[field] = getattr(payload, field)
+
+    if payload.redact_document_text is not None:
+        upsert_kwargs["redact_document_text"] = payload.redact_document_text
 
     policy = await _policy_repo.upsert(db_session, **upsert_kwargs)
 
@@ -152,6 +170,7 @@ async def update_mcp_policy(
             "fields_changed": list(set_fields),
             "enabled": policy.enabled,
             "read_only": policy.read_only,
+            "redact_document_text": policy.redact_document_text,
         },
     )
     await db_session.commit()

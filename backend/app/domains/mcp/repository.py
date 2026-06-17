@@ -43,6 +43,14 @@ class MCPPolicyRepository:
             rate_limit_enabled=True,
             rate_limit_requests=30,
             rate_limit_window_seconds=60,
+            allowed_resources=None,
+            allowed_prompts=None,
+            allowed_collections=None,
+            allowed_roles=None,
+            redact_document_text=True,
+            max_chunk_chars=None,
+            max_request_bytes=None,
+            max_response_bytes=None,
         )
 
     async def upsert(
@@ -61,6 +69,15 @@ class MCPPolicyRepository:
         rate_limit_enabled: bool | None = None,
         rate_limit_requests: int | None = None,
         rate_limit_window_seconds: int | None = None,
+        # F176 trust controls
+        allowed_resources: object = _UNSET,
+        allowed_prompts: object = _UNSET,
+        allowed_collections: object = _UNSET,
+        allowed_roles: object = _UNSET,
+        redact_document_text: bool | None = None,
+        max_chunk_chars: object = _UNSET,
+        max_request_bytes: object = _UNSET,
+        max_response_bytes: object = _UNSET,
     ) -> OrgMCPPolicy:
         policy = await self.get(session, organization_id=organization_id)
         if policy is None:
@@ -92,6 +109,24 @@ class MCPPolicyRepository:
             policy.rate_limit_requests = rate_limit_requests
         if rate_limit_window_seconds is not None:
             policy.rate_limit_window_seconds = rate_limit_window_seconds
+
+        # F176 trust controls — all use _UNSET sentinel to allow explicit null
+        if not isinstance(allowed_resources, _Unset):
+            policy.allowed_resources = allowed_resources  # type: ignore[assignment]
+        if not isinstance(allowed_prompts, _Unset):
+            policy.allowed_prompts = allowed_prompts  # type: ignore[assignment]
+        if not isinstance(allowed_collections, _Unset):
+            policy.allowed_collections = allowed_collections  # type: ignore[assignment]
+        if not isinstance(allowed_roles, _Unset):
+            policy.allowed_roles = allowed_roles  # type: ignore[assignment]
+        if redact_document_text is not None:
+            policy.redact_document_text = redact_document_text
+        if not isinstance(max_chunk_chars, _Unset):
+            policy.max_chunk_chars = max_chunk_chars  # type: ignore[assignment]
+        if not isinstance(max_request_bytes, _Unset):
+            policy.max_request_bytes = max_request_bytes  # type: ignore[assignment]
+        if not isinstance(max_response_bytes, _Unset):
+            policy.max_response_bytes = max_response_bytes  # type: ignore[assignment]
 
         await session.flush()
         return policy
