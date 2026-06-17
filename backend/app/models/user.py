@@ -88,6 +88,14 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "AgentToolPolicyOverride",
         back_populates="updated_by_user",
     )
+    agent_trace_retention_policies = relationship(
+        "AgentTraceRetentionPolicy",
+        back_populates="updated_by_user",
+    )
+    agent_trace_share_tokens = relationship(
+        "AgentTraceShareToken",
+        back_populates="created_by_user",
+    )
     owned_collections = relationship("Collection", back_populates="owner")
     chunking_profiles_created = relationship(
         "OrganizationChunkingProfile",

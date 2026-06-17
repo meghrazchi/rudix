@@ -30,6 +30,17 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="organization",
         cascade="all, delete-orphan",
     )
+    agent_trace_retention_policy = relationship(
+        "AgentTraceRetentionPolicy",
+        back_populates="organization",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    agent_trace_share_tokens = relationship(
+        "AgentTraceShareToken",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
     governance_policy = relationship(
         "OrganizationGovernancePolicy",
         back_populates="organization",

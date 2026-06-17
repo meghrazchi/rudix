@@ -298,3 +298,161 @@ export async function commentAgentRunApproval(
     },
   );
 }
+
+// ── Trace replay ──────────────────────────────────────────────────────────────
+
+export type AgentTraceEvent = {
+  event_type: string;
+  run_id: string;
+  step_id?: string | null;
+  tool_call_id?: string | null;
+  approval_id?: string | null;
+  timestamp: string;
+  data: Record<string, unknown>;
+};
+
+export type AgentTraceResponse = {
+  run_id: string;
+  organization_id: string;
+  status: string;
+  objective: string | null;
+  surface: string;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  total_cost_usd: string | null;
+  error_message: string | null;
+  trace_request_id: string | null;
+  redacted: boolean;
+  timeline: AgentTraceEvent[];
+  total_events: number;
+  step_count: number;
+  tool_call_count: number;
+  approval_count: number;
+  policy_snapshot: Record<string, unknown> | null;
+  shared_via_token?: boolean;
+};
+
+export type AgentTraceExportResponse = {
+  run_id: string;
+  organization_id: string;
+  status: string;
+  objective: string | null;
+  surface: string;
+  started_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  total_cost_usd: string | null;
+  error_message: string | null;
+  trace_request_id: string | null;
+  steps: Array<{
+    sequence: number;
+    step_name: string;
+    status: string;
+    duration_ms: number | null;
+    error_message: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+  }>;
+  tool_calls: Array<{
+    tool_name: string;
+    surface: string;
+    effect_policy: string;
+    status: string;
+    attempt_number: number;
+    input_size_bytes: number | null;
+    output_size_bytes: number | null;
+    latency_ms: number | null;
+    started_at: string | null;
+    completed_at: string | null;
+  }>;
+  approvals: Array<{
+    status: string;
+    request_summary: string | null;
+    decision_reason: string | null;
+    expires_at: string | null;
+    decided_at: string | null;
+  }>;
+  export_safe: true;
+  exported_at: string;
+};
+
+export type AgentTraceShareRequest = {
+  label?: string | null;
+  expires_in_hours?: number;
+};
+
+export type AgentTraceShareResponse = {
+  token_id: string;
+  token: string;
+  expires_at: string;
+  label: string | null;
+  share_url: string;
+};
+
+export type AgentTraceRetentionResponse = {
+  organization_id: string;
+  retain_days: number;
+  redact_prompts: boolean;
+  redact_raw_content: boolean;
+  redact_tool_arguments: boolean;
+  is_default: boolean;
+};
+
+export type AgentTraceRetentionRequest = {
+  retain_days?: number;
+  redact_prompts?: boolean;
+  redact_raw_content?: boolean;
+  redact_tool_arguments?: boolean;
+};
+
+export async function getAgentRunTrace(
+  runId: string,
+): Promise<AgentTraceResponse> {
+  return apiRequest<AgentTraceResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/trace`,
+  );
+}
+
+export async function exportAgentRunTrace(
+  runId: string,
+): Promise<AgentTraceExportResponse> {
+  return apiRequest<AgentTraceExportResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/trace/export`,
+  );
+}
+
+export async function shareAgentRunTrace(
+  runId: string,
+  payload: AgentTraceShareRequest,
+): Promise<AgentTraceShareResponse> {
+  return apiRequest<AgentTraceShareResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/trace/share`,
+    { method: "POST", json: payload, authRetry: "safe" },
+  );
+}
+
+export async function getSharedAgentTrace(
+  token: string,
+): Promise<AgentTraceResponse> {
+  return apiRequest<AgentTraceResponse>(
+    `/agent/traces/shared/${encodeURIComponent(token)}`,
+  );
+}
+
+export async function getTraceRetentionPolicy(): Promise<AgentTraceRetentionResponse> {
+  return apiRequest<AgentTraceRetentionResponse>(
+    "/admin/agent/trace-retention",
+  );
+}
+
+export async function updateTraceRetentionPolicy(
+  payload: AgentTraceRetentionRequest,
+): Promise<AgentTraceRetentionResponse> {
+  return apiRequest<AgentTraceRetentionResponse>(
+    "/admin/agent/trace-retention",
+    { method: "PATCH", json: payload, authRetry: "safe" },
+  );
+}

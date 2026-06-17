@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 import { AgentApprovalQueuePanel } from "@/components/workspace/AgentApprovalQueuePanel";
 import { EffectivePolicyPanel } from "@/components/admin/agent-policy/EffectivePolicyPanel";
@@ -540,6 +541,13 @@ function RunDetailPane({ runId }: { runId: string }) {
             </span>
           </span>
         )}
+        <Link
+          href={`/workspace/agent/${encodeURIComponent(runId)}/trace`}
+          className="ml-auto flex items-center gap-1 text-[#3525cd] hover:underline"
+        >
+          <span className="material-symbols-outlined text-[14px]">timeline</span>
+          View trace
+        </Link>
       </div>
 
       {/* Pending approvals */}

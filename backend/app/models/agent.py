@@ -97,6 +97,9 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     approvals = relationship(
         "AgentApproval", back_populates="agent_run", cascade="all, delete-orphan"
     )
+    trace_share_tokens = relationship(
+        "AgentTraceShareToken", back_populates="agent_run", cascade="all, delete-orphan"
+    )
 
 
 class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -290,3 +293,72 @@ class AgentApproval(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     decided_by_user = relationship(
         "User", foreign_keys=[decided_by_user_id], back_populates="agent_approvals_decided"
     )
+
+
+class AgentTraceRetentionPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "agent_trace_retention_policies"
+    __table_args__ = (
+        CheckConstraint("retain_days >= 1", name="trace_retention_retain_days_positive"),
+        CheckConstraint(
+            "retain_days <= 3650", name="trace_retention_retain_days_max_ten_years"
+        ),
+        Index("idx_trace_retention_org", "organization_id"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    updated_by_user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    retain_days: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    redact_prompts: Mapped[bool] = mapped_column(
+        "redact_prompts", default=False, nullable=False
+    )
+    redact_raw_content: Mapped[bool] = mapped_column(
+        "redact_raw_content", default=False, nullable=False
+    )
+    redact_tool_arguments: Mapped[bool] = mapped_column(
+        "redact_tool_arguments", default=False, nullable=False
+    )
+
+    organization = relationship("Organization", back_populates="agent_trace_retention_policy")
+    updated_by_user = relationship("User", back_populates="agent_trace_retention_policies")
+
+
+class AgentTraceShareToken(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "agent_trace_share_tokens"
+    __table_args__ = (
+        Index("idx_trace_share_tokens_org", "organization_id"),
+        Index("idx_trace_share_tokens_run", "agent_run_id"),
+        Index("idx_trace_share_tokens_hash", "token_hash", unique=True),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    agent_run_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("agent_runs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    organization = relationship("Organization", back_populates="agent_trace_share_tokens")
+    agent_run = relationship("AgentRun", back_populates="trace_share_tokens")
+    created_by_user = relationship("User", back_populates="agent_trace_share_tokens")

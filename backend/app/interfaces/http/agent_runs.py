@@ -24,6 +24,7 @@ from app.domains.agents import (
     AgentRuntimeRequest,
     AgentRuntimeResult,
 )
+from app.domains.agents.services.trace_service import AgentTraceService
 from app.models.enums import AgentRunStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
@@ -32,6 +33,7 @@ agent_runtime = AgentRuntime()
 agent_run_repository = AgentRunRepository()
 audit_log_service = AuditLogService()
 usage_repository = UsageRepository()
+agent_trace_service = AgentTraceService()
 
 
 class AgentRunCreateRequest(BaseModel):
@@ -1036,3 +1038,302 @@ async def comment_agent_run_approval(
         )
     await db_session.commit()
     return _to_approval_response(updated)
+
+
+# ── Trace replay ──────────────────────────────────────────────────────────────
+
+
+class AgentTraceShareRequest(BaseModel):
+    label: str | None = Field(default=None, max_length=200)
+    expires_in_hours: int = Field(default=48, ge=1, le=720)
+
+
+class AgentTraceShareResponse(BaseModel):
+    token_id: str
+    token: str
+    expires_at: str
+    label: str | None = None
+    share_url: str
+
+
+class AgentTraceRetentionRequest(BaseModel):
+    retain_days: int = Field(default=90, ge=1, le=3650)
+    redact_prompts: bool = False
+    redact_raw_content: bool = False
+    redact_tool_arguments: bool = False
+
+
+class AgentTraceRetentionResponse(BaseModel):
+    organization_id: str
+    retain_days: int
+    redact_prompts: bool
+    redact_raw_content: bool
+    redact_tool_arguments: bool
+    is_default: bool
+
+
+async def _load_run_with_relations(
+    db_session: AsyncSession,
+    run_uuid: UUID,
+    organization_id: UUID,
+) -> Any:
+    run = await agent_run_repository.get_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+    )
+    if run is None:
+        return None
+    steps = await agent_run_repository.list_agent_steps(
+        db_session,
+        agent_run_id=run.id,
+        organization_id=organization_id,
+    )
+    tool_calls = await agent_run_repository.list_agent_tool_calls(
+        db_session,
+        agent_run_id=run.id,
+        organization_id=organization_id,
+    )
+    approvals = await agent_run_repository.list_agent_approvals(
+        db_session,
+        agent_run_id=run.id,
+        organization_id=organization_id,
+    )
+    # Attach as plain lists so trace service can iterate them without lazy-load
+    run.steps = steps
+    run.tool_calls = tool_calls
+    run.approvals = approvals
+    return run
+
+
+@router.get("/runs/{run_id}/trace", response_model=dict)
+async def get_agent_run_trace(
+    run_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+                OrganizationRole.viewer.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Return the sanitized trace timeline for an agent run."""
+    _feature_enabled()
+    organization_id, _ = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+
+    run = await _load_run_with_relations(db_session, run_uuid, organization_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    policy = await agent_trace_service.get_retention_policy(db_session, organization_id)
+    return agent_trace_service.build_trace(run, policy)
+
+
+@router.get("/runs/{run_id}/trace/export", response_model=dict)
+async def export_agent_run_trace(
+    run_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Return safe-for-support trace metadata with all sensitive content redacted."""
+    _feature_enabled()
+    organization_id, _ = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+
+    run = await _load_run_with_relations(db_session, run_uuid, organization_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    return agent_trace_service.build_export(run)
+
+
+@router.post("/runs/{run_id}/trace/share", response_model=AgentTraceShareResponse)
+async def share_agent_run_trace(
+    run_id: str,
+    payload: AgentTraceShareRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentTraceShareResponse:
+    """Create a time-limited share token for an agent run trace."""
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+
+    run = await agent_run_repository.get_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    share_token, raw_token = await agent_trace_service.create_share_token(
+        db_session,
+        organization_id=organization_id,
+        run_id=run_uuid,
+        created_by_user_id=user_id,
+        label=payload.label,
+        expires_in_hours=payload.expires_in_hours,
+    )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="agent.trace.shared",
+        resource_type="agent_run",
+        resource_id=run_uuid,
+        request_id=_request_id_from_request(request),
+        metadata={"run_id": run_id, "token_id": str(share_token.id)},
+        required=False,
+    )
+    await db_session.commit()
+
+    base_url = str(request.base_url).rstrip("/")
+    share_url = f"{base_url}/agent/traces/shared/{raw_token}"
+    return AgentTraceShareResponse(
+        token_id=str(share_token.id),
+        token=raw_token,
+        expires_at=share_token.expires_at.isoformat() if share_token.expires_at else "",
+        label=share_token.label,
+        share_url=share_url,
+    )
+
+
+public_trace_router = APIRouter(prefix="/agent", tags=["agent"])
+
+
+@public_trace_router.get("/traces/shared/{token}", response_model=dict)
+async def get_shared_agent_trace(
+    token: str,
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> dict[str, Any]:
+    """Access a shared agent trace by token. No authentication required; always fully redacted."""
+    _feature_enabled()
+
+    share_token = await agent_trace_service.resolve_share_token(db_session, token)
+    if share_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "trace_not_found", "message": "Trace share link is invalid or expired."},
+        )
+
+    from app.domains.agents.services.trace_service import RetentionPolicySnapshot
+
+    run = await _load_run_with_relations(
+        db_session, share_token.agent_run_id, share_token.organization_id
+    )
+    if run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found"
+        )
+
+    policy = RetentionPolicySnapshot.full_redact_policy()
+    result = agent_trace_service.build_trace(run, policy)
+    result["shared_via_token"] = True
+    return result
+
+
+# ── Trace retention policy (admin) ───────────────────────────────────────────
+
+admin_trace_router = APIRouter(prefix="/admin/agent", tags=["admin-agent"])
+
+
+@admin_trace_router.get("/trace-retention", response_model=AgentTraceRetentionResponse)
+async def get_trace_retention_policy(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentTraceRetentionResponse:
+    """Get the org-level trace retention policy. Returns defaults if none set."""
+    _feature_enabled()
+    organization_id, _ = _org_and_user(principal)
+    policy = await agent_trace_service.get_retention_policy(db_session, organization_id)
+    return AgentTraceRetentionResponse(
+        organization_id=str(organization_id),
+        retain_days=policy.retain_days,
+        redact_prompts=policy.redact_prompts,
+        redact_raw_content=policy.redact_raw_content,
+        redact_tool_arguments=policy.redact_tool_arguments,
+        is_default=not policy.is_any_redaction_active() and policy.retain_days == 90,
+    )
+
+
+@admin_trace_router.patch("/trace-retention", response_model=AgentTraceRetentionResponse)
+async def update_trace_retention_policy(
+    payload: AgentTraceRetentionRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentTraceRetentionResponse:
+    """Create or update the org-level trace retention policy."""
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+
+    updated = await agent_trace_service.upsert_retention_policy(
+        db_session,
+        organization_id=organization_id,
+        updated_by_user_id=user_id,
+        retain_days=payload.retain_days,
+        redact_prompts=payload.redact_prompts,
+        redact_raw_content=payload.redact_raw_content,
+        redact_tool_arguments=payload.redact_tool_arguments,
+    )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="agent.trace_retention.updated",
+        resource_type="agent_trace_retention_policy",
+        resource_id=updated.id,
+        request_id=_request_id_from_request(request),
+        metadata={
+            "retain_days": payload.retain_days,
+            "redact_prompts": payload.redact_prompts,
+            "redact_raw_content": payload.redact_raw_content,
+            "redact_tool_arguments": payload.redact_tool_arguments,
+        },
+        required=False,
+    )
+    await db_session.commit()
+
+    policy = await agent_trace_service.get_retention_policy(db_session, organization_id)
+    return AgentTraceRetentionResponse(
+        organization_id=str(organization_id),
+        retain_days=policy.retain_days,
+        redact_prompts=policy.redact_prompts,
+        redact_raw_content=policy.redact_raw_content,
+        redact_tool_arguments=policy.redact_tool_arguments,
+        is_default=not policy.is_any_redaction_active() and policy.retain_days == 90,
+    )

@@ -16,10 +16,12 @@ from app.domains.agents.services.tool_registry import (
     ToolRegistry,
     build_default_tool_specs,
 )
+from app.domains.agents.services.trace_service import AgentTraceService
 
 __all__ = [
     "AgentRuntime",
     "AgentToolExecutor",
+    "AgentTraceService",
     "DocumentIntelligenceToolService",
     "ExternalMCPHTTPClient",
     "ExternalMCPRegistrationSummary",
