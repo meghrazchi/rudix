@@ -22,12 +22,23 @@ from app.domains.collections.schemas.collections import (
     CollectionListItemResponse,
     CollectionListResponse,
     CollectionPolicyResponse,
+    CollectionRulesResponse,
     CreateCollectionRequest,
     DeleteCollectionResponse,
     DocumentCollectionsResponse,
+    DynamicRuleSet,
+    PreviewRulesDocumentItem,
+    PreviewRulesRequest,
+    PreviewRulesResponse,
+    RefreshRulesResponse,
+    SetCollectionRulesRequest,
     SetDocumentCollectionsRequest,
     UpdateCollectionPolicyRequest,
     UpdateCollectionRequest,
+)
+from app.domains.collections.services.dynamic_rule_service import (
+    DynamicRuleService,
+    DynamicRuleValidationError,
 )
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.collection import Collection
@@ -39,6 +50,7 @@ router = APIRouter(prefix="/collections", tags=["collections"])
 _collection_repo = CollectionRepository()
 _document_repo = DocumentRepository()
 _audit_service = AuditLogService()
+_dynamic_rule_service = DynamicRuleService()
 _logger = get_logger("events.collections")
 
 _ADMIN_ROLES = frozenset({OrganizationRole.owner.value, OrganizationRole.admin.value})
@@ -105,6 +117,8 @@ def _collection_to_list_item(
         document_count=document_count,
         indexed_count=indexed_count,
         access_policy=collection.access_policy,  # type: ignore[arg-type]
+        is_dynamic=collection.is_dynamic,
+        last_rule_evaluated_at=collection.last_rule_evaluated_at,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
@@ -116,6 +130,12 @@ def _collection_to_detail(
     indexed_count: int,
 ) -> CollectionDetailResponse:
     owner = collection.owner
+    rule_schema: DynamicRuleSet | None = None
+    if collection.rule_schema:
+        try:
+            rule_schema = DynamicRuleSet.model_validate(collection.rule_schema)
+        except Exception:
+            rule_schema = None
     return CollectionDetailResponse(
         collection_id=str(collection.id),
         name=collection.name,
@@ -126,6 +146,9 @@ def _collection_to_detail(
         document_count=document_count,
         indexed_count=indexed_count,
         access_policy=collection.access_policy,  # type: ignore[arg-type]
+        is_dynamic=collection.is_dynamic,
+        last_rule_evaluated_at=collection.last_rule_evaluated_at,
+        rule_schema=rule_schema,
         created_at=collection.created_at,
         updated_at=collection.updated_at,
     )
@@ -203,6 +226,14 @@ async def create_collection(
     user_id = _user_id(principal)
     rid = _request_id(request)
 
+    rule_schema_dict: dict | None = None
+    if payload.is_dynamic and payload.rule_schema is not None:
+        try:
+            _dynamic_rule_service.validate(payload.rule_schema.model_dump())
+        except DynamicRuleValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        rule_schema_dict = payload.rule_schema.model_dump()
+
     collection = await _collection_repo.create(
         db,
         organization_id=organization_id,
@@ -210,7 +241,14 @@ async def create_collection(
         name=payload.name.strip(),
         description=payload.description,
         access_policy=payload.access_policy,
+        is_dynamic=payload.is_dynamic,
+        rule_schema=rule_schema_dict,
     )
+
+    matched_count = 0
+    if collection.is_dynamic and collection.rule_schema:
+        matched_count = await _dynamic_rule_service.refresh_membership(db, collection=collection)
+
     await _audit_service.record(
         db,
         organization_id=organization_id,
@@ -219,7 +257,11 @@ async def create_collection(
         resource_type="collection",
         resource_id=collection.id,
         request_id=rid,
-        metadata={"name": collection.name, "access_policy": collection.access_policy},
+        metadata={
+            "name": collection.name,
+            "access_policy": collection.access_policy,
+            "is_dynamic": collection.is_dynamic,
+        },
     )
     await db.commit()
 
@@ -228,8 +270,9 @@ async def create_collection(
         organization_id=principal.organization_id,
         user_id=principal.user_id,
         collection_id=str(collection.id),
+        is_dynamic=collection.is_dynamic,
     )
-    return _collection_to_detail(collection, 0, 0)
+    return _collection_to_detail(collection, matched_count, 0)
 
 
 @router.get("/{collection_id}", response_model=CollectionDetailResponse)
@@ -664,6 +707,197 @@ async def remove_document_from_collection(
         organization_id=principal.organization_id,
         collection_id=collection_id,
         document_id=document_id,
+    )
+
+
+# ── Dynamic rule endpoints ─────────────────────────────────────────────────────
+
+
+@router.put("/{collection_id}/rules", response_model=CollectionRulesResponse)
+async def set_collection_rules(
+    request: Request,
+    collection_id: str,
+    payload: SetCollectionRulesRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(
+            require_roles(
+                OrganizationRole.owner.value,
+                OrganizationRole.admin.value,
+                OrganizationRole.member.value,
+            )
+        ),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> CollectionRulesResponse:
+    organization_id = _org_id(principal)
+    user_id = _user_id(principal)
+    rid = _request_id(request)
+    parsed_id = _parse_uuid(collection_id, "Collection")
+
+    collection = await _collection_repo.get(
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+    )
+    if collection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+
+    is_admin = _is_admin(principal)
+    if not is_admin and str(collection.owner_id) != principal.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the collection owner or an admin may set rules",
+        )
+
+    rule_dict = payload.rule_schema.model_dump()
+    try:
+        _dynamic_rule_service.validate(rule_dict)
+    except DynamicRuleValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+    await _collection_repo.set_rules(db, collection=collection, rule_schema=rule_dict)
+    matched_count = await _dynamic_rule_service.refresh_membership(db, collection=collection)
+
+    await _audit_service.record(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="collection.rules.set",
+        resource_type="collection",
+        resource_id=parsed_id,
+        request_id=rid,
+        metadata={"matched_count": matched_count},
+    )
+    await db.commit()
+
+    _logger.info(
+        "collection.rules.set",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        collection_id=collection_id,
+        matched_count=matched_count,
+    )
+    return CollectionRulesResponse(
+        collection_id=collection_id,
+        is_dynamic=collection.is_dynamic,
+        rule_schema=payload.rule_schema,
+        last_rule_evaluated_at=collection.last_rule_evaluated_at,
+        matched_count=matched_count,
+    )
+
+
+@router.post("/{collection_id}/rules/preview", response_model=PreviewRulesResponse)
+async def preview_collection_rules(
+    collection_id: str,
+    payload: PreviewRulesRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PreviewRulesResponse:
+    organization_id = _org_id(principal)
+    user_id = _user_id(principal)
+    parsed_id = _parse_uuid(collection_id, "Collection")
+
+    collection = await _collection_repo.get(
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+    )
+    if collection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+
+    rule_dict = payload.rule_schema.model_dump()
+    try:
+        _dynamic_rule_service.validate(rule_dict)
+    except DynamicRuleValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+    docs, total = await _dynamic_rule_service.preview(
+        db,
+        organization_id=organization_id,
+        rule_schema=rule_dict,
+        limit=payload.limit,
+    )
+    return PreviewRulesResponse(
+        total=total,
+        items=[
+            PreviewRulesDocumentItem(
+                document_id=str(doc.id),
+                filename=doc.filename,
+                file_type=doc.file_type,
+                language=doc.language,
+                status=doc.status,
+                trust_status=doc.trust_status,
+                tags=doc.tags,
+                ingestion_source=doc.ingestion_source,
+            )
+            for doc in docs
+        ],
+    )
+
+
+@router.post(
+    "/{collection_id}/rules/refresh",
+    response_model=RefreshRulesResponse,
+)
+async def refresh_collection_rules(
+    request: Request,
+    collection_id: str,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> RefreshRulesResponse:
+    organization_id = _org_id(principal)
+    user_id = _user_id(principal)
+    rid = _request_id(request)
+    parsed_id = _parse_uuid(collection_id, "Collection")
+
+    collection = await _collection_repo.get(
+        db,
+        collection_id=parsed_id,
+        organization_id=organization_id,
+        user_id=user_id,
+        user_roles=principal.roles,
+    )
+    if collection is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+
+    if not collection.is_dynamic or not collection.rule_schema:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Collection is not a dynamic collection or has no rule schema",
+        )
+
+    matched_count = await _dynamic_rule_service.refresh_membership(db, collection=collection)
+    await _audit_service.record(
+        db,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="collection.rules.refreshed",
+        resource_type="collection",
+        resource_id=parsed_id,
+        request_id=rid,
+        metadata={"matched_count": matched_count},
+    )
+    await db.commit()
+
+    _logger.info(
+        "collection.rules.refreshed",
+        organization_id=principal.organization_id,
+        user_id=principal.user_id,
+        collection_id=collection_id,
+        matched_count=matched_count,
+    )
+    return RefreshRulesResponse(
+        collection_id=collection_id,
+        matched_count=matched_count,
+        last_rule_evaluated_at=collection.last_rule_evaluated_at,
     )
 
 

@@ -1,10 +1,13 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -26,6 +29,7 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint("length(trim(name)) >= 1", name="collections_name_not_blank"),
         Index("idx_collections_org_id", "organization_id"),
         Index("idx_collections_owner_id", "owner_id"),
+        Index("idx_collections_is_dynamic", "organization_id", "is_dynamic"),
     )
 
     organization_id: Mapped[UUID] = mapped_column(
@@ -42,6 +46,11 @@ class Collection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     access_policy: Mapped[str] = mapped_column(String(32), nullable=False, default="org_wide")
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_dynamic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    rule_schema: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    last_rule_evaluated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     organization = relationship("Organization", back_populates="collections")
     owner = relationship("User", back_populates="owned_collections")

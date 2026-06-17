@@ -66,6 +66,8 @@ class CollectionRepository:
         name: str,
         description: str | None,
         access_policy: str,
+        is_dynamic: bool = False,
+        rule_schema: dict | None = None,
     ) -> Collection:
         collection = Collection(
             organization_id=organization_id,
@@ -73,6 +75,8 @@ class CollectionRepository:
             name=name.strip(),
             description=description,
             access_policy=access_policy,
+            is_dynamic=is_dynamic,
+            rule_schema=rule_schema,
         )
         session.add(collection)
         await session.flush()
@@ -189,6 +193,8 @@ class CollectionRepository:
         name: str | None = None,
         description: str | None = None,
         access_policy: str | None = None,
+        rule_schema: dict | None = None,
+        clear_rule_schema: bool = False,
     ) -> Collection:
         if name is not None:
             collection.name = name.strip()
@@ -196,9 +202,41 @@ class CollectionRepository:
             collection.description = description or None
         if access_policy is not None:
             collection.access_policy = access_policy
+        if rule_schema is not None:
+            collection.rule_schema = rule_schema
+        elif clear_rule_schema:
+            collection.rule_schema = None
         await session.flush()
         await session.refresh(collection, ["owner"])
         return collection
+
+    async def set_rules(
+        self,
+        session: AsyncSession,
+        *,
+        collection: Collection,
+        rule_schema: dict,
+    ) -> Collection:
+        collection.rule_schema = rule_schema
+        collection.is_dynamic = True
+        await session.flush()
+        return collection
+
+    async def list_dynamic_active(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+    ) -> list[Collection]:
+        result = await session.execute(
+            select(Collection).where(
+                Collection.organization_id == organization_id,
+                Collection.is_dynamic.is_(True),
+                Collection.is_archived.is_(False),
+                Collection.rule_schema.is_not(None),
+            )
+        )
+        return list(result.scalars().all())
 
     async def archive(self, session: AsyncSession, *, collection: Collection) -> Collection:
         collection.is_archived = True

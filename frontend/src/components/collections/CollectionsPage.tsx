@@ -17,14 +17,21 @@ import {
   getCollectionPolicy,
   listCollectionDocuments,
   listCollections,
+  refreshCollectionRules,
   removeDocumentFromCollection,
+  setCollectionRules,
   updateCollection,
   updateCollectionPolicy,
   type CollectionAccessGrant,
   type CollectionAccessPolicy,
   type CollectionDetailResponse,
   type CollectionListItemResponse,
+  type DynamicRuleSet,
 } from "@/lib/api/collections";
+import {
+  DynamicRuleBuilder,
+  emptyRuleSet,
+} from "@/components/collections/DynamicRuleBuilder";
 import {
   listDocuments,
   type DocumentListItemResponse,
@@ -574,11 +581,18 @@ function CollectionCard({
             {icon}
           </span>
         </div>
-        <span
-          className={`rounded-full border px-2 py-0.5 text-[11px] font-bold tracking-tight uppercase ${accessPolicyBadgeClass(col.access_policy)}`}
-        >
-          {accessPolicyLabel(col.access_policy, tc)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {col.is_dynamic ? (
+            <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[11px] font-bold tracking-tight text-violet-700 uppercase">
+              Dynamic
+            </span>
+          ) : null}
+          <span
+            className={`rounded-full border px-2 py-0.5 text-[11px] font-bold tracking-tight uppercase ${accessPolicyBadgeClass(col.access_policy)}`}
+          >
+            {accessPolicyLabel(col.access_policy, tc)}
+          </span>
+        </div>
       </div>
 
       <h4 className="mb-1 text-lg font-semibold text-[#1b1b24]">{col.name}</h4>
@@ -1070,6 +1084,20 @@ function CollectionDetailDrawer({
       listCollectionDocuments(collectionId, { limit: 200, offset: 0 }),
   });
 
+  const refreshRulesMutation = useMutation({
+    mutationFn: () => refreshCollectionRules(collectionId),
+    onSuccess: async (result) => {
+      setActionFeedback(
+        `Rules refreshed — ${result.matched_count} document${result.matched_count === 1 ? "" : "s"} matched.`,
+      );
+      await invalidateAfterMutation(queryClient, "collection.rules.refresh");
+      await invalidateAfterMutation(queryClient, "collection.document.add");
+    },
+    onError: (error) => {
+      setActionFeedback(getApiErrorMessage(error));
+    },
+  });
+
   const removeDocMutation = useMutation({
     mutationFn: (documentId: string) =>
       removeDocumentFromCollection(collectionId, documentId),
@@ -1213,7 +1241,7 @@ function CollectionDetailDrawer({
                       {detail.description}
                     </p>
                   ) : null}
-                  <div className="mt-2 flex items-center gap-4">
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-1 text-[12px] text-[#6a6780]">
                       <span className="material-symbols-outlined text-[16px]">
                         database
@@ -1226,10 +1254,78 @@ function CollectionDetailDrawer({
                       </span>
                       {tc("drawerIndexedCount", { n: detail.indexed_count })}
                     </div>
+                    {detail.is_dynamic ? (
+                      <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700 uppercase">
+                        Dynamic
+                      </span>
+                    ) : null}
                   </div>
+                  {detail.is_dynamic && detail.last_rule_evaluated_at ? (
+                    <p className="mt-1 text-[11px] text-[#6a6780]">
+                      Last evaluated:{" "}
+                      {formatRelativeDate(detail.last_rule_evaluated_at, tc)}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </section>
+
+            {/* Dynamic collection controls */}
+            {detail.is_dynamic ? (
+              <section className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h5 className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
+                    Membership rules
+                  </h5>
+                  {capabilities.canEdit ? (
+                    <button
+                      type="button"
+                      disabled={refreshRulesMutation.isPending}
+                      onClick={() => refreshRulesMutation.mutate()}
+                      className="flex items-center gap-1 rounded-lg border border-[#d2cee6] bg-white px-2 py-1 text-[11px] font-semibold text-[#3525cd] hover:bg-[#f0ecf9] disabled:opacity-60"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        {refreshRulesMutation.isPending
+                          ? "hourglass_empty"
+                          : "refresh"}
+                      </span>
+                      {refreshRulesMutation.isPending
+                        ? "Refreshing…"
+                        : "Refresh now"}
+                    </button>
+                  ) : null}
+                </div>
+                {detail.rule_schema ? (
+                  <div className="rounded-xl border border-[#e4e1ee] bg-[#faf9ff] px-3 py-2">
+                    <p className="mb-1 text-[10px] font-semibold tracking-wider text-[#6a6780] uppercase">
+                      Match{" "}
+                      {detail.rule_schema.logic === "and"
+                        ? "all conditions"
+                        : "any condition"}
+                    </p>
+                    <ul className="space-y-0.5">
+                      {detail.rule_schema.conditions.map((cond, i) => (
+                        <li key={i} className="text-xs text-[#464555]">
+                          <span className="font-semibold text-[#2a2640]">
+                            {cond.field}
+                          </span>{" "}
+                          <span className="text-[#6a6780]">{cond.operator}</span>{" "}
+                          <span className="font-semibold text-[#3525cd]">
+                            {Array.isArray(cond.value)
+                              ? cond.value.join(", ")
+                              : cond.value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#b0abc8] italic">
+                    No rules configured yet.
+                  </p>
+                )}
+              </section>
+            ) : null}
 
             {/* Indexing health */}
             <section className="space-y-3">
@@ -1314,6 +1410,7 @@ function CollectionDetailDrawer({
               ) : null}
 
               {capabilities.canManageDocuments &&
+              !detail.is_dynamic &&
               (docs?.items.length ?? 0) > 0 ? (
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e4e1ee] bg-white px-3 py-2">
                   <div className="min-w-0">
@@ -1336,6 +1433,12 @@ function CollectionDetailDrawer({
                   </button>
                 </div>
               ) : null}
+              {detail.is_dynamic && (docs?.items.length ?? 0) === 0 ? (
+                <p className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-700">
+                  This dynamic collection has no matching documents yet. Adjust
+                  the rules or refresh to update membership.
+                </p>
+              ) : null}
 
               {docsQuery.isLoading ? (
                 <LoadingState compact title={tc("loadingDocuments")} />
@@ -1352,7 +1455,7 @@ function CollectionDetailDrawer({
                   title={tc("noDocumentsTitle")}
                   description={tc("noDocumentsDesc")}
                   action={
-                    capabilities.canManageDocuments ? (
+                    capabilities.canManageDocuments && !detail.is_dynamic ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -1395,7 +1498,7 @@ function CollectionDetailDrawer({
                               ? tc("docStatusIndexing")
                               : doc.status}
                         </span>
-                        {capabilities.canManageDocuments ? (
+                        {capabilities.canManageDocuments && !detail.is_dynamic ? (
                           <button
                             type="button"
                             aria-label={tc("removeAriaLabel")}
@@ -1489,12 +1592,16 @@ type CollectionFormState = {
   name: string;
   description: string;
   access_policy: CollectionAccessPolicy;
+  is_dynamic: boolean;
+  rule_schema: DynamicRuleSet;
 };
 
 const DEFAULT_FORM: CollectionFormState = {
   name: "",
   description: "",
   access_policy: "org_wide",
+  is_dynamic: false,
+  rule_schema: { logic: "and", conditions: [{ field: "file_type", operator: "eq", value: "pdf" }] },
 };
 
 type CollectionFormErrors = { name?: string };
@@ -1628,6 +1735,40 @@ function CollectionDialog({
             <p className="mt-1 text-xs text-[#7a768f]">
               {accessPolicyDescription(form.access_policy, tc)}
             </p>
+          </div>
+
+          {/* Dynamic toggle */}
+          <div className="rounded-xl border border-[#e4e1ee] bg-[#faf9ff] p-3">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={form.is_dynamic}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, is_dynamic: e.target.checked }))
+                }
+                className="accent-[#3525cd]"
+              />
+              <div>
+                <p className="text-sm font-semibold text-[#2a2640]">
+                  Dynamic collection
+                </p>
+                <p className="text-[11px] text-[#6a6780]">
+                  Membership is automatically updated based on document
+                  metadata rules.
+                </p>
+              </div>
+            </label>
+            {form.is_dynamic ? (
+              <div className="mt-3 border-t border-[#e4e1ee] pt-3">
+                <DynamicRuleBuilder
+                  collectionId={null}
+                  value={form.rule_schema}
+                  onChange={(next) =>
+                    setForm((p) => ({ ...p, rule_schema: next }))
+                  }
+                />
+              </div>
+            ) : null}
           </div>
 
           {saveError ? (
@@ -1879,6 +2020,8 @@ export function CollectionsPage() {
         name: form.name.trim(),
         description: form.description.trim() || null,
         access_policy: form.access_policy,
+        is_dynamic: form.is_dynamic,
+        rule_schema: form.is_dynamic ? form.rule_schema : null,
       }),
     onSuccess: async (result) => {
       setDialogMode(null);
@@ -1894,18 +2037,23 @@ export function CollectionsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       collectionId,
       form,
     }: {
       collectionId: string;
       form: CollectionFormState;
-    }) =>
-      updateCollection(collectionId, {
+    }) => {
+      const updated = await updateCollection(collectionId, {
         name: form.name.trim(),
         description: form.description.trim() || null,
         access_policy: form.access_policy,
-      }),
+      });
+      if (form.is_dynamic) {
+        await setCollectionRules(collectionId, form.rule_schema);
+      }
+      return updated;
+    },
     onSuccess: async (result) => {
       setDialogMode(null);
       setDialogSaveError(null);
@@ -2256,6 +2404,9 @@ export function CollectionsPage() {
             name: dialogMode.collection.name,
             description: dialogMode.collection.description ?? "",
             access_policy: dialogMode.collection.access_policy,
+            is_dynamic: dialogMode.collection.is_dynamic,
+            rule_schema:
+              dialogMode.collection.rule_schema ?? emptyRuleSet(),
           }}
           saving={updateMutation.isPending}
           saveError={dialogSaveError}
