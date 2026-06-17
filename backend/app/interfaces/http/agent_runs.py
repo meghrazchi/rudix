@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
@@ -24,7 +24,7 @@ from app.domains.agents import (
     AgentRuntimeRequest,
     AgentRuntimeResult,
 )
-from app.models.enums import OrganizationRole
+from app.models.enums import AgentRunStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -187,6 +187,26 @@ class AgentApprovalDecisionRequest(BaseModel):
             return None
         normalized = value.strip()
         return normalized or None
+
+
+class AgentApprovalCreateRequest(BaseModel):
+    request_summary: str | None = Field(default=None, max_length=500)
+    request_payload: dict[str, Any] = Field(default_factory=dict)
+    expires_in_seconds: int | None = Field(default=None, ge=60, le=86400)
+    agent_step_id: str | None = None
+    tool_call_id: str | None = None
+
+
+class AgentApprovalCommentRequest(BaseModel):
+    comment: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("comment must not be blank")
+        return stripped
 
 
 def _request_id_from_request(request: Request) -> str | None:
@@ -783,6 +803,30 @@ async def decide_agent_run_approval(
             status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
         )
 
+    # Transition run status based on decision outcome.
+    if run.status == AgentRunStatus.waiting_approval.value:
+        if payload.status == "approved":
+            await agent_run_repository.update_agent_run(
+                db_session,
+                agent_run_id=run_uuid,
+                organization_id=organization_id,
+                status=AgentRunStatus.running.value,
+            )
+        elif payload.status == "rejected":
+            rejection_msg = (
+                f"Approval rejected: {payload.reason}"
+                if payload.reason
+                else "Approval request rejected."
+            )
+            await agent_run_repository.update_agent_run(
+                db_session,
+                agent_run_id=run_uuid,
+                organization_id=organization_id,
+                status=AgentRunStatus.failed.value,
+                error_message=rejection_msg,
+            )
+        # changes_requested: run stays in waiting_approval — no transition needed.
+
     await audit_log_service.record(
         db_session,
         organization_id=organization_id,
@@ -821,5 +865,171 @@ async def decide_agent_run_approval(
         run_id=str(run_uuid),
         approval_id=str(approval_uuid),
     )
+    await db_session.commit()
+    return _to_approval_response(updated)
+
+
+@router.post(
+    "/runs/{run_id}/approvals",
+    response_model=AgentApprovalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_agent_run_approval(
+    run_id: str,
+    payload: AgentApprovalCreateRequest,
+    request: Request,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentApprovalResponse:
+    """Request human approval before executing a side-effect tool call.
+
+    Transitions the run to waiting_approval if not already there.  The agent
+    executor is expected to call this endpoint before invoking any tool whose
+    effect_policy is side_effect when org policy requires approval.
+    """
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+
+    run = await agent_run_repository.get_agent_run(
+        db_session,
+        agent_run_id=run_uuid,
+        organization_id=organization_id,
+    )
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
+
+    if run.status not in {"queued", "planning", "running", "waiting_approval"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "run_not_active",
+                "message": "Approval can only be requested for active runs.",
+            },
+        )
+
+    step_uuid: UUID | None = None
+    if payload.agent_step_id is not None:
+        try:
+            step_uuid = UUID(payload.agent_step_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid agent_step_id",
+            ) from exc
+
+    tool_call_uuid: UUID | None = None
+    if payload.tool_call_id is not None:
+        try:
+            tool_call_uuid = UUID(payload.tool_call_id)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid tool_call_id",
+            ) from exc
+
+    expires_at: datetime | None = None
+    if payload.expires_in_seconds is not None:
+        expires_at = datetime.now(tz=UTC) + timedelta(seconds=payload.expires_in_seconds)
+
+    approval = await agent_run_repository.create_agent_approval(
+        db_session,
+        organization_id=organization_id,
+        agent_run_id=run_uuid,
+        agent_step_id=step_uuid,
+        tool_call_id=tool_call_uuid,
+        requested_by_user_id=user_id,
+        request_summary=payload.request_summary,
+        request_payload=payload.request_payload,
+        expires_at=expires_at,
+    )
+
+    if run.status != AgentRunStatus.waiting_approval.value:
+        await agent_run_repository.update_agent_run(
+            db_session,
+            agent_run_id=run_uuid,
+            organization_id=organization_id,
+            status=AgentRunStatus.waiting_approval.value,
+        )
+
+    await audit_log_service.record(
+        db_session,
+        organization_id=organization_id,
+        user_id=user_id,
+        action="agent.approval.requested",
+        resource_type="agent_approval",
+        resource_id=approval.id,
+        request_id=_request_id_from_request(request),
+        metadata={
+            "run_id": str(run_uuid),
+            "approval_id": str(approval.id),
+        },
+        required=False,
+    )
+    log_agent_event(
+        event="agent.approval.requested",
+        organization_id=str(organization_id),
+        user_id=str(user_id),
+        run_id=str(run_uuid),
+        approval_id=str(approval.id),
+    )
+    await db_session.commit()
+    return _to_approval_response(approval)
+
+
+@router.post(
+    "/runs/{run_id}/approvals/{approval_id}/comment",
+    response_model=AgentApprovalResponse,
+)
+async def comment_agent_run_approval(
+    run_id: str,
+    approval_id: str,
+    payload: AgentApprovalCommentRequest,
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AgentApprovalResponse:
+    """Add a comment to a pending or changes_requested approval without deciding it."""
+    _feature_enabled()
+    organization_id, user_id = _org_and_user(principal)
+    run_uuid = _parse_run_id(run_id)
+    approval_uuid = _parse_approval_id(approval_id)
+
+    approval = await agent_run_repository.get_agent_approval(
+        db_session,
+        approval_id=approval_uuid,
+        organization_id=organization_id,
+        agent_run_id=run_uuid,
+    )
+    if approval is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
+        )
+    if approval.status not in {"pending", "changes_requested"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "approval_not_commentable",
+                "message": "Comments can only be added to pending or changes_requested approvals.",
+            },
+        )
+
+    updated = await agent_run_repository.append_approval_comment(
+        db_session,
+        approval_id=approval_uuid,
+        organization_id=organization_id,
+        agent_run_id=run_uuid,
+        commenter_user_id=user_id,
+        comment=payload.comment,
+    )
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
+        )
     await db_session.commit()
     return _to_approval_response(updated)

@@ -651,6 +651,79 @@ class AgentRunRepository:
         result = await session.execute(statement)
         return result.rowcount
 
+    async def fail_runs_for_expired_approvals(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID | None = None,
+    ) -> int:
+        """Transition waiting_approval runs to failed when they have no pending approvals.
+
+        Called immediately after expire_pending_approvals() so runs do not stay
+        stuck waiting once every approval has reached a terminal state.
+        """
+        pending_run_ids_subq = (
+            select(AgentApproval.agent_run_id).where(
+                AgentApproval.status == AgentApprovalStatus.pending.value
+            )
+        )
+        statement = (
+            update(AgentRun)
+            .where(
+                AgentRun.status == AgentRunStatus.waiting_approval.value,
+                AgentRun.id.not_in(pending_run_ids_subq),
+            )
+            .values(
+                status=AgentRunStatus.failed.value,
+                error_message="Approval request expired without a decision.",
+            )
+        )
+        if organization_id is not None:
+            statement = statement.where(AgentRun.organization_id == organization_id)
+        result = await session.execute(statement)
+        return result.rowcount
+
+    async def append_approval_comment(
+        self,
+        session: AsyncSession,
+        *,
+        approval_id: UUID,
+        organization_id: UUID,
+        agent_run_id: UUID,
+        commenter_user_id: UUID,
+        comment: str,
+        now: datetime | None = None,
+    ) -> AgentApproval | None:
+        """Append a freeform comment to a pending/changes_requested approval.
+
+        Comments are stored as an append-only list in decision_payload_json under
+        the 'comments' key.  The approval status is not changed.
+        """
+        approval = await session.scalar(
+            select(AgentApproval).where(
+                AgentApproval.id == approval_id,
+                AgentApproval.organization_id == organization_id,
+                AgentApproval.agent_run_id == agent_run_id,
+            )
+        )
+        if approval is None:
+            return None
+        ts = (now or datetime.now(tz=UTC)).isoformat()
+        current: dict[str, Any] = dict(approval.decision_payload_json or {})
+        comments: list[dict[str, Any]] = list(current.get("comments", []))
+        comments.append(
+            {
+                "user_id": str(commenter_user_id),
+                "text": comment.strip(),
+                "ts": ts,
+            }
+        )
+        current["comments"] = comments
+        approval.decision_payload_json = _sanitize_payload(current)
+        await session.flush()
+        await session.refresh(approval)
+        return approval
+
     async def update_agent_approval(
         self,
         session: AsyncSession,

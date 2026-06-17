@@ -25,6 +25,7 @@ async def _expire_pending() -> dict[str, int]:
     async with SessionLocal() as session:
         async with session.begin():
             expired = await repo.expire_pending_approvals(session)
+            failed_runs = await repo.fail_runs_for_expired_approvals(session)
 
-    _logger.info("agents.approvals.expired", count=expired)
-    return {"expired": expired}
+    _logger.info("agents.approvals.expired", count=expired, runs_failed=failed_runs)
+    return {"expired": expired, "runs_failed": failed_runs}

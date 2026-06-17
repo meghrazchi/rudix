@@ -14,6 +14,7 @@ import type {
 const mockApi = vi.hoisted(() => ({
   listAgentApprovals: vi.fn(),
   decideAgentRunApproval: vi.fn(),
+  commentAgentRunApproval: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agent", () => ({
@@ -21,6 +22,8 @@ vi.mock("@/lib/api/agent", () => ({
     mockApi.listAgentApprovals(...args),
   decideAgentRunApproval: (...args: unknown[]) =>
     mockApi.decideAgentRunApproval(...args),
+  commentAgentRunApproval: (...args: unknown[]) =>
+    mockApi.commentAgentRunApproval(...args),
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -267,6 +270,75 @@ describe("AgentApprovalQueuePanel", () => {
         expect(screen.getByText("Agent wants to write /tmp/output.txt")).toBeInTheDocument(),
       );
       expect(screen.queryByText("high")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("comment action", () => {
+    it("renders a Comment button on each approval card", async () => {
+      mockApi.listAgentApprovals.mockResolvedValue(
+        makeQueueResponse([makeQueueItem()]),
+      );
+      renderPanel();
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: /comment/i })).toBeInTheDocument(),
+      );
+    });
+
+    it("shows comment textarea when Comment is clicked", async () => {
+      mockApi.listAgentApprovals.mockResolvedValue(
+        makeQueueResponse([makeQueueItem()]),
+      );
+      renderPanel();
+
+      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      await userEvent.click(commentBtn);
+
+      expect(
+        screen.getByPlaceholderText(/leave a comment without deciding/i),
+      ).toBeInTheDocument();
+    });
+
+    it("calls commentAgentRunApproval with comment text", async () => {
+      mockApi.listAgentApprovals.mockResolvedValue(
+        makeQueueResponse([makeQueueItem()]),
+      );
+      mockApi.commentAgentRunApproval.mockResolvedValue({ ...makeQueueItem(), status: "pending" });
+      renderPanel();
+
+      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      await userEvent.click(commentBtn);
+
+      const textarea = screen.getByPlaceholderText(/leave a comment without deciding/i);
+      await userEvent.type(textarea, "Please narrow the scope first.");
+
+      const postBtn = screen.getByRole("button", { name: /post comment/i });
+      await userEvent.click(postBtn);
+
+      expect(mockApi.commentAgentRunApproval).toHaveBeenCalledWith(
+        "run-1",
+        "appr-1",
+        "Please narrow the scope first.",
+      );
+    });
+
+    it("shows confirmation after comment is posted", async () => {
+      mockApi.listAgentApprovals.mockResolvedValue(
+        makeQueueResponse([makeQueueItem()]),
+      );
+      mockApi.commentAgentRunApproval.mockResolvedValue({ ...makeQueueItem(), status: "pending" });
+      renderPanel();
+
+      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      await userEvent.click(commentBtn);
+      await userEvent.type(
+        screen.getByPlaceholderText(/leave a comment without deciding/i),
+        "LGTM",
+      );
+      await userEvent.click(screen.getByRole("button", { name: /post comment/i }));
+
+      await waitFor(() =>
+        expect(screen.getByText(/comment posted/i)).toBeInTheDocument(),
+      );
     });
   });
 });

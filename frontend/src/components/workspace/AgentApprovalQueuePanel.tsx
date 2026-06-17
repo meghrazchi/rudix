@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
 import {
+  commentAgentRunApproval,
   decideAgentRunApproval,
   listAgentApprovals,
   type AgentApprovalQueueItem,
@@ -71,10 +72,19 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
   const queryClient = useQueryClient();
   const [reason, setReason] = useState("");
   const [showReason, setShowReason] = useState(false);
+  const [comment, setComment] = useState("");
+  const [showComment, setShowComment] = useState(false);
   const [pendingDecision, setPendingDecision] = useState<
     "approved" | "rejected" | "changes_requested" | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [commentSent, setCommentSent] = useState(false);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agent.approvals() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.agent.run(item.agent_run_id) });
+  };
 
   const decideMutation = useMutation({
     mutationFn: ({
@@ -91,16 +101,26 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
       setReason("");
       setShowReason(false);
       setPendingDecision(null);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.agent.approvals(),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.agent.run(item.agent_run_id),
-      });
+      invalidate();
     },
     onError: (err) => {
       setError(getApiErrorMessage(err));
       setPendingDecision(null);
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: () =>
+      commentAgentRunApproval(item.agent_run_id, item.approval_id, comment.trim()),
+    onSuccess: () => {
+      setCommentError(null);
+      setComment("");
+      setShowComment(false);
+      setCommentSent(true);
+      invalidate();
+    },
+    onError: (err) => {
+      setCommentError(getApiErrorMessage(err));
     },
   });
 
@@ -157,7 +177,7 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Decision actions */}
       <div className="mt-3 space-y-2">
         {showReason && (
           <textarea
@@ -222,6 +242,19 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
               Add reason
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowComment((v) => !v);
+              setCommentSent(false);
+            }}
+            disabled={isPending}
+            aria-label="Add comment"
+            className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs text-[#777587] hover:bg-[#f5f2ff] disabled:opacity-60"
+          >
+            Comment
+          </button>
         </div>
 
         {error && (
@@ -230,6 +263,49 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
           </p>
         )}
       </div>
+
+      {/* Comment section */}
+      {showComment && (
+        <div className="mt-3 space-y-1.5 border-t border-amber-200 pt-3">
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Leave a comment without deciding…"
+            maxLength={1000}
+            rows={2}
+            className="w-full resize-none rounded border border-[#d7d4e8] px-2 py-1.5 text-sm outline-none focus:border-[#3525cd] focus:ring-1 focus:ring-[#3525cd]"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => commentMutation.mutate()}
+              disabled={commentMutation.isPending || !comment.trim()}
+              className="rounded bg-[#3525cd] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2a1eb0] disabled:opacity-60"
+            >
+              {commentMutation.isPending ? "Posting…" : "Post comment"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowComment(false);
+                setComment("");
+                setCommentError(null);
+              }}
+              className="rounded border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs text-[#777587] hover:bg-[#f5f2ff]"
+            >
+              Cancel
+            </button>
+          </div>
+          {commentSent && (
+            <p className="text-[11px] text-emerald-700">Comment posted.</p>
+          )}
+          {commentError && (
+            <p role="alert" className="text-[11px] text-rose-700">
+              {commentError}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

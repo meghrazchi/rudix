@@ -606,3 +606,281 @@ async def test_approval_response_includes_agent_run_id(
     )
     assert response.status_code == 200
     assert response.json()["agent_run_id"] == run_id
+
+
+# ── Run status transitions ─────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_approve_transitions_run_to_running(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run_id, approval_id = await _seed_run_with_approval(
+        db_session, organization_id=org.id, user_id=user.id
+    )
+
+    await approval_client.post(
+        f"/api/v1/agent/runs/{run_id}/approvals/{approval_id}/decision",
+        json={"status": "approved"},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+
+    run_detail = await approval_client.get(
+        f"/api/v1/agent/runs/{run_id}",
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert run_detail.status_code == 200
+    assert run_detail.json()["status"] == "running"
+
+
+@pytest.mark.asyncio
+async def test_reject_transitions_run_to_failed(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run_id, approval_id = await _seed_run_with_approval(
+        db_session, organization_id=org.id, user_id=user.id
+    )
+
+    await approval_client.post(
+        f"/api/v1/agent/runs/{run_id}/approvals/{approval_id}/decision",
+        json={"status": "rejected", "reason": "Not safe"},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+
+    run_detail = await approval_client.get(
+        f"/api/v1/agent/runs/{run_id}",
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert run_detail.status_code == 200
+    body = run_detail.json()
+    assert body["status"] == "failed"
+    assert "Not safe" in body["error_message"]
+
+
+@pytest.mark.asyncio
+async def test_changes_requested_keeps_run_in_waiting_approval(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run_id, approval_id = await _seed_run_with_approval(
+        db_session, organization_id=org.id, user_id=user.id
+    )
+
+    await approval_client.post(
+        f"/api/v1/agent/runs/{run_id}/approvals/{approval_id}/decision",
+        json={"status": "changes_requested", "reason": "Narrow scope"},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+
+    run_detail = await approval_client.get(
+        f"/api/v1/agent/runs/{run_id}",
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert run_detail.json()["status"] == "waiting_approval"
+
+
+# ── Expiry task also fails runs ────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_expired_approvals_fail_associated_runs(
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    past = datetime.now(tz=UTC) - timedelta(minutes=10)
+
+    run_id, _ = await _seed_run_with_approval(
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
+        expires_at=past,
+    )
+    await db_session.commit()
+
+    await _repo.expire_pending_approvals(db_session)
+    failed = await _repo.fail_runs_for_expired_approvals(db_session)
+    await db_session.flush()
+
+    assert failed >= 1
+    from app.models.agent import AgentRun
+    from sqlalchemy import select
+    run = await db_session.scalar(select(AgentRun).where(AgentRun.id == UUID(run_id)))
+    assert run is not None
+    assert run.status == "failed"
+    assert run.error_message is not None
+
+
+@pytest.mark.asyncio
+async def test_fail_runs_does_not_touch_run_with_still_pending_approval(
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    future = datetime.now(tz=UTC) + timedelta(hours=1)
+
+    run_id, _ = await _seed_run_with_approval(
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
+        expires_at=future,
+    )
+    await db_session.commit()
+
+    failed = await _repo.fail_runs_for_expired_approvals(db_session)
+
+    from app.models.agent import AgentRun
+    from sqlalchemy import select
+    run = await db_session.scalar(select(AgentRun).where(AgentRun.id == UUID(run_id)))
+    assert run is not None
+    assert run.status == "waiting_approval"
+    _ = failed  # may be non-zero from other tests; what matters is our run is untouched
+
+
+# ── Create approval (policy enforcement) ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_approval_transitions_run_to_waiting_approval(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run = await _repo.create_agent_run(
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
+        status="running",
+        objective="Process payment",
+    )
+    await db_session.commit()
+
+    response = await approval_client.post(
+        f"/api/v1/agent/runs/{run.id}/approvals",
+        json={
+            "request_summary": "About to charge card",
+            "request_payload": {"tool_name": "charge_card", "risk_level": "critical"},
+            "expires_in_seconds": 300,
+        },
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["request_summary"] == "About to charge card"
+
+    run_detail = await approval_client.get(
+        f"/api/v1/agent/runs/{run.id}",
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert run_detail.json()["status"] == "waiting_approval"
+
+
+@pytest.mark.asyncio
+async def test_create_approval_rejects_terminal_run(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run = await _repo.create_agent_run(
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
+        status="completed",
+    )
+    await db_session.commit()
+
+    response = await approval_client.post(
+        f"/api/v1/agent/runs/{run.id}/approvals",
+        json={"request_summary": "Too late"},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "run_not_active"
+
+
+# ── Comment ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_comment_appends_to_decision_payload(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run_id, approval_id = await _seed_run_with_approval(
+        db_session, organization_id=org.id, user_id=user.id
+    )
+
+    response = await approval_client.post(
+        f"/api/v1/agent/runs/{run_id}/approvals/{approval_id}/comment",
+        json={"comment": "Please double-check the path before approving."},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "pending"
+    comments = body["decision_payload"].get("comments", [])
+    assert len(comments) == 1
+    assert comments[0]["text"] == "Please double-check the path before approving."
+    assert comments[0]["user_id"] == str(user.id)
+
+
+@pytest.mark.asyncio
+async def test_comment_on_decided_approval_returns_409(
+    approval_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, org = await _seed_org_user(db_session)
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(org.id),
+        expires_in_seconds=600,
+    )
+    run_id, approval_id = await _seed_run_with_approval(
+        db_session,
+        organization_id=org.id,
+        user_id=user.id,
+        approval_status=AgentApprovalStatus.approved.value,
+    )
+
+    response = await approval_client.post(
+        f"/api/v1/agent/runs/{run_id}/approvals/{approval_id}/comment",
+        json={"comment": "After the fact comment"},
+        headers=_headers(token=token, organization_id=str(org.id)),
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "approval_not_commentable"

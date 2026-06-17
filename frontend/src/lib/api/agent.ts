@@ -261,3 +261,40 @@ export async function decideAgentRunApproval(
     },
   );
 }
+
+export type AgentApprovalCreateRequest = {
+  request_summary?: string | null;
+  request_payload?: Record<string, unknown>;
+  expires_in_seconds?: number | null;
+  agent_step_id?: string | null;
+  tool_call_id?: string | null;
+};
+
+export async function createAgentRunApproval(
+  runId: string,
+  payload: AgentApprovalCreateRequest,
+): Promise<AgentApprovalResponse> {
+  return apiRequest<AgentApprovalResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/approvals`,
+    {
+      method: "POST",
+      json: payload,
+      authRetry: "safe",
+    },
+  );
+}
+
+export async function commentAgentRunApproval(
+  runId: string,
+  approvalId: string,
+  comment: string,
+): Promise<AgentApprovalResponse> {
+  return apiRequest<AgentApprovalResponse>(
+    `/agent/runs/${encodeURIComponent(runId)}/approvals/${encodeURIComponent(approvalId)}/comment`,
+    {
+      method: "POST",
+      json: { comment },
+      authRetry: "safe",
+    },
+  );
+}
