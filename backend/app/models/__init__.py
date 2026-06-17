@@ -5,6 +5,7 @@ from app.models.ab_experiment import (
     AbExperimentVariantRun,
 )
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
+from app.models.agent_policy import AgentToolPolicyOverride
 from app.models.answer_share import AnswerShare
 from app.models.auth_session import AuthRefreshSession
 from app.models.bot import BotInstallation, BotUserMapping
@@ -66,6 +67,7 @@ __all__ = [
     "AgentRun",
     "AgentStep",
     "AgentToolCall",
+    "AgentToolPolicyOverride",
     "AnswerShare",
     "AuditLog",
     "AuthRefreshSession",

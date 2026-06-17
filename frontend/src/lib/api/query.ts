@@ -177,6 +177,9 @@ export const queryKeys = {
     providerObservability: (params?: Record<string, unknown>) =>
       ["admin", "provider-observability", params ?? {}] as const,
     governance: ["admin", "governance"] as const,
+    agentPolicy: ["admin", "agent-policy"] as const,
+    agentPolicyEffective: (runId: string) =>
+      ["admin", "agent-policy", "effective", runId] as const,
     failedJobs: (params?: Record<string, unknown>) =>
       ["admin", "failed-jobs", params ?? {}] as const,
     failedJobDetail: (jobId: string) =>

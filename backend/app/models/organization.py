@@ -25,6 +25,11 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     agent_steps = relationship("AgentStep", back_populates="organization")
     agent_tool_calls = relationship("AgentToolCall", back_populates="organization")
     agent_approvals = relationship("AgentApproval", back_populates="organization")
+    agent_tool_policy_overrides = relationship(
+        "AgentToolPolicyOverride",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )
     governance_policy = relationship(
         "OrganizationGovernancePolicy",
         back_populates="organization",

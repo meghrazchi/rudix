@@ -4,6 +4,7 @@ from app.auth.dependencies import get_current_principal
 from app.interfaces.http import (
     ab_testing,
     admin,
+    admin_agent_policy,
     admin_api_keys,
     admin_chunking_profiles,
     admin_documents,
@@ -115,6 +116,7 @@ protected_router.include_router(admin_sso.router)
 protected_router.include_router(admin_scim.router)
 protected_router.include_router(admin_documents.router)
 protected_router.include_router(admin_governance.router)
+protected_router.include_router(admin_agent_policy.router)
 protected_router.include_router(admin_feature_flags.router)
 protected_router.include_router(admin_chunking_profiles.router)
 protected_router.include_router(admin_roles.router)

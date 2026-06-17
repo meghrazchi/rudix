@@ -83,6 +83,9 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     error_details_json: Mapped[dict] = mapped_column(
         "error_details", JSON, nullable=False, default=dict
     )
+    policy_snapshot_json: Mapped[dict | None] = mapped_column(
+        "policy_snapshot", JSON, nullable=True
+    )
 
     organization = relationship("Organization", back_populates="agent_runs")
     user = relationship("User", back_populates="agent_runs")

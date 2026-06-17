@@ -84,6 +84,10 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "OrganizationGovernancePolicy",
         back_populates="updated_by_user",
     )
+    agent_tool_policy_overrides_updated = relationship(
+        "AgentToolPolicyOverride",
+        back_populates="updated_by_user",
+    )
     owned_collections = relationship("Collection", back_populates="owner")
     chunking_profiles_created = relationship(
         "OrganizationChunkingProfile",

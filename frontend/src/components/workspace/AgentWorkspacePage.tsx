@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AgentApprovalQueuePanel } from "@/components/workspace/AgentApprovalQueuePanel";
+import { EffectivePolicyPanel } from "@/components/admin/agent-policy/EffectivePolicyPanel";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -699,6 +700,14 @@ function RunDetailPane({ runId }: { runId: string }) {
           </div>
         </section>
       )}
+
+      {/* Effective policy trace */}
+      <section>
+        <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          Effective policy
+        </h3>
+        <EffectivePolicyPanel runId={runId} />
+      </section>
     </div>
   );
 }

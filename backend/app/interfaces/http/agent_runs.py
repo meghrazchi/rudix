@@ -144,6 +144,7 @@ class AgentRunDetailResponse(BaseModel):
     trace_request_id: str | None = None
     error_message: str | None = None
     error_details: dict[str, Any] = Field(default_factory=dict)
+    policy_snapshot: dict[str, Any] | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
     cancelled_at: datetime | None = None
@@ -472,6 +473,7 @@ async def get_agent_run(
         trace_request_id=run.trace_request_id,
         error_message=run.error_message,
         error_details=run.error_details_json or {},
+        policy_snapshot=run.policy_snapshot_json or None,
         started_at=run.started_at,
         completed_at=run.completed_at,
         cancelled_at=run.cancelled_at,
@@ -635,6 +637,7 @@ async def cancel_agent_run(
         trace_request_id=updated.trace_request_id,
         error_message=updated.error_message,
         error_details=updated.error_details_json or {},
+        policy_snapshot=updated.policy_snapshot_json or None,
         started_at=updated.started_at,
         completed_at=updated.completed_at,
         cancelled_at=updated.cancelled_at,
