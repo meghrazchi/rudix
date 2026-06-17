@@ -196,6 +196,7 @@ class AgentApprovalStatus(StrEnum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
+    changes_requested = "changes_requested"
     expired = "expired"
     cancelled = "cancelled"
 

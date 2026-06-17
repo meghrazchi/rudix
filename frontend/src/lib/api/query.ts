@@ -115,6 +115,8 @@ export const queryKeys = {
     run: (runId: string) => ["agent", "run", runId] as const,
     runs: (params?: Record<string, unknown>) =>
       ["agent", "runs", params ?? {}] as const,
+    approvals: (params?: Record<string, unknown>) =>
+      ["agent", "approvals", params ?? {}] as const,
   },
   evaluations: {
     sets: ["evaluations", "sets"] as const,

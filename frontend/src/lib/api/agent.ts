@@ -100,6 +100,7 @@ export type AgentToolCallResponse = {
 
 export type AgentApprovalResponse = {
   approval_id: string;
+  agent_run_id: string;
   agent_step_id: string | null;
   tool_call_id: string | null;
   requested_by_user_id: string | null;
@@ -115,8 +116,32 @@ export type AgentApprovalResponse = {
   updated_at: string;
 };
 
+export type AgentApprovalQueueItem = {
+  approval_id: string;
+  agent_run_id: string;
+  agent_step_id: string | null;
+  tool_call_id: string | null;
+  requested_by_user_id: string | null;
+  status: string;
+  risk_level: string | null;
+  tool_name: string | null;
+  request_summary: string | null;
+  request_payload: Record<string, unknown>;
+  expires_at: string | null;
+  run_objective: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentApprovalQueueResponse = {
+  approvals: AgentApprovalQueueItem[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
 export type AgentApprovalDecisionRequest = {
-  status: "approved" | "rejected";
+  status: "approved" | "rejected" | "changes_requested";
   reason?: string | null;
   decision_payload?: Record<string, unknown>;
 };
@@ -168,6 +193,19 @@ export type AgentRunListResponse = {
   limit: number;
   offset: number;
 };
+
+export async function listAgentApprovals(params?: {
+  limit?: number;
+  offset?: number;
+  status?: string;
+}): Promise<AgentApprovalQueueResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit != null) searchParams.set("limit", String(params.limit));
+  if (params?.offset != null) searchParams.set("offset", String(params.offset));
+  if (params?.status) searchParams.set("status_filter", params.status);
+  const qs = searchParams.toString();
+  return apiRequest<AgentApprovalQueueResponse>(`/agent/approvals${qs ? `?${qs}` : ""}`);
+}
 
 export async function listAgentRuns(params?: {
   limit?: number;

@@ -17,6 +17,7 @@ celery_app = Celery(
         "app.workers.email_tasks",
         "app.workers.evaluation_tasks",
         "app.workers.connector_sync_tasks",
+        "app.workers.agent_tasks",
     ],
 )
 
@@ -71,6 +72,10 @@ celery_app.conf.update(
         "connector-sync-schedule-poll": {
             "task": "connectors.sync.schedule_poll",
             "schedule": settings.connector_sync_schedule_poll_interval_seconds,
+        },
+        "agent-approvals-expire": {
+            "task": "agents.approvals.expire",
+            "schedule": 60,
         },
     },
     task_routes={

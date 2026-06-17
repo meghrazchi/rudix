@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { AgentApprovalQueuePanel } from "@/components/workspace/AgentApprovalQueuePanel";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
@@ -931,6 +932,9 @@ export function AgentWorkspacePage() {
           grounded answers.
         </p>
       </div>
+
+      {/* Approval queue — shown when there are pending items */}
+      <AgentApprovalQueuePanel />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
         {/* Left: form + run list */}

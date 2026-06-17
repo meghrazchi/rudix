@@ -228,7 +228,7 @@ class AgentApproval(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "agent_approvals"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'approved', 'rejected', 'expired', 'cancelled')",
+            "status IN ('pending', 'approved', 'rejected', 'changes_requested', 'expired', 'cancelled')",
             name="agent_approvals_status_allowed",
         ),
         Index("idx_agent_approvals_org_status", "organization_id", "status"),

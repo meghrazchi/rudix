@@ -87,6 +87,7 @@ class AgentToolCallResponse(BaseModel):
 
 class AgentApprovalResponse(BaseModel):
     approval_id: str
+    agent_run_id: str
     agent_step_id: str | None = None
     tool_call_id: str | None = None
     requested_by_user_id: str | None = None
@@ -100,6 +101,30 @@ class AgentApprovalResponse(BaseModel):
     decided_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class AgentApprovalQueueItem(BaseModel):
+    approval_id: str
+    agent_run_id: str
+    agent_step_id: str | None = None
+    tool_call_id: str | None = None
+    requested_by_user_id: str | None = None
+    status: str
+    risk_level: str | None = None
+    tool_name: str | None = None
+    request_summary: str | None = None
+    request_payload: dict[str, Any] = Field(default_factory=dict)
+    expires_at: datetime | None = None
+    run_objective: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentApprovalQueueResponse(BaseModel):
+    approvals: list[AgentApprovalQueueItem]
+    total: int
+    limit: int
+    offset: int
 
 
 class AgentRunDetailResponse(BaseModel):
@@ -151,7 +176,7 @@ class AgentRunListResponse(BaseModel):
 
 
 class AgentApprovalDecisionRequest(BaseModel):
-    status: str = Field(pattern=r"^(approved|rejected)$")
+    status: str = Field(pattern=r"^(approved|rejected|changes_requested)$")
     reason: str | None = Field(default=None, max_length=600)
     decision_payload: dict[str, Any] = Field(default_factory=dict)
 
@@ -263,6 +288,7 @@ def _to_tool_call_response(tool_call: Any) -> AgentToolCallResponse:
 def _to_approval_response(approval: Any) -> AgentApprovalResponse:
     return AgentApprovalResponse(
         approval_id=str(approval.id),
+        agent_run_id=str(approval.agent_run_id),
         agent_step_id=str(approval.agent_step_id) if approval.agent_step_id is not None else None,
         tool_call_id=str(approval.tool_call_id) if approval.tool_call_id is not None else None,
         requested_by_user_id=str(approval.requested_by_user_id)
@@ -278,6 +304,28 @@ def _to_approval_response(approval: Any) -> AgentApprovalResponse:
         decision_payload=approval.decision_payload_json or {},
         expires_at=approval.expires_at,
         decided_at=approval.decided_at,
+        created_at=approval.created_at,
+        updated_at=approval.updated_at,
+    )
+
+
+def _to_approval_queue_item(approval: Any, run_objective: str | None) -> AgentApprovalQueueItem:
+    payload = approval.request_payload_json or {}
+    return AgentApprovalQueueItem(
+        approval_id=str(approval.id),
+        agent_run_id=str(approval.agent_run_id),
+        agent_step_id=str(approval.agent_step_id) if approval.agent_step_id is not None else None,
+        tool_call_id=str(approval.tool_call_id) if approval.tool_call_id is not None else None,
+        requested_by_user_id=str(approval.requested_by_user_id)
+        if approval.requested_by_user_id is not None
+        else None,
+        status=approval.status,
+        risk_level=payload.get("risk_level") if isinstance(payload.get("risk_level"), str) else None,
+        tool_name=payload.get("tool_name") if isinstance(payload.get("tool_name"), str) else None,
+        request_summary=approval.request_summary,
+        request_payload=payload,
+        expires_at=approval.expires_at,
+        run_objective=run_objective,
         created_at=approval.created_at,
         updated_at=approval.updated_at,
     )
@@ -604,6 +652,57 @@ async def stream_agent_run(
     )
 
 
+@router.get("/approvals", response_model=AgentApprovalQueueResponse)
+async def list_agent_approval_queue(
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+    ],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: int = 20,
+    offset: int = 0,
+    status_filter: str | None = None,
+) -> AgentApprovalQueueResponse:
+    _feature_enabled()
+    organization_id, _ = _org_and_user(principal)
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    approvals = await agent_run_repository.list_org_approvals(
+        db_session,
+        organization_id=organization_id,
+        status=status_filter,
+        limit=safe_limit,
+        offset=safe_offset,
+    )
+    total = await agent_run_repository.count_org_approvals(
+        db_session,
+        organization_id=organization_id,
+        status=status_filter,
+    )
+
+    # Fetch run objectives for context — one lookup per unique run_id in this page.
+    run_ids = {a.agent_run_id for a in approvals}
+    run_objectives: dict[Any, str | None] = {}
+    for run_id_val in run_ids:
+        run = await agent_run_repository.get_agent_run(
+            db_session,
+            agent_run_id=run_id_val,
+            organization_id=organization_id,
+        )
+        run_objectives[run_id_val] = run.objective if run else None
+
+    return AgentApprovalQueueResponse(
+        approvals=[
+            _to_approval_queue_item(a, run_objectives.get(a.agent_run_id))
+            for a in approvals
+        ],
+        total=total,
+        limit=safe_limit,
+        offset=safe_offset,
+    )
+
+
 @router.post(
     "/runs/{run_id}/approvals/{approval_id}/decision", response_model=AgentApprovalResponse
 )
@@ -641,12 +740,30 @@ async def decide_agent_run_approval(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
         )
-    if approval.status != "pending":
+    # Expire stale approval before checking status.
+    if approval.status == "pending" and approval.expires_at and approval.expires_at <= datetime.now(tz=UTC):
+        await agent_run_repository.update_agent_approval(
+            db_session,
+            approval_id=approval_uuid,
+            organization_id=organization_id,
+            agent_run_id=run_uuid,
+            status="expired",
+        )
+        await db_session.flush()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
-                "code": "approval_not_pending",
-                "message": "Only pending approvals can be decided.",
+                "code": "approval_expired",
+                "message": "This approval request has expired.",
+            },
+        )
+
+    if approval.status not in {"pending", "changes_requested"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "approval_not_actionable",
+                "message": "Only pending or changes_requested approvals can be decided.",
             },
         )
 

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.admin.services.audit_service import sanitize_metadata
@@ -582,6 +582,74 @@ class AgentRunRepository:
             .order_by(AgentApproval.created_at.asc(), AgentApproval.id.asc())
         )
         return list(result.scalars().all())
+
+    async def list_org_approvals(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        status: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> list[AgentApproval]:
+        statement = select(AgentApproval).where(
+            AgentApproval.organization_id == organization_id
+        )
+        if status is not None:
+            normalized = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentApprovalStatus},
+                field_name="agent approval status",
+            )
+            statement = statement.where(AgentApproval.status == normalized)
+        result = await session.execute(
+            statement.order_by(AgentApproval.created_at.asc(), AgentApproval.id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def count_org_approvals(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID,
+        status: str | None = None,
+    ) -> int:
+        statement = select(func.count(AgentApproval.id)).where(
+            AgentApproval.organization_id == organization_id
+        )
+        if status is not None:
+            normalized = _validate_value(
+                status,
+                allowed_values={item.value for item in AgentApprovalStatus},
+                field_name="agent approval status",
+            )
+            statement = statement.where(AgentApproval.status == normalized)
+        result = await session.execute(statement)
+        return int(result.scalar_one())
+
+    async def expire_pending_approvals(
+        self,
+        session: AsyncSession,
+        *,
+        organization_id: UUID | None = None,
+        now: datetime | None = None,
+    ) -> int:
+        cutoff = now or datetime.now(tz=UTC)
+        statement = (
+            update(AgentApproval)
+            .where(
+                AgentApproval.status == AgentApprovalStatus.pending.value,
+                AgentApproval.expires_at.is_not(None),
+                AgentApproval.expires_at <= cutoff,
+            )
+            .values(status=AgentApprovalStatus.expired.value)
+        )
+        if organization_id is not None:
+            statement = statement.where(AgentApproval.organization_id == organization_id)
+        result = await session.execute(statement)
+        return result.rowcount
 
     async def update_agent_approval(
         self,
