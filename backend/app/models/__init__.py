@@ -55,6 +55,7 @@ from app.models.prompt_template import PromptTemplate, PromptTemplateVersion
 from app.models.quality_gate import QualityGate, QualityGateRun
 from app.models.rag_profile import RagProfile, RagProfileCollectionOverride, RagProfileVersion
 from app.models.safety_eval import SafetyEvalCase, SafetyEvalResult, SafetyEvalRun
+from app.models.mcp_policy import OrgMCPPolicy
 from app.models.usage import AuditLog, UsageEvent
 from app.models.user import User
 
@@ -110,6 +111,7 @@ __all__ = [
     "OrgFeatureFlagOverride",
     "OrgModelProviderChangeLog",
     "OrgModelProviderSettings",
+    "OrgMCPPolicy",
     "OrgSCIMConfig",
     "OrgSSOConfig",
     "Organization",

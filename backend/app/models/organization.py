@@ -90,3 +90,9 @@ class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     ab_experiments = relationship(
         "AbExperiment", back_populates="organization", cascade="all, delete-orphan"
     )
+    mcp_policy = relationship(
+        "OrgMCPPolicy",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )

@@ -107,3 +107,4 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         foreign_keys="OrganizationChunkingProfile.updated_by_user_id",
         back_populates="updated_by_user",
     )
+    mcp_policy_updates = relationship("OrgMCPPolicy", back_populates="updated_by_user")

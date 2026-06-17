@@ -197,6 +197,11 @@ export const queryKeys = {
     webhooks: ["admin", "webhooks"] as const,
     webhookDeliveries: (webhookId: string) =>
       ["admin", "webhooks", webhookId, "deliveries"] as const,
+    mcpPolicy: ["admin", "mcp", "policy"] as const,
+    mcpStatus: ["admin", "mcp", "status"] as const,
+    mcpTools: ["admin", "mcp", "tools"] as const,
+    mcpAuditEvents: (params?: Record<string, unknown>) =>
+      ["admin", "mcp", "audit-events", params ?? {}] as const,
   },
   featureFlags: ["feature-flags"] as const,
   statusBanner: ["status", "banner"] as const,
@@ -385,7 +390,8 @@ export type FrontendMutationKind =
   | "webhook.update"
   | "webhook.delete"
   | "webhook.rotate-secret"
-  | "webhook.test";
+  | "webhook.test"
+  | "mcp.policy.update";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -582,6 +588,11 @@ export async function invalidateAfterMutation(
     kind === "webhook.test"
   ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.admin.webhooks });
+    return;
+  }
+
+  if (kind === "mcp.policy.update") {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.admin.mcpPolicy });
     return;
   }
 
