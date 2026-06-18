@@ -50,6 +50,7 @@
     "gettingStarted": "Erste Schritte",
     "adminUsage": "Admin Console",
     "insufficientRole": "Unzureichende Rolle",
+    "insufficientPermission": "Unzureichende Berechtigung",
     "authRequired": "Authentifizierung erforderlich",
     "sectionUnavailable": "Nicht verfügbar",
     "descriptions": {

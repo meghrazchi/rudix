@@ -315,6 +315,9 @@ export const queryKeys = {
     ["connectors", "sync-runs", runId] as const,
   connectorConflicts: (connectionId: string, status?: string) =>
     ["connectors", connectionId, "conflicts", status ?? "all"] as const,
+  auth: {
+    effectivePermissions: ["auth", "effective-permissions"] as const,
+  },
   connectorProviders: ["connectors", "providers"] as const,
   connectorProvider: (key: string) => ["connectors", "providers", key] as const,
   connectorDiscovery: (
@@ -391,7 +394,8 @@ export type FrontendMutationKind =
   | "webhook.delete"
   | "webhook.rotate-secret"
   | "webhook.test"
-  | "mcp.policy.update";
+  | "mcp.policy.update"
+  | "permission.refresh";
 
 export async function invalidateAfterMutation(
   queryClient: QueryClient,
@@ -519,6 +523,9 @@ export async function invalidateAfterMutation(
     kind === "team.remove"
   ) {
     await queryClient.invalidateQueries({ queryKey: queryKeys.team.all });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.auth.effectivePermissions,
+    });
     return;
   }
 
@@ -593,6 +600,13 @@ export async function invalidateAfterMutation(
 
   if (kind === "mcp.policy.update") {
     await queryClient.invalidateQueries({ queryKey: queryKeys.admin.mcpPolicy });
+    return;
+  }
+
+  if (kind === "permission.refresh") {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.auth.effectivePermissions,
+    });
     return;
   }
 

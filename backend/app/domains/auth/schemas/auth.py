@@ -77,3 +77,9 @@ class AuthActiveSessionListResponse(BaseModel):
 
 class AuthLogoutResponse(BaseModel):
     success: bool = True
+
+
+class AuthEffectivePermissionsResponse(BaseModel):
+    permissions: list[str]
+    role: str
+    custom_role_id: str | None = None

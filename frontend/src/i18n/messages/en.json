@@ -50,6 +50,7 @@
     "gettingStarted": "Getting started",
     "adminUsage": "Admin Console",
     "insufficientRole": "Insufficient role",
+    "insufficientPermission": "Insufficient permission",
     "authRequired": "Authentication required",
     "sectionUnavailable": "Unavailable",
     "descriptions": {

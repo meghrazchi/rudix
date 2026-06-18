@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_principal
@@ -37,6 +38,7 @@ from app.domains.auth.schemas.auth import (
     AuthActiveSessionListResponse,
     AuthActiveSessionResponse,
     AuthCurrentSessionResponse,
+    AuthEffectivePermissionsResponse,
     AuthLoginRequest,
     AuthLogoutRequest,
     AuthLogoutResponse,
@@ -999,6 +1001,53 @@ async def list_active_sessions(
             )
             for item in items
         ],
+    )
+
+
+@router.get("/effective-permissions", response_model=AuthEffectivePermissionsResponse)
+async def get_effective_permissions(
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    db_session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> AuthEffectivePermissionsResponse:
+    """Return the caller's resolved permission set, accounting for custom roles."""
+    custom_role_id: UUID | None = None
+    if principal.organization_id:
+        try:
+            org_uuid = UUID(principal.organization_id)
+            user_uuid = UUID(principal.user_id)
+        except ValueError:
+            org_uuid = None
+            user_uuid = None
+
+        if org_uuid and user_uuid:
+            result = await db_session.execute(
+                select(OrganizationMember.custom_role_id).where(
+                    OrganizationMember.organization_id == org_uuid,
+                    OrganizationMember.user_id == user_uuid,
+                )
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                custom_role_id = row
+
+    if principal.api_key_permissions is not None:
+        permissions = sorted(principal.api_key_permissions)
+        return AuthEffectivePermissionsResponse(
+            permissions=permissions,
+            role="",
+            custom_role_id=None,
+        )
+
+    user_perms = await _permission_service.get_user_permissions(
+        db_session,
+        roles=list(principal.roles or []),
+        custom_role_id=custom_role_id,
+    )
+    role = principal.roles[0] if principal.roles else ""
+    return AuthEffectivePermissionsResponse(
+        permissions=sorted(user_perms),
+        role=role,
+        custom_role_id=str(custom_role_id) if custom_role_id else None,
     )
 
 

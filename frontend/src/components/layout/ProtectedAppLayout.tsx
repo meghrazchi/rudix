@@ -14,6 +14,7 @@ import {
 } from "@/lib/app-routes";
 import { addFrontendBreadcrumb } from "@/lib/observability";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { useEffectivePermissions } from "@/lib/use-permissions";
 
 type ProtectedAppLayoutProps = {
   children: React.ReactNode;
@@ -56,6 +57,8 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { state, signOut, boundaryEvent } = useAuthSession();
+
+  const { permissions: effectivePermissions } = useEffectivePermissions();
 
   const redirectTarget = useMemo(() => {
     if (
@@ -120,7 +123,7 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   }
 
   const activeRoute = findRouteMeta(pathname) ?? APP_ROUTES[0];
-  const navItems = buildNavigationItems(pathname, state.session);
+  const navItems = buildNavigationItems(pathname, state.session, effectivePermissions);
 
   return (
     <AppShell

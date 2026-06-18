@@ -27,6 +27,8 @@ export type AppRouteMeta = {
   matchPrefixes: string[];
   requiresOrganization: boolean;
   allowedRoles: AppRole[];
+  // When set, the user must also hold this permission (on top of the role check).
+  requiredPermission?: string;
   hideInNav?: boolean;
 };
 
@@ -34,6 +36,7 @@ export type RouteAccessReason =
   | "unauthenticated"
   | "organization_required"
   | "insufficient_role"
+  | "insufficient_permission"
   | null;
 
 export type RouteAccess = {
@@ -66,6 +69,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/documents"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "documents:view",
   },
   {
     key: "collections",
@@ -75,6 +79,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/collections"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "collections:view",
   },
   {
     key: "graph",
@@ -85,6 +90,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/graph"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "graph:view",
   },
   {
     key: "chat",
@@ -94,6 +100,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/chat"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "chat:use",
   },
   {
     key: "agent-workspace",
@@ -103,6 +110,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/workspace/agent"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "agents:use",
   },
   {
     key: "evaluations",
@@ -112,6 +120,7 @@ export const APP_ROUTES: AppRouteMeta[] = [
     matchPrefixes: ["/evaluations"],
     requiresOrganization: true,
     allowedRoles: ["owner", "admin", "member", "viewer"],
+    requiredPermission: "evaluations:view",
   },
   {
     key: "pipeline",
@@ -201,6 +210,7 @@ export function findRouteMeta(pathname: string): AppRouteMeta | null {
 export function evaluateRouteAccess(
   route: AppRouteMeta,
   session: AuthenticatedSession | null,
+  effectivePermissions?: ReadonlySet<string> | null,
 ): RouteAccess {
   if (!session) {
     return { allowed: false, reason: "unauthenticated" };
@@ -211,17 +221,24 @@ export function evaluateRouteAccess(
   if (!route.allowedRoles.includes(session.role)) {
     return { allowed: false, reason: "insufficient_role" };
   }
+  if (route.requiredPermission && effectivePermissions !== undefined) {
+    const perms = effectivePermissions ?? new Set<string>();
+    if (!perms.has(route.requiredPermission)) {
+      return { allowed: false, reason: "insufficient_permission" };
+    }
+  }
   return { allowed: true, reason: null };
 }
 
 export function buildNavigationItems(
   pathname: string,
   session: AuthenticatedSession | null,
+  effectivePermissions?: ReadonlySet<string> | null,
 ): AppNavigationItem[] {
   const normalizedPathname = normalizePathname(pathname);
 
   return APP_ROUTES.map((route) => {
-    const access = evaluateRouteAccess(route, session);
+    const access = evaluateRouteAccess(route, session, effectivePermissions);
     const isMissingOrganization = access.reason === "organization_required";
     return {
       ...route,
@@ -285,7 +302,10 @@ export function resolveAuthenticatedNavigationTarget(
     return "/organization-onboarding";
   }
 
-  if (access.reason === "insufficient_role") {
+  if (
+    access.reason === "insufficient_role" ||
+    access.reason === "insufficient_permission"
+  ) {
     return "/forbidden";
   }
 

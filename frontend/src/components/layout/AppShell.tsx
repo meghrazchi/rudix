@@ -76,6 +76,7 @@ function useRouteDisabledReason() {
     reason: AppNavigationItem["disabledReason"],
   ): string {
     if (reason === "insufficient_role") return t("insufficientRole");
+    if (reason === "insufficient_permission") return t("insufficientPermission");
     if (reason === "unauthenticated") return t("authRequired");
     return t("sectionUnavailable");
   };

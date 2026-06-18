@@ -50,6 +50,7 @@
     "gettingStarted": "Bien démarrer",
     "adminUsage": "Admin Console",
     "insufficientRole": "Rôle insuffisant",
+    "insufficientPermission": "Permission insuffisante",
     "authRequired": "Authentification requise",
     "sectionUnavailable": "Indisponible",
     "descriptions": {
