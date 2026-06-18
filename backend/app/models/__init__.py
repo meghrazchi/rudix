@@ -4,6 +4,15 @@ from app.models.ab_experiment import (
     AbExperimentVariant,
     AbExperimentVariantRun,
 )
+from app.models.authorization import (
+    AuthorizationConflict,
+    AuthorizationDecisionLog,
+    FeaturePermission,
+    ResourceAccessDeny,
+    ResourceAccessGrant,
+    RolePermission,
+    SourceAclMapping,
+)
 from app.models.agent import AgentApproval, AgentRun, AgentStep, AgentToolCall
 from app.models.agent_policy import AgentToolPolicyOverride
 from app.models.answer_share import AnswerShare
@@ -64,6 +73,8 @@ __all__ = [
     "AbExperimentRun",
     "AbExperimentVariant",
     "AbExperimentVariantRun",
+    "AuthorizationConflict",
+    "AuthorizationDecisionLog",
     "AgentApproval",
     "AgentRun",
     "AgentStep",
@@ -97,6 +108,7 @@ __all__ = [
     "EvaluationResult",
     "EvaluationRun",
     "EvaluationSet",
+    "FeaturePermission",
     "ExternalItem",
     "ExternalItemTombstone",
     "ExternalSource",
@@ -125,12 +137,16 @@ __all__ = [
     "PromptTemplateVersion",
     "QualityGate",
     "QualityGateRun",
+    "ResourceAccessDeny",
+    "ResourceAccessGrant",
     "RagProfile",
     "RagProfileCollectionOverride",
     "RagProfileVersion",
+    "RolePermission",
     "SafetyEvalCase",
     "SafetyEvalResult",
     "SafetyEvalRun",
+    "SourceAclMapping",
     "SourceDocument",
     "SourceReference",
     "UsageEvent",

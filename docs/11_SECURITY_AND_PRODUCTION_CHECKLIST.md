@@ -71,6 +71,7 @@ Connector operations must also enforce:
   when the rollout is disabled
 - no provider-specific bypasses in RAG, chat, citation, agent, or MCP adapters
 - sync-trigger, sync-start, sync-success, sync-failure, source-selection, source-deletion, disconnect, and permission-change events must be audit logged with safe metadata only
+- authorization decisions and conflicts should be recorded with safe org-scoped metadata only; do not persist raw prompts, raw source text, tokens, or credential material in those records
 - connector sync endpoints should be rate-limited separately from general admin actions
 - revoked or disconnected connector sources must be excluded from retrieval and citation expansion
 - Neo4j credentials for Enterprise Graph and GraphRAG must live in environment
