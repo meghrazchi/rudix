@@ -53,3 +53,10 @@ GRAPH_ACCESS_DENIED = "graph.access.denied"
 
 # Graph extraction (F290)
 GRAPH_EXTRACTION_RUN_STARTED = "admin.graph.extraction_run.started"
+
+# Authorization policy engine decisions (F330)
+AUTHZ_ACCESS_DENIED = "authz.access.denied"
+AUTHZ_ACCESS_GRANTED = "authz.access.granted"
+AUTHZ_TENANT_BOUNDARY_VIOLATION = "authz.tenant_boundary.violated"
+AUTHZ_SYSTEM_RESOURCE_BLOCKED = "authz.system_resource.blocked"
+AUTHZ_BULK_FILTER_APPLIED = "authz.bulk_filter.applied"
