@@ -19,8 +19,14 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.policy_engine import Action, ResourceContext, ResourceType
+from app.auth.resource_context_builder import (
+    build_document_resource_contexts_batch,
+    get_subject_accessible_collection_ids,
+)
 from app.auth.passwords import (
     PasswordHashConfig,
     build_password_hasher,
@@ -177,6 +183,7 @@ _llm_service = LLMService()
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
+_authorization_service = AuthorizationService()
 _source_freshness_service = SourceFreshnessService()
 _table_retrieval_service = TableRetrievalService()
 _ocr_quality_service = OcrQualityService()
@@ -1248,6 +1255,40 @@ async def query_chat(
     )
     document_ids = source_scope_result.document_ids
 
+    # Policy-engine authorization filter on the resolved document scope.
+    # Admins bypass via rule 5; non-admins have each document checked.
+    if document_ids and not frozenset({"owner", "admin"}).intersection(user_roles):
+        from app.domains.documents.repositories.documents import DocumentRepository as _DocRepo
+        _doc_repo_chat = _DocRepo()
+        docs_for_auth = []
+        for doc_id in document_ids:
+            doc = await _doc_repo_chat.get_document(
+                db_session, document_id=doc_id, organization_id=organization_id
+            )
+            if doc is not None:
+                docs_for_auth.append(doc)
+
+        if docs_for_auth:
+            accessible_col_ids = await get_subject_accessible_collection_ids(
+                db_session,
+                organization_id=organization_id,
+                user_id=user_id,
+                user_roles=user_roles,
+            )
+            resource_contexts = await build_document_resource_contexts_batch(
+                db_session,
+                documents=docs_for_auth,
+                organization_id=organization_id,
+                subject_accessible_collection_ids=accessible_col_ids,
+            )
+            allowed_ids = {
+                ctx.resource_id
+                for ctx in await _authorization_service.filter_accessible_resources(
+                    principal, Action.chat, resource_contexts, db_session
+                )
+            }
+            document_ids = [d for d in document_ids if str(d) in allowed_ids]
+
     if payload.chat_session_id is not None:
         try:
             chat_session_id = UUID(payload.chat_session_id)
@@ -1609,6 +1650,53 @@ async def query_chat(
                 organization_id=organization_id,
                 chunks=retrieved_chunks,
             )
+
+            # Citation-level authorization: remove chunks the principal cannot cite.
+            # Non-admins are filtered; admins bypass via policy-engine rule 5.
+            if retrieved_chunks and not frozenset({"owner", "admin"}).intersection(user_roles):
+                from app.domains.documents.repositories.documents import (
+                    DocumentRepository as _DocRepoForCite,
+                )
+                _cite_doc_repo = _DocRepoForCite()
+                _chunk_docs = []
+                _seen_doc_ids: set[str] = set()
+                for _chunk in retrieved_chunks:
+                    _did = str(_chunk.document_id)
+                    if _did not in _seen_doc_ids:
+                        _seen_doc_ids.add(_did)
+                        _d = await _cite_doc_repo.get_document(
+                            db_session,
+                            document_id=_chunk.document_id,
+                            organization_id=organization_id,
+                        )
+                        if _d is not None:
+                            _chunk_docs.append(_d)
+
+                if _chunk_docs:
+                    _cite_col_ids = await get_subject_accessible_collection_ids(
+                        db_session,
+                        organization_id=organization_id,
+                        user_id=user_id,
+                        user_roles=user_roles,
+                    )
+                    _cite_contexts = await build_document_resource_contexts_batch(
+                        db_session,
+                        documents=_chunk_docs,
+                        organization_id=organization_id,
+                        subject_accessible_collection_ids=_cite_col_ids,
+                    )
+                    _allowed_cite_ids = {
+                        ctx.resource_id
+                        for ctx in await _authorization_service.filter_accessible_resources(
+                            principal, Action.cite, _cite_contexts, db_session
+                        )
+                    }
+                    retrieved_chunks = [
+                        c
+                        for c in retrieved_chunks
+                        if str(c.document_id) in _allowed_cite_ids
+                    ]
+
             graph_enabled = await _resolve_graph_rag_enabled(
                 db_session, organization_id=organization_id
             )

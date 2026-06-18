@@ -32,6 +32,8 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fastapi import HTTPException, status
+
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService
 from app.auth.policy_engine import (
@@ -123,6 +125,31 @@ class AuthorizationService:
         subject = await self._build_subject(principal, db_session)
         rid = request_id or str(uuid.uuid4())
         return _engine.filter_accessible_resources(subject, action, resources, request_id=rid)
+
+    async def authorize_or_raise(
+        self,
+        principal: AuthenticatedPrincipal,
+        action: Action,
+        resource: ResourceContext,
+        db_session: AsyncSession,
+        *,
+        request_id: str | None = None,
+        # Use 404 to avoid revealing existence of denied resources to non-admins.
+        deny_status: int = status.HTTP_404_NOT_FOUND,
+        deny_detail: str = "Resource not found",
+    ) -> AuthorizationResult:
+        """Authorize and raise an HTTPException on deny.
+
+        Uses 404 by default so callers don't reveal resource existence to
+        unauthorized subjects. Pass deny_status=403 when existence is already
+        known (e.g. admin endpoints, mutation paths that validated first).
+        """
+        result = await self.authorize(
+            principal, action, resource, db_session, request_id=request_id
+        )
+        if result.result is PermissionResult.deny:
+            raise HTTPException(status_code=deny_status, detail=deny_detail)
+        return result
 
     def explain_decision(self, result: AuthorizationResult) -> str:
         return _engine.explain_decision(result)

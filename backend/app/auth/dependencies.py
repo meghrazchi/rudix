@@ -9,20 +9,30 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.authorization_service import AuthorizationService
 from app.auth.errors import AuthenticationError, AuthorizationError
 from app.auth.factory import get_auth_provider
 from app.auth.models import AuthenticatedPrincipal
 from app.auth.permission_service import PermissionService
+from app.auth.policy_engine import Action, ResourceContext, ResourceType
+from app.auth.resource_context_builder import (
+    build_document_resource_context,
+    get_subject_accessible_collection_ids,
+)
 from app.db.session import get_db_session
-from app.models.connector import ConnectorConnection, ExternalItem
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.models.connector import ConnectorConnection, ExternalItem
 from app.models.document import Document
-from app.models.enums import ConnectorConnectionStatus
+from app.models.enums import ConnectorConnectionStatus, OrganizationRole
 from app.models.organization_member import OrganizationMember
 
 _permission_service = PermissionService()
-
 _document_repository = DocumentRepository()
+_authorization_service = AuthorizationService()
+
+_ADMIN_ROLES: frozenset[str] = frozenset(
+    {OrganizationRole.owner.value, OrganizationRole.admin.value}
+)
 
 
 def _unauthorized(detail: str) -> HTTPException:
@@ -332,3 +342,61 @@ async def require_document_access(
     if document is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return document
+
+
+def require_document_policy_access(
+    action: Action,
+) -> Callable[..., Awaitable[Document]]:
+    """FastAPI dependency factory — fetches the document AND runs the policy engine.
+
+    Raises 404 on both missing documents and unauthorized access so callers
+    cannot probe existence of documents they cannot see.
+    """
+
+    async def dependency(
+        document_id: str,
+        principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+        db_session: Annotated[AsyncSession, Depends(get_db_session)],
+    ) -> Document:
+        organization_id = _active_organization_id(principal)
+        parsed_document_id = _parse_document_id(document_id)
+
+        document = await _document_repository.get_document(
+            db_session,
+            document_id=parsed_document_id,
+            organization_id=organization_id,
+        )
+        if document is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+            )
+
+        # Skip full policy evaluation for admins — rule 5 always grants them access.
+        if principal.roles and _ADMIN_ROLES.intersection(principal.roles):
+            return document
+
+        user_roles = list(principal.roles or [])
+        user_id = UUID(principal.user_id)
+        accessible_collection_ids = await get_subject_accessible_collection_ids(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            user_roles=user_roles,
+        )
+        resource_ctx = await build_document_resource_context(
+            db_session,
+            document=document,
+            organization_id=organization_id,
+            subject_accessible_collection_ids=accessible_collection_ids,
+        )
+        await _authorization_service.authorize_or_raise(
+            principal,
+            action,
+            resource_ctx,
+            db_session,
+            deny_status=status.HTTP_404_NOT_FOUND,
+            deny_detail="Document not found",
+        )
+        return document
+
+    return dependency

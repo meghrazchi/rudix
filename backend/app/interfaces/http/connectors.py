@@ -10,8 +10,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth.dependencies import require_roles
+from app.auth.authorization_service import AuthorizationService
+from app.auth.dependencies import get_current_principal, require_permission, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.policy_engine import Action
+from app.auth.resource_context_builder import build_connector_resource_context
+from app.models.permissions import PermissionType
 from app.core.config import settings
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import sanitize_metadata
@@ -47,6 +51,7 @@ public_router = APIRouter(prefix="/connectors", tags=["connectors"])
 
 _ADMIN_ROLES = (OrganizationRole.owner.value, OrganizationRole.admin.value)
 _ALL_MEMBER_ROLES = tuple(role.value for role in OrganizationRole)
+_authorization_service = AuthorizationService()
 
 
 async def _ensure_default_sync_job(
@@ -494,19 +499,37 @@ async def list_connections(
 
 @router.get("/available", response_model=ConnectorConnectionsListResponse)
 async def list_available_connections(
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_roles(*_ALL_MEMBER_ROLES))],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_permission(PermissionType.documents_view)),
+    ],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ConnectorConnectionsListResponse:
     """Returns active connector connections for the chat scope picker.
 
     Accessible to all org members, not just admins.
     """
-    connections = await _load_connections(
-        db_session,
-        organization_id=_org_id(principal),
-    )
-    active = [c for c in connections if c.status == "active"]
     organization_id = _org_id(principal)
+    connections = await _load_connections(db_session, organization_id=organization_id)
+    active = [c for c in connections if c.status == "active"]
+
+    # Filter connections through the policy engine for non-admin principals.
+    user_roles = list(principal.roles or [])
+    if not frozenset(_ADMIN_ROLES).intersection(user_roles):
+        resource_contexts = [
+            build_connector_resource_context(
+                connection=conn, organization_id=organization_id
+            )
+            for conn in active
+        ]
+        accessible_ids = {
+            ctx.resource_id
+            for ctx in await _authorization_service.filter_accessible_resources(
+                principal, Action.list, resource_contexts, db_session
+            )
+        }
+        active = [c for c in active if str(c.id) in accessible_ids]
+
     items = []
     for connection in active:
         indexed_document_count = await _connection_indexed_document_count(

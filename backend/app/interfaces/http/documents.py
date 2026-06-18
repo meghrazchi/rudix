@@ -25,8 +25,20 @@ from app.application.documents.workflows import (
     reindex_document_workflow,
     upload_document_workflow,
 )
-from app.auth.dependencies import get_current_principal, require_document_access, require_roles
+from app.auth.authorization_service import AuthorizationService
+from app.auth.dependencies import (
+    get_current_principal,
+    require_document_access,
+    require_document_policy_access,
+    require_roles,
+)
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.policy_engine import Action, ResourceType
+from app.auth.resource_context_builder import (
+    build_document_resource_contexts_batch,
+    get_subject_accessible_collection_ids,
+)
+from app.models.permissions import PermissionType
 from app.clients import clamav_client as clamav_module
 from app.clients import minio_client as minio_module
 from app.core.config import settings
@@ -96,6 +108,8 @@ pipeline_repository = PipelineRepository()
 audit_log_service = AuditLogService()
 malware_scan_service = MalwareScanService(clamav_client_provider=clamav_module.get_clamav_client)
 _chunking_profile_service = ChunkingProfileService()
+_authorization_service = AuthorizationService()
+_ADMIN_ROLES: frozenset[str] = frozenset({OrganizationRole.owner.value, OrganizationRole.admin.value})
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -658,7 +672,8 @@ async def list_documents(
     file_type: Annotated[str | None, Query(pattern="^(pdf|docx|txt)$")] = None,
     language: Annotated[str | None, Query(max_length=32)] = None,
 ) -> DocumentListResponse:
-    _, organization_id = _principal_user_and_org(principal)
+    user_id, organization_id = _principal_user_and_org(principal)
+    user_roles = list(principal.roles or [])
 
     documents = await document_repository.list_documents(
         db_session,
@@ -680,6 +695,29 @@ async def list_documents(
         filename_query=filename_query,
         language=language,
     )
+
+    # Policy filtering — admins bypass via rule 5; others are filtered here.
+    if not _ADMIN_ROLES.intersection(user_roles):
+        accessible_collection_ids = await get_subject_accessible_collection_ids(
+            db_session,
+            organization_id=organization_id,
+            user_id=user_id,
+            user_roles=user_roles,
+        )
+        resource_contexts = await build_document_resource_contexts_batch(
+            db_session,
+            documents=documents,
+            organization_id=organization_id,
+            subject_accessible_collection_ids=accessible_collection_ids,
+        )
+        accessible_ids = {
+            ctx.resource_id
+            for ctx in await _authorization_service.filter_accessible_resources(
+                principal, Action.list, resource_contexts, db_session
+            )
+        }
+        documents = [d for d in documents if str(d.id) in accessible_ids]
+        total = len(documents)
 
     # Batch-fetch collection memberships for all documents in one query.
     doc_ids = [doc.id for doc in documents]
@@ -771,7 +809,7 @@ async def list_documents(
 async def get_document_chunks(
     document_id: str,
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -838,7 +876,7 @@ async def get_document_chunks(
 async def get_document(
     document_id: str,
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DocumentDetailResponse:
     del document_id
@@ -974,7 +1012,7 @@ async def download_document(
     request: Request,
     document_id: str,
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
 ) -> Response:
     del document_id
     request_id = _request_id_from_request(request)
@@ -1039,18 +1077,9 @@ async def download_document(
 async def delete_document_endpoint(
     request: Request,
     document_id: str,
-    principal: Annotated[
-        AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
-    ],
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.delete))],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.delete))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DeleteDocumentResponse:
     del document_id
@@ -1076,21 +1105,65 @@ async def delete_document_endpoint(
 async def bulk_delete_documents_endpoint(
     request: Request,
     body: BulkDeleteDocumentsRequest,
-    principal: Annotated[
-        AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
-    ],
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.delete))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> BulkDeleteDocumentsResponse:
     request_id = _request_id_from_request(request)
     actor_user_id, actor_organization_id = _principal_user_and_org(principal)
+    user_roles = list(principal.roles or [])
+
+    # For non-admin principals, verify delete permission on every requested document.
+    if not _ADMIN_ROLES.intersection(user_roles) and body.document_ids:
+        from uuid import UUID as _UUID
+        from app.auth.resource_context_builder import build_document_resource_contexts_batch
+
+        accessible_collection_ids = await get_subject_accessible_collection_ids(
+            db_session,
+            organization_id=actor_organization_id,
+            user_id=actor_user_id,
+            user_roles=user_roles,
+        )
+        docs_to_check = []
+        for doc_id_str in body.document_ids:
+            try:
+                doc_uuid = _UUID(doc_id_str)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+                )
+            doc = await document_repository.get_document(
+                db_session,
+                document_id=doc_uuid,
+                organization_id=actor_organization_id,
+            )
+            if doc is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+                )
+            docs_to_check.append(doc)
+
+        resource_contexts = await build_document_resource_contexts_batch(
+            db_session,
+            documents=docs_to_check,
+            organization_id=actor_organization_id,
+            subject_accessible_collection_ids=accessible_collection_ids,
+        )
+        accessible_ids = {
+            ctx.resource_id
+            for ctx in await _authorization_service.filter_accessible_resources(
+                principal, Action.delete, resource_contexts, db_session
+            )
+        }
+        unauthorized = [
+            str(d.id) for d in docs_to_check if str(d.id) not in accessible_ids
+        ]
+        if unauthorized:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to delete one or more requested documents",
+            )
+
     return await bulk_delete_documents_workflow(
         request_id=request_id,
         actor_user_id=actor_user_id,
@@ -1111,17 +1184,9 @@ async def bulk_delete_documents_endpoint(
 async def reindex_document_endpoint(
     request: Request,
     document_id: str,
-    principal: Annotated[
-        AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-            )
-        ),
-    ],
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.manage))],
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
     body: ReindexWithProfileRequest | None = None,
 ) -> ReindexDocumentResponse:
@@ -1173,17 +1238,9 @@ async def reindex_document_endpoint(
 async def reindex_document_graph_endpoint(
     request: Request,
     document_id: str,
-    principal: Annotated[
-        AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-            )
-        ),
-    ],
+    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
     _: Annotated[None, Depends(enforce_rate_limit(RateLimitScope.admin))],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.manage))],
 ) -> ReindexDocumentGraphResponse:
     del document_id
     request_id = _request_id_from_request(request)
@@ -1213,7 +1270,7 @@ async def reindex_document_graph_endpoint(
 async def get_document_status(
     document_id: str,
     principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
-    document: Annotated[Document, Depends(require_document_access)],
+    document: Annotated[Document, Depends(require_document_policy_access(Action.view))],
 ) -> DocumentStatusResponse:
     del document_id
     safe_error_message, safe_error_details = _safe_error_payload(document)

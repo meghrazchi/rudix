@@ -6,8 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import get_current_principal, require_roles
+from app.auth.authorization_service import AuthorizationService
+from app.auth.dependencies import get_current_principal, require_permission, require_roles
 from app.auth.models import AuthenticatedPrincipal
+from app.auth.policy_engine import Action, ResourceType
+from app.auth.resource_context_builder import build_collection_resource_context
+from app.models.permissions import PermissionType
 from app.core.logging import get_logger
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
@@ -51,6 +55,7 @@ _collection_repo = CollectionRepository()
 _document_repo = DocumentRepository()
 _audit_service = AuditLogService()
 _dynamic_rule_service = DynamicRuleService()
+_authorization_service = AuthorizationService()
 _logger = get_logger("events.collections")
 
 _ADMIN_ROLES = frozenset({OrganizationRole.owner.value, OrganizationRole.admin.value})
@@ -212,13 +217,7 @@ async def create_collection(
     payload: CreateCollectionRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
+        Depends(require_permission(PermissionType.collections_create)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionDetailResponse:
@@ -278,7 +277,10 @@ async def create_collection(
 @router.get("/{collection_id}", response_model=CollectionDetailResponse)
 async def get_collection(
     collection_id: str,
-    principal: Annotated[AuthenticatedPrincipal, Depends(get_current_principal)],
+    principal: Annotated[
+        AuthenticatedPrincipal,
+        Depends(require_permission(PermissionType.collections_view)),
+    ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionDetailResponse:
     organization_id = _org_id(principal)
@@ -295,6 +297,18 @@ async def get_collection(
     if collection is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
 
+    resource_ctx = build_collection_resource_context(
+        collection=collection, organization_id=organization_id
+    )
+    await _authorization_service.authorize_or_raise(
+        principal,
+        Action.view,
+        resource_ctx,
+        db,
+        deny_status=status.HTTP_404_NOT_FOUND,
+        deny_detail="Collection not found",
+    )
+
     doc_count = await _collection_repo.count_documents(db, collection_id=parsed_id)
     idx_count = await _collection_repo.count_indexed_documents(db, collection_id=parsed_id)
     return _collection_to_detail(collection, doc_count, idx_count)
@@ -307,13 +321,7 @@ async def update_collection(
     payload: UpdateCollectionRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
+        Depends(require_permission(PermissionType.collections_manage)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionDetailResponse:
@@ -376,7 +384,7 @@ async def delete_collection(
     collection_id: str,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(require_roles(OrganizationRole.owner.value, OrganizationRole.admin.value)),
+        Depends(require_permission(PermissionType.collections_delete)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> DeleteCollectionResponse:
@@ -582,13 +590,7 @@ async def add_document_to_collection(
     payload: AddDocumentToCollectionRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
+        Depends(require_permission(PermissionType.collections_manage)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AddDocumentToCollectionResponse:
@@ -655,13 +657,7 @@ async def remove_document_from_collection(
     document_id: str,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
+        Depends(require_permission(PermissionType.collections_manage)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> None:
@@ -720,13 +716,7 @@ async def set_collection_rules(
     payload: SetCollectionRulesRequest,
     principal: Annotated[
         AuthenticatedPrincipal,
-        Depends(
-            require_roles(
-                OrganizationRole.owner.value,
-                OrganizationRole.admin.value,
-                OrganizationRole.member.value,
-            )
-        ),
+        Depends(require_permission(PermissionType.collections_manage)),
     ],
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> CollectionRulesResponse:
