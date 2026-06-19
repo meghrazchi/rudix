@@ -71,6 +71,7 @@ def _parse_document_id(document_id: str) -> UUID:
 
 
 _API_KEY_PREFIX = "rudix_"
+_SERVICE_ACCOUNT_TOKEN_PREFIX = "svc_"
 
 
 async def _authenticate_api_key(
@@ -119,15 +120,85 @@ async def _authenticate_api_key(
     )
 
 
+async def _authenticate_service_account_token(
+    request: Request,
+    raw_token: str,
+    db_session: AsyncSession,
+) -> AuthenticatedPrincipal:
+    """Authenticate a request using a service account bearer token."""
+    from app.domains.service_accounts.repositories.service_accounts import ServiceAccountsRepository
+    from app.domains.service_accounts.services.service_accounts_service import ServiceAccountsService
+
+    token_hash = ServiceAccountsService.hash_token(raw_token)
+    repo = ServiceAccountsRepository()
+    token = await repo.get_active_token_by_hash(db_session, token_hash=token_hash)
+
+    if token is None:
+        raise AuthenticationError("Invalid or revoked service account token")
+
+    if ServiceAccountsService.is_expired(token):
+        raise AuthenticationError("Service account token has expired")
+
+    # Verify the owning service account is still active.
+    from sqlalchemy import select
+    from app.models.service_account import ServiceAccount
+    result = await db_session.execute(
+        select(ServiceAccount).where(ServiceAccount.id == token.service_account_id)
+    )
+    account = result.scalar_one_or_none()
+    if account is None or not account.is_active:
+        raise AuthenticationError("Service account is inactive or does not exist")
+
+    client_ip: str | None = None
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    elif request.client:
+        client_ip = request.client.host
+
+    now = datetime.now(tz=timezone.utc)
+    await repo.record_token_usage(
+        db_session,
+        token_id=token.id,
+        used_at=now,
+        ip_address=client_ip,
+    )
+    await repo.record_account_usage(
+        db_session,
+        account_id=account.id,
+        used_at=now,
+    )
+
+    scopes = account.scopes if isinstance(account.scopes, list) else []
+    permissions = ServiceAccountsService.scopes_to_permissions(scopes)
+
+    return AuthenticatedPrincipal(
+        user_id=str(account.id),
+        organization_id=str(account.organization_id),
+        roles=[],
+        auth_provider="service_account",
+        api_key_id=str(token.id),
+        api_key_permissions=permissions,
+    )
+
+
 async def get_current_principal(
     request: Request,
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> AuthenticatedPrincipal:
     authorization = request.headers.get("authorization", "")
     scheme, _, token = authorization.partition(" ")
-    if scheme.lower() == "bearer" and token.strip().startswith(_API_KEY_PREFIX):
+    raw = token.strip()
+    if scheme.lower() == "bearer" and raw.startswith(_SERVICE_ACCOUNT_TOKEN_PREFIX):
         try:
-            principal = await _authenticate_api_key(request, token.strip(), db_session)
+            principal = await _authenticate_service_account_token(request, raw, db_session)
+            request.state.auth_principal = principal
+            return principal
+        except AuthenticationError as exc:
+            raise _unauthorized(str(exc)) from exc
+    if scheme.lower() == "bearer" and raw.startswith(_API_KEY_PREFIX):
+        try:
+            principal = await _authenticate_api_key(request, raw, db_session)
             request.state.auth_principal = principal
             return principal
         except AuthenticationError as exc:

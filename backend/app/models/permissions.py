@@ -64,6 +64,12 @@ class PermissionType(StrEnum):
     team_view = "team:view"
     team_manage = "team:manage"
 
+    # Service accounts
+    service_accounts_list = "service_accounts:list"
+    service_accounts_create = "service_accounts:create"
+    service_accounts_manage = "service_accounts:manage"
+    service_accounts_revoke = "service_accounts:revoke"
+
     # Graph (Enterprise)
     graph_view = "graph:view"
     graph_entities_manage = "graph:entities:manage"
@@ -122,6 +128,11 @@ PERMISSION_CATALOG: list[dict[str, str]] = [
     # Team
     {"permission": PermissionType.team_view, "category": "team", "description": "View team members"},
     {"permission": PermissionType.team_manage, "category": "team", "description": "Invite, remove, and change team member roles"},
+    # Service accounts
+    {"permission": PermissionType.service_accounts_list, "category": "service_accounts", "description": "List service accounts"},
+    {"permission": PermissionType.service_accounts_create, "category": "service_accounts", "description": "Create service accounts and issue tokens"},
+    {"permission": PermissionType.service_accounts_manage, "category": "service_accounts", "description": "Update service account name, description, environment, and status"},
+    {"permission": PermissionType.service_accounts_revoke, "category": "service_accounts", "description": "Revoke service account tokens"},
     # Graph (Enterprise)
     {"permission": PermissionType.graph_view, "category": "graph", "description": "Browse the Enterprise Graph explorer"},
     {"permission": PermissionType.graph_entities_manage, "category": "graph", "description": "Create, update, delete, merge, and split graph entities"},
@@ -173,6 +184,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.webhooks_list,
         PermissionType.webhooks_create,
         PermissionType.webhooks_delete,
+        PermissionType.service_accounts_list,
+        PermissionType.service_accounts_create,
+        PermissionType.service_accounts_manage,
+        PermissionType.service_accounts_revoke,
         PermissionType.agents_use,
         PermissionType.agents_create,
         PermissionType.mcp_use,
@@ -231,6 +246,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.webhooks_list,
         PermissionType.webhooks_create,
         PermissionType.webhooks_delete,
+        PermissionType.service_accounts_list,
+        PermissionType.service_accounts_create,
+        PermissionType.service_accounts_manage,
+        PermissionType.service_accounts_revoke,
         PermissionType.agents_use,
         PermissionType.agents_create,
         PermissionType.agents_manage,
@@ -274,6 +293,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
         PermissionType.webhooks_list,
         PermissionType.webhooks_create,
         PermissionType.webhooks_delete,
+        PermissionType.service_accounts_list,
+        PermissionType.service_accounts_create,
+        PermissionType.service_accounts_manage,
+        PermissionType.service_accounts_revoke,
         PermissionType.agents_use,
         PermissionType.agents_create,
         PermissionType.agents_manage,

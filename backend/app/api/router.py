@@ -17,6 +17,7 @@ from app.interfaces.http import (
     admin_permissions,
     admin_roles,
     admin_scim,
+    admin_service_accounts,
     admin_sso,
     admin_status,
     admin_webhooks,
@@ -130,6 +131,7 @@ protected_router.include_router(admin_permissions.router)
 protected_router.include_router(admin_conflicts.router)
 protected_router.include_router(admin_access_debugger.router)
 protected_router.include_router(admin_api_keys.router)
+protected_router.include_router(admin_service_accounts.router)
 protected_router.include_router(admin_webhooks.router)
 protected_router.include_router(admin_mcp.router)
 protected_router.include_router(bots.admin_router)
