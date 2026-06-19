@@ -30,6 +30,8 @@ from app.domains.connectors.services.connector_service import (
 )
 from app.domains.connectors.services.permission_review_service import PermissionReviewService
 from app.domains.connectors.services.sync_engine import ConnectorSyncEngine, SyncEngineError
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.connector_sync import ConnectorSyncJob, ConnectorSyncRun, SyncConflict
 from app.models.enums import ConnectorSyncJobStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -247,6 +249,14 @@ async def trigger_sync_now(
                 "before indexing can begin."
             ),
         )
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        requested_amount=1,
+        resource="connector syncs",
+        guidance="Upgrade your plan or reduce connector sync usage.",
+    )
 
     try:
         run = await _engine().trigger_manual_sync(
@@ -258,6 +268,12 @@ async def trigger_sync_now(
         )
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        amount=1,
+    )
     await db_session.commit()
 
     celery_app.send_task(
@@ -283,6 +299,14 @@ async def retry_sync_run(
     __: Annotated[None, Depends(_require_connector_platform_enabled)],
 ) -> TriggerSyncNowResponse:
     org_id = _org_id(principal)
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        requested_amount=1,
+        resource="connector syncs",
+        guidance="Upgrade your plan or reduce connector sync usage.",
+    )
     try:
         run = await _engine().retry_failed_sync(
             db_session,
@@ -292,6 +316,12 @@ async def retry_sync_run(
         )
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        amount=1,
+    )
     await db_session.commit()
 
     celery_app.send_task(
@@ -411,6 +441,14 @@ async def trigger_full_resync(
             status_code=status.HTTP_409_CONFLICT,
             detail="Permission review required before syncing.",
         )
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        requested_amount=1,
+        resource="connector syncs",
+        guidance="Upgrade your plan or reduce connector sync usage.",
+    )
 
     try:
         run = await _engine().trigger_full_resync(
@@ -422,6 +460,12 @@ async def trigger_full_resync(
         )
     except SyncEngineError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=org_id,
+        quota_type=QuotaType.connectors,
+        amount=1,
+    )
     await db_session.commit()
 
     celery_app.send_task(

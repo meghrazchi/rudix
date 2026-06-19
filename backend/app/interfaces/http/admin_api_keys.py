@@ -20,6 +20,8 @@ from app.domains.api_keys.schemas.api_keys import (
     UpdateApiKeyRequest,
 )
 from app.domains.api_keys.services.api_keys_service import ApiKeysService
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.permissions import PermissionType
 
 router = APIRouter(prefix="/admin/api-keys", tags=["api_keys"])
@@ -70,9 +72,7 @@ async def list_api_keys(
     db_session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ApiKeyListResponse:
     organization_id = _org_id(principal)
-    keys = await api_keys_repository.list_api_keys(
-        db_session, organization_id=organization_id
-    )
+    keys = await api_keys_repository.list_api_keys(db_session, organization_id=organization_id)
     items = [api_keys_service.to_api_key_response(k) for k in keys]
     return ApiKeyListResponse(items=items, total=len(items))
 
@@ -94,6 +94,14 @@ async def create_api_key(
     organization_id = _org_id(principal)
     actor_id = _user_id(principal)
     request_id = _request_id(request)
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.api_calls,
+        requested_amount=1,
+        resource="API key operations",
+        guidance="Wait a moment and retry or upgrade your plan.",
+    )
 
     raw_key = ApiKeysService.generate_raw_key()
     key_hash = ApiKeysService.hash_key(raw_key)
@@ -123,6 +131,12 @@ async def create_api_key(
             "scopes": api_key.scopes,
             "status_code": status.HTTP_201_CREATED,
         },
+    )
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.api_calls,
+        amount=1,
     )
     await db_session.commit()
 
@@ -157,9 +171,7 @@ async def get_api_key(
         db_session, key_id=parsed_id, organization_id=organization_id
     )
     if api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
     return api_keys_service.to_api_key_response(api_key)
 
 
@@ -177,6 +189,14 @@ async def update_api_key(
     organization_id = _org_id(principal)
     actor_id = _user_id(principal)
     request_id = _request_id(request)
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.api_calls,
+        requested_amount=1,
+        resource="API key operations",
+        guidance="Wait a moment and retry or upgrade your plan.",
+    )
 
     try:
         parsed_id = UUID(key_id)
@@ -189,9 +209,7 @@ async def update_api_key(
         db_session, key_id=parsed_id, organization_id=organization_id
     )
     if api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
     if api_key.status == "revoked":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Cannot update a revoked key"
@@ -214,6 +232,7 @@ async def update_api_key(
         metadata={"name": api_key.name, "status_code": status.HTTP_200_OK},
     )
     await db_session.commit()
+    await db_session.refresh(api_key)
 
     logger.info(
         "api_keys.key.updated",
@@ -249,13 +268,9 @@ async def revoke_api_key(
         db_session, key_id=parsed_id, organization_id=organization_id
     )
     if api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
     if api_key.status == "revoked":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Key is already revoked"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Key is already revoked")
 
     await api_keys_repository.revoke_api_key(db_session, api_key=api_key)
     await audit_log_service.record(
@@ -308,9 +323,7 @@ async def rotate_api_key(
         db_session, key_id=parsed_id, organization_id=organization_id
     )
     if old_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="API key not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API key not found")
     if old_key.status == "revoked":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Cannot rotate a revoked key"
@@ -347,7 +360,14 @@ async def rotate_api_key(
             "status_code": status.HTTP_201_CREATED,
         },
     )
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.api_calls,
+        amount=1,
+    )
     await db_session.commit()
+    await db_session.refresh(new_key)
 
     logger.info(
         "api_keys.key.rotated",

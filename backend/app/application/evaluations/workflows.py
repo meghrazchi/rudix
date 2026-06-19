@@ -12,6 +12,8 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.chunking_profile_service import ChunkingProfileService
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import RunEvaluationRequest, RunEvaluationResponse
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
 from app.models.enums import PromptTemplateKey
@@ -39,6 +41,7 @@ async def trigger_evaluation_workflow(
     db_session: AsyncSession,
     evaluation_repository: EvaluationRepository,
     audit_log_service: AuditLogService,
+    plan_enforcement_service: PlanEnforcementService,
     run_evaluation_task: Any,
 ) -> RunEvaluationResponse:
     try:
@@ -101,6 +104,15 @@ async def trigger_evaluation_workflow(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="An evaluation run is already active for this evaluation set",
             )
+
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.evaluations,
+        requested_amount=1,
+        resource="evaluation runs",
+        guidance="Upgrade your plan or reduce evaluation usage.",
+    )
 
     try:
         prompt_version = await _prompt_template_service.resolve_active_version(
@@ -167,6 +179,12 @@ async def trigger_evaluation_workflow(
             "prompt_template_version": prompt_version.version_number,
             "status_code": status.HTTP_202_ACCEPTED,
         },
+    )
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.evaluations,
+        amount=1,
     )
     await db_session.commit()
     await db_session.refresh(evaluation_run)

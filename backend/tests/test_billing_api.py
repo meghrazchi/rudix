@@ -105,6 +105,7 @@ async def _seed_managed_billing_state(
         db_session,
         organization_id=organization.id,
         limits={
+            "seats": {"soft_limit": 4, "hard_limit": 5, "reset_window": "none"},
             "uploads": {"soft_limit": 120, "hard_limit": 150, "reset_window": "per_month"},
             "questions": {"soft_limit": 1000, "hard_limit": 1200, "reset_window": "per_month"},
             "tokens": {

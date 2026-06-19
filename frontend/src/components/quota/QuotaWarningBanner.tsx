@@ -12,13 +12,8 @@ import { useAuthSession } from "@/lib/use-auth-session";
 
 type Severity = "warning" | "error";
 
-function usageItemSeverity(item: QuotaUsageItem): Severity | null {
-  if (item.over_hard_limit) return "error";
-  if (item.over_soft_limit || item.near_limit) return "warning";
-  return null;
-}
-
 const QUOTA_TYPE_LABELS: Partial<Record<QuotaType, string>> = {
+  seats: "seats",
   uploads: "uploads",
   questions: "chat questions",
   tokens: "tokens",

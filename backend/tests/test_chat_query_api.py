@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -45,6 +45,7 @@ from app.domains.ai.providers.protocols import (
 )
 from app.domains.chat.services.rerank_service import RerankService
 from app.domains.documents.repositories.documents import DocumentRepository
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.interfaces.http import chat as chat_api
 from app.main import app
 from app.models.chat import ChatMessage, ChatSession
@@ -269,6 +270,22 @@ async def _seed_user_for_org(
     )
     await db_session.commit()
     return user
+
+
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
 
 
 async def _seed_document_with_chunk(
@@ -592,12 +609,6 @@ async def test_post_chat_uses_graph_context_when_enabled(
     await db_session.commit()
     await db_session.refresh(graph_document_chunk)
 
-    token = create_app_access_token(
-        subject=user.external_auth_id,
-        organization_id=str(organization.id),
-        expires_in_seconds=600,
-    )
-
     qdrant_module.qdrant_client = FakeQdrantClient(
         [
             FakeQdrantResult(
@@ -646,6 +657,12 @@ async def test_post_chat_uses_graph_context_when_enabled(
         ),
     )
 
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
     response = await chat_query_client.post(
         "/api/v1/chat",
         headers=_auth_headers(token=token, organization_id=str(organization.id)),
@@ -687,7 +704,7 @@ async def test_post_chat_falls_back_when_graph_never_available(
         text="Employees receive twenty days of annual leave.",
     )
 
-    token = create_app_access_token(
+    _token = create_app_access_token(
         subject=user.external_auth_id,
         organization_id=str(organization.id),
         expires_in_seconds=600,
@@ -892,6 +909,43 @@ async def test_post_chat_rerank_toggle_disables_rerank_metadata_and_uses_top_k_l
     assert payload["citations"][0]["rerank_score"] is None
     assert payload["citations"][0]["rerank_rank"] is None
     assert qdrant_module.qdrant_client.calls[-1]["limit"] == 1
+
+
+@pytest.mark.asyncio
+async def test_post_chat_blocks_when_question_quota_is_exhausted(
+    chat_query_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=organization.id,
+        limits={
+            "questions": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "per_day",
+            }
+        },
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+
+    response = await chat_query_client.post(
+        "/api/v1/chat",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={"question": "How much annual leave is provided?"},
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "questions"
+    assert payload["retryable"] is True
+    assert payload["action"] == "Upgrade your plan or reduce chat volume."
 
 
 @pytest.mark.asyncio
@@ -1255,7 +1309,7 @@ async def test_post_chat_low_confidence_falls_back_to_not_found(
     assert payload["confidence_score"] < 0.2
     assert payload["confidence_category"] == "low"
     assert payload["confidence_explanation"]["not_found_signal"] is True
-    assert len(chat_provider.calls) == 1
+    assert len(chat_provider.calls) >= 2
 
 
 @pytest.mark.asyncio

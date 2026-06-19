@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.evaluations.workflows import trigger_evaluation_workflow
-from app.domains.evaluations.services.evaluation_metrics_service import score_language_adherence
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import log_evaluation_event
@@ -20,6 +19,7 @@ from app.domains.evaluations.benchmark_suites import (
 )
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
 from app.domains.evaluations.schemas.evaluations import (
+    _MIN_COVERAGE_WARNING_THRESHOLD,
     BenchmarkSuiteListResponse,
     BenchmarkSuiteResponse,
     CaseComparisonRow,
@@ -39,9 +39,10 @@ from app.domains.evaluations.schemas.evaluations import (
     RunEvaluationResponse,
     TriggerBenchmarkRunRequest,
     TriggerBenchmarkRunResponse,
-    _MIN_COVERAGE_WARNING_THRESHOLD,
     _build_release_gate_recommendation,
 )
+from app.domains.evaluations.services.evaluation_metrics_service import score_language_adherence
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.enums import EvaluationRunStatus, OrganizationRole
 from app.models.evaluation import EvaluationQuestion, EvaluationResult, EvaluationRun
 from app.rate_limit import RateLimitScope, enforce_rate_limit
@@ -131,6 +132,7 @@ async def trigger_evaluation(
         db_session=db_session,
         evaluation_repository=evaluation_repository,
         audit_log_service=audit_log_service,
+        plan_enforcement_service=plan_enforcement_service,
         run_evaluation_task=run_evaluation_task,
     )
 
@@ -900,7 +902,9 @@ async def trigger_benchmark_run(
 ) -> TriggerBenchmarkRunResponse:
     suite = get_benchmark_suite(suite_id)
     if suite is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Benchmark suite not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Benchmark suite not found"
+        )
 
     organization_id = _organization_id_from_principal(principal)
     user_id = _user_id_from_principal(principal)
@@ -1159,7 +1163,9 @@ def _mean_floats(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 4) if values else None
 
 
-@router.get("/runs/{evaluation_run_id}/language-breakdown", response_model=LanguageBreakdownResponse)
+@router.get(
+    "/runs/{evaluation_run_id}/language-breakdown", response_model=LanguageBreakdownResponse
+)
 async def get_language_breakdown(
     evaluation_run_id: str,
     principal: Annotated[
@@ -1205,8 +1211,7 @@ async def get_language_breakdown(
     for lang, rows in sorted(buckets.items()):
         total = len(rows)
         successes = [
-            (r, q) for r, q in rows
-            if not (isinstance(r.details, dict) and r.details.get("error"))
+            (r, q) for r, q in rows if not (isinstance(r.details, dict) and r.details.get("error"))
         ]
         success_count = len(successes)
 

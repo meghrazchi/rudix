@@ -13,8 +13,6 @@ from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
 from app.core.config import settings
 from app.core.logging import get_logger, log_agent_event
-
-_logger = get_logger("agent.api")
 from app.db.session import get_db_session
 from app.domains.admin.repositories.usage import UsageRepository
 from app.domains.admin.services.audit_service import AuditLogService
@@ -25,8 +23,12 @@ from app.domains.agents import (
     AgentRuntimeResult,
 )
 from app.domains.agents.services.trace_service import AgentTraceService
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.enums import AgentRunStatus, OrganizationRole
 from app.rate_limit import RateLimitScope, enforce_rate_limit
+
+_logger = get_logger("agent.api")
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 agent_runtime = AgentRuntime()
@@ -343,7 +345,9 @@ def _to_approval_queue_item(approval: Any, run_objective: str | None) -> AgentAp
         if approval.requested_by_user_id is not None
         else None,
         status=approval.status,
-        risk_level=payload.get("risk_level") if isinstance(payload.get("risk_level"), str) else None,
+        risk_level=payload.get("risk_level")
+        if isinstance(payload.get("risk_level"), str)
+        else None,
         tool_name=payload.get("tool_name") if isinstance(payload.get("tool_name"), str) else None,
         request_summary=approval.request_summary,
         request_payload=payload,
@@ -383,6 +387,15 @@ async def create_agent_run(
         )
 
     request_id = _request_id_from_request(request)
+    organization_id, _ = _org_and_user(principal)
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.agent_runs,
+        requested_amount=1,
+        resource="agent runs",
+        guidance="Upgrade your plan or reduce agent usage.",
+    )
     try:
         run_result = await agent_runtime.execute(
             session=db_session,
@@ -410,6 +423,12 @@ async def create_agent_run(
             },
         ) from exc
 
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.agent_runs,
+        amount=1,
+    )
     await db_session.commit()
     return AgentRunCreateResponse(run=run_result)
 
@@ -719,8 +738,7 @@ async def list_agent_approval_queue(
 
     return AgentApprovalQueueResponse(
         approvals=[
-            _to_approval_queue_item(a, run_objectives.get(a.agent_run_id))
-            for a in approvals
+            _to_approval_queue_item(a, run_objectives.get(a.agent_run_id)) for a in approvals
         ],
         total=total,
         limit=safe_limit,
@@ -766,7 +784,11 @@ async def decide_agent_run_approval(
             status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
         )
     # Expire stale approval before checking status.
-    if approval.status == "pending" and approval.expires_at and approval.expires_at <= datetime.now(tz=UTC):
+    if (
+        approval.status == "pending"
+        and approval.expires_at
+        and approval.expires_at <= datetime.now(tz=UTC)
+    ):
         await agent_run_repository.update_agent_approval(
             db_session,
             approval_id=approval_uuid,
@@ -1240,7 +1262,10 @@ async def get_shared_agent_trace(
     if share_token is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"code": "trace_not_found", "message": "Trace share link is invalid or expired."},
+            detail={
+                "code": "trace_not_found",
+                "message": "Trace share link is invalid or expired.",
+            },
         )
 
     from app.domains.agents.services.trace_service import RetentionPolicySnapshot
@@ -1249,9 +1274,7 @@ async def get_shared_agent_trace(
         db_session, share_token.agent_run_id, share_token.organization_id
     )
     if run is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent run not found")
 
     policy = RetentionPolicySnapshot.full_redact_policy()
     result = agent_trace_service.build_trace(run, policy)

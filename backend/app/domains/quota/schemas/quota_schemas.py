@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class QuotaType(StrEnum):
+    seats = "seats"
     uploads = "uploads"
     questions = "questions"
     tokens = "tokens"
@@ -49,6 +50,7 @@ class QuotaLimitConfig(BaseModel):
 class UpdateOrgQuotaPolicyRequest(BaseModel):
     """All fields are optional; only supplied quota types are updated."""
 
+    seats: QuotaLimitConfig | None = None
     uploads: QuotaLimitConfig | None = None
     questions: QuotaLimitConfig | None = None
     tokens: QuotaLimitConfig | None = None
@@ -149,6 +151,7 @@ class QuotaChangeLogResponse(BaseModel):
 
 
 class QuotaCheckResult(BaseModel):
+    quota_type: str
     allowed: bool
     near_limit: bool
     over_soft_limit: bool
@@ -156,3 +159,5 @@ class QuotaCheckResult(BaseModel):
     current_value: int
     effective_hard_limit: int | None
     effective_soft_limit: int | None
+    reset_window: str
+    next_reset_at: datetime | None

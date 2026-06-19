@@ -31,6 +31,7 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 
 const QUOTA_TYPE_LABELS: Record<QuotaType, string> = {
+  seats: "Seats",
   uploads: "Uploads",
   questions: "Chat Questions",
   tokens: "Tokens",

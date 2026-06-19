@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/api/request";
 // ---------------------------------------------------------------------------
 
 export const QUOTA_TYPES = [
+  "seats",
   "uploads",
   "questions",
   "tokens",
@@ -62,6 +63,7 @@ export type OrgQuotaPolicyResponse = {
 };
 
 export type UpdateOrgQuotaPolicyRequest = {
+  seats?: QuotaLimitConfig | null;
   uploads?: QuotaLimitConfig | null;
   questions?: QuotaLimitConfig | null;
   tokens?: QuotaLimitConfig | null;

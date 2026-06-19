@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domains.quota.repositories.quota_repository import QuotaRepository
@@ -19,6 +20,7 @@ from app.domains.quota.schemas.quota_schemas import (
     QuotaUsageItem,
     ResetWindow,
 )
+from app.models.organization_member import OrganizationMember
 from app.models.quotas import OrgQuotaPolicy, OrgQuotaUsage
 
 _repo = QuotaRepository()
@@ -27,6 +29,11 @@ NEAR_LIMIT_THRESHOLD = 0.80
 
 # System defaults — no limits out of the box; orgs configure their own
 SYSTEM_DEFAULT_LIMITS: dict[str, dict] = {
+    QuotaType.seats: {
+        "soft_limit": None,
+        "hard_limit": None,
+        "reset_window": ResetWindow.none,
+    },
     QuotaType.uploads: {
         "soft_limit": None,
         "hard_limit": None,
@@ -89,8 +96,34 @@ def _compute_next_reset(window: str, now: datetime) -> datetime | None:
     return None
 
 
+def _normalize_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _reset_window_expired(next_reset_at: datetime | None, now: datetime) -> bool:
+    normalized_next_reset_at = _normalize_utc(next_reset_at)
+    return normalized_next_reset_at is not None and normalized_next_reset_at <= now
+
+
 def _policy_snapshot(policy: OrgQuotaPolicy) -> dict:
     return {"limits": dict(policy.limits or {})}
+
+
+async def _current_seat_count(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+) -> int:
+    result = await db_session.execute(
+        select(func.count(OrganizationMember.id)).where(
+            OrganizationMember.organization_id == organization_id
+        )
+    )
+    return int(result.scalar_one())
 
 
 def get_effective_limits(policy: OrgQuotaPolicy | None) -> dict[str, dict]:
@@ -116,7 +149,7 @@ def _usage_item(
     soft = limit_config.get("soft_limit")
     hard = limit_config.get("hard_limit")
     reset_window = limit_config.get("reset_window", ResetWindow.per_day)
-    next_reset_at = usage.next_reset_at if usage is not None else None
+    next_reset_at = _normalize_utc(usage.next_reset_at) if usage is not None else None
 
     near = False
     over_soft = False
@@ -213,8 +246,26 @@ async def get_quota_dashboard(
         limit_config = effective.get(qt, SYSTEM_DEFAULT_LIMITS[qt])
         usage = usage_map.get(qt)
 
+        if qt == QuotaType.seats:
+            current = await _current_seat_count(db_session, organization_id=organization_id)
+            item = _usage_item(
+                qt,
+                OrgQuotaUsage(
+                    organization_id=organization_id,
+                    quota_type=qt,
+                    current_value=current,
+                    period_start=now,
+                    next_reset_at=None,
+                ),
+                limit_config,
+            )
+            items.append(item)
+            if item.over_hard_limit or item.over_soft_limit:
+                has_overages = True
+            continue
+
         # Reset expired counters before building the dashboard view
-        if usage is not None and usage.next_reset_at is not None and usage.next_reset_at <= now:
+        if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
             window = limit_config.get("reset_window", ResetWindow.per_day)
             next_reset = _compute_next_reset(window, now)
             await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
@@ -239,6 +290,7 @@ async def check_quota(
     organization_id: UUID,
     quota_type: QuotaType,
     requested_amount: int = 1,
+    current_value_override: int | None = None,
 ) -> QuotaCheckResult:
     """Check whether the requested action would exceed quota limits."""
     now = datetime.now(UTC)
@@ -246,18 +298,33 @@ async def check_quota(
     effective = get_effective_limits(policy)
     limit_config = effective.get(quota_type, SYSTEM_DEFAULT_LIMITS[quota_type])
 
-    usage = await _repo.get_usage(
-        db_session, organization_id=organization_id, quota_type=quota_type
-    )
+    window = limit_config.get("reset_window", ResetWindow.per_day)
+    next_reset_at: datetime | None = None
 
-    # Reset if window has expired
-    if usage is not None and usage.next_reset_at is not None and usage.next_reset_at <= now:
-        window = limit_config.get("reset_window", ResetWindow.per_day)
-        next_reset = _compute_next_reset(window, now)
-        await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
-        current = 0
+    if quota_type == QuotaType.seats:
+        current = (
+            current_value_override
+            if current_value_override is not None
+            else await _current_seat_count(db_session, organization_id=organization_id)
+        )
     else:
-        current = usage.current_value if usage is not None else 0
+        usage = await _repo.get_usage(
+            db_session, organization_id=organization_id, quota_type=quota_type
+        )
+
+        # Reset if window has expired
+        if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
+            next_reset = _compute_next_reset(window, now)
+            await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)
+            current = 0
+            next_reset_at = next_reset
+        else:
+            current = usage.current_value if usage is not None else 0
+            next_reset_at = (
+                _normalize_utc(usage.next_reset_at)
+                if usage is not None
+                else _compute_next_reset(window, now)
+            )
 
     projected = current + requested_amount
     soft = limit_config.get("soft_limit")
@@ -272,6 +339,7 @@ async def check_quota(
         near = projected >= (ref_limit * NEAR_LIMIT_THRESHOLD)
 
     return QuotaCheckResult(
+        quota_type=quota_type,
         allowed=not over_hard,
         near_limit=near,
         over_soft_limit=over_soft,
@@ -279,6 +347,8 @@ async def check_quota(
         current_value=current,
         effective_hard_limit=hard,
         effective_soft_limit=soft,
+        reset_window=window,
+        next_reset_at=next_reset_at,
     )
 
 
@@ -290,6 +360,8 @@ async def increment_quota_usage(
     amount: int = 1,
 ) -> None:
     """Increment the usage counter for the given quota type."""
+    if quota_type == QuotaType.seats:
+        return
     now = datetime.now(UTC)
     policy = await _repo.get_policy(db_session, organization_id=organization_id)
     effective = get_effective_limits(policy)
@@ -300,7 +372,7 @@ async def increment_quota_usage(
         db_session, organization_id=organization_id, quota_type=quota_type
     )
 
-    if usage is not None and usage.next_reset_at is not None and usage.next_reset_at <= now:
+    if _reset_window_expired(usage.next_reset_at if usage is not None else None, now):
         # Window has expired — reset before incrementing
         next_reset = _compute_next_reset(window, now)
         await _repo.reset_usage(db_session, usage, next_reset_at=next_reset)

@@ -58,4 +58,22 @@ describe("normalizeApiError", () => {
 
     expect(error.requestId).toBe("req-403-body");
   });
+
+  it("maps plan limit errors to upgrade guidance", () => {
+    const error = normalizeApiError({
+      status: 403,
+      payload: {
+        detail: {
+          code: "plan_limit_exceeded",
+          message: "Storage usage would exceed the plan limit (101/100).",
+        },
+      },
+    });
+
+    expect(error.code).toBe("plan_limit_exceeded");
+    expect(error.userMessage).toBe("Your plan limit has been reached.");
+    expect(error.actionMessage).toBe(
+      "Upgrade your plan or reduce usage to continue.",
+    );
+  });
 });

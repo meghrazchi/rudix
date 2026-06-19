@@ -190,6 +190,7 @@ class BillingService:
             for usage in await _quota_repo.list_usage(db_session, organization_id=organization_id)
         }
         _, members = await _load_org_context(db_session, organization_id)
+        seat_limit = _limit_value(effective_limits.get("seats"), "hard_limit")
 
         managed = policy is not None
         renewal_date = datetime.now(UTC) + timedelta(days=30) if managed else None
@@ -201,7 +202,7 @@ class BillingService:
             renewal_date=renewal_date,
             trial_end_date=None,
             seats_used=len(members),
-            seats_included=max(len(members) + 5, 10) if managed else max(len(members), 1),
+            seats_included=seat_limit,
             storage_used_gb=_to_gb(_current_value_for_usage(usage_map, "storage_bytes")),
             storage_included_gb=_to_gb(
                 _limit_value(effective_limits.get("storage_bytes"), "hard_limit")
@@ -316,13 +317,14 @@ class BillingService:
             for usage in await _quota_repo.list_usage(db_session, organization_id=organization_id)
         }
         _, members = await _load_org_context(db_session, organization_id)
+        seat_limit = _limit_value(effective_limits.get("seats"), "hard_limit")
 
         quotas = [
             BillingQuota(
                 resource="seats",
                 label=_SEATS_LABEL,
                 used=float(len(members)),
-                limit=float(max(len(members) + 5, 10)) if policy is not None else None,
+                limit=float(seat_limit) if seat_limit is not None else None,
                 unit="seats",
             ),
             BillingQuota(

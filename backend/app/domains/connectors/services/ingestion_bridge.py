@@ -41,6 +41,8 @@ from app.domains.documents.services.duplicate_detection import (
     check_for_duplicate,
 )
 from app.domains.documents.services.malware_scan import MalwareScanService
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.quota_service import check_quota, increment_quota_usage
 from app.models.connector_source import SourceDocument, SourceReference
 from app.models.document import Document
 from app.models.enums import (
@@ -409,6 +411,29 @@ class ConnectorIngestionBridge:
         # ------------------------------------------------------------------
         # 5. Upload file to object storage
         # ------------------------------------------------------------------
+        storage_check = await check_quota(
+            session,
+            organization_id=organization_id,
+            quota_type=QuotaType.storage_bytes,
+            requested_amount=len(content),
+        )
+        if not storage_check.allowed:
+            _logger.warning(
+                "connector.ingestion.storage_limit_reached",
+                external_item_id=str(external_item_id),
+                requested_bytes=len(content),
+                current_value=storage_check.current_value,
+                hard_limit=storage_check.effective_hard_limit,
+            )
+            return IngestionResult(
+                document_id=None,
+                source_document_id=None,
+                status=DocumentStatus.failed,
+                checksum=checksum,
+                is_duplicate=False,
+                duplicate_of_document_id=None,
+                error="storage plan limit exceeded",
+            )
         storage_key = _build_storage_key(organization_id, extension)
         storage_bucket = "documents"
         try:
@@ -428,6 +453,12 @@ class ConnectorIngestionBridge:
                 duplicate_of_document_id=None,
                 error=f"storage upload failed: {exc}",
             )
+        await increment_quota_usage(
+            session,
+            organization_id=organization_id,
+            quota_type=QuotaType.storage_bytes,
+            amount=len(content),
+        )
 
         # ------------------------------------------------------------------
         # 6. Create Document record (status=pending_scan, pipeline picks it up)
@@ -767,6 +798,29 @@ class ConnectorIngestionBridge:
         # Upload new content only when the document is clean.
         storage_key: str | None = None
         if new_doc_status == DocumentStatus.pending_scan:
+            storage_check = await check_quota(
+                session,
+                organization_id=organization_id,
+                quota_type=QuotaType.storage_bytes,
+                requested_amount=len(content),
+            )
+            if not storage_check.allowed:
+                _logger.warning(
+                    "connector.ingestion.storage_limit_reached",
+                    external_item_id=str(external_item_id),
+                    requested_bytes=len(content),
+                    current_value=storage_check.current_value,
+                    hard_limit=storage_check.effective_hard_limit,
+                )
+                return IngestionResult(
+                    document_id=existing_src.document_id,
+                    source_document_id=existing_src.id,
+                    status=DocumentStatus.failed,
+                    checksum=checksum,
+                    is_duplicate=False,
+                    duplicate_of_document_id=None,
+                    error="storage plan limit exceeded",
+                )
             storage_key = _build_storage_key(organization_id, extension)
             try:
                 await _upload_to_storage("documents", storage_key, content, resolved_mime)
@@ -785,6 +839,12 @@ class ConnectorIngestionBridge:
                     duplicate_of_document_id=None,
                     error=f"storage upload failed on update: {exc}",
                 )
+            await increment_quota_usage(
+                session,
+                organization_id=organization_id,
+                quota_type=QuotaType.storage_bytes,
+                amount=len(content),
+            )
 
         # Update the existing Document in-place.
         doc_result = await session.execute(

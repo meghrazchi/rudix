@@ -59,14 +59,13 @@ from app.auth.factory import get_auth_provider
 from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
-from app.domains.quota.services.quota_service import increment_quota_usage
 from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.quota_service import increment_quota_usage
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -275,7 +274,7 @@ async def test_usage_dashboard_empty(quota_client: AsyncClient, admin_ctx: dict)
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["organization_id"] == admin_ctx["org_id"]
-    assert len(data["quota_usage"]) == 8  # one per QuotaType
+    assert len(data["quota_usage"]) == 9  # one per QuotaType
     for item in data["quota_usage"]:
         assert item["current_value"] == 0
         assert item["over_hard_limit"] is False
@@ -651,7 +650,7 @@ async def test_my_usage_any_role(quota_client: AsyncClient, member_ctx: dict) ->
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["organization_id"] == member_ctx["org_id"]
-    assert len(data["quota_usage"]) == 8
+    assert len(data["quota_usage"]) == 9
 
 
 # ---------------------------------------------------------------------------

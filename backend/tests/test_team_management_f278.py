@@ -1,6 +1,7 @@
 """Backend tests for F278: team management, invitations, roles, and member lifecycle."""
+
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -35,6 +36,7 @@ from app.domains.team.services.invitation_service import (
     hash_invite_token,
     invite_expires_at,
 )
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.main import app
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
@@ -127,6 +129,22 @@ async def _seed_invitation(
     return raw_token, inv
 
 
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
+
+
 def _auth_headers(*, token: str, org_id: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", "X-Organization-ID": org_id}
 
@@ -148,6 +166,7 @@ async def _actor_token(
 
 # ─── Member listing with search and filters ──────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_members_with_search(
     team_client: AsyncClient,
@@ -155,8 +174,12 @@ async def test_list_members_with_search(
 ) -> None:
     org = await _seed_org(db_session)
     actor, token = await _actor_token(db_session, org=org)
-    user_a, _ = await _seed_member(db_session, org=org, role=OrganizationRole.member, email_prefix="alice")
-    user_b, _ = await _seed_member(db_session, org=org, role=OrganizationRole.viewer, email_prefix="bob")
+    user_a, _ = await _seed_member(
+        db_session, org=org, role=OrganizationRole.member, email_prefix="alice"
+    )
+    user_b, _ = await _seed_member(
+        db_session, org=org, role=OrganizationRole.viewer, email_prefix="bob"
+    )
 
     resp = await team_client.get(
         "/api/v1/team/members",
@@ -191,6 +214,7 @@ async def test_list_members_role_filter(
 
 # ─── Member detail endpoint ───────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_get_member_detail(
     team_client: AsyncClient,
@@ -198,7 +222,9 @@ async def test_get_member_detail(
 ) -> None:
     org = await _seed_org(db_session)
     actor, token = await _actor_token(db_session, org=org)
-    target_user, target_member = await _seed_member(db_session, org=org, role=OrganizationRole.member)
+    target_user, target_member = await _seed_member(
+        db_session, org=org, role=OrganizationRole.member
+    )
 
     resp = await team_client.get(
         f"/api/v1/team/members/{target_member.id}",
@@ -229,7 +255,41 @@ async def test_get_member_detail_tenant_isolation(
     assert resp.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_invite_team_member_blocks_when_seat_limit_is_reached(
+    team_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    org = await _seed_org(db_session)
+    _, token = await _actor_token(db_session, org=org, role=OrganizationRole.admin)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=org.id,
+        limits={
+            "seats": {
+                "soft_limit": 1,
+                "hard_limit": 1,
+                "reset_window": "none",
+            }
+        },
+    )
+
+    response = await team_client.post(
+        "/api/v1/team/members/invite",
+        headers=_auth_headers(token=token, org_id=str(org.id)),
+        json={"email": "new-seat@example.com", "role": OrganizationRole.member.value},
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "seats"
+    assert payload["retryable"] is False
+    assert payload["action"] == "Remove a member or upgrade your plan."
+
+
 # ─── Last-owner protection ────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_cannot_remove_last_owner(
@@ -275,6 +335,7 @@ async def test_cannot_deactivate_last_owner(
 
 # ─── Deactivate member ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_deactivate_member(
     team_client: AsyncClient,
@@ -282,7 +343,9 @@ async def test_deactivate_member(
 ) -> None:
     org = await _seed_org(db_session)
     actor, token = await _actor_token(db_session, org=org, role=OrganizationRole.admin)
-    target_user, target_member = await _seed_member(db_session, org=org, role=OrganizationRole.member)
+    target_user, target_member = await _seed_member(
+        db_session, org=org, role=OrganizationRole.member
+    )
 
     resp = await team_client.post(
         f"/api/v1/team/members/{target_member.id}/deactivate",
@@ -298,6 +361,7 @@ async def test_deactivate_member(
 
 # ─── Invitation listing ───────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_list_invitations_returns_pending_only(
     team_client: AsyncClient,
@@ -305,7 +369,9 @@ async def test_list_invitations_returns_pending_only(
 ) -> None:
     org = await _seed_org(db_session)
     actor, token = await _actor_token(db_session, org=org)
-    await _seed_invitation(db_session, org=org, email="pending@example.com", invited_by_user_id=actor.id)
+    await _seed_invitation(
+        db_session, org=org, email="pending@example.com", invited_by_user_id=actor.id
+    )
 
     revoked_inv = OrganizationInvitation(
         organization_id=org.id,
@@ -350,6 +416,7 @@ async def test_list_invitations_tenant_isolation(
 
 # ─── Revoke invitation ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_revoke_invitation(
     team_client: AsyncClient,
@@ -357,7 +424,9 @@ async def test_revoke_invitation(
 ) -> None:
     org = await _seed_org(db_session)
     actor, token = await _actor_token(db_session, org=org)
-    _, inv = await _seed_invitation(db_session, org=org, email="target@example.com", invited_by_user_id=actor.id)
+    _, inv = await _seed_invitation(
+        db_session, org=org, email="target@example.com", invited_by_user_id=actor.id
+    )
 
     resp = await team_client.post(
         f"/api/v1/team/invitations/{inv.id}/revoke",
@@ -392,6 +461,7 @@ async def test_revoke_already_revoked_invitation_returns_409(
 
 # ─── Resend invitation ────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_resend_invitation_updates_token_hash(
     team_client: AsyncClient,
@@ -418,6 +488,7 @@ async def test_resend_invitation_updates_token_hash(
 
 
 # ─── Accept invitation (public) ───────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_accept_invitation_marks_accepted(
@@ -493,6 +564,7 @@ async def test_accept_invitation_invalid_token_returns_404(
 
 # ─── Token security – token hash is never in API response ────────────────────
 
+
 @pytest.mark.asyncio
 async def test_invitation_list_does_not_expose_token_hash(
     team_client: AsyncClient,
@@ -514,6 +586,7 @@ async def test_invitation_list_does_not_expose_token_hash(
 
 
 # ─── Invite creates invitation record ────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_invite_endpoint_creates_invitation_record(
@@ -551,6 +624,7 @@ async def test_invite_endpoint_creates_invitation_record(
 
 
 # ─── RBAC enforcement ─────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_member_cannot_list_invitations(
@@ -612,6 +686,7 @@ async def test_member_cannot_deactivate_members(
 
 
 # ─── Invitation service unit tests ───────────────────────────────────────────
+
 
 def test_token_hash_is_deterministic() -> None:
     token = generate_invite_token()

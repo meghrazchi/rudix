@@ -89,6 +89,11 @@ const CODE_ERROR_META: Partial<Record<ApiErrorCode, Partial<ApiErrorMeta>>> = {
       "Disable agentic mode or enable FEATURE_ENABLE_AGENTS and restart the API.",
     retryable: false,
   },
+  plan_limit_exceeded: {
+    userMessage: "Your plan limit has been reached.",
+    actionMessage: "Upgrade your plan or reduce usage to continue.",
+    retryable: false,
+  },
 };
 
 export type NormalizedBackendError = {

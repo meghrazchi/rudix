@@ -24,6 +24,8 @@ from app.domains.documents.schemas.documents import (
 from app.domains.documents.services.duplicate_detection import check_for_duplicate
 from app.domains.documents.services.malware_scan import MalwareScanResult, MalwareScanService
 from app.domains.documents.services.upload_validation import validate_upload
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import PlanEnforcementService
 from app.models.collection import Collection, CollectionDocument
 from app.models.document import Document
 from app.models.enums import DocumentStatus
@@ -118,6 +120,7 @@ async def upload_document_workflow(
     document_repository: DocumentRepository,
     audit_log_service: AuditLogService,
     malware_scan_service: MalwareScanService,
+    plan_enforcement_service: PlanEnforcementService,
     process_document_task: Any,
     minio_client: Any,
     upload_metadata: UploadDocumentMetadata | None = None,
@@ -147,6 +150,23 @@ async def upload_document_workflow(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=message
             ) from exc
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message) from exc
+
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.uploads,
+        requested_amount=1,
+        resource="document uploads",
+        guidance="Upgrade your plan or reduce upload volume.",
+    )
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.storage_bytes,
+        requested_amount=validated.file_size_bytes,
+        resource="storage",
+        guidance="Upgrade your plan or delete content to free storage.",
+    )
 
     document_id = uuid4()
     object_key = _object_key(
@@ -406,6 +426,18 @@ async def upload_document_workflow(
         status_code=status.HTTP_201_CREATED,
         file_type=validated.extension,
         file_size_bytes=validated.file_size_bytes,
+    )
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.uploads,
+        amount=1,
+    )
+    await plan_enforcement_service.record_usage(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.storage_bytes,
+        amount=validated.file_size_bytes,
     )
 
     try:

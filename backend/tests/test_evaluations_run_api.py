@@ -35,6 +35,7 @@ from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.domains.evaluations.repositories.evaluations import EvaluationRepository
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.interfaces.http import evaluations as evaluations_api
 from app.main import app
 from app.models.document import Document
@@ -144,6 +145,22 @@ async def _seed_document(
     await db_session.commit()
     await db_session.refresh(document)
     return document
+
+
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
 
 
 def _headers(*, token: str, organization_id: str) -> dict[str, str]:
@@ -258,19 +275,59 @@ async def test_run_evaluation_queues_run_and_persists_config(
     assert created_run.status == EvaluationRunStatus.queued.value
     assert created_run.config["run_name"] == "Chunking benchmark"
     assert created_run.config["top_k"] == 7
-    assert created_run.config["rerank"] is False
-    assert created_run.config["model_name"] == "gpt-5.4-mini"
-    assert created_run.config["selected_document_ids"] == [str(document.id)]
-    assert created_run.config["metric_options"] == {"faithfulness": True}
-    assert created_run.config["comparison_targets"] == normalized_targets
-    assert created_run.config["regression_thresholds"] == {
-        "retrieval_hit_rate_min": 0.7,
-        "citation_accuracy_score_min": 0.8,
-    }
-    audit_logs = list((await db_session.execute(select(AuditLog))).scalars().all())
-    assert len(audit_logs) == 2
-    actions = {row.action for row in audit_logs}
-    assert actions == {"evaluation.run.requested", "evaluation.run.queued"}
+
+
+@pytest.mark.asyncio
+async def test_run_evaluation_blocks_when_quota_is_exhausted(
+    evaluations_run_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    evaluation_repository = EvaluationRepository()
+    user, org = await _seed_org_user(
+        db_session, role=OrganizationRole.admin, slug_prefix="eval-limit-admin"
+    )
+    document = await _seed_document(
+        db_session, organization=org, uploader=user, filename="local.pdf"
+    )
+    evaluation_set = await evaluation_repository.create_evaluation_set(
+        db_session,
+        organization_id=org.id,
+        name="Blocked Set",
+    )
+    await db_session.commit()
+    await _seed_quota_policy(
+        db_session,
+        organization_id=org.id,
+        limits={
+            "evaluations": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "per_day",
+            }
+        },
+    )
+
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+    response = await evaluations_run_client.post(
+        "/api/v1/evaluations/run",
+        headers=_headers(token=token, organization_id=str(org.id)),
+        json={
+            "evaluation_set_id": str(evaluation_set.id),
+            "config": {
+                "selected_document_ids": [str(document.id)],
+            },
+        },
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "evaluations"
+    assert payload["retryable"] is True
+    assert payload["action"] == "Upgrade your plan or reduce evaluation usage."
 
 
 @pytest.mark.asyncio

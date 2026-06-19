@@ -28,17 +28,15 @@ from app.application.documents.workflows import (
 from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import (
     get_current_principal,
-    require_document_access,
     require_document_policy_access,
     require_roles,
 )
 from app.auth.models import AuthenticatedPrincipal
-from app.auth.policy_engine import Action, ResourceType
+from app.auth.policy_engine import Action
 from app.auth.resource_context_builder import (
     build_document_resource_contexts_batch,
     get_subject_accessible_collection_ids,
 )
-from app.models.permissions import PermissionType
 from app.clients import clamav_client as clamav_module
 from app.clients import minio_client as minio_module
 from app.core.config import settings
@@ -66,8 +64,8 @@ from app.domains.documents.schemas.documents import (
     DocumentListItemResponse,
     DocumentListResponse,
     DocumentSortBy,
-    ReindexDocumentGraphResponse,
     DocumentStatusResponse,
+    ReindexDocumentGraphResponse,
     ReindexDocumentResponse,
     SortOrder,
     UploadDocumentMetadata,
@@ -82,6 +80,7 @@ from app.domains.pipeline.services.pipeline_graph_service import (
     pipeline_node_description,
     pipeline_node_label,
 )
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.models.collection import Collection, CollectionDocument
 from app.models.connector import ConnectorConnection, ConnectorProvider, ExternalItem
 from app.models.connector_source import SourceDocument
@@ -96,10 +95,10 @@ from app.workers.document_tasks import (
     process_document,
 )
 from app.workers.document_tasks import (
-    reindex_document_graph as reindex_document_graph_task,
+    reindex_document as reindex_document_task,
 )
 from app.workers.document_tasks import (
-    reindex_document as reindex_document_task,
+    reindex_document_graph as reindex_document_graph_task,
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -109,7 +108,9 @@ audit_log_service = AuditLogService()
 malware_scan_service = MalwareScanService(clamav_client_provider=clamav_module.get_clamav_client)
 _chunking_profile_service = ChunkingProfileService()
 _authorization_service = AuthorizationService()
-_ADMIN_ROLES: frozenset[str] = frozenset({OrganizationRole.owner.value, OrganizationRole.admin.value})
+_ADMIN_ROLES: frozenset[str] = frozenset(
+    {OrganizationRole.owner.value, OrganizationRole.admin.value}
+)
 
 
 def _principal_user_and_org(principal: AuthenticatedPrincipal) -> tuple[UUID, UUID]:
@@ -625,6 +626,7 @@ async def upload_document(
         document_repository=document_repository,
         audit_log_service=audit_log_service,
         malware_scan_service=malware_scan_service,
+        plan_enforcement_service=plan_enforcement_service,
         process_document_task=process_document,
         minio_client=minio_module.get_minio_client(),
         upload_metadata=upload_metadata,
@@ -1116,6 +1118,7 @@ async def bulk_delete_documents_endpoint(
     # For non-admin principals, verify delete permission on every requested document.
     if not _ADMIN_ROLES.intersection(user_roles) and body.document_ids:
         from uuid import UUID as _UUID
+
         from app.auth.resource_context_builder import build_document_resource_contexts_batch
 
         accessible_collection_ids = await get_subject_accessible_collection_ids(
@@ -1128,10 +1131,10 @@ async def bulk_delete_documents_endpoint(
         for doc_id_str in body.document_ids:
             try:
                 doc_uuid = _UUID(doc_id_str)
-            except ValueError:
+            except ValueError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
-                )
+                ) from exc
             doc = await document_repository.get_document(
                 db_session,
                 document_id=doc_uuid,
@@ -1155,9 +1158,7 @@ async def bulk_delete_documents_endpoint(
                 principal, Action.delete, resource_contexts, db_session
             )
         }
-        unauthorized = [
-            str(d.id) for d in docs_to_check if str(d.id) not in accessible_ids
-        ]
+        unauthorized = [str(d.id) for d in docs_to_check if str(d.id) not in accessible_ids]
         if unauthorized:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -15,8 +15,8 @@ Covers:
 """
 
 import os
-from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
@@ -47,13 +47,13 @@ from app.auth.token_codec import create_app_access_token
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.api_keys.services.api_keys_service import ApiKeysService
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.main import app
 from app.models.api_key import ApiKey
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
 from app.models.user import User
-
 
 # ─── fixtures ────────────────────────────────────────────────────────────────
 
@@ -111,6 +111,22 @@ async def _seed_org_actor(
     )
     await db_session.commit()
     return user, org
+
+
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
 
 
 def _auth_headers(*, token: str, organization_id: str) -> dict[str, str]:
@@ -180,7 +196,7 @@ class TestApiKeysService:
             key_hash="abc",
             scopes=[],
         )
-        api_key.expires_at = datetime.now(tz=timezone.utc) - timedelta(hours=1)
+        api_key.expires_at = datetime.now(tz=UTC) - timedelta(hours=1)
         assert ApiKeysService.is_expired(api_key) is True
 
     def test_not_expired_when_future_expiry(self) -> None:
@@ -191,7 +207,7 @@ class TestApiKeysService:
             key_hash="abc",
             scopes=[],
         )
-        api_key.expires_at = datetime.now(tz=timezone.utc) + timedelta(hours=1)
+        api_key.expires_at = datetime.now(tz=UTC) + timedelta(hours=1)
         assert ApiKeysService.is_expired(api_key) is False
 
     def test_scopes_to_permissions_documents_read(self) -> None:
@@ -307,6 +323,39 @@ async def test_create_api_key_forbidden_for_viewer(
 
 
 @pytest.mark.asyncio
+async def test_create_api_key_blocks_when_api_call_quota_is_exhausted(
+    api_keys_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    actor, org = await _seed_org_actor(db_session, role=OrganizationRole.developer)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=org.id,
+        limits={
+            "api_calls": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "per_minute",
+            }
+        },
+    )
+    token = _token(actor, org)
+
+    response = await api_keys_client.post(
+        "/api/v1/admin/api-keys",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        json={"name": "Blocked key", "scopes": []},
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "api_calls"
+    assert payload["retryable"] is True
+    assert payload["action"] == "Wait a moment and retry or upgrade your plan."
+
+
+@pytest.mark.asyncio
 async def test_list_api_keys_empty(
     api_keys_client: AsyncClient,
     db_session: AsyncSession,
@@ -352,8 +401,12 @@ async def test_api_keys_are_org_scoped(
     api_keys_client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
-    actor1, org1 = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="ak-org1")
-    actor2, org2 = await _seed_org_actor(db_session, role=OrganizationRole.admin, org_prefix="ak-org2")
+    actor1, org1 = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="ak-org1"
+    )
+    actor2, org2 = await _seed_org_actor(
+        db_session, role=OrganizationRole.admin, org_prefix="ak-org2"
+    )
 
     await api_keys_client.post(
         "/api/v1/admin/api-keys",
@@ -386,9 +439,7 @@ async def test_get_api_key_by_id(
     )
     key_id = create_resp.json()["id"]
 
-    response = await api_keys_client.get(
-        f"/api/v1/admin/api-keys/{key_id}", headers=headers
-    )
+    response = await api_keys_client.get(f"/api/v1/admin/api-keys/{key_id}", headers=headers)
     assert response.status_code == 200
     payload = response.json()
     assert payload["id"] == key_id
@@ -451,14 +502,10 @@ async def test_revoke_api_key(
     )
     key_id = create_resp.json()["id"]
 
-    revoke_resp = await api_keys_client.delete(
-        f"/api/v1/admin/api-keys/{key_id}", headers=headers
-    )
+    revoke_resp = await api_keys_client.delete(f"/api/v1/admin/api-keys/{key_id}", headers=headers)
     assert revoke_resp.status_code == 204
 
-    get_resp = await api_keys_client.get(
-        f"/api/v1/admin/api-keys/{key_id}", headers=headers
-    )
+    get_resp = await api_keys_client.get(f"/api/v1/admin/api-keys/{key_id}", headers=headers)
     assert get_resp.status_code == 200
     assert get_resp.json()["status"] == "revoked"
 
@@ -480,9 +527,7 @@ async def test_revoke_already_revoked_key_returns_409(
     key_id = create_resp.json()["id"]
 
     await api_keys_client.delete(f"/api/v1/admin/api-keys/{key_id}", headers=headers)
-    second = await api_keys_client.delete(
-        f"/api/v1/admin/api-keys/{key_id}", headers=headers
-    )
+    second = await api_keys_client.delete(f"/api/v1/admin/api-keys/{key_id}", headers=headers)
     assert second.status_code == 409
 
 
@@ -514,9 +559,7 @@ async def test_rotate_api_key(
     assert new_payload["name"] == "Rotate me"
     assert new_payload["scopes"] == ["documents:read"]
 
-    old_resp = await api_keys_client.get(
-        f"/api/v1/admin/api-keys/{old_id}", headers=headers
-    )
+    old_resp = await api_keys_client.get(f"/api/v1/admin/api-keys/{old_id}", headers=headers)
     assert old_resp.json()["status"] == "revoked"
 
 

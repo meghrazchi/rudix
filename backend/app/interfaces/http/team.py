@@ -9,13 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import require_permission
+from app.auth.models import AuthenticatedPrincipal
 from app.auth.passwords import PasswordHashConfig, build_password_hasher, hash_password
 from app.core.config import settings
-from app.models.permissions import PermissionType
-from app.auth.models import AuthenticatedPrincipal
 from app.core.logging import get_logger
 from app.db.session import get_db_session
 from app.domains.admin.services.audit_service import AuditLogService
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.domains.team.repositories.invitations import InvitationRepository
 from app.domains.team.repositories.team import TeamRepository
 from app.domains.team.schemas.team import (
@@ -39,6 +40,7 @@ from app.models.auth_session import AuthRefreshSession
 from app.models.enums import OrganizationRole
 from app.models.organization import Organization
 from app.models.organization_member import OrganizationMember
+from app.models.permissions import PermissionType
 from app.models.user import User
 
 router = APIRouter(prefix="/team", tags=["team"])
@@ -144,6 +146,15 @@ async def _count_owners(session: AsyncSession, *, organization_id: UUID) -> int:
     return int(result.scalar_one())
 
 
+async def _count_members(session: AsyncSession, *, organization_id: UUID) -> int:
+    result = await session.execute(
+        select(func.count(OrganizationMember.id)).where(
+            OrganizationMember.organization_id == organization_id
+        )
+    )
+    return int(result.scalar_one())
+
+
 async def _revoke_user_sessions(
     session: AsyncSession,
     *,
@@ -199,8 +210,12 @@ async def list_team_members(
             User.email.ilike(term),
             User.display_name.ilike(term),
         )
-        base_query = base_query.join(User, OrganizationMember.user_id == User.id).where(search_filter)
-        count_query = count_query.join(User, OrganizationMember.user_id == User.id).where(search_filter)
+        base_query = base_query.join(User, OrganizationMember.user_id == User.id).where(
+            search_filter
+        )
+        count_query = count_query.join(User, OrganizationMember.user_id == User.id).where(
+            search_filter
+        )
 
     if role:
         base_query = base_query.where(OrganizationMember.role == role)
@@ -284,6 +299,25 @@ async def invite_team_member(
     user = await team_repository.get_user_by_email(db_session, email=normalized_email)
     invited = False
     resolved_name = payload.name or team_service.display_name_for_email(normalized_email)
+    existing_member = None
+    if user is not None:
+        existing_member = await team_repository.get_member_for_user(
+            db_session,
+            organization_id=organization_id,
+            user_id=user.id,
+        )
+
+    if user is None or existing_member is None:
+        current_members = await _count_members(db_session, organization_id=organization_id)
+        await plan_enforcement_service.ensure_within_limit(
+            db_session,
+            organization_id=organization_id,
+            quota_type=QuotaType.seats,
+            requested_amount=1,
+            current_value_override=current_members,
+            resource="team seats",
+            guidance="Remove a member or upgrade your plan.",
+        )
 
     if user is None:
         invited = True
@@ -387,8 +421,7 @@ async def invite_team_member(
             "inviter_name": None,
             "role": payload.role,
             "accept_url": (
-                str(settings.frontend_base_url).rstrip("/")
-                + f"/accept-invite?token={invite_token}"
+                str(settings.frontend_base_url).rstrip("/") + f"/accept-invite?token={invite_token}"
             ),
             "recipient_name": resolved_name,
             "expiry_hours": 168,
@@ -446,6 +479,7 @@ async def update_team_member_role(
     if payload.custom_role_id is not None:
         try:
             from uuid import UUID as _UUID
+
             custom_role_uuid = _UUID(payload.custom_role_id)
         except ValueError as exc:
             raise HTTPException(

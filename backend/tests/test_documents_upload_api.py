@@ -34,6 +34,7 @@ from app.clients import minio_client as minio_module
 from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.documents.services.malware_scan import MalwareScanResult
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.interfaces.http import documents as documents_api
 from app.main import app
 from app.models.document import Document
@@ -173,6 +174,22 @@ async def _get_document(db_session: AsyncSession, *, document_id: UUID) -> Docum
     return result.scalar_one_or_none()
 
 
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("filename", "content_type", "content"),
@@ -182,7 +199,7 @@ async def _get_document(db_session: AsyncSession, *, document_id: UUID) -> Docum
         (
             "sample.docx",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            b"docx-bytes",
+            b"PK\x03\x04docx-bytes",
         ),
     ],
 )
@@ -298,6 +315,95 @@ async def test_upload_rejects_unsupported_mime_type(
     assert response.json()["detail"] == "unsupported mime type"
     assert len(fake_minio.put_calls) == 0
     assert len(fake_process_document_task.delay_calls) == 0
+    assert await _document_count(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_upload_blocks_when_upload_quota_is_exhausted(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=org.id,
+        limits={
+            "uploads": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "per_day",
+            }
+        },
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "uploads"
+    assert payload["retryable"] is True
+    assert payload["action"] == "Upgrade your plan or reduce upload volume."
+    assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
+    assert fake_malware_scan_service.calls == []
+    assert await _document_count(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_upload_blocks_when_storage_quota_is_exhausted(
+    upload_client: AsyncClient,
+    db_session: AsyncSession,
+    fake_minio: FakeMinio,
+    fake_process_document_task: FakeProcessDocumentTask,
+    fake_malware_scan_service: FakeMalwareScanService,
+) -> None:
+    user, org = await _seed_principal(db_session)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=org.id,
+        limits={
+            "uploads": {
+                "soft_limit": 10,
+                "hard_limit": 10,
+                "reset_window": "per_day",
+            },
+            "storage_bytes": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "none",
+            },
+        },
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id, organization_id=str(org.id), expires_in_seconds=600
+    )
+
+    response = await upload_client.post(
+        "/api/v1/documents/upload",
+        headers=_auth_headers(token=token, organization_id=str(org.id)),
+        files={"file": ("sample.txt", b"safe payload", "text/plain")},
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "storage_bytes"
+    assert payload["retryable"] is False
+    assert payload["action"] == "Upgrade your plan or delete content to free storage."
+    assert len(fake_minio.put_calls) == 0
+    assert len(fake_process_document_task.delay_calls) == 0
+    assert fake_malware_scan_service.calls == []
     assert await _document_count(db_session) == 0
 
 

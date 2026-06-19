@@ -22,16 +22,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.authorization_service import AuthorizationService
 from app.auth.dependencies import ensure_document_ids_access, require_roles
 from app.auth.models import AuthenticatedPrincipal
-from app.auth.policy_engine import Action, ResourceContext, ResourceType
-from app.auth.resource_context_builder import (
-    build_document_resource_contexts_batch,
-    get_subject_accessible_collection_ids,
-)
 from app.auth.passwords import (
     PasswordHashConfig,
     build_password_hasher,
     hash_password,
     verify_password,
+)
+from app.auth.policy_engine import Action
+from app.auth.resource_context_builder import (
+    build_document_resource_contexts_batch,
+    get_subject_accessible_collection_ids,
 )
 from app.clients import qdrant_client as qdrant_module
 from app.clients import redis_client as redis_module
@@ -59,8 +59,8 @@ from app.domains.chat.schemas.answer_share import (
 from app.domains.chat.schemas.chat import (
     ChatCitationResponse,
     ChatConfidenceExplanationResponse,
-    ChatDebugResponse,
     ChatConflictPairResponse,
+    ChatDebugResponse,
     ChatMessageRequest,
     ChatMessageResponse,
     ChatQueryRequest,
@@ -92,48 +92,39 @@ from app.domains.chat.services.conflict_detection_service import (
     ConflictDetectionResult,
     ConflictDetectionService,
 )
-from app.domains.chat.services.grounded_answer_verifier import (
-    GroundedAnswerVerifier,
-    GroundedVerifierResult,
-    VerifierChunk,
-)
 from app.domains.chat.services.graph_retrieval_service import (
     GraphRetrievalResult,
     GraphRetrievalService,
     GraphRetrievedChunk,
 )
-from app.domains.chat.services.source_freshness_service import (
-    DocumentTrustData,
-    SourceFreshnessService,
+from app.domains.chat.services.grounded_answer_verifier import (
+    GroundedAnswerVerifier,
+    GroundedVerifierResult,
+    VerifierChunk,
 )
-from app.domains.chat.services.table_retrieval_service import (
-    TableBoostResult,
-    TableRetrievalService,
-)
-from app.domains.chat.services.parent_context_expansion_service import (
-    ParentContextExpansionService,
-    ParentExpansionResult,
-)
-from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.chat.services.hybrid_retrieval_service import (
     HybridCandidate,
     HybridRetrievalService,
 )
 from app.domains.chat.services.keyword_retrieval_service import KeywordRetrievalService
 from app.domains.chat.services.language_service import detect_language, resolve_answer_language
-from app.domains.chat.services.query_rewriting_service import (
-    QueryRewritingResult,
-    QueryRewritingService,
-)
 from app.domains.chat.services.llm_service import (
     LLMService,
     PermanentLLMServiceError,
     TransientLLMServiceError,
 )
+from app.domains.chat.services.parent_context_expansion_service import (
+    ParentContextExpansionService,
+    ParentExpansionResult,
+)
 from app.domains.chat.services.prompt_service import PromptContextChunk, PromptService
 from app.domains.chat.services.query_retrieval_service import (
     QueryRetrievalService,
     RetrievedCandidate,
+)
+from app.domains.chat.services.query_rewriting_service import (
+    QueryRewritingResult,
+    QueryRewritingService,
 )
 from app.domains.chat.services.rerank_service import (
     RerankCandidate,
@@ -141,11 +132,22 @@ from app.domains.chat.services.rerank_service import (
     RerankService,
     RerankSettings,
 )
+from app.domains.chat.services.source_freshness_service import (
+    DocumentTrustData,
+    SourceFreshnessService,
+)
 from app.domains.chat.services.source_scope_service import SourceScopeService
+from app.domains.chat.services.table_retrieval_service import (
+    TableBoostResult,
+    TableRetrievalService,
+)
 from app.domains.connectors.services.source_provenance import SourceProvenanceService
 from app.domains.documents.repositories.documents import DocumentRepository as _DocumentRepository
+from app.domains.documents.services.ocr_quality_service import OcrQualityService
 from app.domains.prompt_templates.services.prompt_template_service import PromptTemplateService
 from app.domains.prompt_templates.services.rendering import PromptTemplateValidationError
+from app.domains.quota.schemas.quota_schemas import QuotaType
+from app.domains.quota.services.plan_enforcement_service import plan_enforcement_service
 from app.domains.rag_profiles.schemas.rag_profiles import RagProfileConfig
 from app.domains.rag_profiles.services.rag_profile_service import resolve_profile_for_context
 from app.models.enums import ChatRole, OrganizationRole, PromptTemplateKey
@@ -1225,6 +1227,14 @@ async def query_chat(
     request_id = _request_id_from_request(request)
     user_id, organization_id = _principal_user_and_org(principal)
     user_roles = list(principal.roles or [])
+    await plan_enforcement_service.ensure_within_limit(
+        db_session,
+        organization_id=organization_id,
+        quota_type=QuotaType.questions,
+        requested_amount=1,
+        resource="chat questions",
+        guidance="Upgrade your plan or reduce chat volume.",
+    )
     try:
         explicit_document_ids = await ensure_document_ids_access(
             document_ids=payload.document_ids,
@@ -1259,6 +1269,7 @@ async def query_chat(
     # Admins bypass via rule 5; non-admins have each document checked.
     if document_ids and not frozenset({"owner", "admin"}).intersection(user_roles):
         from app.domains.documents.repositories.documents import DocumentRepository as _DocRepo
+
         _doc_repo_chat = _DocRepo()
         docs_for_auth = []
         for doc_id in document_ids:
@@ -1418,6 +1429,7 @@ async def query_chat(
     conflict_detection_enabled = False
     conflict_detection_applied = False
     conflict_detection_latency_ms = 0
+    rerank_applied = False
     conflict_detection_result = ConflictDetectionResult(
         conflict_detected=False,
         agreement_level="full",
@@ -1592,7 +1604,7 @@ async def query_chat(
             # Collect chunks from all retrieval queries, deduplicating by chunk_id.
             # When the same chunk appears in multiple sub-query results we keep the
             # instance with the highest similarity score.
-            _merged_chunks: dict[str, "RetrievedChunk"] = {}
+            _merged_chunks: dict[str, RetrievedChunk] = {}
             _primary_query_for_kw = _retrieval_queries[0]
 
             for (query_vector, _), retrieval_q in zip(embed_results, _retrieval_queries):
@@ -1657,6 +1669,7 @@ async def query_chat(
                 from app.domains.documents.repositories.documents import (
                     DocumentRepository as _DocRepoForCite,
                 )
+
                 _cite_doc_repo = _DocRepoForCite()
                 _chunk_docs = []
                 _seen_doc_ids: set[str] = set()
@@ -1692,9 +1705,7 @@ async def query_chat(
                         )
                     }
                     retrieved_chunks = [
-                        c
-                        for c in retrieved_chunks
-                        if str(c.document_id) in _allowed_cite_ids
+                        c for c in retrieved_chunks if str(c.document_id) in _allowed_cite_ids
                     ]
 
             graph_enabled = await _resolve_graph_rag_enabled(
@@ -2393,6 +2404,12 @@ async def query_chat(
             },
         )
 
+        await plan_enforcement_service.record_usage(
+            db_session,
+            organization_id=organization_id,
+            quota_type=QuotaType.questions,
+            amount=1,
+        )
         await db_session.commit()
     except Exception as exc:
         await db_session.rollback()

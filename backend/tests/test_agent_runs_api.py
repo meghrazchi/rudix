@@ -36,6 +36,7 @@ from app.core.config import AuthProvider, settings
 from app.db.session import get_db_session
 from app.domains.agents.schemas import ToolCall, ToolEffectPolicy, ToolSpec, ToolSurface
 from app.domains.agents.services import AgentRuntime, ToolRegistry
+from app.domains.quota.services.quota_service import upsert_policy_with_log
 from app.interfaces.http import agent_runs as agent_runs_api
 from app.main import app
 from app.models.enums import AgentApprovalStatus, OrganizationRole
@@ -124,6 +125,22 @@ async def _seed_user_for_org(
     )
     await db_session.commit()
     return user
+
+
+async def _seed_quota_policy(
+    db_session: AsyncSession,
+    *,
+    organization_id: UUID,
+    limits: dict[str, dict[str, object]],
+) -> None:
+    await upsert_policy_with_log(
+        db_session,
+        organization_id=organization_id,
+        limits=limits,
+        updated_by_id=None,
+        change_note="test quota policy",
+    )
+    await db_session.commit()
 
 
 def _auth_headers(*, token: str, organization_id: str) -> dict[str, str]:
@@ -268,6 +285,45 @@ async def test_create_agent_run_requires_explicit_agentic_mode(
     assert response.status_code == 400
     payload = response.json()
     assert payload["detail"]["code"] == "agentic_mode_required"
+
+
+@pytest.mark.asyncio
+async def test_create_agent_run_blocks_when_quota_is_exhausted(
+    agent_runs_client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    user, organization, _ = await _seed_principal(db_session)
+    await _seed_quota_policy(
+        db_session,
+        organization_id=organization.id,
+        limits={
+            "agent_runs": {
+                "soft_limit": 0,
+                "hard_limit": 0,
+                "reset_window": "per_day",
+            }
+        },
+    )
+    token = create_app_access_token(
+        subject=user.external_auth_id,
+        organization_id=str(organization.id),
+        expires_in_seconds=600,
+    )
+    response = await agent_runs_client.post(
+        "/api/v1/agent/runs",
+        headers=_auth_headers(token=token, organization_id=str(organization.id)),
+        json={
+            "agentic_mode": True,
+            "request": {"objective": "Answer the policy question"},
+        },
+    )
+
+    assert response.status_code == 403
+    payload = response.json()["detail"]
+    assert payload["code"] == "plan_limit_exceeded"
+    assert payload["quota_type"] == "agent_runs"
+    assert payload["retryable"] is True
+    assert payload["action"] == "Upgrade your plan or reduce agent usage."
 
 
 @pytest.mark.asyncio
