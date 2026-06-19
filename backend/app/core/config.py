@@ -571,6 +571,11 @@ class Settings(BaseSettings):
     feature_enable_graph_explorer: bool = True
     feature_enable_mcp: bool = False
     feature_enable_external_mcp_connectors: bool = False
+    # Authorization enforcement mode (F336).
+    # True (default): policy denies block access and return 403/404.
+    # False: soft/canary mode — denials are logged but access is allowed.
+    # Disable only during staged rollout on existing deployments; re-enable before GA.
+    feature_enable_authorization_enforcement: bool = True
     feature_expose_config_snapshot: bool = True
     feature_enable_language_aware_rag: bool = True
     # WebSocket chat transport (F277).

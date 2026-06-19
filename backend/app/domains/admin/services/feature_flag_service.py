@@ -20,6 +20,7 @@ from app.models.feature_flags import OrgFeatureFlagOverride
 # Maps canonical flag name → settings attribute name.
 _SETTINGS_ATTR: dict[str, str] = {
     "agents": "feature_enable_agents",
+    "authorization_enforcement": "feature_enable_authorization_enforcement",
     "mcp": "feature_enable_mcp",
     "connectors": "feature_enable_connectors",
     "evaluations": "feature_enable_evaluations",

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 # Canonical flag names. These map to settings.feature_enable_<name>.
 FeatureFlagName = Literal[
     "agents",
+    "authorization_enforcement",
     "mcp",
     "connectors",
     "evaluations",
@@ -28,6 +29,7 @@ FeatureFlagName = Literal[
 
 ALL_FLAG_NAMES: tuple[FeatureFlagName, ...] = (
     "agents",
+    "authorization_enforcement",
     "mcp",
     "connectors",
     "evaluations",

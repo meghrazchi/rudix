@@ -341,6 +341,35 @@ def log_agent_event(
     )
 
 
+def log_authorization_event(
+    *,
+    event: str,
+    organization_id: str | None = None,
+    user_id: str | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    action: str | None = None,
+    decision: str | None = None,
+    deny_reason: str | None = None,
+    matched_rule: str | None = None,
+    request_id: str | None = None,
+    **fields: Any,
+) -> None:
+    get_logger("events.authorization").info(
+        event,
+        organization_id=organization_id,
+        user_id=user_id,
+        resource_type=resource_type,
+        resource_id=resource_id,
+        action=action,
+        decision=decision,
+        deny_reason=deny_reason,
+        matched_rule=matched_rule,
+        request_id=request_id,
+        **fields,
+    )
+
+
 def log_chunking_event(
     *,
     event: str,

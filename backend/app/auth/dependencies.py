@@ -19,6 +19,8 @@ from app.auth.resource_context_builder import (
     build_document_resource_context,
     get_subject_accessible_collection_ids,
 )
+from app.core.config import settings
+from app.core.logging import log_authorization_event
 from app.db.session import get_db_session
 from app.domains.documents.repositories.documents import DocumentRepository
 from app.models.connector import ConnectorConnection, ExternalItem
@@ -373,6 +375,16 @@ def require_document_policy_access(
 
         # Skip full policy evaluation for admins — rule 5 always grants them access.
         if principal.roles and _ADMIN_ROLES.intersection(principal.roles):
+            log_authorization_event(
+                event="authorization_granted",
+                organization_id=str(organization_id),
+                user_id=principal.user_id,
+                resource_type="document",
+                resource_id=str(parsed_document_id),
+                action=action.value,
+                decision="allow",
+                matched_rule="owner_admin_override",
+            )
             return document
 
         user_roles = list(principal.roles or [])
@@ -389,14 +401,31 @@ def require_document_policy_access(
             organization_id=organization_id,
             subject_accessible_collection_ids=accessible_collection_ids,
         )
-        await _authorization_service.authorize_or_raise(
+        result = await _authorization_service.authorize(
             principal,
             action,
             resource_ctx,
             db_session,
-            deny_status=status.HTTP_404_NOT_FOUND,
-            deny_detail="Document not found",
         )
+        log_authorization_event(
+            event="authorization_denied" if result.result.value == "deny" else "authorization_granted",
+            organization_id=str(organization_id),
+            user_id=principal.user_id,
+            resource_type="document",
+            resource_id=str(parsed_document_id),
+            action=action.value,
+            decision=result.result.value,
+            deny_reason=result.deny_reason.value if result.deny_reason else None,
+            matched_rule=result.matched_rule,
+            request_id=result.request_id,
+        )
+        if result.result.value == "deny":
+            if settings.feature_enable_authorization_enforcement:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Document not found",
+                )
+            # Soft/canary mode: log but allow access through
         return document
 
     return dependency
