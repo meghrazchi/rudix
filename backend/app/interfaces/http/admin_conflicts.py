@@ -45,8 +45,8 @@ from app.domains.permissions.schemas.conflicts import (
     ScanResult,
     TraceStep,
     UpdateConflictStatusRequest,
-    remediation_for,
 )
+from app.domains.permissions.services.conflict_detection_service import remediation_for
 from app.domains.permissions.services.conflict_detection_service import (
     ConflictDetectionService,
 )
