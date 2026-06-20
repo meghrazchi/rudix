@@ -143,10 +143,9 @@ export function AdminSSOPage() {
   if (configQuery.isError)
     return (
       <ErrorState
-        message={getApiErrorMessage(
-          configQuery.error,
-          "Failed to load SSO configuration.",
-        )}
+        error={configQuery.error}
+        description="Failed to load SSO configuration."
+        onRetry={() => void configQuery.refetch()}
       />
     );
 

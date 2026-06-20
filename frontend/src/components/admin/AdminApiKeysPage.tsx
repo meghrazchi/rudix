@@ -461,7 +461,7 @@ export function AdminApiKeysPage() {
         />
       );
     }
-    return <ErrorState message={getApiErrorMessage(keysQuery.error)} />;
+    return <ErrorState description={getApiErrorMessage(keysQuery.error)} />;
   }
 
   const keys = keysQuery.data?.items ?? [];

@@ -369,7 +369,7 @@ export function ModelProfileComparisonPanel({
       )}
 
       {reportQuery.isLoading ? (
-        <LoadingState message="Loading comparison report…" />
+        <LoadingState title="Loading comparison report…" />
       ) : reportQuery.isError ? (
         <ErrorState
           compact

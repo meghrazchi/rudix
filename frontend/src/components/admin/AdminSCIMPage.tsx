@@ -64,7 +64,7 @@ export function AdminSCIMPage() {
       setActionError(null);
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, "Failed to enable SCIM."));
+      setActionError(getApiErrorMessage(err));
     },
   });
 
@@ -77,7 +77,7 @@ export function AdminSCIMPage() {
       setActionError(null);
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, "Failed to rotate token."));
+      setActionError(getApiErrorMessage(err));
       setShowRotateConfirm(false);
     },
   });
@@ -91,7 +91,7 @@ export function AdminSCIMPage() {
       setActionError(null);
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, "Failed to disable SCIM."));
+      setActionError(getApiErrorMessage(err));
       setShowDisableConfirm(false);
     },
   });
@@ -116,9 +116,7 @@ export function AdminSCIMPage() {
       setDomainError(null);
     },
     onError: (err) => {
-      setDomainError(
-        getApiErrorMessage(err, "Failed to initiate domain verification."),
-      );
+      setDomainError(getApiErrorMessage(err));
     },
   });
 
@@ -135,7 +133,7 @@ export function AdminSCIMPage() {
       );
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, "Failed to check domain."));
+      setActionError(getApiErrorMessage(err));
     },
   });
 
@@ -149,7 +147,7 @@ export function AdminSCIMPage() {
       );
     },
     onError: (err) => {
-      setActionError(getApiErrorMessage(err, "Failed to remove domain."));
+      setActionError(getApiErrorMessage(err));
     },
   });
 
@@ -163,10 +161,9 @@ export function AdminSCIMPage() {
   if (configQuery.isError)
     return (
       <ErrorState
-        message={getApiErrorMessage(
-          configQuery.error,
-          "Failed to load SCIM configuration.",
-        )}
+        error={configQuery.error}
+        description="Failed to load SCIM configuration."
+        onRetry={() => void configQuery.refetch()}
       />
     );
 

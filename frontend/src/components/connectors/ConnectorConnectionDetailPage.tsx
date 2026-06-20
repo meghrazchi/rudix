@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage, type ApiClientError } from "@/lib/api/errors";
 import { ConnectorConflictPanel } from "@/components/connectors/ConnectorConflictPanel";
 import { ConnectorPermissionReviewPanel } from "@/components/connectors/ConnectorPermissionReviewPanel";
@@ -977,9 +980,7 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   if (connectionQuery.isLoading) {
     return (
       <div className="max-w-7xl p-8">
-        <div className="rounded-2xl border border-dashed border-[#d7d4e8] bg-white p-6 text-sm text-[#68647b]">
-          Loading connector details…
-        </div>
+        <LoadingState title="Loading connector details…" />
       </div>
     );
   }
@@ -987,7 +988,10 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
   if (connectionQuery.isError || !connection) {
     return (
       <div className="max-w-7xl space-y-4 p-8">
-        <PageErrorPanel error={connectionQuery.error as ApiClientError} />
+        <ErrorState
+          error={connectionQuery.error}
+          onRetry={() => void connectionQuery.refetch()}
+        />
         <Link
           href="/connectors"
           className="inline-flex items-center gap-2 rounded-xl border border-[#d7d4e8] px-4 py-2 text-sm font-semibold text-[#3525cd] hover:bg-[#f5f2ff]"
@@ -1114,10 +1118,12 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
             </div>
 
             {runsQuery.isLoading ? (
-              <p className="px-6 py-5 text-sm text-[#68647b]">Loading runs…</p>
+              <div className="px-6 py-4">
+                <LoadingState compact title="Loading runs…" />
+              </div>
             ) : runs.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-[#68647b]">
-                No sync runs yet.
+              <div className="px-6 py-6">
+                <EmptyState compact title="No sync runs yet" description="Trigger a sync to see run history here." />
               </div>
             ) : (
               <div className="overflow-x-auto">

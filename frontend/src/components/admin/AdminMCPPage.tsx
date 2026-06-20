@@ -1110,7 +1110,7 @@ export function AdminMCPPage() {
         />
       );
     }
-    return <ErrorState message={getApiErrorMessage(policyQuery.error)} />;
+    return <ErrorState description={getApiErrorMessage(policyQuery.error)} />;
   }
 
   const policy = policyQuery.data!;

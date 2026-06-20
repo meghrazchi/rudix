@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { EmptyState } from "@/components/states/EmptyState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   cancelSyncRun,
@@ -236,13 +238,14 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         )}
 
         {jobsQuery.isLoading && (
-          <p className="text-sm text-[#68647b]">Loading schedules…</p>
+          <LoadingState compact title="Loading schedules…" />
         )}
         {jobs.length === 0 && !jobsQuery.isLoading && (
-          <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
-            No sync schedules configured. Add one to start syncing
-            automatically.
-          </div>
+          <EmptyState
+            compact
+            title="No sync schedules"
+            description="Add a schedule to start syncing automatically."
+          />
         )}
 
         <div className="space-y-2">
@@ -309,12 +312,14 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
         </div>
 
         {runsQuery.isLoading && (
-          <p className="text-sm text-[#68647b]">Loading runs…</p>
+          <LoadingState compact title="Loading runs…" />
         )}
         {runs.length === 0 && !runsQuery.isLoading && (
-          <div className="rounded-xl border border-dashed border-[#d7d4e8] bg-[#faf9fe] p-4 text-sm text-[#68647b]">
-            No sync runs yet.
-          </div>
+          <EmptyState
+            compact
+            title="No sync runs yet"
+            description="Trigger a sync to see run history here."
+          />
         )}
 
         {runs.length > 0 && (

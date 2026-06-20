@@ -1,3 +1,4 @@
+import { NetworkErrorState } from "@/components/states/NetworkErrorState";
 import { RateLimitState } from "@/components/states/RateLimitState";
 import { RetryAction } from "@/components/states/RetryAction";
 import { getApiErrorMessage, isApiClientError } from "@/lib/api/errors";
@@ -49,6 +50,12 @@ export function ErrorState({
   retryLabel = "Retry",
   compact = false,
 }: ErrorStateProps) {
+  if (isApiClientError(error) && error.status === 0) {
+    return (
+      <NetworkErrorState onRetry={onRetry} retryLabel={retryLabel} compact={compact} />
+    );
+  }
+
   if (isApiClientError(error) && error.status === 429) {
     return (
       <RateLimitState

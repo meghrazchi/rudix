@@ -23,8 +23,14 @@ export function LoadingState({
         } text-sm text-[#5f5b72]`
       }
     >
-      <p className={compact ? "font-medium" : "font-semibold"}>{title}</p>
-      {description ? <p className="mt-1">{description}</p> : null}
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={`inline-block rounded-full bg-[#3525cd]/30 ${compact ? "h-2 w-2" : "h-2.5 w-2.5"} animate-pulse`}
+        />
+        <p className={compact ? "font-medium" : "font-semibold"}>{title}</p>
+      </div>
+      {description ? <p className="mt-1 ml-4">{description}</p> : null}
     </section>
   );
 }

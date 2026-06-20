@@ -697,7 +697,7 @@ export function AdminWebhooksPage() {
         />
       );
     }
-    return <ErrorState message={getApiErrorMessage(webhooksQuery.error)} />;
+    return <ErrorState description={getApiErrorMessage(webhooksQuery.error)} />;
   }
 
   const webhooks = webhooksQuery.data?.items ?? [];

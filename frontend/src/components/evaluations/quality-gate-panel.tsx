@@ -18,6 +18,9 @@ import {
   type QualityGateRunResponse,
   type QualityGateThresholds,
 } from "@/lib/api/quality-gates";
+import { EmptyState } from "@/components/states/EmptyState";
+import { ErrorState } from "@/components/states/ErrorState";
+import { LoadingState } from "@/components/states/LoadingState";
 import { getApiErrorMessage } from "@/lib/api/errors";
 
 // ---------------------------------------------------------------------------
@@ -209,9 +212,11 @@ function GateRunCard({
                 </button>
               </div>
               {overrideMutation.isError && (
-                <p className="text-xs text-red-600">
-                  {getApiErrorMessage(overrideMutation.error)}
-                </p>
+                <ErrorState
+                  compact
+                  error={overrideMutation.error}
+                  onRetry={() => overrideMutation.mutate()}
+                />
               )}
             </div>
           )}
@@ -299,9 +304,11 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
             {triggerMutation.isPending ? "Running…" : "Run gate"}
           </button>
           {triggerMutation.isError && (
-            <p className="text-xs text-red-600">
-              {getApiErrorMessage(triggerMutation.error)}
-            </p>
+            <ErrorState
+              compact
+              error={triggerMutation.error}
+              onRetry={() => triggerMutation.mutate()}
+            />
           )}
           {triggerMutation.isSuccess && (
             <p className="text-xs text-green-600">
@@ -316,9 +323,9 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
           Run history
         </h4>
         {runsLoading ? (
-          <p className="text-xs text-gray-400">Loading…</p>
+          <LoadingState compact title="Loading runs…" />
         ) : !runsData?.items.length ? (
-          <p className="text-xs text-gray-400">No runs yet.</p>
+          <EmptyState compact title="No runs yet" description="Trigger the gate above to see results." />
         ) : (
           <div className="space-y-3">
             {runsData.items.map((run) => (
@@ -438,9 +445,7 @@ function CreateGateForm({
         {createMutation.isPending ? "Creating…" : "Create gate"}
       </button>
       {createMutation.isError && (
-        <p className="text-xs text-red-600">
-          {getApiErrorMessage(createMutation.error)}
-        </p>
+        <ErrorState compact error={createMutation.error} />
       )}
     </div>
   );
@@ -473,18 +478,15 @@ export function QualityGatePanel(): React.ReactNode {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex h-32 items-center justify-center text-sm text-gray-400">
-        Loading quality gates…
-      </div>
-    );
+    return <LoadingState title="Loading quality gates…" />;
   }
 
   if (error) {
     return (
-      <div className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-        Failed to load quality gates: {getApiErrorMessage(error)}
-      </div>
+      <ErrorState
+        error={error}
+        onRetry={() => void qc.invalidateQueries({ queryKey: qgKeys.gates })}
+      />
     );
   }
 
@@ -514,10 +516,11 @@ export function QualityGatePanel(): React.ReactNode {
         )}
 
         {gates.length === 0 && !showCreateForm ? (
-          <p className="text-xs text-gray-400">
-            No quality gates configured. Create one to enforce release
-            thresholds.
-          </p>
+          <EmptyState
+            compact
+            title="No quality gates"
+            description="Create one to enforce release thresholds."
+          />
         ) : (
           <ul className="space-y-1">
             {gates.map((gate) => (

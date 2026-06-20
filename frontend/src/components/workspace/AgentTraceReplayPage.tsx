@@ -479,6 +479,7 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
     isLoading,
     isError,
     error,
+    refetch,
   } = useQuery({
     queryKey: queryKeys.agent.trace(runId),
     queryFn: () => getAgentRunTrace(runId),
@@ -504,7 +505,11 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
   if (isLoading) return <LoadingState />;
   if (isError || !trace)
     return (
-      <ErrorState message={getApiErrorMessage(error) ?? "Could not load trace."} />
+      <ErrorState
+        error={error}
+        description="Could not load trace."
+        onRetry={() => void refetch()}
+      />
     );
 
   return (
@@ -552,7 +557,7 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
         </p>
 
         {trace.timeline.length === 0 ? (
-          <EmptyState message="No timeline events recorded for this run." />
+          <EmptyState description="No timeline events recorded for this run." />
         ) : (
           <div className="space-y-1.5 relative before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-[#e4e1f2]">
             {trace.timeline.map((event, idx) => (

@@ -65,11 +65,11 @@ export function AdminAgentPolicyPage() {
     if (isForbiddenError(error)) {
       return <ForbiddenState />;
     }
-    return <ErrorState message={getApiErrorMessage(error)} />;
+    return <ErrorState description={getApiErrorMessage(error)} />;
   }
 
   if (!data) {
-    return <EmptyState message="No agent policy data available." />;
+    return <EmptyState description="No agent policy data available." />;
   }
 
   const overrideByName: Record<string, OrgToolPolicyOverride> = Object.fromEntries(

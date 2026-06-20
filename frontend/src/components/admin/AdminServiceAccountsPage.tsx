@@ -883,7 +883,7 @@ export function AdminServiceAccountsPage() {
         />
       );
     }
-    return <ErrorState message={getApiErrorMessage(accountsQuery.error)} />;
+    return <ErrorState description={getApiErrorMessage(accountsQuery.error)} />;
   }
 
   const accounts = accountsQuery.data?.items ?? [];
