@@ -49,7 +49,9 @@ function statusBadge(s: string): React.ReactNode {
           ? "bg-red-100 text-red-800"
           : "bg-gray-100 text-gray-600";
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
+    >
       {s.toUpperCase()}
     </span>
   );
@@ -63,7 +65,9 @@ function approvalBadge(s: string): React.ReactNode {
         ? "bg-red-100 text-red-800"
         : "bg-yellow-100 text-yellow-800";
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}
+    >
       {s.toUpperCase()}
     </span>
   );
@@ -74,22 +78,49 @@ function pct(v: number | null | undefined): string {
   return `${(v * 100).toFixed(1)}%`;
 }
 
-function deltaLabel(d: number | null | undefined, improved: boolean | null | undefined): string {
+function deltaLabel(
+  d: number | null | undefined,
+  improved: boolean | null | undefined,
+): string {
   if (d == null) return "—";
   const sign = d > 0 ? "+" : "";
-  const color = improved === true ? "text-green-700" : improved === false ? "text-red-700" : "text-gray-500";
+  const color =
+    improved === true
+      ? "text-green-700"
+      : improved === false
+        ? "text-red-700"
+        : "text-gray-500";
   return `${sign}${(d * 100).toFixed(2)}%`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    isRecord(value) &&
+    Object.values(value).every((entry) => typeof entry === "string")
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Comparison table
 // ---------------------------------------------------------------------------
 
-function ComparisonTable({ summaries }: { summaries: VariantRunSummary[] }): React.ReactNode {
-  if (!summaries.length) return <p className="text-sm text-gray-500">No variant results yet.</p>;
+function ComparisonTable({
+  summaries,
+}: {
+  summaries: VariantRunSummary[];
+}): React.ReactNode {
+  if (!summaries.length)
+    return <p className="text-sm text-gray-500">No variant results yet.</p>;
 
   const metrics = summaries[0].deltas_vs_reference.length
-    ? summaries[0].deltas_vs_reference.map((d) => ({ key: d.metric, label: d.label }))
+    ? summaries[0].deltas_vs_reference.map((d) => ({
+        key: d.metric,
+        label: d.label,
+      }))
     : [
         { key: "faithfulness_score", label: "Faithfulness" },
         { key: "citation_accuracy_score", label: "Citation Accuracy" },
@@ -101,12 +132,14 @@ function ComparisonTable({ summaries }: { summaries: VariantRunSummary[] }): Rea
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b text-left text-xs uppercase text-gray-500">
+          <tr className="border-b text-left text-xs text-gray-500 uppercase">
             <th className="py-2 pr-4 font-medium">Metric</th>
             {summaries.map((s) => (
               <th key={s.variant_id} className="py-2 pr-4 font-medium">
                 {s.variant_label}
-                <span className="ml-1 font-normal">({statusBadge(s.status)})</span>
+                <span className="ml-1 font-normal">
+                  ({statusBadge(s.status)})
+                </span>
               </th>
             ))}
           </tr>
@@ -117,7 +150,9 @@ function ComparisonTable({ summaries }: { summaries: VariantRunSummary[] }): Rea
               <td className="py-1.5 pr-4 text-gray-700">{label}</td>
               {summaries.map((s, idx) => {
                 const val = s.metrics_summary[key] as number | null | undefined;
-                const delta = s.deltas_vs_reference.find((d) => d.metric === key);
+                const delta = s.deltas_vs_reference.find(
+                  (d) => d.metric === key,
+                );
                 return (
                   <td key={s.variant_id} className="py-1.5 pr-4">
                     <span className="font-mono">
@@ -179,15 +214,21 @@ function VariantCard({
         <div>
           <span className="font-medium text-gray-900">{variant.label}</span>
           {variant.description && (
-            <p className="mt-0.5 text-xs text-gray-500">{variant.description}</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {variant.description}
+            </p>
           )}
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
             {variant.rag_profile_id && (
               <span>RAG profile v{variant.rag_profile_version ?? "?"}</span>
             )}
-            {variant.model_profile_key && <span>Model: {variant.model_profile_key}</span>}
+            {variant.model_profile_key && (
+              <span>Model: {variant.model_profile_key}</span>
+            )}
             {variant.prompt_template_version_id && (
-              <span>Prompt version: {variant.prompt_template_version_id.slice(0, 8)}</span>
+              <span>
+                Prompt version: {variant.prompt_template_version_id.slice(0, 8)}
+              </span>
             )}
           </div>
         </div>
@@ -241,7 +282,11 @@ function CreateExperimentForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !evaluationSetId.trim()) return;
-    onSubmit({ name: name.trim(), description: description.trim() || null, evaluation_set_id: evaluationSetId.trim() });
+    onSubmit({
+      name: name.trim(),
+      description: description.trim() || null,
+      evaluation_set_id: evaluationSetId.trim(),
+    });
   }
 
   return (
@@ -249,7 +294,9 @@ function CreateExperimentForm({
       <h3 className="mb-3 font-medium">New A/B Experiment</h3>
       <div className="space-y-3">
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">Name *</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Name *
+          </label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -259,7 +306,9 @@ function CreateExperimentForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">Description</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Description
+          </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -268,7 +317,9 @@ function CreateExperimentForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">Evaluation Set ID *</label>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            Evaluation Set ID *
+          </label>
           <input
             value={evaluationSetId}
             onChange={(e) => setEvaluationSetId(e.target.value)}
@@ -332,7 +383,9 @@ function AddVariantForm({
     mutation.mutate({
       label: label.trim(),
       rag_profile_id: ragProfileId.trim() || null,
-      rag_profile_version: ragProfileVersion ? parseInt(ragProfileVersion, 10) : null,
+      rag_profile_version: ragProfileVersion
+        ? parseInt(ragProfileVersion, 10)
+        : null,
       model_profile_key: modelProfileKey.trim() || null,
       prompt_template_version_id: promptVersionId.trim() || null,
     });
@@ -343,7 +396,9 @@ function AddVariantForm({
       <h4 className="mb-2 text-sm font-medium">Add Variant</h4>
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="col-span-2">
-          <label className="mb-0.5 block font-medium text-gray-700">Label *</label>
+          <label className="mb-0.5 block font-medium text-gray-700">
+            Label *
+          </label>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
@@ -353,7 +408,9 @@ function AddVariantForm({
           />
         </div>
         <div>
-          <label className="mb-0.5 block font-medium text-gray-700">RAG Profile ID</label>
+          <label className="mb-0.5 block font-medium text-gray-700">
+            RAG Profile ID
+          </label>
           <input
             value={ragProfileId}
             onChange={(e) => setRagProfileId(e.target.value)}
@@ -362,7 +419,9 @@ function AddVariantForm({
           />
         </div>
         <div>
-          <label className="mb-0.5 block font-medium text-gray-700">Profile Version</label>
+          <label className="mb-0.5 block font-medium text-gray-700">
+            Profile Version
+          </label>
           <input
             type="number"
             value={ragProfileVersion}
@@ -372,7 +431,9 @@ function AddVariantForm({
           />
         </div>
         <div>
-          <label className="mb-0.5 block font-medium text-gray-700">Model Profile Key</label>
+          <label className="mb-0.5 block font-medium text-gray-700">
+            Model Profile Key
+          </label>
           <input
             value={modelProfileKey}
             onChange={(e) => setModelProfileKey(e.target.value)}
@@ -381,7 +442,9 @@ function AddVariantForm({
           />
         </div>
         <div>
-          <label className="mb-0.5 block font-medium text-gray-700">Prompt Version ID</label>
+          <label className="mb-0.5 block font-medium text-gray-700">
+            Prompt Version ID
+          </label>
           <input
             value={promptVersionId}
             onChange={(e) => setPromptVersionId(e.target.value)}
@@ -391,7 +454,9 @@ function AddVariantForm({
         </div>
       </div>
       {mutation.error && (
-        <p className="mt-1 text-xs text-red-600">{getApiErrorMessage(mutation.error)}</p>
+        <p className="mt-1 text-xs text-red-600">
+          {getApiErrorMessage(mutation.error)}
+        </p>
       )}
       <div className="mt-2 flex gap-2">
         <button
@@ -452,18 +517,23 @@ function ExperimentDetail({
 
   const approve = useMutation({
     mutationFn: (variantId: string) =>
-      approveVariant(experimentId, variantId, { set_as_default_profile: false }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
+      approveVariant(experimentId, variantId, {
+        set_as_default_profile: false,
+      }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
   });
 
   const reject = useMutation({
     mutationFn: (variantId: string) => rejectVariant(experimentId, variantId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
   });
 
   const deleteVariant = useMutation({
     mutationFn: (variantId: string) => removeVariant(experimentId, variantId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: abKeys.experiment(experimentId) }),
   });
 
   if (isLoading || !exp) {
@@ -471,6 +541,11 @@ function ExperimentDetail({
   }
 
   const latestRun = runsData?.items[0] ?? null;
+  const winnerByMetric = isStringRecord(
+    latestRun?.comparison_report.winner_by_metric,
+  )
+    ? latestRun.comparison_report.winner_by_metric
+    : null;
 
   return (
     <div className="space-y-4">
@@ -478,15 +553,26 @@ function ExperimentDetail({
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="font-medium text-gray-900">{exp.name}</h3>
-          {exp.description && <p className="text-sm text-gray-500">{exp.description}</p>}
+          {exp.description && (
+            <p className="text-sm text-gray-500">{exp.description}</p>
+          )}
           <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-            <span>Dataset: <code className="font-mono">{exp.evaluation_set_id.slice(0, 8)}</code></span>
+            <span>
+              Dataset:{" "}
+              <code className="font-mono">
+                {exp.evaluation_set_id.slice(0, 8)}
+              </code>
+            </span>
             {statusBadge(exp.status)}
           </div>
         </div>
         <button
           onClick={() => startRun.mutate()}
-          disabled={startRun.isPending || exp.status === "running" || !exp.variants.length}
+          disabled={
+            startRun.isPending ||
+            exp.status === "running" ||
+            !exp.variants.length
+          }
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
         >
           {startRun.isPending ? "Starting…" : "Run Experiment"}
@@ -514,7 +600,9 @@ function ExperimentDetail({
           />
         )}
         {exp.variants.length === 0 ? (
-          <p className="text-sm text-gray-400">No variants yet — add at least two to compare.</p>
+          <p className="text-sm text-gray-400">
+            No variants yet — add at least two to compare.
+          </p>
         ) : (
           <div className="space-y-2">
             {exp.variants.map((v) => (
@@ -525,7 +613,8 @@ function ExperimentDetail({
                 onApprove={(id) => approve.mutate(id)}
                 onReject={(id) => reject.mutate(id)}
                 onRemove={(id) => {
-                  if (confirm(`Remove variant "${v.label}"?`)) deleteVariant.mutate(id);
+                  if (confirm(`Remove variant "${v.label}"?`))
+                    deleteVariant.mutate(id);
                 }}
               />
             ))}
@@ -550,7 +639,8 @@ function ExperimentDetail({
               </button>
             )}
           </div>
-          {latestRun.status === "completed" && latestRun.variant_summaries.length > 0 ? (
+          {latestRun.status === "completed" &&
+          latestRun.variant_summaries.length > 0 ? (
             <ComparisonTable summaries={latestRun.variant_summaries} />
           ) : (
             <p className="text-sm text-gray-400">
@@ -559,17 +649,14 @@ function ExperimentDetail({
                 : "No comparison data available."}
             </p>
           )}
-          {latestRun.comparison_report.winner_by_metric &&
-            Object.keys(latestRun.comparison_report.winner_by_metric as object).length > 0 && (
-              <div className="mt-3 rounded bg-green-50 p-2 text-xs text-green-800">
-                <strong>Winners by metric:</strong>{" "}
-                {Object.entries(
-                  latestRun.comparison_report.winner_by_metric as Record<string, string>
-                )
-                  .map(([metric, label]) => `${metric}: ${label}`)
-                  .join("; ")}
-              </div>
-            )}
+          {winnerByMetric && Object.keys(winnerByMetric).length > 0 && (
+            <div className="mt-3 rounded bg-green-50 p-2 text-xs text-green-800">
+              <strong>Winners by metric:</strong>{" "}
+              {Object.entries(winnerByMetric)
+                .map(([metric, label]) => `${metric}: ${label}`)
+                .join("; ")}
+            </div>
+          )}
         </section>
       )}
     </div>
@@ -616,7 +703,7 @@ export function AbTestPanel(): React.ReactNode {
       {/* Sidebar — experiment list */}
       <aside className="col-span-1">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold tracking-wide text-gray-700 uppercase">
             A/B Experiments
           </h2>
           <button
@@ -662,7 +749,8 @@ export function AbTestPanel(): React.ReactNode {
                     {statusBadge(exp.status)}
                   </div>
                   <div className="mt-0.5 text-xs text-gray-400">
-                    {exp.variants.length} variant{exp.variants.length !== 1 ? "s" : ""}
+                    {exp.variants.length} variant
+                    {exp.variants.length !== 1 ? "s" : ""}
                   </div>
                 </button>
               </li>

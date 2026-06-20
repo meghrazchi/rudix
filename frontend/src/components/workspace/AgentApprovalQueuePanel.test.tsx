@@ -96,9 +96,7 @@ describe("AgentApprovalQueuePanel", () => {
       mockApi.listAgentApprovals.mockResolvedValue(makeQueueResponse([]));
       renderPanel();
       await waitFor(() =>
-        expect(
-          screen.getByText(/no pending approvals/i),
-        ).toBeInTheDocument(),
+        expect(screen.getByText(/no pending approvals/i)).toBeInTheDocument(),
       );
     });
   });
@@ -108,7 +106,9 @@ describe("AgentApprovalQueuePanel", () => {
       mockApi.listAgentApprovals.mockRejectedValue(new Error("Network error"));
       renderPanel();
       await waitFor(() =>
-        expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument(),
+        expect(
+          screen.getByRole("button", { name: /retry/i }),
+        ).toBeInTheDocument(),
       );
     });
   });
@@ -121,16 +121,23 @@ describe("AgentApprovalQueuePanel", () => {
       renderPanel();
 
       await waitFor(() =>
-        expect(screen.getByText("Agent wants to write /tmp/output.txt")).toBeInTheDocument(),
+        expect(
+          screen.getByText("Agent wants to write /tmp/output.txt"),
+        ).toBeInTheDocument(),
       );
       expect(screen.getByText("file_write")).toBeInTheDocument();
       expect(screen.getByText("high")).toBeInTheDocument();
-      expect(screen.getByText("Summarise quarterly results")).toBeInTheDocument();
+      expect(
+        screen.getByText("Summarise quarterly results"),
+      ).toBeInTheDocument();
     });
 
     it("shows approval count badge when items present", async () => {
       mockApi.listAgentApprovals.mockResolvedValue(
-        makeQueueResponse([makeQueueItem(), makeQueueItem({ approval_id: "appr-2" })], 2),
+        makeQueueResponse(
+          [makeQueueItem(), makeQueueItem({ approval_id: "appr-2" })],
+          2,
+        ),
       );
       renderPanel();
       await waitFor(() => expect(screen.getByText("2")).toBeInTheDocument());
@@ -143,12 +150,16 @@ describe("AgentApprovalQueuePanel", () => {
       renderPanel();
 
       await waitFor(() =>
-        expect(screen.getByRole("button", { name: /approve/i })).toBeInTheDocument(),
+        expect(
+          screen.getByRole("button", { name: /approve/i }),
+        ).toBeInTheDocument(),
       );
       expect(
         screen.getByRole("button", { name: /request changes/i }),
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /reject/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /reject/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -163,7 +174,9 @@ describe("AgentApprovalQueuePanel", () => {
       });
       renderPanel();
 
-      const approveBtn = await screen.findByRole("button", { name: /approve/i });
+      const approveBtn = await screen.findByRole("button", {
+        name: /approve/i,
+      });
       await userEvent.click(approveBtn);
 
       expect(mockApi.decideAgentRunApproval).toHaveBeenCalledWith(
@@ -183,7 +196,9 @@ describe("AgentApprovalQueuePanel", () => {
       });
       renderPanel();
 
-      const approveBtn = await screen.findByRole("button", { name: /approve/i });
+      const approveBtn = await screen.findByRole("button", {
+        name: /approve/i,
+      });
       await userEvent.click(approveBtn);
 
       await waitFor(() =>
@@ -248,13 +263,13 @@ describe("AgentApprovalQueuePanel", () => {
       );
       renderPanel();
 
-      const approveBtn = await screen.findByRole("button", { name: /approve/i });
+      const approveBtn = await screen.findByRole("button", {
+        name: /approve/i,
+      });
       await userEvent.click(approveBtn);
 
       await waitFor(() =>
-        expect(
-          screen.getByRole("alert"),
-        ).toBeInTheDocument(),
+        expect(screen.getByRole("alert")).toBeInTheDocument(),
       );
     });
   });
@@ -267,7 +282,9 @@ describe("AgentApprovalQueuePanel", () => {
       renderPanel();
 
       await waitFor(() =>
-        expect(screen.getByText("Agent wants to write /tmp/output.txt")).toBeInTheDocument(),
+        expect(
+          screen.getByText("Agent wants to write /tmp/output.txt"),
+        ).toBeInTheDocument(),
       );
       expect(screen.queryByText("high")).not.toBeInTheDocument();
     });
@@ -280,7 +297,9 @@ describe("AgentApprovalQueuePanel", () => {
       );
       renderPanel();
       await waitFor(() =>
-        expect(screen.getByRole("button", { name: /comment/i })).toBeInTheDocument(),
+        expect(
+          screen.getByRole("button", { name: /comment/i }),
+        ).toBeInTheDocument(),
       );
     });
 
@@ -290,7 +309,9 @@ describe("AgentApprovalQueuePanel", () => {
       );
       renderPanel();
 
-      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      const commentBtn = await screen.findByRole("button", {
+        name: /add comment/i,
+      });
       await userEvent.click(commentBtn);
 
       expect(
@@ -302,13 +323,20 @@ describe("AgentApprovalQueuePanel", () => {
       mockApi.listAgentApprovals.mockResolvedValue(
         makeQueueResponse([makeQueueItem()]),
       );
-      mockApi.commentAgentRunApproval.mockResolvedValue({ ...makeQueueItem(), status: "pending" });
+      mockApi.commentAgentRunApproval.mockResolvedValue({
+        ...makeQueueItem(),
+        status: "pending",
+      });
       renderPanel();
 
-      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      const commentBtn = await screen.findByRole("button", {
+        name: /add comment/i,
+      });
       await userEvent.click(commentBtn);
 
-      const textarea = screen.getByPlaceholderText(/leave a comment without deciding/i);
+      const textarea = screen.getByPlaceholderText(
+        /leave a comment without deciding/i,
+      );
       await userEvent.type(textarea, "Please narrow the scope first.");
 
       const postBtn = screen.getByRole("button", { name: /post comment/i });
@@ -325,16 +353,23 @@ describe("AgentApprovalQueuePanel", () => {
       mockApi.listAgentApprovals.mockResolvedValue(
         makeQueueResponse([makeQueueItem()]),
       );
-      mockApi.commentAgentRunApproval.mockResolvedValue({ ...makeQueueItem(), status: "pending" });
+      mockApi.commentAgentRunApproval.mockResolvedValue({
+        ...makeQueueItem(),
+        status: "pending",
+      });
       renderPanel();
 
-      const commentBtn = await screen.findByRole("button", { name: /add comment/i });
+      const commentBtn = await screen.findByRole("button", {
+        name: /add comment/i,
+      });
       await userEvent.click(commentBtn);
       await userEvent.type(
         screen.getByPlaceholderText(/leave a comment without deciding/i),
         "LGTM",
       );
-      await userEvent.click(screen.getByRole("button", { name: /post comment/i }));
+      await userEvent.click(
+        screen.getByRole("button", { name: /post comment/i }),
+      );
 
       await waitFor(() =>
         expect(screen.getByText(/comment posted/i)).toBeInTheDocument(),

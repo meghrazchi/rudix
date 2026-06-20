@@ -325,7 +325,11 @@ function GateDetail({ gate }: { gate: QualityGateResponse }): React.ReactNode {
         {runsLoading ? (
           <LoadingState compact title="Loading runs…" />
         ) : !runsData?.items.length ? (
-          <EmptyState compact title="No runs yet" description="Trigger the gate above to see results." />
+          <EmptyState
+            compact
+            title="No runs yet"
+            description="Trigger the gate above to see results."
+          />
         ) : (
           <div className="space-y-3">
             {runsData.items.map((run) => (

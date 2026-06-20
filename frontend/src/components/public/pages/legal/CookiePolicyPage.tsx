@@ -48,9 +48,9 @@ export function CookiePolicyPage() {
               <p>
                 <strong>Analytics (optional).</strong> When analytics are
                 enabled and you have given consent, aggregate usage data is
-                collected to help us improve the product. No personal content
-                or document text is included. Data is not shared with
-                advertising networks.
+                collected to help us improve the product. No personal content or
+                document text is included. Data is not shared with advertising
+                networks.
               </p>
               <p>
                 <strong>Marketing.</strong> We do not use marketing or
@@ -68,14 +68,14 @@ export function CookiePolicyPage() {
                 On your first visit a consent banner appears at the bottom of
                 the page. You may:
               </p>
-              <ul className="list-disc pl-5 space-y-1">
+              <ul className="list-disc space-y-1 pl-5">
                 <li>
                   <strong>Accept all</strong> — enable Functional and Analytics
                   cookies in addition to the required Necessary cookies.
                 </li>
                 <li>
-                  <strong>Reject non-essential</strong> — use only the
-                  Necessary cookies required to run the service.
+                  <strong>Reject non-essential</strong> — use only the Necessary
+                  cookies required to run the service.
                 </li>
                 <li>
                   <strong>Customize</strong> — open the preferences panel and

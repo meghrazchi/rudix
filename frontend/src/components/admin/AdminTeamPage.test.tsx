@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminTeamPage } from "@/components/admin/AdminTeamPage";
+import type { SessionState } from "@/lib/auth-session";
 import type { TeamMember } from "@/lib/api/team";
 import type { OrganizationInvitation } from "@/lib/api/team-invitations";
 
@@ -551,8 +552,13 @@ describe("AdminTeamPage", () => {
   it("shows forbidden state when user is not admin", async () => {
     mockSession.state = {
       status: "authenticated",
-      session: { ...mockSession.state.session, role: "member" },
-    };
+      session: {
+        userId: "actor-1",
+        organizationId: "org-1",
+        organizationName: "Acme",
+        role: "member",
+      },
+    } as unknown as typeof mockSession.state;
     mockTeamApi.listTeamMembers.mockResolvedValue({
       items: [],
       total: 0,
@@ -652,8 +658,7 @@ describe("AdminTeamPage", () => {
 
 describe("AdminTeamPage - invitation service unit tests", () => {
   it("generates unique tokens", async () => {
-    const { generate_invite_token } =
-      await import("@/lib/api/team-invitations");
+    await import("@/lib/api/team-invitations");
     // These functions don't exist on the frontend module but token security tests are backend-only
     // Frontend validates input formats, not crypto primitives
     expect(true).toBe(true);

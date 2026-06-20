@@ -1,15 +1,11 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
 import { CookiePreferencesModal } from "@/components/consent/CookiePreferencesModal";
-import { createDefaultConsentDecisions, type ConsentDecisions } from "@/lib/consent";
+import {
+  createDefaultConsentDecisions,
+  type ConsentDecisions,
+} from "@/lib/consent";
 import { renderWithProviders } from "@/test/render";
 
 function renderModal(

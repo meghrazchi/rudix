@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: string }) {
     STATUS_BADGE[status] ?? "bg-[#e4e1ee] text-[#464555] border-[#d7d4e8]";
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${cls}`}
     >
       {status}
     </span>
@@ -160,7 +160,9 @@ function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
             )}
           </div>
           {step.error_message && (
-            <p className="mt-1 text-[11px] text-rose-700">{step.error_message}</p>
+            <p className="mt-1 text-[11px] text-rose-700">
+              {step.error_message}
+            </p>
           )}
         </div>
         <span className="material-symbols-outlined shrink-0 text-[16px] text-[#9993b0]">
@@ -169,10 +171,10 @@ function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
       </button>
 
       {expanded && (hasInputs || hasOutputs) && (
-        <div className="border-t border-[#e4e1f2] px-3 pb-3 pt-2">
+        <div className="border-t border-[#e4e1f2] px-3 pt-2 pb-3">
           {hasInputs && (
             <div className="mb-2">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+              <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
                 Inputs
               </p>
               <div className="space-y-0.5">
@@ -190,7 +192,7 @@ function StepRow({ step }: { step: AgentRunDetailResponse["steps"][number] }) {
           )}
           {hasOutputs && (
             <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+              <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
                 Outputs
               </p>
               <div className="space-y-0.5">
@@ -244,7 +246,7 @@ function ToolCallRow({
         </span>
       </button>
       {expanded && (
-        <div className="border-t border-[#e4e1f2] px-3 pb-3 pt-2 space-y-2">
+        <div className="space-y-2 border-t border-[#e4e1f2] px-3 pt-2 pb-3">
           <div className="flex flex-wrap gap-3 text-[11px] text-[#68647b]">
             <span>
               Surface:{" "}
@@ -277,7 +279,7 @@ function ToolCallRow({
           </div>
           {Object.keys(toolCall.output ?? {}).length > 0 && (
             <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+              <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
                 Output
               </p>
               <div className="space-y-0.5">
@@ -295,7 +297,7 @@ function ToolCallRow({
           )}
           {Object.keys(toolCall.error ?? {}).length > 0 && (
             <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-rose-500">
+              <p className="mb-1 text-[10px] font-bold tracking-wide text-rose-500 uppercase">
                 Error
               </p>
               <div className="space-y-0.5">
@@ -330,11 +332,7 @@ function ApprovalRow({
   const [error, setError] = useState<string | null>(null);
 
   const decideMutation = useMutation({
-    mutationFn: ({
-      decision,
-    }: {
-      decision: "approved" | "rejected";
-    }) =>
+    mutationFn: ({ decision }: { decision: "approved" | "rejected" }) =>
       decideAgentRunApproval(runId, approval.approval_id, {
         status: decision,
         reason: reason.trim() || null,
@@ -432,8 +430,7 @@ function RunDetailPane({ runId }: { runId: string }) {
   const run = runQuery.data;
 
   const outcome = (run?.outcome ?? {}) as Record<string, unknown>;
-  const answer =
-    typeof outcome.answer === "string" ? outcome.answer : null;
+  const answer = typeof outcome.answer === "string" ? outcome.answer : null;
   const citations = Array.isArray(outcome.citations) ? outcome.citations : [];
   const confidence = (outcome.confidence ?? {}) as Record<string, unknown>;
   const notFound = outcome.not_found === true;
@@ -545,7 +542,9 @@ function RunDetailPane({ runId }: { runId: string }) {
           href={`/workspace/agent/${encodeURIComponent(runId)}/trace`}
           className="ml-auto flex items-center gap-1 text-[#3525cd] hover:underline"
         >
-          <span className="material-symbols-outlined text-[14px]">timeline</span>
+          <span className="material-symbols-outlined text-[14px]">
+            timeline
+          </span>
           View trace
         </Link>
       </div>
@@ -553,7 +552,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {/* Pending approvals */}
       {pendingApprovals.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
             Pending approvals ({pendingApprovals.length})
           </h3>
           <div className="space-y-2">
@@ -592,7 +591,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {/* Final answer */}
       {run.status === "completed" && (
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
             Answer
           </h3>
           {notFound ? (
@@ -603,7 +602,7 @@ function RunDetailPane({ runId }: { runId: string }) {
             />
           ) : answer ? (
             <div className="rounded-lg border border-[#e4e1f2] bg-white p-4">
-              <p className="whitespace-pre-wrap text-sm text-[#2a2640]">
+              <p className="text-sm whitespace-pre-wrap text-[#2a2640]">
                 {answer}
               </p>
               {Object.keys(confidence).length > 0 && (
@@ -618,7 +617,7 @@ function RunDetailPane({ runId }: { runId: string }) {
               )}
               {citations.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+                  <p className="mb-1 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
                     Citations ({citations.length})
                   </p>
                   <ol className="space-y-1">
@@ -663,7 +662,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {/* Step timeline */}
       {run.steps.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
             Steps ({run.steps.length})
           </h3>
           <div className="space-y-1.5">
@@ -677,7 +676,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {/* Tool calls */}
       {run.tool_calls.length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
             Tool calls ({run.tool_calls.length})
           </h3>
           <div className="space-y-1.5">
@@ -691,7 +690,7 @@ function RunDetailPane({ runId }: { runId: string }) {
       {/* All approvals (for audit view) */}
       {run.approvals.filter((a) => a.status !== "pending").length > 0 && (
         <section>
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
             Approval history
           </h3>
           <div className="space-y-1.5">
@@ -711,7 +710,7 @@ function RunDetailPane({ runId }: { runId: string }) {
 
       {/* Effective policy trace */}
       <section>
-        <h3 className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+        <h3 className="mb-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
           Effective policy
         </h3>
         <EffectivePolicyPanel runId={runId} />
@@ -795,8 +794,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
     onError: (err) => setError(getApiErrorMessage(err)),
   });
 
-  const canSubmit =
-    objective.trim().length >= 3 && !createMutation.isPending;
+  const canSubmit = objective.trim().length >= 3 && !createMutation.isPending;
 
   return (
     <form
@@ -809,7 +807,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
       <div>
         <label
           htmlFor="agent-objective"
-          className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-[#9993b0]"
+          className="mb-1 block text-[11px] font-bold tracking-wide text-[#9993b0] uppercase"
         >
           Objective
         </label>
@@ -828,7 +826,7 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
       </div>
 
       <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+        <p className="mb-1 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
           Mode
         </p>
         <div className="flex flex-wrap gap-1.5">
@@ -851,10 +849,10 @@ function NewRunForm({ onRunCreated }: NewRunFormProps) {
       </div>
 
       <details className="rounded-lg border border-[#e4e1f2] bg-[#faf9ff]">
-        <summary className="cursor-pointer px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-[#9993b0] select-none hover:bg-[#f0ecf9]">
+        <summary className="cursor-pointer px-3 py-2 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase select-none hover:bg-[#f0ecf9]">
           Budget controls
         </summary>
-        <div className="space-y-3 px-3 pb-3 pt-2">
+        <div className="space-y-3 px-3 pt-2 pb-3">
           <div>
             <label
               htmlFor="max-steps"
@@ -958,7 +956,7 @@ export function AgentWorkspacePage() {
         <div className="space-y-4">
           {/* New run form */}
           <section className="rounded-xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+            <h2 className="mb-3 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
               New run
             </h2>
             <NewRunForm onRunCreated={handleRunCreated} />
@@ -966,10 +964,10 @@ export function AgentWorkspacePage() {
 
           {/* Run list */}
           <section className="rounded-xl border border-[#d7d4e8] bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+            <h2 className="mb-3 text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
               Recent runs
               {runsQuery.data && (
-                <span className="ml-1 font-normal normal-case text-[#b0adbe]">
+                <span className="ml-1 font-normal text-[#b0adbe] normal-case">
                   ({runsQuery.data.total} total)
                 </span>
               )}
@@ -985,13 +983,15 @@ export function AgentWorkspacePage() {
                 compact
               />
             )}
-            {!runsQuery.isLoading && !runsQuery.isError && runs.length === 0 && (
-              <EmptyState
-                title="No runs yet"
-                description="Start your first agent run above."
-                compact
-              />
-            )}
+            {!runsQuery.isLoading &&
+              !runsQuery.isError &&
+              runs.length === 0 && (
+                <EmptyState
+                  title="No runs yet"
+                  description="Start your first agent run above."
+                  compact
+                />
+              )}
             {runs.length > 0 && (
               <div className="space-y-1.5">
                 {runs.map((run) => (

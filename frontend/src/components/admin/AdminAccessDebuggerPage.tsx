@@ -129,8 +129,12 @@ function TraceStepRow({ step }: { step: SimulateTraceStep }) {
       <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
       <div className="flex-1 text-xs">
         <span className="font-mono text-[#2a2640]">{step.rule}</span>
-        <span className={`ml-2 font-bold uppercase ${label}`}>{step.outcome}</span>
-        {step.detail && <span className="ml-2 text-[#68647b]">({step.detail})</span>}
+        <span className={`ml-2 font-bold uppercase ${label}`}>
+          {step.outcome}
+        </span>
+        {step.detail && (
+          <span className="ml-2 text-[#68647b]">({step.detail})</span>
+        )}
       </div>
     </div>
   );
@@ -143,9 +147,9 @@ function ReasonChainRow({ entry }: { entry: ReasonChainEntry }) {
       className={`flex items-start gap-3 rounded-lg px-3 py-2 ${
         isTerminal
           ? entry.outcome === "allow"
-            ? "bg-emerald-50 border border-emerald-100"
-            : "bg-red-50 border border-red-100"
-          : "bg-white border border-[#ede9fb]"
+            ? "border border-emerald-100 bg-emerald-50"
+            : "border border-red-100 bg-red-50"
+          : "border border-[#ede9fb] bg-white"
       }`}
     >
       <span
@@ -159,11 +163,13 @@ function ReasonChainRow({ entry }: { entry: ReasonChainEntry }) {
       >
         {entry.outcome === "allow" ? "✓" : entry.outcome === "deny" ? "✗" : "·"}
       </span>
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold text-[#2a2640]">
           {LAYER_LABELS[entry.layer] ?? entry.layer}
         </p>
-        {entry.detail && <p className="text-[11px] text-[#68647b]">{entry.detail}</p>}
+        {entry.detail && (
+          <p className="text-[11px] text-[#68647b]">{entry.detail}</p>
+        )}
       </div>
       <span
         className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
@@ -189,7 +195,7 @@ function PermissionsPanel({ permissions }: { permissions: string[] }) {
         {visible.map((p) => (
           <span
             key={p}
-            className="rounded-full bg-[#f0eeff] px-2 py-0.5 text-[10px] font-mono text-[#3525cd]"
+            className="rounded-full bg-[#f0eeff] px-2 py-0.5 font-mono text-[10px] text-[#3525cd]"
           >
             {p}
           </span>
@@ -215,10 +221,15 @@ function TroubleshootingLinks({ links }: { links: TroubleshootingLink[] }) {
         <Link
           key={link.href}
           href={link.href}
-          className="inline-flex items-center gap-1 rounded-lg border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs font-medium text-[#3525cd] hover:border-[#3525cd] hover:bg-[#f0eeff] transition"
+          className="inline-flex items-center gap-1 rounded-lg border border-[#d7d4e8] bg-white px-3 py-1.5 text-xs font-medium text-[#3525cd] transition hover:border-[#3525cd] hover:bg-[#f0eeff]"
         >
           {link.label}
-          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="h-3 w-3"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
               strokeLinecap="round"
@@ -293,7 +304,7 @@ function UserSelector({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-[#a09dbf] hover:text-[#2a2640]"
+            className="absolute top-1/2 right-2 -translate-y-1/2 text-[#a09dbf] hover:text-[#2a2640]"
             aria-label="Clear user selection"
           >
             ✕
@@ -319,16 +330,18 @@ function UserSelector({
                 type="button"
                 role="option"
                 onMouseDown={() => handleSelect(user)}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[#f0eeff] first:rounded-t-xl last:rounded-b-xl"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-xl last:rounded-b-xl hover:bg-[#f0eeff]"
               >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#3525cd] text-[10px] font-bold uppercase text-white">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#3525cd] text-[10px] font-bold text-white uppercase">
                   {(user.display_name ?? user.email).slice(0, 2)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-[#2a2640] truncate">
+                  <p className="truncate text-xs font-semibold text-[#2a2640]">
                     {user.display_name ?? user.email}
                   </p>
-                  <p className="text-[10px] text-[#68647b] truncate">{user.email}</p>
+                  <p className="truncate text-[10px] text-[#68647b]">
+                    {user.email}
+                  </p>
                 </div>
                 <span className="ml-auto shrink-0 rounded-full bg-[#ede9fb] px-2 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
                   {user.role}
@@ -358,7 +371,7 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       <div className={`rounded-xl border p-5 ${cfg.bg}`}>
         <div className="flex flex-wrap items-start gap-4">
           <div
-            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold ${cfg.color} bg-white border`}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold ${cfg.color} border bg-white`}
           >
             {cfg.icon}
           </div>
@@ -366,11 +379,15 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
             <p className={`text-lg font-bold ${cfg.color}`}>{cfg.label}</p>
             <p className="mt-0.5 text-xs text-[#68647b]">
               Rule:{" "}
-              <span className="font-mono text-[#2a2640]">{result.matched_rule}</span>
+              <span className="font-mono text-[#2a2640]">
+                {result.matched_rule}
+              </span>
               {result.deny_reason && (
                 <span className="ml-3">
                   Reason:{" "}
-                  <span className="font-mono text-red-700">{result.deny_reason}</span>
+                  <span className="font-mono text-red-700">
+                    {result.deny_reason}
+                  </span>
                 </span>
               )}
             </p>
@@ -378,9 +395,11 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
         </div>
 
         {/* Subject + resource summary */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+        <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
           <div className="rounded-lg bg-white/70 px-3 py-2">
-            <p className="text-[10px] font-bold uppercase text-[#5d58a8]">Subject</p>
+            <p className="text-[10px] font-bold text-[#5d58a8] uppercase">
+              Subject
+            </p>
             <p className="mt-1 font-semibold text-[#2a2640]">
               {result.subject_display_name ?? result.subject_email}
             </p>
@@ -390,10 +409,16 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
             </span>
           </div>
           <div className="rounded-lg bg-white/70 px-3 py-2">
-            <p className="text-[10px] font-bold uppercase text-[#5d58a8]">Resource</p>
-            <p className="mt-1 font-semibold text-[#2a2640]">{result.resource_type}</p>
+            <p className="text-[10px] font-bold text-[#5d58a8] uppercase">
+              Resource
+            </p>
+            <p className="mt-1 font-semibold text-[#2a2640]">
+              {result.resource_type}
+            </p>
             {result.resource_id && (
-              <p className="font-mono text-[11px] text-[#68647b] break-all">{result.resource_id}</p>
+              <p className="font-mono text-[11px] break-all text-[#68647b]">
+                {result.resource_id}
+              </p>
             )}
             <span className="mt-1 inline-block rounded-full bg-[#ede9fb] px-2 py-0.5 text-[10px] font-semibold text-[#5d58a8]">
               {result.action}
@@ -405,7 +430,9 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {/* Reason chain */}
       {result.reason_chain.length > 0 && (
         <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <p className="mb-3 text-xs font-bold uppercase text-[#5d58a8]">Reason Chain</p>
+          <p className="mb-3 text-xs font-bold text-[#5d58a8] uppercase">
+            Reason Chain
+          </p>
           <div className="space-y-2">
             {result.reason_chain.map((entry, i) => (
               <ReasonChainRow key={i} entry={entry} />
@@ -417,10 +444,15 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {/* Remediation */}
       {result.remediation.length > 0 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <p className="mb-2 text-xs font-bold uppercase text-amber-700">How to grant access</p>
+          <p className="mb-2 text-xs font-bold text-amber-700 uppercase">
+            How to grant access
+          </p>
           <ul className="space-y-1.5">
             {result.remediation.map((r, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-amber-900">
+              <li
+                key={i}
+                className="flex items-start gap-2 text-sm text-amber-900"
+              >
                 <span className="mt-0.5 shrink-0 text-amber-600">→</span>
                 <span>{r}</span>
               </li>
@@ -432,7 +464,9 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
       {/* Troubleshooting links */}
       {result.troubleshooting_links.length > 0 && (
         <div className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-          <p className="mb-3 text-xs font-bold uppercase text-[#5d58a8]">Troubleshoot</p>
+          <p className="mb-3 text-xs font-bold text-[#5d58a8] uppercase">
+            Troubleshoot
+          </p>
           <TroubleshootingLinks links={result.troubleshooting_links} />
         </div>
       )}
@@ -443,9 +477,11 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
           <button
             type="button"
             onClick={() => setShowPerms((v) => !v)}
-            className="flex w-full items-center justify-between text-xs font-bold uppercase text-[#5d58a8]"
+            className="flex w-full items-center justify-between text-xs font-bold text-[#5d58a8] uppercase"
           >
-            <span>Effective permissions ({result.effective_permissions.length})</span>
+            <span>
+              Effective permissions ({result.effective_permissions.length})
+            </span>
             <span>{showPerms ? "▲" : "▼"}</span>
           </button>
           {showPerms && (
@@ -462,13 +498,13 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
           <button
             type="button"
             onClick={() => setShowTrace((v) => !v)}
-            className="flex w-full items-center justify-between text-xs font-bold uppercase text-[#5d58a8]"
+            className="flex w-full items-center justify-between text-xs font-bold text-[#5d58a8] uppercase"
           >
             <span>Policy trace ({result.trace.length} rules)</span>
             <span>{showTrace ? "▲" : "▼"}</span>
           </button>
           {showTrace && (
-            <div className="mt-3 rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-4 py-3 divide-y divide-[#ede9fb]">
+            <div className="mt-3 divide-y divide-[#ede9fb] rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-4 py-3">
               {result.trace.map((step, i) => (
                 <TraceStepRow key={i} step={step} />
               ))}
@@ -477,7 +513,9 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
         </div>
       )}
 
-      <p className="text-[10px] text-[#a09dbf]">Request ID: {result.request_id}</p>
+      <p className="text-[10px] text-[#a09dbf]">
+        Request ID: {result.request_id}
+      </p>
     </div>
   );
 }
@@ -486,7 +524,10 @@ function ResultPanel({ result }: { result: SimulateAccessResponse }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#d7d4e8] bg-[#f9f8ff] px-8 py-16 text-center" data-testid="empty-state">
+    <div
+      className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#d7d4e8] bg-[#f9f8ff] px-8 py-16 text-center"
+      data-testid="empty-state"
+    >
       <svg
         className="mb-4 h-10 w-10 text-[#a09dbf]"
         fill="none"
@@ -514,7 +555,9 @@ function EmptyState() {
 export function AdminAccessDebuggerPage() {
   const { hasPermission } = usePermissions();
 
-  const [selectedUser, setSelectedUser] = useState<OrgMemberResult | null>(null);
+  const [selectedUser, setSelectedUser] = useState<OrgMemberResult | null>(
+    null,
+  );
   const [resourceType, setResourceType] = useState("document");
   const [action, setAction] = useState("view");
   const [resourceId, setResourceId] = useState("");
@@ -565,19 +608,23 @@ export function AdminAccessDebuggerPage() {
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
           Admin · Security
         </p>
-        <h1 className="text-2xl font-extrabold text-[#2a2640]">Access Debugger</h1>
+        <h1 className="text-2xl font-extrabold text-[#2a2640]">
+          Access Debugger
+        </h1>
         <p className="mt-1 text-sm text-[#68647b]">
-          Simulate the authorization policy engine to see exactly why a user can or cannot access a
-          resource. Only structural access metadata is returned — no resource content is exposed.
-          Every simulation is audit-logged.
+          Simulate the authorization policy engine to see exactly why a user can
+          or cannot access a resource. Only structural access metadata is
+          returned — no resource content is exposed. Every simulation is
+          audit-logged.
         </p>
       </div>
 
       {/* Security note */}
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <strong>Security note:</strong> This tool simulates production authorization logic using
-        real DB metadata (grants, denies, ACLs, collection memberships). Results match what the
-        backend enforces. All simulations are tenant-scoped and audit-logged.
+        <strong>Security note:</strong> This tool simulates production
+        authorization logic using real DB metadata (grants, denies, ACLs,
+        collection memberships). Results match what the backend enforces. All
+        simulations are tenant-scoped and audit-logged.
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
@@ -585,9 +632,11 @@ export function AdminAccessDebuggerPage() {
         <div className="lg:col-span-2">
           <form
             onSubmit={handleSubmit}
-            className="rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm space-y-5"
+            className="space-y-5 rounded-xl border border-[#d7d4e8] bg-white p-5 shadow-sm"
           >
-            <h2 className="text-sm font-bold text-[#2a2640]">Simulation parameters</h2>
+            <h2 className="text-sm font-bold text-[#2a2640]">
+              Simulation parameters
+            </h2>
 
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
@@ -597,7 +646,9 @@ export function AdminAccessDebuggerPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-[#2a2640]">Resource type</label>
+              <label className="block text-xs font-medium text-[#2a2640]">
+                Resource type
+              </label>
               <select
                 value={resourceType}
                 onChange={(e) => setResourceType(e.target.value)}
@@ -612,7 +663,9 @@ export function AdminAccessDebuggerPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-medium text-[#2a2640]">Action</label>
+              <label className="block text-xs font-medium text-[#2a2640]">
+                Action
+              </label>
               <select
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
@@ -629,23 +682,28 @@ export function AdminAccessDebuggerPage() {
             <div className="space-y-1">
               <label className="block text-xs font-medium text-[#2a2640]">
                 Resource ID{" "}
-                <span className="text-[#68647b] font-normal">(optional — loads real ACL)</span>
+                <span className="font-normal text-[#68647b]">
+                  (optional — loads real ACL)
+                </span>
               </label>
               <input
                 type="text"
                 value={resourceId}
                 onChange={(e) => setResourceId(e.target.value)}
                 placeholder="UUID of the specific resource"
-                className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm font-mono focus:border-[#3525cd] focus:outline-none"
+                className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 font-mono text-sm focus:border-[#3525cd] focus:outline-none"
               />
               <p className="text-[10px] text-[#a09dbf]">
-                When provided, the simulator loads the real grants, denies, and collection
-                memberships for this resource.
+                When provided, the simulator loads the real grants, denies, and
+                collection memberships for this resource.
               </p>
             </div>
 
             {formError && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <p
+                className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
                 {formError}
               </p>
             )}
@@ -673,7 +731,9 @@ export function AdminAccessDebuggerPage() {
               <p className="text-sm text-[#68647b]">Simulating…</p>
             </div>
           )}
-          {!simulateMutation.isPending && result && <ResultPanel result={result} />}
+          {!simulateMutation.isPending && result && (
+            <ResultPanel result={result} />
+          )}
           {!simulateMutation.isPending && !result && <EmptyState />}
         </div>
       </div>

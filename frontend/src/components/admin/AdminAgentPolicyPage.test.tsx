@@ -115,14 +115,18 @@ describe("AdminAgentPolicyPage", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("search.documents")).toBeInTheDocument();
     expect(await screen.findByText("create.note")).toBeInTheDocument();
-    expect(await screen.findByText("Org-level budget limits")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Org-level budget limits"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("10")).toBeInTheDocument(); // max_steps
   });
 
   it("shows forbidden state for unauthenticated users", async () => {
     mockState.authState = { status: "unauthenticated", session: null };
     renderPage();
-    expect(await screen.findByText(/forbidden|permission|access/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/forbidden|permission|access/i),
+    ).toBeInTheDocument();
   });
 
   it("shows error state when API fails", async () => {

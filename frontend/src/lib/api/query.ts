@@ -346,6 +346,7 @@ export type FrontendMutationKind =
   | "collection.delete"
   | "collection.document.add"
   | "collection.document.remove"
+  | "collection.rules.refresh"
   | "collection.policy.update"
   | "chat.query"
   | "chat.session.rename"
@@ -421,7 +422,8 @@ export async function invalidateAfterMutation(
 
   if (
     kind === "collection.document.add" ||
-    kind === "collection.document.remove"
+    kind === "collection.document.remove" ||
+    kind === "collection.rules.refresh"
   ) {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.collections.all,
@@ -599,7 +601,9 @@ export async function invalidateAfterMutation(
   }
 
   if (kind === "mcp.policy.update") {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.admin.mcpPolicy });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.admin.mcpPolicy,
+    });
     return;
   }
 

@@ -1858,7 +1858,7 @@ export function DocumentDetailPage({ documentId }: DocumentDetailPageProps) {
                               status: currentStatus,
                               chunks: detail.chunk_count,
                               pages:
-                                detail.page_count !== null
+                                detail.page_count != null
                                   ? td("acrossPages", {
                                       pages: detail.page_count,
                                     })

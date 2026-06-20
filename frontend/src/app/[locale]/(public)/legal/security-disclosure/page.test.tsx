@@ -42,7 +42,9 @@ describe("Security Disclosure Policy page", () => {
       screen.getByRole("region", { name: /our response/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("region", { name: /responsible disclosure guidelines/i }),
+      screen.getByRole("region", {
+        name: /responsible disclosure guidelines/i,
+      }),
     ).toBeInTheDocument();
   });
 

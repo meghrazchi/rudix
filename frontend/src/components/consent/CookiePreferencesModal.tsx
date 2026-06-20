@@ -143,7 +143,10 @@ export function CookiePreferencesModal({
           </button>
         </div>
 
-        <div className="space-y-3 overflow-y-auto px-6 py-4" style={{ maxHeight: "60vh" }}>
+        <div
+          className="space-y-3 overflow-y-auto px-6 py-4"
+          style={{ maxHeight: "60vh" }}
+        >
           <p className="text-sm text-[#5f5b76]">
             {t("preferencesDescription")}{" "}
             <Link

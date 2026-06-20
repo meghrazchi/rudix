@@ -128,13 +128,29 @@ function safeObjectEntries(
     ]);
 }
 
+function readStringField(
+  value: Record<string, unknown>,
+  key: string,
+): string | null {
+  const field = value[key];
+  return typeof field === "string" && field.trim().length > 0 ? field : null;
+}
+
+function readNumberField(
+  value: Record<string, unknown>,
+  key: string,
+): number | null {
+  const field = value[key];
+  return typeof field === "number" && Number.isFinite(field) ? field : null;
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function EventTypeBadge({ eventType }: { eventType: string }) {
   const meta = eventMeta(eventType);
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${meta.color}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${meta.color}`}
     >
       <span className="material-symbols-outlined text-[12px]">{meta.icon}</span>
       {meta.label}
@@ -152,7 +168,10 @@ function DataGrid({
   return (
     <div className="space-y-0.5">
       {entries.map(([k, v]) => (
-        <div key={k} className="flex gap-2 font-mono text-[11px] text-[#464555]">
+        <div
+          key={k}
+          className="flex gap-2 font-mono text-[11px] text-[#464555]"
+        >
           <span className="shrink-0 text-[#9993b0]">{k}:</span>
           <span className="min-w-0 break-all">{v}</span>
         </div>
@@ -164,6 +183,11 @@ function DataGrid({
 function TraceEventRow({ event }: { event: AgentTraceEvent }) {
   const [expanded, setExpanded] = useState(false);
   const hasData = Object.keys(event.data ?? {}).length > 0;
+  const stepName = readStringField(event.data, "step_name");
+  const toolName = readStringField(event.data, "tool_name");
+  const durationMs = readNumberField(event.data, "duration_ms");
+  const latencyMs = readNumberField(event.data, "latency_ms");
+  const errorMessage = readStringField(event.data, "error_message");
 
   return (
     <div className="rounded-lg border border-[#e4e1f2] bg-white">
@@ -173,38 +197,36 @@ function TraceEventRow({ event }: { event: AgentTraceEvent }) {
         className={`flex w-full items-start gap-3 p-3 text-left ${hasData ? "hover:bg-[#f5f2ff]" : ""}`}
         aria-expanded={expanded}
       >
-        <div className="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-[#b0adbe] mt-1.5" />
+        <div className="mt-0.5 mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#b0adbe]" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <EventTypeBadge eventType={event.event_type} />
             <span className="text-[11px] text-[#777587]">
               {formatTs(event.timestamp)}
             </span>
-            {event.data?.step_name && (
+            {stepName && (
               <span className="font-mono text-[11px] text-[#2a2640]">
-                {String(event.data.step_name)}
+                {stepName}
               </span>
             )}
-            {event.data?.tool_name && (
+            {toolName && (
               <span className="font-mono text-[11px] font-semibold text-[#5d58a8]">
-                {String(event.data.tool_name)}
+                {toolName}
               </span>
             )}
-            {event.data?.duration_ms != null && (
+            {durationMs != null && (
               <span className="text-[11px] text-[#777587]">
-                {formatDurationMs(event.data.duration_ms as number)}
+                {formatDurationMs(durationMs)}
               </span>
             )}
-            {event.data?.latency_ms != null && (
+            {latencyMs != null && (
               <span className="text-[11px] text-[#777587]">
-                {formatDurationMs(event.data.latency_ms as number)}
+                {formatDurationMs(latencyMs)}
               </span>
             )}
           </div>
-          {event.data?.error_message && (
-            <p className="mt-1 text-[11px] text-rose-700">
-              {String(event.data.error_message)}
-            </p>
+          {errorMessage && (
+            <p className="mt-1 text-[11px] text-rose-700">{errorMessage}</p>
           )}
         </div>
         {hasData && (
@@ -215,7 +237,7 @@ function TraceEventRow({ event }: { event: AgentTraceEvent }) {
       </button>
 
       {expanded && hasData && (
-        <div className="border-t border-[#e4e1f2] px-3 pb-3 pt-2">
+        <div className="border-t border-[#e4e1f2] px-3 pt-2 pb-3">
           <DataGrid data={event.data as Record<string, unknown>} />
         </div>
       )}
@@ -223,16 +245,12 @@ function TraceEventRow({ event }: { event: AgentTraceEvent }) {
   );
 }
 
-function RunSummaryHeader({
-  trace,
-}: {
-  trace: AgentTraceResponse;
-}) {
+function RunSummaryHeader({ trace }: { trace: AgentTraceResponse }) {
   return (
     <div className="rounded-lg border border-[#e4e1f2] bg-white p-4">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+          <p className="text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
             Objective
           </p>
           <p className="mt-0.5 text-sm font-medium text-[#2a2640]">
@@ -246,7 +264,9 @@ function RunSummaryHeader({
           </span>
           <span>
             Surface:{" "}
-            <span className="font-semibold text-[#2a2640]">{trace.surface}</span>
+            <span className="font-semibold text-[#2a2640]">
+              {trace.surface}
+            </span>
           </span>
           {trace.total_cost_usd && (
             <span>
@@ -258,30 +278,38 @@ function RunSummaryHeader({
           )}
           <span>
             Steps:{" "}
-            <span className="font-semibold text-[#2a2640]">{trace.step_count}</span>
+            <span className="font-semibold text-[#2a2640]">
+              {trace.step_count}
+            </span>
           </span>
           <span>
             Tool Calls:{" "}
-            <span className="font-semibold text-[#2a2640]">{trace.tool_call_count}</span>
+            <span className="font-semibold text-[#2a2640]">
+              {trace.tool_call_count}
+            </span>
           </span>
         </div>
       </div>
       {trace.error_message && (
-        <div className="mt-3 rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-[12px] text-rose-700">
+        <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
           <span className="font-semibold">Error: </span>
           {trace.error_message}
         </div>
       )}
       {trace.redacted && (
-        <div className="mt-3 flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
-          <span className="material-symbols-outlined text-[14px]">privacy_tip</span>
-          Some fields have been redacted by your organisation&apos;s trace retention policy.
+        <div className="mt-3 flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+          <span className="material-symbols-outlined text-[14px]">
+            privacy_tip
+          </span>
+          Some fields have been redacted by your organisation&apos;s trace
+          retention policy.
         </div>
       )}
       {trace.shared_via_token && (
-        <div className="mt-3 flex items-center gap-1.5 rounded-md bg-[#f0eeff] border border-[#d7d4e8] px-3 py-2 text-[11px] text-[#3525cd]">
+        <div className="mt-3 flex items-center gap-1.5 rounded-md border border-[#d7d4e8] bg-[#f0eeff] px-3 py-2 text-[11px] text-[#3525cd]">
           <span className="material-symbols-outlined text-[14px]">link</span>
-          This trace was accessed via a share link. All sensitive fields are redacted.
+          This trace was accessed via a share link. All sensitive fields are
+          redacted.
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#777587]">
@@ -344,7 +372,7 @@ function ShareModal({
           <div>
             <label
               htmlFor="share-label"
-              className="block text-[11px] font-bold uppercase tracking-wide text-[#9993b0]"
+              className="block text-[11px] font-bold tracking-wide text-[#9993b0] uppercase"
             >
               Label (optional)
             </label>
@@ -361,7 +389,7 @@ function ShareModal({
           <div>
             <label
               htmlFor="share-expiry"
-              className="block text-[11px] font-bold uppercase tracking-wide text-[#9993b0]"
+              className="block text-[11px] font-bold tracking-wide text-[#9993b0] uppercase"
             >
               Expires in
             </label>
@@ -379,9 +407,7 @@ function ShareModal({
           </div>
         </div>
 
-        {error && (
-          <p className="mt-3 text-[11px] text-rose-600">{error}</p>
-        )}
+        {error && <p className="mt-3 text-[11px] text-rose-600">{error}</p>}
 
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -429,7 +455,9 @@ function ShareResultPanel({
     >
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
         <div className="flex items-center gap-2 text-emerald-700">
-          <span className="material-symbols-outlined text-[20px]">check_circle</span>
+          <span className="material-symbols-outlined text-[20px]">
+            check_circle
+          </span>
           <h2 className="text-base font-semibold">Share Link Created</h2>
         </div>
         <p className="mt-2 text-[12px] text-[#777587]">
@@ -471,7 +499,8 @@ function ShareResultPanel({
 export function AgentTraceReplayPage({ runId }: { runId: string }) {
   const queryClient = useQueryClient();
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareResult, setShareResult] = useState<AgentTraceShareResponse | null>(null);
+  const [shareResult, setShareResult] =
+    useState<AgentTraceShareResponse | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
 
   const {
@@ -519,8 +548,7 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
         <div>
           <h1 className="text-lg font-bold text-[#2a2640]">Trace Replay</h1>
           <p className="text-[11px] text-[#777587]">
-            Run{" "}
-            <span className="font-mono">{runId.slice(0, 8)}…</span>
+            Run <span className="font-mono">{runId.slice(0, 8)}…</span>
           </p>
         </div>
         <div className="flex gap-2">
@@ -533,7 +561,9 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
             disabled={exportMutation.isPending}
             className="flex items-center gap-1.5 rounded-md border border-[#d7d4e8] px-3 py-1.5 text-[12px] font-semibold text-[#464555] hover:bg-[#f5f2ff] disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[15px]">download</span>
+            <span className="material-symbols-outlined text-[15px]">
+              download
+            </span>
             {exportMutation.isPending ? "Exporting…" : "Export"}
           </button>
           <button
@@ -552,14 +582,14 @@ export function AgentTraceReplayPage({ runId }: { runId: string }) {
 
       {/* Timeline */}
       <div className="mt-6">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-wide text-[#9993b0]">
+        <p className="mb-3 text-[10px] font-bold tracking-wide text-[#9993b0] uppercase">
           Timeline · {trace.total_events} events
         </p>
 
         {trace.timeline.length === 0 ? (
           <EmptyState description="No timeline events recorded for this run." />
         ) : (
-          <div className="space-y-1.5 relative before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-[#e4e1f2]">
+          <div className="relative space-y-1.5 before:absolute before:top-0 before:bottom-0 before:left-[7px] before:w-px before:bg-[#e4e1f2]">
             {trace.timeline.map((event, idx) => (
               <TraceEventRow key={idx} event={event} />
             ))}

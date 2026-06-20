@@ -79,8 +79,7 @@ function ProfileForm({
         rerank_enabled: initial?.config?.rerank_enabled ?? false,
         rerank_provider: initial?.config?.rerank_provider ?? "",
         rerank_model: initial?.config?.rerank_model ?? "",
-        rerank_timeout_seconds:
-          initial?.config?.rerank_timeout_seconds ?? "",
+        rerank_timeout_seconds: initial?.config?.rerank_timeout_seconds ?? "",
         rerank_batch_size: initial?.config?.rerank_batch_size ?? "",
         rerank_input_max_candidates:
           initial?.config?.rerank_input_max_candidates ?? "",
@@ -777,13 +776,8 @@ export function RagProfilesSection() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      payload,
-    }: {
-      id: string;
-      payload: any;
-    }) => updateRagProfile(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      updateRagProfile(id, payload),
     onSuccess: async () => {
       setFeedback({ tone: "success", message: "RAG profile updated." });
       setEditingProfile(null);

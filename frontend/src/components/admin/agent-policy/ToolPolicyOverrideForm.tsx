@@ -26,13 +26,17 @@ export function ToolPolicyOverrideForm({
 }) {
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const [approvalRequired, setApprovalRequired] = useState<string>(
-    existing?.approval_required != null ? String(existing.approval_required) : "",
+    existing?.approval_required != null
+      ? String(existing.approval_required)
+      : "",
   );
   const [requiredRoles, setRequiredRoles] = useState(
     existing?.required_roles?.join(", ") ?? "",
   );
   const [maxCalls, setMaxCalls] = useState(
-    existing?.max_calls_per_run != null ? String(existing.max_calls_per_run) : "",
+    existing?.max_calls_per_run != null
+      ? String(existing.max_calls_per_run)
+      : "",
   );
   const [maxInput, setMaxInput] = useState(
     existing?.max_input_bytes != null ? String(existing.max_input_bytes) : "",
@@ -44,7 +48,9 @@ export function ToolPolicyOverrideForm({
     existing?.timeout_ms != null ? String(existing.timeout_ms) : "",
   );
   const [maxRetry, setMaxRetry] = useState(
-    existing?.max_retry_attempts != null ? String(existing.max_retry_attempts) : "",
+    existing?.max_retry_attempts != null
+      ? String(existing.max_retry_attempts)
+      : "",
   );
 
   function parseOptionalInt(value: string): number | null {
@@ -83,7 +89,9 @@ export function ToolPolicyOverrideForm({
 
   return (
     <div className="rounded-xl border border-[#d7d4e8] bg-[#faf9ff] p-4">
-      <p className="mb-3 font-mono text-xs font-semibold text-[#2a2640]">{toolName}</p>
+      <p className="mb-3 font-mono text-xs font-semibold text-[#2a2640]">
+        {toolName}
+      </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="flex items-center gap-2 text-xs font-semibold text-[#6a6780]">
           <input

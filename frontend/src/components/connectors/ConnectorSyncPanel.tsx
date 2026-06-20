@@ -169,8 +169,8 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
             </div>
             <p className="mt-0.5 text-sm text-amber-800">
               An admin must review and confirm the connector permission scope
-              before indexing can begin. Use the Permission review panel above to
-              confirm.
+              before indexing can begin. Use the Permission review panel above
+              to confirm.
             </p>
           </div>
         </div>
@@ -311,9 +311,7 @@ export function ConnectorSyncPanel({ connectionId }: Props) {
           </p>
         </div>
 
-        {runsQuery.isLoading && (
-          <LoadingState compact title="Loading runs…" />
-        )}
+        {runsQuery.isLoading && <LoadingState compact title="Loading runs…" />}
         {runs.length === 0 && !runsQuery.isLoading && (
           <EmptyState
             compact

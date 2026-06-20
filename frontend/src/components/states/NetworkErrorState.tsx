@@ -20,7 +20,11 @@ export function NetworkErrorState({
         compact ? "px-3 py-2" : "px-4 py-4"
       } text-amber-900`}
     >
-      <p className={compact ? "text-sm font-semibold" : "text-base font-semibold"}>
+      <p
+        className={
+          compact ? "text-sm font-semibold" : "text-base font-semibold"
+        }
+      >
         No connection
       </p>
       <p className={compact ? "mt-1 text-xs" : "mt-1 text-sm"}>

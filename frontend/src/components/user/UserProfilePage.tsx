@@ -458,8 +458,10 @@ export function UserProfilePage() {
     system: t("themes.system"),
   };
 
-  const confidencePercent = watchedConfidence ?? settingsConfidenceBounds.defaultValue;
-  const isHighTrust = confidencePercent >= settingsConfidenceBounds.highTrustThreshold;
+  const confidencePercent =
+    watchedConfidence ?? settingsConfidenceBounds.defaultValue;
+  const isHighTrust =
+    confidencePercent >= settingsConfidenceBounds.highTrustThreshold;
 
   return (
     <>
@@ -968,14 +970,12 @@ export function UserProfilePage() {
                     aria-checked={watchedDeveloperMode}
                     aria-label={t("expertModeToggle")}
                     onClick={() =>
-                      ragForm.setValue(
-                        "developerMode",
-                        !watchedDeveloperMode,
-                        { shouldDirty: true },
-                      )
+                      ragForm.setValue("developerMode", !watchedDeveloperMode, {
+                        shouldDirty: true,
+                      })
                     }
                     className={[
-                      "rounded px-2 py-1 text-[10px] font-semibold tracking-wider transition-colors uppercase",
+                      "rounded px-2 py-1 text-[10px] font-semibold tracking-wider uppercase transition-colors",
                       watchedDeveloperMode
                         ? "bg-[#3525cd] text-white"
                         : "bg-[#d0e1fb] text-[#54647a] hover:bg-[#b8d0f8]",

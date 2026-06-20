@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminPermissionsPage } from "@/components/admin/AdminPermissionsPage";
-import type { RoleMatrixResponse, ResourceAccessListResponse } from "@/lib/api/permissions";
+import type {
+  RoleMatrixResponse,
+  ResourceAccessListResponse,
+} from "@/lib/api/permissions";
 
 // ── mocks ──────────────────────────────────────────────────────────────────────
 
@@ -33,13 +36,20 @@ vi.mock("@/lib/use-permissions", () => ({
 
 vi.mock("@/lib/api/permissions", () => ({
   getRoleMatrix: (...args: unknown[]) => mockApi.getRoleMatrix(...args),
-  updateRolePermissions: (...args: unknown[]) => mockApi.updateRolePermissions(...args),
-  listResourceGrants: (...args: unknown[]) => mockApi.listResourceGrants(...args),
-  createResourceGrant: (...args: unknown[]) => mockApi.createResourceGrant(...args),
-  revokeResourceGrant: (...args: unknown[]) => mockApi.revokeResourceGrant(...args),
-  listResourceDenies: (...args: unknown[]) => mockApi.listResourceDenies(...args),
-  createResourceDeny: (...args: unknown[]) => mockApi.createResourceDeny(...args),
-  revokeResourceDeny: (...args: unknown[]) => mockApi.revokeResourceDeny(...args),
+  updateRolePermissions: (...args: unknown[]) =>
+    mockApi.updateRolePermissions(...args),
+  listResourceGrants: (...args: unknown[]) =>
+    mockApi.listResourceGrants(...args),
+  createResourceGrant: (...args: unknown[]) =>
+    mockApi.createResourceGrant(...args),
+  revokeResourceGrant: (...args: unknown[]) =>
+    mockApi.revokeResourceGrant(...args),
+  listResourceDenies: (...args: unknown[]) =>
+    mockApi.listResourceDenies(...args),
+  createResourceDeny: (...args: unknown[]) =>
+    mockApi.createResourceDeny(...args),
+  revokeResourceDeny: (...args: unknown[]) =>
+    mockApi.revokeResourceDeny(...args),
 }));
 
 // ── fixtures ───────────────────────────────────────────────────────────────────
@@ -175,7 +185,9 @@ describe("AdminPermissionsPage", () => {
     it("shows security note banner", async () => {
       renderPage();
       await waitFor(() =>
-        expect(screen.getByText(/Backend authorization is the source of truth/)).toBeInTheDocument(),
+        expect(
+          screen.getByText(/Backend authorization is the source of truth/),
+        ).toBeInTheDocument(),
       );
     });
   });
@@ -208,7 +220,9 @@ describe("AdminPermissionsPage", () => {
     });
 
     it("hides edit buttons when user cannot manage", async () => {
-      mockPermissions.hasPermission.mockImplementation((p: string) => p === "roles:view");
+      mockPermissions.hasPermission.mockImplementation(
+        (p: string) => p === "roles:view",
+      );
       renderPage();
       await waitFor(() =>
         expect(screen.queryByText("Edit Owner")).not.toBeInTheDocument(),
@@ -267,9 +281,7 @@ describe("AdminPermissionsPage", () => {
       await user.click(screen.getByText("Edit Member"));
       await user.click(screen.getByText("Save changes"));
       await waitFor(() =>
-        expect(
-          screen.getByText(/Unsafe change/),
-        ).toBeInTheDocument(),
+        expect(screen.getByText(/Unsafe change/)).toBeInTheDocument(),
       );
     });
   });
@@ -279,9 +291,7 @@ describe("AdminPermissionsPage", () => {
       mockPermissions.hasPermission.mockReturnValue(false);
       renderPage();
       await waitFor(() =>
-        expect(
-          screen.getByText(/roles:view permission/),
-        ).toBeInTheDocument(),
+        expect(screen.getByText(/roles:view permission/)).toBeInTheDocument(),
       );
     });
   });

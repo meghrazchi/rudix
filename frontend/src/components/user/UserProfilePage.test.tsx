@@ -98,7 +98,8 @@ vi.mock("@/lib/api/profile", () => ({
   removeAvatar: () => mockProfileApi.removeAvatar(),
   signOutAllDevices: () => mockProfileApi.signOutAllDevices(),
   deletePersonalAccount: () => mockProfileApi.deletePersonalAccount(),
-  changePassword: (...args: unknown[]) => mockProfileApi.changePassword(...args),
+  changePassword: (...args: unknown[]) =>
+    mockProfileApi.changePassword(...args),
 }));
 
 const FULL_PREFERENCES: SettingsPreferences = {
@@ -225,7 +226,9 @@ describe("UserProfilePage", () => {
   it("shows initials avatar derived from email when no me API", async () => {
     renderTab();
 
-    const avatar = await screen.findByRole("button", { name: "User initials avatar" });
+    const avatar = await screen.findByRole("button", {
+      name: "User initials avatar",
+    });
     expect(avatar).toBeInTheDocument();
     expect(avatar.textContent).toContain("AJ");
   });
@@ -261,7 +264,9 @@ describe("UserProfilePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Copy ID" }));
 
     expect(writeText).toHaveBeenCalledWith("user-123");
-    expect(await screen.findByRole("button", { name: "Copied!" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Copied!" }),
+    ).toBeInTheDocument();
   });
 
   it("shows account identity section when session fields are null", async () => {

@@ -44,8 +44,8 @@ const makeAdminSession = (): SessionState => ({
   session: {
     userId: "user-1",
     email: "admin@example.com",
-    displayName: "Admin",
     organizationId: "org-1",
+    organizationName: "Org One",
     role: "admin",
   },
 });
@@ -119,8 +119,8 @@ describe("AdminStatusPage", () => {
         session: {
           userId: "u",
           email: "m@x.com",
-          displayName: "M",
           organizationId: "o",
+          organizationName: "Org One",
           role: "member",
         },
       } as SessionState;

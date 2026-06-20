@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectorConflictPanel } from "@/components/connectors/ConnectorConflictPanel";
-import type { SyncConflict, SyncConflictsListResponse } from "@/lib/api/connector-sync";
+import type {
+  SyncConflict,
+  SyncConflictsListResponse,
+} from "@/lib/api/connector-sync";
 
 // ── Mock: connector-sync API ──────────────────────────────────────────────────
 
@@ -77,7 +80,10 @@ describe("ConnectorConflictPanel", () => {
 
   it("renders a list of open conflicts", async () => {
     const conflict = makeConflict();
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     wrap(<ConnectorConflictPanel connectionId={CONNECTION_ID} />);
     await waitFor(() =>
       expect(screen.getByText(conflict.provider_item_id)).toBeInTheDocument(),
@@ -96,7 +102,10 @@ describe("ConnectorConflictPanel", () => {
 
   it("shows permission_revoked type with correct label", async () => {
     const conflict = makeConflict({ conflict_type: "permission_revoked" });
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     wrap(<ConnectorConflictPanel connectionId={CONNECTION_ID} />);
     await waitFor(() =>
       expect(screen.getByText(/permission revoked/i)).toBeInTheDocument(),
@@ -106,9 +115,15 @@ describe("ConnectorConflictPanel", () => {
   it("expands conflict detail when expand button is clicked", async () => {
     const user = userEvent.setup();
     const conflict = makeConflict({
-      conflict_detail: { previous_acl_hash: "old-acl", new_acl_hash: "new-acl" },
+      conflict_detail: {
+        previous_acl_hash: "old-acl",
+        new_acl_hash: "new-acl",
+      },
     });
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     wrap(<ConnectorConflictPanel connectionId={CONNECTION_ID} />);
 
     await waitFor(() =>
@@ -123,7 +138,10 @@ describe("ConnectorConflictPanel", () => {
   it("calls resolveSyncConflict with 'resolved' when Resolve is clicked", async () => {
     const user = userEvent.setup();
     const conflict = makeConflict();
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     mockApi.resolveSyncConflict.mockResolvedValue({
       ...conflict,
       status: "resolved",
@@ -147,7 +165,10 @@ describe("ConnectorConflictPanel", () => {
   it("calls resolveSyncConflict with 'dismissed' when Dismiss is clicked", async () => {
     const user = userEvent.setup();
     const conflict = makeConflict();
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     mockApi.resolveSyncConflict.mockResolvedValue({
       ...conflict,
       status: "dismissed",
@@ -170,7 +191,10 @@ describe("ConnectorConflictPanel", () => {
 
   it("does not show Resolve/Dismiss for already-resolved conflicts", async () => {
     const conflict = makeConflict({ status: "resolved" });
-    mockApi.listSyncConflicts.mockResolvedValue({ items: [conflict], total: 1 });
+    mockApi.listSyncConflicts.mockResolvedValue({
+      items: [conflict],
+      total: 1,
+    });
     wrap(<ConnectorConflictPanel connectionId={CONNECTION_ID} />);
     await waitFor(() =>
       expect(screen.getByText(conflict.provider_item_id)).toBeInTheDocument(),
@@ -207,9 +231,7 @@ describe("ConnectorConflictPanel", () => {
     mockApi.listSyncConflicts.mockRejectedValue(new Error("Network error"));
     wrap(<ConnectorConflictPanel connectionId={CONNECTION_ID} />);
     await waitFor(() =>
-      expect(
-        screen.getByText(/failed to load conflicts/i),
-      ).toBeInTheDocument(),
+      expect(screen.getByText(/failed to load conflicts/i)).toBeInTheDocument(),
     );
   });
 

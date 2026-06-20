@@ -209,7 +209,11 @@ export function ProfileMenu({
               }}
               className="mt-1 flex w-full items-center gap-2.5 rounded-xl border border-[#f5c6cb] bg-[#fff7f7] px-3 py-2.5 text-left text-sm font-semibold text-[#c62828] transition hover:bg-[#ffecec]"
             >
-              <LogOut className="h-4 w-4 shrink-0" strokeWidth={1.9} aria-hidden />
+              <LogOut
+                className="h-4 w-4 shrink-0"
+                strokeWidth={1.9}
+                aria-hidden
+              />
               {tAuth("signOut")}
             </button>
           </div>

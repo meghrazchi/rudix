@@ -10,7 +10,8 @@ type SubprocessorEntry = {
 const SUBPROCESSORS: SubprocessorEntry[] = [
   {
     name: "OpenAI",
-    purpose: "AI language model inference (chat answers, query rewriting, entity extraction)",
+    purpose:
+      "AI language model inference (chat answers, query rewriting, entity extraction)",
     location: "United States",
     link: "https://openai.com/policies/privacy-policy",
   },
@@ -67,9 +68,10 @@ export function SubprocessorsPage() {
               &ldquo;Self-hosted&rdquo; entries are components deployed within
               the customer&rsquo;s own infrastructure and are not operated by
               Rudix. Cloud-hosted AI providers receive document chunks as part
-              of inference requests. We will update this list when sub-processors
-              are added or removed and notify affected organization administrators.
-              [LEGAL REVIEW REQUIRED: confirm list accuracy before publication.]
+              of inference requests. We will update this list when
+              sub-processors are added or removed and notify affected
+              organization administrators. [LEGAL REVIEW REQUIRED: confirm list
+              accuracy before publication.]
             </p>
           ),
         },
@@ -80,10 +82,10 @@ export function SubprocessorsPage() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-[#d8dbe5]">
-                    <th className="pb-2 pr-4 font-semibold text-[#25283a]">
+                    <th className="pr-4 pb-2 font-semibold text-[#25283a]">
                       Subprocessor
                     </th>
-                    <th className="pb-2 pr-4 font-semibold text-[#25283a]">
+                    <th className="pr-4 pb-2 font-semibold text-[#25283a]">
                       Purpose
                     </th>
                     <th className="pb-2 font-semibold text-[#25283a]">

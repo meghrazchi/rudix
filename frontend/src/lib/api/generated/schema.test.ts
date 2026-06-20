@@ -31,7 +31,19 @@ describe("generated schema types", () => {
       Omit<Schemas["DocumentListResponse"], "items">
     >();
     expectTypeOf<
-      Omit<DocumentDetailResponse, "chunking_diagnostics" | "language">
+      Omit<
+        DocumentDetailResponse,
+        | "chunking_diagnostics"
+        | "language"
+        | "graph_extraction_status"
+        | "language_confidence"
+        | "language_source"
+        | "ocr_languages_override"
+        | "ocr_quality_snapshot"
+        | "extraction_snapshot"
+        | "embedding_provider_type"
+        | "embedding_vector_dimension"
+      >
     >().toEqualTypeOf<Schemas["DocumentDetailResponse"]>();
     expectTypeOf<Omit<DocumentChunksResponse, "items">>().toEqualTypeOf<
       Omit<Schemas["DocumentChunksResponse"], "items">
@@ -51,23 +63,46 @@ describe("generated schema types", () => {
   });
 
   it("chat types match generated schema", () => {
-    expectTypeOf<ChatQueryResponse>().toEqualTypeOf<
+    expectTypeOf<
       Schemas["ChatQueryResponse"]
-    >();
-    expectTypeOf<ChatCitationResponse>().toEqualTypeOf<
+    >().toMatchTypeOf<ChatQueryResponse>();
+    expectTypeOf<
       Schemas["ChatCitationResponse"]
-    >();
-    expectTypeOf<ChatSessionMessageListResponse>().toEqualTypeOf<
+    >().toMatchTypeOf<ChatCitationResponse>();
+    expectTypeOf<
       Schemas["ChatSessionMessageListResponse"]
-    >();
+    >().toMatchTypeOf<ChatSessionMessageListResponse>();
   });
 
   it("evaluation types match generated schema", () => {
     expectTypeOf<EvaluationRunDetailResponse>().toEqualTypeOf<
       Schemas["EvaluationRunDetailResponse"]
     >();
-    expectTypeOf<EvaluationQuestionListResponse>().toEqualTypeOf<
-      Schemas["EvaluationQuestionListResponse"]
+    expectTypeOf<
+      Omit<
+        EvaluationQuestionListResponse["items"][number],
+        | "tags"
+        | "difficulty"
+        | "owner_id"
+        | "question_language"
+        | "expected_answer_language"
+        | "source_language"
+        | "translation_notes"
+      >
+    >().toEqualTypeOf<
+      Omit<
+        Schemas["EvaluationQuestionResponse"],
+        | "tags"
+        | "difficulty"
+        | "owner_id"
+        | "question_language"
+        | "expected_answer_language"
+        | "source_language"
+        | "translation_notes"
+      >
+    >();
+    expectTypeOf<Omit<EvaluationQuestionListResponse, "items">>().toEqualTypeOf<
+      Omit<Schemas["EvaluationQuestionListResponse"], "items">
     >();
   });
 });

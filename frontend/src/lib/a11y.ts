@@ -10,7 +10,10 @@ export const SR_ONLY_CLASS =
  * Announces a message via an existing aria-live region.
  * The region must have id="a11y-announcer" in the DOM.
  */
-export function announce(message: string, priority: "polite" | "assertive" = "polite"): void {
+export function announce(
+  message: string,
+  priority: "polite" | "assertive" = "polite",
+): void {
   const announcer = document.getElementById(
     priority === "assertive" ? "a11y-announcer-assertive" : "a11y-announcer",
   );

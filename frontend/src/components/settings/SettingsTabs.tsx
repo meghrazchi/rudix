@@ -11,11 +11,7 @@ const VALID_TAB_IDS: readonly SettingsTabId[] = [
   "billing",
 ];
 
-const TAB_IDS: SettingsTabId[] = [
-  "organization",
-  "security",
-  "billing",
-];
+const TAB_IDS: SettingsTabId[] = ["organization", "security", "billing"];
 
 export function useSettingsTab(): SettingsTabId {
   const searchParams = useSearchParams();

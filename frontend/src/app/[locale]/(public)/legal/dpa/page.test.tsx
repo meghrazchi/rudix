@@ -7,7 +7,10 @@ describe("Data Processing Addendum page", () => {
   it("renders the page heading", () => {
     render(<DpaPage />);
     expect(
-      screen.getByRole("heading", { name: /data processing addendum/i, level: 1 }),
+      screen.getByRole("heading", {
+        name: /data processing addendum/i,
+        level: 1,
+      }),
     ).toBeInTheDocument();
   });
 

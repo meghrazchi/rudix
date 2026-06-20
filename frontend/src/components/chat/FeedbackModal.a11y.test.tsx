@@ -8,7 +8,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";
 
-function renderModal(overrides: Partial<React.ComponentProps<typeof FeedbackModal>> = {}) {
+function renderModal(
+  overrides: Partial<React.ComponentProps<typeof FeedbackModal>> = {},
+) {
   const defaults = {
     existingReason: null,
     existingCategory: null,
@@ -74,9 +76,16 @@ describe("FeedbackModal accessibility", () => {
 
   it("comment textarea is labelled and has aria-describedby for char count", () => {
     renderModal();
-    const textarea = screen.getByRole("textbox", { name: /additional details/i });
-    expect(textarea).toHaveAttribute("aria-describedby", "feedback-comment-count");
-    expect(document.getElementById("feedback-comment-count")).toBeInTheDocument();
+    const textarea = screen.getByRole("textbox", {
+      name: /additional details/i,
+    });
+    expect(textarea).toHaveAttribute(
+      "aria-describedby",
+      "feedback-comment-count",
+    );
+    expect(
+      document.getElementById("feedback-comment-count"),
+    ).toBeInTheDocument();
   });
 
   it("char count region is aria-live=polite", () => {

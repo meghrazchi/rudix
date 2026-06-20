@@ -33,9 +33,7 @@ export function CookieConsentBanner() {
       >
         <div className="mx-auto flex max-w-7xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
-            <p className="text-sm font-semibold text-[#29263f]">
-              {t("title")}
-            </p>
+            <p className="text-sm font-semibold text-[#29263f]">{t("title")}</p>
             <p className="mt-1 text-sm text-[#5f5b76]">
               {t("description")}{" "}
               <Link

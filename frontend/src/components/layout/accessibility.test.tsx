@@ -121,7 +121,9 @@ afterEach(() => {
 describe("skip navigation link", () => {
   it("renders a skip link targeting #main-content", () => {
     renderShell();
-    const skipLink = screen.getByRole("link", { name: /skip to main content/i });
+    const skipLink = screen.getByRole("link", {
+      name: /skip to main content/i,
+    });
     expect(skipLink).toBeInTheDocument();
     expect(skipLink).toHaveAttribute("href", "#main-content");
   });
@@ -168,7 +170,9 @@ describe("landmark structure", () => {
 describe("aria-current page indicator", () => {
   it("active nav link has aria-current='page'", () => {
     renderShell({ activeRouteKey: "dashboard" });
-    const dashboardLink = screen.getAllByRole("link", { name: /dashboard/i })[0];
+    const dashboardLink = screen.getAllByRole("link", {
+      name: /dashboard/i,
+    })[0];
     expect(dashboardLink).toHaveAttribute("aria-current", "page");
   });
 
@@ -250,7 +254,9 @@ describe("notifications button", () => {
 describe("mobile sidebar dialog", () => {
   it("mobile menu button is labelled and controls the sidebar", async () => {
     renderShell();
-    const menuBtn = screen.getByRole("button", { name: /open navigation menu/i });
+    const menuBtn = screen.getByRole("button", {
+      name: /open navigation menu/i,
+    });
     expect(menuBtn).toBeInTheDocument();
     expect(menuBtn).toHaveAttribute("aria-expanded", "false");
     expect(menuBtn).toHaveAttribute("aria-controls", "mobile-sidebar");
@@ -259,7 +265,9 @@ describe("mobile sidebar dialog", () => {
   it("clicking menu button opens the sidebar dialog", async () => {
     const user = userEvent.setup();
     renderShell();
-    const menuBtn = screen.getByRole("button", { name: /open navigation menu/i });
+    const menuBtn = screen.getByRole("button", {
+      name: /open navigation menu/i,
+    });
     await user.click(menuBtn);
     const dialog = screen.getByRole("dialog", { name: /navigation menu/i });
     expect(dialog).toBeInTheDocument();
@@ -271,7 +279,9 @@ describe("mobile sidebar dialog", () => {
     await user.click(
       screen.getByRole("button", { name: /open navigation menu/i }),
     );
-    const closeBtn = screen.getByRole("button", { name: /close navigation menu/i });
+    const closeBtn = screen.getByRole("button", {
+      name: /close navigation menu/i,
+    });
     expect(closeBtn).toBeInTheDocument();
   });
 

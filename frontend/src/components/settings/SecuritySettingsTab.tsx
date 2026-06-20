@@ -409,6 +409,38 @@ const ROLE_CAP_DESC_KEYS: Record<AppRole, Record<RoleCapKey, string>> = {
     mcpAccess: "viewerMcp",
     adminControls: "viewerAdmin",
   },
+  reviewer: {
+    documentAccess: "reviewerDocument",
+    collectionAccess: "reviewerCollection",
+    evaluationAccess: "reviewerEvaluation",
+    agenticAccess: "reviewerAgentic",
+    mcpAccess: "reviewerMcp",
+    adminControls: "reviewerAdmin",
+  },
+  developer: {
+    documentAccess: "developerDocument",
+    collectionAccess: "developerCollection",
+    evaluationAccess: "developerEvaluation",
+    agenticAccess: "developerAgentic",
+    mcpAccess: "developerMcp",
+    adminControls: "developerAdmin",
+  },
+  security_admin: {
+    documentAccess: "securityAdminDocument",
+    collectionAccess: "securityAdminCollection",
+    evaluationAccess: "securityAdminEvaluation",
+    agenticAccess: "securityAdminAgentic",
+    mcpAccess: "securityAdminMcp",
+    adminControls: "securityAdminAdminControls",
+  },
+  billing_admin: {
+    documentAccess: "billingAdminDocument",
+    collectionAccess: "billingAdminCollection",
+    evaluationAccess: "billingAdminEvaluation",
+    agenticAccess: "billingAdminAgentic",
+    mcpAccess: "billingAdminMcp",
+    adminControls: "billingAdminAdminControls",
+  },
 };
 
 // ── Main component ────────────────────────────────────────────────────────────

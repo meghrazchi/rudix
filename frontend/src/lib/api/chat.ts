@@ -51,7 +51,13 @@ export type ChatCitationResponse = Schemas["ChatCitationResponse"] & {
   table_section_context?: string | null;
   conflict_status?: "preferred" | "conflicting" | "neutral" | null;
   // OCR quality (F299)
-  doc_ocr_quality_status?: "high" | "medium" | "low" | "failed" | "not_required" | null;
+  doc_ocr_quality_status?:
+    | "high"
+    | "medium"
+    | "low"
+    | "failed"
+    | "not_required"
+    | null;
   doc_ocr_low_confidence_warning?: boolean;
 };
 export type ChatDebugResponse = Schemas["ChatDebugResponse"] & {

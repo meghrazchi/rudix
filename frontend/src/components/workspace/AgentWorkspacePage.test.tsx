@@ -175,9 +175,7 @@ describe("AgentWorkspacePage", () => {
       mockApi.getAgentRun.mockResolvedValue(makeDetailResponse());
       renderPage();
       await waitFor(() => {
-        expect(
-          screen.getByText("Analyse compliance docs"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Analyse compliance docs")).toBeInTheDocument();
       });
       expect(screen.getByText("completed")).toBeInTheDocument();
     });
@@ -203,9 +201,7 @@ describe("AgentWorkspacePage", () => {
       mockApi.getAgentRun.mockResolvedValue(makeDetailResponse());
       renderPage();
       await waitFor(() => {
-        expect(
-          screen.getByText("Q3 revenue was $42M."),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Q3 revenue was $42M.")).toBeInTheDocument();
       });
     });
 
@@ -246,9 +242,7 @@ describe("AgentWorkspacePage", () => {
       mockApi.getAgentRun.mockResolvedValue(makeDetailResponse());
       renderPage();
       await waitFor(() => {
-        expect(
-          screen.getByText(/Tool calls \(1\)/),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Tool calls \(1\)/)).toBeInTheDocument();
       });
     });
 
@@ -263,9 +257,7 @@ describe("AgentWorkspacePage", () => {
       );
       renderPage();
       await waitFor(() => {
-        expect(
-          screen.getByText("LLM provider timeout"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("LLM provider timeout")).toBeInTheDocument();
         expect(screen.getByText(/trace-xyz-001/)).toBeInTheDocument();
       });
     });
@@ -273,7 +265,12 @@ describe("AgentWorkspacePage", () => {
     it("shows not_found state for completed run with no answer", async () => {
       mockApi.getAgentRun.mockResolvedValue(
         makeDetailResponse({
-          outcome: { not_found: true, answer: "", citations: [], confidence: {} },
+          outcome: {
+            not_found: true,
+            answer: "",
+            citations: [],
+            confidence: {},
+          },
         }),
       );
       renderPage();
@@ -377,7 +374,9 @@ describe("AgentWorkspacePage", () => {
     it("renders objective input and mode buttons", async () => {
       renderPage();
       expect(
-        screen.getByPlaceholderText(/describe what the agent should accomplish/i),
+        screen.getByPlaceholderText(
+          /describe what the agent should accomplish/i,
+        ),
       ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Auto" })).toBeInTheDocument();
       expect(
@@ -451,9 +450,7 @@ describe("AgentWorkspacePage", () => {
       );
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/Rate limited|Unable to/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Rate limited|Unable to/i)).toBeInTheDocument();
       });
     });
   });
@@ -468,6 +465,7 @@ describe("AgentWorkspacePage", () => {
           approvals: [
             {
               approval_id: "appr-1",
+              agent_run_id: "run-1",
               agent_step_id: "step-1",
               tool_call_id: "tc-1",
               requested_by_user_id: "user-1",
@@ -511,6 +509,7 @@ describe("AgentWorkspacePage", () => {
           approvals: [
             {
               approval_id: "appr-1",
+              agent_run_id: "run-1",
               agent_step_id: null,
               tool_call_id: null,
               requested_by_user_id: null,

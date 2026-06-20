@@ -99,9 +99,12 @@ function makeCollection(
     document_count: 5,
     indexed_count: 4,
     access_policy: "org_wide",
+    is_dynamic: false,
+    last_rule_evaluated_at: null,
     created_at: "2026-05-01T10:00:00Z",
     updated_at: "2026-05-20T12:00:00Z",
     created_by_email: "admin@example.com",
+    rule_schema: null,
     ...overrides,
   };
 }

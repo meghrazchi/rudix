@@ -112,15 +112,25 @@ describe("State components", () => {
   });
 
   it("does not render retry button in error state when no onRetry provided", () => {
-    const error = normalizeApiError({ status: 500, payload: null, requestId: null });
+    const error = normalizeApiError({
+      status: 500,
+      payload: null,
+      requestId: null,
+    });
     render(<ErrorState error={error} />);
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
   });
 
   it("renders error state with custom retry label", async () => {
     const onRetry = vi.fn();
-    const error = normalizeApiError({ status: 500, payload: null, requestId: null });
-    render(<ErrorState error={error} onRetry={onRetry} retryLabel="Try again" />);
+    const error = normalizeApiError({
+      status: 500,
+      payload: null,
+      requestId: null,
+    });
+    render(
+      <ErrorState error={error} onRetry={onRetry} retryLabel="Try again" />,
+    );
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
@@ -172,7 +182,9 @@ describe("State components", () => {
       />,
     );
     expect(screen.getByText("Access denied")).toBeInTheDocument();
-    expect(screen.getByText("You cannot view this resource.")).toBeInTheDocument();
+    expect(
+      screen.getByText("You cannot view this resource."),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go home" })).toBeInTheDocument();
     expect(screen.queryByText("Trace ID:")).toBeNull();
   });

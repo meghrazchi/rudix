@@ -52,7 +52,11 @@ export function ErrorState({
 }: ErrorStateProps) {
   if (isApiClientError(error) && error.status === 0) {
     return (
-      <NetworkErrorState onRetry={onRetry} retryLabel={retryLabel} compact={compact} />
+      <NetworkErrorState
+        onRetry={onRetry}
+        retryLabel={retryLabel}
+        compact={compact}
+      />
     );
   }
 

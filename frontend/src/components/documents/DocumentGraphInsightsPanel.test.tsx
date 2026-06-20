@@ -152,7 +152,7 @@ describe("DocumentGraphInsightsPanel", () => {
       mockedGetInsights.mockRejectedValueOnce(
         normalizeApiError({
           status: 503,
-          detail: "enterprise_graph_unavailable",
+          payload: { detail: "enterprise_graph_unavailable" },
         }),
       );
       renderPanel({ graphExtractionStatus: "completed" });

@@ -148,8 +148,8 @@ export function TermsOfServicePage() {
             <p>
               The Service is provided without warranty of any kind, express or
               implied. AI-generated answers may be incomplete or incorrect.
-              Rudix is not responsible for decisions made based on
-              AI-generated content. [LEGAL REVIEW REQUIRED]
+              Rudix is not responsible for decisions made based on AI-generated
+              content. [LEGAL REVIEW REQUIRED]
             </p>
           ),
         },
@@ -158,10 +158,10 @@ export function TermsOfServicePage() {
           body: (
             <p>
               To the maximum extent permitted by law, Rudix&rsquo;s aggregate
-              liability for claims arising under these Terms shall not exceed the
-              amount paid by you in the twelve months preceding the claim. In no
-              event shall we be liable for indirect, incidental, or consequential
-              damages. [LEGAL REVIEW REQUIRED]
+              liability for claims arising under these Terms shall not exceed
+              the amount paid by you in the twelve months preceding the claim.
+              In no event shall we be liable for indirect, incidental, or
+              consequential damages. [LEGAL REVIEW REQUIRED]
             </p>
           ),
         },

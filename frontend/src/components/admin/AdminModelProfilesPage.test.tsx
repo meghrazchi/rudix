@@ -45,6 +45,7 @@ const ADMIN_SESSION: SessionState = {
   session: {
     userId: "u1",
     organizationId: "org-1",
+    organizationName: "Org One",
     role: "admin",
     email: "admin@test.com",
   },
@@ -169,6 +170,7 @@ describe("AdminModelProfilesPage", () => {
       session: {
         userId: "u2",
         organizationId: "org-1",
+        organizationName: "Org One",
         role: "viewer",
         email: "v@test.com",
       },

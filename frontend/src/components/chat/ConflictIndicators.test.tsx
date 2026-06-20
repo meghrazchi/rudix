@@ -53,7 +53,9 @@ describe("ConflictIndicators", () => {
 
     expect(screen.getByText("Source comparison")).toBeInTheDocument();
     expect(screen.getByText("Preferred sources")).toBeInTheDocument();
-    expect(screen.getAllByText("Conflicting sources").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Conflicting sources").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText("Preferred")).toBeInTheDocument();
     expect(screen.getByText("Conflicting")).toBeInTheDocument();
   });

@@ -6,9 +6,13 @@ export type EffectivePermissionsResponse = {
   custom_role_id: string | null;
 };
 
-function normalizeEffectivePermissions(value: unknown): EffectivePermissionsResponse {
+function normalizeEffectivePermissions(
+  value: unknown,
+): EffectivePermissionsResponse {
   const raw =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   return {
     permissions: Array.isArray(raw.permissions)
       ? (raw.permissions as unknown[]).filter(

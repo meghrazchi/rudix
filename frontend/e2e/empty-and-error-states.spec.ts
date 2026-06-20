@@ -109,8 +109,7 @@ test.describe("Empty and error state polish (F178)", () => {
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-headers": "*",
-            "access-control-allow-methods":
-              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
           },
         });
         return;
@@ -133,9 +132,9 @@ test.describe("Empty and error state polish (F178)", () => {
     await waitForSessionBootstrap(page);
 
     // Empty state should be visible with a title
-    await expect(
-      page.getByText(/No documents found/i),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/No documents found/i)).toBeVisible({
+      timeout: 15_000,
+    });
 
     // CTA button should be present for upload
     const uploadButton = page.getByRole("button", { name: /Upload Document/i });
@@ -156,8 +155,7 @@ test.describe("Empty and error state polish (F178)", () => {
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-headers": "*",
-            "access-control-allow-methods":
-              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
           },
         });
         return;
@@ -180,8 +178,7 @@ test.describe("Empty and error state polish (F178)", () => {
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-headers": "*",
-            "access-control-allow-methods":
-              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
           },
         });
         return;
@@ -221,7 +218,10 @@ test.describe("Empty and error state polish (F178)", () => {
 
     // Empty workspace state should appear when both counts are 0
     await expect(
-      page.getByText(/Get started/i).or(page.getByText(/Upload/i)).first(),
+      page
+        .getByText(/Get started/i)
+        .or(page.getByText(/Upload/i))
+        .first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -239,8 +239,7 @@ test.describe("Empty and error state polish (F178)", () => {
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-headers": "*",
-            "access-control-allow-methods":
-              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
           },
         });
         return;
@@ -260,7 +259,9 @@ test.describe("Empty and error state polish (F178)", () => {
     await expect(alert.first()).toBeVisible({ timeout: 15_000 });
 
     // Retry button should be present
-    await expect(page.getByRole("button", { name: /retry/i }).first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /retry/i }).first(),
+    ).toBeVisible();
   });
 
   test("error state for 403 on documents shows forbidden state", async ({
@@ -277,8 +278,7 @@ test.describe("Empty and error state polish (F178)", () => {
           headers: {
             "access-control-allow-origin": "*",
             "access-control-allow-headers": "*",
-            "access-control-allow-methods":
-              "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+            "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
           },
         });
         return;

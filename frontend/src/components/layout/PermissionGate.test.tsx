@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-import { PermissionGate, AnyPermissionGate } from "@/components/layout/PermissionGate";
+import {
+  PermissionGate,
+  AnyPermissionGate,
+} from "@/components/layout/PermissionGate";
 import type { UseEffectivePermissionsResult } from "@/lib/use-permissions";
 
 vi.mock("@/lib/use-permissions", () => ({

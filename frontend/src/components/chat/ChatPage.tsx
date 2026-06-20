@@ -18,7 +18,11 @@ import { FeedbackModal } from "@/components/chat/FeedbackModal";
 import { ChatResponseLoadingState } from "@/components/chat/ChatResponseLoadingState";
 import { ShareModal } from "@/components/chat/ShareModal";
 import { AnswerShareModal } from "@/components/chat/AnswerShareModal";
-import { ConflictWarningCard } from "@/components/chat/ConflictIndicators";
+import {
+  ConflictWarningCard,
+  agreementLevelClass,
+  agreementLevelLabel,
+} from "@/components/chat/ConflictIndicators";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -1472,7 +1476,8 @@ export function ChatPage() {
       reason?: FeedbackReason | null;
       comment?: string | null;
       category?: import("@/lib/api/feedback").FeedbackCategory | null;
-    }) => submitMessageFeedback(messageId, { rating, reason, comment, category }),
+    }) =>
+      submitMessageFeedback(messageId, { rating, reason, comment, category }),
     onSuccess: (data) => {
       setFeedbackByMessageId((previous) => ({
         ...previous,
@@ -2294,7 +2299,9 @@ export function ChatPage() {
                                     turn.response.conflict_detected
                                   }
                                   agreementLevel={turn.response.agreement_level}
-                                  conflictSummary={turn.response.conflict_summary}
+                                  conflictSummary={
+                                    turn.response.conflict_summary
+                                  }
                                   preferredDocumentIds={
                                     turn.response.preferred_document_ids
                                   }
@@ -2368,7 +2375,7 @@ export function ChatPage() {
                                                     {conflictStatusLabel(
                                                       citation.conflict_status,
                                                     ) ? (
-                                                      <span className="mt-1 inline-flex rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-[#5d58a8]">
+                                                      <span className="mt-1 inline-flex rounded-full border border-[#e0dced] bg-[#faf9ff] px-1.5 py-0.5 text-[9px] font-semibold text-[#5d58a8] uppercase">
                                                         {conflictStatusLabel(
                                                           citation.conflict_status,
                                                         )}
@@ -2838,9 +2845,7 @@ export function ChatPage() {
                           selectedCitationTurn.response.agreement_level,
                         )}
                       </span>
-                      <span className="font-semibold">
-                        Source comparison
-                      </span>
+                      <span className="font-semibold">Source comparison</span>
                     </div>
                     {selectedCitationTurn.response.conflict_summary ? (
                       <p className="mt-1 text-[11px] leading-snug">
@@ -2881,7 +2886,9 @@ export function ChatPage() {
                                 </div>
                                 <h4
                                   className="truncate text-sm font-bold text-[#1b1b24]"
-                                  title={citation.filename ?? tc("unknownDocument")}
+                                  title={
+                                    citation.filename ?? tc("unknownDocument")
+                                  }
                                 >
                                   {citation.filename ?? tc("unknownDocument")}
                                 </h4>
@@ -2927,7 +2934,9 @@ export function ChatPage() {
                                 </div>
                                 <h4
                                   className="truncate text-sm font-bold text-[#1b1b24]"
-                                  title={citation.filename ?? tc("unknownDocument")}
+                                  title={
+                                    citation.filename ?? tc("unknownDocument")
+                                  }
                                 >
                                   {citation.filename ?? tc("unknownDocument")}
                                 </h4>
@@ -3858,7 +3867,9 @@ export function ChatPage() {
       {chatFeedbackEnabled && feedbackModalMessageId ? (
         <FeedbackModal
           existingReason={feedbackByMessageId[feedbackModalMessageId]?.reason}
-          existingCategory={feedbackByMessageId[feedbackModalMessageId]?.category}
+          existingCategory={
+            feedbackByMessageId[feedbackModalMessageId]?.category
+          }
           existingComment={feedbackByMessageId[feedbackModalMessageId]?.comment}
           isSubmitting={feedbackSubmitMutation.isPending}
           isDeleting={feedbackDeleteMutation.isPending}

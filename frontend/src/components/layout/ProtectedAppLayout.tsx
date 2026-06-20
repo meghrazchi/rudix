@@ -123,7 +123,11 @@ export function ProtectedAppLayout({ children }: ProtectedAppLayoutProps) {
   }
 
   const activeRoute = findRouteMeta(pathname) ?? APP_ROUTES[0];
-  const navItems = buildNavigationItems(pathname, state.session, effectivePermissions);
+  const navItems = buildNavigationItems(
+    pathname,
+    state.session,
+    effectivePermissions,
+  );
 
   return (
     <AppShell

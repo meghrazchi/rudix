@@ -332,6 +332,8 @@ describe("DocumentsUploadModal (upload center)", () => {
           document_count: 5,
           indexed_count: 5,
           access_policy: "org_wide",
+          is_dynamic: false,
+          last_rule_evaluated_at: null,
           created_at: "2026-01-01T00:00:00Z",
           updated_at: "2026-01-01T00:00:00Z",
         },

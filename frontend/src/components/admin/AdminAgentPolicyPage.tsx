@@ -21,7 +21,8 @@ import { ForbiddenState } from "@/components/states/ForbiddenState";
 import { LoadingState } from "@/components/states/LoadingState";
 
 export function AdminAgentPolicyPage() {
-  const { session } = useAuthSession();
+  const { state } = useAuthSession();
+  const session = state.status === "authenticated" ? state.session : null;
   const role = session?.role ?? null;
   const canView = canViewAdminUsage(role);
   const queryClient = useQueryClient();
@@ -72,22 +73,23 @@ export function AdminAgentPolicyPage() {
     return <EmptyState description="No agent policy data available." />;
   }
 
-  const overrideByName: Record<string, OrgToolPolicyOverride> = Object.fromEntries(
-    data.tool_overrides.map((o) => [o.tool_name, o]),
-  );
+  const overrideByName: Record<string, OrgToolPolicyOverride> =
+    Object.fromEntries(data.tool_overrides.map((o) => [o.tool_name, o]));
 
   const isMutating = upsertMutation.isPending || deleteMutation.isPending;
 
-  const mutationError =
-    upsertMutation.error ?? deleteMutation.error ?? null;
+  const mutationError = upsertMutation.error ?? deleteMutation.error ?? null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold text-[#2a2640]">Agent tool policy &amp; budgets</h1>
+        <h1 className="text-2xl font-bold text-[#2a2640]">
+          Agent tool policy &amp; budgets
+        </h1>
         <p className="mt-1 text-sm text-[#6a6780]">
-          Control which tools agents can use, set per-tool role and approval requirements, and
-          define budget limits. Org-level budget limits are managed in{" "}
+          Control which tools agents can use, set per-tool role and approval
+          requirements, and define budget limits. Org-level budget limits are
+          managed in{" "}
           <a href="/admin/governance" className="text-[#6c63e0] underline">
             Governance settings
           </a>
@@ -150,7 +152,9 @@ function OrgBudgetSummarySection({
 }) {
   return (
     <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-[#2a2640]">Org-level budget limits</h2>
+      <h2 className="text-lg font-bold text-[#2a2640]">
+        Org-level budget limits
+      </h2>
       <p className="mt-1 text-sm text-[#6a6780]">
         Active limits inherited from governance settings. Edit them in{" "}
         <a href="/admin/governance" className="text-[#6c63e0] underline">
@@ -177,9 +181,15 @@ function BudgetCard({
 }) {
   return (
     <div className="rounded-xl border border-[#ece9f5] p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#6a6780]">{label}</p>
+      <p className="text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
+        {label}
+      </p>
       <p className="mt-1 text-xl font-bold text-[#2a2640]">
-        {value != null ? value : <span className="text-sm font-normal text-[#b0a8c8]">unlimited</span>}
+        {value != null ? (
+          value
+        ) : (
+          <span className="text-sm font-normal text-[#b0a8c8]">unlimited</span>
+        )}
       </p>
     </div>
   );

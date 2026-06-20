@@ -141,7 +141,7 @@ export async function listAbExperiments(params?: {
 }
 
 export async function createAbExperiment(
-  payload: CreateAbExperimentRequest
+  payload: CreateAbExperimentRequest,
 ): Promise<AbExperimentResponse> {
   return apiRequest<AbExperimentResponse>(BASE, {
     method: "POST",
@@ -149,13 +149,15 @@ export async function createAbExperiment(
   });
 }
 
-export async function getAbExperiment(experimentId: string): Promise<AbExperimentResponse> {
+export async function getAbExperiment(
+  experimentId: string,
+): Promise<AbExperimentResponse> {
   return apiRequest<AbExperimentResponse>(`${BASE}/${experimentId}`);
 }
 
 export async function updateAbExperiment(
   experimentId: string,
-  payload: UpdateAbExperimentRequest
+  payload: UpdateAbExperimentRequest,
 ): Promise<AbExperimentResponse> {
   return apiRequest<AbExperimentResponse>(`${BASE}/${experimentId}`, {
     method: "PATCH",
@@ -169,7 +171,7 @@ export async function deleteAbExperiment(experimentId: string): Promise<void> {
 
 export async function addVariant(
   experimentId: string,
-  payload: CreateAbVariantRequest
+  payload: CreateAbVariantRequest,
 ): Promise<AbVariantResponse> {
   return apiRequest<AbVariantResponse>(`${BASE}/${experimentId}/variants`, {
     method: "POST",
@@ -177,13 +179,18 @@ export async function addVariant(
   });
 }
 
-export async function removeVariant(experimentId: string, variantId: string): Promise<void> {
-  await apiRequest<void>(`${BASE}/${experimentId}/variants/${variantId}`, { method: "DELETE" });
+export async function removeVariant(
+  experimentId: string,
+  variantId: string,
+): Promise<void> {
+  await apiRequest<void>(`${BASE}/${experimentId}/variants/${variantId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function startExperimentRun(
   experimentId: string,
-  payload?: StartAbExperimentRunRequest
+  payload?: StartAbExperimentRunRequest,
 ): Promise<AbExperimentRunResponse> {
   return apiRequest<AbExperimentRunResponse>(`${BASE}/${experimentId}/runs`, {
     method: "POST",
@@ -193,51 +200,53 @@ export async function startExperimentRun(
 
 export async function listExperimentRuns(
   experimentId: string,
-  params?: { limit?: number; offset?: number }
+  params?: { limit?: number; offset?: number },
 ): Promise<AbExperimentRunListResponse> {
   const qs = new URLSearchParams();
   if (params?.limit != null) qs.set("limit", String(params.limit));
   if (params?.offset != null) qs.set("offset", String(params.offset));
   return apiRequest<AbExperimentRunListResponse>(
-    `${BASE}/${experimentId}/runs?${qs}`
+    `${BASE}/${experimentId}/runs?${qs}`,
   );
 }
 
 export async function getExperimentRun(
   experimentId: string,
-  runId: string
+  runId: string,
 ): Promise<AbExperimentRunResponse> {
-  return apiRequest<AbExperimentRunResponse>(`${BASE}/${experimentId}/runs/${runId}`);
+  return apiRequest<AbExperimentRunResponse>(
+    `${BASE}/${experimentId}/runs/${runId}`,
+  );
 }
 
 export async function finalizeExperimentRun(
   experimentId: string,
-  runId: string
+  runId: string,
 ): Promise<AbExperimentRunResponse> {
   return apiRequest<AbExperimentRunResponse>(
     `${BASE}/${experimentId}/runs/${runId}/finalize`,
-    { method: "POST", body: JSON.stringify({}) }
+    { method: "POST", body: JSON.stringify({}) },
   );
 }
 
 export async function approveVariant(
   experimentId: string,
   variantId: string,
-  payload?: ApproveVariantRequest
+  payload?: ApproveVariantRequest,
 ): Promise<AbVariantResponse> {
   return apiRequest<AbVariantResponse>(
     `${BASE}/${experimentId}/variants/${variantId}/approve`,
-    { method: "POST", body: JSON.stringify(payload ?? {}) }
+    { method: "POST", body: JSON.stringify(payload ?? {}) },
   );
 }
 
 export async function rejectVariant(
   experimentId: string,
   variantId: string,
-  payload?: RejectVariantRequest
+  payload?: RejectVariantRequest,
 ): Promise<AbVariantResponse> {
   return apiRequest<AbVariantResponse>(
     `${BASE}/${experimentId}/variants/${variantId}/reject`,
-    { method: "POST", body: JSON.stringify(payload ?? {}) }
+    { method: "POST", body: JSON.stringify(payload ?? {}) },
   );
 }

@@ -258,7 +258,11 @@ describe("permission-based route access", () => {
 
   it("buildNavigationItems disables routes when permission is missing", () => {
     const restrictedPerms = new Set(["chat:use"]);
-    const nav = buildNavigationItems("/dashboard", memberSession, restrictedPerms);
+    const nav = buildNavigationItems(
+      "/dashboard",
+      memberSession,
+      restrictedPerms,
+    );
 
     const graphItem = nav.find((item) => item.key === "graph");
     expect(graphItem?.disabled).toBe(true);
@@ -280,8 +284,7 @@ describe("permission-based route access", () => {
     const nav = buildNavigationItems("/dashboard", memberSession, fullPerms);
 
     const withPermission = nav.filter(
-      (item) =>
-        item.disabledReason === "insufficient_permission",
+      (item) => item.disabledReason === "insufficient_permission",
     );
     expect(withPermission).toHaveLength(0);
   });

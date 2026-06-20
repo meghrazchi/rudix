@@ -11,7 +11,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminMCPPage } from "@/components/admin/AdminMCPPage";
-import type { OrgMCPPolicy, MCPStatusResponse, MCPToolListResponse, MCPAuditEventListResponse } from "@/lib/api/mcp";
+import type {
+  OrgMCPPolicy,
+  MCPStatusResponse,
+  MCPToolListResponse,
+  MCPAuditEventListResponse,
+} from "@/lib/api/mcp";
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -27,7 +32,8 @@ vi.mock("@/lib/api/mcp", () => ({
   getMCPPolicy: (...args: unknown[]) => mockApi.getMCPPolicy(...args),
   getMCPStatus: (...args: unknown[]) => mockApi.getMCPStatus(...args),
   listMCPTools: (...args: unknown[]) => mockApi.listMCPTools(...args),
-  listMCPAuditEvents: (...args: unknown[]) => mockApi.listMCPAuditEvents(...args),
+  listMCPAuditEvents: (...args: unknown[]) =>
+    mockApi.listMCPAuditEvents(...args),
   updateMCPPolicy: (...args: unknown[]) => mockApi.updateMCPPolicy(...args),
 }));
 
@@ -113,14 +119,18 @@ describe("MCPTrustControlsSection", () => {
   it("renders the trust controls section heading", async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText("Trust and exposure controls")).toBeInTheDocument();
+      expect(
+        screen.getByText("Trust and exposure controls"),
+      ).toBeInTheDocument();
     });
   });
 
   it("shows redact document text toggle in ON state by default", async () => {
     renderPage();
     await waitFor(() => {
-      const toggle = screen.getByRole("switch", { name: /redact document text/i });
+      const toggle = screen.getByRole("switch", {
+        name: /redact document text/i,
+      });
       expect(toggle).toBeInTheDocument();
       expect(toggle).toHaveAttribute("aria-checked", "true");
     });
@@ -133,7 +143,9 @@ describe("MCPTrustControlsSection", () => {
     });
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/raw document text may be returned/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/raw document text may be returned/i),
+      ).toBeInTheDocument();
     });
   });
 
@@ -156,7 +168,9 @@ describe("MCPTrustControlsSection", () => {
   it("shows 'allow all roles' checkbox checked when allowed_roles is null", async () => {
     renderPage();
     await waitFor(() => {
-      const allowAll = screen.getByRole("checkbox", { name: /allow all roles/i });
+      const allowAll = screen.getByRole("checkbox", {
+        name: /allow all roles/i,
+      });
       expect(allowAll).toBeChecked();
     });
   });
@@ -233,7 +247,9 @@ describe("MCPTrustControlsSection", () => {
       screen.getByRole("switch", { name: /redact document text/i }),
     );
 
-    const toggle = screen.getByRole("switch", { name: /redact document text/i });
+    const toggle = screen.getByRole("switch", {
+      name: /redact document text/i,
+    });
     await user.click(toggle);
 
     const saveBtn = screen.getByRole("button", { name: /save policy/i });

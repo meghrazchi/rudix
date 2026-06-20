@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 
@@ -11,16 +10,6 @@ import { getHtmlLang } from "@/lib/i18n-format";
 import type { SupportedLocale } from "@/i18n/routing";
 
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -45,10 +34,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html
-      lang={getHtmlLang(locale)}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang={getHtmlLang(locale)} className="h-full antialiased">
       <head>
         <link
           rel="stylesheet"

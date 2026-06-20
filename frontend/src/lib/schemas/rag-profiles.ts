@@ -6,10 +6,7 @@ export const ragCitationStrictnessSchema = z.enum([
   "lenient",
 ]);
 export const ragSafetyModeSchema = z.enum(["strict", "standard", "permissive"]);
-export const ragRerankFallbackBehaviorSchema = z.enum([
-  "original",
-  "disabled",
-]);
+export const ragRerankFallbackBehaviorSchema = z.enum(["original", "disabled"]);
 
 const optionalTrimmedStringSchema = z.preprocess((value) => {
   if (typeof value !== "string") {
@@ -35,9 +32,7 @@ const optionalProviderSchema = z.preprocess((value) => {
   return trimmed.length > 0 ? trimmed : null;
 }, z.string().trim().max(64).nullable().optional());
 
-const optionalNumberSchema = (
-  schema: z.ZodTypeAny,
-): z.ZodTypeAny =>
+const optionalNumberSchema = (schema: z.ZodTypeAny): z.ZodTypeAny =>
   z.preprocess((value) => {
     if (value === "" || value === null || value === undefined) {
       return null;
@@ -53,7 +48,9 @@ export const ragProfileConfigSchema = z.object({
   rerank_timeout_seconds: optionalNumberSchema(
     z.coerce.number().min(0.1).max(120),
   ),
-  rerank_batch_size: optionalNumberSchema(z.coerce.number().int().min(1).max(200)),
+  rerank_batch_size: optionalNumberSchema(
+    z.coerce.number().int().min(1).max(200),
+  ),
   rerank_input_max_candidates: optionalNumberSchema(
     z.coerce.number().int().min(1).max(200),
   ),

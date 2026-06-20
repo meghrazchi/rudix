@@ -272,7 +272,9 @@ describe("AgentTraceReplayPage", () => {
     );
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/accessed via a share link/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/accessed via a share link/i),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -306,11 +308,15 @@ describe("AgentTraceReplayPage", () => {
     const appendChildSpy = vi
       .spyOn(document.body, "appendChild")
       .mockImplementation((el) => el);
-    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => {});
 
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /export/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /export/i }),
+      ).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /export/i }));
 
@@ -325,10 +331,14 @@ describe("AgentTraceReplayPage", () => {
     mockApi.getAgentRunTrace.mockResolvedValue(makeTrace());
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /share/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /share/i }),
+      ).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /share/i }));
-    expect(screen.getByRole("dialog", { name: /share trace/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /share trace/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows share link after successful share creation", async () => {
@@ -336,12 +346,12 @@ describe("AgentTraceReplayPage", () => {
     mockApi.shareAgentRunTrace.mockResolvedValue(makeShareResponse());
     renderPage();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /share/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /share/i }),
+      ).toBeInTheDocument(),
     );
     await userEvent.click(screen.getByRole("button", { name: /share/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /create link/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /create link/i }));
     await waitFor(() =>
       expect(
         screen.getByRole("dialog", { name: /share link created/i }),

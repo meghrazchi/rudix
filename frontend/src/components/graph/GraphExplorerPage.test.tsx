@@ -230,12 +230,8 @@ describe("GraphExplorerPage", () => {
     expect(screen.getByText("120")).toBeInTheDocument();
     expect(screen.getByText("54")).toBeInTheDocument();
     // Entity type pill buttons in the stats panel
-    expect(
-      screen.getByRole("button", { name: /Vendor/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Person/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Vendor/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Person/i })).toBeInTheDocument();
   });
 
   it("hides stats panel when graph is unavailable", async () => {
@@ -343,7 +339,9 @@ describe("GraphExplorerPage", () => {
 
     renderPage();
 
-    await userEvent.click(screen.getByRole("button", { name: "Relationships" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Relationships" }),
+    );
 
     expect(
       await screen.findByText("No relationships found"),
@@ -356,13 +354,12 @@ describe("GraphExplorerPage", () => {
 
     renderPage();
 
-    await userEvent.click(screen.getByRole("button", { name: "Relationships" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Relationships" }),
+    );
     await screen.findByText("No relationships found");
 
-    await userEvent.type(
-      screen.getByPlaceholderText("OWNS"),
-      "OWNS",
-    );
+    await userEvent.type(screen.getByPlaceholderText("OWNS"), "OWNS");
     await userEvent.click(screen.getByRole("button", { name: "Filter" }));
 
     await waitFor(() => {
@@ -381,7 +378,9 @@ describe("GraphExplorerPage", () => {
     // Start on entities tab — entity type filter is visible
     expect(screen.getByLabelText("Entity type")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Relationships" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Relationships" }),
+    );
     await screen.findByText("No relationships found");
 
     // Switched to relationships — entity type filter is hidden

@@ -56,8 +56,8 @@ function makeAdminSession(): SessionState {
     session: {
       userId: "user-1",
       email: "admin@example.com",
-      displayName: "Admin",
       organizationId: "org-1",
+      organizationName: "Org One",
       role: "admin",
     },
   };
@@ -146,8 +146,8 @@ describe("AdminWebhooksPage", () => {
       session: {
         userId: "u2",
         email: "viewer@example.com",
-        displayName: "Viewer",
         organizationId: "org-1",
+        organizationName: "Org One",
         role: "viewer",
       },
     };
@@ -186,7 +186,16 @@ describe("AdminWebhooksPage", () => {
 
   it("shows error state on API failure", async () => {
     mockApi.listWebhooks.mockRejectedValue(
-      new ApiClientError("Server error", 500, false),
+      new ApiClientError({
+        status: 500,
+        code: "unknown_error",
+        message: "Server error",
+        details: {},
+        requestId: null,
+        userMessage: "Server error",
+        actionMessage: "Try again.",
+        retryable: false,
+      }),
     );
     renderPage();
     await waitFor(() =>
@@ -196,7 +205,16 @@ describe("AdminWebhooksPage", () => {
 
   it("shows forbidden state on 403 response", async () => {
     mockApi.listWebhooks.mockRejectedValue(
-      new ApiClientError("Forbidden", 403, false),
+      new ApiClientError({
+        status: 403,
+        code: "forbidden",
+        message: "Forbidden",
+        details: {},
+        requestId: null,
+        userMessage: "Forbidden",
+        actionMessage: "Switch organization or contact an administrator.",
+        retryable: false,
+      }),
     );
     renderPage();
     await waitFor(() =>

@@ -124,10 +124,10 @@ async function loginAs(
   session: typeof memberSession,
 ): Promise<void> {
   await page.evaluate(
-    ([key, value]) => {
+    ({ key, value }) => {
       window.localStorage.setItem(key, JSON.stringify(value));
     },
-    [SESSION_STORAGE_KEY, session],
+    { key: SESSION_STORAGE_KEY, value: session },
   );
 }
 

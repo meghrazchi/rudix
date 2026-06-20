@@ -1309,7 +1309,9 @@ function CollectionDetailDrawer({
                           <span className="font-semibold text-[#2a2640]">
                             {cond.field}
                           </span>{" "}
-                          <span className="text-[#6a6780]">{cond.operator}</span>{" "}
+                          <span className="text-[#6a6780]">
+                            {cond.operator}
+                          </span>{" "}
                           <span className="font-semibold text-[#3525cd]">
                             {Array.isArray(cond.value)
                               ? cond.value.join(", ")
@@ -1498,7 +1500,8 @@ function CollectionDetailDrawer({
                               ? tc("docStatusIndexing")
                               : doc.status}
                         </span>
-                        {capabilities.canManageDocuments && !detail.is_dynamic ? (
+                        {capabilities.canManageDocuments &&
+                        !detail.is_dynamic ? (
                           <button
                             type="button"
                             aria-label={tc("removeAriaLabel")}
@@ -1601,7 +1604,10 @@ const DEFAULT_FORM: CollectionFormState = {
   description: "",
   access_policy: "org_wide",
   is_dynamic: false,
-  rule_schema: { logic: "and", conditions: [{ field: "file_type", operator: "eq", value: "pdf" }] },
+  rule_schema: {
+    logic: "and",
+    conditions: [{ field: "file_type", operator: "eq", value: "pdf" }],
+  },
 };
 
 type CollectionFormErrors = { name?: string };
@@ -1753,8 +1759,8 @@ function CollectionDialog({
                   Dynamic collection
                 </p>
                 <p className="text-[11px] text-[#6a6780]">
-                  Membership is automatically updated based on document
-                  metadata rules.
+                  Membership is automatically updated based on document metadata
+                  rules.
                 </p>
               </div>
             </label>
@@ -2405,8 +2411,7 @@ export function CollectionsPage() {
             description: dialogMode.collection.description ?? "",
             access_policy: dialogMode.collection.access_policy,
             is_dynamic: dialogMode.collection.is_dynamic,
-            rule_schema:
-              dialogMode.collection.rule_schema ?? emptyRuleSet(),
+            rule_schema: dialogMode.collection.rule_schema ?? emptyRuleSet(),
           }}
           saving={updateMutation.isPending}
           saveError={dialogSaveError}

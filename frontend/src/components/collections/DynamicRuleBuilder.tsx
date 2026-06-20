@@ -170,9 +170,14 @@ function ConditionRow({
     const wasMulti = isMultiOperator(condition.operator);
     let newValue: string | string[] = condition.value;
     if (willBeMulti && !wasMulti) {
-      newValue = typeof condition.value === "string" ? [condition.value].filter(Boolean) : [];
+      newValue =
+        typeof condition.value === "string"
+          ? [condition.value].filter(Boolean)
+          : [];
     } else if (!willBeMulti && wasMulti) {
-      newValue = Array.isArray(condition.value) ? (condition.value[0] ?? "") : "";
+      newValue = Array.isArray(condition.value)
+        ? (condition.value[0] ?? "")
+        : "";
     }
     onChange({ ...condition, operator: newOp, value: newValue });
   }
@@ -339,27 +344,29 @@ function PreviewPanel({
             ) : null}
           </div>
           {previewMutation.data.items.length > 0 ? (
-            <ul className="max-h-44 overflow-y-auto divide-y divide-[#f0ecf9]">
-              {previewMutation.data.items.map((doc: PreviewRulesDocumentItem) => (
-                <li
-                  key={doc.document_id}
-                  className="flex items-center gap-2 px-3 py-2"
-                >
-                  <span className="material-symbols-outlined shrink-0 text-[16px] text-[#6a6780]">
-                    {doc.file_type === "pdf"
-                      ? "picture_as_pdf"
-                      : doc.file_type === "docx"
-                        ? "article"
-                        : "description"}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#1b1b24]">
-                    {doc.filename}
-                  </span>
-                  <span className="shrink-0 text-[10px] font-semibold text-[#6a6780] uppercase">
-                    {doc.status}
-                  </span>
-                </li>
-              ))}
+            <ul className="max-h-44 divide-y divide-[#f0ecf9] overflow-y-auto">
+              {previewMutation.data.items.map(
+                (doc: PreviewRulesDocumentItem) => (
+                  <li
+                    key={doc.document_id}
+                    className="flex items-center gap-2 px-3 py-2"
+                  >
+                    <span className="material-symbols-outlined shrink-0 text-[16px] text-[#6a6780]">
+                      {doc.file_type === "pdf"
+                        ? "picture_as_pdf"
+                        : doc.file_type === "docx"
+                          ? "article"
+                          : "description"}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#1b1b24]">
+                      {doc.filename}
+                    </span>
+                    <span className="shrink-0 text-[10px] font-semibold text-[#6a6780] uppercase">
+                      {doc.status}
+                    </span>
+                  </li>
+                ),
+              )}
             </ul>
           ) : null}
         </div>
@@ -417,7 +424,7 @@ export function DynamicRuleBuilder({
         <span className="text-[11px] font-semibold tracking-wider text-[#6a6780] uppercase">
           Match
         </span>
-        <div className="flex rounded-lg border border-[#d2cee6] overflow-hidden">
+        <div className="flex overflow-hidden rounded-lg border border-[#d2cee6]">
           {(["and", "or"] as RuleLogic[]).map((l) => (
             <button
               key={l}
@@ -456,7 +463,9 @@ export function DynamicRuleBuilder({
           onClick={addCondition}
           className="flex items-center gap-1 text-xs font-semibold text-[#3525cd] hover:underline"
         >
-          <span className="material-symbols-outlined text-[16px]">add_circle</span>
+          <span className="material-symbols-outlined text-[16px]">
+            add_circle
+          </span>
           Add condition
         </button>
       ) : null}

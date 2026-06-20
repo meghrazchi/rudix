@@ -419,17 +419,7 @@ function ModelProfileCard({
   );
 }
 
-const PROVIDER_PROFILE_LABEL: Record<string, string> = {
-  cloud_baseline: "Cloud Baseline",
-  local_profile: "Local Profile",
-  fallback_profile: "Fallback Profile",
-};
-
 function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
-  const providerType = run.provider_type;
-  const providerProfile = run.provider_profile;
-  const modelProfileKey = run.model_profile_key;
-
   const summary = run.summary ?? {};
   const invalidJsonRate =
     typeof summary["invalid_json_rate"] === "number"
@@ -447,100 +437,53 @@ function ProviderProfileCard({ run }: { run: EvaluationRunDetailResponse }) {
   const hasLocalMetrics =
     invalidJsonRate != null || timeoutRate != null || fallbackFrequency != null;
 
-  if (!providerType && !providerProfile && !hasLocalMetrics) {
+  if (!hasLocalMetrics) {
     return null;
   }
-
-  const profileLabel = providerProfile
-    ? (PROVIDER_PROFILE_LABEL[providerProfile] ?? providerProfile)
-    : null;
-  const isLocal = providerProfile === "local_profile";
 
   return (
     <section className="rounded-xl border border-[#ddd8ec] bg-[#fcfbff] p-3">
       <h3 className="text-sm font-semibold text-[#2f2a48]">
-        Provider &amp; profile
+        Local model metrics
       </h3>
       <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
-        {providerType && (
+        {invalidJsonRate != null && (
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-              Provider
-            </dt>
-            <dd className="font-medium text-[#312b4c]">
-              {providerType}
-              {isLocal && (
-                <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-                  local
-                </span>
-              )}
+            <dt className="text-xs text-[#6b6682]">Invalid JSON rate</dt>
+            <dd
+              className={`font-medium tabular-nums ${
+                invalidJsonRate > 0.05 ? "text-red-600" : "text-[#312b4c]"
+              }`}
+            >
+              {(invalidJsonRate * 100).toFixed(1)}%
             </dd>
           </div>
         )}
-        {profileLabel && (
+        {timeoutRate != null && (
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-              Profile label
-            </dt>
-            <dd className="font-medium text-[#312b4c]">{profileLabel}</dd>
+            <dt className="text-xs text-[#6b6682]">Timeout rate</dt>
+            <dd
+              className={`font-medium tabular-nums ${
+                timeoutRate > 0.1 ? "text-red-600" : "text-[#312b4c]"
+              }`}
+            >
+              {(timeoutRate * 100).toFixed(1)}%
+            </dd>
           </div>
         )}
-        {modelProfileKey && (
+        {fallbackFrequency != null && (
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-              Task profile
-            </dt>
-            <dd className="text-[#4a4565]">{modelProfileKey}</dd>
+            <dt className="text-xs text-[#6b6682]">Fallback frequency</dt>
+            <dd
+              className={`font-medium tabular-nums ${
+                fallbackFrequency > 0.15 ? "text-amber-700" : "text-[#312b4c]"
+              }`}
+            >
+              {(fallbackFrequency * 100).toFixed(1)}%
+            </dd>
           </div>
         )}
       </dl>
-      {hasLocalMetrics && (
-        <div className="mt-3 border-t border-[#ddd8ec] pt-2">
-          <p className="mb-1.5 text-xs font-semibold tracking-wide text-[#6b6682] uppercase">
-            Local model metrics
-          </p>
-          <dl className="grid gap-2 text-sm sm:grid-cols-3">
-            {invalidJsonRate != null && (
-              <div>
-                <dt className="text-xs text-[#6b6682]">Invalid JSON rate</dt>
-                <dd
-                  className={`font-medium tabular-nums ${
-                    invalidJsonRate > 0.05 ? "text-red-600" : "text-[#312b4c]"
-                  }`}
-                >
-                  {(invalidJsonRate * 100).toFixed(1)}%
-                </dd>
-              </div>
-            )}
-            {timeoutRate != null && (
-              <div>
-                <dt className="text-xs text-[#6b6682]">Timeout rate</dt>
-                <dd
-                  className={`font-medium tabular-nums ${
-                    timeoutRate > 0.1 ? "text-red-600" : "text-[#312b4c]"
-                  }`}
-                >
-                  {(timeoutRate * 100).toFixed(1)}%
-                </dd>
-              </div>
-            )}
-            {fallbackFrequency != null && (
-              <div>
-                <dt className="text-xs text-[#6b6682]">Fallback frequency</dt>
-                <dd
-                  className={`font-medium tabular-nums ${
-                    fallbackFrequency > 0.15
-                      ? "text-amber-700"
-                      : "text-[#312b4c]"
-                  }`}
-                >
-                  {(fallbackFrequency * 100).toFixed(1)}%
-                </dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      )}
     </section>
   );
 }

@@ -71,13 +71,23 @@ function makePolicy(overrides: Partial<OrgMCPPolicy> = {}): OrgMCPPolicy {
     rate_limit_enabled: true,
     rate_limit_requests: 30,
     rate_limit_window_seconds: 60,
+    allowed_resources: null,
+    allowed_prompts: null,
+    allowed_collections: null,
+    allowed_roles: null,
+    redact_document_text: true,
+    max_chunk_chars: null,
+    max_request_bytes: null,
+    max_response_bytes: null,
     updated_by_user_id: null,
     updated_at: "2026-06-20T10:00:00Z",
     ...overrides,
   };
 }
 
-function makeStatus(overrides: Partial<MCPStatusResponse> = {}): MCPStatusResponse {
+function makeStatus(
+  overrides: Partial<MCPStatusResponse> = {},
+): MCPStatusResponse {
   return {
     feature_enabled: false,
     auth_required: true,

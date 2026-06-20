@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminAccessDebuggerPage } from "@/components/admin/AdminAccessDebuggerPage";
-import type { OrgMemberListResponse, SimulateAccessResponse } from "@/lib/api/access-debugger";
+import type {
+  OrgMemberListResponse,
+  SimulateAccessResponse,
+} from "@/lib/api/access-debugger";
 
 // ── mocks ──────────────────────────────────────────────────────────────────────
 
@@ -100,7 +103,9 @@ const DENY_RESULT: SimulateAccessResponse = {
     { layer: "role", outcome: "deny", detail: "insufficient_role" },
   ],
   effective_permissions: ["documents:view", "chat:use"],
-  remediation: ["Grant the user a role with sufficient permissions for collection access."],
+  remediation: [
+    "Grant the user a role with sufficient permissions for collection access.",
+  ],
   troubleshooting_links: [
     { label: "View audit logs", href: "/admin/audit-logs" },
     { label: "View access management", href: "/admin/permissions" },
@@ -133,7 +138,9 @@ describe("AdminAccessDebuggerPage", () => {
     it("renders forbidden state when user lacks security_center:view", () => {
       mockPermissions.hasPermission.mockReturnValue(false);
       renderPage();
-      expect(screen.getByText(/access debugger/i, { selector: "h1, h2, p, div" })).toBeTruthy();
+      expect(
+        screen.getByText(/access debugger/i, { selector: "h1, h2, p, div" }),
+      ).toBeTruthy();
       expect(screen.queryByText(/simulation parameters/i)).toBeNull();
     });
 
@@ -158,7 +165,9 @@ describe("AdminAccessDebuggerPage", () => {
   describe("user search", () => {
     it("renders user search input", () => {
       renderPage();
-      expect(screen.getByPlaceholderText(/search by name or email/i)).toBeTruthy();
+      expect(
+        screen.getByPlaceholderText(/search by name or email/i),
+      ).toBeTruthy();
     });
 
     it("fetches users on focus", async () => {
@@ -192,7 +201,9 @@ describe("AdminAccessDebuggerPage", () => {
       renderPage();
       const input = screen.getByPlaceholderText(/search by name or email/i);
       await userEvent.click(input);
-      await waitFor(() => expect(screen.getByText(/no users found/i)).toBeTruthy());
+      await waitFor(() =>
+        expect(screen.getByText(/no users found/i)).toBeTruthy(),
+      );
     });
   });
 
@@ -308,16 +319,16 @@ describe("AdminAccessDebuggerPage", () => {
 
   describe("error handling", () => {
     it("shows error message when simulation fails", async () => {
-      mockApi.simulateAccess.mockRejectedValue(new Error("Internal server error"));
+      mockApi.simulateAccess.mockRejectedValue(
+        new Error("Internal server error"),
+      );
       renderPage();
       const input = screen.getByPlaceholderText(/search by name or email/i);
       await userEvent.click(input);
       await waitFor(() => screen.getByText("Alice Smith"));
       await userEvent.click(screen.getByText("Alice Smith"));
       await userEvent.click(screen.getByRole("button", { name: /simulate/i }));
-      await waitFor(() =>
-        expect(screen.getByRole("alert")).toBeTruthy(),
-      );
+      await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
     });
 
     it("clears previous result on new error", async () => {
@@ -332,7 +343,9 @@ describe("AdminAccessDebuggerPage", () => {
 
       mockApi.simulateAccess.mockRejectedValue(new Error("Server error"));
       await userEvent.click(screen.getByRole("button", { name: /simulate/i }));
-      await waitFor(() => expect(screen.queryByTestId("result-panel")).toBeNull());
+      await waitFor(() =>
+        expect(screen.queryByTestId("result-panel")).toBeNull(),
+      );
     });
   });
 
@@ -380,7 +393,9 @@ describe("AdminAccessDebuggerPage", () => {
       await userEvent.click(input);
       await waitFor(() => screen.getByText("Bob Jones"));
       await userEvent.click(screen.getByText("Bob Jones"));
-      const resourceInput = screen.getByPlaceholderText(/uuid of the specific resource/i);
+      const resourceInput = screen.getByPlaceholderText(
+        /uuid of the specific resource/i,
+      );
       await userEvent.type(resourceInput, docId);
       await userEvent.click(screen.getByRole("button", { name: /simulate/i }));
       await waitFor(() => screen.getByTestId("result-panel"));

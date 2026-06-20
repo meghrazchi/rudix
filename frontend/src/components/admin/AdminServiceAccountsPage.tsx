@@ -96,7 +96,7 @@ function CreatedTokenBanner({
           safe.
         </p>
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-[#d7d4e8] bg-[#f9f8ff] px-3 py-2">
-          <code className="flex-1 break-all font-mono text-sm text-[#2a2640]">
+          <code className="flex-1 font-mono text-sm break-all text-[#2a2640]">
             {result.raw_token}
           </code>
           <CopyButton value={result.raw_token} />
@@ -190,7 +190,9 @@ function AccountFormPanel({
     <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-[#d7d4e8] bg-white shadow-xl">
       <div className="flex items-center justify-between border-b border-[#d7d4e8] px-6 py-4">
         <h2 className="text-lg font-semibold text-[#2a2640]">
-          {mode === "create" ? "Create Service Account" : "Edit Service Account"}
+          {mode === "create"
+            ? "Create Service Account"
+            : "Edit Service Account"}
         </h2>
         <button
           type="button"
@@ -327,8 +329,7 @@ function TokenFormPanel({
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
-    mutationFn: () =>
-      createToken(account.id, { name: name.trim() }),
+    mutationFn: () => createToken(account.id, { name: name.trim() }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: queryTokens(account.id) });
       onCreated(result);
@@ -502,7 +503,7 @@ function TokensPanel({
             <h3 className="text-sm font-semibold text-[#2a2640]">
               Tokens
               {activeTokens.length > 0 && (
-                <span className="ml-1 text-[#68647b] font-normal">
+                <span className="ml-1 font-normal text-[#68647b]">
                   ({activeTokens.length} active)
                 </span>
               )}
@@ -555,7 +556,7 @@ function TokensPanel({
               ))}
               {revokedTokens.length > 0 && (
                 <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#68647b]">
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-[#68647b] uppercase">
                     Revoked ({revokedTokens.length})
                   </p>
                   {revokedTokens.map((token) => (
@@ -1015,15 +1016,11 @@ export function AdminServiceAccountsPage() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  deactivateMutation.mutate(deactivateTarget.id)
-                }
+                onClick={() => deactivateMutation.mutate(deactivateTarget.id)}
                 disabled={deactivateMutation.isPending}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
               >
-                {deactivateMutation.isPending
-                  ? "Deactivating…"
-                  : "Deactivate"}
+                {deactivateMutation.isPending ? "Deactivating…" : "Deactivate"}
               </button>
               <button
                 type="button"

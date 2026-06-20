@@ -855,7 +855,10 @@ export function RagPipelinePage() {
             <span>Run: {runLabel}</span>
             <span>Type: {graph.pipeline_type}</span>
             <span>Status: {graph.status}</span>
-            <ContextualHelpLink topic="rag-pipeline" className="ml-auto normal-case" />
+            <ContextualHelpLink
+              topic="rag-pipeline"
+              className="ml-auto normal-case"
+            />
           </div>
 
           {deepLinkDetails.length > 0 ? (

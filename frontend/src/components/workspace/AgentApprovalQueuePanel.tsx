@@ -37,7 +37,7 @@ function RiskBadge({ level }: { level: string | null }) {
     "bg-[#e4e1ee] text-[#464555] border-[#d7d4e8]";
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase ${cls}`}
     >
       {level}
     </span>
@@ -55,7 +55,9 @@ function ExpiryCountdown({ expiresAt }: { expiresAt: string | null }) {
   const minutes = Math.floor(diff / 60_000);
   const seconds = Math.floor((diff % 60_000) / 1000);
   const label =
-    minutes > 0 ? `Expires in ${minutes}m ${seconds}s` : `Expires in ${seconds}s`;
+    minutes > 0
+      ? `Expires in ${minutes}m ${seconds}s`
+      : `Expires in ${seconds}s`;
   const urgent = diff < 120_000;
   return (
     <span
@@ -82,8 +84,12 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
   const [commentSent, setCommentSent] = useState(false);
 
   const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.agent.approvals() });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.agent.run(item.agent_run_id) });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.agent.approvals(),
+    });
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.agent.run(item.agent_run_id),
+    });
   };
 
   const decideMutation = useMutation({
@@ -111,7 +117,11 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 
   const commentMutation = useMutation({
     mutationFn: () =>
-      commentAgentRunApproval(item.agent_run_id, item.approval_id, comment.trim()),
+      commentAgentRunApproval(
+        item.agent_run_id,
+        item.approval_id,
+        comment.trim(),
+      ),
     onSuccess: () => {
       setCommentError(null);
       setComment("");
@@ -314,8 +324,12 @@ function ApprovalCard({ item }: { item: AgentApprovalQueueItem }) {
 
 export function AgentApprovalQueuePanel() {
   const queueQuery = useQuery({
-    queryKey: queryKeys.agent.approvals({ status: "pending", limit: QUEUE_LIMIT }),
-    queryFn: () => listAgentApprovals({ status: "pending", limit: QUEUE_LIMIT }),
+    queryKey: queryKeys.agent.approvals({
+      status: "pending",
+      limit: QUEUE_LIMIT,
+    }),
+    queryFn: () =>
+      listAgentApprovals({ status: "pending", limit: QUEUE_LIMIT }),
     refetchInterval: QUEUE_POLL_INTERVAL_MS,
   });
 
@@ -328,7 +342,7 @@ export function AgentApprovalQueuePanel() {
       className="rounded-xl border border-[#d7d4e8] bg-white p-4 shadow-sm"
     >
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[11px] font-bold uppercase tracking-wide text-[#9993b0]">
+        <h2 className="text-[11px] font-bold tracking-wide text-[#9993b0] uppercase">
           Approval queue
           {total > 0 && (
             <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
@@ -343,7 +357,9 @@ export function AgentApprovalQueuePanel() {
         )}
       </div>
 
-      {queueQuery.isLoading && <LoadingState title="Loading approvals…" compact />}
+      {queueQuery.isLoading && (
+        <LoadingState title="Loading approvals…" compact />
+      )}
 
       {queueQuery.isError && (
         <ErrorState

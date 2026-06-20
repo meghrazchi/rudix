@@ -509,7 +509,11 @@ const PROVIDER_ORG_WIDE_SCOPES: Record<string, string[]> = {
   "microsoft-sharepoint-onedrive": ["Sites.Read.All", "Files.Read.All"],
 };
 
-type ScopeRisk = "write_permission" | "admin_scope" | "org_wide_access" | "broad_read";
+type ScopeRisk =
+  | "write_permission"
+  | "admin_scope"
+  | "org_wide_access"
+  | "broad_read";
 
 function detectScopeRisks(
   scopes: string[],
@@ -518,12 +522,16 @@ function detectScopeRisks(
 ): { code: ScopeRisk; message: string; scope: string }[] {
   const warnings: { code: ScopeRisk; message: string; scope: string }[] = [];
 
-  const hasFilter = ["folder_ids", "site_ids", "drive_ids", "space_keys", "project_keys"].some(
-    (k) => {
-      const v = configValues[k];
-      return typeof v === "string" ? v.trim().length > 0 : Boolean(v);
-    },
-  );
+  const hasFilter = [
+    "folder_ids",
+    "site_ids",
+    "drive_ids",
+    "space_keys",
+    "project_keys",
+  ].some((k) => {
+    const v = configValues[k];
+    return typeof v === "string" ? v.trim().length > 0 : Boolean(v);
+  });
 
   for (const scope of scopes) {
     const lower = scope.toLowerCase();
@@ -601,7 +609,9 @@ function PermissionReviewStep({
 
   const isBroad = warnings.length > 0;
 
-  const confirmed = (state as unknown as PermissionReviewState & ConnectorSetupState).confirmed ?? false;
+  const confirmed =
+    (state as unknown as PermissionReviewState & ConnectorSetupState)
+      .confirmed ?? false;
 
   return (
     <div className="space-y-5">
@@ -615,18 +625,22 @@ function PermissionReviewStep({
               Broad permission scope detected
             </div>
             <p className="mt-0.5 text-sm text-amber-800">
-              The selected configuration grants broad access. Review each warning
-              below and narrow the scope where possible before confirming.
+              The selected configuration grants broad access. Review each
+              warning below and narrow the scope where possible before
+              confirming.
             </p>
           </div>
         </div>
       )}
 
-      <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-[#2a2640]">Requested OAuth scopes</h3>
+      <div className="space-y-3 rounded-2xl border border-[#d7d4e8] bg-white p-4">
+        <h3 className="text-sm font-semibold text-[#2a2640]">
+          Requested OAuth scopes
+        </h3>
         {requestedScopes.length === 0 ? (
           <p className="text-sm text-[#68647b]">
-            This provider uses API token authentication — no OAuth scopes are requested.
+            This provider uses API token authentication — no OAuth scopes are
+            requested.
           </p>
         ) : (
           <div className="divide-y divide-[#f0eef9] overflow-hidden rounded-xl border border-[#d7d4e8]">
@@ -644,10 +658,14 @@ function PermissionReviewStep({
                   >
                     {warning ? SCOPE_RISK_ICONS[warning.code] : "check_circle"}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-mono text-xs break-all text-[#2a2640]">{scope}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-mono text-xs break-all text-[#2a2640]">
+                      {scope}
+                    </div>
                     {warning && (
-                      <div className="mt-0.5 text-xs text-amber-700">{warning.message}</div>
+                      <div className="mt-0.5 text-xs text-amber-700">
+                        {warning.message}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -660,24 +678,39 @@ function PermissionReviewStep({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
-            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">sync_alt</span>
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
+              sync_alt
+            </span>
             Sync direction
           </div>
-          <p className="mt-1.5 text-sm text-[#68647b]">Read-only. Rudix never writes, edits, or deletes content in the connected source.</p>
+          <p className="mt-1.5 text-sm text-[#68647b]">
+            Read-only. Rudix never writes, edits, or deletes content in the
+            connected source.
+          </p>
         </div>
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
-            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">database</span>
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
+              database
+            </span>
             Retention
           </div>
-          <p className="mt-1.5 text-sm text-[#68647b]">Indexed content is stored until the connector is removed or a document is deleted at the source.</p>
+          <p className="mt-1.5 text-sm text-[#68647b]">
+            Indexed content is stored until the connector is removed or a
+            document is deleted at the source.
+          </p>
         </div>
         <div className="rounded-2xl border border-[#d7d4e8] bg-white p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#2a2640]">
-            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">group</span>
+            <span className="material-symbols-outlined text-[18px] text-[#3525cd]">
+              group
+            </span>
             Access
           </div>
-          <p className="mt-1.5 text-sm text-[#68647b]">Indexed results are available to all members of your organisation via the assigned collection.</p>
+          <p className="mt-1.5 text-sm text-[#68647b]">
+            Indexed results are available to all members of your organisation
+            via the assigned collection.
+          </p>
         </div>
       </div>
 
@@ -686,7 +719,10 @@ function PermissionReviewStep({
           type="checkbox"
           checked={confirmed}
           onChange={(e) =>
-            onChange({ ...(state as object), confirmed: e.target.checked } as ConnectorSetupState)
+            onChange({
+              ...(state as object),
+              confirmed: e.target.checked,
+            } as ConnectorSetupState)
           }
           className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#bfb9d8] text-[#3525cd] focus:ring-[#3525cd]"
           data-testid="permission-review-confirm"

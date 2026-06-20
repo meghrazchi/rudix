@@ -32,7 +32,9 @@ export function SecurityDisclosurePage() {
               </p>
               <p>Your report should include:</p>
               <ul className="ml-4 list-disc space-y-1">
-                <li>a description of the vulnerability and its potential impact;</li>
+                <li>
+                  a description of the vulnerability and its potential impact;
+                </li>
                 <li>
                   steps to reproduce or a proof-of-concept (no destructive
                   payloads);
@@ -47,9 +49,7 @@ export function SecurityDisclosurePage() {
           heading: "3. In-Scope",
           body: (
             <>
-              <p>
-                The following are in scope for responsible disclosure:
-              </p>
+              <p>The following are in scope for responsible disclosure:</p>
               <ul className="ml-4 list-disc space-y-1">
                 <li>
                   Rudix web application (app.rudix.ai or your self-hosted
@@ -90,9 +90,7 @@ export function SecurityDisclosurePage() {
                   social engineering of Rudix staff or phishing attacks against
                   Rudix employees;
                 </li>
-                <li>
-                  physical attacks against Rudix infrastructure;
-                </li>
+                <li>physical attacks against Rudix infrastructure;</li>
                 <li>
                   issues in third-party libraries that do not affect Rudix
                   users&rsquo; data.
@@ -124,7 +122,8 @@ export function SecurityDisclosurePage() {
                   permission to test;
                 </li>
                 <li>
-                  avoid accessing, modifying, or deleting other users&rsquo; data;
+                  avoid accessing, modifying, or deleting other users&rsquo;
+                  data;
                 </li>
                 <li>
                   not exploit the vulnerability beyond what is necessary to
@@ -148,8 +147,8 @@ export function SecurityDisclosurePage() {
           body: (
             <p>
               We maintain a security acknowledgment page for researchers who
-              responsibly disclose valid vulnerabilities. If you would like to be
-              credited, include your preferred name or handle in your report.
+              responsibly disclose valid vulnerabilities. If you would like to
+              be credited, include your preferred name or handle in your report.
               [LEGAL REVIEW REQUIRED: confirm recognition program details.]
             </p>
           ),

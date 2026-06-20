@@ -129,7 +129,10 @@ async function installApiMocks(page: Page): Promise<void> {
       return;
     }
 
-    if (path === "/connectors/connections/available" && request.method() === "GET") {
+    if (
+      path === "/connectors/connections/available" &&
+      request.method() === "GET"
+    ) {
       await fulfillJson(route, { items: [] });
       return;
     }
@@ -192,11 +195,17 @@ test.describe("responsive viewport smoke tests", () => {
     await waitForBoot(page);
 
     // Mobile "Menu" button visible, desktop sidebar hidden
-    await expect(page.getByRole("button", { name: /open menu/i })).toBeVisible();
-    await expect(page.locator("aside.hidden.lg\\:flex, aside.lg\\:flex")).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: /open menu/i }),
+    ).toBeVisible();
+    await expect(
+      page.locator("aside.hidden.lg\\:flex, aside.lg\\:flex"),
+    ).toBeHidden();
 
     // Icon-only search button visible on mobile
-    const iconSearchBtn = page.getByRole("button", { name: /open search/i }).first();
+    const iconSearchBtn = page
+      .getByRole("button", { name: /open search/i })
+      .first();
     await expect(iconSearchBtn).toBeVisible();
 
     // Full search bar hidden on mobile
@@ -217,7 +226,9 @@ test.describe("responsive viewport smoke tests", () => {
     await waitForBoot(page);
 
     // Page title visible and not clipped
-    await expect(page.getByRole("heading", { name: "Upload Documents" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Upload Documents" }),
+    ).toBeVisible();
 
     // Top-level shell width should not exceed viewport
     const header = page.locator("header").first();
@@ -275,10 +286,15 @@ test.describe("responsive viewport smoke tests", () => {
     await waitForBoot(page);
 
     // Chat heading visible
-    await expect(page.getByRole("heading", { name: "Chat Session" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Chat Session" }),
+    ).toBeVisible();
 
     // History sidebar (sessions list) should be hidden on tablet
-    const sessionsHeading = page.getByRole("heading", { name: /sessions/i, level: 2 });
+    const sessionsHeading = page.getByRole("heading", {
+      name: /sessions/i,
+      level: 2,
+    });
     await expect(sessionsHeading).toBeHidden();
   });
 
@@ -314,7 +330,10 @@ test.describe("responsive viewport smoke tests", () => {
     await waitForBoot(page);
 
     // History sidebar visible at xl (1280px)
-    const sessionsHeading = page.getByRole("heading", { name: /sessions/i, level: 2 });
+    const sessionsHeading = page.getByRole("heading", {
+      name: /sessions/i,
+      level: 2,
+    });
     await expect(sessionsHeading).toBeVisible();
   });
 
@@ -329,9 +348,7 @@ test.describe("responsive viewport smoke tests", () => {
     ).toBeVisible();
 
     // Body should not cause horizontal scroll
-    const bodyWidth = await page.evaluate(
-      () => document.body.scrollWidth,
-    );
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(VIEWPORTS.mobile.width + 1);
   });
 
@@ -346,7 +363,9 @@ test.describe("responsive viewport smoke tests", () => {
     });
 
     // Mobile menu button exists
-    const mobileMenuToggle = page.locator('[aria-label*="menu"], [aria-label*="Menu"]').first();
+    const mobileMenuToggle = page
+      .locator('[aria-label*="menu"], [aria-label*="Menu"]')
+      .first();
     await expect(mobileMenuToggle).toBeVisible();
   });
 

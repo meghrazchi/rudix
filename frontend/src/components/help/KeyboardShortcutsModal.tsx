@@ -129,7 +129,7 @@ export function KeyboardShortcutsModal({
             data-overlay-autofocus="true"
             onClick={onClose}
             aria-label={t("close")}
-            className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+            className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             Esc
           </button>

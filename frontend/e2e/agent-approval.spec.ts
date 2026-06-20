@@ -244,8 +244,7 @@ test.describe("Agent approval queue — E2E", () => {
       }
 
       if (
-        path ===
-          `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
+        path === `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
         req.method() === "POST"
       ) {
         await fulfillJson(route, makeApprovalResponse({ status: "approved" }));
@@ -313,8 +312,7 @@ test.describe("Agent approval queue — E2E", () => {
       }
 
       if (
-        path ===
-          `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
+        path === `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
         req.method() === "POST"
       ) {
         await fulfillJson(
@@ -391,13 +389,14 @@ test.describe("Agent approval queue — E2E", () => {
       }
 
       if (
-        path ===
-          `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
+        path === `/agent/runs/${RUN_ID}/approvals/${APPROVAL_ID}/decision` &&
         req.method() === "POST"
       ) {
         await fulfillJson(
           route,
-          { detail: { code: "approval_expired", message: "Approval expired." } },
+          {
+            detail: { code: "approval_expired", message: "Approval expired." },
+          },
           409,
         );
         return;
@@ -413,7 +412,9 @@ test.describe("Agent approval queue — E2E", () => {
     await expect(approveBtn).toBeVisible();
     await approveBtn.click();
 
-    await expect(page.getByRole("alert").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("alert").first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("approval queue is empty for admin with no pending approvals", async ({

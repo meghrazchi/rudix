@@ -58,13 +58,17 @@ function StatusBadge({ state }: { state: PublicComponentState }) {
     <span
       className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold tracking-[0.12em] uppercase ${STATE_BADGE_CLASSES[state]}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${STATE_DOT_CLASSES[state]}`} />
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${STATE_DOT_CLASSES[state]}`}
+      />
       {STATE_LABELS[state]}
     </span>
   );
 }
 
-function incidentBadgeState(incident: PublicStatusIncident): PublicComponentState {
+function incidentBadgeState(
+  incident: PublicStatusIncident,
+): PublicComponentState {
   if (incident.kind === "maintenance") {
     return "maintenance";
   }
@@ -137,7 +141,9 @@ function IncidentCard({
       </dl>
 
       {supportingText ? (
-        <p className="mt-4 text-xs leading-5 text-[#6b7285]">{supportingText}</p>
+        <p className="mt-4 text-xs leading-5 text-[#6b7285]">
+          {supportingText}
+        </p>
       ) : null}
     </article>
   );
@@ -199,7 +205,8 @@ function EmptySection({
 
 export function StatusPage({ snapshot, loadError }: StatusPageProps) {
   const links = resolvePublicSiteLinks();
-  const currentState = snapshot?.overall_status ?? (loadError ? "unknown" : "operational");
+  const currentState =
+    snapshot?.overall_status ?? (loadError ? "unknown" : "operational");
   const generatedAt = formatDateTime(snapshot?.generated_at ?? null);
   const currentIncidents = snapshot?.current_incidents ?? [];
   const scheduledMaintenance = snapshot?.scheduled_maintenance ?? [];
@@ -216,7 +223,7 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
       <section className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <article className="rounded-[2rem] border border-[#dbe0ea] bg-[linear-gradient(135deg,#0f172a_0%,#111827_60%,#1f2937_100%)] p-7 text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.12em] uppercase text-white/80">
+            <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-[0.12em] text-white/80 uppercase">
               Public status
             </span>
             <StatusBadge state={currentState} />
@@ -399,7 +406,9 @@ export function StatusPage({ snapshot, loadError }: StatusPageProps) {
       </section>
 
       <section className="mt-10 rounded-[2rem] border border-[#dbe0ea] bg-white px-6 py-5 shadow-sm">
-        <p className="text-sm leading-7 text-[#526073]">{snapshot?.uptime_notice ?? ""}</p>
+        <p className="text-sm leading-7 text-[#526073]">
+          {snapshot?.uptime_notice ?? ""}
+        </p>
         {loadError ? (
           <p className="mt-3 text-sm font-medium text-[#8b5e00]">
             Live data could not be refreshed. Showing the latest public-safe

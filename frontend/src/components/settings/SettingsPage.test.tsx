@@ -151,6 +151,7 @@ vi.mock("@/lib/runtime-config", () => ({
 
 const FULL_PREFERENCES: SettingsPreferences = {
   defaultTopK: 5,
+  confidenceThreshold: 70,
   rerankEnabled: true,
   developerMode: false,
   answerDetailLevel: "standard",

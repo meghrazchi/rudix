@@ -29,7 +29,9 @@ describe("toTurnResponseFromHistoryMessage", () => {
 
     expect(response.agreement_level).toBe("conflicting");
     expect(response.conflict_detected).toBe(true);
-    expect(response.conflict_summary).toBe("Sources disagree on the policy date.");
+    expect(response.conflict_summary).toBe(
+      "Sources disagree on the policy date.",
+    );
     expect(response.conflicting_document_ids).toEqual(["doc-a", "doc-b"]);
     expect(response.preferred_document_ids).toEqual(["doc-a"]);
     expect(response.conflict_pairs).toHaveLength(1);

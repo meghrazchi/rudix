@@ -182,7 +182,9 @@ test("member gets forbidden page at /admin/permissions", async ({ page }) => {
   await page.goto("/admin/permissions");
 
   // Should show a forbidden/access-denied state (not crash)
-  await expect(page.getByText(/forbidden|access denied|permission/i).first()).toBeVisible({
+  await expect(
+    page.getByText(/forbidden|access denied|permission/i).first(),
+  ).toBeVisible({
     timeout: 5000,
   });
 });
@@ -236,7 +238,13 @@ test("admin can navigate to Access Debugger tab", async ({ page }) => {
   });
 
   await page.route("**/api/v1/admin/permissions/**", async (route) => {
-    await fulfillJson(route, { items: [], roles: [], total: 0, page: 1, page_size: 50 });
+    await fulfillJson(route, {
+      items: [],
+      roles: [],
+      total: 0,
+      page: 1,
+      page_size: 50,
+    });
   });
 
   await page.addInitScript(injectSession(adminSession));
@@ -248,9 +256,13 @@ test("admin can navigate to Access Debugger tab", async ({ page }) => {
 
   // Debugger form should show resource_type and action fields
   await expect(
-    page.getByRole("combobox", { name: /resource type/i }).or(
-      page.locator("select[name='resource_type'], select[id*='resource']").first(),
-    ),
+    page
+      .getByRole("combobox", { name: /resource type/i })
+      .or(
+        page
+          .locator("select[name='resource_type'], select[id*='resource']")
+          .first(),
+      ),
   ).toBeVisible({ timeout: 5000 });
 });
 
@@ -283,7 +295,13 @@ test("Access Debugger shows allow decision result", async ({ page }) => {
       });
       return;
     }
-    await fulfillJson(route, { items: [], roles: [], total: 0, page: 1, page_size: 50 });
+    await fulfillJson(route, {
+      items: [],
+      roles: [],
+      total: 0,
+      page: 1,
+      page_size: 50,
+    });
   });
 
   await page.addInitScript(injectSession(adminSession));
@@ -294,12 +312,16 @@ test("Access Debugger shows allow decision result", async ({ page }) => {
 
   // Fill in a subject user ID
   const userIdInput = page
-    .locator("input[placeholder*='user'], input[name*='user'], input[id*='user']")
+    .locator(
+      "input[placeholder*='user'], input[name*='user'], input[id*='user']",
+    )
     .first();
   await userIdInput.fill("e2e-user-99");
 
   // Submit the form
-  const submitBtn = page.getByRole("button", { name: /explain|check|analyze/i }).first();
+  const submitBtn = page
+    .getByRole("button", { name: /explain|check|analyze/i })
+    .first();
   await submitBtn.click();
 
   // Should display ALLOW
@@ -308,7 +330,9 @@ test("Access Debugger shows allow decision result", async ({ page }) => {
 
 // ── Access Debugger: deny result shows remediation ────────────────────────────
 
-test("Access Debugger shows deny decision with remediation", async ({ page }) => {
+test("Access Debugger shows deny decision with remediation", async ({
+  page,
+}) => {
   await installBaseApiMocks(page);
 
   await page.route("**/api/v1/auth/effective-permissions", async (route) => {
@@ -329,7 +353,11 @@ test("Access Debugger shows deny decision with remediation", async ({ page }) =>
         trace: [
           { rule: "no_organization_context", outcome: "pass", detail: null },
           { rule: "tenant_boundary", outcome: "pass", detail: null },
-          { rule: "role_permission", outcome: "deny", detail: "insufficient_role" },
+          {
+            rule: "role_permission",
+            outcome: "deny",
+            detail: "insufficient_role",
+          },
         ],
         remediation: [
           "Upgrade the user's role to admin or owner.",
@@ -339,7 +367,13 @@ test("Access Debugger shows deny decision with remediation", async ({ page }) =>
       });
       return;
     }
-    await fulfillJson(route, { items: [], roles: [], total: 0, page: 1, page_size: 50 });
+    await fulfillJson(route, {
+      items: [],
+      roles: [],
+      total: 0,
+      page: 1,
+      page_size: 50,
+    });
   });
 
   await page.addInitScript(injectSession(adminSession));
@@ -349,18 +383,25 @@ test("Access Debugger shows deny decision with remediation", async ({ page }) =>
   await debugTab.click();
 
   const userIdInput = page
-    .locator("input[placeholder*='user'], input[name*='user'], input[id*='user']")
+    .locator(
+      "input[placeholder*='user'], input[name*='user'], input[id*='user']",
+    )
     .first();
   await userIdInput.fill("e2e-user-42");
 
-  const submitBtn = page.getByRole("button", { name: /explain|check|analyze/i }).first();
+  const submitBtn = page
+    .getByRole("button", { name: /explain|check|analyze/i })
+    .first();
   await submitBtn.click();
 
   // DENY result visible
   await expect(page.getByText(/deny/i).first()).toBeVisible({ timeout: 5000 });
   // Remediation advice shown
   await expect(
-    page.getByText(/upgrade the user/i).or(page.getByText(/grant explicit/i)).first(),
+    page
+      .getByText(/upgrade the user/i)
+      .or(page.getByText(/grant explicit/i))
+      .first(),
   ).toBeVisible({ timeout: 5000 });
 });
 
@@ -399,7 +440,13 @@ test("Conflicts tab scan button calls scan API and shows result", async ({
       await fulfillJson(route, { items: [], total: 0, page: 1, page_size: 50 });
       return;
     }
-    await fulfillJson(route, { items: [], roles: [], total: 0, page: 1, page_size: 50 });
+    await fulfillJson(route, {
+      items: [],
+      roles: [],
+      total: 0,
+      page: 1,
+      page_size: 50,
+    });
   });
 
   await page.addInitScript(injectSession(adminSession));
@@ -413,7 +460,10 @@ test("Conflicts tab scan button calls scan API and shows result", async ({
 
   // Wait for the result banner to appear
   await expect(
-    page.getByText(/2 conflict|detected/i).or(page.getByText(/scan complete/i)).first(),
+    page
+      .getByText(/2 conflict|detected/i)
+      .or(page.getByText(/scan complete/i))
+      .first(),
   ).toBeVisible({ timeout: 8000 });
 
   expect(scanCalled).toBe(true);
@@ -476,7 +526,9 @@ test("explain-decision response does not contain secret tokens", async ({
         resource_type: "document",
         resource_id: null,
         action: "view",
-        trace: [{ rule: "owner_admin_override", outcome: "allow", detail: null }],
+        trace: [
+          { rule: "owner_admin_override", outcome: "allow", detail: null },
+        ],
         remediation: [],
         request_id: "req-e2e-sec",
         // Injecting a "hidden" secret — frontend must NOT render it
@@ -484,7 +536,13 @@ test("explain-decision response does not contain secret tokens", async ({
       });
       return;
     }
-    await fulfillJson(route, { items: [], roles: [], total: 0, page: 1, page_size: 50 });
+    await fulfillJson(route, {
+      items: [],
+      roles: [],
+      total: 0,
+      page: 1,
+      page_size: 50,
+    });
   });
 
   await page.addInitScript(injectSession(adminSession));
@@ -494,11 +552,15 @@ test("explain-decision response does not contain secret tokens", async ({
   await debugTab.click();
 
   const userIdInput = page
-    .locator("input[placeholder*='user'], input[name*='user'], input[id*='user']")
+    .locator(
+      "input[placeholder*='user'], input[name*='user'], input[id*='user']",
+    )
     .first();
   await userIdInput.fill("e2e-user-1");
 
-  const submitBtn = page.getByRole("button", { name: /explain|check|analyze/i }).first();
+  const submitBtn = page
+    .getByRole("button", { name: /explain|check|analyze/i })
+    .first();
   await submitBtn.click();
 
   await expect(page.getByText(/allow/i).first()).toBeVisible({ timeout: 5000 });

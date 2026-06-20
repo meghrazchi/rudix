@@ -55,7 +55,7 @@ export function AccessBadge({ type, label }: AccessBadgeProps) {
   const { className, defaultLabel } = BADGE_STYLES[type];
   return (
     <span
-      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${className}`}
+      className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${className}`}
       aria-label={`Access: ${label ?? defaultLabel}`}
     >
       {label ?? defaultLabel}
@@ -69,12 +69,7 @@ type PermissionDeniedBadgeProps = {
 
 // Compact inline badge for permission-denied states inside tables, lists, etc.
 export function PermissionDeniedBadge({ reason }: PermissionDeniedBadgeProps) {
-  return (
-    <AccessBadge
-      type="denied"
-      label={reason ?? "No access"}
-    />
-  );
+  return <AccessBadge type="denied" label={reason ?? "No access"} />;
 }
 
 type ReadOnlyBadgeProps = {

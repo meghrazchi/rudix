@@ -68,9 +68,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        ok
-          ? "bg-[#e8f5e9] text-[#2e7d32]"
-          : "bg-red-100 text-red-700"
+        ok ? "bg-[#e8f5e9] text-[#2e7d32]" : "bg-red-100 text-red-700"
       }`}
     >
       <span
@@ -164,7 +162,9 @@ function CapabilitiesEditor({
   onChange: (v: string[] | null) => void;
 }) {
   const [useDefault, setUseDefault] = useState(value === null);
-  const [caps, setCaps] = useState<string[]>(value ?? MCP_DOC_CAPABILITIES.slice(0, 5));
+  const [caps, setCaps] = useState<string[]>(
+    value ?? MCP_DOC_CAPABILITIES.slice(0, 5),
+  );
   const [newCap, setNewCap] = useState("");
 
   function toggleDefault(toDefault: boolean) {
@@ -232,7 +232,9 @@ function CapabilitiesEditor({
               type="text"
               value={newCap}
               onChange={(e) => setNewCap(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCap())}
+              onKeyDown={(e) =>
+                e.key === "Enter" && (e.preventDefault(), addCap())
+              }
               placeholder="e.g. chat.answer"
               className="flex-1 rounded border border-[#d7d4e8] px-2 py-1 text-xs focus:border-[#3525cd] focus:outline-none"
             />
@@ -417,9 +419,7 @@ function NullableNumberInput({
             onChange={(e) => onChange(Number(e.target.value))}
             className="w-40 rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
           />
-          {unit && (
-            <span className="text-xs text-[#68647b]">{unit}</span>
-          )}
+          {unit && <span className="text-xs text-[#68647b]">{unit}</span>}
         </div>
       )}
     </div>
@@ -463,7 +463,9 @@ function MCPTrustControlsSection({
 }) {
   function toggleRole(role: string, checked: boolean) {
     if (allowedRoles === null) {
-      onChangeAllowedRoles(checked ? MCP_ROLES.filter((r) => r !== role) : [role]);
+      onChangeAllowedRoles(
+        checked ? MCP_ROLES.filter((r) => r !== role) : [role],
+      );
       return;
     }
     const next = checked
@@ -515,7 +517,9 @@ function MCPTrustControlsSection({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#2a2640]">Allowed roles</p>
+              <p className="text-sm font-medium text-[#2a2640]">
+                Allowed roles
+              </p>
               <p className="text-xs text-[#68647b]">
                 Restrict MCP access to specific org roles. Leave unrestricted to
                 allow all roles.
@@ -795,9 +799,7 @@ function PolicyForm({
                   min={1}
                   max={10000}
                   value={rateLimitRequests}
-                  onChange={(e) =>
-                    setRateLimitRequests(Number(e.target.value))
-                  }
+                  onChange={(e) => setRateLimitRequests(Number(e.target.value))}
                   className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 text-sm focus:border-[#3525cd] focus:outline-none"
                 />
               </div>
@@ -1006,9 +1008,7 @@ function AuditEventsPanel() {
         </p>
       )}
       {!eventsQuery.isLoading && events.length === 0 && (
-        <p className="text-sm text-[#68647b]">
-          No MCP events recorded yet.
-        </p>
+        <p className="text-sm text-[#68647b]">No MCP events recorded yet.</p>
       )}
       <div className="space-y-2">
         {events.map((event) => (
@@ -1123,9 +1123,7 @@ export function AdminMCPPage() {
         <p className="mb-1 text-xs font-bold tracking-[0.18em] text-[#5d58a8] uppercase">
           Admin
         </p>
-        <h1 className="text-2xl font-extrabold text-[#2a2640]">
-          MCP server
-        </h1>
+        <h1 className="text-2xl font-extrabold text-[#2a2640]">MCP server</h1>
         <p className="mt-1 text-sm text-[#68647b]">
           Configure MCP access, capabilities, rate limits, and monitor active
           clients. MCP exposes read-only knowledge-base tools to authenticated

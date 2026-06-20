@@ -1123,7 +1123,11 @@ export function ConnectorConnectionDetailPage({ connectionId }: Props) {
               </div>
             ) : runs.length === 0 ? (
               <div className="px-6 py-6">
-                <EmptyState compact title="No sync runs yet" description="Trigger a sync to see run history here." />
+                <EmptyState
+                  compact
+                  title="No sync runs yet"
+                  description="Trigger a sync to see run history here."
+                />
               </div>
             ) : (
               <div className="overflow-x-auto">

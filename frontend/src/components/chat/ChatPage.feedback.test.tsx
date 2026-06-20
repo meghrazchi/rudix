@@ -25,6 +25,7 @@ import {
   listSessionFeedback,
   submitMessageFeedback,
 } from "@/lib/api/feedback";
+import type { MessageFeedbackResponse } from "@/lib/api/feedback";
 
 const mockNavigation = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -77,6 +78,30 @@ vi.mock("@/lib/api/feedback", () => ({
   deleteMessageFeedback: vi.fn(),
   listSessionFeedback: vi.fn(),
 }));
+
+function makeFeedbackResponse(
+  overrides: Partial<MessageFeedbackResponse> = {},
+): MessageFeedbackResponse {
+  return {
+    feedback_id: "fb-1",
+    message_id: "msg-1",
+    user_id: "u-1",
+    rating: "up",
+    reason: null,
+    comment: null,
+    category: null,
+    question_text: null,
+    answer_text: null,
+    model_name: null,
+    rag_profile_id: null,
+    retain_until: null,
+    redacted_at: null,
+    converted_to_eval_question_id: null,
+    created_at: "2026-06-01T10:10:00Z",
+    updated_at: "2026-06-01T10:10:00Z",
+    ...overrides,
+  };
+}
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -204,6 +229,7 @@ describe("ChatPage feedback", () => {
     });
     vi.mocked(decideAgentRunApproval).mockResolvedValue({
       approval_id: "a-1",
+      agent_run_id: "run-1",
       agent_step_id: null,
       tool_call_id: null,
       requested_by_user_id: "u-1",
@@ -245,14 +271,7 @@ describe("ChatPage feedback", () => {
       approvals: [],
     });
     vi.mocked(submitMessageFeedback).mockResolvedValue({
-      feedback_id: "fb-1",
-      message_id: "msg-1",
-      user_id: "u-1",
-      rating: "up",
-      reason: null,
-      comment: null,
-      created_at: "2026-06-01T10:10:00Z",
-      updated_at: "2026-06-01T10:10:00Z",
+      ...makeFeedbackResponse(),
     });
     vi.mocked(deleteMessageFeedback).mockResolvedValue(undefined);
     vi.mocked(listSessionFeedback).mockResolvedValue({ items: [], total: 0 });
@@ -303,14 +322,7 @@ describe("ChatPage feedback", () => {
 
   it("thumbs-up again (already up) calls deleteMessageFeedback", async () => {
     vi.mocked(submitMessageFeedback).mockResolvedValue({
-      feedback_id: "fb-1",
-      message_id: "msg-1",
-      user_id: "u-1",
-      rating: "up",
-      reason: null,
-      comment: null,
-      created_at: "2026-06-01T10:10:00Z",
-      updated_at: "2026-06-01T10:10:00Z",
+      ...makeFeedbackResponse(),
     });
 
     await submitQuestion();
@@ -361,14 +373,11 @@ describe("ChatPage feedback", () => {
 
   it("FeedbackModal submit calls submitMessageFeedback with rating=down and reason", async () => {
     vi.mocked(submitMessageFeedback).mockResolvedValue({
-      feedback_id: "fb-2",
-      message_id: "msg-1",
-      user_id: "u-1",
-      rating: "down",
-      reason: "wrong_citation",
-      comment: null,
-      created_at: "2026-06-01T10:10:00Z",
-      updated_at: "2026-06-01T10:10:00Z",
+      ...makeFeedbackResponse({
+        feedback_id: "fb-2",
+        rating: "down",
+        reason: "wrong_citation",
+      }),
     });
 
     await submitQuestion();
@@ -394,14 +403,11 @@ describe("ChatPage feedback", () => {
 
   it("FeedbackModal remove-feedback calls deleteMessageFeedback", async () => {
     vi.mocked(submitMessageFeedback).mockResolvedValue({
-      feedback_id: "fb-2",
-      message_id: "msg-1",
-      user_id: "u-1",
-      rating: "down",
-      reason: "hallucination",
-      comment: null,
-      created_at: "2026-06-01T10:10:00Z",
-      updated_at: "2026-06-01T10:10:00Z",
+      ...makeFeedbackResponse({
+        feedback_id: "fb-2",
+        rating: "down",
+        reason: "hallucination",
+      }),
     });
 
     await submitQuestion();
@@ -484,6 +490,14 @@ describe("ChatPage feedback", () => {
           rating: "down",
           reason: "outdated_source",
           comment: null,
+          category: "outdated_source",
+          question_text: null,
+          answer_text: null,
+          model_name: null,
+          rag_profile_id: null,
+          retain_until: null,
+          redacted_at: null,
+          converted_to_eval_question_id: null,
           created_at: "2026-06-01T09:05:00Z",
           updated_at: "2026-06-01T09:05:00Z",
         },

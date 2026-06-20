@@ -131,7 +131,7 @@ export function FeedbackModal({
             data-overlay-autofocus="true"
             onClick={onClose}
             aria-label="Close feedback dialog"
-            className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+            className="rounded-lg p-1 text-[#6a6780] hover:bg-[#f5f2ff] hover:text-[#2f2a46] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             <span
               className="material-symbols-outlined text-[20px]"
@@ -152,7 +152,10 @@ export function FeedbackModal({
             >
               Issue type (optional)
             </p>
-            <fieldset aria-labelledby="feedback-category-label" className="space-y-1">
+            <fieldset
+              aria-labelledby="feedback-category-label"
+              className="space-y-1"
+            >
               <legend className="sr-only">Feedback category</legend>
               {CATEGORIES.map(({ value, label, description }) => (
                 <label
@@ -261,7 +264,7 @@ export function FeedbackModal({
                   type="button"
                   onClick={onDelete}
                   disabled={isBusy}
-                  className="text-xs text-rose-500 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50"
+                  className="text-xs text-rose-500 hover:underline focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none disabled:opacity-50"
                 >
                   {isDeleting ? "Removing…" : "Remove feedback"}
                 </button>
@@ -272,14 +275,14 @@ export function FeedbackModal({
                 type="button"
                 onClick={onClose}
                 disabled={isBusy}
-                className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] disabled:opacity-50"
+                className="rounded-lg border border-[#d7d4e8] px-3 py-1.5 text-xs text-[#6a6780] hover:bg-[#f5f2ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isBusy}
-                className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a1eb5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:ring-offset-2 disabled:opacity-50"
+                className="rounded-lg bg-[#3525cd] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a1eb5] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
               >
                 {isSubmitting ? "Submitting…" : "Submit"}
               </button>

@@ -12,8 +12,8 @@ export function AcceptableUsePolicyPage() {
           body: (
             <p>
               This Acceptable Use Policy (&ldquo;AUP&rdquo;) defines permitted
-              and prohibited uses of the Rudix platform. It applies to all users,
-              including organization administrators, end users, and API
+              and prohibited uses of the Rudix platform. It applies to all
+              users, including organization administrators, end users, and API
               integrations using service account tokens.
             </p>
           ),
@@ -48,9 +48,7 @@ export function AcceptableUsePolicyPage() {
           heading: "3. Prohibited Uses",
           body: (
             <>
-              <p>
-                You must not use the Service in any way that:
-              </p>
+              <p>You must not use the Service in any way that:</p>
               <ul className="ml-4 list-disc space-y-1">
                 <li>
                   violates applicable laws or regulations, including data
@@ -75,9 +73,9 @@ export function AcceptableUsePolicyPage() {
                   for authorized research);
                 </li>
                 <li>
-                  attempts to circumvent organization isolation controls,
-                  access another tenant&rsquo;s data, or escalate privileges
-                  beyond those granted by your role;
+                  attempts to circumvent organization isolation controls, access
+                  another tenant&rsquo;s data, or escalate privileges beyond
+                  those granted by your role;
                 </li>
                 <li>
                   deliberately triggers excessive API requests to degrade

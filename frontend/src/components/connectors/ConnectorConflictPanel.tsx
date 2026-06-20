@@ -153,7 +153,7 @@ function ConflictRow({
       </div>
 
       {expanded && (
-        <div className="border-t border-[#e8e5f3] bg-[#faf9fe] px-3 pb-3 pt-2">
+        <div className="border-t border-[#e8e5f3] bg-[#faf9fe] px-3 pt-2 pb-3">
           {Object.entries(conflict.conflict_detail).length === 0 ? (
             <p className="text-[11px] text-[#777587]">No detail available.</p>
           ) : (
@@ -163,7 +163,7 @@ function ConflictRow({
                   <dt className="w-32 shrink-0 font-bold text-[#5d58a8]">
                     {k.replace(/_/g, " ")}
                   </dt>
-                  <dd className="break-all font-mono text-[#2a2640]">
+                  <dd className="font-mono break-all text-[#2a2640]">
                     {String(v)}
                   </dd>
                 </div>
@@ -188,9 +188,7 @@ function ConflictRow({
         </div>
       )}
 
-      {error && (
-        <p className="px-3 pb-2 text-[11px] text-rose-600">{error}</p>
-      )}
+      {error && <p className="px-3 pb-2 text-[11px] text-rose-600">{error}</p>}
     </div>
   );
 }

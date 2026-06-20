@@ -55,8 +55,8 @@ export function DataProcessingAddendumPage() {
             <>
               <p>
                 <strong>Subject-matter.</strong> Processing of documents and
-                queries uploaded by the Controller&rsquo;s users for the purpose of
-                knowledge retrieval, question answering, and document
+                queries uploaded by the Controller&rsquo;s users for the purpose
+                of knowledge retrieval, question answering, and document
                 management.
               </p>
               <p>
@@ -167,9 +167,9 @@ export function DataProcessingAddendumPage() {
           body: (
             <p>
               Upon termination of the Service agreement, Rudix will delete all
-              personal data within [30 days] unless statutory obligations require
-              longer retention. The Controller may request a data export before
-              deletion. [LEGAL REVIEW REQUIRED: confirm deletion window.]
+              personal data within [30 days] unless statutory obligations
+              require longer retention. The Controller may request a data export
+              before deletion. [LEGAL REVIEW REQUIRED: confirm deletion window.]
             </p>
           ),
         },

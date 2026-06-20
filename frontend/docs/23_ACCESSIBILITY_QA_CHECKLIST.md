@@ -8,47 +8,47 @@ Rudix targets WCAG 2.1 AA as the baseline. This document covers what was impleme
 
 ### App shell (`AppShell.tsx`)
 
-| Fix | Detail |
-|-----|--------|
-| Skip navigation link | `<SkipLink>` rendered before the sidebar; targets `#main-content` |
-| `<main id="main-content" tabIndex={-1}>` | Gives the skip link a focusable target |
-| `aria-current="page"` on active nav link | Screen readers now announce the current page in the sidebar nav |
-| Disabled nav items are keyboard-reachable | Changed from `<div aria-disabled>` to `role="link" tabIndex={0} aria-disabled` with a full accessible label including the disabled reason |
-| Notifications button aria-label includes unread count | When `count > 0`, label becomes `"{count} unread notifications"` so AT announces the count |
-| Mobile menu button aria-label + aria-expanded + aria-controls | `aria-label="Open navigation menu"`, `aria-expanded`, `aria-controls="mobile-sidebar"` |
-| Mobile sidebar close button aria-label | `aria-label="Close navigation menu"` |
-| Primary nav `aria-label` on the `<nav>` element | `NavList` accepts `ariaLabel` and sets `<nav aria-label="Primary navigation">` |
-| Command menu result sections labelled | Section headers use `id` + `aria-labelledby` on the `<section>` |
-| Command menu result links get `focus-visible` ring | `focus-visible:ring-2 focus-visible:ring-[#3525cd]` |
-| Route-change announcer | Polite `aria-live="polite" role="status"` + assertive `aria-live="assertive" role="alert"` regions injected into the DOM; route changes announce the page name |
-| Sidebar toggle `focus-visible` ring | Added to collapse/expand button |
-| Help and profile buttons `focus-visible` ring | Added |
+| Fix                                                           | Detail                                                                                                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Skip navigation link                                          | `<SkipLink>` rendered before the sidebar; targets `#main-content`                                                                                              |
+| `<main id="main-content" tabIndex={-1}>`                      | Gives the skip link a focusable target                                                                                                                         |
+| `aria-current="page"` on active nav link                      | Screen readers now announce the current page in the sidebar nav                                                                                                |
+| Disabled nav items are keyboard-reachable                     | Changed from `<div aria-disabled>` to `role="link" tabIndex={0} aria-disabled` with a full accessible label including the disabled reason                      |
+| Notifications button aria-label includes unread count         | When `count > 0`, label becomes `"{count} unread notifications"` so AT announces the count                                                                     |
+| Mobile menu button aria-label + aria-expanded + aria-controls | `aria-label="Open navigation menu"`, `aria-expanded`, `aria-controls="mobile-sidebar"`                                                                         |
+| Mobile sidebar close button aria-label                        | `aria-label="Close navigation menu"`                                                                                                                           |
+| Primary nav `aria-label` on the `<nav>` element               | `NavList` accepts `ariaLabel` and sets `<nav aria-label="Primary navigation">`                                                                                 |
+| Command menu result sections labelled                         | Section headers use `id` + `aria-labelledby` on the `<section>`                                                                                                |
+| Command menu result links get `focus-visible` ring            | `focus-visible:ring-2 focus-visible:ring-[#3525cd]`                                                                                                            |
+| Route-change announcer                                        | Polite `aria-live="polite" role="status"` + assertive `aria-live="assertive" role="alert"` regions injected into the DOM; route changes announce the page name |
+| Sidebar toggle `focus-visible` ring                           | Added to collapse/expand button                                                                                                                                |
+| Help and profile buttons `focus-visible` ring                 | Added                                                                                                                                                          |
 
 ### FeedbackModal (`FeedbackModal.tsx`)
 
-| Fix | Detail |
-|-----|--------|
-| `useOverlayFocus` for real focus trap | Replaced manual `keydown` listener with the shared `useOverlayFocus` hook (Tab cycling, Escape, return focus) |
-| `aria-labelledby` pointing to `<h2 id="feedback-modal-title">` | Proper modal title association instead of `aria-label` on the overlay div |
-| `role="dialog"` on the inner panel div | Moved from the backdrop div to the focusable white card |
-| Comment char-count is `aria-live="polite"` | `<p id="feedback-comment-count" aria-live="polite" aria-atomic="true">` |
-| Textarea `aria-describedby="feedback-comment-count"` | AT announces the counter when it changes |
-| Footer buttons `focus-visible` ring | Added to all three action buttons |
+| Fix                                                            | Detail                                                                                                        |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `useOverlayFocus` for real focus trap                          | Replaced manual `keydown` listener with the shared `useOverlayFocus` hook (Tab cycling, Escape, return focus) |
+| `aria-labelledby` pointing to `<h2 id="feedback-modal-title">` | Proper modal title association instead of `aria-label` on the overlay div                                     |
+| `role="dialog"` on the inner panel div                         | Moved from the backdrop div to the focusable white card                                                       |
+| Comment char-count is `aria-live="polite"`                     | `<p id="feedback-comment-count" aria-live="polite" aria-atomic="true">`                                       |
+| Textarea `aria-describedby="feedback-comment-count"`           | AT announces the counter when it changes                                                                      |
+| Footer buttons `focus-visible` ring                            | Added to all three action buttons                                                                             |
 
 ### DocumentPreviewModal (`DocumentPreviewModal.tsx`)
 
-| Fix | Detail |
-|-----|--------|
+| Fix                               | Detail                                                    |
+| --------------------------------- | --------------------------------------------------------- |
 | Close button `focus-visible` ring | Added `focus-visible:ring-2 focus-visible:ring-[#3525cd]` |
 
 ### i18n strings added (`appShell` namespace, all 4 locales)
 
-| Key | Value (EN) |
-|-----|------------|
-| `skipToMainContent` | "Skip to main content" |
-| `primaryNav` | "Primary navigation" |
+| Key                   | Value (EN)                     |
+| --------------------- | ------------------------------ |
+| `skipToMainContent`   | "Skip to main content"         |
+| `primaryNav`          | "Primary navigation"           |
 | `notificationsUnread` | "{count} unread notifications" |
-| `navigatedTo` | "Navigated to {page}" |
+| `navigatedTo`         | "Navigated to {page}"          |
 
 ### Utilities added
 
@@ -59,10 +59,10 @@ Rudix targets WCAG 2.1 AA as the baseline. This document covers what was impleme
 
 ## Automated test coverage added
 
-| File | Tests |
-|------|-------|
-| `src/components/layout/accessibility.test.tsx` | 23 tests: skip link, landmark structure, `aria-current`, disabled nav keyboard access, live regions, notifications button, mobile sidebar dialog, command menu dialog, profile menu |
-| `src/components/chat/FeedbackModal.a11y.test.tsx` | 10 tests: dialog role/aria-labelledby, close button label, Escape key, fieldset structure, textarea/char-count association, button states, backdrop click |
+| File                                              | Tests                                                                                                                                                                               |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/layout/accessibility.test.tsx`    | 23 tests: skip link, landmark structure, `aria-current`, disabled nav keyboard access, live regions, notifications button, mobile sidebar dialog, command menu dialog, profile menu |
+| `src/components/chat/FeedbackModal.a11y.test.tsx` | 10 tests: dialog role/aria-labelledby, close button label, Escape key, fieldset structure, textarea/char-count association, button states, backdrop click                           |
 
 ---
 
@@ -146,10 +146,10 @@ Contrast was not audited programmatically in F177. When running an audit:
 
 ## Known gaps deferred to follow-up
 
-| Area | Deferred item |
-|------|--------------|
-| Chat message list | Announce new AI responses via a live region (complex integration with streaming) |
-| File upload drag-and-drop | Keyboard-accessible drag-and-drop alternative needed |
-| `@axe-core/playwright` integration | Automated contrast + ARIA lint in E2E suite |
-| Admin data tables | Column sort announcements, row selection accessible name |
-| Touch target size | Some icon buttons are 40×40 (below the 44×44 recommended target) |
+| Area                               | Deferred item                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| Chat message list                  | Announce new AI responses via a live region (complex integration with streaming) |
+| File upload drag-and-drop          | Keyboard-accessible drag-and-drop alternative needed                             |
+| `@axe-core/playwright` integration | Automated contrast + ARIA lint in E2E suite                                      |
+| Admin data tables                  | Column sort announcements, row selection accessible name                         |
+| Touch target size                  | Some icon buttons are 40×40 (below the 44×44 recommended target)                 |

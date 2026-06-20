@@ -50,6 +50,10 @@ export function roleDisplayLabel(role: AppRole): string {
     admin: "Admin",
     member: "Member",
     viewer: "Viewer",
+    reviewer: "Reviewer",
+    developer: "Developer",
+    security_admin: "Security Admin",
+    billing_admin: "Billing Admin",
   };
   return LABELS[role] ?? role;
 }

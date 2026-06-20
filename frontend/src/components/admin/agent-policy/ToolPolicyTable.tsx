@@ -11,7 +11,7 @@ import { ToolPolicyOverrideForm } from "./ToolPolicyOverrideForm";
 function EffectBadge({ policy }: { policy: ToolEffectLabel }) {
   return (
     <span
-      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
         policy === "read_only"
           ? "bg-emerald-100 text-emerald-700"
           : "bg-rose-100 text-rose-700"
@@ -41,14 +41,17 @@ export function ToolPolicyTable({
 
   return (
     <section className="rounded-2xl border border-[#d7d4e8] bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-bold text-[#2a2640]">Per-tool policy overrides</h2>
+      <h2 className="text-lg font-bold text-[#2a2640]">
+        Per-tool policy overrides
+      </h2>
       <p className="mt-1 text-sm text-[#6a6780]">
-        Override default tool settings for this organization. Blank fields inherit the tool spec default.
+        Override default tool settings for this organization. Blank fields
+        inherit the tool spec default.
       </p>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e9e6f5] text-xs font-semibold uppercase tracking-wide text-[#6a6780]">
+            <tr className="border-b border-[#e9e6f5] text-xs font-semibold tracking-wide text-[#6a6780] uppercase">
               <th className="py-2 text-left">Tool</th>
               <th className="py-2 text-left">Enabled</th>
               <th className="py-2 text-left">Approval required</th>
@@ -107,11 +110,13 @@ export function ToolPolicyTable({
                       </td>
                       <td className="py-2 pr-4">
                         {tool.is_overridden ? (
-                          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-700">
+                          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700 uppercase">
                             Custom
                           </span>
                         ) : (
-                          <span className="text-xs text-[#b0a8c8]">Default</span>
+                          <span className="text-xs text-[#b0a8c8]">
+                            Default
+                          </span>
                         )}
                       </td>
                       <td className="py-2 text-right">

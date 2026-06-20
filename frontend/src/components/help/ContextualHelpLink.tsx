@@ -22,7 +22,7 @@ export function ContextualHelpLink({
       onClick={() => openHelpCenter(topic)}
       aria-label={t("openHelpForTopic")}
       title={t("openHelpForTopic")}
-      className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d3cff0] bg-[#f7f5ff] text-[#7370a0] transition hover:bg-[#eceaff] hover:text-[#3525cd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] ${className}`}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d3cff0] bg-[#f7f5ff] text-[#7370a0] transition hover:bg-[#eceaff] hover:text-[#3525cd] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none ${className}`}
     >
       <span
         aria-hidden="true"

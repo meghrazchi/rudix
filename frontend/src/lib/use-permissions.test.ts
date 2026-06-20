@@ -6,10 +6,7 @@ import { createElement } from "react";
 
 import { usePermissions, useEffectivePermissions } from "@/lib/use-permissions";
 import type { SessionState } from "@/lib/auth-session";
-import {
-  writeSessionToStorage,
-  clearSessionStorage,
-} from "@/lib/auth-session";
+import { writeSessionToStorage, clearSessionStorage } from "@/lib/auth-session";
 
 function makeSession(role: string): SessionState {
   return {
@@ -40,7 +37,11 @@ function makeQueryWrapper() {
     defaultOptions: { queries: { retry: false } },
   });
   function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client: queryClient }, children);
+    return createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   }
   return { Wrapper, queryClient };
 }

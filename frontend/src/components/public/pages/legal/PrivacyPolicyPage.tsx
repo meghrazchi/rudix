@@ -11,12 +11,12 @@ export function PrivacyPolicyPage() {
           heading: "1. Overview",
           body: (
             <p>
-              Rudix AI (&ldquo;Rudix,&rdquo; &ldquo;we,&rdquo;
-              &ldquo;us,&rdquo; or &ldquo;our&rdquo;) operates the Rudix
-              enterprise RAG platform. This Privacy Policy describes how we
-              collect, use, store, and protect information when you use our
-              services. It applies to account holders, end users, and
-              administrators within customer organizations.
+              Rudix AI (&ldquo;Rudix,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo;
+              or &ldquo;our&rdquo;) operates the Rudix enterprise RAG platform.
+              This Privacy Policy describes how we collect, use, store, and
+              protect information when you use our services. It applies to
+              account holders, end users, and administrators within customer
+              organizations.
             </p>
           ),
         },
@@ -99,8 +99,8 @@ export function PrivacyPolicyPage() {
                 Subprocessors page
               </a>{" "}
               for the current list of AI providers and their data processing
-              locations. You can configure which model provider your organization
-              uses from the Admin Console.
+              locations. You can configure which model provider your
+              organization uses from the Admin Console.
             </p>
           ),
         },
@@ -131,9 +131,10 @@ export function PrivacyPolicyPage() {
                 Documents remain in the system until you delete them or your
                 organization account is closed. Deletion requests enter a
                 lifecycle queue; documents transition through
-                &ldquo;delete_requested&rdquo; and &ldquo;retained_by_policy&rdquo; states
-                before permanent removal. Audit log records may be retained
-                beyond document deletion to satisfy compliance obligations.
+                &ldquo;delete_requested&rdquo; and
+                &ldquo;retained_by_policy&rdquo; states before permanent
+                removal. Audit log records may be retained beyond document
+                deletion to satisfy compliance obligations.
               </p>
               <p>
                 If you close your organization account, all associated document

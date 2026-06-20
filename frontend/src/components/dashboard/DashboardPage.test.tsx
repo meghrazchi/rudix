@@ -173,6 +173,7 @@ describe("DashboardPage", () => {
         output_tokens: 300,
         cost_usd: 4.5,
         event_count: 8,
+        questions_asked: 6,
         avg_confidence: 0.81,
         avg_latency_ms: 321,
       } as UsageSummaryResponse["totals"],

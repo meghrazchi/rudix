@@ -190,7 +190,8 @@ export function GraphEntityDetailPage({
 
   const neighborsQuery = useQuery({
     queryKey: queryKeys.graph.neighbors(entityId, { depth: neighborDepth }),
-    queryFn: () => getEntityNeighbors(entityId, { depth: neighborDepth, limit: 30 }),
+    queryFn: () =>
+      getEntityNeighbors(entityId, { depth: neighborDepth, limit: 30 }),
     staleTime: 60_000,
   });
 
@@ -602,9 +603,7 @@ export function GraphEntityDetailPage({
             Depth
             <select
               value={neighborDepth}
-              onChange={(event) =>
-                setNeighborDepth(Number(event.target.value))
-              }
+              onChange={(event) => setNeighborDepth(Number(event.target.value))}
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-[#2a2640] transition outline-none focus:border-[#3525cd]"
             >
               {[1, 2, 3].map((d) => (

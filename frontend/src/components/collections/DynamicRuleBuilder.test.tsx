@@ -276,9 +276,7 @@ describe("DynamicRuleBuilder", () => {
   it("shows error when preview fails", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
-    mockApi.previewCollectionRules.mockRejectedValue(
-      new Error("Server error"),
-    );
+    mockApi.previewCollectionRules.mockRejectedValue(new Error("Server error"));
 
     renderWithProviders(
       <DynamicRuleBuilder

@@ -154,7 +154,12 @@ describe("StatusPage", () => {
   });
 
   it("shows a safe fallback when data is unavailable", () => {
-    render(<StatusPage snapshot={null} loadError="Unable to load live status data." />);
+    render(
+      <StatusPage
+        snapshot={null}
+        loadError="Unable to load live status data."
+      />,
+    );
 
     expect(screen.getByText("Status data unavailable")).toBeInTheDocument();
     expect(

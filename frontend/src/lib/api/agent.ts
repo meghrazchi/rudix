@@ -204,7 +204,9 @@ export async function listAgentApprovals(params?: {
   if (params?.offset != null) searchParams.set("offset", String(params.offset));
   if (params?.status) searchParams.set("status_filter", params.status);
   const qs = searchParams.toString();
-  return apiRequest<AgentApprovalQueueResponse>(`/agent/approvals${qs ? `?${qs}` : ""}`);
+  return apiRequest<AgentApprovalQueueResponse>(
+    `/agent/approvals${qs ? `?${qs}` : ""}`,
+  );
 }
 
 export async function listAgentRuns(params?: {

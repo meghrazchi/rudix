@@ -259,9 +259,7 @@ describe("GraphEntityDetailPage", () => {
 
     renderPage();
 
-    expect(
-      await screen.findByText("Multi-hop neighbors"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Multi-hop neighbors")).toBeInTheDocument();
   });
 
   it("renders neighbor cards when neighbors are returned", async () => {
@@ -319,10 +317,7 @@ describe("GraphEntityDetailPage", () => {
 
     await screen.findByText("Acme Corp");
 
-    await userEvent.selectOptions(
-      screen.getByLabelText("Depth"),
-      "1",
-    );
+    await userEvent.selectOptions(screen.getByLabelText("Depth"), "1");
 
     await waitFor(() => {
       expect(mockedGetEntityNeighbors).toHaveBeenLastCalledWith(

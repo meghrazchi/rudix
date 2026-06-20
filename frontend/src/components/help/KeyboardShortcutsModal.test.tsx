@@ -25,10 +25,7 @@ const messages = {
   },
 };
 
-function renderModal(
-  isOpen: boolean,
-  onClose: () => void = vi.fn(),
-) {
+function renderModal(isOpen: boolean, onClose: () => void = vi.fn()) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <KeyboardShortcutsModal isOpen={isOpen} onClose={onClose} />

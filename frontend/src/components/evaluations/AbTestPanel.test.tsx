@@ -155,10 +155,10 @@ const server = setupServer(
       total: 1,
       limit: 50,
       offset: 0,
-    })
+    }),
   ),
   http.get(`${apiBaseUrl}/ab-experiments/exp-1`, () =>
-    HttpResponse.json(EXPERIMENT_1)
+    HttpResponse.json(EXPERIMENT_1),
   ),
   http.get(`${apiBaseUrl}/ab-experiments/exp-1/runs`, () =>
     HttpResponse.json({
@@ -166,7 +166,7 @@ const server = setupServer(
       total: 1,
       limit: 50,
       offset: 0,
-    })
+    }),
   ),
   http.post(`${apiBaseUrl}/ab-experiments`, () =>
     HttpResponse.json(
@@ -176,27 +176,35 @@ const server = setupServer(
         name: "New Experiment",
         variants: [],
       },
-      { status: 201 }
-    )
+      { status: 201 },
+    ),
   ),
   http.post(`${apiBaseUrl}/ab-experiments/exp-1/runs`, () =>
     HttpResponse.json(
       { ...RUN_COMPLETED, status: "running", experiment_run_id: "run-2" },
-      { status: 201 }
-    )
+      { status: 201 },
+    ),
   ),
   http.post(`${apiBaseUrl}/ab-experiments/exp-1/variants/var-1/approve`, () =>
-    HttpResponse.json({ ...EXPERIMENT_1.variants[0], approval_status: "approved" })
+    HttpResponse.json({
+      ...EXPERIMENT_1.variants[0],
+      approval_status: "approved",
+    }),
   ),
   http.post(`${apiBaseUrl}/ab-experiments/exp-1/variants/var-2/reject`, () =>
-    HttpResponse.json({ ...EXPERIMENT_1.variants[1], approval_status: "rejected" })
+    HttpResponse.json({
+      ...EXPERIMENT_1.variants[1],
+      approval_status: "rejected",
+    }),
   ),
-  http.delete(`${apiBaseUrl}/ab-experiments/exp-1`, () =>
-    new HttpResponse(null, { status: 204 })
+  http.delete(
+    `${apiBaseUrl}/ab-experiments/exp-1`,
+    () => new HttpResponse(null, { status: 204 }),
   ),
-  http.delete(`${apiBaseUrl}/ab-experiments/exp-1/variants/var-2`, () =>
-    new HttpResponse(null, { status: 204 })
-  )
+  http.delete(
+    `${apiBaseUrl}/ab-experiments/exp-1/variants/var-2`,
+    () => new HttpResponse(null, { status: 204 }),
+  ),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: "warn" }));
@@ -212,7 +220,7 @@ function renderPanel() {
   return render(
     <QueryClientProvider client={qc}>
       <AbTestPanel />
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -231,8 +239,8 @@ describe("AbTestPanel", () => {
   it("shows empty state when no experiments", async () => {
     server.use(
       http.get(`${apiBaseUrl}/ab-experiments`, () =>
-        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 })
-      )
+        HttpResponse.json({ items: [], total: 0, limit: 50, offset: 0 }),
+      ),
     );
     renderPanel();
     await waitFor(() => {
@@ -312,9 +320,9 @@ describe("AbTestPanel", () => {
         ran = true;
         return HttpResponse.json(
           { ...RUN_COMPLETED, status: "running", experiment_run_id: "run-99" },
-          { status: 201 }
+          { status: 201 },
         );
-      })
+      }),
     );
     renderPanel();
     await waitFor(() => screen.getByText("Prompt v2 vs v3"));
@@ -337,13 +345,16 @@ describe("AbTestPanel", () => {
   it("Approve button triggers approval request", async () => {
     let approved = false;
     server.use(
-      http.post(`${apiBaseUrl}/ab-experiments/exp-1/variants/var-1/approve`, () => {
-        approved = true;
-        return HttpResponse.json({
-          ...EXPERIMENT_1.variants[0],
-          approval_status: "approved",
-        });
-      })
+      http.post(
+        `${apiBaseUrl}/ab-experiments/exp-1/variants/var-1/approve`,
+        () => {
+          approved = true;
+          return HttpResponse.json({
+            ...EXPERIMENT_1.variants[0],
+            approval_status: "approved",
+          });
+        },
+      ),
     );
     renderPanel();
     await waitFor(() => screen.getByText("Prompt v2 vs v3"));

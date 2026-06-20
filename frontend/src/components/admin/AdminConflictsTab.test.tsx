@@ -4,8 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminPermissionsPage } from "@/components/admin/AdminPermissionsPage";
-import type { ConflictEntry, ConflictListResponse, ScanResult, ExplainDecisionResponse } from "@/lib/api/conflicts";
-import type { RoleMatrixResponse, ResourceAccessListResponse } from "@/lib/api/permissions";
+import type {
+  ConflictEntry,
+  ConflictListResponse,
+  ScanResult,
+  ExplainDecisionResponse,
+} from "@/lib/api/conflicts";
+import type {
+  RoleMatrixResponse,
+  ResourceAccessListResponse,
+} from "@/lib/api/permissions";
 
 // ── mocks ──────────────────────────────────────────────────────────────────────
 
@@ -42,21 +50,32 @@ vi.mock("@/lib/use-permissions", () => ({
 
 vi.mock("@/lib/api/permissions", () => ({
   getRoleMatrix: (...args: unknown[]) => mockPermApi.getRoleMatrix(...args),
-  updateRolePermissions: (...args: unknown[]) => mockPermApi.updateRolePermissions(...args),
-  listResourceGrants: (...args: unknown[]) => mockPermApi.listResourceGrants(...args),
-  createResourceGrant: (...args: unknown[]) => mockPermApi.createResourceGrant(...args),
-  revokeResourceGrant: (...args: unknown[]) => mockPermApi.revokeResourceGrant(...args),
-  listResourceDenies: (...args: unknown[]) => mockPermApi.listResourceDenies(...args),
-  createResourceDeny: (...args: unknown[]) => mockPermApi.createResourceDeny(...args),
-  revokeResourceDeny: (...args: unknown[]) => mockPermApi.revokeResourceDeny(...args),
+  updateRolePermissions: (...args: unknown[]) =>
+    mockPermApi.updateRolePermissions(...args),
+  listResourceGrants: (...args: unknown[]) =>
+    mockPermApi.listResourceGrants(...args),
+  createResourceGrant: (...args: unknown[]) =>
+    mockPermApi.createResourceGrant(...args),
+  revokeResourceGrant: (...args: unknown[]) =>
+    mockPermApi.revokeResourceGrant(...args),
+  listResourceDenies: (...args: unknown[]) =>
+    mockPermApi.listResourceDenies(...args),
+  createResourceDeny: (...args: unknown[]) =>
+    mockPermApi.createResourceDeny(...args),
+  revokeResourceDeny: (...args: unknown[]) =>
+    mockPermApi.revokeResourceDeny(...args),
 }));
 
 vi.mock("@/lib/api/conflicts", () => ({
-  listConflicts: (...args: unknown[]) => mockConflictsApi.listConflicts(...args),
+  listConflicts: (...args: unknown[]) =>
+    mockConflictsApi.listConflicts(...args),
   getConflict: (...args: unknown[]) => mockConflictsApi.getConflict(...args),
-  updateConflictStatus: (...args: unknown[]) => mockConflictsApi.updateConflictStatus(...args),
-  scanForConflicts: (...args: unknown[]) => mockConflictsApi.scanForConflicts(...args),
-  explainDecision: (...args: unknown[]) => mockConflictsApi.explainDecision(...args),
+  updateConflictStatus: (...args: unknown[]) =>
+    mockConflictsApi.updateConflictStatus(...args),
+  scanForConflicts: (...args: unknown[]) =>
+    mockConflictsApi.scanForConflicts(...args),
+  explainDecision: (...args: unknown[]) =>
+    mockConflictsApi.explainDecision(...args),
 }));
 
 // ── fixtures ───────────────────────────────────────────────────────────────────
@@ -149,7 +168,9 @@ const EXPLAIN_DENY: ExplainDecisionResponse = {
     { rule: "no_organization_context", outcome: "pass", detail: null },
     { rule: "role_permission", outcome: "deny", detail: "insufficient_role" },
   ],
-  remediation: ["Grant the user a role with sufficient permissions for document access."],
+  remediation: [
+    "Grant the user a role with sufficient permissions for document access.",
+  ],
   request_id: "req-yyy",
 };
 
@@ -183,19 +204,25 @@ beforeEach(() => {
 describe("Tab navigation", () => {
   it("renders the Conflicts tab button", () => {
     renderPage();
-    expect(screen.getByRole("button", { name: /conflicts/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /conflicts/i }),
+    ).toBeInTheDocument();
   });
 
   it("renders the Access Debugger tab button", () => {
     renderPage();
-    expect(screen.getByRole("button", { name: /access debugger/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /access debugger/i }),
+    ).toBeInTheDocument();
   });
 
   it("clicking Conflicts tab calls listConflicts", async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole("button", { name: /conflicts/i }));
-    await waitFor(() => expect(mockConflictsApi.listConflicts).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(mockConflictsApi.listConflicts).toHaveBeenCalled(),
+    );
   });
 
   it("clicking Access Debugger tab shows subject user ID input", async () => {
@@ -203,7 +230,9 @@ describe("Tab navigation", () => {
     renderPage();
     await user.click(screen.getByRole("button", { name: /access debugger/i }));
     await waitFor(() =>
-      expect(screen.getByPlaceholderText(/uuid of the user/i)).toBeInTheDocument(),
+      expect(
+        screen.getByPlaceholderText(/uuid of the user/i),
+      ).toBeInTheDocument(),
     );
   });
 });
@@ -236,19 +265,25 @@ describe("ConflictsTab", () => {
   it("displays severity badge", async () => {
     mockConflictsApi.listConflicts.mockResolvedValue(CONFLICT_LIST);
     await openConflictsTab();
-    await waitFor(() => expect(screen.getByText(/blocking/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/blocking/i)).toBeInTheDocument(),
+    );
   });
 
   it("displays status badge", async () => {
     mockConflictsApi.listConflicts.mockResolvedValue(CONFLICT_LIST);
     await openConflictsTab();
-    await waitFor(() => expect(screen.getAllByText(/open/i).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText(/open/i).length).toBeGreaterThan(0),
+    );
   });
 
   it("shows Run scan button for admins", async () => {
     await openConflictsTab();
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /run scan/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /run scan/i }),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -256,7 +291,9 @@ describe("ConflictsTab", () => {
     const user = await openConflictsTab();
     await waitFor(() => screen.getByRole("button", { name: /run scan/i }));
     await user.click(screen.getByRole("button", { name: /run scan/i }));
-    await waitFor(() => expect(mockConflictsApi.scanForConflicts).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(mockConflictsApi.scanForConflicts).toHaveBeenCalledOnce(),
+    );
   });
 
   it("shows scan result summary after scan", async () => {
@@ -273,7 +310,11 @@ describe("ConflictsTab", () => {
     const user = await openConflictsTab();
     await waitFor(() => screen.getByRole("button", { name: /view/i }));
     await user.click(screen.getByRole("button", { name: /view/i }));
-    await waitFor(() => expect(mockConflictsApi.getConflict).toHaveBeenCalledWith("conflict-abc-123"));
+    await waitFor(() =>
+      expect(mockConflictsApi.getConflict).toHaveBeenCalledWith(
+        "conflict-abc-123",
+      ),
+    );
   });
 
   it("conflict drawer shows summary and remediation", async () => {
@@ -282,7 +323,9 @@ describe("ConflictsTab", () => {
     await waitFor(() => screen.getByRole("button", { name: /view/i }));
     await user.click(screen.getByRole("button", { name: /view/i }));
     await waitFor(() =>
-      expect(screen.getByText(/Grant allows but deny blocks/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/Grant allows but deny blocks/i),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByText(/Review the explicit deny/i)).toBeInTheDocument();
   });
@@ -293,30 +336,41 @@ describe("ConflictsTab", () => {
     await waitFor(() => screen.getByRole("button", { name: /view/i }));
     await user.click(screen.getByRole("button", { name: /view/i }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /mark resolved/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: /mark resolved/i }),
+      ).toBeInTheDocument(),
     );
   });
 
   it("resolving conflict calls updateConflictStatus", async () => {
     mockConflictsApi.listConflicts.mockResolvedValue(CONFLICT_LIST);
-    mockConflictsApi.updateConflictStatus.mockResolvedValue({ ...CONFLICT_ITEM, status: "resolved" });
+    mockConflictsApi.updateConflictStatus.mockResolvedValue({
+      ...CONFLICT_ITEM,
+      status: "resolved",
+    });
     const user = await openConflictsTab();
     await waitFor(() => screen.getByRole("button", { name: /view/i }));
     await user.click(screen.getByRole("button", { name: /view/i }));
     await waitFor(() => screen.getByRole("button", { name: /mark resolved/i }));
     await user.click(screen.getByRole("button", { name: /mark resolved/i }));
     await waitFor(() =>
-      expect(mockConflictsApi.updateConflictStatus).toHaveBeenCalledWith("conflict-abc-123", {
-        status: "resolved",
-        resolution_note: null,
-      }),
+      expect(mockConflictsApi.updateConflictStatus).toHaveBeenCalledWith(
+        "conflict-abc-123",
+        {
+          status: "resolved",
+          resolution_note: null,
+        },
+      ),
     );
   });
 
   it("applies severity filter via select", async () => {
     const user = await openConflictsTab();
     await waitFor(() => screen.getByDisplayValue(/all severities/i));
-    await user.selectOptions(screen.getByDisplayValue(/all severities/i), "blocking");
+    await user.selectOptions(
+      screen.getByDisplayValue(/all severities/i),
+      "blocking",
+    );
     await waitFor(() =>
       expect(mockConflictsApi.listConflicts).toHaveBeenCalledWith(
         expect.objectContaining({ severity: "blocking" }),
@@ -357,7 +411,9 @@ describe("AccessDebuggerTab", () => {
     const user = await openDebuggerTab();
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() =>
-      expect(screen.getByText(/subject user id is required/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/subject user id is required/i),
+      ).toBeInTheDocument(),
     );
     expect(mockConflictsApi.explainDecision).not.toHaveBeenCalled();
   });
@@ -378,7 +434,10 @@ describe("AccessDebuggerTab", () => {
 
   it("shows ALLOW result with green badge", async () => {
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() => expect(screen.getByText(/allow/i)).toBeInTheDocument());
   });
@@ -386,14 +445,22 @@ describe("AccessDebuggerTab", () => {
   it("shows DENY result with deny reason", async () => {
     mockConflictsApi.explainDecision.mockResolvedValue(EXPLAIN_DENY);
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
-    await waitFor(() => expect(screen.getByText(/insufficient_role/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/insufficient_role/i)).toBeInTheDocument(),
+    );
   });
 
   it("shows policy trace steps", async () => {
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() =>
       expect(screen.getByText(/no_organization_context/i)).toBeInTheDocument(),
@@ -403,7 +470,10 @@ describe("AccessDebuggerTab", () => {
   it("shows remediation suggestions for deny", async () => {
     mockConflictsApi.explainDecision.mockResolvedValue(EXPLAIN_DENY);
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() =>
       expect(screen.getByText(/grant the user a role/i)).toBeInTheDocument(),
@@ -412,23 +482,36 @@ describe("AccessDebuggerTab", () => {
 
   it("shows request ID in result", async () => {
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
-    await waitFor(() => expect(screen.getByText(/req-xxx/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/req-xxx/i)).toBeInTheDocument(),
+    );
   });
 
   it("no remediation shown for allow result", async () => {
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "user-abc");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "user-abc",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() => screen.getByText(/allow/i));
     expect(screen.queryByText(/how to grant access/i)).not.toBeInTheDocument();
   });
 
   it("api error is shown in form", async () => {
-    mockConflictsApi.explainDecision.mockRejectedValue(new Error("User not found"));
+    mockConflictsApi.explainDecision.mockRejectedValue(
+      new Error("User not found"),
+    );
     const user = await openDebuggerTab();
-    await user.type(screen.getByPlaceholderText(/uuid of the user/i), "bad-uuid");
+    await user.type(
+      screen.getByPlaceholderText(/uuid of the user/i),
+      "bad-uuid",
+    );
     await user.click(screen.getByRole("button", { name: /check access/i }));
     await waitFor(() =>
       expect(screen.getByText(/user not found/i)).toBeInTheDocument(),
@@ -443,19 +526,23 @@ describe("Permission-aware rendering", () => {
     mockPermissions.hasPermission.mockReturnValue(false);
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/you need the roles:view permission/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/you need the roles:view permission/i),
+      ).toBeInTheDocument(),
     );
   });
 
   it("read-only admin sees conflicts tab but no scan button", async () => {
-    mockPermissions.hasPermission.mockImplementation((p: string) =>
-      p === "roles:view" || p === "security_center:view",
+    mockPermissions.hasPermission.mockImplementation(
+      (p: string) => p === "roles:view" || p === "security_center:view",
     );
     const user = userEvent.setup();
     renderPage();
     await user.click(screen.getByRole("button", { name: /conflicts/i }));
     await waitFor(() =>
-      expect(screen.queryByRole("button", { name: /run scan/i })).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole("button", { name: /run scan/i }),
+      ).not.toBeInTheDocument(),
     );
   });
 });

@@ -114,9 +114,15 @@ type ConvertModalProps = {
   onConverted: (reviewId: string) => void;
 };
 
-function ConvertToEvalModal({ reviewId, onClose, onConverted }: ConvertModalProps) {
+function ConvertToEvalModal({
+  reviewId,
+  onClose,
+  onConverted,
+}: ConvertModalProps) {
   const [evalSetId, setEvalSetId] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">(
+    "medium",
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -219,9 +225,7 @@ function ConvertToEvalModal({ reviewId, onClose, onConverted }: ConvertModalProp
             />
           </label>
 
-          {error ? (
-            <p className="text-sm text-rose-700">{error}</p>
-          ) : null}
+          {error ? <p className="text-sm text-rose-700">{error}</p> : null}
 
           <div className="flex justify-end gap-2 pt-1">
             <button
@@ -335,7 +339,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                   <dt className="w-20 shrink-0 text-[10px] font-semibold tracking-[0.08em] text-[#777587] uppercase">
                     Category
                   </dt>
-                  <dd className="capitalize text-[#302f39]">
+                  <dd className="text-[#302f39] capitalize">
                     {categoryLabel(item.feedback.category)}
                   </dd>
                 </div>
@@ -369,7 +373,7 @@ const DetailPanel = forwardRef<HTMLElement, DetailPanelProps>(
                 </div>
               ) : null}
               {isRedacted ? (
-                <p className="mt-1 text-[10px] italic text-[#777587]">
+                <p className="mt-1 text-[10px] text-[#777587] italic">
                   Diagnostics redacted on{" "}
                   {formatTimestamp(item.feedback.redacted_at!)}
                 </p>
@@ -949,7 +953,7 @@ export function AdminFeedbackReviewPage() {
                               <span className="text-[#777587]">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm capitalize text-[#302f39]">
+                          <td className="px-4 py-3 text-sm text-[#302f39] capitalize">
                             {categoryLabel(item.feedback?.category)}
                           </td>
                           <td className="px-4 py-3 text-center">

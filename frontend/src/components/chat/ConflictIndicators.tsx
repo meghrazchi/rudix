@@ -2,7 +2,9 @@
 
 import type { ChatCitationResponse } from "@/lib/api/chat";
 
-function agreementLevelLabel(level: "full" | "partial" | "conflicting"): string {
+export function agreementLevelLabel(
+  level: "full" | "partial" | "conflicting",
+): string {
   if (level === "partial") {
     return "Partial agreement";
   }
@@ -12,7 +14,9 @@ function agreementLevelLabel(level: "full" | "partial" | "conflicting"): string 
   return "Full agreement";
 }
 
-function agreementLevelClass(level: "full" | "partial" | "conflicting"): string {
+export function agreementLevelClass(
+  level: "full" | "partial" | "conflicting",
+): string {
   if (level === "conflicting") {
     return "inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-rose-800";
   }
@@ -113,7 +117,7 @@ export function ConflictSourceComparison({
                   className="rounded-lg border border-emerald-200 bg-white p-3"
                 >
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase text-emerald-700">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase">
                       {citation.filename ?? "Document"}
                     </span>
                     <span className="text-[9px] font-semibold text-emerald-700 uppercase">
@@ -133,16 +137,14 @@ export function ConflictSourceComparison({
           </p>
           <div className="space-y-2">
             {citations
-              .filter((citation) =>
-                citation.conflict_status === "conflicting",
-              )
+              .filter((citation) => citation.conflict_status === "conflicting")
               .map((citation, index) => (
                 <div
                   key={`conflicting:${citation.document_id}:${citation.chunk_id}:${index}`}
                   className="rounded-lg border border-rose-200 bg-white p-3"
                 >
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase text-rose-700">
+                    <span className="text-[10px] font-bold text-rose-700 uppercase">
                       {citation.filename ?? "Document"}
                     </span>
                     <span className="text-[9px] font-semibold text-rose-700 uppercase">

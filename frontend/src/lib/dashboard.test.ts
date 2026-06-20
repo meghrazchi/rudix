@@ -26,6 +26,7 @@ function usageFixture(
       output_tokens: 25,
       cost_usd: 1.2,
       event_count: 10,
+      questions_asked: 4,
     },
     series: [],
     ...overrides,
@@ -88,6 +89,7 @@ describe("dashboard helpers", () => {
         output_tokens: 25,
         cost_usd: 1.2,
         event_count: 10,
+        questions_asked: 4,
         avg_confidence: 0.73,
         avg_latency_ms: 480,
       } as UsageSummaryResponse["totals"],
@@ -103,6 +105,7 @@ describe("dashboard helpers", () => {
         output_tokens: 25,
         cost_usd: 1.2,
         event_count: 10,
+        questions_asked: 4,
       },
       series: [
         {
@@ -140,6 +143,7 @@ describe("dashboard helpers", () => {
         output_tokens: 25,
         cost_usd: 1.2,
         event_count: 10,
+        questions_asked: 4,
         latency_score: 72,
       } as UsageSummaryResponse["totals"],
     });

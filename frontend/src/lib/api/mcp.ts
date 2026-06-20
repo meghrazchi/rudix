@@ -97,7 +97,9 @@ export type MCPAuditEventListResponse = {
 
 function normalizePolicy(value: unknown): OrgMCPPolicy {
   const raw =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   return {
     organization_id:
       typeof raw.organization_id === "string" ? raw.organization_id : "",
@@ -130,7 +132,9 @@ function normalizePolicy(value: unknown): OrgMCPPolicy {
       : null,
     rate_limit_enabled: raw.rate_limit_enabled !== false,
     rate_limit_requests:
-      typeof raw.rate_limit_requests === "number" ? raw.rate_limit_requests : 30,
+      typeof raw.rate_limit_requests === "number"
+        ? raw.rate_limit_requests
+        : 30,
     rate_limit_window_seconds:
       typeof raw.rate_limit_window_seconds === "number"
         ? raw.rate_limit_window_seconds
@@ -161,7 +165,9 @@ function normalizePolicy(value: unknown): OrgMCPPolicy {
     max_request_bytes:
       typeof raw.max_request_bytes === "number" ? raw.max_request_bytes : null,
     max_response_bytes:
-      typeof raw.max_response_bytes === "number" ? raw.max_response_bytes : null,
+      typeof raw.max_response_bytes === "number"
+        ? raw.max_response_bytes
+        : null,
     updated_by_user_id:
       typeof raw.updated_by_user_id === "string"
         ? raw.updated_by_user_id
@@ -172,7 +178,9 @@ function normalizePolicy(value: unknown): OrgMCPPolicy {
 
 function normalizeStatus(value: unknown): MCPStatusResponse {
   const raw =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   const deps: Record<string, MCPDependencyStatus> = {};
   const rawDeps =
     raw.dependencies && typeof raw.dependencies === "object"
@@ -193,7 +201,9 @@ function normalizeStatus(value: unknown): MCPStatusResponse {
     server_name: typeof raw.server_name === "string" ? raw.server_name : "",
     rate_limit_enabled: raw.rate_limit_enabled !== false,
     rate_limit_requests:
-      typeof raw.rate_limit_requests === "number" ? raw.rate_limit_requests : 30,
+      typeof raw.rate_limit_requests === "number"
+        ? raw.rate_limit_requests
+        : 30,
     rate_limit_window_seconds:
       typeof raw.rate_limit_window_seconds === "number"
         ? raw.rate_limit_window_seconds
@@ -212,7 +222,9 @@ function normalizeStatus(value: unknown): MCPStatusResponse {
 
 function normalizeToolInfo(value: unknown): MCPToolInfo {
   const raw =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   return {
     name: typeof raw.name === "string" ? raw.name : "",
     public_name: typeof raw.public_name === "string" ? raw.public_name : "",
@@ -224,15 +236,16 @@ function normalizeToolInfo(value: unknown): MCPToolInfo {
 
 function normalizeAuditEvent(value: unknown): MCPAuditEvent {
   const raw =
-    value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    value && typeof value === "object"
+      ? (value as Record<string, unknown>)
+      : {};
   return {
     id: typeof raw.id === "string" ? raw.id : "",
     action: typeof raw.action === "string" ? raw.action : "",
     user_id: typeof raw.user_id === "string" ? raw.user_id : null,
     resource_type:
       typeof raw.resource_type === "string" ? raw.resource_type : null,
-    resource_id:
-      typeof raw.resource_id === "string" ? raw.resource_id : null,
+    resource_id: typeof raw.resource_id === "string" ? raw.resource_id : null,
     metadata:
       raw.metadata && typeof raw.metadata === "object"
         ? (raw.metadata as Record<string, unknown>)
@@ -280,7 +293,10 @@ export async function listMCPTools(): Promise<MCPToolListResponse> {
   const items = Array.isArray(raw.items)
     ? raw.items.map(normalizeToolInfo)
     : [];
-  return { items, total: typeof raw.total === "number" ? raw.total : items.length };
+  return {
+    items,
+    total: typeof raw.total === "number" ? raw.total : items.length,
+  };
 }
 
 export async function listMCPAuditEvents(params?: {
@@ -302,5 +318,8 @@ export async function listMCPAuditEvents(params?: {
   const items = Array.isArray(raw.items)
     ? raw.items.map(normalizeAuditEvent)
     : [];
-  return { items, total: typeof raw.total === "number" ? raw.total : items.length };
+  return {
+    items,
+    total: typeof raw.total === "number" ? raw.total : items.length,
+  };
 }

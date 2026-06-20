@@ -153,10 +153,7 @@ export function HelpCenterDrawer({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-[#17172a]/40"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 bg-[#17172a]/40" onClick={onClose}>
       <aside
         ref={containerRef as React.RefObject<HTMLElement>}
         role="dialog"
@@ -174,7 +171,7 @@ export function HelpCenterDrawer({
             type="button"
             onClick={onClose}
             aria-label={t("close")}
-            className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+            className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
           >
             Esc
           </button>
@@ -213,7 +210,7 @@ export function HelpCenterDrawer({
                     <Link
                       href={article.href}
                       onClick={onClose}
-                      className={`block rounded-xl border px-4 py-3 text-left transition hover:bg-[#f5f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd] ${
+                      className={`block rounded-xl border px-4 py-3 text-left transition hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none ${
                         highlighted
                           ? "border-[#b8b0f5] bg-[#f0eeff]"
                           : "border-[#e8e5f5] bg-[#faf9ff]"
@@ -244,7 +241,7 @@ export function HelpCenterDrawer({
                 onClose();
                 onOpenShortcuts();
               }}
-              className="flex w-full items-center justify-between rounded-xl border border-[#e8e5f5] bg-[#faf9ff] px-4 py-3 text-left transition hover:bg-[#f5f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+              className="flex w-full items-center justify-between rounded-xl border border-[#e8e5f5] bg-[#faf9ff] px-4 py-3 text-left transition hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
             >
               <span className="text-sm font-semibold text-[#2f2a46]">
                 {t("keyboardShortcutsTitle")}
@@ -266,7 +263,7 @@ export function HelpCenterDrawer({
                     onClick={onClose}
                     target={external ? "_blank" : undefined}
                     rel={external ? "noreferrer noopener" : undefined}
-                    className="flex items-center justify-between rounded-xl border border-[#e8e5f5] bg-[#faf9ff] px-4 py-3 transition hover:bg-[#f5f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                    className="flex items-center justify-between rounded-xl border border-[#e8e5f5] bg-[#faf9ff] px-4 py-3 transition hover:bg-[#f5f3ff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                   >
                     <span className="text-sm font-semibold text-[#2f2a46]">
                       {item.label}
@@ -308,13 +305,13 @@ export function HelpCenterDrawer({
                 <p className="mb-1.5 text-[11px] text-[#7a7594]">
                   {t("diagnosticInfoNote")}
                 </p>
-                <code className="block break-all font-mono text-[11px] text-[#4a456b]">
+                <code className="block font-mono text-[11px] break-all text-[#4a456b]">
                   {buildDiagnosticText(session)}
                 </code>
                 <button
                   type="button"
                   onClick={() => void copyDiagnosticInfo()}
-                  className="mt-2 rounded border border-[#d3cff0] bg-white px-2 py-1 text-[11px] font-semibold text-[#5d58a8] hover:bg-[#f0eeff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3525cd]"
+                  className="mt-2 rounded border border-[#d3cff0] bg-white px-2 py-1 text-[11px] font-semibold text-[#5d58a8] hover:bg-[#f0eeff] focus-visible:ring-2 focus-visible:ring-[#3525cd] focus-visible:outline-none"
                 >
                   {copied ? t("copied") : t("copyDiagnosticInfo")}
                 </button>

@@ -274,17 +274,13 @@ describe("AdminFeedbackReviewPage", () => {
     expect(await screen.findByText("bad citation")).toBeInTheDocument();
 
     // F303: captured question text shown
-    expect(
-      await screen.findByText("Captured question"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Captured question")).toBeInTheDocument();
     expect(
       await screen.findByText("What is the capital of France?"),
     ).toBeInTheDocument();
 
     // F303: captured answer text shown
-    expect(
-      await screen.findByText("Captured answer"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Captured answer")).toBeInTheDocument();
     expect(
       await screen.findByText("The capital of France is London."),
     ).toBeInTheDocument();
@@ -318,7 +314,9 @@ describe("AdminFeedbackReviewPage", () => {
       screen.queryByRole("button", { name: "Redact diagnostics" }),
     ).not.toBeInTheDocument();
     // Should show redacted-at message
-    expect(await screen.findByText(/Diagnostics redacted on/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Diagnostics redacted on/),
+    ).toBeInTheDocument();
   });
 
   it("hides convert button when already converted", async () => {
@@ -431,7 +429,10 @@ describe("AdminFeedbackReviewPage", () => {
     });
     mockApi.redactFeedbackDiagnostics.mockResolvedValue({
       ...SAMPLE_ITEM,
-      feedback: { ...SAMPLE_ITEM.feedback!, redacted_at: "2026-06-02T00:00:00Z" },
+      feedback: {
+        ...SAMPLE_ITEM.feedback!,
+        redacted_at: "2026-06-02T00:00:00Z",
+      },
     });
 
     renderPage();

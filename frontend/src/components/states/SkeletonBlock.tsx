@@ -9,7 +9,10 @@ type SkeletonRowProps = {
   compact?: boolean;
 };
 
-function SkeletonRow({ widthClass = "w-full", compact = false }: SkeletonRowProps) {
+function SkeletonRow({
+  widthClass = "w-full",
+  compact = false,
+}: SkeletonRowProps) {
   return (
     <div
       aria-hidden="true"

@@ -332,9 +332,7 @@ function RelationshipRow({ item }: { item: GraphRelationItem }) {
       <td className="px-4 py-4 text-sm text-[#4d4861]">
         {formatConfidence(item.confidence)}
       </td>
-      <td className="px-4 py-4 text-sm text-[#4d4861]">
-        {item.status ?? "—"}
-      </td>
+      <td className="px-4 py-4 text-sm text-[#4d4861]">{item.status ?? "—"}</td>
     </tr>
   );
 }
@@ -837,7 +835,9 @@ export function GraphExplorerPage() {
                   <button
                     type="button"
                     disabled={!hasPrevPage}
-                    onClick={() => setPage((current) => Math.max(0, current - 1))}
+                    onClick={() =>
+                      setPage((current) => Math.max(0, current - 1))
+                    }
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#433e59] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Previous
@@ -879,7 +879,8 @@ export function GraphExplorerPage() {
                   Page {page + 1} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
                 </p>
                 <p>
-                  Use the filters to narrow the graph to evidence-backed records.
+                  Use the filters to narrow the graph to evidence-backed
+                  records.
                 </p>
               </div>
             </section>

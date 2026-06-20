@@ -66,6 +66,13 @@ function trimOrNull(value: string): string | null {
   return t.length > 0 ? t : null;
 }
 
+function getFallbackErrorMessage(error: unknown, fallback: string): string {
+  const message = getApiErrorMessage(error);
+  return message === "Something went wrong while contacting the API."
+    ? fallback
+    : message;
+}
+
 export function AdminSSOPage() {
   const { state } = useAuthSession();
   const queryClient = useQueryClient();
@@ -98,7 +105,7 @@ export function AdminSSOPage() {
     },
     onError: (err) => {
       setSubmitError(
-        getApiErrorMessage(err, "Failed to save SSO configuration."),
+        getFallbackErrorMessage(err, "Failed to save SSO configuration."),
       );
     },
   });
@@ -112,7 +119,7 @@ export function AdminSSOPage() {
     },
     onError: (err) => {
       setSubmitError(
-        getApiErrorMessage(err, "Failed to remove SSO configuration."),
+        getFallbackErrorMessage(err, "Failed to remove SSO configuration."),
       );
     },
   });
@@ -132,7 +139,7 @@ export function AdminSSOPage() {
       queryClient.invalidateQueries({ queryKey: ssoKey });
     },
     onError: (err) => {
-      setSubmitError(getApiErrorMessage(err, "Connection test failed."));
+      setSubmitError(getFallbackErrorMessage(err, "Connection test failed."));
     },
   });
 
