@@ -105,7 +105,7 @@ async def update_role_permissions(
     if role_name not in _BUILTIN_ROLES:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
 
-    if role_name == "owner" and principal.role != "owner":
+    if role_name == "owner" and "owner" not in principal.roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only owners can modify the owner role permissions",

@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.auth.dependencies import require_roles
 from app.auth.models import AuthenticatedPrincipal
@@ -784,10 +785,13 @@ async def decide_agent_run_approval(
             status_code=status.HTTP_404_NOT_FOUND, detail="Agent approval not found"
         )
     # Expire stale approval before checking status.
+    expires_at = approval.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
     if (
         approval.status == "pending"
-        and approval.expires_at
-        and approval.expires_at <= datetime.now(tz=UTC)
+        and expires_at
+        and expires_at <= datetime.now(tz=UTC)
     ):
         await agent_run_repository.update_agent_approval(
             db_session,
@@ -1121,10 +1125,10 @@ async def _load_run_with_relations(
         agent_run_id=run.id,
         organization_id=organization_id,
     )
-    # Attach as plain lists so trace service can iterate them without lazy-load
-    run.steps = steps
-    run.tool_calls = tool_calls
-    run.approvals = approvals
+    # Attach the preloaded collections without triggering lazy-load IO.
+    set_committed_value(run, "steps", steps)
+    set_committed_value(run, "tool_calls", tool_calls)
+    set_committed_value(run, "approvals", approvals)
     return run
 
 

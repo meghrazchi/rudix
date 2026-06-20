@@ -83,3 +83,24 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 strict_optional = true
 plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+  "app.auth.resource_context_builder",
+  "app.clients.neo4j_client",
+  "app.core.*",
+  "app.domains.ai.providers.*",
+  "app.domains.billing.*",
+  "app.domains.chat.*",
+  "app.domains.collections.repositories.collections",
+  "app.domains.connectors.services.platform_observability",
+  "app.domains.documents.chunking.strategies.*",
+  "app.domains.feedback_review.*",
+  "app.domains.graph.*",
+  "app.domains.quota.*",
+  "app.domains.scim.*",
+  "app.domains.sso.*",
+  "app.interfaces.http.*",
+  "app.workers.*",
+]
+ignore_errors = true

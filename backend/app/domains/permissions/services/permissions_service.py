@@ -16,9 +16,7 @@ _OWNER_ROLE = "owner"
 _OWNER_REQUIRED_PERMISSIONS = frozenset(
     {
         "roles:manage",
-        "roles:view",
         "team:manage",
-        "team:view",
     }
 )
 
@@ -37,11 +35,12 @@ def check_role_permission_safety(
     new_set = frozenset(new_permissions)
 
     if role_name == _OWNER_ROLE:
-        missing = _OWNER_REQUIRED_PERMISSIONS - new_set
-        if missing:
+        owner_retains_admin_power = bool(_OWNER_REQUIRED_PERMISSIONS.intersection(new_set))
+        if not owner_retains_admin_power:
             return (
-                f"Cannot remove required owner permissions: {sorted(missing)}. "
-                "Owner must always retain full role and team management."
+                "Cannot remove required owner permissions: "
+                f"{sorted(_OWNER_REQUIRED_PERMISSIONS)}. "
+                "Owner must retain role or team management."
             )
 
     # Ensure at least one privileged role retains roles:manage so admins

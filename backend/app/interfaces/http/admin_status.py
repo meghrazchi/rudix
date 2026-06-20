@@ -456,6 +456,7 @@ async def add_incident_note(
         created_at=now,
     )
     db.add(note)
+    incident.notes.append(note)
 
     if body.status_change is not None and body.status_change != incident.status:
         if body.status_change == "resolved" and incident.resolved_at is None:

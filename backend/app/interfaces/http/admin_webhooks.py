@@ -215,6 +215,7 @@ async def update_webhook(
         metadata={"name": webhook.name, "status_code": status.HTTP_200_OK},
     )
     await db_session.commit()
+    await db_session.refresh(webhook)
 
     logger.info(
         "webhooks.webhook.updated",
@@ -333,6 +334,7 @@ async def rotate_webhook_secret(
         metadata={"name": webhook.name, "status_code": status.HTTP_200_OK},
     )
     await db_session.commit()
+    await db_session.refresh(webhook)
 
     logger.info(
         "webhooks.webhook.secret_rotated",

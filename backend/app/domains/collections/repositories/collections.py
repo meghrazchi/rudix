@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from builtins import list as list_
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, exists, func, or_, select
@@ -20,7 +22,7 @@ class CollectionRepository:
     # ── Access filter ──────────────────────────────────────────────────────────
 
     @staticmethod
-    def _access_filter(user_id: UUID, user_roles: list[str]):
+    def _access_filter(user_id: UUID, user_roles: list_[str]) -> Any | None:
         """
         Returns a SQLAlchemy WHERE condition for non-admin users, or None for admins.
         Admins (owner/admin org role) and collection owners always bypass restrictions.
@@ -117,7 +119,7 @@ class CollectionRepository:
         name_query: str | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[Collection]:
+    ) -> list_[Collection]:
         stmt = (
             select(Collection)
             .options(selectinload(Collection.owner))
@@ -227,7 +229,7 @@ class CollectionRepository:
         session: AsyncSession,
         *,
         organization_id: UUID,
-    ) -> list[Collection]:
+    ) -> list_[Collection]:
         result = await session.execute(
             select(Collection).where(
                 Collection.organization_id == organization_id,
@@ -250,7 +252,7 @@ class CollectionRepository:
         collection_id: UUID,
         limit: int = 20,
         offset: int = 0,
-    ) -> list[Document]:
+    ) -> list_[Document]:
         stmt = (
             select(Document)
             .join(CollectionDocument, CollectionDocument.document_id == Document.id)
@@ -304,7 +306,7 @@ class CollectionRepository:
                 CollectionDocument.document_id == document_id,
             )
         )
-        return result.rowcount > 0
+        return int(getattr(result, "rowcount", 0) or 0) > 0
 
     async def set_document_collections(
         self,
@@ -312,8 +314,8 @@ class CollectionRepository:
         *,
         document_id: UUID,
         organization_id: UUID,
-        collection_ids: list[UUID],
-    ) -> list[Collection]:
+        collection_ids: list_[UUID],
+    ) -> list_[Collection]:
         await session.execute(
             delete(CollectionDocument).where(
                 CollectionDocument.document_id == document_id,
@@ -345,8 +347,8 @@ class CollectionRepository:
         document_id: UUID,
         organization_id: UUID,
         user_id: UUID,
-        user_roles: list[str],
-    ) -> list[Collection]:
+        user_roles: list_[str],
+    ) -> list_[Collection]:
         stmt = (
             select(Collection)
             .options(selectinload(Collection.owner))
@@ -374,7 +376,7 @@ class CollectionRepository:
         session: AsyncSession,
         *,
         collection_id: UUID,
-    ) -> list[CollectionAccessGrant]:
+    ) -> list_[CollectionAccessGrant]:
         result = await session.execute(
             select(CollectionAccessGrant)
             .where(CollectionAccessGrant.collection_id == collection_id)
@@ -388,10 +390,10 @@ class CollectionRepository:
         *,
         collection: Collection,
         access_policy: str,
-        grants: list[
+        grants: list_[
             dict
         ],  # list of {"grantee_type": ..., "grantee_value": ..., "granted_by_id": ...}
-    ) -> list[CollectionAccessGrant]:
+    ) -> list_[CollectionAccessGrant]:
         # Update the policy mode on the collection
         collection.access_policy = access_policy
 

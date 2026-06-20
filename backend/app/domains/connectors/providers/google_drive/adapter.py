@@ -355,8 +355,9 @@ class GoogleDriveConnectorAdapter(ConnectorProviderAdapter):
 
         new_folder_queue = folder_queue + discovered_subfolders
 
+        next_cursor: dict[str, Any] | None
         if next_page_token:
-            next_cursor: dict[str, Any] = {
+            next_cursor = {
                 "current_folder": current_folder,
                 "folder_queue": new_folder_queue,
                 "page_token": next_page_token,

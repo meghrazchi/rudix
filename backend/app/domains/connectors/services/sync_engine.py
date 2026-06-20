@@ -246,6 +246,7 @@ class ConnectorSyncEngine:
         job_id: UUID | None = None,
         user_id: UUID | None = None,
     ) -> ConnectorSyncRun:
+        job: ConnectorSyncJob | None
         if job_id is not None:
             job = await self._require_sync_job(session, organization_id, job_id)
         else:
@@ -273,6 +274,7 @@ class ConnectorSyncEngine:
                     name=f"{connection.display_name} — default sync",
                     schedule={"type": "interval", "interval_minutes": 60},
                 )
+        assert job is not None
 
         await self._assert_no_active_run(session, job_id=job.id)
         run = await self._create_queued_run(session, job=job, trigger_type="manual")
@@ -363,6 +365,7 @@ class ConnectorSyncEngine:
 
         Safe to call at any time; blocks if a run is already active.
         """
+        job: ConnectorSyncJob | None
         if job_id is not None:
             job = await self._require_sync_job(session, organization_id, job_id)
         else:
@@ -390,6 +393,7 @@ class ConnectorSyncEngine:
                     name=f"{connection.display_name} — default sync",
                     schedule={"type": "interval", "interval_minutes": 60},
                 )
+        assert job is not None
 
         await self._assert_no_active_run(session, job_id=job.id)
         # Wipe the cursor so the next run is a full sync regardless of prior state.

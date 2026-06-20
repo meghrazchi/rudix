@@ -788,7 +788,7 @@ class EvaluationRepository:
         result = await session.execute(
             delete(EvaluationResult).where(EvaluationResult.evaluation_run_id == evaluation_run_id)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def list_evaluation_runs_for_organization(
         self,

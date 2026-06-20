@@ -174,19 +174,19 @@ _RULE_TO_LAYER: dict[str, str] = {
 def _parse_trace(raw_trace: list[str]) -> list[TraceStep]:
     steps: list[TraceStep] = []
     for entry in raw_trace:
-        if ":allow" in entry:
-            rule = entry.split(":allow")[0]
+        rule, sep, remainder = entry.partition(":")
+        if not sep:
+            steps.append(TraceStep(rule=entry, outcome="pass", detail=None))
+        elif remainder == "allow":
             steps.append(TraceStep(rule=rule, outcome="allow", detail=None))
-        elif ":deny(" in entry:
-            rule = entry.split(":deny(")[0]
-            reason_part = entry.split(":deny(")[-1].rstrip(")")
+        elif remainder.startswith("deny("):
+            reason_part = remainder[len("deny(") :].rstrip(")")
             steps.append(TraceStep(rule=rule, outcome="deny", detail=reason_part))
-        elif ":pass" in entry:
-            rule = entry.split(":pass")[0]
-            detail = entry.split(":pass")[-1].lstrip("(").rstrip(")") or None
+        elif remainder.startswith("pass"):
+            detail = remainder[len("pass") :].lstrip("(").rstrip(")") or None
             steps.append(TraceStep(rule=rule, outcome="pass", detail=detail or None))
         else:
-            steps.append(TraceStep(rule=entry, outcome="pass", detail=None))
+            steps.append(TraceStep(rule=rule, outcome="pass", detail=remainder or None))
     return steps
 
 

@@ -71,7 +71,7 @@ class OrgSSOConfig(Base):
         nullable=False,
     )
 
-    organization: Mapped[Organization] = relationship(  # noqa: F821
+    organization: Mapped[Organization] = relationship(
         "Organization",
         back_populates="sso_config",
         foreign_keys=[organization_id],

@@ -25,28 +25,20 @@ class ConflictsRepository:
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[AuthorizationConflict], int]:
-        base = select(AuthorizationConflict).where(
-            AuthorizationConflict.organization_id == organization_id
-        )
-        count_q = select(func.count()).select_from(
-            select(AuthorizationConflict.id)
-            .where(AuthorizationConflict.organization_id == organization_id)
-            .subquery()
-        )
+        filters = [AuthorizationConflict.organization_id == organization_id]
 
         if severity_db:
-            base = base.where(AuthorizationConflict.severity == severity_db)
-            count_q = count_q.where(AuthorizationConflict.severity == severity_db)
+            filters.append(AuthorizationConflict.severity == severity_db)
         if status:
-            base = base.where(AuthorizationConflict.status == status)
-            count_q = count_q.where(AuthorizationConflict.status == status)
+            filters.append(AuthorizationConflict.status == status)
         if resource_type:
-            base = base.where(AuthorizationConflict.resource_type == resource_type)
-            count_q = count_q.where(AuthorizationConflict.resource_type == resource_type)
+            filters.append(AuthorizationConflict.resource_type == resource_type)
 
         offset = (page - 1) * page_size
+        base = select(AuthorizationConflict).where(*filters)
         q = base.order_by(AuthorizationConflict.detected_at.desc()).offset(offset).limit(page_size)
         rows = (await db.execute(q)).scalars().all()
+        count_q = select(func.count()).select_from(AuthorizationConflict).where(*filters)
         total = (await db.execute(count_q)).scalar_one()
         return list(rows), int(total)
 

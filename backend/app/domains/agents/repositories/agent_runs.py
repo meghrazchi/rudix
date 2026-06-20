@@ -302,7 +302,9 @@ class AgentRunRepository:
         *,
         agent_step_id: UUID,
         organization_id: UUID,
+        agent_run_id: UUID | None = None,
         status: str | None = None,
+        inputs: dict[str, Any] | None = None,
         outputs: dict[str, Any] | None = None,
         metrics: dict[str, Any] | None = None,
         observation: dict[str, Any] | None = None,
@@ -320,12 +322,16 @@ class AgentRunRepository:
         )
         if step is None:
             return None
+        if agent_run_id is not None and step.agent_run_id != agent_run_id:
+            return None
         if status is not None:
             step.status = _validate_value(
                 status,
                 allowed_values={item.value for item in AgentStepStatus},
                 field_name="agent step status",
             )
+        if inputs is not None:
+            step.inputs_json = _sanitize_payload(inputs)
         if outputs is not None:
             step.outputs_json = _sanitize_payload(outputs)
         if metrics is not None:
@@ -467,9 +473,11 @@ class AgentRunRepository:
         *,
         tool_call_id: UUID,
         organization_id: UUID,
+        agent_run_id: UUID | None = None,
         status: str | None = None,
         output: dict[str, Any] | None = None,
         error: dict[str, Any] | None = None,
+        input_size_bytes: int | None = None,
         output_size_bytes: int | None = None,
         latency_ms: int | None = None,
         started_at: datetime | None = None,
@@ -483,6 +491,8 @@ class AgentRunRepository:
         )
         if tool_call is None:
             return None
+        if agent_run_id is not None and tool_call.agent_run_id != agent_run_id:
+            return None
         if status is not None:
             normalized_status = _validate_value(
                 status,
@@ -494,6 +504,8 @@ class AgentRunRepository:
             tool_call.output_json = _sanitize_payload(output)
         if error is not None:
             tool_call.error_json = _sanitize_payload(error)
+        if input_size_bytes is not None:
+            tool_call.input_size_bytes = input_size_bytes
         if output_size_bytes is not None:
             tool_call.output_size_bytes = output_size_bytes
         if latency_ms is not None:
@@ -647,7 +659,7 @@ class AgentRunRepository:
         if organization_id is not None:
             statement = statement.where(AgentApproval.organization_id == organization_id)
         result = await session.execute(statement)
-        return result.rowcount
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def fail_runs_for_expired_approvals(
         self,
@@ -677,7 +689,7 @@ class AgentRunRepository:
         if organization_id is not None:
             statement = statement.where(AgentRun.organization_id == organization_id)
         result = await session.execute(statement)
-        return result.rowcount
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def append_approval_comment(
         self,
@@ -714,8 +726,9 @@ class AgentRunRepository:
                 "ts": ts,
             }
         )
-        current["comments"] = comments
-        approval.decision_payload_json = _sanitize_payload(current)
+        sanitized = _sanitize_payload({k: v for k, v in current.items() if k != "comments"})
+        sanitized["comments"] = comments
+        approval.decision_payload_json = sanitized
         await session.flush()
         await session.refresh(approval)
         return approval

@@ -257,43 +257,51 @@ class AgentPolicyService:
         spec: ToolSpec,
         override: AgentToolPolicyOverride | None,
     ) -> ToolPolicyOverrideState:
-        is_overridden = override is not None
+        if override is None:
+            return ToolPolicyOverrideState(
+                tool_name=spec.name,
+                enabled=True,
+                approval_required=spec.approval_required,
+                required_roles=list(spec.required_roles),
+                max_calls_per_run=spec.budget.max_calls_per_run,
+                max_input_bytes=spec.budget.max_input_bytes,
+                max_output_bytes=spec.budget.max_output_bytes,
+                timeout_ms=spec.budget.timeout_ms,
+                max_retry_attempts=spec.budget.max_retry_attempts,
+                is_overridden=False,
+            )
+
+        is_overridden = True
         return ToolPolicyOverrideState(
             tool_name=spec.name,
-            enabled=override.enabled if is_overridden else True,
+            enabled=override.enabled,
             approval_required=(
                 override.approval_required
-                if (is_overridden and override.approval_required is not None)
+                if override.approval_required is not None
                 else spec.approval_required
             ),
-            required_roles=(
-                override.required_roles_json
-                if (is_overridden and override.required_roles_json)
-                else list(spec.required_roles)
-            ),
+            required_roles=override.required_roles_json or list(spec.required_roles),
             max_calls_per_run=(
                 override.max_calls_per_run
-                if (is_overridden and override.max_calls_per_run is not None)
+                if override.max_calls_per_run is not None
                 else spec.budget.max_calls_per_run
             ),
             max_input_bytes=(
                 override.max_input_bytes
-                if (is_overridden and override.max_input_bytes is not None)
+                if override.max_input_bytes is not None
                 else spec.budget.max_input_bytes
             ),
             max_output_bytes=(
                 override.max_output_bytes
-                if (is_overridden and override.max_output_bytes is not None)
+                if override.max_output_bytes is not None
                 else spec.budget.max_output_bytes
             ),
-            timeout_ms=(
-                override.timeout_ms
-                if (is_overridden and override.timeout_ms is not None)
-                else spec.budget.timeout_ms
-            ),
+            timeout_ms=override.timeout_ms
+            if override.timeout_ms is not None
+            else spec.budget.timeout_ms,
             max_retry_attempts=(
                 override.max_retry_attempts
-                if (is_overridden and override.max_retry_attempts is not None)
+                if override.max_retry_attempts is not None
                 else spec.budget.max_retry_attempts
             ),
             is_overridden=is_overridden,

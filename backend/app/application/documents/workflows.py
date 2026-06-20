@@ -1,6 +1,6 @@
 import re
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
@@ -642,7 +642,13 @@ async def delete_document_workflow(
             request_id=request_id,
             status_code=status.HTTP_202_ACCEPTED,
         )
-        return DeleteDocumentResponse(document_id=str(document.id), status=document.status)
+        return DeleteDocumentResponse(
+            document_id=str(document.id),
+            status=cast(
+                Literal["delete_requested", "deleting", "deleted", "retained_by_policy"],
+                document.status,
+            ),
+        )
 
     # Transition to delete_requested before attempting to enqueue.
     updated = await document_repository.update_document_status(

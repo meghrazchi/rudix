@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -110,7 +111,7 @@ class FeatureFlagService:
         resolved = {
             name: _resolve_flag(name, override_map.get(name)).enabled for name in ALL_FLAG_NAMES
         }
-        return PublicFeatureFlagsResponse(flags=resolved)
+        return PublicFeatureFlagsResponse(flags=cast(dict[str, bool], resolved))
 
     async def set_flag(
         self,

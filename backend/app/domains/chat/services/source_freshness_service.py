@@ -16,9 +16,9 @@ candidates.  The caller is responsible for fetching the trust map from the DB.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
-from collections.abc import Sequence
 from typing import Protocol, cast
 from uuid import UUID
 

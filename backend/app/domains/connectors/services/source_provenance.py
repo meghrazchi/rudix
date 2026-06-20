@@ -119,9 +119,10 @@ class SourceProvenanceService:
         if not chunks:
             return []
 
-        document_ids = list({getattr(chunk, "document_id", None) for chunk in chunks})
         document_ids = [
-            document_id for document_id in document_ids if isinstance(document_id, UUID)
+            document_id
+            for document_id in {getattr(chunk, "document_id", None) for chunk in chunks}
+            if isinstance(document_id, UUID)
         ]
         if not document_ids:
             return chunks

@@ -243,6 +243,9 @@ class JwtJwksAuthProvider(BaseAuthProvider):
             str(membership.organization_id): membership.role for membership in user.memberships
         }
         requested_org = self._resolve_requested_org(request)
+        token_org_id = claims.get("org_id")
+        if requested_org is None and isinstance(token_org_id, str) and token_org_id.strip():
+            requested_org = token_org_id.strip()
         active_org, active_role = self._select_active_organization(
             requested_org=requested_org,
             default_org=str(user.organization_id),

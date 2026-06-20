@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 _SUPPORTED_LANGUAGES: frozenset[str] = frozenset({"en", "de", "es", "fr"})
 
 _LANGUAGE_NAMES: dict[str, str] = {
@@ -13,6 +15,39 @@ _LANGUAGE_NAMES: dict[str, str] = {
 _DE_CHARS: frozenset[str] = frozenset("äöüÄÖÜß")
 _ES_CHARS: frozenset[str] = frozenset("ñÑ¿¡")
 _FR_CHARS: frozenset[str] = frozenset("àâçéèêëîïôùûüœæÀÂÇÉÈÊËÎÏÔÙÛÜŒÆ")
+_DE_MARKER_WORDS: frozenset[str] = frozenset(
+    {
+        "der",
+        "die",
+        "das",
+        "ist",
+        "und",
+        "von",
+        "mit",
+        "nicht",
+        "war",
+        "was",
+        "für",
+        "den",
+        "dem",
+        "wie",
+        "gibt",
+        "es",
+        "laut",
+        "richtlinien",
+        "urlaub",
+        "urlaubstage",
+        "tage",
+        "bitte",
+        "kann",
+        "können",
+        "sind",
+        "sein",
+        "zum",
+        "zur",
+        "dass",
+    }
+)
 
 
 def detect_language(text: str) -> str | None:
@@ -33,6 +68,8 @@ def detect_language(text: str) -> str | None:
     de_count = sum(1 for ch in normalized if ch in _DE_CHARS)
     es_count = sum(1 for ch in normalized if ch in _ES_CHARS)
     fr_count = sum(1 for ch in normalized if ch in _FR_CHARS)
+    words = {word.lower() for word in re.findall(r"[A-Za-zÀ-ÿ]+", normalized)}
+    de_word_count = sum(1 for word in words if word in _DE_MARKER_WORDS)
 
     threshold = max(1, length * 0.01)
 
@@ -41,7 +78,7 @@ def detect_language(text: str) -> str | None:
         return "es"
 
     # German markers are distinctive (ä/ö/ü/ß)
-    if de_count >= threshold:
+    if de_count >= threshold or de_word_count >= 2:
         return "de"
 
     # French markers (accented vowels)

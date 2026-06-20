@@ -52,7 +52,7 @@ class OrgDomainVerification(Base):
         nullable=False,
     )
 
-    organization: Mapped[Organization] = relationship(  # noqa: F821
+    organization: Mapped[Organization] = relationship(
         "Organization",
         back_populates="domain_verifications",
         foreign_keys=[organization_id],

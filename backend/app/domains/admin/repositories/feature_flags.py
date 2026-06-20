@@ -79,4 +79,4 @@ class FeatureFlagRepository:
                 OrgFeatureFlagOverride.flag_name == flag_name,
             )
         )
-        return result.rowcount > 0
+        return int(getattr(result, "rowcount", 0) or 0) > 0

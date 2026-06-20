@@ -255,6 +255,14 @@ class Settings(BaseSettings):
         validate_by_name=True,
     )
 
+    @staticmethod
+    def _secret_value(secret: Any | None) -> str:
+        if secret is None:
+            return ""
+        if hasattr(secret, "get_secret_value"):
+            return secret.get_secret_value()
+        return str(secret)
+
     environment: Environment = Environment.development
     log_level: str = Field(default="INFO", pattern=r"^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     log_format: LogFormat = LogFormat.auto
@@ -283,7 +291,7 @@ class Settings(BaseSettings):
     qdrant_bootstrap_collection: bool = True
 
     minio_endpoint: AnyHttpUrl
-    minio_access_key: str = Field(min_length=3, max_length=128)
+    minio_access_key: str = Field(min_length=1, max_length=128)
     minio_secret_key: SecretStr
     minio_bucket: str = Field(min_length=3, max_length=63)
     minio_bootstrap_bucket: bool = True
@@ -1041,7 +1049,7 @@ class Settings(BaseSettings):
                 raise ValueError("neo4j_uri is required when enterprise_graph_enabled=true")
             if not self.neo4j_username:
                 raise ValueError("neo4j_username is required when enterprise_graph_enabled=true")
-            if self.neo4j_password is None or not self.neo4j_password.get_secret_value().strip():
+            if self.neo4j_password is None or not self._secret_value(self.neo4j_password).strip():
                 raise ValueError("neo4j_password is required when enterprise_graph_enabled=true")
 
         if self.connector_rollout_stage == ConnectorRolloutStage.off:
@@ -1144,7 +1152,7 @@ class Settings(BaseSettings):
 
         if (
             self.auth_provider == AuthProvider.app
-            and not self.app_auth_secret.get_secret_value().strip()
+            and not self._secret_value(self.app_auth_secret).strip()
         ):
             raise ValueError("app_auth_secret is required when auth_provider=app")
 
@@ -1191,7 +1199,7 @@ class Settings(BaseSettings):
                 raise ValueError("sentry_test_event_enabled must be false in production")
             if (
                 self.auth_provider == AuthProvider.app
-                and self.app_auth_secret.get_secret_value() == "dev-insecure-change-me"
+                and self._secret_value(self.app_auth_secret) == "dev-insecure-change-me"
             ):
                 raise ValueError("app_auth_secret must be overridden in production")
             if self.auth_provider == AuthProvider.app:
@@ -1259,7 +1267,7 @@ class Settings(BaseSettings):
             "minio_access_key_set": bool(self.minio_access_key),
             "minio_bucket": self.minio_bucket,
             "minio_bootstrap_bucket": self.minio_bootstrap_bucket,
-            "minio_secret_key_set": bool(self.minio_secret_key.get_secret_value()),
+            "minio_secret_key_set": bool(self._secret_value(self.minio_secret_key)),
             "rabbitmq_url": self._sanitize_url(str(self.rabbitmq_url)),
             "rabbitmq_connect_timeout_seconds": self.rabbitmq_connect_timeout_seconds,
             "celery_result_backend_enabled": self.celery_result_backend_enabled,
@@ -1311,7 +1319,7 @@ class Settings(BaseSettings):
             "openai_llm_input_cost_per_million_tokens_usd": self.openai_llm_input_cost_per_million_tokens_usd,
             "openai_llm_output_cost_per_million_tokens_usd": self.openai_llm_output_cost_per_million_tokens_usd,
             "auth_provider": self.auth_provider.value,
-            "app_auth_secret_set": bool(self.app_auth_secret.get_secret_value()),
+            "app_auth_secret_set": bool(self._secret_value(self.app_auth_secret)),
             "app_auth_access_token_ttl_seconds": self.app_auth_access_token_ttl_seconds,
             "app_auth_refresh_token_ttl_seconds": self.app_auth_refresh_token_ttl_seconds,
             "app_auth_issuer": self.app_auth_issuer,
@@ -1322,7 +1330,7 @@ class Settings(BaseSettings):
             "app_auth_cookie_same_site": self.app_auth_cookie_same_site,
             "app_auth_cookie_path": self.app_auth_cookie_path,
             "app_auth_login_password_set": bool(
-                self.app_auth_login_password and self.app_auth_login_password.get_secret_value()
+                self.app_auth_login_password and self._secret_value(self.app_auth_login_password)
             ),
             "app_auth_auto_provision_users": self.app_auth_auto_provision_users,
             "app_auth_password_hash_memory_cost_kib": self.app_auth_password_hash_memory_cost_kib,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,12 +18,17 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    organization_id: Mapped[UUID] = mapped_column(
+    organization_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
-    external_auth_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    external_auth_id: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+        default=lambda: f"manual:{uuid4().hex}",
+    )
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -108,3 +113,9 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="updated_by_user",
     )
     mcp_policy_updates = relationship("OrgMCPPolicy", back_populates="updated_by_user")
+
+    def __init__(self, **kwargs: object) -> None:
+        auth_provider = kwargs.pop("auth_provider", None)
+        if auth_provider is not None and "provisioned_by" not in kwargs:
+            kwargs["provisioned_by"] = auth_provider
+        super().__init__(**kwargs)

@@ -173,4 +173,4 @@ class InvitationRepository:
             )
             .values(status="expired")
         )
-        return result.rowcount
+        return int(getattr(result, "rowcount", 0) or 0)

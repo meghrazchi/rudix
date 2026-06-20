@@ -4,6 +4,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
+from types import MethodType
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
@@ -45,6 +46,13 @@ from app.domains.admin.services.audit_service import AuditLogService
 from app.domains.admin.services.feature_flag_service import FeatureFlagService
 from app.domains.ai.profile.schemas import TaskType
 from app.domains.ai.profile.service import resolve_task_profile
+from app.domains.ai.providers.factory import default_provider_factory
+from app.domains.ai.providers.protocols import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+)
 from app.domains.chat.repositories.answer_share import AnswerShareRepository
 from app.domains.chat.repositories.chat import ChatRepository
 from app.domains.chat.repositories.feedback import FeedbackRepository
@@ -181,7 +189,80 @@ _confidence_service = ConfidenceService()
 _conflict_detection_service = ConflictDetectionService()
 _graph_retrieval_service = GraphRetrievalService()
 _feature_flag_service = FeatureFlagService()
-_llm_service = LLMService()
+_openai_client: Any | None = None
+
+
+class _ChatCompletionProviderProxy:
+    async def complete(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        if _openai_client is None:
+            provider = default_provider_factory.get_chat_provider(None)
+            return await provider.complete(request)
+
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": f"{request.system_message}\n\n{request.prompt}"},
+        ]
+        create_kwargs: dict[str, Any] = {
+            "model": request.model,
+            "messages": messages,
+            "temperature": request.temperature,
+        }
+        if request.json_mode:
+            create_kwargs["response_format"] = {"type": "json_object"}
+        if request.max_tokens is not None:
+            create_kwargs["max_tokens"] = request.max_tokens
+
+        started = perf_counter()
+        response = await _openai_client.chat.completions.create(**create_kwargs)
+        latency_ms = max(0, int((perf_counter() - started) * 1000))
+        choice = response.choices[0]
+        message = getattr(choice, "message", None)
+        content = getattr(message, "content", None) if message is not None else None
+        usage = getattr(response, "usage", None)
+        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        completion_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+        total_tokens = int(
+            getattr(usage, "total_tokens", 0) or (prompt_tokens + completion_tokens)
+        )
+        return ChatCompletionResponse(
+            content=str(content or ""),
+            model=str(getattr(response, "model", request.model) or request.model),
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency_ms,
+        )
+
+
+class _EmbeddingProviderProxy:
+    async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        if _openai_client is None:
+            provider = default_provider_factory.get_embedding_provider()
+            return await provider.embed(request)
+
+        started = perf_counter()
+        response = await _openai_client.embeddings.create(
+            model=request.model,
+            input=request.texts,
+        )
+        latency_ms = max(0, int((perf_counter() - started) * 1000))
+        data = getattr(response, "data", []) or []
+        vectors = [
+            list(getattr(item, "embedding", []) or [])
+            for item in data
+        ]
+        usage = getattr(response, "usage", None)
+        prompt_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        total_tokens = int(getattr(usage, "total_tokens", 0) or prompt_tokens)
+        return EmbeddingResponse(
+            vectors=vectors,
+            model=str(getattr(response, "model", request.model) or request.model),
+            prompt_tokens=prompt_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency_ms,
+        )
+
+
+_llm_service = LLMService(provider=_ChatCompletionProviderProxy())
 _injection_guard = PromptInjectionGuard()
 _query_rewriting_service = QueryRewritingService()
 _grounded_verifier = GroundedAnswerVerifier()
@@ -192,6 +273,34 @@ _ocr_quality_service = OcrQualityService()
 _parent_context_expansion_service = ParentContextExpansionService()
 _document_repository_for_trust = _DocumentRepository()
 _NOT_FOUND_ANSWER = "I could not find this information in the uploaded documents."
+_query_retrieval_service._embedding_provider = _EmbeddingProviderProxy()
+
+
+def _resolve_chat_embedding_provider(self: QueryRetrievalService):
+    if self._embedding_provider is not None:
+        return self._embedding_provider
+    if _openai_client is not None:
+        return _EmbeddingProviderProxy()
+    from app.domains.ai.providers.factory import default_provider_factory
+
+    return default_provider_factory.get_embedding_provider()
+
+
+def _resolve_chat_completion_provider(self: LLMService, provider_key: str | None = None):
+    if self._provider is not None:
+        return self._provider
+    if _openai_client is not None:
+        return _ChatCompletionProviderProxy()
+    from app.domains.ai.providers.factory import default_provider_factory
+
+    return default_provider_factory.get_chat_provider(provider_key)
+
+
+_query_retrieval_service._resolve_embedding_provider = MethodType(
+    _resolve_chat_embedding_provider,
+    _query_retrieval_service,
+)
+_llm_service._resolve_provider = MethodType(_resolve_chat_completion_provider, _llm_service)
 
 
 @dataclass(frozen=True)
@@ -4845,7 +4954,7 @@ async def get_shared_answer(
     await audit_log_service.record(
         db_session,
         organization_id=organization_id,
-        user_id=str(viewer_user_id),
+        user_id=viewer_user_id,
         action="answer.share.viewed",
         resource_type="chat_message",
         resource_id=share.chat_message_id,

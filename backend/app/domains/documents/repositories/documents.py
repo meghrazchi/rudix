@@ -428,7 +428,7 @@ class DocumentRepository:
         result = await session.execute(
             delete(DocumentPage).where(DocumentPage.document_id == document_id)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def list_document_pages(
         self, session: AsyncSession, *, document_id: UUID
@@ -499,7 +499,7 @@ class DocumentRepository:
         if index_version is not None:
             statement = statement.where(DocumentChunk.index_version == index_version)
         result = await session.execute(statement)
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def list_document_chunks(
         self,

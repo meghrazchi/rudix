@@ -17,7 +17,7 @@ from sqlalchemy import (
     Uuid,
 )
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.db.base import Base
 from app.models.common import TimestampMixin, UUIDPrimaryKeyMixin
@@ -77,12 +77,13 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("organizations.id", ondelete="CASCADE"),
         nullable=False,
     )
-    uploaded_by_user_id: Mapped[UUID] = mapped_column(
+    uploaded_by_user_id: Mapped[UUID | None] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    original_filename = synonym("filename")
     file_type: Mapped[str] = mapped_column(String(16), nullable=False)
     storage_bucket: Mapped[str] = mapped_column(String(255), nullable=False)
     storage_object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -194,6 +195,34 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     collection_memberships = relationship(
         "CollectionDocument", back_populates="document", cascade="all, delete-orphan"
     )
+
+    def __init__(self, **kwargs: object) -> None:
+        original_filename = kwargs.pop("original_filename", None)
+        if original_filename is not None and "filename" not in kwargs:
+            kwargs["filename"] = original_filename
+
+        mime_type = kwargs.pop("mime_type", None)
+        storage_path = kwargs.pop("storage_path", None)
+        file_size = kwargs.pop("file_size", None)
+        del file_size
+
+        if "storage_object_key" not in kwargs and storage_path is not None:
+            kwargs["storage_object_key"] = storage_path
+        if "storage_bucket" not in kwargs:
+            kwargs["storage_bucket"] = "documents"
+        if "file_type" not in kwargs:
+            inferred_file_type = "pdf"
+            filename = str(kwargs.get("filename") or "")
+            mime_type_text = str(mime_type or "").lower()
+            if filename.endswith(".docx") or "wordprocessingml" in mime_type_text:
+                inferred_file_type = "docx"
+            elif filename.endswith(".txt") or mime_type_text.startswith("text/"):
+                inferred_file_type = "txt"
+            elif filename.endswith(".pdf") or "pdf" in mime_type_text:
+                inferred_file_type = "pdf"
+            kwargs["file_type"] = inferred_file_type
+
+        super().__init__(**kwargs)
 
 
 class DocumentPage(UUIDPrimaryKeyMixin, TimestampMixin, Base):

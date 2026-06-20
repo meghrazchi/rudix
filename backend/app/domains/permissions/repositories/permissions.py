@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -60,7 +61,7 @@ class PermissionsRepository:
         resource_type: str,
         resource_id: str | None,
         action: str,
-        expires_at=None,
+        expires_at: datetime | None = None,
         reason: str | None = None,
     ) -> ResourceAccessGrant:
         grant = ResourceAccessGrant(
@@ -135,7 +136,7 @@ class PermissionsRepository:
         resource_type: str,
         resource_id: str | None,
         action: str,
-        expires_at=None,
+        expires_at: datetime | None = None,
         reason: str | None = None,
     ) -> ResourceAccessDeny:
         deny = ResourceAccessDeny(

@@ -44,7 +44,7 @@ def _scrub_sensitive_keys(obj: Any, depth: int = 0) -> Any:
 
 
 def _redact_step_inputs(inputs: dict[str, Any], policy: RetentionPolicySnapshot) -> dict[str, Any]:
-    result = _scrub_sensitive_keys(inputs)
+    result = dict(_scrub_sensitive_keys(inputs))
     if policy.redact_prompts:
         for prompt_key in ("prompt", "query", "question", "system_prompt", "user_prompt"):
             if prompt_key in result:
@@ -55,7 +55,7 @@ def _redact_step_inputs(inputs: dict[str, Any], policy: RetentionPolicySnapshot)
 def _redact_step_outputs(
     outputs: dict[str, Any], policy: RetentionPolicySnapshot
 ) -> dict[str, Any]:
-    result = _scrub_sensitive_keys(outputs)
+    result = dict(_scrub_sensitive_keys(outputs))
     if policy.redact_prompts:
         for key in ("llm_response", "raw_llm_output", "completion"):
             if key in result:
@@ -75,8 +75,8 @@ def _redact_tool_call(
     if policy.redact_tool_arguments:
         arguments = {"redacted": True}
     else:
-        arguments = _scrub_sensitive_keys(arguments)
-    output = _scrub_sensitive_keys(output)
+        arguments = dict(_scrub_sensitive_keys(arguments))
+    output = dict(_scrub_sensitive_keys(output))
     if policy.redact_raw_content:
         for key in ("content", "text", "raw_text", "document_content"):
             if key in output:

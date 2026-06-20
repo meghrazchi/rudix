@@ -115,7 +115,7 @@ class ChatRepository:
                 ChatSession.user_id == user_id,
             )
         )
-        return result.rowcount > 0
+        return int(getattr(result, "rowcount", 0) or 0) > 0
 
     async def count_messages_by_session_ids(
         self,

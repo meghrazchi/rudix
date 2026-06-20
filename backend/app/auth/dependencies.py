@@ -461,13 +461,20 @@ def require_document_policy_access(
             return document
 
         user_roles = list(principal.roles or [])
-        user_id = UUID(principal.user_id)
-        accessible_collection_ids = await get_subject_accessible_collection_ids(
-            db_session,
-            organization_id=organization_id,
-            user_id=user_id,
-            user_roles=user_roles,
-        )
+        try:
+            user_id = UUID(principal.user_id)
+        except ValueError:
+            user_id = None
+
+        if user_id is not None:
+            accessible_collection_ids = await get_subject_accessible_collection_ids(
+                db_session,
+                organization_id=organization_id,
+                user_id=user_id,
+                user_roles=user_roles,
+            )
+        else:
+            accessible_collection_ids = []
         resource_ctx = await build_document_resource_context(
             db_session,
             document=document,

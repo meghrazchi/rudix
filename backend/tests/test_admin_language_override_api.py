@@ -59,7 +59,12 @@ async def admin_client(db_session: AsyncSession):
     user_id = uuid4()
 
     org = Organization(id=org_id, name="Test Org", slug=f"test-{org_id}")
-    user = User(id=user_id, email=f"admin-{user_id}@example.com", hashed_password="x")
+    user = User(
+        id=user_id,
+        organization_id=org_id,
+        email=f"admin-{user_id}@example.com",
+        hashed_password="x",
+    )
     member = OrganizationMember(
         organization_id=org_id, user_id=user_id, role=OrganizationRole.admin.value
     )
@@ -82,7 +87,12 @@ async def member_client(db_session: AsyncSession):
     user_id = uuid4()
 
     org = Organization(id=org_id, name="Member Org", slug=f"member-{org_id}")
-    user = User(id=user_id, email=f"member-{user_id}@example.com", hashed_password="x")
+    user = User(
+        id=user_id,
+        organization_id=org_id,
+        email=f"member-{user_id}@example.com",
+        hashed_password="x",
+    )
     member = OrganizationMember(
         organization_id=org_id, user_id=user_id, role=OrganizationRole.member.value
     )
@@ -208,7 +218,12 @@ async def test_admin_override_for_other_org_document_returns_404(
 
     # Create document under a different org
     other_org = Organization(id=uuid4(), name="Other Org", slug=f"other-{uuid4()}")
-    other_user = User(id=uuid4(), email=f"other-{uuid4()}@example.com", hashed_password="x")
+    other_user = User(
+        id=uuid4(),
+        organization_id=other_org.id,
+        email=f"other-{uuid4()}@example.com",
+        hashed_password="x",
+    )
     db_session.add_all([other_org, other_user])
     await db_session.flush()
 

@@ -29,49 +29,84 @@ def _sign(message: str, secret: str) -> str:
     return _b64url_encode(digest)
 
 
+def _secret_value(secret: Any | None = None) -> str:
+    secret = settings.app_auth_secret if secret is None else secret
+    if hasattr(secret, "get_secret_value"):
+        return secret.get_secret_value()
+    return str(secret)
+
+
 def create_app_access_token(
     *,
-    subject: str,
+    subject: str | None = None,
+    user_id: str | None = None,
     session_id: str | None = None,
     role: str = "member",
+    roles: list[str] | None = None,
     organization_id: str | None = None,
     email: str | None = None,
     expires_in_seconds: int | None = None,
     token_id: str | None = None,
+    secret: str | None = None,
+    issuer: str | None = None,
+    audience: str | None = None,
+    ttl_seconds: int | None = None,
 ) -> str:
+    resolved_subject = subject or user_id
+    if resolved_subject is None or not resolved_subject.strip():
+        raise ValueError("subject is required")
+    resolved_role = roles[0] if roles else role
     return _create_signed_token(
-        subject=subject,
+        subject=resolved_subject,
         session_id=session_id,
-        role=role,
+        role=resolved_role,
         organization_id=organization_id,
         email=email,
         expires_in_seconds=expires_in_seconds,
         default_ttl_seconds=settings.app_auth_access_token_ttl_seconds,
         token_use=TOKEN_USE_ACCESS,
         token_id=token_id,
+        secret=secret,
+        issuer=issuer,
+        audience=audience,
+        ttl_seconds=ttl_seconds,
     )
 
 
 def create_app_refresh_token(
     *,
-    subject: str,
+    subject: str | None = None,
+    user_id: str | None = None,
     session_id: str | None = None,
     role: str = "member",
+    roles: list[str] | None = None,
     organization_id: str | None = None,
     email: str | None = None,
     expires_in_seconds: int | None = None,
     token_id: str | None = None,
+    secret: str | None = None,
+    issuer: str | None = None,
+    audience: str | None = None,
+    ttl_seconds: int | None = None,
 ) -> str:
+    resolved_subject = subject or user_id
+    if resolved_subject is None or not resolved_subject.strip():
+        raise ValueError("subject is required")
+    resolved_role = roles[0] if roles else role
     return _create_signed_token(
-        subject=subject,
+        subject=resolved_subject,
         session_id=session_id,
-        role=role,
+        role=resolved_role,
         organization_id=organization_id,
         email=email,
         expires_in_seconds=expires_in_seconds,
         default_ttl_seconds=settings.app_auth_refresh_token_ttl_seconds,
         token_use=TOKEN_USE_REFRESH,
         token_id=token_id,
+        secret=secret,
+        issuer=issuer,
+        audience=audience,
+        ttl_seconds=ttl_seconds,
     )
 
 
@@ -86,17 +121,21 @@ def _create_signed_token(
     default_ttl_seconds: int,
     token_use: str,
     token_id: str | None,
+    secret: str | None = None,
+    issuer: str | None = None,
+    audience: str | None = None,
+    ttl_seconds: int | None = None,
 ) -> str:
     issued_at = datetime.now(UTC)
-    ttl_seconds = expires_in_seconds or default_ttl_seconds
-    expires_at = issued_at + timedelta(seconds=ttl_seconds)
+    resolved_ttl_seconds = ttl_seconds or expires_in_seconds or default_ttl_seconds
+    expires_at = issued_at + timedelta(seconds=resolved_ttl_seconds)
     resolved_session_id = session_id or uuid4().hex
 
     header = {"alg": "HS256", "typ": "JWT"}
     payload: dict[str, Any] = {
         "sub": subject,
-        "iss": settings.app_auth_issuer,
-        "aud": settings.app_auth_audience,
+        "iss": issuer or settings.app_auth_issuer,
+        "aud": audience or settings.app_auth_audience,
         "iat": int(issued_at.timestamp()),
         "exp": int(expires_at.timestamp()),
         "token_use": token_use,
@@ -116,7 +155,7 @@ def _create_signed_token(
         json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     )
     signing_input = f"{encoded_header}.{encoded_payload}"
-    signature = _sign(signing_input, settings.app_auth_secret.get_secret_value())
+    signature = _sign(signing_input, _secret_value(secret))
     return f"{signing_input}.{signature}"
 
 
@@ -148,7 +187,7 @@ def _decode_signed_token(
         raise AuthenticationError("Invalid token format") from exc
 
     signing_input = f"{encoded_header}.{encoded_payload}"
-    expected_signature = _sign(signing_input, settings.app_auth_secret.get_secret_value())
+    expected_signature = _sign(signing_input, _secret_value())
     if not hmac.compare_digest(expected_signature, encoded_signature):
         raise AuthenticationError("Invalid token signature")
 

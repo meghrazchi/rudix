@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 
 class PermissionType(StrEnum):
@@ -76,6 +77,14 @@ class PermissionType(StrEnum):
     graph_relations_manage = "graph:relations:manage"
     graph_governance_configure = "graph:governance:configure"
     graph_audit_logs_view = "graph:audit_logs:view"
+
+
+def __getattr__(name: str) -> Any:
+    if name == "AuthorizationConflict":
+        from app.models.authorization import AuthorizationConflict
+
+        return AuthorizationConflict
+    raise AttributeError(name)
 
 
 PERMISSION_CATALOG: list[dict[str, str]] = [

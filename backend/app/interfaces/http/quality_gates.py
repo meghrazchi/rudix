@@ -502,6 +502,7 @@ async def trigger_quality_gate_run(
         status_code=status.HTTP_201_CREATED,
         verdict=verdict,
     )
+    await db_session.refresh(gate_run)
     return _gate_run_to_response(gate_run)
 
 

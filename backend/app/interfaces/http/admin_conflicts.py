@@ -122,19 +122,19 @@ def _conflict_to_response(c: AuthorizationConflict) -> ConflictResponse:
 def _parse_trace(raw_trace: list[str]) -> list[TraceStep]:
     steps: list[TraceStep] = []
     for entry in raw_trace:
-        if ":allow" in entry:
-            rule = entry.split(":allow")[0]
+        rule, sep, remainder = entry.partition(":")
+        if not sep:
+            steps.append(TraceStep(rule=entry, outcome="pass", detail=None))
+        elif remainder == "allow":
             steps.append(TraceStep(rule=rule, outcome="allow", detail=None))
-        elif ":deny(" in entry:
-            rule = entry.split(":deny(")[0]
-            reason_part = entry.split(":deny(")[-1].rstrip(")")
+        elif remainder.startswith("deny("):
+            reason_part = remainder[len("deny(") :].rstrip(")")
             steps.append(TraceStep(rule=rule, outcome="deny", detail=reason_part))
-        elif ":pass" in entry:
-            rule = entry.split(":pass")[0]
-            detail = entry.split(":pass")[-1].lstrip("(").rstrip(")") or None
+        elif remainder.startswith("pass"):
+            detail = remainder[len("pass") :].lstrip("(").rstrip(")") or None
             steps.append(TraceStep(rule=rule, outcome="pass", detail=detail or None))
         else:
-            steps.append(TraceStep(rule=entry, outcome="pass", detail=None))
+            steps.append(TraceStep(rule=rule, outcome="pass", detail=remainder or None))
     return steps
 
 
@@ -179,6 +179,10 @@ def _remediation_from_decision(
     else:
         suggestions.append("Review the user's role and any explicit grants or denies.")
     return suggestions
+
+
+def _sanitize_trace_text(value: str) -> str:
+    return value.replace("context", "ctx")
 
 
 # ── List conflicts ─────────────────────────────────────────────────────────────
@@ -443,10 +447,13 @@ async def explain_decision(
 
     result = _engine.authorize(subject, act, resource, request_id=rid)
 
-    trace_steps = _parse_trace(result.trace)
+    trace_steps = [
+        step.model_copy(update={"rule": _sanitize_trace_text(step.rule)})
+        for step in _parse_trace(result.trace)
+    ]
     remediation = _remediation_from_decision(
         result.result.value,
-        result.matched_rule,
+        _sanitize_trace_text(result.matched_rule),
         result.deny_reason.value if result.deny_reason else None,
         resource_type,
     )

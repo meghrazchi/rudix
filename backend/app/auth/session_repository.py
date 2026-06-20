@@ -128,7 +128,7 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def mark_user_sessions_revoked(
         self,
@@ -144,7 +144,7 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def mark_token_revoked(
         self,
@@ -160,7 +160,7 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.revoked_at.is_(None))
             .values(revoked_at=revoked_at, revoked_reason=reason)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def update_last_used(
         self,
@@ -174,4 +174,4 @@ class AuthSessionRepository:
             .where(AuthRefreshSession.refresh_token_hash == refresh_token_hash)
             .values(last_used_at=last_used_at)
         )
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)

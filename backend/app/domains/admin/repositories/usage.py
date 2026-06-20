@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import String, and_, cast, false, func, or_, select
@@ -17,7 +18,7 @@ class UsageRepository:
     _FAILURE_RESULTS = ("failed", "failure", "error", "denied", "rejected")
 
     @staticmethod
-    def _metadata_text(key: str):
+    def _metadata_text(key: str) -> Any:
         return AuditLog.metadata_json[key].as_string()
 
     def _with_audit_filters(
@@ -309,8 +310,8 @@ class UsageRepository:
             .offset(offset)
             .limit(limit)
         )
-        result = await session.execute(statement)
-        return list(result.scalars().all())
+        query_result = await session.execute(statement)
+        return list(query_result.scalars().all())
 
     async def count_audit_logs(
         self,
@@ -355,8 +356,8 @@ class UsageRepository:
             search=search,
         )
 
-        result = await session.execute(statement)
-        return int(result.scalar_one())
+        query_result = await session.execute(statement)
+        return int(query_result.scalar_one())
 
     async def count_audit_logs_grouped_by_action(
         self,

@@ -26,7 +26,7 @@ Cursor shape for delta sync:   {"since": "2024-01-01T00:00:00+00:00", "start": 0
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import httpx
@@ -73,7 +73,7 @@ async def _discover_cloud_id(access_token: str) -> str:
             "No Confluence sites found for this account. "
             "Ensure the token has the required scopes and the account has at least one site."
         )
-    return resources[0]["id"]
+    return str(resources[0]["id"])
 
 
 async def _require_cloud_id(credential: dict[str, Any]) -> str:
@@ -412,7 +412,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         cloud_id = await _require_cloud_id(decrypted_credential)
         access_token = decrypted_credential.get("access_token", "")
         url = f"{_api_base(cloud_id)}/content/{provider_item_id}"
-        params = {"expand": "body.storage,title,version,space"}
+        params: dict[str, str] = {"expand": "body.storage,title,version,space"}
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
                 url,
@@ -420,8 +420,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 headers=_bearer_headers(access_token),
             )
         _raise_for_status(response)
-        page = response.json()
-        title = page.get("title") or provider_item_id
+        page = cast(dict[str, Any], response.json())
+        title = str(page.get("title") or provider_item_id)
         body_html = (page.get("body") or {}).get("storage", {}).get("value", "")
         body_text = _storage_html_to_text(body_html)
         if not body_text.strip():
@@ -453,7 +453,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
     ) -> tuple[list[dict[str, Any]], bool]:
         """Return (pages, has_next) from a CQL content search."""
         url = f"{_api_base(cloud_id)}/content/search"
-        params = {
+        params: dict[str, str | int] = {
             "cql": cql,
             "start": start,
             "limit": limit,
@@ -466,8 +466,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 headers=_bearer_headers(access_token),
             )
         _raise_for_status(response)
-        data = response.json()
-        pages = data.get("results", [])
+        data = cast(dict[str, Any], response.json())
+        pages = cast(list[dict[str, Any]], data.get("results", []))
         for page in pages:
             self._cache_page_body(page)
         has_next = "_links" in data and "next" in (data.get("_links") or {})
@@ -482,7 +482,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         url = f"{_api_base(cloud_id)}/content/{page_id}/child/attachment"
-        params = {"expand": _ATTACHMENT_EXPAND, "limit": limit}
+        params: dict[str, str | int] = {"expand": _ATTACHMENT_EXPAND, "limit": limit}
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
                 url,
@@ -490,7 +490,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 headers=_bearer_headers(access_token),
             )
         _raise_for_status(response)
-        return response.json().get("results", [])
+        data = cast(dict[str, Any], response.json())
+        return cast(list[dict[str, Any]], data.get("results", []))
 
     async def _get_page_comments(
         self,
@@ -501,7 +502,7 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
         limit: int = _MAX_COMMENTS_PER_PAGE,
     ) -> list[dict[str, Any]]:
         url = f"{_api_base(cloud_id)}/content/{page_id}/child/comment"
-        params = {"expand": _COMMENT_EXPAND, "limit": limit}
+        params: dict[str, str | int] = {"expand": _COMMENT_EXPAND, "limit": limit}
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.get(
                 url,
@@ -509,7 +510,8 @@ class ConfluenceConnectorAdapter(ConnectorProviderAdapter):
                 headers=_bearer_headers(access_token),
             )
         _raise_for_status(response)
-        return response.json().get("results", [])
+        data = cast(dict[str, Any], response.json())
+        return cast(list[dict[str, Any]], data.get("results", []))
 
     async def _extract_comments(
         self,

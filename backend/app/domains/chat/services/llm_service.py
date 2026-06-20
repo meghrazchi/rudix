@@ -114,7 +114,7 @@ class LLMService:
         self._provider = provider
 
     def _resolve_provider(self, provider_key: str | None = None) -> ChatCompletionProvider:
-        if self._provider is not None and provider_key is None:
+        if self._provider is not None:
             return self._provider
         from app.domains.ai.providers.factory import default_provider_factory
 

@@ -33,6 +33,51 @@ CONFLICT_STATUSES = ("open", "investigating", "resolved", "dismissed")
 
 SEVERITY_LABELS = ("info", "warning", "blocking", "security_risk")
 
+_REMEDIATION: dict[str, list[str]] = {
+    "role_allow_resource_deny": [
+        "Review the explicit deny entry and remove it if access should be granted.",
+        "If the deny is intentional, revoke the conflicting grant.",
+        "Consider whether this principal requires a narrower role instead of a broad grant.",
+    ],
+    "collection_allow_connector_acl_deny": [
+        "Re-sync the connector ACL to ensure collection-level access is reflected.",
+        "Remove the collection grant if the connector ACL restriction is correct.",
+        "Contact the connector administrator to update ACL permissions upstream.",
+    ],
+    "stale_grant_deleted_resource": [
+        "Revoke the grant as the target resource no longer exists.",
+        "Audit other grants from the same principal for additional stale entries.",
+    ],
+    "stale_grant_removed_connector": [
+        "Revoke the connector grant and re-create it if the connector is re-connected.",
+        "Verify the connector is still active before granting connector-scoped access.",
+    ],
+    "orphaned_acl_mapping": [
+        "Remove ACL mappings for connectors that have been deleted or disconnected.",
+        "Re-run the connector sync to generate fresh ACL mappings.",
+    ],
+    "feature_deny_active_grant": [
+        "If the feature is intentionally disabled, revoke conflicting explicit grants.",
+        "Enable the feature for this organisation if grant-level access is correct.",
+    ],
+    "explicit_grant_conflicts_role_deny": [
+        "Review whether the explicit grant is intentional given the role restriction.",
+        "Downgrade the principal's role if the grant should be the limiting factor.",
+    ],
+    "citation_visible_source_hidden": [
+        "Revoke citation-level access until the underlying source is also accessible.",
+        "Grant the principal access to the source document backing the citation.",
+    ],
+    "graph_entity_visible_evidence_inaccessible": [
+        "Ensure the principal has access to evidence documents backing the entity.",
+        "If evidence documents are restricted, restrict graph entity access to match.",
+    ],
+}
+
+
+def remediation_for(conflict_type: str) -> list[str]:
+    return _REMEDIATION.get(conflict_type, ["Review this conflict manually with an administrator."])
+
 
 # ── Response models ────────────────────────────────────────────────────────────
 

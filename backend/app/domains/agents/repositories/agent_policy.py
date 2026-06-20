@@ -101,4 +101,4 @@ class AgentToolPolicyRepository:
                 AgentToolPolicyOverride.tool_name == tool_name,
             )
         )
-        return result.rowcount > 0
+        return int(getattr(result, "rowcount", 0) or 0) > 0
