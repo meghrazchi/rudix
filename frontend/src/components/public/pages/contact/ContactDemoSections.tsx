@@ -6,7 +6,6 @@ import { PublicActionLink } from "@/components/public/PublicActionLink";
 import { ContactDemoFormCard } from "@/components/public/pages/contact/ContactDemoFormCard";
 import type { PublicSiteLinks } from "@/lib/public-site/links";
 import type { ContactSubmissionConfig } from "@/lib/public-site/contact";
-import { resolvePublicSiteLinks } from "@/lib/public-site/links";
 
 type ContactDemoSectionsProps = {
   links: PublicSiteLinks;

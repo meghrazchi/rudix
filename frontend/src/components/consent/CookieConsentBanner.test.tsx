@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { CookieConsentBanner } from "@/components/consent/CookieConsentBanner";
 import { ConsentProvider } from "@/components/consent/ConsentProvider";
 import {
-  clearConsentRecord,
   CONSENT_POLICY_VERSION,
   writeConsentRecord,
 } from "@/lib/consent";

@@ -719,7 +719,6 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
     const data = policyQuery.data;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPolicy(data.access_policy);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRoleGrants(
       new Set(
         data.grants
@@ -727,7 +726,6 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
           .map((g) => g.grantee_value),
       ),
     );
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMemberGrants(
       new Set(
         data.grants
@@ -891,7 +889,7 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
                 onChange={() => {
                   setRoleGrants((prev) => {
                     const n = new Set(prev);
-                    n.has(value) ? n.delete(value) : n.add(value);
+                    if (n.has(value)) { n.delete(value); } else { n.add(value); }
                     return n;
                   });
                   setIsDirty(true);
@@ -943,9 +941,11 @@ function PolicyEditor({ collectionId, collectionName }: PolicyEditorProps) {
                       onChange={() => {
                         setMemberGrants((prev) => {
                           const n = new Set(prev);
-                          n.has(m.user_id!)
-                            ? n.delete(m.user_id!)
-                            : n.add(m.user_id!);
+                          if (n.has(m.user_id!)) {
+                            n.delete(m.user_id!);
+                          } else {
+                            n.add(m.user_id!);
+                          }
                           return n;
                         });
                         setIsDirty(true);
@@ -1838,7 +1838,7 @@ export function AssignCollectionsDialog({
   function toggle(id: string) {
     setSelected((prev) => {
       const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) { n.delete(id); } else { n.add(id); }
       return n;
     });
   }
@@ -1986,7 +1986,10 @@ export function CollectionsPage() {
       !isEndpointNotFoundError(error) && failureCount < 2,
   });
 
-  const allCollections = collectionsQuery.data?.items ?? [];
+  const allCollections = useMemo(
+    () => collectionsQuery.data?.items ?? [],
+    [collectionsQuery.data?.items],
+  );
   const total = collectionsQuery.data?.total ?? 0;
   const listForbidden = isForbiddenError(collectionsQuery.error);
 

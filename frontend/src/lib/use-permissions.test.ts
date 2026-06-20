@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -6,7 +6,6 @@ import { createElement } from "react";
 
 import { usePermissions, useEffectivePermissions } from "@/lib/use-permissions";
 import type { SessionState } from "@/lib/auth-session";
-import { writeSessionToStorage, clearSessionStorage } from "@/lib/auth-session";
 
 function makeSession(role: string): SessionState {
   return {

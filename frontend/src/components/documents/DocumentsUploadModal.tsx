@@ -128,14 +128,6 @@ function fileIconName(fileName: string): "picture_as_pdf" | "description" {
   return "description";
 }
 
-const EMPTY_METADATA: UploadDocumentMetadata = {
-  collection_id: null,
-  source: null,
-  language: null,
-  retention_class: null,
-  notes: null,
-  tags: [],
-};
 
 export function DocumentsUploadModal({
   isOpen,

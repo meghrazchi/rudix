@@ -16,8 +16,6 @@ import {
   rejectVariant,
   removeVariant,
   startExperimentRun,
-  type AbExperimentResponse,
-  type AbExperimentRunResponse,
   type AbVariantResponse,
   type CreateAbExperimentRequest,
   type CreateAbVariantRequest,
@@ -80,16 +78,10 @@ function pct(v: number | null | undefined): string {
 
 function deltaLabel(
   d: number | null | undefined,
-  improved: boolean | null | undefined,
+  _improved: boolean | null | undefined,
 ): string {
   if (d == null) return "—";
   const sign = d > 0 ? "+" : "";
-  const color =
-    improved === true
-      ? "text-green-700"
-      : improved === false
-        ? "text-red-700"
-        : "text-gray-500";
   return `${sign}${(d * 100).toFixed(2)}%`;
 }
 
@@ -197,7 +189,7 @@ function ComparisonTable({
 
 function VariantCard({
   variant,
-  experimentId,
+  experimentId: _experimentId,
   onApprove,
   onReject,
   onRemove,

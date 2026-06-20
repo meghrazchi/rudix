@@ -10,7 +10,7 @@ type Props<TState extends Record<string, unknown>> = {
 export function ConnectorWizard<TState extends Record<string, unknown>>({
   config,
 }: Props<TState>) {
-  const { steps, initialState, onComplete, onCancel, displayName } = config;
+  const { steps, initialState, onComplete, onCancel } = config;
   const [current, setCurrent] = useState(0);
   const [state, setState] = useState<TState>(initialState);
   const [completing, setCompleting] = useState(false);

@@ -643,8 +643,6 @@ export function AppShell({
   const commandSectionLabelFor = (section: CommandResultSection): string =>
     getCommandSectionLabel(section);
 
-  const sidebarNavId = "sidebar-nav-heading";
-
   return (
     <div
       className="h-screen overflow-hidden bg-[#f5f4ff] text-[#1b1b24]"

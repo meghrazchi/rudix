@@ -458,9 +458,7 @@ export function AdminRolesPage() {
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" });
   const [deleteTarget, setDeleteTarget] = useState<CustomRole | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [forbiddenRequestId, setForbiddenRequestId] = useState<string | null>(
-    null,
-  );
+  const [forbiddenRequestId] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 

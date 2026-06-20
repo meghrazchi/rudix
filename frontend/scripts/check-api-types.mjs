@@ -6,7 +6,7 @@
  * Exits non-zero and prints guidance if they differ.
  */
 import { execSync } from "node:child_process";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 

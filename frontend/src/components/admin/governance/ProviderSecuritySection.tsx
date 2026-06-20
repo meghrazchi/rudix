@@ -34,11 +34,6 @@ export function ProviderSecuritySection({
     onPolicyChange(next);
   }
 
-  const showCloudAck =
-    (policy.local_only_mode === false &&
-      !policy.cloud_fallback_allowed === false) ||
-    requiresCloudFallbackAck(policy, {});
-
   const needsCloudAck =
     policy.local_only_mode === false || policy.cloud_fallback_allowed === true;
 

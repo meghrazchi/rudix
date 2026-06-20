@@ -9,7 +9,6 @@ import type {
   CollectionListResponse,
   CollectionDetailResponse,
 } from "@/lib/api/collections";
-import { listDocuments } from "@/lib/api/documents";
 import { createTestQueryClient, renderWithProviders } from "@/test/render";
 
 // ── Mock: auth session ──────────────────────────────────────────────────────

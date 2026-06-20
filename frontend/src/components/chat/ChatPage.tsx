@@ -661,12 +661,6 @@ function getFileTypeLabel(filename: string | null | undefined): string {
   return filename.split(".").pop()?.toUpperCase() ?? "FILE";
 }
 
-function middleTruncate(str: string, maxLen = 28): string {
-  if (str.length <= maxLen) return str;
-  const keep = Math.floor((maxLen - 1) / 2);
-  return str.slice(0, keep) + "…" + str.slice(str.length - keep);
-}
-
 function getFileTypeColorClass(filename: string | null | undefined): string {
   if (!filename) return "text-[#464555]";
   const ext = filename.split(".").pop()?.toLowerCase() ?? "";
@@ -678,10 +672,6 @@ function getFileTypeColorClass(filename: string | null | undefined): string {
 
 function citationProviderLabel(citation: ChatCitationResponse): string | null {
   return citation.source_provider_label ?? citation.source_provider ?? null;
-}
-
-function citationTrustLabel(citation: ChatCitationResponse): string | null {
-  return citation.source_trust_status ?? null;
 }
 
 function formatConnectorSourceRoots(
@@ -991,13 +981,19 @@ export function ChatPage() {
     queryKey: [...queryKeys.collections.all, "chat-picker"],
     queryFn: () => listCollections({ limit: 200 }),
   });
-  const collections = collectionsListQuery.data?.items ?? [];
+  const collections = useMemo(
+    () => collectionsListQuery.data?.items ?? [],
+    [collectionsListQuery.data?.items],
+  );
 
   const connectorConnectionsQuery = useQuery({
     queryKey: [...queryKeys.connectorConnections, "chat-picker"],
     queryFn: () => listAvailableConnectorConnections(),
   });
-  const connectorConnections = connectorConnectionsQuery.data?.items ?? [];
+  const connectorConnections = useMemo(
+    () => connectorConnectionsQuery.data?.items ?? [],
+    [connectorConnectionsQuery.data?.items],
+  );
   const connectorDocumentCount = useMemo(
     () =>
       connectorConnections.reduce(
@@ -1323,14 +1319,12 @@ export function ChatPage() {
   // Jump to the bottom instantly when switching sessions or loading history.
   useEffect(() => {
     scrollToBottom();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId, thread.length]);
 
   // Smooth-scroll as new content arrives during streaming.
   useEffect(() => {
     if (!pendingQuestion && !wsChat.partialAnswer) return;
     scrollToBottom(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingQuestion, wsChat.partialAnswer]);
 
   // Track the WS-submitted question + scopeLabel so the completion effect can

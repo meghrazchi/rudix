@@ -62,7 +62,6 @@ function LoginPageFallback() {
 
 function LoginPageContent() {
   const t = useTranslations("auth");
-  const tValidation = useTranslations("validation");
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";

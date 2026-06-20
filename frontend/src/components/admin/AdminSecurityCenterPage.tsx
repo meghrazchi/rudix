@@ -14,7 +14,6 @@ import {
   Globe,
   Info,
   Key,
-  KeyRound,
   Link2,
   LogIn,
   Settings2,
@@ -40,7 +39,6 @@ import {
   getOrganizationProfile,
   getOrganizationSettings,
 } from "@/lib/api/organization";
-import { getJwtExpirationTimeMs } from "@/lib/api/request";
 import {
   getLoginPolicy,
   getSecurityCapabilities,
@@ -143,86 +141,6 @@ function formatTimestamp(value: string | null | undefined): string {
     return value;
   }
   return new Date(parsed).toLocaleString();
-}
-
-function formatSessionExpiry(ms: number | null): string {
-  if (!ms) {
-    return "Unknown";
-  }
-  const diff = ms - Date.now();
-  if (diff <= 0) {
-    return "Expired";
-  }
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 60) {
-    return `${minutes}m remaining`;
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return `${hours}h remaining`;
-  }
-  return `${Math.floor(hours / 24)}d remaining`;
-}
-
-function severityBadgeClass(severity: WarningSeverity): string {
-  if (severity === "high") {
-    return "bg-rose-100 text-rose-800";
-  }
-  if (severity === "medium") {
-    return "bg-amber-100 text-amber-800";
-  }
-  return "bg-slate-200 text-slate-700";
-}
-
-function statusBadgeClass(status: "ok" | "warning" | "unknown"): string {
-  if (status === "ok") {
-    return "bg-emerald-100 text-emerald-800";
-  }
-  if (status === "warning") {
-    return "bg-amber-100 text-amber-800";
-  }
-  return "bg-slate-200 text-slate-700";
-}
-
-function summarizeRoles(
-  members: Array<{ role: string }> | undefined,
-  fallbackRole: string | null | undefined,
-): string {
-  if (!members || members.length === 0) {
-    return fallbackRole ? `Current role: ${fallbackRole}` : "Not available";
-  }
-
-  const counts = {
-    owner: 0,
-    admin: 0,
-    member: 0,
-    viewer: 0,
-  };
-
-  for (const member of members) {
-    if (member.role === "owner") {
-      counts.owner += 1;
-      continue;
-    }
-    if (member.role === "admin") {
-      counts.admin += 1;
-      continue;
-    }
-    if (member.role === "member") {
-      counts.member += 1;
-      continue;
-    }
-    if (member.role === "viewer") {
-      counts.viewer += 1;
-    }
-  }
-
-  return [
-    `Owner ${counts.owner}`,
-    `Admin ${counts.admin}`,
-    `Member ${counts.member}`,
-    `Viewer ${counts.viewer}`,
-  ].join(" · ");
 }
 
 function summarizeAuditHealth(items: AuditLogListItemResponse[]): {
@@ -735,10 +653,7 @@ export function AdminSecurityCenterPage() {
   }
   const allowedDomainList = [...allowedDomains];
 
-  const sessionExpiryMs = getJwtExpirationTimeMs(session?.accessToken ?? null);
   const teamMembers = teamQuery.data?.items ?? [];
-  const roleSummary = summarizeRoles(teamMembers, session?.role ?? null);
-
   const auditItems = auditQuery.data?.items ?? [];
   const auditHealth = summarizeAuditHealth(auditItems);
   const warnings = buildWarnings({

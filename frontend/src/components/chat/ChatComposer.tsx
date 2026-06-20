@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 
 type ChatScopeMode = "all" | "collection" | "documents" | "connectors" | "none";
@@ -123,7 +130,7 @@ export function ChatComposer({
   requiresUploadedDocuments,
   rerank,
   scopeMode,
-  scopeWarning,
+  scopeWarning: _scopeWarning,
   selectedCollectionIds,
   selectedConnectorConnectionIds,
   selectedProviderSourceIds,
@@ -259,13 +266,13 @@ export function ChatComposer({
     tPage,
   ]);
 
-  function closeScopeMenu() {
+  const closeScopeMenu = useCallback(() => {
     setIsScopeMenuOpen(false);
     setActiveScopeSubmenu(null);
     setDocumentSearchQuery("");
     setCollectionSearchQuery("");
     setConnectorSearchQuery("");
-  }
+  }, [setDocumentSearchQuery]);
 
   useLayoutEffect(() => {
     const textarea = composerTextareaRef.current;
@@ -309,7 +316,7 @@ export function ChatComposer({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [isAdditionalSettingsOpen, isScopeMenuOpen]);
+  }, [closeScopeMenu, isAdditionalSettingsOpen, isScopeMenuOpen]);
 
   return (
     <div className="border-t border-[#e2dff1] p-4">

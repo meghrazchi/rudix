@@ -27,7 +27,6 @@ import {
   listConflicts,
   scanForConflicts,
   updateConflictStatus,
-  type ConflictEntry,
   type ConflictSeverity,
   type ConflictStatus,
   type ExplainDecisionResponse,

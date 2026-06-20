@@ -8,22 +8,6 @@ import type {
 } from "@/lib/api/admin-agent-policy";
 import { ToolPolicyOverrideForm } from "./ToolPolicyOverrideForm";
 
-function EffectBadge({ policy }: { policy: ToolEffectLabel }) {
-  return (
-    <span
-      className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
-        policy === "read_only"
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-rose-100 text-rose-700"
-      }`}
-    >
-      {policy === "read_only" ? "Read only" : "Side effect"}
-    </span>
-  );
-}
-
-type ToolEffectLabel = "read_only" | "side_effect";
-
 export function ToolPolicyTable({
   resolvedTools,
   overrideByName,

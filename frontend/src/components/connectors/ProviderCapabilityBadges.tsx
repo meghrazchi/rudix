@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 
 import {
-  getProvider,
   hasCapability,
   listProviders,
   type ConnectorCapabilityKey,

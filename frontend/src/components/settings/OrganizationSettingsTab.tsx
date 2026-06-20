@@ -7,7 +7,6 @@ import {
   Copy,
   CopyCheck,
   FileStack,
-  Lock,
   Settings2,
 } from "lucide-react";
 import Link from "next/link";

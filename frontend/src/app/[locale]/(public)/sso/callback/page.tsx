@@ -65,7 +65,6 @@ function SSOCallbackContent() {
         accessToken,
         refreshToken: null,
       });
-      setStatus("success");
       router.replace(
         resolveAuthenticatedNavigationTarget(next, {
           userId,
@@ -78,6 +77,8 @@ function SSOCallbackContent() {
         }),
       );
     } catch {
+      // One-time init effect; error state update is unavoidable here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus("error_exchange");
       setMessage(
         "An unexpected error occurred while establishing your session. Please try again.",

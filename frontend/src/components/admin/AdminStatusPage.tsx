@@ -17,7 +17,6 @@ import {
   updateIncident,
   type AddIncidentNoteRequest,
   type CreateIncidentRequest,
-  type IncidentDetail,
   type IncidentSeverity,
   type IncidentStatus,
   type IncidentSummary,
@@ -644,7 +643,6 @@ export function AdminStatusPage() {
   const role = state.session?.role;
   const isAdminUser = canViewAdminUsage(role);
 
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | "">("");
   const [severityFilter, setSeverityFilter] = useState<IncidentSeverity | "">(
     "",

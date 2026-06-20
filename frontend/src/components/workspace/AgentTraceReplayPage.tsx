@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
@@ -497,7 +497,6 @@ function ShareResultPanel({
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function AgentTraceReplayPage({ runId }: { runId: string }) {
-  const queryClient = useQueryClient();
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareResult, setShareResult] =
     useState<AgentTraceShareResponse | null>(null);

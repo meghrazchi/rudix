@@ -15,7 +15,6 @@ import {
   listFailedJobs,
   resolveFailedJob,
   retryFailedJob,
-  type FailedJobDetail,
   type FailedJobStatus,
   type FailedJobSummary,
   type FailedJobsQuery,

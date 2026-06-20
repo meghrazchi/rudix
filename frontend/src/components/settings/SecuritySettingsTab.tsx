@@ -33,7 +33,6 @@ import {
   updateLoginPolicy,
   getSecurityPosture,
   getRecentAuditEvents,
-  type SecurityPosture,
   type AuditEvent,
 } from "@/lib/api/security";
 import { getJwtExpirationTimeMs } from "@/lib/api/request";
@@ -373,8 +372,6 @@ const ROLE_CAP_LABEL_KEYS: Record<RoleCapKey, string> = {
   mcpAccess: "capMcpAccess",
   adminControls: "capAdminControls",
 };
-
-type RoleDescKey = `${AppRole}${Capitalize<string>}`;
 
 const ROLE_CAP_DESC_KEYS: Record<AppRole, Record<RoleCapKey, string>> = {
   owner: {

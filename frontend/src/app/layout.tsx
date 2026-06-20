@@ -36,6 +36,7 @@ export default async function RootLayout({
   return (
     <html lang={getHtmlLang(locale)} className="h-full antialiased">
       <head>
+        {/* eslint-disable-next-line @next/next/google-font-display, @next/next/no-page-custom-font */}
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"

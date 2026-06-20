@@ -13,7 +13,6 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   getEntityNeighbors,
   getGraphEntity,
-  type GraphConnectedDocumentItem,
   type GraphConnectedEntityItem,
   type GraphEvidenceItem,
   type GraphNeighborItem,

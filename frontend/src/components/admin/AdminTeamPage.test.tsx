@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminTeamPage } from "@/components/admin/AdminTeamPage";
-import type { SessionState } from "@/lib/auth-session";
 import type { TeamMember } from "@/lib/api/team";
 import type { OrganizationInvitation } from "@/lib/api/team-invitations";
 

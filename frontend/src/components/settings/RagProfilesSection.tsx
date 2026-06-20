@@ -35,8 +35,6 @@ import { queryKeys } from "@/lib/api/query";
 import {
   ragProfileCreateRequestSchema,
   ragProfileUpdateRequestSchema,
-  rollbackRagProfileRequestSchema,
-  type RollbackRagProfileRequest,
 } from "@/lib/schemas/rag-profiles";
 import { useAuthSession } from "@/lib/use-auth-session";
 
@@ -501,12 +499,6 @@ function VersionHistoryPanel({
     queryKey: queryKeys.ragProfiles.versions(profile.profile_id),
     queryFn: () => listRagProfileVersions(profile.profile_id),
     retry: false,
-  });
-
-  const rollbackForm = useForm<RollbackRagProfileRequest>({
-    resolver: zodResolver(rollbackRagProfileRequestSchema),
-    defaultValues: { version_number: 1, change_note: "" },
-    mode: "onSubmit",
   });
 
   if (versionsQuery.isLoading) {

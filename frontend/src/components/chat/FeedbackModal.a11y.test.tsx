@@ -3,7 +3,7 @@
  * focus trap, escape key, ARIA labelling, form structure.
  */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { FeedbackModal } from "@/components/chat/FeedbackModal";

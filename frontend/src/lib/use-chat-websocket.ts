@@ -195,7 +195,6 @@ export function useChatWebSocket(): UseChatWebSocketResult {
       updatePhase("connecting");
 
       // Strip internal _scopeLabel — not a valid backend field.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { _scopeLabel, ...backendPayload } = payload;
 
       const client = ensureConnected();

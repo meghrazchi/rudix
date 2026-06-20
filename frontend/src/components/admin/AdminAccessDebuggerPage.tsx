@@ -295,9 +295,11 @@ function UserSelector({
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Search by name or email…"
+          role="combobox"
           className="w-full rounded-lg border border-[#d7d4e8] px-3 py-2 pr-8 text-sm focus:border-[#3525cd] focus:outline-none"
           aria-label="Search user"
           aria-autocomplete="list"
+          aria-controls="user-search-listbox"
           aria-expanded={open}
         />
         {value && (
@@ -314,6 +316,7 @@ function UserSelector({
 
       {open && (
         <div
+          id="user-search-listbox"
           className="absolute z-20 mt-1 w-full rounded-xl border border-[#d7d4e8] bg-white shadow-lg"
           role="listbox"
         >
@@ -329,6 +332,7 @@ function UserSelector({
                 key={user.user_id}
                 type="button"
                 role="option"
+                aria-selected={false}
                 onMouseDown={() => handleSelect(user)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-xl last:rounded-b-xl hover:bg-[#f0eeff]"
               >

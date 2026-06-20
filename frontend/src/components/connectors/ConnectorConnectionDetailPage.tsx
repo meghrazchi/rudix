@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { getApiErrorMessage, type ApiClientError } from "@/lib/api/errors";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { ConnectorConflictPanel } from "@/components/connectors/ConnectorConflictPanel";
 import { ConnectorPermissionReviewPanel } from "@/components/connectors/ConnectorPermissionReviewPanel";
 import {
@@ -714,21 +714,6 @@ function LiveExtractionLog({ run }: { run: SyncRun | undefined }) {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function PageErrorPanel({ error }: { error: ApiClientError }) {
-  const label =
-    error.status === 403
-      ? "Permission denied"
-      : error.status === 404
-        ? "Connection not found"
-        : "Unable to load connection";
-  return (
-    <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-900">
-      <p className="font-semibold">{label}</p>
-      <p className="mt-1">{getApiErrorMessage(error)}</p>
     </div>
   );
 }

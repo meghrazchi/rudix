@@ -14,7 +14,6 @@ import {
   rotateSCIMToken,
   type DomainCheckResult,
   type DomainVerification,
-  type SCIMConfig,
   type SCIMEnableResponse,
 } from "@/lib/api/scim";
 import { getApiErrorMessage } from "@/lib/api/errors";

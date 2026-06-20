@@ -231,7 +231,7 @@ function PlanCard({
   plan,
   canManageBilling,
   billingPortalUrl,
-  deploymentControlledLabel,
+  deploymentControlledLabel: _deploymentControlledLabel,
 }: {
   plan: BillingPlanInfo;
   canManageBilling: boolean;

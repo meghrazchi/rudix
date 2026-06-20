@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState } from "@/components/states/EmptyState";
-import { ErrorState } from "@/components/states/ErrorState";
 import { LanguageCoverageTable } from "@/components/evaluations/multilingual-eval-panel";
 import {
   deleteEvaluationQuestion,
@@ -656,7 +655,7 @@ export function DatasetBuilderPanel({
 
   const publishMutation = useMutation({
     mutationFn: () => publishEvaluationSet(evaluationSet.evaluation_set_id),
-    onSuccess: (result) => {
+    onSuccess: () => {
       setActionError(null);
       onRefreshSet();
       void queryClient.invalidateQueries({

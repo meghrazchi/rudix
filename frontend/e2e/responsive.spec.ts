@@ -208,10 +208,6 @@ test.describe("responsive viewport smoke tests", () => {
       .first();
     await expect(iconSearchBtn).toBeVisible();
 
-    // Full search bar hidden on mobile
-    const fullSearchBar = page.locator(
-      'button[aria-label]:has(span.material-symbols-outlined:has-text("search"))',
-    );
     // At least one search trigger exists (icon button)
     await expect(iconSearchBtn).toBeVisible();
   });
@@ -355,12 +351,6 @@ test.describe("responsive viewport smoke tests", () => {
   test("mobile (375px): public mobile nav toggle works", async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
     await page.goto("/");
-
-    // Desktop nav links hidden on mobile
-    const desktopNavProduct = page.locator("nav").getByRole("link", {
-      name: "Product",
-      exact: true,
-    });
 
     // Mobile menu button exists
     const mobileMenuToggle = page

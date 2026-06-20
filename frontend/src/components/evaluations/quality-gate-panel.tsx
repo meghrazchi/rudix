@@ -21,7 +21,6 @@ import {
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { LoadingState } from "@/components/states/LoadingState";
-import { getApiErrorMessage } from "@/lib/api/errors";
 
 // ---------------------------------------------------------------------------
 // Query keys
